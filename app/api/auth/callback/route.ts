@@ -10,8 +10,11 @@ export async function GET(request: NextRequest) {
   const state = params.get("state") ?? "";
   const expected = request.cookies.get(STATE_COOKIE)?.value ?? "";
 
+  // Redirect on the host the browser used (app.getuplink.in / app.localhost); request.url can carry the
+  // server's own origin instead, which would land a freshly signed-in owner on the home page.
+  const origin = `${request.nextUrl.protocol}//${request.headers.get("host") ?? request.nextUrl.host}`;
   const done = (path: string, error?: LoginErrorCode) => {
-    const url = new URL(path, request.url);
+    const url = new URL(path, origin);
     if (error) url.searchParams.set("error", error);
     const res = NextResponse.redirect(url);
     res.cookies.delete({ name: STATE_COOKIE, path: "/api/auth" });
