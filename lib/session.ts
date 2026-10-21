@@ -11,7 +11,7 @@ export function requestHost(headers: { get(name: string): string | null }): stri
 
 // The session cookie is shared with the home page so it can show "Dashboard" to a signed-in owner; it
 // stays HttpOnly. getuplink.in in production, uplink.localhost locally; host-only elsewhere (previews).
-const SHARED_DOMAINS = ["getuplink.in", "uplink.localhost"];
+export const SHARED_DOMAINS = ["getuplink.in", "uplink.localhost"];
 export function sessionCookieDomain(host: string | null | undefined): string | undefined {
   const name = host?.split(":")[0];
   return SHARED_DOMAINS.find((d) => name === d || name?.endsWith(`.${d}`));
