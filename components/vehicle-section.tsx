@@ -1,5 +1,5 @@
 import { VersionChart } from "@/components/version-chart";
-import { formatDate, formatDateTime, formatDuration, formatKm, formatShortDate, formatTime } from "@/lib/format";
+import { formatDate, formatDateTime, formatDuration, formatKm, formatSeen, formatShortDate } from "@/lib/format";
 import { Check, ChevronRight, Zap } from "lucide-react";
 import { ReleaseNotesList } from "@/components/release-notes";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
@@ -200,6 +200,9 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
           {carLabel && <span className="ml-2 text-faint">· {carLabel}</span>}
           {!pending && lastOnline && <span className="ml-2 text-faint">· Up to date</span>}
           {asleep && <span className="ml-2 text-faint">· {latest.state === "offline" ? "Offline" : "Asleep"}</span>}
+          <span className="ml-2 text-faint">
+            · {vehicle.last_seen_at ? `Seen ${formatSeen(vehicle.last_seen_at)}` : "Not seen online yet"}
+          </span>
         </h2>
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums sm:text-4xl">
           {vehicle.current_version ?? "—"}
@@ -216,38 +219,27 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
         )}
       </header>
 
-      <dl className="grid gap-8 text-sm sm:grid-cols-3">
-        {(pending || !lastOnline) && (
-          // A real update gets the full row; "unknown" shares the row with Last seen online.
-          <div className={pending ? "sm:col-span-3" : "sm:col-span-2"}>
-            <Label>Update</Label>
-            <dd>
-              <UpdateStatus snapshot={lastOnline} asOf={asleep && lastOnline ? lastOnline.polled_at : null} />
-            </dd>
-          </div>
-        )}
-        {battery && (
-          <div className="sm:col-span-2">
-            <Label>Battery</Label>
-            <dd>
-              <BatteryGauge snapshot={battery} />
-            </dd>
-          </div>
-        )}
-        <div className="sm:col-start-3 sm:text-right">
-          <Label>Last seen online</Label>
-          <dd className="flex flex-col gap-1">
-            {vehicle.last_seen_at ? (
-              <>
-                <span>{formatTime(vehicle.last_seen_at)}</span>
-                <span className="text-xs text-muted-foreground">{formatDate(vehicle.last_seen_at)}</span>
-              </>
-            ) : (
-              <span className="text-muted-foreground">Not yet</span>
-            )}
-          </dd>
-        </div>
-      </dl>
+      {(pending || !lastOnline || battery) && (
+        // Update and Battery side by side; whichever applies alone takes the left half.
+        <dl className="grid gap-8 text-sm sm:grid-cols-2">
+          {(pending || !lastOnline) && (
+            <div>
+              <Label>Update</Label>
+              <dd>
+                <UpdateStatus snapshot={lastOnline} asOf={asleep && lastOnline ? lastOnline.polled_at : null} />
+              </dd>
+            </div>
+          )}
+          {battery && (
+            <div>
+              <Label>Battery</Label>
+              <dd>
+                <BatteryGauge snapshot={battery} />
+              </dd>
+            </div>
+          )}
+        </dl>
+      )}
 
       {pending && lastOnline?.update_version && notes[lastOnline.update_version] && (
         <div className="-mt-6">

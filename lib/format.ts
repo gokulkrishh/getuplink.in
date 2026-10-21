@@ -37,3 +37,8 @@ const km = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 export function formatKm(value: number): string {
   return `${km.format(value)} km`;
 }
+
+// "10:35 AM IST" when it was today (in IST), otherwise "21 Oct, 10:35 AM IST".
+export function formatSeen(value: string | number | Date): string {
+  return formatDate(value) === formatDate(new Date()) ? formatTime(value) : `${formatShortDate(value)}, ${formatTime(value)}`;
+}
