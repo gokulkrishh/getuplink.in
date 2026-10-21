@@ -211,11 +211,11 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
         )}
         <div className="sm:col-start-3 sm:text-right">
           <Label>Last seen online</Label>
-          <dd>
+          <dd className="flex flex-col gap-1">
             {vehicle.last_seen_at ? (
               <>
-                {formatTime(vehicle.last_seen_at)}
-                <span className="block text-xs text-muted-foreground">{formatDate(vehicle.last_seen_at)}</span>
+                <span>{formatTime(vehicle.last_seen_at)}</span>
+                <span className="text-xs text-muted-foreground">{formatDate(vehicle.last_seen_at)}</span>
               </>
             ) : (
               <span className="text-muted-foreground">Not yet</span>
