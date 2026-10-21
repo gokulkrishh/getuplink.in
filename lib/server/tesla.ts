@@ -5,15 +5,8 @@ import { db } from "./supabase";
 
 export const AUTHORIZE_URL = "https://auth.tesla.com/oauth2/v3/authorize";
 export const TOKEN_URL = "https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token";
-// Supercharger history needs this extra scope, which the owner must first enable in the Tesla
-// developer app. It is off until TESLA_CHARGING=1, so sign-in keeps working before that.
-const CHARGING_SCOPE = "vehicle_charging_cmds";
-export const SCOPES = [
-  "openid",
-  "offline_access",
-  "vehicle_device_data",
-  ...(process.env.TESLA_CHARGING === "1" ? [CHARGING_SCOPE] : []),
-].join(" ");
+// vehicle_charging_cmds is for Supercharger history; it must be enabled in the Tesla developer app.
+export const SCOPES = ["openid", "offline_access", "vehicle_device_data", "vehicle_charging_cmds"].join(" ");
 
 // Refresh a little early so a token never expires mid-poll.
 const REFRESH_MARGIN_MS = 5 * 60 * 1000;

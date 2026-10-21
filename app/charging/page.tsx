@@ -197,7 +197,7 @@ async function Sessions() {
       <section className="space-y-3">
         <h2 className="text-base font-medium tracking-[-0.01em]">No Supercharger sessions yet</h2>
         <p className="max-w-md text-sm text-muted-foreground">
-          Turn on Vehicle Charging Management in the Tesla developer app, set TESLA_CHARGING=1, then sign in with Tesla again.
+          Sessions appear after the next check. If none show up, sign out and sign in with Tesla again to allow charging history.
         </p>
       </section>
     );
