@@ -49,6 +49,8 @@ export type VersionChange = {
   detected_at: string;
   available_at: string | null; // first check that saw it offered as an update
   odometer_km: number | null;
+  // "imported" rows were added by the owner from before tracking began.
+  source: "tracked" | "imported";
   // How long its download and install took, when the streamed readings cover it.
   timeline?: UpdateTimeline;
 };
@@ -78,8 +80,10 @@ const DAY_MS = 86_400_000;
 // change during an update, so one query per field from the oldest version on screen stays small. Anything
 // that can't be read just leaves the rows without timings.
 async function withTimelines(vin: string, history: VersionChange[]): Promise<VersionChange[]> {
-  if (history.length === 0) return history;
-  const from = new Date(Date.parse(history[history.length - 1].detected_at) - 14 * DAY_MS).toISOString();
+  // Streamed readings only exist since tracking began, so imported rows neither get a timeline nor widen the range.
+  const tracked = history.filter((change) => change.source === "tracked");
+  if (tracked.length === 0) return history;
+  const from = new Date(Date.parse(tracked[tracked.length - 1].detected_at) - 14 * DAY_MS).toISOString();
   const [pending, download, install, installed] = await Promise.all([
     loadReadings(vin, "SoftwareUpdateVersion", from),
     loadReadings(vin, "SoftwareUpdateDownloadPercentComplete", from),
@@ -90,6 +94,7 @@ async function withTimelines(vin: string, history: VersionChange[]): Promise<Ver
   // The readings around one version: from two weeks before it was detected to a day after.
   const within = (readings: Reading[], start: number, end: number) => readings.filter((r) => Date.parse(r.at) >= start && Date.parse(r.at) <= end);
   return history.map((change) => {
+    if (change.source === "imported") return change;
     const detected = Date.parse(change.detected_at);
     const [start, end] = [detected - 14 * DAY_MS, detected + DAY_MS];
     const timeline = updateTimeline(change.version, {
@@ -115,7 +120,7 @@ async function vehicleView(vehicle: Vehicle): Promise<VehicleView> {
       .maybeSingle(),
     db()
       .from("version_history")
-      .select("version, previous_version, detected_at, available_at, odometer_km")
+      .select("version, previous_version, detected_at, available_at, odometer_km, source")
       .eq("vehicle_id", vehicle.id)
       .order("detected_at", { ascending: false })
       .limit(100),
