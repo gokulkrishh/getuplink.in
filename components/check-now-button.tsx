@@ -30,8 +30,7 @@ export function CheckNowButton({ className, spinner = false }: { className?: str
 }
 
 // Icon-only version, placed next to "Seen …". Spins while the check runs.
-// `checked` is the last check time, already formatted on the server ("12:58 PM IST").
-export function CheckNowIcon({ className, checked }: { className?: string; checked?: string }) {
+export function CheckNowIcon({ className }: { className?: string }) {
   const { pending } = useFormStatus();
   return (
     <Button
@@ -44,7 +43,8 @@ export function CheckNowIcon({ className, checked }: { className?: string; check
       className={cn("group relative text-faint disabled:text-foreground disabled:opacity-100", className)}
     >
       <RotateCw className={cn("size-3.5", pending && "motion-safe:animate-spin")} aria-hidden="true" />
-      <Tip>{pending ? "Refreshing…" : checked ? `Last checked ${checked}` : "Refresh"}</Tip>
+      {/* A check can only read a car that's awake; asleep, Tesla returns nothing new. */}
+      <Tip>{pending ? "Refreshing…" : "Refresh. Open the Tesla app first so your car is awake."}</Tip>
     </Button>
   );
 }

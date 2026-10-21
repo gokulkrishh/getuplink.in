@@ -276,7 +276,12 @@ function CarStatus({
             ? "Asleep"
             : "Not checked yet";
   const dot = <span className={cn("size-1.5 rounded-full", online ? "bg-positive" : "bg-faint")} aria-hidden="true" />;
-  if (online || !state) {
+  // Both times live in this one tooltip: when the car was last reachable, and when Uplink last looked.
+  const lines = [
+    !online && (seenAt ? `Last online ${formatSeen(seenAt, now)}` : "Not seen online yet"),
+    checkedAt && `Last checked ${formatSeen(checkedAt, now)}`,
+  ].filter((line): line is string => Boolean(line));
+  if (lines.length === 0) {
     return (
       <span className="inline-flex items-center gap-1.5">
         {dot}
@@ -284,13 +289,18 @@ function CarStatus({
       </span>
     );
   }
-  const detail = seenAt ? `Last online ${formatSeen(seenAt, now)}` : "Not seen online yet";
   return (
     <TipTrigger className="inline-flex items-center gap-1.5">
       {dot}
       {label}
-      <span className="sr-only">. {detail}</span>
-      <Tip>{detail}</Tip>
+      <span className="sr-only">. {lines.join(". ")}</span>
+      <Tip>
+        {lines.map((line) => (
+          <span key={line} className="block">
+            {line}
+          </span>
+        ))}
+      </Tip>
     </TipTrigger>
   );
 }
@@ -324,7 +334,7 @@ export function VehicleSection({
           <div className="flex items-center justify-end gap-1 text-sm text-faint tabular-nums">
             <CarStatus state={latest?.state ?? null} seenAt={vehicle.last_seen_at} checkedAt={latest?.polled_at ?? null} now={now} />
             <form action={checkNow}>
-              <CheckNowIcon checked={vehicle.last_polled_at ? formatSeen(vehicle.last_polled_at, now) : undefined} />
+              <CheckNowIcon />
             </form>
           </div>
           <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
