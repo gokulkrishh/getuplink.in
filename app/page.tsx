@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { checkNow, logout } from "@/app/actions";
@@ -14,9 +15,11 @@ import { loadDashboard } from "@/lib/server/dashboard";
 function Header({ connected }: { connected: boolean }) {
   return (
     <header className="mb-16 flex items-center justify-between gap-4 text-sm">
-      <h1 className="flex items-center gap-2.5 font-medium">
-        <Logo className="size-5" />
-        Uplink
+      <h1 className="font-medium">
+        <Link href="/" className="flex items-center gap-2.5">
+          <Logo className="size-5" />
+          Uplink
+        </Link>
       </h1>
       <nav className="flex items-baseline gap-4 text-muted-foreground">
         {connected && (
@@ -141,10 +144,45 @@ async function Dashboard({ searchParams }: PageProps<"/">) {
   );
 }
 
+// Shown while the dashboard loads: the real header plus faint blocks in the shape of a vehicle section.
+function DashboardSkeleton() {
+  const block = "bg-muted motion-safe:animate-pulse";
+  return (
+    <div aria-busy="true" aria-label="Loading dashboard">
+      <header className="mb-16 flex items-center justify-between gap-4 text-sm">
+        <span className="flex items-center gap-2.5 font-medium">
+          <Logo className="size-5" />
+          Uplink
+        </span>
+      </header>
+      <div className="space-y-12">
+        <div className="space-y-3">
+          <div className={`h-4 w-20 ${block}`} />
+          <div className={`h-10 w-56 ${block}`} />
+        </div>
+        <div className="grid gap-8 sm:grid-cols-3">
+          <div className="space-y-2 sm:col-span-2">
+            <div className={`h-3 w-14 ${block}`} />
+            <div className={`h-4 w-40 ${block}`} />
+          </div>
+          <div className="space-y-2">
+            <div className={`h-3 w-24 ${block}`} />
+            <div className={`h-4 w-28 ${block}`} />
+          </div>
+        </div>
+        <div className="space-y-4">
+          <div className={`h-3 w-14 ${block}`} />
+          <div className={`h-20 w-full ${block}`} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Page(props: PageProps<"/">) {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:py-20">
-      <Suspense fallback={<p className="text-sm text-faint">Loading…</p>}>
+      <Suspense fallback={<DashboardSkeleton />}>
         <Dashboard {...props} />
       </Suspense>
     </div>

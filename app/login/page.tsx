@@ -1,4 +1,5 @@
 import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { Suspense } from "react";
 import { Logo } from "@/components/logo";
 import { buttonVariants } from "@/components/ui/button";
@@ -37,9 +38,11 @@ function Preview() {
 export default function LoginPage() {
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-5 py-8 sm:px-8">
-      <header className="flex items-center gap-2 text-sm font-medium">
-        <Logo className="size-5" />
-        Uplink
+      <header className="text-sm font-medium">
+        <Link href="/" className="inline-flex items-center gap-2">
+          <Logo className="size-5" />
+          Uplink
+        </Link>
       </header>
 
       <div className="grid flex-1 items-center gap-16 py-16 md:grid-cols-2 md:gap-12">
