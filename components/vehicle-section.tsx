@@ -6,6 +6,7 @@ import { Check, ChevronRight, Zap } from "lucide-react";
 import { ReleaseNotesList } from "@/components/release-notes";
 import { ShowMore } from "@/components/show-more";
 import { Tip } from "@/components/tip";
+import { Vin } from "@/components/vin";
 import { cn } from "@/lib/utils";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import type { Snapshot, VehicleView, VersionChange } from "@/lib/server/dashboard";
@@ -270,22 +271,28 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
     <section className="space-y-12">
       <header className="space-y-1">
         {/* Car and status on the left; freshness and the refresh control on the right. */}
-        <div className="flex items-center justify-between gap-4">
-          <h2 className="min-w-0 text-sm text-muted-foreground">
+        {/* Two columns: car and version on the left; status, refresh and VIN on the right. */}
+        <div className="grid grid-cols-[1fr_minmax(0,auto)] items-center gap-x-4 gap-y-1">
+          <h2 className="text-sm text-muted-foreground">
             {vehicle.display_name || "Tesla"}
             {carLabel && <span className="ml-2 text-faint">· {carLabel}</span>}
             {!pending && lastOnline && <span className="ml-2 text-faint">· Up to date</span>}
           </h2>
-          <div className="flex shrink-0 items-center gap-1 text-sm text-faint tabular-nums">
+          <div className="flex items-center justify-end gap-1 text-sm text-faint tabular-nums">
             <CarStatus state={latest?.state ?? null} seenAt={vehicle.last_seen_at} />
             <form action={checkNow}>
               <CheckNowIcon checked={vehicle.last_polled_at ? formatSeen(vehicle.last_polled_at) : undefined} />
             </form>
           </div>
+          <p className="font-mono text-4xl font-medium tracking-tight tabular-nums sm:text-4xl">
+            {vehicle.current_version ?? "—"}
+          </p>
+          {vehicle.vin && (
+            <p className="self-start text-right text-xs text-faint">
+              <Vin vin={vehicle.vin} />
+            </p>
+          )}
         </div>
-        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums sm:text-4xl">
-          {vehicle.current_version ?? "—"}
-        </p>
         {vehicle.current_version && (
           <div className="pt-2">
             <ReleaseNotesToggle version={vehicle.current_version} notes={notes} />

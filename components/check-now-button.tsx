@@ -3,6 +3,7 @@
 import { DashRing } from "@/components/loading-ui/dash-ring";
 import { RotateCw } from "lucide-react";
 import { Tip } from "@/components/tip";
+import { Button } from "@/components/ui/button";
 import { useFormStatus } from "react-dom";
 import { cn } from "@/lib/utils";
 
@@ -33,18 +34,17 @@ export function CheckNowButton({ className, spinner = false }: { className?: str
 export function CheckNowIcon({ className, checked }: { className?: string; checked?: string }) {
   const { pending } = useFormStatus();
   return (
-    <button
+    <Button
       type="submit"
+      variant="ghost"
+      size="icon-xs"
       disabled={pending}
       aria-busy={pending}
       aria-label={pending ? "Refreshing…" : "Refresh"}
-      className={cn(
-        "group relative inline-flex size-6 cursor-pointer items-center justify-center text-faint transition-colors duration-150 hover:text-foreground disabled:cursor-progress disabled:text-foreground",
-        className,
-      )}
+      className={cn("group relative text-faint disabled:text-foreground disabled:opacity-100", className)}
     >
       <RotateCw className={cn("size-3.5", pending && "motion-safe:animate-spin")} aria-hidden="true" />
       <Tip>{pending ? "Refreshing…" : checked ? `Last checked ${checked}` : "Refresh"}</Tip>
-    </button>
+    </Button>
   );
 }

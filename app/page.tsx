@@ -2,6 +2,9 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { checkNow, logout } from "@/app/actions";
+import { Settings2 } from "lucide-react";
+import { CybercabGlyph } from "@/components/cybercab-glyph";
+import { EmptyState } from "@/components/empty-state";
 import { Logo } from "@/components/logo";
 import { VehicleSection } from "@/components/vehicle-section";
 import { CheckNowButton } from "@/components/check-now-button";
@@ -89,10 +92,19 @@ async function Dashboard({ searchParams }: PageProps<"/">) {
       {flash && <p className="mb-12 border-l-2 border-destructive pl-3 text-sm">{flash}</p>}
 
       {data.kind === "misconfigured" && (
-        <Notice title="Not configured">
-          <p>Add these environment variables in your Vercel project settings, then redeploy.</p>
-          <p className="font-mono text-foreground">{data.missing.join(", ")}</p>
-        </Notice>
+        <EmptyState
+          icon={<Settings2 className="size-7 text-faint" aria-hidden="true" />}
+          title="Not configured"
+          action={
+            <ul className="space-y-1 font-mono text-xs text-foreground">
+              {data.missing.map((name) => (
+                <li key={name}>{name}</li>
+              ))}
+            </ul>
+          }
+        >
+          Add these environment variables in your Vercel project settings, then redeploy.
+        </EmptyState>
       )}
 
       {data.kind === "error" && (
@@ -116,16 +128,26 @@ async function Dashboard({ searchParams }: PageProps<"/">) {
       )}
 
       {data.kind === "ready" && data.vehicles.length === 0 && (
-        <Notice title={failedRun ? "Couldn't reach Tesla" : "No vehicles yet"}>
-          {failedRun?.error ? (
+        failedRun?.error ? (
+          <Notice title="Couldn't reach Tesla">
             <RunError error={failedRun.error} />
-          ) : (
-            <p>Your Tesla account is connected, but no vehicles were found on it yet.</p>
-          )}
-          <form action={checkNow}>
-            <CheckNowButton spinner className={buttonVariants({ variant: "outline", className: "h-9 px-4" })} />
-          </form>
-        </Notice>
+            <form action={checkNow}>
+              <CheckNowButton spinner className={buttonVariants({ variant: "outline", className: "h-9 px-4" })} />
+            </form>
+          </Notice>
+        ) : (
+          <EmptyState
+            icon={<CybercabGlyph className="mb-1 h-8 w-[4.5rem] text-faint" />}
+            title="No vehicles yet"
+            action={
+              <form action={checkNow}>
+                <CheckNowButton spinner className={buttonVariants({ variant: "outline", className: "h-9 px-4" })} />
+              </form>
+            }
+          >
+            Your Tesla account is connected, but no cars were found on it yet.
+          </EmptyState>
+        )
       )}
 
       {data.kind === "ready" && data.vehicles.length > 0 && (

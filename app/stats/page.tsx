@@ -4,9 +4,11 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Download, Zap } from "lucide-react";
 import { Suspense } from "react";
+import { EmptyState } from "@/components/empty-state";
 import { Logo } from "@/components/logo";
 import { ShowMore } from "@/components/show-more";
 import { Tip } from "@/components/tip";
+import { buttonVariants } from "@/components/ui/button";
 import { formatClock, formatDuration, formatKwh, formatMoney, formatMonth, formatShortDate } from "@/lib/format";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargingSession, loadChargingSessions } from "@/lib/server/charging";
@@ -128,7 +130,7 @@ function SessionRow({ session: s }: { session: ChargingSession }) {
   const currency = s.currency ?? "INR";
   const rateText = s.cost_total !== null && s.energy_kwh !== null ? rate(s.cost_total, s.energy_kwh, currency) : null;
   return (
-    <li className="grid grid-cols-[3.5rem_minmax(0,1fr)_auto_1.25rem] items-start gap-x-4 py-3 text-sm">
+    <li className="grid grid-cols-[3.5rem_minmax(0,1fr)_auto_1.5rem] items-start gap-x-4 py-3 text-sm">
       <div>
         <p className="tabular-nums">{formatShortDate(s.started_at)}</p>
         <p className="text-xs text-faint tabular-nums">{formatClock(s.started_at)}</p>
@@ -150,9 +152,9 @@ function SessionRow({ session: s }: { session: ChargingSession }) {
           <a
             href={`/api/charging/invoice/${encodeURIComponent(invoice.contentId)}`}
             aria-label={`Download invoice for ${formatShortDate(s.started_at)}`}
-            className="group relative flex text-muted-foreground transition-colors duration-150 hover:text-foreground"
+            className={buttonVariants({ variant: "ghost", size: "icon-xs", className: "group relative" })}
           >
-            <Download className="size-4" aria-hidden="true" />
+            <Download className="size-3.5" aria-hidden="true" />
             <Tip>Download invoice</Tip>
           </a>
         )}
@@ -210,11 +212,9 @@ async function Sessions() {
 
   if (sessions.length === 0) {
     return (
-      <section className="flex flex-col items-center gap-3 rounded-[10px] border border-dashed border-foreground/20 px-6 py-16 text-center">
-        <Zap className="size-5 text-faint" aria-hidden="true" />
-        <h2 className="text-sm font-medium">No Supercharger sessions yet</h2>
-        <p className="max-w-xs text-sm text-balance text-muted-foreground">They&apos;ll show up here after you charge at a Tesla Supercharger.</p>
-      </section>
+      <EmptyState icon={<Zap className="size-7 text-faint" aria-hidden="true" />} title="No Supercharger sessions yet">
+        They&apos;ll show up here after you charge at a Tesla Supercharger.
+      </EmptyState>
     );
   }
 

@@ -114,7 +114,7 @@ export function demoDashboard(scenario: DemoScenario = "full"): Dashboard {
   const car = (vehicle: Partial<Vehicle>, latest: Snapshot | null, lastOnline: Snapshot | null, rows: [string, number][]): VehicleView => ({
     vehicle: {
       id: 1,
-      vin: "DEMO00000000000001",
+      vin: "LRWYGCEK3SC100001",
       display_name: "Model Y",
       model: "Model Y",
       exterior_color: "Pearl White",
@@ -179,7 +179,7 @@ export function demoDashboard(scenario: DemoScenario = "full"): Dashboard {
       return ready([
         car({}, downloading, downloading, LONG_HISTORY),
         car(
-          { id: 2, vin: "DEMO00000000000002", display_name: "Model 3", model: "Model 3", exterior_color: "Midnight Silver", last_state: "asleep" },
+          { id: 2, vin: "LRW3E7EK5SC200002", display_name: "Model 3", model: "Model 3", exterior_color: "Midnight Silver", last_state: "asleep" },
           snapshot({ state: "asleep", car_version: null }),
           model3Online,
           LONG_HISTORY.slice(1, 6),
