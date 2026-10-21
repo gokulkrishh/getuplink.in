@@ -54,7 +54,7 @@ function Group({ title, rows }: { title: string; rows: [string, ReactNode][] }) 
   if (shown.length === 0) return null;
   return (
     <section>
-      <h2 className="text-xs tracking-wide text-faint uppercase">{title}</h2>
+      <h2 className="text-xs tracking-wide text-foreground uppercase">{title}</h2>
       <dl className="mt-3 divide-y border-y text-sm">
         {shown.map(([label, value]) => (
           <div key={label} className="flex items-baseline justify-between gap-4 py-3">
@@ -86,7 +86,7 @@ async function Car({ params }: { params: Promise<{ id: string }> }) {
             ["Model year", car.year],
             ["Drive", car.drive],
             ["Built in", car.factory],
-            ["VIN", car.vin && <Vin vin={car.vin} />],
+            ["VIN", car.vin && <Vin vin={car.vin} label={false} />],
           ]}
         />
         <Group
