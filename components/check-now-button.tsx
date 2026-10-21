@@ -29,7 +29,8 @@ export function CheckNowButton({ className, spinner = false }: { className?: str
 }
 
 // Icon-only version, placed next to "Seen …". Spins while the check runs.
-export function CheckNowIcon({ className }: { className?: string }) {
+// `checked` is the last check time, already formatted on the server ("12:58 PM IST").
+export function CheckNowIcon({ className, checked }: { className?: string; checked?: string }) {
   const { pending } = useFormStatus();
   return (
     <button
@@ -43,7 +44,7 @@ export function CheckNowIcon({ className }: { className?: string }) {
       )}
     >
       <RotateCw className={cn("size-3.5", pending && "motion-safe:animate-spin")} aria-hidden="true" />
-      <Tip>{pending ? "Refreshing…" : "Refresh"}</Tip>
+      <Tip>{pending ? "Refreshing…" : checked ? `Refresh · Last checked ${checked}` : "Refresh"}</Tip>
     </button>
   );
 }

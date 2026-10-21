@@ -234,19 +234,23 @@ function HistoryRow({ change, notes }: { change: VersionChange; notes: ReleaseNo
   );
 }
 
-// "● Online" or "● Asleep" as of the last check; the times are in a tooltip on hover or focus.
-function CarStatus({ state, checkedAt, seenAt }: { state: string | null; checkedAt: string | null; seenAt: string | null }) {
+// "● Online" or "● Asleep" as of the last check. When not online, a tooltip says when it last was.
+function CarStatus({ state, seenAt }: { state: string | null; seenAt: string | null }) {
   const online = state === "online";
   const label = online ? "Online" : state === "offline" ? "Offline" : state ? "Asleep" : "Not checked yet";
-  const detail = [
-    checkedAt && `Checked ${formatSeen(checkedAt)}`,
-    !online && (seenAt ? `Last online ${formatSeen(seenAt)}` : "Not seen online yet"),
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const dot = <span className={cn("size-1.5 rounded-full", online ? "bg-positive" : "bg-faint")} aria-hidden="true" />;
+  if (online || !state) {
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        {dot}
+        {label}
+      </span>
+    );
+  }
+  const detail = seenAt ? `Last online ${formatSeen(seenAt)}` : "Not seen online yet";
   return (
     <span tabIndex={0} className="group relative inline-flex items-center gap-1.5 outline-none">
-      <span className={cn("size-1.5 rounded-full", online ? "bg-positive" : "bg-faint")} aria-hidden="true" />
+      {dot}
       {label}
       <span className="sr-only">. {detail}</span>
       <Tip>{detail}</Tip>
@@ -273,13 +277,9 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
             {!pending && lastOnline && <span className="ml-2 text-faint">· Up to date</span>}
           </h2>
           <div className="flex shrink-0 items-center gap-1 text-sm text-faint tabular-nums">
-            <CarStatus
-              state={latest?.state ?? null}
-              checkedAt={vehicle.last_polled_at}
-              seenAt={vehicle.last_seen_at}
-            />
+            <CarStatus state={latest?.state ?? null} seenAt={vehicle.last_seen_at} />
             <form action={checkNow}>
-              <CheckNowIcon />
+              <CheckNowIcon checked={vehicle.last_polled_at ? formatSeen(vehicle.last_polled_at) : undefined} />
             </form>
           </div>
         </div>
