@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
-import { connection } from "next/server";
 import { Download, Zap } from "lucide-react";
 import { Suspense } from "react";
 import { EmptyState } from "@/components/empty-state";
@@ -12,6 +12,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { formatClock, formatDuration, formatKwh, formatMoney, formatMonth, formatShortDate } from "@/lib/format";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargingSession, loadChargingSessions } from "@/lib/server/charging";
+import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Stats · Uplink" };
@@ -45,15 +46,15 @@ function rate(cost: number, energy: number, currency: string): string | null {
 function Header() {
   return (
     <header className="mb-16 flex items-center justify-between gap-4 text-sm">
-      <Link href="/" className="flex items-center gap-2.5 font-medium">
+      <Link href="/" prefetch={true} className="flex items-center gap-2.5 font-medium">
         <Logo className="size-5" />
         Uplink
       </Link>
       <nav className="flex items-baseline gap-4 text-muted-foreground">
-        <Link href="/" className="hover:text-foreground">
+        <Link href="/" prefetch={true} className="hover:text-foreground">
           Dashboard
         </Link>
-        <Link href="/settings" className="hover:text-foreground">
+        <Link href="/settings" prefetch={true} className="hover:text-foreground">
           Settings
         </Link>
       </nav>
@@ -205,10 +206,17 @@ function SessionList({ sessions }: { sessions: ChargingSession[] }) {
   );
 }
 
-async function Sessions() {
-  await connection();
+// Session check plus data in one browser-only private cache, so header links can prefetch it (see app/page.tsx).
+async function loadSessions(): Promise<ChargingSession[]> {
+  "use cache: private";
+  cacheTag(OWNER_DATA_TAG);
+  cacheLife({ stale: 60 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
-  const sessions = await loadChargingSessions();
+  return loadChargingSessions();
+}
+
+async function Sessions() {
+  const sessions = await loadSessions();
 
   if (sessions.length === 0) {
     return (

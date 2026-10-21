@@ -6,6 +6,10 @@ import { missingEnv } from "./env";
 import { db } from "./supabase";
 import { isConnected } from "./tesla";
 
+// Tags every page's "use cache: private" loader, so actions that change the owner's data or session
+// can drop those cached copies with one updateTag.
+export const OWNER_DATA_TAG = "owner-data";
+
 export type Vehicle = {
   id: number;
   vin: string | null;
