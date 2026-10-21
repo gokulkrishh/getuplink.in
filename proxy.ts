@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { DEMO } from "@/lib/demo";
 import { isValidSession, requestHost, SESSION_COOKIE } from "@/lib/session";
 
 // Exact paths reachable without a session. Anything not listed here needs one.
@@ -50,7 +51,8 @@ export async function proxy(request: NextRequest) {
     // The status page's "home" link points at /home.
     return NextResponse.redirect(homeOrigin(request.nextUrl) + (pathname === "/home" ? "/" : pathname + search), 308);
   }
-  const marketing = Boolean(host && MARKETING_HOSTS.has(host));
+  // Demo mode serves the app on any host, so plain localhost:3000 works.
+  const marketing = !DEMO && Boolean(host && MARKETING_HOSTS.has(host));
   // "Open app" on the home page: the dashboard root on the app host.
   if (pathname === "/app") {
     return NextResponse.redirect(marketing ? appOrigin(request.nextUrl) + "/" : new URL("/", request.url));
@@ -62,7 +64,7 @@ export async function proxy(request: NextRequest) {
 
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
 
-  const signedIn = await isValidSession(request.cookies.get(SESSION_COOKIE)?.value);
+  const signedIn = DEMO || (await isValidSession(request.cookies.get(SESSION_COOKIE)?.value));
 
   if (signedIn) return NextResponse.next();
   if (pathname.startsWith("/api/")) {

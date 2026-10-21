@@ -3,6 +3,7 @@
 import { revalidatePath, updateTag } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { DEMO } from "@/lib/demo";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { deleteMyData, disconnectTesla, revokeAllSessions } from "@/lib/server/tesla";
@@ -26,6 +27,7 @@ async function endHere() {
 // For useActionState: returns the error to show, or redirects.
 export async function signOutEverywhereWithError(): Promise<string | null> {
   await requireSession();
+  if (DEMO) redirect("/settings");
   try {
     await revokeAllSessions();
   } catch (err) {
@@ -39,6 +41,7 @@ export async function signOutEverywhereWithError(): Promise<string | null> {
 // Plain form action kept for pages that don't show the error inline; a failure surfaces on the error page.
 export async function disconnect(): Promise<string | null> {
   await requireSession();
+  if (DEMO) redirect("/settings");
   try {
     await disconnectTesla();
   } catch (err) {
@@ -52,6 +55,7 @@ export async function disconnect(): Promise<string | null> {
 export async function deleteEverything(_: string | null, form: FormData): Promise<string | null> {
   await requireSession();
   if (String(form.get("confirm") ?? "").trim().toLowerCase() !== "delete") return "Type delete to confirm.";
+  if (DEMO) redirect("/settings");
   try {
     await deleteMyData();
   } catch (err) {

@@ -1,4 +1,6 @@
 import "server-only";
+import { DEMO } from "@/lib/demo";
+import { demoChargingSessions } from "./demo";
 import { db } from "./supabase";
 import { fleetGet, TeslaError } from "./tesla";
 
@@ -123,6 +125,7 @@ async function fetchVinHistory(vin: string, startTime: string): Promise<Charging
 // Best effort: called from the poll, so it never throws. A 401/403 means the owner has not granted
 // the charging scope yet, which is expected until they sign in again, so it is skipped quietly.
 export async function syncChargingHistory(vins: string[]): Promise<void> {
+  if (DEMO) return;
   const startTime = new Date(Date.now() - LOOKBACK_DAYS * DAY).toISOString();
   for (const vin of vins) {
     try {
@@ -145,6 +148,7 @@ let lastAttempt = 0;
 // sync is the newest fetched_at in charging_sessions (every sync rewrites the rows it fetches), so it
 // holds across serverless instances without a settings table; lastAttempt is the per-instance backstop.
 export async function syncChargingHistoryThrottled(): Promise<void> {
+  if (DEMO) return;
   try {
     if (Date.now() - lastAttempt < MIN_SYNC_GAP_MS) return;
     lastAttempt = Date.now();
@@ -161,6 +165,7 @@ export async function syncChargingHistoryThrottled(): Promise<void> {
 
 // Newest first. A missing table or a read error shows as an empty list, with a log line.
 export async function loadChargingSessions(): Promise<ChargingSession[]> {
+  if (DEMO) return demoChargingSessions();
   const { data, error } = await db()
     .from("charging_sessions")
     .select("session_id, vehicle_vin, site_name, started_at, stopped_at, energy_kwh, cost_total, currency, invoices")

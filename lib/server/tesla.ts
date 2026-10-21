@@ -1,6 +1,8 @@
 import "server-only";
 import { cache } from "react";
+import { DEMO } from "@/lib/demo";
 import { decrypt, encrypt } from "./crypto";
+import { demoData } from "./demo";
 import { env, fleetApiBase } from "./env";
 import { db } from "./supabase";
 
@@ -49,6 +51,7 @@ export function authorizeUrl(state: string): string {
 }
 
 async function tokenRequest(params: Record<string, string>): Promise<TokenResponse> {
+  if (DEMO) throw new Error("Tesla is off in demo mode");
   const res = await fetch(TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -207,12 +210,14 @@ const readOwnerRow = cache(async () => {
 });
 
 export async function isConnected(): Promise<boolean> {
+  if (DEMO) return true;
   return Boolean((await readOwnerRow())?.access_token_enc);
 }
 
 export type AccountInfo = { connected: boolean; connectedSince: string | null };
 
 export async function accountInfo(): Promise<AccountInfo> {
+  if (DEMO) return { connected: true, connectedSince: demoData().history.at(-1)?.detected_at ?? null };
   const data = await readOwnerRow();
   return { connected: Boolean(data?.access_token_enc), connectedSince: data?.created_at ?? null };
 }
@@ -220,6 +225,7 @@ export async function accountInfo(): Promise<AccountInfo> {
 // Sessions issued before this time (ms) are revoked. -infinity (never revoked) reads as 0.
 // With no owner row (fresh install or deleted account) no existing session is valid.
 export async function sessionsValidAfter(): Promise<number> {
+  if (DEMO) return 0;
   const data = await readOwnerRow();
   if (!data) return Number.POSITIVE_INFINITY;
   const t = new Date(data.sessions_valid_after).getTime();
@@ -227,6 +233,7 @@ export async function sessionsValidAfter(): Promise<number> {
 }
 
 export async function revokeAllSessions(): Promise<void> {
+  if (DEMO) return;
   const { error } = await db()
     .from("oauth_tokens")
     .update({ sessions_valid_after: new Date().toISOString() })
@@ -262,6 +269,7 @@ async function stopStreaming(): Promise<void> {
 
 // Forget the Tesla tokens but keep owner_sub, so only the same Tesla account can sign in again.
 export async function disconnectTesla(): Promise<void> {
+  if (DEMO) return;
   await stopStreaming();
   const { error } = await db()
     .from("oauth_tokens")
@@ -277,6 +285,7 @@ export async function disconnectTesla(): Promise<void> {
 }
 
 async function accessToken(forceRefresh = false): Promise<string> {
+  if (DEMO) throw new Error("Tesla is off in demo mode");
   const tokens = await storedTokens();
   if (forceRefresh || tokens.expiresAt - Date.now() < REFRESH_MARGIN_MS) {
     return refresh(tokens);
@@ -322,6 +331,7 @@ export function fleetGetRaw(path: string): Promise<Response> {
 // Charging sessions are the owner's too. Their table may not exist if its migration was never run
 // (Postgres 42P01, PostgREST PGRST205), which is fine: there is nothing to delete.
 export async function deleteMyData(): Promise<void> {
+  if (DEMO) return;
   // Before the vehicles go: it needs their VINs. disconnectTesla below repeats it harmlessly.
   await stopStreaming();
   for (const [table, column] of [

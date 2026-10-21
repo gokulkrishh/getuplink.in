@@ -117,6 +117,14 @@ bun run lint
 bun run build
 ```
 
+### Demo mode (see every page populated)
+
+```sh
+bun run demo
+```
+
+Runs `bun dev` with generated data for one car ("Shadow", ten months of updates, three months of driving, charging and battery readings) and signs you in without Tesla or the database. A bar at the top of the dashboard switches the car between parked, charging, downloading an update and installing one. Nothing is read from or written to Supabase or Tesla. Demo mode only works under `bun dev`: production builds ignore the flag.
+
 Sign in with Tesla only works against the registered redirect URI, so local dev at `localhost` can't sign in unless you add a localhost redirect URI to the Tesla app and set `TESLA_REDIRECT_URI` to match.
 
 To hand the dashboard to a different Tesla account, clear the owner in Supabase (`update oauth_tokens set owner_sub = null;`) and sign in with the new account.

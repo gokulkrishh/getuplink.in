@@ -1,9 +1,12 @@
 import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
+import { DEMO } from "@/lib/demo";
 import { STATE_COOKIE } from "@/lib/session";
 import { authorizeUrl } from "@/lib/server/tesla";
 
-export async function GET() {
+export async function GET(request: Request) {
+  // Demo mode has no Tesla to sign in with.
+  if (DEMO) return NextResponse.redirect(new URL("/", request.url));
   const state = randomBytes(24).toString("base64url");
   const res = NextResponse.redirect(authorizeUrl(state));
   res.cookies.set(STATE_COOKIE, state, {

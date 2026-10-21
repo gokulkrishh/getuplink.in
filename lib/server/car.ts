@@ -12,8 +12,10 @@ import {
   roofLabel,
   wheelsLabel,
 } from "@/lib/car";
+import { DEMO } from "@/lib/demo";
 import { median, num, roundKwh } from "@/lib/telemetry-derive";
 import { loadPackEstimates } from "./battery";
+import { demoData, demoStreamSessions } from "./demo";
 import { db } from "./supabase";
 
 // What the car details page shows. Everything comes from Tesla's own replies: the car's VIN and the
@@ -116,18 +118,26 @@ function details(
 
 const CABLES: Record<string, string> = { IEC: "Type 2 (IEC)", SAE: "J1772 (SAE)", GB_AC: "GB/T AC" };
 
+type HomeChargeRow = { peak_power_kw: unknown; ac_voltage: unknown; ac_amps: unknown; ac_phases: unknown; cable_type: unknown };
+
 async function loadHomeCharging(vin: string): Promise<HomeCharging | null> {
-  const { data, error } = await db()
-    .from("stream_charge_sessions")
-    .select("peak_power_kw, ac_voltage, ac_amps, ac_phases, cable_type")
-    .eq("vin", vin)
-    .eq("kind", "ac")
-    .not("ended_at", "is", null)
-    .order("started_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  // Extra detail; the page works without it (and before the columns exist).
-  if (error || !data) return null;
+  let data: HomeChargeRow | null;
+  if (DEMO) {
+    data = demoStreamSessions().find((s) => s.kind === "ac" && s.ended_at) ?? null;
+  } else {
+    const result = await db()
+      .from("stream_charge_sessions")
+      .select("peak_power_kw, ac_voltage, ac_amps, ac_phases, cable_type")
+      .eq("vin", vin)
+      .eq("kind", "ac")
+      .not("ended_at", "is", null)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    // Extra detail; the page works without it (and before the columns exist).
+    data = result.error ? null : result.data;
+  }
+  if (!data) return null;
   const kw = num(data.peak_power_kw);
   const volts = num(data.ac_voltage);
   const amps = num(data.ac_amps);
@@ -152,6 +162,13 @@ async function loadBatteryHealth(vin: string): Promise<BatteryHealth | null> {
 // Null when there's no such car.
 export async function loadCarDetails(id: string): Promise<CarDetails | null> {
   if (!/^\d+$/.test(id)) return null;
+  if (DEMO) {
+    const { vehicle, snapshot, config, odometerMiles } = demoData();
+    if (id !== vehicle.id || !vehicle.vin) return null;
+    const car = details(vehicle.id, vehicle.display_name, vehicle.vin, vehicle.current_version, config, odometerMiles, snapshot.battery_level, snapshot.battery_range_km, snapshot.charge_limit, snapshot.polled_at);
+    const [battery, homeCharging] = await Promise.all([loadBatteryHealth(vehicle.vin), loadHomeCharging(vehicle.vin)]);
+    return { ...car, battery, homeCharging };
+  }
   const [vehicle, snapshot] = await Promise.all([
     db().from("vehicles").select("id:id::text, vin, display_name, current_version").eq("id", id).maybeSingle(),
     db()

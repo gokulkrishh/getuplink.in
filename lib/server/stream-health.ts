@@ -1,5 +1,7 @@
 import "server-only";
 import tls from "node:tls";
+import { DEMO } from "@/lib/demo";
+import { demoData, demoLastReadingAt } from "./demo";
 import { db } from "./supabase";
 import { lastReadingAt } from "./telemetry";
 import { fleetGet, NotConnectedError } from "./tesla";
@@ -159,6 +161,18 @@ async function checkStream(now: number): Promise<Stream> {
 // Runs every check once. Shared by the token-protected health route and the status page's history.
 export async function runHealthChecks(): Promise<HealthChecks> {
   const now = Date.now();
+  if (DEMO) {
+    // No network or database in demo mode: everything is up.
+    const { vehicle } = demoData();
+    return {
+      now,
+      components: COMPONENTS.map((name) => ({ name, ...ok })),
+      lastReadingAt: demoLastReadingAt(),
+      carLastOnlineAt: vehicle.last_seen_at,
+      synced: true,
+      expiresAt: new Date(now + 60 * 86_400_000).toISOString(),
+    };
+  }
   const [database, receiver, stream] = await Promise.all([checkDatabase(), checkReceiver(), checkStream(now)]);
   return {
     now,
@@ -177,6 +191,7 @@ export async function runHealthChecks(): Promise<HealthChecks> {
 
 // Stores one row per component and drops rows past the retention window. Throws on a database error.
 export async function recordResults(checks: HealthChecks): Promise<void> {
+  if (DEMO) return;
   const checkedAt = new Date(checks.now).toISOString();
   const { error } = await db()
     .from("health_checks")

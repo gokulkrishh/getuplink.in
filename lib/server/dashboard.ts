@@ -1,9 +1,12 @@
 import "server-only";
+import { DEMO, type DemoScenario } from "@/lib/demo";
 import { parseReleaseNotes, type ReleaseNote, type ReleaseNotesByVersion } from "@/lib/release-notes";
+import type { Stream } from "@/lib/telemetry";
 import { type Reading, type UpdateTimeline, updateTimeline } from "@/lib/telemetry-derive";
+import { demoData, demoStream } from "./demo";
 import { missingEnv } from "./env";
 import { db } from "./supabase";
-import { applyStream, loadReadings, loadStream } from "./telemetry";
+import { applyStream, loadReadings, loadStream, STREAM_FIELDS } from "./telemetry";
 import { isConnected } from "./tesla";
 
 // Tags every page's "use cache: private" loader, so actions that change the owner's data or session
@@ -104,7 +107,25 @@ async function withTimelines(vin: string, history: VersionChange[]): Promise<Ver
   });
 }
 
-async function vehicleView(vehicle: Vehicle): Promise<VehicleView> {
+// When the car last streamed anything, from the latest reading per field.
+function newestReading(stream: Stream): string | null {
+  const times = Object.values<{ at: string }>(stream).map((r) => Date.parse(r.at));
+  return times.length > 0 ? new Date(Math.max(...times)).toISOString() : null;
+}
+
+async function vehicleView(vehicle: Vehicle, scenario: DemoScenario): Promise<VehicleView> {
+  if (DEMO) {
+    // The same steps as below, from the generated car instead of the database.
+    const { snapshot, history } = demoData();
+    const stream = demoStream(STREAM_FIELDS, scenario);
+    return {
+      vehicle,
+      streamAt: newestReading(stream),
+      latest: snapshot,
+      lastOnline: applyStream(snapshot, stream),
+      history: await withTimelines(vehicle.vin!, history),
+    };
+  }
   const [latest, lastOnline, history, stream] = await Promise.all([
     db().from("snapshots").select(SNAPSHOT_COLUMNS).eq("vehicle_id", vehicle.id).order("polled_at", { ascending: false }).limit(1).maybeSingle(),
     db()
@@ -125,10 +146,9 @@ async function vehicleView(vehicle: Vehicle): Promise<VehicleView> {
   ]);
   const error = latest.error ?? lastOnline.error ?? history.error;
   if (error) throw new Error(error.message);
-  const streamTimes = Object.values<{ at: string }>(stream).map((r) => Date.parse(r.at));
   return {
     vehicle,
-    streamAt: streamTimes.length > 0 ? new Date(Math.max(...streamTimes)).toISOString() : null,
+    streamAt: newestReading(stream),
     latest: latest.data as Snapshot | null,
     lastOnline: applyStream(lastOnline.data as Snapshot | null, stream),
     history: vehicle.vin ? await withTimelines(vehicle.vin, (history.data ?? []) as VersionChange[]) : ((history.data ?? []) as VersionChange[]),
@@ -144,6 +164,7 @@ async function loadReleaseNotes(views: VehicleView[]): Promise<ReleaseNotesByVer
     if (v.lastOnline?.update_version) versions.add(v.lastOnline.update_version);
   }
   if (versions.size === 0) return {};
+  if (DEMO) return Object.fromEntries(Object.entries(demoData().notes).filter(([version]) => versions.has(version)));
   const { data, error } = await db().from("release_notes").select("version, notes, raw").in("version", [...versions]);
   if (error) {
     console.warn("Release notes unavailable:", error.message);
@@ -155,7 +176,12 @@ async function loadReleaseNotes(views: VehicleView[]): Promise<ReleaseNotesByVer
   );
 }
 
-export async function loadDashboard(): Promise<Dashboard> {
+export async function loadDashboard(scenario: DemoScenario = "normal"): Promise<Dashboard> {
+  if (DEMO) {
+    const { vehicle, lastRun } = demoData();
+    const views = [await vehicleView(vehicle, scenario)];
+    return { kind: "ready", vehicles: views, lastRun, releaseNotes: await loadReleaseNotes(views) };
+  }
   const missing = missingEnv();
   if (missing.length) return { kind: "misconfigured", missing };
 
@@ -168,7 +194,7 @@ export async function loadDashboard(): Promise<Dashboard> {
     if (!connected) return { kind: "disconnected" };
     if (vehicles.error) throw new Error(vehicles.error.message);
     if (runs.error) throw new Error(runs.error.message);
-    const views = await Promise.all((vehicles.data as Vehicle[]).map(vehicleView));
+    const views = await Promise.all((vehicles.data as Vehicle[]).map((v) => vehicleView(v, scenario)));
     return {
       kind: "ready",
       vehicles: views,

@@ -1,5 +1,7 @@
 import "server-only";
 import { buildSessions, CHARGE_FIELDS, type ChargeReading } from "@/lib/charge-sessions";
+import { DEMO } from "@/lib/demo";
+import { demoStreamSessions } from "./demo";
 import { db } from "./supabase";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -107,6 +109,7 @@ async function baselineBefore(vin: string, before: string): Promise<ChargeReadin
 // Rebuilds the car's charging sessions from streamed readings and upserts them. Safe to run any
 // number of times: it starts from the last open (or last finished) session and rewrites from there.
 export async function syncStreamSessions(vin: string): Promise<void> {
+  if (DEMO) return;
   const mark = await watermark(vin);
   const [baseline, readings] = await Promise.all([baselineBefore(vin, mark.at), readingsSince(vin, mark.at)]);
   const sessions = buildSessions([...baseline, ...readings]);
@@ -140,6 +143,7 @@ export async function syncStreamSessionsSafely(vins: (string | null | undefined)
 }
 
 export async function syncStreamSessionsForAllCars(): Promise<void> {
+  if (DEMO) return;
   const { data, error } = await db().from("vehicles").select("vin");
   if (error) {
     console.warn("Streamed charging sessions unavailable:", error.message);
@@ -150,6 +154,7 @@ export async function syncStreamSessionsForAllCars(): Promise<void> {
 
 // Newest first. A missing table or a read error shows as an empty list, with a log line.
 export async function loadStreamSessions(): Promise<StreamChargeSession[]> {
+  if (DEMO) return demoStreamSessions();
   const { data, error } = await db()
     .from("stream_charge_sessions")
     .select("id, vin, started_at, ended_at, kind, supercharger, energy_added_kwh, start_level, end_level, start_energy_kwh, end_energy_kwh, peak_power_kw, ac_voltage, ac_amps, ac_phases, cable_type, temp_max_c, temp_start_c")

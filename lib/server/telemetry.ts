@@ -1,11 +1,13 @@
 import "server-only";
+import { DEMO } from "@/lib/demo";
+import { demoData, demoLastReadingAt, demoReadings, demoStream } from "./demo";
 import { db } from "./supabase";
 import type { Stream } from "@/lib/telemetry";
 import type { Reading } from "@/lib/telemetry-derive";
 
 export { applyStream } from "@/lib/telemetry";
 
-const FIELDS = [
+export const STREAM_FIELDS = [
   "SoftwareUpdateVersion",
   "SoftwareUpdateDownloadPercentComplete",
   "SoftwareUpdateInstallationPercentComplete",
@@ -23,8 +25,9 @@ const FIELDS = [
 // latest row can be days old. One small query per field: the (vin, field, created_at) index serves each.
 // Telemetry is a bonus on top of the poll, so a failed query just means no stream.
 export async function loadStream(vin: string): Promise<Stream> {
+  if (DEMO) return demoStream(STREAM_FIELDS);
   const results = await Promise.all(
-    FIELDS.map(async (field) => {
+    STREAM_FIELDS.map(async (field) => {
       const { data, error } = await db()
         .from("telemetry_readings")
         .select("created_at, value")
@@ -49,6 +52,7 @@ const MAX_PAGES = 20;
 // One field's readings in a time window, oldest first. PostgREST caps a response at 1000 rows, so this
 // pages through with .range(), up to MAX_PAGES. Null when the query fails (telemetry is a bonus).
 export async function loadReadings(vin: string, field: string, from: string, to?: string): Promise<Reading[] | null> {
+  if (DEMO) return demoReadings(field, from, to);
   const rows: Reading[] = [];
   for (let page = 0; page < MAX_PAGES; page++) {
     let query = db().from("telemetry_readings").select("created_at, value").eq("vin", vin).eq("field", field).gte("created_at", from);
@@ -66,6 +70,7 @@ export async function loadReadings(vin: string, field: string, from: string, to?
 
 // The VIN of the connected car, for loaders that aren't handed one.
 export async function loadPrimaryVin(): Promise<string | null> {
+  if (DEMO) return demoData().vin;
   const { data, error } = await db().from("vehicles").select("vin").not("vin", "is", null).order("created_at").limit(1).maybeSingle();
   if (error) {
     console.warn("Vehicle VIN unavailable:", error.message);
@@ -76,6 +81,7 @@ export async function loadPrimaryVin(): Promise<string | null> {
 
 // When the newest streamed reading arrived, or null when there are none (or the query fails).
 export async function lastReadingAt(): Promise<string | null> {
+  if (DEMO) return demoLastReadingAt();
   const { data, error } = await db()
     .from("telemetry_readings")
     .select("created_at")

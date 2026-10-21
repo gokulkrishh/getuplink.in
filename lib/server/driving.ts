@@ -2,6 +2,8 @@ import "server-only";
 import { monthIndex, monthKey } from "@/components/stats/periods";
 import { MILES_TO_KM } from "@/lib/car";
 import { type DayKm, dailyDistance, istDay, istDayStart, num } from "@/lib/telemetry-derive";
+import { DEMO } from "@/lib/demo";
+import { demoCounter } from "./demo";
 import { db } from "./supabase";
 import { loadPrimaryVin, loadReadings } from "./telemetry";
 
@@ -17,6 +19,10 @@ function monthStart(index: number): string {
 
 // Latest (or earliest) online odometer reading, optionally before an instant. Raw payload is in miles.
 async function reading(before: string | null, ascending: boolean): Promise<number | null> {
+  if (DEMO) {
+    const miles = demoCounter("Odometer", before, ascending);
+    return miles === null ? null : miles * MILES_TO_KM;
+  }
   let query = db()
     .from("snapshots")
     .select("polled_at, odometer:raw->vehicle_state->>odometer")
@@ -69,7 +75,9 @@ export async function loadDailyDistance(): Promise<DayKm[]> {
   const [readings, before] = await Promise.all([
     loadReadings(vin, "Odometer", from),
     // The last reading before the window, so the first day has something to count from.
-    db().from("telemetry_readings").select("value").eq("vin", vin).eq("field", "Odometer").lt("created_at", from).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    DEMO
+      ? { data: { value: demoCounter("Odometer", from) }, error: null }
+      : db().from("telemetry_readings").select("value").eq("vin", vin).eq("field", "Odometer").lt("created_at", from).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
   if (!readings || before.error) return [];
   return dailyDistance(readings, num(before.data?.value), now, DRIVING_DAYS);

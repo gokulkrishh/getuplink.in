@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "demo": "UPLINK_DEMO=1 bun dev"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

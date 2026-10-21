@@ -1,10 +1,12 @@
 import { after, NextResponse, type NextRequest } from "next/server";
+import { DEMO } from "@/lib/demo";
 import type { LoginErrorCode } from "@/lib/login-errors";
 import { createSession, isValidSession, safeEqual, SESSION_COOKIE, SESSION_MAX_AGE, requestHost, sessionCookieDomain, STATE_COOKIE } from "@/lib/session";
 import { pollAll } from "@/lib/server/poll";
 import { signIn, type SignInResult } from "@/lib/server/tesla";
 
 export async function GET(request: NextRequest) {
+  if (DEMO) return NextResponse.redirect(new URL("/", request.url));
   const params = request.nextUrl.searchParams;
   const code = params.get("code");
   const state = params.get("state") ?? "";

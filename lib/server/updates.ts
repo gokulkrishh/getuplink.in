@@ -1,11 +1,14 @@
 import "server-only";
 import type { UpdateRow } from "@/lib/telemetry-derive";
+import { DEMO } from "@/lib/demo";
+import { demoUpdateRows } from "./demo";
 import { db } from "./supabase";
 import { loadPrimaryVin } from "./telemetry";
 
 // Real software updates of the connected car (not the version already installed when tracking began),
 // oldest first. Empty when they can't be read.
 export async function loadUpdateRows(): Promise<UpdateRow[]> {
+  if (DEMO) return demoUpdateRows();
   const vin = await loadPrimaryVin();
   if (!vin) return [];
   const { data: vehicle } = await db().from("vehicles").select("id").eq("vin", vin).maybeSingle();

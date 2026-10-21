@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/empty-state";
 import { Logo } from "@/components/logo";
 import { VehicleSection } from "@/components/vehicle-section";
 import { SignInButton } from "@/components/sign-in-button";
+import { DEMO, DEMO_SCENARIOS, type DemoScenario, parseScenario } from "@/lib/demo";
 import { describeRunError } from "@/lib/run-error";
 import { formatDateTime } from "@/lib/format";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
@@ -37,6 +38,20 @@ function Header() {
   );
 }
 
+// Local demo mode only: switches the car between the states the dashboard can be in.
+function DemoBar({ active }: { active: DemoScenario }) {
+  return (
+    <nav aria-label="Demo scenarios" className="mb-12 flex flex-wrap gap-x-4 gap-y-1 border-y py-3 text-xs text-muted-foreground">
+      <span className="text-faint">Demo</span>
+      {Object.entries(DEMO_SCENARIOS).map(([key, label]) => (
+        <Link key={key} href={`/?demo=${key}`} aria-current={key === active ? "page" : undefined} className={key === active ? "text-foreground" : "hover:text-foreground"}>
+          {label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
 function RunError({ error }: { error: string }) {
   return (
     <div className="space-y-2">
@@ -60,23 +75,27 @@ function Notice({ title, children }: { title: string; children: React.ReactNode 
 
 // The session check and the data share one private scope: the result lives only in this browser's
 // router cache (never a server cache), so a header link's prefetch can carry it. The check still runs
-// on every server render; redirect() throws, so a signed-out result is never cached.
-async function loadOwnDashboard(): Promise<{ data: DashboardData; now: number }> {
+// on every server render; redirect() throws, so a signed-out result is never cached. The demo
+// scenario is an argument, so each one gets its own entry.
+async function loadOwnDashboard(demo: DemoScenario): Promise<{ data: DashboardData; now: number }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   // 60s is enough for a per-link prefetch (30s minimum); the App Shell would need 5 minutes.
   cacheLife({ stale: 60 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
   // The clock is read here, inside the cache, because reading it while rendering blocks prerendering.
-  return { data: await loadDashboard(), now: Date.now() };
+  return { data: await loadDashboard(demo), now: Date.now() };
 }
 
-async function Dashboard() {
-  const { data, now } = await loadOwnDashboard();
+async function Dashboard({ searchParams }: Pick<PageProps<"/">, "searchParams">) {
+  // Only demo mode reads the query string, so the real dashboard stays as it was.
+  const demo = DEMO ? parseScenario((await searchParams).demo) : "normal";
+  const { data, now } = await loadOwnDashboard(demo);
   const failedRun = data.kind === "ready" && data.lastRun?.ok === false ? data.lastRun : null;
 
   return (
     <>
+      {DEMO && <DemoBar active={demo} />}
       {data.kind === "misconfigured" && (
         <EmptyState
           icon={<Settings2 className="size-7 text-faint" aria-hidden="true" />}
@@ -186,13 +205,13 @@ function DashboardSkeleton() {
   );
 }
 
-export default function Page() {
+export default function Page({ searchParams }: PageProps<"/">) {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:py-20">
       <Header />
       <h1 className="sr-only">Dashboard</h1>
       <Suspense fallback={<DashboardSkeleton />}>
-        <Dashboard />
+        <Dashboard searchParams={searchParams} />
       </Suspense>
       <Suspense>
         <SyncStreamVersions />

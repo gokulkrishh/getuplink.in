@@ -1,4 +1,5 @@
 import "server-only";
+import { DEMO } from "@/lib/demo";
 import { db } from "./supabase";
 import { loadReadings, loadStream } from "./telemetry";
 import { check, insertVersionChange, latestRecordedVersion, offeredAt, pollInProgress, recordReleaseNotes } from "./version-history";
@@ -16,6 +17,7 @@ const AWAKE_MS = 10 * 60 * 1000;
 // A running poll is left to finish (it syncs the stream itself at the end), unless `lockHeld` says the
 // caller is that poll.
 export async function syncStreamVersions(vin: string, { lockHeld = false }: { lockHeld?: boolean } = {}): Promise<void> {
+  if (DEMO) return;
   if (!lockHeld && (await pollInProgress())) return;
   const vehicle = await check(db().from("vehicles").select("id:id::text, current_version").eq("vin", vin).maybeSingle());
   if (!vehicle) return;
@@ -77,6 +79,7 @@ export async function syncStreamVersionsSafely(vins: (string | null | undefined)
 }
 
 export async function syncStreamVersionsForAllCars(): Promise<void> {
+  if (DEMO) return;
   const { data, error } = await db().from("vehicles").select("vin");
   if (error) {
     console.warn("Streamed versions unavailable:", error.message);

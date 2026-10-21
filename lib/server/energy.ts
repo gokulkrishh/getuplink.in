@@ -1,6 +1,8 @@
 import "server-only";
 import { monthIndex, monthKey } from "@/components/stats/periods";
 import { type EnergyMonth, type Span, energyUseMonth, num } from "@/lib/telemetry-derive";
+import { DEMO } from "@/lib/demo";
+import { demoCounter } from "./demo";
 import { db } from "./supabase";
 import { loadPrimaryVin } from "./telemetry";
 
@@ -16,6 +18,7 @@ function monthStart(index: number): string {
 // One counter's value: the last reading before an instant (or the latest, with none), or the first
 // reading ever. The counters only send a row when they change, so this is how a month gets its start and end.
 async function counter(vin: string, field: string, before: string | null, ascending = false): Promise<number | null> {
+  if (DEMO) return demoCounter(field, before, ascending);
   let query = db().from("telemetry_readings").select("value").eq("vin", vin).eq("field", field);
   if (before) query = query.lt("created_at", before);
   const { data, error } = await query.order("created_at", { ascending }).limit(1).maybeSingle();

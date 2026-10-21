@@ -1,4 +1,5 @@
 import "server-only";
+import { DEMO } from "@/lib/demo";
 import { db } from "./supabase";
 import { fleetGet, TeslaError } from "./tesla";
 import { syncChargingHistory } from "./charging";
@@ -155,6 +156,7 @@ async function pollVehicle(vehicle: FleetVehicle, now: string) {
 export type PollResult = { ok: boolean; vehicles: number; error?: string; skipped?: boolean };
 
 export async function pollAll(): Promise<PollResult> {
+  if (DEMO) return { ok: true, vehicles: 0, skipped: true };
   await check(
     db()
       .from("poll_runs")
