@@ -112,10 +112,7 @@ export default function HomePage() {
           <h1 className="mt-5 text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl 2xl:text-6xl">
             Never miss a Tesla update.
           </h1>
-          <p className="mt-6 max-w-md text-base text-muted-foreground">
-            Uplink checks your car every 6 hours and shows what&apos;s new, what&apos;s coming and what changed. Free,
-            read-only, and it never wakes your car.
-          </p>
+          <p className="mt-6 text-base text-muted-foreground">See what&apos;s new on your car. Free and read-only.</p>
           <div className="mt-10 flex flex-wrap items-center gap-3">
             <Suspense fallback={<SignInButton />}>
               <SessionCta />
