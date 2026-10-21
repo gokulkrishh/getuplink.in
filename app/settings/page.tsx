@@ -7,7 +7,7 @@ import { Logo } from "@/components/logo";
 import { ThemePicker } from "@/components/theme-picker";
 import { Button } from "@/components/ui/button";
 import { DEMO } from "@/lib/demo";
-import { formatDate, formatDateTime } from "@/lib/format";
+import { formatDate, formatSeen } from "@/lib/format";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { db } from "@/lib/server/supabase";
 import { accountInfo, type AccountInfo } from "@/lib/server/tesla";
@@ -49,9 +49,16 @@ async function Settings() {
           title="Automatic checks"
           description="Every 6 hours. Uplink never wakes the car."
           control={
-            <p className="text-sm text-muted-foreground">
-              {lastCheck ? `Last checked ${formatDateTime(lastCheck)}` : "No checks yet"}
-            </p>
+            <p className="text-right text-xs text-muted-foreground">
+                {lastCheck ? (
+                  <>
+                    Last checked
+                    <span className="block text-sm text-foreground tabular-nums">{formatSeen(lastCheck)}</span>
+                  </>
+                ) : (
+                  "No checks yet"
+                )}
+              </p>
           }
         />
       </Group>

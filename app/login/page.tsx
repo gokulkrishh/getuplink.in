@@ -54,7 +54,7 @@ export default function LoginPage() {
             never wakes the car.
           </p>
           <SignInButton className="mt-10" />
-          <p className="mt-3 text-xs text-faint">You&apos;ll sign in on tesla.com. Uplink never sees your password.</p>
+          <p className="mt-3 text-xs text-faint">You&apos;ll sign in on tesla.com.</p>
           {/* LoginError renders nothing (and takes no space) unless there's an error, so the page doesn't shift on load. */}
           <Suspense>
             <LoginError className="mt-4" />

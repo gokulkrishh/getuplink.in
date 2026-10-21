@@ -39,7 +39,8 @@ export function ThemePicker() {
           )}
         >
           <Icon className="size-3.5" aria-hidden="true" />
-          {label}
+          {/* Icons only on phones so the switch fits beside its row title. */}
+          <span className="sr-only sm:not-sr-only">{label}</span>
         </button>
       ))}
     </div>
