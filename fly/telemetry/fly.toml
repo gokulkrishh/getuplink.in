@@ -1,7 +1,10 @@
 # Fleet Telemetry receiver. Deploy from this directory: cd fly/telemetry && fly deploy
 # Secrets (never in this file): TLS_SERVER_CERT, TLS_SERVER_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 app = "uplink-telemetry"
-primary_region = "bom"
+primary_region = "sin"
+# Give the worker time to flush buffered readings on deploy/stop.
+kill_signal = "SIGTERM"
+kill_timeout = 15
 
 [build]
   dockerfile = "Dockerfile"
