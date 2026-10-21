@@ -67,8 +67,7 @@ export function SessionRow({ item, serial, now }: { item: Listed; serial?: numbe
             <p className="font-mono font-medium tabular-nums">{s.cost_total === null ? "—" : formatMoney(s.cost_total, currency)}</p>
             <p className="text-xs text-muted-foreground tabular-nums">
               {energy === null ? "—" : formatKwh(energy)}
-              {/* The per-kWh rate is hidden on phones so the site name keeps its room. */}
-              {rateText && <span className="hidden sm:inline"> · {rateText}</span>}
+                            {rateText && <span> · {rateText}</span>}
             </p>
           </>
         ) : (

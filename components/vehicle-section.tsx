@@ -128,7 +128,7 @@ function HistoryCells({ change, now }: { change: VersionChange; now: number }) {
   const date = historyDate(change.detected_at, now);
   return (
     <>
-      <span className="hidden text-right text-faint tabular-nums sm:block">
+      <span className="text-right text-faint tabular-nums">
         {/* Always within days of Installed, which carries the year. */}
         {change.previous_version && change.available_at ? formatShortDate(change.available_at) : ""}
       </span>
@@ -447,10 +447,12 @@ export function VehicleSection({
         ) : (
           <>
             <VersionChart changes={[...history].reverse()} until={vehicle.last_polled_at} />
-            <div className="pt-6">
+            {/* On phones the table keeps its columns and scrolls sideways. */}
+            <div className="-mx-1 overflow-x-auto px-1 pt-6">
+              <div className="min-w-xl">
               <div className={cn("history-cols", "pb-2 text-xs text-faint")}>
                 <h3 className="pl-5">Versions</h3>
-                <span className="hidden text-right sm:block">Received</span>
+                <span className="text-right">Received</span>
                 <span className="text-right">Installed</span>
                 <span className="text-right">Odometer</span>
               </div>
@@ -468,6 +470,7 @@ export function VehicleSection({
                   </ol>
                 </ShowMore>
               )}
+              </div>
             </div>
           </>
         )}
