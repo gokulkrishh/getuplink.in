@@ -2,9 +2,6 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { Logo } from "@/components/logo";
 
-// TODO(owner): confirm this address exists before sign-ups open.
-const CONTACT = "privacy@getuplink.in";
-
 export const metadata: Metadata = {
   title: "Privacy · Uplink",
   description: "What Uplink stores about you and your car, and how to delete it.",
@@ -102,12 +99,8 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-base font-medium tracking-[-0.01em]">Your rights</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Under India&apos;s Digital Personal Data Protection Act, 2023, you can ask to access, correct or delete
-              your data, and you can raise a grievance. Email{" "}
-              <a href={`mailto:${CONTACT}`} className="text-foreground underline underline-offset-4">
-                {CONTACT}
-              </a>
-              . We reply within 30 days.
+              Under India&apos;s Digital Personal Data Protection Act, 2023, you can access, correct or delete your
+              data. You can delete it any time with Delete my data in Settings.
             </p>
           </section>
 

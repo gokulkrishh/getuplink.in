@@ -2,9 +2,6 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { Logo } from "@/components/logo";
 
-// TODO(owner): confirm this address exists before sign-ups open.
-const CONTACT = "privacy@getuplink.in";
-
 export const metadata: Metadata = {
   title: "Terms · Uplink",
   description: "The short terms for using Uplink.",
@@ -63,16 +60,6 @@ export default function TermsPage() {
             </section>
           ))}
 
-          <section>
-            <h2 className="text-base font-medium tracking-[-0.01em]">Contact</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Email{" "}
-              <a href={`mailto:${CONTACT}`} className="text-foreground underline underline-offset-4">
-                {CONTACT}
-              </a>
-              .
-            </p>
-          </section>
         </div>
       </main>
 
