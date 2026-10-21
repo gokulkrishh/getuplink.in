@@ -30,7 +30,7 @@ import { type DayKm, type UpdateRow, type WeeklyPack, combinedWhPerKm, updateSta
 export const metadata: Metadata = { title: "Stats · Uplink" };
 
 // Sessions shown per month before "Show N more".
-const MONTH_PREVIEW = 5;
+const MONTH_PREVIEW = 3;
 
 // "Bengaluru, Nexus Koramangala" -> { place: "Nexus Koramangala", city: "Bengaluru" }
 function splitSite(name: string | null): { place: string; city: string | null } {
