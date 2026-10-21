@@ -1,7 +1,5 @@
 import "server-only";
-import { DEMO } from "@/lib/demo";
 import { parseReleaseNotes, type ReleaseNote, type ReleaseNotesByVersion } from "@/lib/release-notes";
-import { demoDashboard, isDemoScenario } from "./demo-data";
 import { missingEnv } from "./env";
 import { db } from "./supabase";
 import { isConnected } from "./tesla";
@@ -11,7 +9,7 @@ import { isConnected } from "./tesla";
 export const OWNER_DATA_TAG = "owner-data";
 
 export type Vehicle = {
-  id: string | number; // live data is read as text so 17-digit Tesla ids keep precision; demo data still uses numbers
+  id: string; // live data is read as text so 17-digit Tesla ids keep precision
   vin: string | null;
   display_name: string | null;
   last_state: string | null;
@@ -114,8 +112,7 @@ async function loadReleaseNotes(views: VehicleView[]): Promise<ReleaseNotesByVer
   );
 }
 
-export async function loadDashboard(demoScenario?: string): Promise<Dashboard> {
-  if (DEMO) return demoDashboard(isDemoScenario(demoScenario) ? demoScenario : "full");
+export async function loadDashboard(): Promise<Dashboard> {
   const missing = missingEnv();
   if (missing.length) return { kind: "misconfigured", missing };
 

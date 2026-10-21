@@ -9,9 +9,7 @@ import { VehicleSection } from "@/components/vehicle-section";
 import { CheckNowButton } from "@/components/check-now-button";
 import { SignInButton } from "@/components/sign-in-button";
 import { buttonVariants } from "@/components/ui/button";
-import { DEMO } from "@/lib/demo";
 import { describeRunError } from "@/lib/run-error";
-import { DEMO_SCENARIOS } from "@/lib/server/demo-data";
 import { formatDateTime } from "@/lib/format";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type Dashboard as DashboardData, loadDashboard, OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -39,24 +37,6 @@ function Header() {
   );
 }
 
-function DemoBar({ active }: { active: string }) {
-  return (
-    <nav aria-label="Demo scenarios" className="mb-12 flex flex-wrap gap-x-4 gap-y-1 border-y py-3 text-xs text-muted-foreground">
-      <span className="text-faint">Demo</span>
-      {Object.entries(DEMO_SCENARIOS).map(([key, label]) => (
-        <Link
-          key={key}
-          href={`/?demo=${key}`}
-          aria-current={key === active ? "page" : undefined}
-          className={key === active ? "text-foreground" : "hover:text-foreground"}
-        >
-          {label}
-        </Link>
-      ))}
-    </nav>
-  );
-}
-
 function RunError({ error }: { error: string }) {
   return (
     <div className="space-y-2">
@@ -80,28 +60,25 @@ function Notice({ title, children }: { title: string; children: React.ReactNode 
 
 // The session check and the data share one private scope: the result lives only in this browser's
 // router cache (never a server cache), so a header link's prefetch can carry it. The check still runs
-// on every server render; redirect() throws, so a signed-out result is never cached. The demo
-// scenario is an argument, so each one gets its own entry.
-async function loadOwnDashboard(demo: string): Promise<{ data: DashboardData; now: number }> {
+// on every server render; redirect() throws, so a signed-out result is never cached.
+async function loadOwnDashboard(): Promise<{ data: DashboardData; now: number }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   // 60s is enough for a per-link prefetch (30s minimum); the App Shell would need 5 minutes.
   cacheLife({ stale: 60 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
   // The clock is read here, inside the cache, because reading it while rendering blocks prerendering.
-  return { data: await loadDashboard(demo), now: Date.now() };
+  return { data: await loadDashboard(), now: Date.now() };
 }
 
 async function Dashboard({ searchParams }: PageProps<"/">) {
   const params = await searchParams;
-  const demo = typeof params.demo === "string" ? params.demo : "full";
-  const { data, now } = await loadOwnDashboard(demo);
+  const { data, now } = await loadOwnDashboard();
   const flash = params.error === "check" ? "The check couldn't run. Try again in a minute." : null;
   const failedRun = data.kind === "ready" && data.lastRun?.ok === false ? data.lastRun : null;
 
   return (
     <>
-      {DEMO && <DemoBar active={demo} />}
       {flash && <p role="alert" className="mb-12 border-l-2 border-destructive pl-3 text-sm">{flash}</p>}
 
       {data.kind === "misconfigured" && (

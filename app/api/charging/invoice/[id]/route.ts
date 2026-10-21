@@ -1,5 +1,4 @@
 import { connection, NextResponse } from "next/server";
-import { DEMO } from "@/lib/demo";
 import { hasCurrentSession } from "@/lib/server/auth";
 import { fleetGetRaw } from "@/lib/server/tesla";
 
@@ -8,7 +7,6 @@ import { fleetGetRaw } from "@/lib/server/tesla";
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   await connection();
   if (!(await hasCurrentSession())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (DEMO) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const { id } = await params;
   let res: Response;

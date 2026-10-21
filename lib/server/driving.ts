@@ -1,7 +1,6 @@
 import "server-only";
 import { monthIndex, monthKey } from "@/components/stats/periods";
 import { MILES_TO_KM } from "@/lib/car";
-import { DEMO } from "@/lib/demo";
 import { db } from "./supabase";
 
 export type MonthlyDistance = { month: string; km: number };
@@ -12,19 +11,6 @@ const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 // First instant of a month in IST, as an ISO string for the query.
 function monthStart(index: number): string {
   return new Date(Date.UTC(Math.floor(index / 12), index % 12, 1) - IST_OFFSET_MS).toISOString();
-}
-
-// The demo odometer drops 38 km per day into the past, so months are about 38 km x days, with some wobble.
-function demoDistance(): MonthlyDistance[] {
-  const now = Date.now();
-  const current = monthIndex(now);
-  const wobble = [1.0, 0.96, 1.08, 0.92, 1.04, 1.1, 0.98, 0.94, 1.06, 1.0, 0.9, 1.05];
-  const dayOfMonth = Number(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", day: "numeric" }).format(now));
-  return Array.from({ length: MONTHS }, (_, k) => {
-    const index = current - (MONTHS - 1 - k);
-    const days = k === MONTHS - 1 ? dayOfMonth : new Date(Date.UTC(Math.floor(index / 12), (index % 12) + 1, 0)).getUTCDate();
-    return { month: monthKey(index), km: Math.round(days * 38 * wobble[k]) };
-  });
 }
 
 // Latest (or earliest) online odometer reading, optionally before an instant. Raw payload is in miles.
@@ -50,7 +36,6 @@ async function reading(before: string | null, ascending: boolean): Promise<numbe
 // Kilometres driven per month for the last 12 months (IST), from the odometer. It asks for one reading
 // per month boundary instead of pulling every poll, which would run into PostgREST's row cap.
 export async function loadMonthlyDistance(): Promise<MonthlyDistance[]> {
-  if (DEMO) return demoDistance();
   const firstIndex = monthIndex(Date.now()) - (MONTHS - 1);
   // ends[k] is the last reading before window month k starts (so it closes the month before it);
   // ends[MONTHS] is the latest reading, which closes the current month.

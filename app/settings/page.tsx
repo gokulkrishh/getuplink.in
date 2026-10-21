@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Logo } from "@/components/logo";
 import { ThemePicker } from "@/components/theme-picker";
-import { DEMO } from "@/lib/demo";
 import { formatDate, formatSeen } from "@/lib/format";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -31,7 +30,6 @@ async function loadSettings(): Promise<{ account: AccountInfo; lastCheck: string
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
-  if (DEMO) return { account: { connected: true, connectedSince: new Date(Date.now() - 86_400_000).toISOString() }, lastCheck: new Date().toISOString(), now: Date.now() };
   const [account, run] = await Promise.all([
     accountInfo(),
     db().from("poll_runs").select("started_at").order("started_at", { ascending: false }).limit(1).maybeSingle(),

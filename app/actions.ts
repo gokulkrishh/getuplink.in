@@ -3,7 +3,6 @@
 import { revalidatePath, updateTag } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { DEMO } from "@/lib/demo";
 import { clearSession, requestHost } from "@/lib/session";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -19,10 +18,6 @@ export async function logout() {
 }
 
 export async function checkNow() {
-  if (DEMO) {
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-    redirect("/");
-  }
   // Server actions are reachable by POST from anywhere, so re-check the session (including revocation).
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
   // A failed run is recorded in poll_runs and shown on the dashboard; only a crash

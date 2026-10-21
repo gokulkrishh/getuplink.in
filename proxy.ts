@@ -1,5 +1,4 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { DEMO } from "@/lib/demo";
 import { isValidSession, SESSION_COOKIE } from "@/lib/session";
 
 // Exact paths reachable without a session. Anything not listed here needs one.
@@ -44,7 +43,7 @@ export async function proxy(request: NextRequest) {
 
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
 
-  const signedIn = DEMO || (await isValidSession(request.cookies.get(SESSION_COOKIE)?.value));
+  const signedIn = await isValidSession(request.cookies.get(SESSION_COOKIE)?.value);
 
   if (signedIn) return NextResponse.next();
   if (pathname.startsWith("/api/")) {

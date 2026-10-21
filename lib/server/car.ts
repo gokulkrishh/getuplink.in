@@ -12,7 +12,6 @@ import {
   roofLabel,
   wheelsLabel,
 } from "@/lib/car";
-import { DEMO } from "@/lib/demo";
 import { db } from "./supabase";
 
 // What the car details page shows. Everything comes from Tesla's own replies: the car's VIN and the
@@ -104,35 +103,8 @@ function details(
   };
 }
 
-// The real config of a 2025 Model Y in India, with a stand-in name and VIN (see demo-data.ts).
-const DEMO_CONFIG: Config = {
-  car_type: "modely",
-  trim_badging: "50",
-  performance_package: "Base",
-  efficiency_package: "MYRefresh2025Row",
-  exterior_color: "DiamondBlack",
-  wheel_type: "Crossflow19",
-  roof_color: "RoofColorGlass",
-  interior_trim_type: "Black2",
-  driver_assist: "TeslaAP4",
-  charge_port_type: "CCS",
-  rhd: true,
-  has_seat_cooling: true,
-  rear_seat_heaters: 1,
-  has_air_suspension: false,
-};
-
-function demoCar(id: string): CarDetails | null {
-  const checkedAt = new Date(Date.now() - 6 * 60 * 1000).toISOString();
-  if (id === "1") return details("1", "Phantom", "LRWYGCEK3SC100001", "2026.38.3.1", DEMO_CONFIG, 14964, 61, 266.1, 65, checkedAt);
-  if (id === "2")
-    return details("2", "Nova", "LRWYGCEK1SC200002", "2026.32.3", { ...DEMO_CONFIG, exterior_color: "StealthGrey" }, 13870, 48, 209.8, 80, checkedAt);
-  return null;
-}
-
 // Null when there's no such car.
 export async function loadCarDetails(id: string): Promise<CarDetails | null> {
-  if (DEMO) return demoCar(id);
   if (!/^\d+$/.test(id)) return null;
   const [vehicle, snapshot] = await Promise.all([
     db().from("vehicles").select("id:id::text, vin, display_name, current_version").eq("id", id).maybeSingle(),

@@ -1,5 +1,4 @@
 import "server-only";
-import { DEMO } from "@/lib/demo";
 import { db } from "./supabase";
 import { fleetGet, TeslaError } from "./tesla";
 
@@ -139,7 +138,6 @@ export async function syncChargingHistory(vins: string[]): Promise<void> {
 
 // Newest first. A missing table or a read error shows as an empty list, with a log line.
 export async function loadChargingSessions(): Promise<ChargingSession[]> {
-  if (DEMO) return demoSessions();
   const { data, error } = await db()
     .from("charging_sessions")
     .select("session_id, site_name, started_at, stopped_at, energy_kwh, cost_total, currency, invoices")
@@ -159,56 +157,4 @@ export async function loadChargingSessions(): Promise<ChargingSession[]> {
     currency: (row.currency as string | null) ?? null,
     invoices: Array.isArray(row.invoices) ? (row.invoices as ChargingInvoice[]) : [],
   }));
-}
-
-// Demo sessions modelled on real data: India's open Supercharger sites (Mumbai BKC and Navi Mumbai
-// Nexus Seawoods, V4 up to 250 kW), Tesla India's ₹24/kWh rate, and the fee shape of a real
-// charging-history reply (a CHARGING line priced per kWh). Dated relative to now, across fourteen months.
-const DEMO_RATE_INR = 24;
-function demoSessions(): ChargingSession[] {
-  const now = Date.now();
-  const BKC = "Mumbai, Bandra Kurla Complex";
-  const SEAWOODS = "Navi Mumbai, Nexus Seawoods";
-  const sample: { site: string; daysAgo: number; kwh: number; invoice: boolean }[] = [
-    { site: BKC, daysAgo: 2, kwh: 38.6, invoice: true },
-    { site: SEAWOODS, daysAgo: 6, kwh: 24.1, invoice: true },
-    { site: BKC, daysAgo: 9, kwh: 41.3, invoice: true },
-    { site: BKC, daysAgo: 11, kwh: 18.2, invoice: true },
-    { site: SEAWOODS, daysAgo: 13, kwh: 33.7, invoice: true },
-    { site: BKC, daysAgo: 15, kwh: 22.9, invoice: true },
-    { site: SEAWOODS, daysAgo: 17, kwh: 29.4, invoice: true },
-    { site: BKC, daysAgo: 25, kwh: 27.8, invoice: true },
-    { site: SEAWOODS, daysAgo: 29, kwh: 20.4, invoice: true },
-    { site: BKC, daysAgo: 33, kwh: 45.0, invoice: true },
-    { site: SEAWOODS, daysAgo: 41, kwh: 31.2, invoice: true },
-    { site: BKC, daysAgo: 52, kwh: 36.5, invoice: true },
-    { site: BKC, daysAgo: 64, kwh: 19.8, invoice: true },
-    { site: SEAWOODS, daysAgo: 78, kwh: 42.4, invoice: true },
-    { site: BKC, daysAgo: 95, kwh: 28.6, invoice: true },
-    { site: SEAWOODS, daysAgo: 118, kwh: 34.9, invoice: true },
-    { site: BKC, daysAgo: 142, kwh: 40.1, invoice: true },
-    { site: BKC, daysAgo: 171, kwh: 23.7, invoice: true },
-    { site: SEAWOODS, daysAgo: 203, kwh: 37.3, invoice: true },
-    { site: BKC, daysAgo: 238, kwh: 26.5, invoice: true },
-    { site: SEAWOODS, daysAgo: 276, kwh: 44.2, invoice: true },
-    { site: BKC, daysAgo: 312, kwh: 30.8, invoice: true },
-    { site: SEAWOODS, daysAgo: 351, kwh: 21.6, invoice: true },
-    { site: BKC, daysAgo: 389, kwh: 35.4, invoice: true },
-    { site: BKC, daysAgo: 421, kwh: 39.0, invoice: true },
-  ];
-  return sample.map((s, i) => {
-    const started = new Date(now - s.daysAgo * DAY);
-    // About 70 kW average on a V4 stall.
-    const minutes = Math.round((s.kwh / 70) * 60);
-    return {
-      session_id: `demo-${i + 1}`,
-      site_name: s.site,
-      started_at: started.toISOString(),
-      stopped_at: new Date(started.getTime() + minutes * 60 * 1000).toISOString(),
-      energy_kwh: s.kwh,
-      cost_total: Math.round(s.kwh * DEMO_RATE_INR * 100) / 100,
-      currency: "INR",
-      invoices: s.invoice ? [{ fileName: "invoice.pdf", contentId: `demo-invoice-${i + 1}`, invoiceType: "CHARGING" }] : [],
-    };
-  });
 }
