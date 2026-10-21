@@ -248,7 +248,7 @@ export default function Page() {
     <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:py-20">
       <Header />
       <h1 className="text-2xl font-medium tracking-[-0.01em]">Stats</h1>
-      <p className="mt-2 mb-12 text-sm text-muted-foreground">Charging at Tesla Superchargers. Other networks come later.</p>
+      <p className="mt-2 mb-12 text-sm text-muted-foreground">Your Tesla Supercharger sessions. Third-party chargers coming soon.</p>
       <Suspense fallback={<SessionsSkeleton />}>
         <Sessions />
       </Suspense>
