@@ -42,3 +42,18 @@ export function formatKm(value: number): string {
 export function formatSeen(value: string | number | Date): string {
   return formatDate(value) === formatDate(new Date()) ? formatTime(value) : `${formatShortDate(value)}, ${formatTime(value)}`;
 }
+
+// "32.4 kWh"
+export function formatKwh(value: number): string {
+  return `${value.toFixed(1)} kWh`;
+}
+
+// "₹874.50" for INR (en-IN grouping)
+export function formatMoney(value: number, currency: string): string {
+  return new Intl.NumberFormat("en-IN", { style: "currency", currency }).format(value);
+}
+
+// "October 2026", in IST. Also the key that groups sessions by month.
+export function formatMonth(value: string | number | Date): string {
+  return new Intl.DateTimeFormat("en-GB", { timeZone: IST, month: "long", year: "numeric" }).format(new Date(value));
+}
