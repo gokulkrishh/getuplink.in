@@ -1,6 +1,6 @@
 import { VersionChart } from "@/components/version-chart";
 import { formatDate, formatDateTime, formatDuration, formatKm, formatShortDate, formatTime } from "@/lib/format";
-import { Check, ChevronRight } from "lucide-react";
+import { Check, ChevronRight, Zap } from "lucide-react";
 import { ReleaseNotesList } from "@/components/release-notes";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import type { Snapshot, VehicleView, VersionChange } from "@/lib/server/dashboard";
@@ -117,6 +117,44 @@ function HistoryMeta({ change, date }: { change: VersionChange; date: string | n
   );
 }
 
+// Battery as a readable gauge: big %, range beside it, a thin bar with a tick at the charge limit.
+function BatteryGauge({ snapshot }: { snapshot: Snapshot }) {
+  const level = Math.min(100, Math.max(0, snapshot.battery_level ?? 0));
+  const limit = snapshot.charge_limit != null ? Math.min(100, Math.max(0, snapshot.charge_limit)) : null;
+  const charging = snapshot.charging_state === "Charging";
+  return (
+    <div className="space-y-2">
+      <p className="flex items-baseline gap-2">
+        <span className="font-mono text-2xl font-medium tracking-tight tabular-nums">{level}%</span>
+        {snapshot.battery_range_km != null && (
+          <span className="text-sm text-muted-foreground tabular-nums">{formatKm(snapshot.battery_range_km)}</span>
+        )}
+      </p>
+      <div
+        role="meter"
+        aria-valuenow={level}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`Battery ${level}%${limit != null ? `, limit ${limit}%` : ""}`}
+        className="relative h-1 max-w-sm bg-border"
+      >
+        <div className="relative h-full overflow-hidden bg-foreground" style={{ width: `${level}%` }}>
+          {charging && (
+            <span className="absolute inset-y-0 -left-1/2 w-1/2 bg-gradient-to-r from-transparent via-background/50 to-transparent motion-safe:animate-shimmer" />
+          )}
+        </div>
+        {limit != null && (
+          <span aria-hidden="true" className="absolute -top-1 h-3 w-px bg-muted-foreground" style={{ left: `${limit}%` }} />
+        )}
+      </div>
+      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        {charging && <Zap className="size-3" aria-hidden="true" />}
+        {charging ? `Charging to ${limit ?? 100}%` : limit != null ? `Limit ${limit}%` : null}
+      </p>
+    </div>
+  );
+}
+
 function Label({ children }: { children: React.ReactNode }) {
   return <dt className="mb-1 text-xs text-faint">{children}</dt>;
 }
@@ -164,24 +202,14 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
           </div>
         )}
         {battery && (
-          <div>
+          <div className="sm:col-span-2">
             <Label>Battery</Label>
             <dd>
-              {battery.battery_level}%
-              {battery.battery_range_km != null && (
-                <span className="ml-2 text-muted-foreground">{formatKm(battery.battery_range_km)}</span>
-              )}
-              <span className="block text-xs text-muted-foreground">
-                {battery.charging_state === "Charging"
-                  ? `Charging to ${battery.charge_limit ?? 100}%`
-                  : battery.charge_limit != null
-                    ? `Limit ${battery.charge_limit}%`
-                    : null}
-              </span>
+              <BatteryGauge snapshot={battery} />
             </dd>
           </div>
         )}
-        <div className={pending || !lastOnline ? "sm:col-start-3 sm:text-right" : undefined}>
+        <div className="sm:col-start-3 sm:text-right">
           <Label>Last seen online</Label>
           <dd>
             {vehicle.last_seen_at ? (
