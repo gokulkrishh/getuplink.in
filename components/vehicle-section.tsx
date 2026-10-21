@@ -1,7 +1,7 @@
 import { checkNow } from "@/app/actions";
 import { CheckNowIcon } from "@/components/check-now-button";
 import { VersionChart } from "@/components/version-chart";
-import { formatDate, formatDateTime, formatDuration, formatKm, formatSeen, formatShortDate } from "@/lib/format";
+import { formatDate, formatDuration, formatKm, formatSeen, formatShortDate } from "@/lib/format";
 import { Check, ChevronRight, Zap } from "lucide-react";
 import { ReleaseNotesList } from "@/components/release-notes";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
@@ -15,7 +15,15 @@ const STATUS: Record<string, string> = {
   installing: "Installing",
 };
 
-function ReleaseNotesToggle({ version, notes }: { version: string; notes: ReleaseNotesByVersion }) {
+function ReleaseNotesToggle({
+  version,
+  notes,
+  stacked = false,
+}: {
+  version: string;
+  notes: ReleaseNotesByVersion;
+  stacked?: boolean;
+}) {
   if (!notes[version]) return null;
   return (
     <details className="group/notes">
@@ -26,16 +34,15 @@ function ReleaseNotesToggle({ version, notes }: { version: string; notes: Releas
         Release notes
         <ChevronRight className="size-3 text-faint transition-transform group-open/notes:rotate-90" aria-hidden="true" />
       </summary>
-      <ReleaseNotesList notes={notes[version]} />
+      <ReleaseNotesList notes={notes[version]} stacked={stacked} />
     </details>
   );
 }
 
-// Order: status line, then its details (progress, timing, "as of"). Release notes render below, full width.
-function UpdateStatus({ snapshot, asOf }: { snapshot: Snapshot | null; asOf: string | null }) {
+// Order: status line, then its details (progress, timing).
+function UpdateStatus({ snapshot }: { snapshot: Snapshot | null }) {
   if (!snapshot) return <p className="text-muted-foreground">Unknown until the car is next seen online.</p>;
   const status = snapshot.update_status;
-  const asOfLine = asOf && <p className="text-xs text-faint">As of {formatDateTime(asOf)}</p>;
   if (!status || !STATUS[status]) {
     return (
       <div className="space-y-1">
@@ -43,7 +50,6 @@ function UpdateStatus({ snapshot, asOf }: { snapshot: Snapshot | null; asOf: str
           <Check className="size-3.5 text-muted-foreground" aria-hidden="true" />
           Up to date
         </p>
-        {asOfLine}
       </div>
     );
   }
@@ -52,10 +58,10 @@ function UpdateStatus({ snapshot, asOf }: { snapshot: Snapshot | null; asOf: str
     status === "installing" ? snapshot.install_perc : status === "downloading" ? snapshot.download_perc : null;
   return (
     <div className="space-y-2">
-      <p>
+      <p className="flex items-baseline gap-2">
         {status === "available" ? (
-          <span className="inline-flex items-center gap-2 text-foreground">
-            <span className="relative flex size-2" aria-hidden="true">
+          <span className="inline-flex items-baseline gap-2 text-foreground">
+            <span className="relative flex size-2 self-center" aria-hidden="true">
               <span className="absolute inline-flex size-full rounded-full bg-positive opacity-60 motion-safe:animate-ping" />
               <span className="relative inline-flex size-2 rounded-full bg-positive" />
             </span>
@@ -64,7 +70,7 @@ function UpdateStatus({ snapshot, asOf }: { snapshot: Snapshot | null; asOf: str
         ) : (
           STATUS[status]
         )}
-        {snapshot.update_version && <span className="ml-2 font-mono text-muted-foreground">{snapshot.update_version}</span>}
+        {snapshot.update_version && <span className="font-mono text-muted-foreground">{snapshot.update_version}</span>}
       </p>
       {progress != null && (
         <div className="flex items-center gap-3">
@@ -87,14 +93,13 @@ function UpdateStatus({ snapshot, asOf }: { snapshot: Snapshot | null; asOf: str
       {(status === "scheduled" && snapshot.scheduled_time_ms) || snapshot.expected_duration_sec ? (
         <p className="text-xs text-muted-foreground">
           {status === "scheduled" && snapshot.scheduled_time_ms
-            ? `Starts ${formatDateTime(snapshot.scheduled_time_ms)}`
-            : `Takes approx. ~${formatDuration(snapshot.expected_duration_sec!)}`}
+            ? `Starts ${formatSeen(snapshot.scheduled_time_ms)}`
+            : `Takes about ${formatDuration(snapshot.expected_duration_sec!)}`}
         </p>
       ) : null}
       {status === "downloading_wifi_wait" && (
         <p className="text-xs text-muted-foreground">Connect the car to Wi-Fi to start the download.</p>
       )}
-      {asOfLine}
     </div>
   );
 }
@@ -236,7 +241,12 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
             <div>
               <Label>Update</Label>
               <dd>
-                <UpdateStatus snapshot={lastOnline} asOf={asleep && lastOnline ? lastOnline.polled_at : null} />
+                <UpdateStatus snapshot={lastOnline} />
+                {pending && lastOnline?.update_version && notes[lastOnline.update_version] && (
+                  <div className="pt-3">
+                    <ReleaseNotesToggle version={lastOnline.update_version} notes={notes} stacked />
+                  </div>
+                )}
               </dd>
             </div>
           )}
@@ -249,12 +259,6 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
             </div>
           )}
         </dl>
-      )}
-
-      {pending && lastOnline?.update_version && notes[lastOnline.update_version] && (
-        <div className="-mt-6">
-          <ReleaseNotesToggle version={lastOnline.update_version} notes={notes} />
-        </div>
       )}
 
       {latest?.error && (

@@ -71,9 +71,9 @@ export function VersionChart({
           dataKey="step"
           type="stepAfter"
           stroke="var(--color-step)"
-          strokeWidth={1}
+          strokeWidth={1.75}
           dot={false}
-          activeDot={{ r: 2.5, strokeWidth: 0, fill: "var(--color-step)" }}
+          activeDot={{ r: 3, strokeWidth: 0, fill: "var(--color-step)" }}
           isAnimationActive={false}
         />
       </LineChart>
