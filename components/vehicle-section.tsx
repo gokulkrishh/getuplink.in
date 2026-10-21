@@ -7,7 +7,6 @@ import { ReleaseNotesList } from "@/components/release-notes";
 import { ShowMore } from "@/components/show-more";
 import { Tip } from "@/components/tip";
 import { Vin } from "@/components/vin";
-import { paintHex } from "@/lib/car";
 import { cn } from "@/lib/utils";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import type { Snapshot, VehicleView, VersionChange } from "@/lib/server/dashboard";
@@ -250,20 +249,6 @@ function HistoryRow({ change, notes }: { change: VersionChange; notes: ReleaseNo
   );
 }
 
-// A dot in the car's paint colour; the paint name shows on hover or focus.
-function PaintSwatch({ name, hex, className }: { name: string; hex: string; className?: string }) {
-  return (
-    <span
-      tabIndex={0}
-      className={cn("group relative inline-block size-2.5 rounded-full border border-foreground/25 align-[-1px] outline-none", className)}
-      style={{ backgroundColor: hex }}
-    >
-      <span className="sr-only">{name}</span>
-      <Tip>{name}</Tip>
-    </span>
-  );
-}
-
 // "● Online" or "● Asleep" as of the last check. When not online, a tooltip says when it last was.
 function CarStatus({ state, seenAt }: { state: string | null; seenAt: string | null }) {
   const online = state === "online";
@@ -292,8 +277,7 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
   const { vehicle, latest, lastOnline, history } = view;
   const pending = Boolean(lastOnline?.update_status && STATUS[lastOnline.update_status]);
   // "Model Y, Pearl White", without repeating the model when the car is already named after it.
-  const model = vehicle.model !== vehicle.display_name ? vehicle.model : null;
-  const paint = paintHex(vehicle.exterior_color);
+  const carLabel = [vehicle.model !== vehicle.display_name && vehicle.model, vehicle.exterior_color].filter(Boolean).join(", ");
   // Battery is only known from a poll taken while the car was online.
   const battery = lastOnline?.battery_level != null ? lastOnline : null;
 
@@ -305,13 +289,7 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
         <div className="grid grid-cols-[1fr_minmax(0,auto)] items-center gap-x-4 gap-y-1">
           <h2 className="text-sm text-muted-foreground">
             {vehicle.display_name || "Tesla"}
-            {model && <span className="ml-2 text-faint">· {model}</span>}
-            {vehicle.exterior_color &&
-              (paint ? (
-                <PaintSwatch name={vehicle.exterior_color} hex={paint} className="ml-2" />
-              ) : (
-                <span className="ml-2 text-faint">· {vehicle.exterior_color}</span>
-              ))}
+            {carLabel && <span className="ml-2 text-faint">· {carLabel}</span>}
           </h2>
           <div className="flex items-center justify-end gap-1 text-sm text-faint tabular-nums">
             <CarStatus state={latest?.state ?? null} seenAt={vehicle.last_seen_at} />
