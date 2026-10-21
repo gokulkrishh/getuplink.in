@@ -84,8 +84,8 @@ function buildBody() {
       port: PORT,
       ca,
       fields,
-      // ~1 year, unix seconds
-      exp: Math.floor(Date.now() / 1000) + 365 * 24 * 3600,
+      // Unix seconds. Tesla rejects anything past ~364 days ahead, so stay under a year.
+      exp: Math.floor(Date.now() / 1000) + 360 * 24 * 3600,
     },
   };
 }
