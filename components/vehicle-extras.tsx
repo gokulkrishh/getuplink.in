@@ -5,6 +5,7 @@ import { statsHref } from "@/components/stats/periods";
 import { formatDayLabel } from "@/lib/format";
 import { compareToLastWeek, type WeekSummary } from "@/lib/dashboard-summary";
 import type { VehicleExtras } from "@/lib/server/dashboard-extras";
+import { LIST_PREVIEW } from "@/lib/list";
 
 const heading = "text-xs font-medium tracking-wide text-faint uppercase";
 const number = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
@@ -84,8 +85,6 @@ export function LastCharge({ item, now }: { item: VehicleExtras["lastCharge"]; n
   );
 }
 
-// Recent activity opens on 3 rows; the other lists use LIST_PREVIEW.
-const ACTIVITY_PREVIEW = 3;
 
 function ActivityRows({ events, now }: { events: VehicleExtras["activity"]; now: number }) {
   return (
@@ -102,12 +101,12 @@ function ActivityRows({ events, now }: { events: VehicleExtras["activity"]; now:
 
 export function RecentActivity({ events, now }: { events: VehicleExtras["activity"]; now: number }) {
   if (events.length === 0) return null;
-  const rest = events.slice(ACTIVITY_PREVIEW);
+  const rest = events.slice(LIST_PREVIEW);
   return (
     <section className="space-y-3">
       <h3 className={heading}>Recent activity</h3>
       <div>
-        <ActivityRows events={events.slice(0, ACTIVITY_PREVIEW)} now={now} />
+        <ActivityRows events={events.slice(0, LIST_PREVIEW)} now={now} />
         {rest.length > 0 && (
           <ShowMore count={rest.length}>
             <ActivityRows events={rest} now={now} />
