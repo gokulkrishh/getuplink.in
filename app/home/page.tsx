@@ -109,8 +109,8 @@ export default function HomePage() {
       <section className="grid items-center gap-16 py-20 lg:grid-cols-2 lg:gap-12 lg:py-28">
         <div>
           <p className="text-xs tracking-wide text-faint uppercase">For Tesla owners in India</p>
-          <h1 className="mt-5 text-4xl leading-display font-semibold tracking-tight text-balance sm:text-6xl 2xl:text-7xl">
-            Know when your Tesla&apos;s next update lands.
+          <h1 className="mt-5 text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl 2xl:text-6xl">
+            Your Tesla&apos;s updates, tracked.
           </h1>
           <p className="mt-6 text-base text-muted-foreground">Every version, update and release note. Read-only.</p>
           <div className="mt-10 flex flex-wrap items-center gap-3">
