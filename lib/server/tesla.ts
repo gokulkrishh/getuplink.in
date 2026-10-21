@@ -5,7 +5,15 @@ import { db } from "./supabase";
 
 export const AUTHORIZE_URL = "https://auth.tesla.com/oauth2/v3/authorize";
 export const TOKEN_URL = "https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token";
-export const SCOPES = "openid offline_access vehicle_device_data";
+// Supercharger history needs this extra scope, which the owner must first enable in the Tesla
+// developer app. It is off until TESLA_CHARGING=1, so sign-in keeps working before that.
+const CHARGING_SCOPE = "vehicle_charging_cmds";
+export const SCOPES = [
+  "openid",
+  "offline_access",
+  "vehicle_device_data",
+  ...(process.env.TESLA_CHARGING === "1" ? [CHARGING_SCOPE] : []),
+].join(" ");
 
 // Refresh a little early so a token never expires mid-poll.
 const REFRESH_MARGIN_MS = 5 * 60 * 1000;
@@ -194,8 +202,9 @@ async function accessToken(forceRefresh = false): Promise<string> {
   return tokens.accessToken;
 }
 
-// GET against the Fleet API with the owner's token; retries once after a 401.
-export async function fleetGet<T>(path: string): Promise<T> {
+// GET against the Fleet API with the owner's token; retries once after a 401. Returns the raw
+// Response, so the caller must check `ok`.
+async function fleetFetch(path: string): Promise<Response> {
   let token = await accessToken();
   for (let attempt = 0; ; attempt++) {
     const res = await fetch(`${fleetApiBase()}${path}`, {
@@ -206,24 +215,39 @@ export async function fleetGet<T>(path: string): Promise<T> {
       token = await accessToken(true);
       continue;
     }
-    if (!res.ok) {
-      throw new TeslaError(`GET ${path} failed (${res.status}): ${await res.text()}`, res.status);
-    }
-    const body = (await res.json()) as { response: T };
-    return body.response;
+    return res;
   }
+}
+
+export async function fleetGet<T>(path: string): Promise<T> {
+  const res = await fleetFetch(path);
+  if (!res.ok) {
+    throw new TeslaError(`GET ${path} failed (${res.status}): ${await res.text()}`, res.status);
+  }
+  const body = (await res.json()) as { response: T };
+  return body.response;
+}
+
+// For binary responses such as invoice PDFs: the body is not JSON, so the caller reads it.
+export function fleetGetRaw(path: string): Promise<Response> {
+  return fleetFetch(path);
 }
 
 // "Delete my data": remove the car's data and the Tesla tokens, and sign out everywhere. Vehicles
 // cascade to snapshots and version_history. owner_sub stays, so the dashboard can't be claimed by
 // another Tesla account. Release notes are Tesla's public text per version, not the owner's data.
+// Charging sessions are the owner's too. Their table may not exist if its migration was never run
+// (Postgres 42P01, PostgREST PGRST205), which is fine: there is nothing to delete.
 export async function deleteMyData(): Promise<void> {
   for (const [table, column] of [
     ["vehicles", "id"],
     ["poll_runs", "id"],
+    ["charging_sessions", "session_id"],
   ] as const) {
     const { error } = await db().from(table).delete().not(column, "is", null);
-    if (error) throw new Error(`Deleting ${table} failed: ${error.message}`);
+    if (error && !(table === "charging_sessions" && ["42P01", "PGRST205"].includes(error.code))) {
+      throw new Error(`Deleting ${table} failed: ${error.message}`);
+    }
   }
   await disconnectTesla();
 }

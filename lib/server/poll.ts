@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "./supabase";
 import { parseReleaseNotes } from "@/lib/release-notes";
 import { fleetGet, TeslaError } from "./tesla";
+import { syncChargingHistory } from "./charging";
 import { colorName, MILES_TO_KM, modelName } from "@/lib/car";
 
 type FleetVehicle = {
@@ -221,6 +222,12 @@ export async function pollAll(): Promise<PollResult> {
       } catch (err) {
         errors.push(`${vehicle.display_name ?? vehicle.vin}: ${(err as Error).message}`);
       }
+    }
+    // Supercharger history is extra: it runs after the vehicles and can never fail the check.
+    if (process.env.TESLA_CHARGING === "1") {
+      await syncChargingHistory(vehicles.map((v) => v.vin)).catch((err) =>
+        console.warn("Charging history sync failed:", (err as Error).message),
+      );
     }
   } catch (err) {
     errors.push((err as Error).message);

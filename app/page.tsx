@@ -30,6 +30,9 @@ function Header({ connected }: { connected: boolean }) {
             <CheckNowButton className="hover:text-foreground disabled:text-foreground" />
           </form>
         )}
+        <Link href="/charging" className="hover:text-foreground">
+          Charging
+        </Link>
         <Link href="/settings" className="hover:text-foreground">
           Settings
         </Link>

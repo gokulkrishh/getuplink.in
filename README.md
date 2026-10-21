@@ -88,6 +88,16 @@ Do this right after the first deploy: until someone signs in, the first Tesla ac
 2. Sign in to Tesla and approve the requested scopes (vehicle data, offline access).
 3. You land on the dashboard and a first check runs immediately. If the car is asleep, it shows as Asleep with no version until a later check finds it online. Use **Check now** after opening the Tesla app (which wakes the car) to record the version straight away.
 
+### Optional: Supercharger history
+
+The **Charging** page lists your Tesla Supercharger sessions with energy, cost and invoice links. It needs an extra scope, so it is off by default:
+
+1. In the Tesla developer app, enable **Vehicle Charging Management**.
+2. Set `TESLA_CHARGING=1` in Vercel (or `.env.local`) and redeploy.
+3. Sign in with Tesla again to approve the new scope.
+
+Each check then pulls the last 120 days of sessions for every car. Other networks are not covered yet. The migration is [`supabase/migrations/20261021210000_charging_sessions.sql`](supabase/migrations/20261021210000_charging_sessions.sql).
+
 ## Polling and the Vercel Hobby plan
 
 `vercel.json` schedules `/api/cron/poll` every 6 hours (`0 */6 * * *`). **Vercel Hobby only allows crons that run at most once a day, and a more frequent schedule fails the deployment.** On Hobby, either:
