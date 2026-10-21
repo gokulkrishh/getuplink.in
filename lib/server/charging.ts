@@ -7,7 +7,8 @@ const DAY = 24 * 60 * 60 * 1000;
 const LOOKBACK_DAYS = 120;
 const PAGE_SIZE = 50;
 const MAX_PAGES = 10; // at most 500 sessions per car per check
-const LIST_LIMIT = 200;
+// Enough for the "All time" view; the stats page works out each period from this list.
+const LIST_LIMIT = 1000;
 
 // Tesla documents the charging history loosely, so every field is optional and read defensively.
 type Fee = {
@@ -162,7 +163,7 @@ export async function loadChargingSessions(): Promise<ChargingSession[]> {
 
 // Demo sessions modelled on real data: India's open Supercharger sites (Mumbai BKC and Navi Mumbai
 // Nexus Seawoods, V4 up to 250 kW), Tesla India's ₹24/kWh rate, and the fee shape of a real
-// charging-history reply (a CHARGING line priced per kWh). Dated relative to now, across two months.
+// charging-history reply (a CHARGING line priced per kWh). Dated relative to now, across fourteen months.
 const DEMO_RATE_INR = 24;
 function demoSessions(): ChargingSession[] {
   const now = Date.now();
@@ -179,6 +180,21 @@ function demoSessions(): ChargingSession[] {
     { site: BKC, daysAgo: 25, kwh: 27.8, invoice: true },
     { site: SEAWOODS, daysAgo: 29, kwh: 20.4, invoice: true },
     { site: BKC, daysAgo: 33, kwh: 45.0, invoice: true },
+    { site: SEAWOODS, daysAgo: 41, kwh: 31.2, invoice: true },
+    { site: BKC, daysAgo: 52, kwh: 36.5, invoice: true },
+    { site: BKC, daysAgo: 64, kwh: 19.8, invoice: true },
+    { site: SEAWOODS, daysAgo: 78, kwh: 42.4, invoice: true },
+    { site: BKC, daysAgo: 95, kwh: 28.6, invoice: true },
+    { site: SEAWOODS, daysAgo: 118, kwh: 34.9, invoice: true },
+    { site: BKC, daysAgo: 142, kwh: 40.1, invoice: true },
+    { site: BKC, daysAgo: 171, kwh: 23.7, invoice: true },
+    { site: SEAWOODS, daysAgo: 203, kwh: 37.3, invoice: true },
+    { site: BKC, daysAgo: 238, kwh: 26.5, invoice: true },
+    { site: SEAWOODS, daysAgo: 276, kwh: 44.2, invoice: true },
+    { site: BKC, daysAgo: 312, kwh: 30.8, invoice: true },
+    { site: SEAWOODS, daysAgo: 351, kwh: 21.6, invoice: true },
+    { site: BKC, daysAgo: 389, kwh: 35.4, invoice: true },
+    { site: BKC, daysAgo: 421, kwh: 39.0, invoice: true },
   ];
   return sample.map((s, i) => {
     const started = new Date(now - s.daysAgo * DAY);

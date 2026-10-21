@@ -9,18 +9,19 @@ import { Logo } from "@/components/logo";
 import { ShowMore } from "@/components/show-more";
 import { Tip } from "@/components/tip";
 import { buttonVariants } from "@/components/ui/button";
+import { Bars } from "@/components/stats/bars";
+import { PeriodSwitch } from "@/components/stats/period-switch";
+import { type Period, monthIndex, monthKey, monthShort, parsePeriod, yearOf } from "@/components/stats/periods";
 import { formatClock, formatDuration, formatKwh, formatMoney, formatMonth, formatShortDate } from "@/lib/format";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargingSession, loadChargingSessions } from "@/lib/server/charging";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
-import { cn } from "@/lib/utils";
+import { loadMonthlyDistance, type MonthlyDistance } from "@/lib/server/driving";
 
 export const metadata: Metadata = { title: "Stats · Uplink" };
 
 // Sessions shown per month before "Show N more".
 const MONTH_PREVIEW = 5;
-
-const monthLabel = new Intl.DateTimeFormat("en-GB", { month: "short", timeZone: "Asia/Kolkata" });
 
 // "Bengaluru, Nexus Koramangala" -> { place: "Nexus Koramangala", city: "Bengaluru" }
 function splitSite(name: string | null): { place: string; city: string | null } {
@@ -62,67 +63,56 @@ function Header() {
   );
 }
 
-// Year and month (1-12) of an instant in IST, so the bars follow the same calendar as the session list.
-const istYearMonth = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "numeric" });
+const compactNumber = new Intl.NumberFormat("en-IN");
 
-function MonthBars({ sessions, now }: { sessions: ChargingSession[]; now: number }) {
-  const currency = totals(sessions).currency;
-  const compact = new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 });
-  const parts = istYearMonth.formatToParts(now);
-  const part = (type: string) => Number(parts.find((p) => p.type === type)?.value);
-  const currentIndex = part("year") * 12 + part("month") - 1;
-  // Spend per month, keyed like the rest of the page; each session's month is worked out once.
-  const spend = new Map<string, number>();
-  for (const s of sessions) {
-    const key = formatMonth(s.started_at);
-    spend.set(key, (spend.get(key) ?? 0) + (s.cost_total ?? 0));
-  }
-  const months = Array.from({ length: 6 }, (_, k) => {
-    const back = 5 - k;
-    const index = currentIndex - back;
-    // Noon UTC on the 15th falls in the same IST month in any timezone.
-    const d = new Date(Date.UTC(Math.floor(index / 12), index % 12, 15, 12));
-    const key = formatMonth(d);
-    return { key, label: monthLabel.format(d), cost: spend.get(key) ?? 0, isCurrent: back === 0 };
-  });
-  const max = Math.max(...months.map((m) => m.cost));
-  // Months before the first session stay blank, so the bars start where the history starts.
-  const first = months.findIndex((m) => m.cost > 0);
+const SPENT_LABELS: Record<Period, string> = {
+  month: "Spent this month",
+  "6m": "Spent in the last 6 months",
+  year: "Spent this year",
+  all: "Spent in total",
+};
 
-  return (
-    <div className="bg-muted px-4 pt-5 pb-3">
-      <ol className="grid grid-cols-6 items-end gap-3" aria-label="Spend per month">
-        {months.map((m, k) =>
-          k < first ? (
-            <li key={m.key} aria-hidden="true" />
-          ) : (
-            <li key={m.key} className="flex flex-col items-center gap-2">
-              <span className="font-mono text-xs text-muted-foreground tabular-nums">{compact.format(m.cost)}</span>
-              <div className="flex h-20 w-full items-end">
-                {m.cost > 0 && (
-                  <div
-                    className={cn("w-full", m.isCurrent ? "bg-foreground" : "bg-muted-foreground/40")}
-                    style={{ height: `${Math.max(4, (m.cost / max) * 100)}%` }}
-                  />
-                )}
-              </div>
-              <span className={cn("text-xs", m.isCurrent ? "text-foreground" : "text-faint")}>{m.label}</span>
-            </li>
-          ),
-        )}
-      </ol>
-    </div>
-  );
+const DRIVEN_LABELS: Record<Period, string> = {
+  month: "this month",
+  "6m": "in the last 6 months",
+  year: "this year",
+  all: "in the last 12 months",
+};
+
+// Which months a period covers, given the current month index.
+function inPeriod(period: Period, index: number, cur: number): boolean {
+  if (period === "month") return index === cur;
+  if (period === "6m") return index > cur - 6 && index <= cur;
+  if (period === "year") return yearOf(index) === yearOf(cur);
+  return true;
 }
 
-function Summary({ sessions, now }: { sessions: ChargingSession[]; now: number }) {
-  const month = formatMonth(now);
-  const { cost, energy, count, currency } = totals(sessions.filter((s) => formatMonth(s.started_at) === month));
+// Bar slots: 6 months (Month, 6 months), the 12 months of this year (Year), or 6 years (All time).
+function slotsFor(period: Period, cur: number): { id: number; label: string }[] {
+  if (period === "year") return Array.from({ length: 12 }, (_, m) => ({ id: yearOf(cur) * 12 + m, label: monthShort(yearOf(cur) * 12 + m) }));
+  if (period === "all") return Array.from({ length: 6 }, (_, k) => ({ id: yearOf(cur) - 5 + k, label: String(yearOf(cur) - 5 + k) }));
+  return Array.from({ length: 6 }, (_, k) => ({ id: cur - 5 + k, label: monthShort(cur - 5 + k) }));
+}
+
+function Summary({ sessions, now, period }: { sessions: ChargingSession[]; now: number; period: Period }) {
+  const cur = monthIndex(now);
+  // Each session's month is worked out once, then reused for the totals and the bars.
+  const dated = sessions.map((s) => ({ s, index: monthIndex(s.started_at) }));
+  const { cost, energy, count, currency } = totals(dated.filter((d) => inPeriod(period, d.index, cur)).map((d) => d.s));
   const rateText = rate(cost, energy, currency);
+  const bucket = (index: number) => (period === "all" ? yearOf(index) : index);
+  const spend = new Map<number, number>();
+  for (const { s, index } of dated) spend.set(bucket(index), (spend.get(bucket(index)) ?? 0) + (s.cost_total ?? 0));
+  const compact = new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 });
+  const current = bucket(cur);
+  const bars = slotsFor(period, cur).map((slot) => {
+    const value = spend.get(slot.id) ?? 0;
+    return { key: String(slot.id), label: slot.label, value, display: compact.format(value), isCurrent: slot.id === current };
+  });
   return (
     <section className="space-y-8">
       <div className="space-y-2">
-        <p className="text-xs tracking-wide text-faint uppercase">Spent this month</p>
+        <p className="text-xs tracking-wide text-faint uppercase">{SPENT_LABELS[period]}</p>
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatMoney(cost, currency)}</p>
         <p className="text-sm text-muted-foreground tabular-nums">
           {[formatKwh(energy), `${count} ${count === 1 ? "session" : "sessions"}`, rateText && `${rateText} avg`]
@@ -130,7 +120,39 @@ function Summary({ sessions, now }: { sessions: ChargingSession[]; now: number }
             .join(" · ")}
         </p>
       </div>
-      <MonthBars sessions={sessions} now={now} />
+      <Bars bars={bars} ariaLabel={period === "all" ? "Spend per year" : "Spend per month"} />
+    </section>
+  );
+}
+
+function Distance({ distance, now, period }: { distance: MonthlyDistance[]; now: number; period: Period }) {
+  // A single reading gives no distance yet, so the section stays out of the way.
+  if (!distance.some((d) => d.km > 0)) return null;
+  const cur = monthIndex(now);
+  const km = new Map(distance.map((d) => [d.month, d.km]));
+  // The loader has 12 months, so All time shows those 12 and Year shows this calendar year's months.
+  const slots =
+    period === "year"
+      ? slotsFor("year", cur)
+      : Array.from({ length: period === "all" ? 12 : 6 }, (_, k) => {
+          const id = cur - (period === "all" ? 11 : 5) + k;
+          return { id, label: monthShort(id) };
+        });
+  const total = Array.from({ length: 12 }, (_, k) => cur - 11 + k)
+    .filter((index) => inPeriod(period, index, cur))
+    .reduce((sum, index) => sum + (km.get(monthKey(index)) ?? 0), 0);
+  const bars = slots.map((slot) => {
+    const value = km.get(monthKey(slot.id)) ?? 0;
+    return { key: String(slot.id), label: slot.label, value, display: compactNumber.format(value), isCurrent: slot.id === cur };
+  });
+  return (
+    <section className="space-y-8">
+      <div className="space-y-2">
+        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Distance</h2>
+        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{compactNumber.format(total)} km</p>
+        <p className="text-sm text-muted-foreground">{DRIVEN_LABELS[period]}</p>
+      </div>
+      <Bars bars={bars} ariaLabel="Distance per month" />
     </section>
   );
 }
@@ -219,17 +241,20 @@ function SessionList({ sessions }: { sessions: ChargingSession[] }) {
 }
 
 // Session check plus data in one browser-only private cache, so header links can prefetch it (see app/page.tsx).
-async function loadSessions(): Promise<{ sessions: ChargingSession[]; now: number }> {
+async function loadStats(): Promise<{ sessions: ChargingSession[]; distance: MonthlyDistance[]; now: number }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
-  return { sessions: await loadChargingSessions(), now: Date.now() };
+  const [sessions, distance] = await Promise.all([loadChargingSessions(), loadMonthlyDistance()]);
+  return { sessions, distance, now: Date.now() };
 }
 
-async function Sessions() {
-  const { sessions, now } = await loadSessions();
+async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParams">) {
+  // Read outside the cache: the period only changes how the cached list is summed.
+  const period = parsePeriod((await searchParams).period);
+  const { sessions, distance, now } = await loadStats();
 
   if (sessions.length === 0) {
     return (
@@ -241,7 +266,9 @@ async function Sessions() {
 
   return (
     <div className="space-y-12">
-      <Summary sessions={sessions} now={now} />
+      <PeriodSwitch period={period} />
+      <Summary sessions={sessions} now={now} period={period} />
+      <Distance distance={distance} now={now} period={period} />
       <SessionList sessions={sessions} />
     </div>
   );
@@ -265,14 +292,14 @@ function SessionsSkeleton() {
   );
 }
 
-export default function Page() {
+export default function Page({ searchParams }: PageProps<"/stats">) {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:py-20">
       <Header />
       <h1 className="text-2xl font-medium tracking-heading">Stats</h1>
       <p className="mt-2 mb-12 text-sm text-muted-foreground">Your Tesla Supercharger sessions. Third-party chargers coming soon.</p>
       <Suspense fallback={<SessionsSkeleton />}>
-        <Sessions />
+        <Sessions searchParams={searchParams} />
       </Suspense>
     </div>
   );
