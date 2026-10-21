@@ -12,6 +12,7 @@ import { Vin } from "@/components/vin";
 import { cn } from "@/lib/utils";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import type { Snapshot, VehicleView, VersionChange } from "@/lib/server/dashboard";
+import { LIST_PREVIEW } from "@/lib/list";
 
 const AWAKE_MS = 10 * 60 * 1000;
 
@@ -231,7 +232,6 @@ function Label({ children }: { children: React.ReactNode }) {
   return <dt className="mb-2 text-xs font-medium tracking-wide text-faint uppercase">{children}</dt>;
 }
 
-const HISTORY_PREVIEW = 5;
 
 // "Downloaded in 25 min · Installed in 32 min", on its own line under the row (rows without it stay as they were).
 function Timeline({ timeline }: { timeline: VersionChange["timeline"] }) {
@@ -455,14 +455,14 @@ export function VehicleSection({
                 <span className="text-right">Odometer</span>
               </div>
               <ol className="text-sm">
-                {history.slice(0, HISTORY_PREVIEW).map((change) => (
+                {history.slice(0, LIST_PREVIEW).map((change) => (
                   <HistoryRow key={change.detected_at} change={change} notes={notes} now={now} />
                 ))}
               </ol>
-              {history.length > HISTORY_PREVIEW && (
-                <ShowMore count={history.length - HISTORY_PREVIEW}>
+              {history.length > LIST_PREVIEW && (
+                <ShowMore count={history.length - LIST_PREVIEW}>
                   <ol className="text-sm">
-                    {history.slice(HISTORY_PREVIEW).map((change) => (
+                    {history.slice(LIST_PREVIEW).map((change) => (
                       <HistoryRow key={change.detected_at} change={change} notes={notes} now={now} />
                     ))}
                   </ol>

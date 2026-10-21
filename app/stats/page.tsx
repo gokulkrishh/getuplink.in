@@ -26,11 +26,10 @@ import { loadUpdateRows } from "@/lib/server/updates";
 import { loadDailyDistance, loadMonthlyDistance, type MonthlyDistance } from "@/lib/server/driving";
 import { loadStreamSessions, syncStreamSessionsForAllCars, type StreamChargeSession } from "@/lib/server/stream-charging";
 import { type DayKm, type UpdateRow, type WeeklyPack, combinedWhPerKm, updateStats } from "@/lib/telemetry-derive";
+import { LIST_PREVIEW } from "@/lib/list";
 
 export const metadata: Metadata = { title: "Stats · Uplink" };
 
-// Sessions shown per month before "Show N more".
-const MONTH_PREVIEW = 3;
 
 function totals(rows: ChargingSession[]) {
   return {
@@ -369,14 +368,14 @@ function SessionList({ sessions }: { sessions: Listed[] }) {
             <h3 className="text-xs font-medium tracking-wide text-faint uppercase">{month}</h3>
             <div>
               <ul className="divide-y border-t">
-                {rows.slice(0, MONTH_PREVIEW).map((s) => (
+                {rows.slice(0, LIST_PREVIEW).map((s) => (
                   <SessionRow key={s.key} item={s} serial={serial.get(s.key) ?? 0} />
                 ))}
               </ul>
-              {rows.length > MONTH_PREVIEW && (
-                <ShowMore count={rows.length - MONTH_PREVIEW}>
+              {rows.length > LIST_PREVIEW && (
+                <ShowMore count={rows.length - LIST_PREVIEW}>
                   <ul className="divide-y border-t">
-                    {rows.slice(MONTH_PREVIEW).map((s) => (
+                    {rows.slice(LIST_PREVIEW).map((s) => (
                       <SessionRow key={s.key} item={s} serial={serial.get(s.key) ?? 0} />
                     ))}
                   </ul>
