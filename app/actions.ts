@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { DEMO } from "@/lib/demo";
@@ -26,5 +27,7 @@ export async function checkNow() {
     (err: Error) => err.message,
   );
   if (crashed) console.error(crashed);
+  // New data may change every page (dashboard, stats); drop the browser's cached copies.
+  revalidatePath("/", "layout");
   redirect(crashed ? "/?error=check" : "/");
 }

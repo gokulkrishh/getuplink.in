@@ -276,7 +276,6 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
           <h2 className="text-sm text-muted-foreground">
             {vehicle.display_name || "Tesla"}
             {carLabel && <span className="ml-2 text-faint">· {carLabel}</span>}
-            {!pending && lastOnline && <span className="ml-2 text-faint">· Up to date</span>}
           </h2>
           <div className="flex items-center justify-end gap-1 text-sm text-faint tabular-nums">
             <CarStatus state={latest?.state ?? null} seenAt={vehicle.last_seen_at} />
