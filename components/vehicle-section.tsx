@@ -1,9 +1,9 @@
 import { VersionChart } from "@/components/version-chart";
-import { formatDate, formatDateTime, formatDuration, formatTime } from "@/lib/format";
+import { formatDate, formatDateTime, formatDuration, formatKm, formatShortDate, formatTime } from "@/lib/format";
 import { Check, ChevronRight, ScrollText } from "lucide-react";
 import { ReleaseNotesList } from "@/components/release-notes";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
-import type { Snapshot, VehicleView } from "@/lib/server/dashboard";
+import type { Snapshot, VehicleView, VersionChange } from "@/lib/server/dashboard";
 
 const STATUS: Record<string, string> = {
   available: "Available",
@@ -48,7 +48,7 @@ function UpdateStatus({ snapshot, asOf }: { snapshot: Snapshot | null; asOf: str
   }
 
   const progress =
-    status === "installing" ? snapshot.install_perc : status.startsWith("downloading") ? snapshot.download_perc : null;
+    status === "installing" ? snapshot.install_perc : status === "downloading" ? snapshot.download_perc : null;
   return (
     <div className="space-y-2">
       <p>
@@ -90,16 +90,30 @@ function UpdateStatus({ snapshot, asOf }: { snapshot: Snapshot | null; asOf: str
             : `Takes approx. ${formatDuration(snapshot.expected_duration_sec!)}`}
         </p>
       ) : null}
+      {status === "downloading_wifi_wait" && (
+        <p className="text-xs text-muted-foreground">Connect the car to Wi-Fi to start the download.</p>
+      )}
       {asOfLine}
     </div>
   );
 }
 
-function HistoryDate({ date }: { date: string | null }) {
-  if (date) return <span className="text-muted-foreground tabular-nums">{date}</span>;
+// Right side of a history row: when the version arrived, plus when it was offered and the odometer.
+function HistoryMeta({ change, date }: { change: VersionChange; date: string | null }) {
+  const details = [
+    change.available_at && `Offered ${formatShortDate(change.available_at)}`,
+    change.odometer_km != null && formatKm(change.odometer_km),
+  ].filter(Boolean);
   return (
-    <span className="text-faint" title="Install date unknown: this version was already on the car when Uplink started tracking.">
-      —
+    <span className="text-right">
+      {date ? (
+        <span className="block text-muted-foreground tabular-nums">{date}</span>
+      ) : (
+        <span className="block text-faint" title="Install date unknown: this version was already on the car when Uplink started tracking.">
+          —
+        </span>
+      )}
+      {details.length > 0 && <span className="block text-xs text-faint tabular-nums">{details.join(" · ")}</span>}
     </span>
   );
 }
@@ -183,7 +197,7 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
                   return (
                     <li key={change.detected_at} className="flex items-baseline justify-between gap-4 border-t py-2.5 pl-5">
                       <span className="font-mono">{change.version}</span>
-                      <HistoryDate date={date} />
+                      <HistoryMeta change={change} date={date} />
                     </li>
                   );
                 }
@@ -201,7 +215,7 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
                           />
                           {change.version}
                         </span>
-                        <HistoryDate date={date} />
+                        <HistoryMeta change={change} date={date} />
                       </summary>
                       <div className="pb-4 pl-5">
                         <ReleaseNotesList notes={versionNotes} />
