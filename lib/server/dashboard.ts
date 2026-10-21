@@ -1,8 +1,9 @@
 import "server-only";
 import { parseReleaseNotes, type ReleaseNote, type ReleaseNotesByVersion } from "@/lib/release-notes";
+import { type Reading, type UpdateTimeline, updateTimeline } from "@/lib/telemetry-derive";
 import { missingEnv } from "./env";
 import { db } from "./supabase";
-import { applyStream, loadStream } from "./telemetry";
+import { applyStream, loadReadings, loadStream } from "./telemetry";
 import { isConnected } from "./tesla";
 
 // Tags every page's "use cache: private" loader, so actions that change the owner's data or session
@@ -44,6 +45,8 @@ export type VersionChange = {
   detected_at: string;
   available_at: string | null; // first check that saw it offered as an update
   odometer_km: number | null;
+  // How long its download and install took, when the streamed readings cover it.
+  timeline?: UpdateTimeline;
 };
 
 export type PollRun = { started_at: string; ok: boolean | null; error: string | null };
@@ -64,6 +67,36 @@ export type Dashboard =
 
 const SNAPSHOT_COLUMNS =
   "polled_at, state, car_version, update_status, update_version, download_perc, install_perc, expected_duration_sec, scheduled_time_ms, battery_level, battery_range_km, charging_state, charge_limit, error";
+
+const DAY_MS = 86_400_000;
+
+// Download and install durations for the versions in history, from the streamed update fields. These only
+// change during an update, so one query per field from the oldest version on screen stays small. Anything
+// that can't be read just leaves the rows without timings.
+async function withTimelines(vin: string, history: VersionChange[]): Promise<VersionChange[]> {
+  if (history.length === 0) return history;
+  const from = new Date(Date.parse(history[history.length - 1].detected_at) - 14 * DAY_MS).toISOString();
+  const [pending, download, install, installed] = await Promise.all([
+    loadReadings(vin, "SoftwareUpdateVersion", from),
+    loadReadings(vin, "SoftwareUpdateDownloadPercentComplete", from),
+    loadReadings(vin, "SoftwareUpdateInstallationPercentComplete", from),
+    loadReadings(vin, "Version", from),
+  ]);
+  if (!pending || !download || !install || !installed) return history;
+  // The readings around one version: from two weeks before it was detected to a day after.
+  const within = (readings: Reading[], start: number, end: number) => readings.filter((r) => Date.parse(r.at) >= start && Date.parse(r.at) <= end);
+  return history.map((change) => {
+    const detected = Date.parse(change.detected_at);
+    const [start, end] = [detected - 14 * DAY_MS, detected + DAY_MS];
+    const timeline = updateTimeline(change.version, {
+      pending: within(pending, start, end),
+      download: within(download, start, end),
+      install: within(install, start, end),
+      installed: within(installed, start, end),
+    });
+    return timeline ? { ...change, timeline } : change;
+  });
+}
 
 async function vehicleView(vehicle: Vehicle): Promise<VehicleView> {
   const [latest, lastOnline, history, stream] = await Promise.all([
@@ -90,7 +123,7 @@ async function vehicleView(vehicle: Vehicle): Promise<VehicleView> {
     vehicle,
     latest: latest.data as Snapshot | null,
     lastOnline: applyStream(lastOnline.data as Snapshot | null, stream),
-    history: (history.data ?? []) as VersionChange[],
+    history: vehicle.vin ? await withTimelines(vehicle.vin, (history.data ?? []) as VersionChange[]) : ((history.data ?? []) as VersionChange[]),
   };
 }
 

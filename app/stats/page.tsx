@@ -10,13 +10,16 @@ import { ShowMore } from "@/components/show-more";
 import { Tip } from "@/components/tip";
 import { buttonVariants } from "@/components/ui/button";
 import { Bars } from "@/components/stats/bars";
+import { BatteryTrend } from "@/components/stats/battery-trend";
 import { PeriodSwitch } from "@/components/stats/period-switch";
 import { type Period, monthIndex, monthKey, monthShort, parsePeriod, yearOf } from "@/components/stats/periods";
 import { formatClock, formatDuration, formatKwh, formatMoney, formatMonth, formatShortDate } from "@/lib/format";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargingSession, loadChargingSessions } from "@/lib/server/charging";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
-import { loadMonthlyDistance, type MonthlyDistance } from "@/lib/server/driving";
+import { loadBatteryTrend } from "@/lib/server/battery";
+import { loadDailyDistance, loadMonthlyDistance, type MonthlyDistance } from "@/lib/server/driving";
+import type { DayKm, WeeklyPack } from "@/lib/telemetry-derive";
 
 export const metadata: Metadata = { title: "Stats · Uplink" };
 
@@ -157,6 +160,46 @@ function Distance({ distance, now, period }: { distance: MonthlyDistance[]; now:
   );
 }
 
+// Kilometres per day for the last 30 days, from the streamed odometer.
+function DailyDriving({ days }: { days: DayKm[] }) {
+  // One day of readings has nothing to compare against, so the section waits for a second.
+  if (days.filter((d) => d.km !== null).length < 2) return null;
+  const total = days.reduce((sum, d) => sum + (d.km ?? 0), 0);
+  const bars = days.map((d, k) => ({
+    key: String(d.day),
+    label: formatShortDate(d.start),
+    value: d.km ?? 0,
+    display: `${compactNumber.format(d.km ?? 0)} km`,
+    isCurrent: k === days.length - 1,
+    blank: d.km === null,
+  }));
+  return (
+    <section className="space-y-8">
+      <div className="space-y-2">
+        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Driving per day</h2>
+        <p className="text-sm text-muted-foreground tabular-nums">{compactNumber.format(total)} km in the last 30 days</p>
+      </div>
+      <Bars bars={bars} ariaLabel="Distance per day" labelEvery={7} />
+    </section>
+  );
+}
+
+// The estimated full pack by week, from the streamed energy remaining and battery level.
+function Battery({ trend }: { trend: WeeklyPack[] }) {
+  if (trend.length < 2) return null;
+  const latest = trend[trend.length - 1];
+  return (
+    <section id="battery" className="space-y-8">
+      <div className="space-y-2">
+        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Battery</h2>
+        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatKwh(latest.kwh)}</p>
+        <p className="text-sm text-muted-foreground">Estimated full pack, weekly median</p>
+      </div>
+      <BatteryTrend points={trend} />
+    </section>
+  );
+}
+
 function SessionRow({ session: s }: { session: ChargingSession }) {
   const invoice = s.invoices.find((i) => i.contentId);
   const { place, city } = splitSite(s.site_name);
@@ -251,10 +294,20 @@ async function loadStats(): Promise<{ sessions: ChargingSession[]; distance: Mon
   return { sessions, distance, now: Date.now() };
 }
 
+// Streamed odometer and battery readings, cached the same way as the sessions.
+async function loadTelemetryStats(): Promise<{ days: DayKm[]; trend: WeeklyPack[] }> {
+  "use cache: private";
+  cacheTag(OWNER_DATA_TAG);
+  cacheLife({ stale: 60 });
+  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
+  const [days, trend] = await Promise.all([loadDailyDistance(), loadBatteryTrend()]);
+  return { days, trend };
+}
+
 async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParams">) {
   // Read outside the cache: the period only changes how the cached list is summed.
   const period = parsePeriod((await searchParams).period);
-  const { sessions, distance, now } = await loadStats();
+  const [{ sessions, distance, now }, { days, trend }] = await Promise.all([loadStats(), loadTelemetryStats()]);
 
   if (sessions.length === 0) {
     return (
@@ -269,7 +322,9 @@ async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParam
       <PeriodSwitch period={period} />
       <Summary sessions={sessions} now={now} period={period} />
       <Distance distance={distance} now={now} period={period} />
+      <DailyDriving days={days} />
       <SessionList sessions={sessions} />
+      <Battery trend={trend} />
     </div>
   );
 }

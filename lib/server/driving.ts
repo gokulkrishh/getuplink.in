@@ -1,7 +1,9 @@
 import "server-only";
 import { monthIndex, monthKey } from "@/components/stats/periods";
 import { MILES_TO_KM } from "@/lib/car";
+import { type DayKm, dailyDistance, istDay, istDayStart, num } from "@/lib/telemetry-derive";
 import { db } from "./supabase";
+import { loadPrimaryVin, loadReadings } from "./telemetry";
 
 export type MonthlyDistance = { month: string; km: number };
 
@@ -53,4 +55,22 @@ export async function loadMonthlyDistance(): Promise<MonthlyDistance[]> {
     result.push({ month: monthKey(firstIndex + k), km: Math.max(0, Math.round(end - start)) });
   }
   return result;
+}
+
+export const DRIVING_DAYS = 30;
+
+// Kilometres per IST day for the last 30 days, from the streamed odometer (see dailyDistance). Empty when
+// the stream can't be read.
+export async function loadDailyDistance(): Promise<DayKm[]> {
+  const vin = await loadPrimaryVin();
+  if (!vin) return [];
+  const now = Date.now();
+  const from = new Date(istDayStart(istDay(now) - DRIVING_DAYS + 1)).toISOString();
+  const [readings, before] = await Promise.all([
+    loadReadings(vin, "Odometer", from),
+    // The last reading before the window, so the first day has something to count from.
+    db().from("telemetry_readings").select("value").eq("vin", vin).eq("field", "Odometer").lt("created_at", from).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+  ]);
+  if (!readings || before.error) return [];
+  return dailyDistance(readings, num(before.data?.value), now, DRIVING_DAYS);
 }
