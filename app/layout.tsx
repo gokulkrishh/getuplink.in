@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "India EV Update Tracker",
+  title: "Uplink",
   description: "Tesla software updates, tracked from India.",
   robots: { index: false, follow: false },
 };

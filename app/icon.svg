@@ -1,4 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" fill="#0a0a0a"/>
-  <path d="M16 21V9M10.5 14.5 16 9l5.5 5.5M10 24h12" fill="none" stroke="#fafafa" stroke-width="2.5"/>
+  <style>
+    rect { fill: #ffffff; } path { stroke: #0a0a0a; }
+    @media (prefers-color-scheme: dark) { rect { fill: #040404; } path { stroke: #f8f8f8; } }
+  </style>
+  <rect width="32" height="32"/>
+  <path d="M16 21V9M10.5 14.5 16 9l5.5 5.5M10 24h12" fill="none" stroke-width="2.5"/>
 </svg>

@@ -12,7 +12,7 @@ function Header({ connected }: { connected: boolean }) {
     <header className="mb-16 flex items-center justify-between gap-4 text-sm">
       <h1 className="flex items-center gap-2.5 font-medium">
         <Logo className="size-5" />
-        India EV Update Tracker
+        Uplink
       </h1>
       <nav className="flex items-baseline gap-4 text-muted-foreground">
         {connected && (

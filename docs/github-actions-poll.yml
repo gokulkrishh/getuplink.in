@@ -16,4 +16,4 @@ jobs:
         run: |
           curl --fail-with-body -sS \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            https://tesla-in-updates.vercel.app/api/cron/poll
+            https://getuplink.vercel.app/api/cron/poll
