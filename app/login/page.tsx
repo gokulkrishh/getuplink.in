@@ -11,10 +11,10 @@ function Preview() {
   return (
     <div aria-hidden="true" className="w-full max-w-sm border p-6 text-left select-none sm:p-8">
       <p className="text-xs text-faint">Model Y</p>
-      <p className="mt-1 font-mono text-4xl font-medium tracking-tight tabular-nums">2026.38.4</p>
+      <p className="mt-1 font-mono text-4xl font-medium tracking-tight tabular-nums">2026.32.3</p>
       <div className="mt-8 flex items-baseline justify-between text-sm">
         <span>
-          Downloading <span className="ml-1 font-mono text-muted-foreground">2026.38.6</span>
+          Downloading <span className="ml-1 font-mono text-muted-foreground">2026.38.3</span>
         </span>
         <span className="font-mono text-xs tabular-nums text-muted-foreground">42%</span>
       </div>

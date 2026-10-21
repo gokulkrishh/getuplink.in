@@ -1,7 +1,7 @@
 import { VersionChart } from "@/components/version-chart";
 import { formatDate, formatDateTime, formatDuration, formatTime } from "@/lib/format";
-import { ChevronRight, Sparkles } from "lucide-react";
-import { changeCount, ReleaseNotesList } from "@/components/release-notes";
+import { Check, ChevronRight, ScrollText } from "lucide-react";
+import { ReleaseNotesList } from "@/components/release-notes";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import type { Snapshot, VehicleView } from "@/lib/server/dashboard";
 
@@ -13,17 +13,16 @@ const STATUS: Record<string, string> = {
   installing: "Installing",
 };
 
-function WhatsNew({ version, notes }: { version: string; notes: ReleaseNotesByVersion }) {
+function ReleaseNotesToggle({ version, notes }: { version: string; notes: ReleaseNotesByVersion }) {
   if (!notes[version]) return null;
   return (
     <details className="group/notes">
       <summary
-        aria-label={`What's new in ${version}, ${changeCount(notes[version].length)}`}
+        aria-label={`Release notes for ${version}`}
         className="flex w-fit list-none items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden"
       >
-        <Sparkles className="size-3" aria-hidden="true" />
-        What&apos;s new
-        <span className="text-faint">· {changeCount(notes[version].length)}</span>
+        <ScrollText className="size-3" aria-hidden="true" />
+        Release notes
         <ChevronRight className="size-3 text-faint transition-transform group-open/notes:rotate-90" aria-hidden="true" />
       </summary>
       <ReleaseNotesList notes={notes[version]} />
@@ -47,7 +46,10 @@ function UpdateStatus({
   if (!status || !STATUS[status]) {
     return (
       <div className="space-y-1">
-        <p>Up to date</p>
+        <p className="flex items-center gap-1.5">
+          <Check className="size-3.5 text-positive" aria-hidden="true" />
+          Up to date
+        </p>
         {asOfLine}
       </div>
     );
@@ -97,8 +99,17 @@ function UpdateStatus({
         </p>
       ) : null}
       {asOfLine}
-      {snapshot.update_version && <WhatsNew version={snapshot.update_version} notes={notes} />}
+      {snapshot.update_version && <ReleaseNotesToggle version={snapshot.update_version} notes={notes} />}
     </div>
+  );
+}
+
+function HistoryDate({ date }: { date: string | null }) {
+  if (date) return <span className="text-muted-foreground tabular-nums">{date}</span>;
+  return (
+    <span className="text-faint" title="Install date unknown: this version was already on the car when Uplink started tracking.">
+      —
+    </span>
   );
 }
 
@@ -109,6 +120,7 @@ function Label({ children }: { children: React.ReactNode }) {
 export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?: ReleaseNotesByVersion }) {
   const { vehicle, latest, lastOnline, history } = view;
   const asleep = latest && latest.state !== "online";
+  const pending = Boolean(lastOnline?.update_status && STATUS[lastOnline.update_status]);
 
   return (
     <section className="space-y-12">
@@ -122,7 +134,7 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
         </p>
         {vehicle.current_version && (
           <div className="pt-2">
-            <WhatsNew version={vehicle.current_version} notes={notes} />
+            <ReleaseNotesToggle version={vehicle.current_version} notes={notes} />
           </div>
         )}
         {!vehicle.current_version && (
@@ -134,7 +146,7 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
 
       <dl className="grid gap-8 text-sm sm:grid-cols-3">
         <div className="sm:col-span-2">
-          <Label>Update</Label>
+          {pending ? <Label>Update</Label> : <dt className="sr-only">Update</dt>}
           <dd>
             <UpdateStatus snapshot={lastOnline} notes={notes} asOf={asleep && lastOnline ? lastOnline.polled_at : null} />
           </dd>
@@ -167,13 +179,14 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
             <VersionChart changes={[...history].reverse()} until={vehicle.last_polled_at} />
             <ol className="text-sm">
               {history.map((change) => {
-                const date = change.previous_version ? formatDate(change.detected_at) : `First seen ${formatDate(change.detected_at)}`;
+                // The first version was already installed when tracking began; Tesla doesn't report install dates.
+                const date = change.previous_version ? formatDate(change.detected_at) : null;
                 const versionNotes = notes[change.version];
                 if (!versionNotes) {
                   return (
                     <li key={change.detected_at} className="flex items-baseline justify-between gap-4 border-t py-2.5 pl-5">
                       <span className="font-mono">{change.version}</span>
-                      <span className="text-muted-foreground tabular-nums">{date}</span>
+                      <HistoryDate date={date} />
                     </li>
                   );
                 }
@@ -181,7 +194,7 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
                   <li key={change.detected_at} className="border-t">
                     <details className="group/row">
                       <summary
-                        aria-label={`${change.version}, ${date}. Show release notes`}
+                        aria-label={`${change.version}, ${date ?? "install date unknown"}. Show release notes`}
                         className="flex list-none items-baseline justify-between gap-4 py-2.5 hover:text-foreground [&::-webkit-details-marker]:hidden"
                       >
                         <span className="flex items-center gap-1.5 font-mono">
@@ -191,7 +204,7 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
                           />
                           {change.version}
                         </span>
-                        <span className="text-muted-foreground tabular-nums">{date}</span>
+                        <HistoryDate date={date} />
                       </summary>
                       <div className="pb-4 pl-5">
                         <ReleaseNotesList notes={versionNotes} />

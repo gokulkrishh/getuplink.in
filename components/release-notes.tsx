@@ -1,13 +1,6 @@
 import { Fragment } from "react";
 import type { ReleaseNote } from "@/lib/release-notes";
 
-const changes = new Intl.PluralRules("en");
-
-// "2 changes", using the locale's plural rules.
-export function changeCount(n: number): string {
-  return `${n} ${changes.select(n) === "one" ? "change" : "changes"}`;
-}
-
 // Tesla's notes for one version as a quiet changelog: category on the left, the change on the right.
 export function ReleaseNotesList({ notes }: { notes: ReleaseNote[] }) {
   return (
