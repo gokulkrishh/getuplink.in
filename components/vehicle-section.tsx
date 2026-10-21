@@ -119,9 +119,8 @@ function HistoryMeta({ change, date }: { change: VersionChange; date: string | n
       {date ? (
         <span className="block text-muted-foreground tabular-nums">{date}</span>
       ) : (
-        <span className="block text-faint" title="Install date unknown: this version was already on the car when Uplink started tracking.">
-          —
-        </span>
+        // Already installed when tracking began; Tesla doesn't report install dates.
+        <span className="block text-muted-foreground tabular-nums">Before {formatDate(change.detected_at)}</span>
       )}
       {details.length > 0 && <span className="block text-xs text-faint tabular-nums">{details.join(" · ")}</span>}
     </div>
