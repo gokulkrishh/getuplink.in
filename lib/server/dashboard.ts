@@ -1,6 +1,6 @@
 import "server-only";
 import { DEMO } from "@/lib/demo";
-import type { ReleaseNote, ReleaseNotesByVersion } from "@/lib/release-notes";
+import { parseReleaseNotes, type ReleaseNote, type ReleaseNotesByVersion } from "@/lib/release-notes";
 import { demoDashboard, isDemoScenario } from "./demo-data";
 import { missingEnv } from "./env";
 import { db } from "./supabase";
@@ -99,12 +99,15 @@ async function loadReleaseNotes(views: VehicleView[]): Promise<ReleaseNotesByVer
     if (v.lastOnline?.update_version) versions.add(v.lastOnline.update_version);
   }
   if (versions.size === 0) return {};
-  const { data, error } = await db().from("release_notes").select("version, notes").in("version", [...versions]);
+  const { data, error } = await db().from("release_notes").select("version, notes, raw").in("version", [...versions]);
   if (error) {
     console.warn("Release notes unavailable:", error.message);
     return {};
   }
-  return Object.fromEntries((data as { version: string; notes: ReleaseNote[] }[]).map((r) => [r.version, r.notes]));
+  // Re-parse the stored response so rows saved before a parser fix show the cleaned notes too.
+  return Object.fromEntries(
+    (data as { version: string; notes: ReleaseNote[]; raw: unknown }[]).map((r) => [r.version, r.raw ? parseReleaseNotes(r.raw) : r.notes]),
+  );
 }
 
 export async function loadDashboard(demoScenario?: string): Promise<Dashboard> {

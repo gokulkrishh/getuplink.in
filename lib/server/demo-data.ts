@@ -22,53 +22,44 @@ const DAY = 24 * 60 * 60 * 1000;
 const REGION_ERROR =
   'GET /api/1/vehicles failed (412): {"error":"Account must be registered in the current region https://fleet-api.prd.na.vn.cloud.tesla.com"}';
 
+// Demo data copies real Tesla data: shapes, units and value formats come from a real car's
+// stored response (anonymised), version numbers from Tesla's published release list, and
+// release notes word for word from the Fleet API. Only the timing between versions is simulated.
+
 // Newest first, like the real query. Each entry: [version, days ago].
 const LONG_HISTORY: [string, number][] = [
-  ["2026.32.3", 9],
-  ["2026.26.8", 41],
-  ["2026.26.5", 52],
-  ["2026.20.6", 83],
-  ["2026.14.3", 121],
-  ["2026.8.6", 168],
-  ["2026.2.9", 214],
-  ["2025.44.25", 262],
-  ["2025.38.8", 301],
-  ["2025.32.6", 349],
-  ["2025.26.7", 398],
-  ["2025.20.9", 452],
+  ["2026.38.3.1", 6],
+  ["2026.32.3", 44],
+  ["2026.26.6", 80],
+  ["2026.20.6.10", 118],
+  ["2026.14.6.6", 160],
+  ["2026.8.3", 205],
+  ["2026.2.9", 250],
+  ["2025.44.25.1", 300],
+  ["2025.38.8.5", 340],
+  ["2025.32.8.5", 385],
+  ["2025.26.7.10", 430],
 ];
 
-// Real Tesla release notes for these versions (official notes only), via notateslaapp.com.
-// Point releases carry the notes of their feature release. Some versions have none, as with real data.
+// A newer real release, for the pending-update scenarios.
+const NEXT_VERSION = "2026.38.5";
+
+// Release notes exactly as the Fleet API returned them (after parseReleaseNotes).
 const DEMO_NOTES: ReleaseNotesByVersion = {
-  "2026.38.3": [
-    { title: "Visual Updates", description: "The center display now features higher quality images of your Tesla, and an enhanced park scene environment." },
+  "2026.38.3.1": [
     {
-      title: "Dynamic Headlight Leveling",
+      title: "Halloween Mode",
       description:
-        "Low beams will automatically adjust their aim based on driving conditions and nearby traffic to maximize your visibility while reducing glare for other road users.",
-    },
-    {
-      title: "Supercharger Site Maps",
-      description:
-        'You can now see a detailed view of select Tesla Superchargers by tapping "View Site Map." When navigating to a pilot location, the site layout and live occupancy (Available / Occupied / Down) will be displayed upon arrival.',
+        "Spread holiday fear year round with Halloween Mode. Put a Ghost Costume on your car visualization. Turn on Trick or Treat Mode to play spooky sounds and flicker the lights when visitors approach. Schedule a haunting light show, and turn your car into a chilling Photobooth!",
     },
     { title: "Security Improvements", description: "This update includes important security fixes and improvements." },
   ],
   "2026.32.3": [
-    { title: "Wheel Selection", description: "New wheel options are available to customize the look of your Tesla." },
-    { title: "Apple Music", description: "Search now includes Apple Music. Songs, albums and playlists you've added are under the Library tab." },
-    { title: "Security Improvements", description: "This update includes important security fixes and improvements." },
-  ],
-  "2026.26.8": [
-    { title: "Preferred Routes", description: "Navigation now favors routes you've taken before. Online Routing must be enabled." },
+    { title: "Wheel Selection", description: "Choose from new wheel options to customize the appearance of your Tesla." },
     {
-      title: "Automatic Navigation",
-      description: "Your Tesla suggests and routes to places you visit regularly, not just Home, Work and calendar events.",
+      title: "Apple Music",
+      description: "Go to Search, select Apple Music, then tap Library to find the songs, albums, and playlists you've added",
     },
-    { title: "Camera Preview", description: "Camera Preview can now be opened at any time, not only in Park." },
-    { title: "Supercharger Search", description: "Find Superchargers by name when searching for a destination." },
-    { title: "Rear Display", description: "Lock the rear touchscreen controls from the center display." },
     { title: "Security Improvements", description: "This update includes important security fixes and improvements." },
   ],
 };
@@ -80,7 +71,7 @@ export function isDemoScenario(value: unknown): value is DemoScenario {
 export function demoDashboard(scenario: DemoScenario = "full"): Dashboard {
   const now = Date.now();
   const ago = (days: number) => new Date(now - days * DAY).toISOString();
-  // Offered 1–3 days before install; about 38 km a day of driving.
+  // Available 1–3 days before install; about 38 km a day of driving.
   const history = (rows: [string, number][]): VersionChange[] =>
     rows.map(([version, days], i) => {
       const previous = rows[i + 1]?.[0] ?? null;
@@ -96,17 +87,18 @@ export function demoDashboard(scenario: DemoScenario = "full"): Dashboard {
   const snapshot = (overrides: Partial<Snapshot>): Snapshot => ({
     polled_at: ago(0.1),
     state: "online",
-    car_version: "2026.32.3 3f2a1c9b",
+    // A real idle snapshot: Tesla reports 0% / 1% and a 45 min estimate even with no update pending.
+    car_version: "2026.38.3.1",
     update_status: null,
     update_version: null,
-    download_perc: null,
-    install_perc: null,
-    expected_duration_sec: null,
+    download_perc: 0,
+    install_perc: 1,
+    expected_duration_sec: 2700,
     scheduled_time_ms: null,
-    battery_level: 82,
-    battery_range_km: 398,
+    battery_level: 61,
+    battery_range_km: 266.1,
     charging_state: "Disconnected",
-    charge_limit: 90,
+    charge_limit: 65,
     error: null,
     ...overrides,
   });
@@ -115,9 +107,9 @@ export function demoDashboard(scenario: DemoScenario = "full"): Dashboard {
     vehicle: {
       id: 1,
       vin: "LRWYGCEK3SC100001",
-      display_name: "Model Y",
+      display_name: "Phantom",
       model: "Model Y",
-      exterior_color: "Pearl White",
+      exterior_color: "Diamond Black",
       last_state: latest?.state ?? "asleep",
       current_version: rows[0]?.[0] ?? null,
       last_seen_at: lastOnline?.polled_at ?? null,
@@ -143,13 +135,13 @@ export function demoDashboard(scenario: DemoScenario = "full"): Dashboard {
 
   switch (scenario) {
     case "installing":
-      return one({ update_status: "installing", update_version: "2026.38.3", install_perc: 63, expected_duration_sec: 1500 });
+      return one({ update_status: "installing", update_version: NEXT_VERSION, install_perc: 63, expected_duration_sec: 1500 });
     case "wifi-wait":
-      return one({ update_status: "downloading_wifi_wait", update_version: "2026.38.3", download_perc: 0, expected_duration_sec: 2400 });
+      return one({ update_status: "downloading_wifi_wait", update_version: NEXT_VERSION, download_perc: 0, expected_duration_sec: 2400 });
     case "scheduled":
-      return one({ update_status: "scheduled", update_version: "2026.38.3", scheduled_time_ms: now + 0.6 * DAY });
+      return one({ update_status: "scheduled", update_version: NEXT_VERSION, scheduled_time_ms: now + 0.6 * DAY });
     case "available":
-      return one({ update_status: "available", update_version: "2026.38.3", expected_duration_sec: 2400 });
+      return one({ update_status: "available", update_version: NEXT_VERSION, expected_duration_sec: 2400 });
     case "uptodate":
       return one({});
     case "never-seen":
@@ -165,23 +157,23 @@ export function demoDashboard(scenario: DemoScenario = "full"): Dashboard {
     case "misconfigured":
       return { kind: "misconfigured", missing: ["TOKEN_ENCRYPTION_KEY", "SUPABASE_SERVICE_ROLE_KEY"] };
     case "full": {
-      const downloading = snapshot({ update_status: "downloading", update_version: "2026.38.3", download_perc: 42, expected_duration_sec: 2400 });
-      const model3Online = snapshot({
+      const downloading = snapshot({ update_status: "downloading", update_version: NEXT_VERSION, download_perc: 42, expected_duration_sec: 2400 });
+      const secondOnline = snapshot({
         polled_at: ago(2.4),
-        car_version: "2026.26.8 9c1d2e3f",
+        car_version: "2026.32.3",
         update_status: "available",
-        update_version: "2026.32.3",
-        battery_level: 64,
-        battery_range_km: 291,
+        update_version: "2026.38.3.1",
+        battery_level: 48,
+        battery_range_km: 209.8,
         charging_state: "Charging",
         charge_limit: 80,
       });
       return ready([
         car({}, downloading, downloading, LONG_HISTORY),
         car(
-          { id: 2, vin: "LRW3E7EK5SC200002", display_name: "Model 3", model: "Model 3", exterior_color: "Midnight Silver", last_state: "asleep" },
+          { id: 2, vin: "LRWYGCEK1SC200002", display_name: "Nova", model: "Model Y", exterior_color: "Stealth Grey", last_state: "asleep" },
           snapshot({ state: "asleep", car_version: null }),
-          model3Online,
+          secondOnline,
           LONG_HISTORY.slice(1, 6),
         ),
       ]);

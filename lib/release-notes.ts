@@ -6,13 +6,24 @@ export type ReleaseNotesByVersion = Record<string, ReleaseNote[]>;
 
 const text = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
 
+// Tesla's list also carries notes from earlier releases (each tagged with its customer_version,
+// e.g. "2026.32" inside 2026.38.3.1's notes) and repeats items like "Security Improvements".
+// Keep only this release's notes, once each.
 export function parseReleaseNotes(response: unknown): ReleaseNote[] {
-  const list = (response as { release_notes?: unknown } | null)?.release_notes;
+  const { release_notes: list, release_notes_version: version } = (response ?? {}) as Record<string, unknown>;
   if (!Array.isArray(list)) return [];
+  const release = text(version);
+  const seen = new Set<string>();
   return list.flatMap((item) => {
-    const title = text((item as Record<string, unknown>)?.title);
+    const { title: rawTitle, subtitle, description, customer_version } = (item ?? {}) as Record<string, unknown>;
+    const title = text(rawTitle);
     if (!title) return [];
-    const { subtitle, description } = item as Record<string, unknown>;
-    return [{ title, subtitle: text(subtitle), description: text(description) }];
+    const from = text(customer_version);
+    if (release && from && !release.startsWith(from)) return [];
+    const note = { title, subtitle: text(subtitle), description: text(description) };
+    const key = JSON.stringify(note);
+    if (seen.has(key)) return [];
+    seen.add(key);
+    return [note];
   });
 }
