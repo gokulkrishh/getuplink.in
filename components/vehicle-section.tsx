@@ -13,7 +13,7 @@ const STATUS: Record<string, string> = {
 function UpdateStatus({ snapshot }: { snapshot: Snapshot | null }) {
   if (!snapshot) return <p className="text-muted-foreground">Unknown until the car is next seen online.</p>;
   const status = snapshot.update_status;
-  if (!status || !STATUS[status]) return <p>No update pending</p>;
+  if (!status || !STATUS[status]) return <p>Up to date</p>;
 
   const progress =
     status === "installing" ? snapshot.install_perc : status.startsWith("downloading") ? snapshot.download_perc : null;
