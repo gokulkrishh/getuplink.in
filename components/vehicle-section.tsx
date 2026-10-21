@@ -35,8 +35,18 @@ function UpdateStatus({ snapshot }: { snapshot: Snapshot | null }) {
       </p>
       {progress != null && (
         <div className="flex items-center gap-3">
-          <div className="h-px flex-1 bg-border">
-            <div className="h-px bg-foreground" style={{ width: `${Math.min(100, Math.max(0, progress))}%` }} />
+          <div
+            role="progressbar"
+            aria-valuenow={progress}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`${STATUS[status]} ${progress}%`}
+            className="h-1 flex-1 overflow-hidden bg-border"
+          >
+            {/* A light band sweeps across the filled part so an in-progress update reads as alive. */}
+            <div className="relative h-full overflow-hidden bg-foreground" style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}>
+              <span className="absolute inset-y-0 -left-1/2 w-1/2 bg-gradient-to-r from-transparent via-background/50 to-transparent motion-safe:animate-shimmer" />
+            </div>
           </div>
           <span className="w-10 text-right font-mono text-xs tabular-nums text-muted-foreground">{progress}%</span>
         </div>
