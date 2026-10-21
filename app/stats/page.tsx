@@ -430,7 +430,7 @@ async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParam
       {/* Driving and battery come from the car itself, so they show even before the first charge. */}
       {listed.length === 0 && (
         <EmptyState icon={<Zap className="size-7 text-faint" aria-hidden="true" />} title="No charging sessions yet">
-          Every charge shows up here: Superchargers, other fast chargers and AC charging at home or elsewhere.
+          Your charges will show up here, wherever you plug in.
         </EmptyState>
       )}
       <Distance distance={distance} now={now} period={period} />
