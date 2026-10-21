@@ -13,7 +13,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { Bars, StackedBars, type StackedBar } from "@/components/stats/bars";
 import { BatteryTrend } from "@/components/stats/battery-trend";
 import { PeriodSwitch } from "@/components/stats/period-switch";
-import { type Period, monthIndex, monthKey, monthShort, parsePeriod, yearOf } from "@/components/stats/periods";
+import { type Period, monthIndex, monthKey, monthShort, parsePeriod, parseView, yearOf } from "@/components/stats/periods";
+import { ViewTabs } from "@/components/stats/view-tabs";
 import { formatClock, formatDays, formatDuration, formatKwh, formatMoney, formatMonth, formatShortDate } from "@/lib/format";
 import { chargeEfficiency, matchSessions } from "@/lib/charge-sessions";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
@@ -529,8 +530,10 @@ async function SyncStreamSessions() {
 }
 
 async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParams">) {
-  // Read outside the cache: the period only changes how the cached list is summed.
-  const period = parsePeriod((await searchParams).period);
+  // Read outside the cache: the tab and period only change what's shown from the cached data.
+  const params = await searchParams;
+  const period = parsePeriod(params.period);
+  const view = parseView(params.view);
   const [{ sessions, streamSessions, distance, energy, updates, now }, { days, trend }] = await Promise.all([loadStats(), loadTelemetryStats()]);
 
   const { pairs, streamOnly } = matchSessions(sessions, streamSessions, now);
@@ -539,23 +542,49 @@ async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParam
     ...streamOnly.map((s) => ({ key: `stream-${s.id}`, started_at: s.started_at, tesla: null, stream: s })),
   ].sort((a, b) => Date.parse(b.started_at) - Date.parse(a.started_at));
 
+  // Mirrors each section's own "enough data" rule, so an empty tab says so instead of showing nothing.
+  const hasDriving = distance.some((d) => d.km > 0) || days.filter((d) => d.km !== null).length >= 2 || energy.length > 0;
+  const notYet = (title: string, body: string) => (
+    <EmptyState icon={<Zap className="size-7 text-faint" aria-hidden="true" />} title={title}>
+      {body}
+    </EmptyState>
+  );
+
   return (
     <div className="space-y-12">
-      <PeriodSwitch period={period} />
-      {sessions.length > 0 && <Summary sessions={sessions} now={now} period={period} />}
-      {streamSessions.length > 0 && <EnergyAdded sessions={sessions} streamOnly={streamOnly} now={now} period={period} />}
-      {/* Driving and battery come from the car itself, so they show even before the first charge. */}
-      {listed.length === 0 && (
-        <EmptyState icon={<Zap className="size-7 text-faint" aria-hidden="true" />} title="No charging sessions yet">
-          Your charges will show up here, wherever you plug in.
-        </EmptyState>
-      )}
-      <Distance distance={distance} now={now} period={period} />
-      <DailyDriving days={days} />
-      <EnergyUse energy={energy} now={now} period={period} />
-      {listed.length > 0 && <SessionList sessions={listed} />}
-      <Battery trend={trend} />
-      <Updates rows={updates} now={now} period={period} />
+      <div className="space-y-6">
+        <ViewTabs view={view} period={period} />
+        {/* The battery trend covers its own window, so the period doesn't apply there. */}
+        {view !== "battery" && <PeriodSwitch period={period} view={view} />}
+      </div>
+      {view === "charging" &&
+        (listed.length === 0 ? (
+          notYet("No charging sessions yet", "Your charges will show up here, wherever you plug in.")
+        ) : (
+          <>
+            {sessions.length > 0 && <Summary sessions={sessions} now={now} period={period} />}
+            {streamSessions.length > 0 && <EnergyAdded sessions={sessions} streamOnly={streamOnly} now={now} period={period} />}
+            <SessionList sessions={listed} />
+          </>
+        ))}
+      {view === "driving" &&
+        (hasDriving ? (
+          <>
+            <Distance distance={distance} now={now} period={period} />
+            <DailyDriving days={days} />
+            <EnergyUse energy={energy} now={now} period={period} />
+          </>
+        ) : (
+          notYet("Not enough driving yet", "Distance and energy use show up after a couple of days of driving.")
+        ))}
+      {view === "battery" &&
+        (trend.length >= 2 ? <Battery trend={trend} /> : notYet("Not enough readings yet", "The battery trend shows up after two weeks of readings."))}
+      {view === "updates" &&
+        (updateStats(updates, now) ? (
+          <Updates rows={updates} now={now} period={period} />
+        ) : (
+          notYet("Not enough updates yet", "Update stats show up after your car's second update."))
+        )}
     </div>
   );
 }
@@ -583,7 +612,7 @@ export default function Page({ searchParams }: PageProps<"/stats">) {
     <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:py-20">
       <Header />
       <h1 className="text-2xl font-medium tracking-heading">Stats</h1>
-      <p className="mt-2 mb-12 text-sm text-muted-foreground">Your charging sessions. Cost and invoices come from Tesla Superchargers.</p>
+      <p className="mt-2 mb-12 text-sm text-muted-foreground">Charging, driving, battery and updates over time.</p>
       <Suspense fallback={<SessionsSkeleton />}>
         <Sessions searchParams={searchParams} />
       </Suspense>

@@ -13,6 +13,28 @@ export function parsePeriod(value: string | string[] | undefined): Period {
   return PERIODS.find((p) => p.value === value)?.value ?? "month";
 }
 
+export type View = "charging" | "driving" | "battery" | "updates";
+
+export const VIEWS: { value: View; label: string }[] = [
+  { value: "charging", label: "Charging" },
+  { value: "driving", label: "Driving" },
+  { value: "battery", label: "Battery" },
+  { value: "updates", label: "Updates" },
+];
+
+export function parseView(value: string | string[] | undefined): View {
+  return VIEWS.find((v) => v.value === value)?.value ?? "charging";
+}
+
+// The Stats URL for a tab and period; the defaults stay out of it.
+export function statsHref(view: View, period: Period): string {
+  const params = new URLSearchParams();
+  if (view !== "charging") params.set("view", view);
+  if (period !== "month") params.set("period", period);
+  const query = params.toString();
+  return query ? `/stats?${query}` : "/stats";
+}
+
 const istParts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "numeric" });
 const shortMonth = new Intl.DateTimeFormat("en-GB", { month: "short", timeZone: "Asia/Kolkata" });
 
