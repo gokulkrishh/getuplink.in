@@ -7,11 +7,24 @@ export type Bar = { key: string; label: string; value: number; display: string; 
 // With labelEvery, any number of columns (one per day, say): only every labelEvery-th column from the
 // last one carries its label, and values live in the hover title and for screen readers.
 // With visible, only that many columns fit the panel and the rest scroll sideways, opening on the newest.
-export function Bars({ bars: all, ariaLabel, labelEvery, visible }: { bars: Bar[]; ariaLabel: string; labelEvery?: number; visible?: number }) {
+export function Bars({
+  bars: all,
+  ariaLabel,
+  labelEvery,
+  visible,
+  prefix,
+}: {
+  bars: Bar[];
+  ariaLabel: string;
+  labelEvery?: number;
+  visible?: number;
+  // Put before the y-axis numbers, like "₹".
+  prefix?: string;
+}) {
   const dense = all.length > 6;
   // Months before the history starts are dropped, so the bars begin at the left edge.
   const bars = labelEvery ? all : leadingTrimmed(all, (b) => b.value > 0);
-  const max = Math.max(1, ...bars.map((b) => b.value));
+  const max = niceMax(Math.max(1, ...bars.map((b) => b.value)));
   // Slots before the first value stay blank, so the bars start where the history starts.
   const first = bars.findIndex((b) => b.value > 0);
   const hidden = (b: Bar, k: number) => b.blank ?? k < first;
@@ -52,12 +65,53 @@ export function Bars({ bars: all, ariaLabel, labelEvery, visible }: { bars: Bar[
         )}
       </ol>
   );
-  return <div className="bg-muted px-4 pt-5 pb-3">{scrolls ? <ScrollEnd label={ariaLabel}>{list}</ScrollEnd> : list}</div>;
+  return (
+    <ChartFrame max={max} dense={dense} prefix={prefix}>
+      {scrolls ? <ScrollEnd label={ariaLabel}>{list}</ScrollEnd> : list}
+    </ChartFrame>
+  );
+}
+
+// The y-axis top: the data's maximum rounded up to 1, 2, 2.5 or 5 times a power of ten.
+export function niceMax(value: number): number {
+  const step = 10 ** Math.floor(Math.log10(value));
+  return ([1, 2, 2.5, 5, 10].find((m) => value <= m * step) ?? 10) * step;
+}
+
+const axisNumber = new Intl.NumberFormat("en-IN", { notation: "compact", maximumFractionDigits: 1 });
+
+// The panel with a y axis (0, half and the top) on the left and matching gridlines behind the bars. The
+// axis lines up with the bars' h-20 area: below the value labels (h-4 plus the gap) unless the chart is
+// dense, and above the x-axis labels. The bottom gridline is the x axis.
+export function ChartFrame({ max, dense, prefix = "", children }: { max: number; dense: boolean; prefix?: string; children: React.ReactNode }) {
+  const top = dense ? "top-0" : "top-6";
+  return (
+    <div className="flex gap-2 bg-muted pt-5 pr-4 pb-3 pl-2">
+      <div className={cn("relative w-8 shrink-0", dense ? "mb-6" : "my-6")} aria-hidden="true">
+        <div className="relative h-20 text-right font-mono text-xs text-faint tabular-nums">
+          {[max, max / 2, 0].map((v, i) => (
+            <span key={i} className={cn("absolute right-0", i === 0 ? "top-0 -translate-y-1/2" : i === 1 ? "top-1/2 -translate-y-1/2" : "bottom-0 translate-y-1/2")}>
+              {prefix}
+              {axisNumber.format(v)}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="relative min-w-0 flex-1">
+        <div className={cn("pointer-events-none absolute inset-x-0 h-20", top)} aria-hidden="true">
+          <div className="absolute inset-x-0 top-0 border-t border-dashed border-border" />
+          <div className="absolute inset-x-0 top-1/2 border-t border-dashed border-border" />
+          <div className="absolute inset-x-0 bottom-0 border-t border-muted-foreground/40" />
+        </div>
+        {children}
+      </div>
+    </div>
+  );
 }
 
 // 12 columns: "Jan" rather than "J", and on a phone only every other month (counted from the newest) so
 // the names don't collide.
-function MonthLabel({ label, dense, fromEnd }: { label: string; dense: boolean; fromEnd: number }) {
+export function MonthLabel({ label, dense, fromEnd }: { label: string; dense: boolean; fromEnd: number }) {
   if (!dense) return label;
   return <span className={cn(fromEnd % 2 === 1 && "max-sm:invisible")}>{label.slice(0, 3)}</span>;
 }
@@ -65,7 +119,7 @@ function MonthLabel({ label, dense, fromEnd }: { label: string; dense: boolean; 
 // The value of the column under the pointer, like the version chart's tooltip. It overlays the top of
 // the column (so a scrolling strip can't clip it) and leans inwards at the edges. Screen readers get the
 // same values from each column's sr-only text.
-function BarTip({ title, lines, at, of }: { title: string; lines: (string | null | false)[]; at: number; of: number }) {
+export function BarTip({ title, lines, at, of }: { title: string; lines: (string | null | false)[]; at: number; of: number }) {
   const side = at < of / 4 ? "left-0" : at > (of * 3) / 4 ? "right-0" : "left-1/2 -translate-x-1/2";
   return (
     <span
@@ -86,68 +140,9 @@ function BarTip({ title, lines, at, of }: { title: string; lines: (string | null
 }
 
 // Below this many columns the bars keep their width and the right side stays empty.
-const MIN_COLUMNS = 6;
+export const MIN_COLUMNS = 6;
 
-function leadingTrimmed<T>(items: T[], hasValue: (item: T) => boolean): T[] {
+export function leadingTrimmed<T>(items: T[], hasValue: (item: T) => boolean): T[] {
   const first = items.findIndex(hasValue);
   return first > 0 ? items.slice(first) : items;
-}
-
-export type StackedBar = { key: string; label: string; total: number; display: string; isCurrent: boolean; segments: number[] };
-export type StackedSeries = { label: string; className: string };
-
-// Same look as Bars, with each column split into series (first series at the bottom). Tones tell the
-// series apart, a 2px gap separates them, and the legend names them.
-export function StackedBars({ bars: all, series, ariaLabel }: { bars: StackedBar[]; series: StackedSeries[]; ariaLabel: string }) {
-  const dense = all.length > 6;
-  const bars = leadingTrimmed(all, (b) => b.total > 0);
-  const max = Math.max(...bars.map((b) => b.total));
-  const first = bars.findIndex((b) => b.total > 0);
-  const used = series.filter((_, i) => bars.some((b) => b.segments[i] > 0));
-  const breakdown = (b: StackedBar) => series.map((s, i) => (b.segments[i] > 0 ? `${s.label} ${b.segments[i].toFixed(1)} kWh` : null)).filter(Boolean);
-
-  return (
-    <div className="bg-muted px-4 pt-5 pb-3">
-      <ol
-        className={cn("grid items-end", dense ? "gap-1" : "gap-3")}
-        style={{ gridTemplateColumns: `repeat(${Math.max(bars.length, MIN_COLUMNS)}, minmax(0, 1fr))` }}
-        aria-label={ariaLabel}
-      >
-        {bars.map((b, k) =>
-          k < first ? (
-            <li key={b.key} aria-hidden="true" />
-          ) : (
-            <li key={b.key} className="group relative flex flex-col items-center gap-2">
-              <BarTip at={k} of={bars.length} lines={[`${b.total.toFixed(1)} kWh in total`, ...breakdown(b)]} title={b.label} />
-              {!dense && <span className="font-mono text-xs text-muted-foreground tabular-nums">{b.display}</span>}
-              <div className="flex h-20 w-full items-end">
-                {b.total > 0 && (
-                  <div className="flex w-full flex-col-reverse gap-0.5" style={{ height: `${Math.max(4, (b.total / max) * 100)}%` }}>
-                    {series.map((s, i) =>
-                      b.segments[i] > 0 ? <div key={s.label} className={cn("min-h-px", s.className)} style={{ flex: `${b.segments[i]} 1 0%` }} /> : null,
-                    )}
-                  </div>
-                )}
-              </div>
-              <span className={cn("text-xs whitespace-nowrap", b.isCurrent ? "text-foreground" : "text-faint")}>
-                <MonthLabel label={b.label} dense={dense} fromEnd={bars.length - 1 - k} />
-              </span>
-              <span className="sr-only">
-                {dense && `${b.display}. `}
-                {breakdown(b).join(", ")}
-              </span>
-            </li>
-          ),
-        )}
-      </ol>
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 pt-3 text-xs text-muted-foreground">
-        {used.map((s) => (
-          <li key={s.label} className="flex items-center gap-1.5">
-            <span className={cn("size-2", s.className)} aria-hidden="true" />
-            {s.label}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
 }

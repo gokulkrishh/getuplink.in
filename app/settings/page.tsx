@@ -105,7 +105,7 @@ export default function SettingsPage() {
       <Suspense fallback={<div role="status" aria-busy="true" className="h-64 bg-muted motion-safe:animate-pulse"><span className="sr-only">Loading…</span></div>}>
         <Settings />
       </Suspense>
-      <footer className="mt-16 flex gap-4 border-t pt-6 text-xs text-muted-foreground">
+      <footer className="mt-16 flex justify-end gap-4 text-xs text-muted-foreground">
         <Link href="/privacy" className="hover:text-foreground transition-colors duration-150">
           Privacy
         </Link>

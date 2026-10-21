@@ -52,11 +52,20 @@ export default function VersionChartPlot({
           domain={["dataMin", "dataMax"]}
           tickFormatter={formatShortDate}
           tickLine={false}
-          axisLine={false}
+          axisLine={{ stroke: "var(--border)" }}
           minTickGap={48}
           tick={{ fontSize: 11, fill: "var(--faint)" }}
         />
-        <YAxis hide domain={[-0.5, "dataMax + 0.5"]} />
+        {/* The first and latest versions label the y axis; the steps between are one update each. */}
+        <YAxis
+          domain={[-0.5, "dataMax + 0.5"]}
+          ticks={[...new Set([0, data.at(-1)!.step])]}
+          tickFormatter={(step: number) => data.find((p) => p.step === step)?.version ?? ""}
+          width={84}
+          tickLine={false}
+          axisLine={{ stroke: "var(--border)" }}
+          tick={{ fontSize: 11, fill: "var(--faint)", fontFamily: "var(--font-mono)" }}
+        />
         <ChartTooltip
           cursor={{ stroke: "var(--border)" }}
           content={({ active, payload }) => {
