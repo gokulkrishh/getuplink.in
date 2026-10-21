@@ -25,7 +25,7 @@ function Header({ connected }: { connected: boolean }) {
           </form>
         )}
         <form action={logout}>
-          <button className="hover:text-foreground">Sign out</button>
+          <button className="cursor-pointer hover:text-foreground">Sign out</button>
         </form>
       </nav>
     </header>
@@ -114,7 +114,7 @@ async function Dashboard({ searchParams }: PageProps<"/">) {
             <p>Your Tesla account is connected, but no vehicles were found on it yet.</p>
           )}
           <form action={checkNow}>
-            <CheckNowButton className={buttonVariants({ variant: "outline", className: "h-9 px-4" })} />
+            <CheckNowButton spinner className={buttonVariants({ variant: "outline", className: "h-9 px-4" })} />
           </form>
         </Notice>
       )}
