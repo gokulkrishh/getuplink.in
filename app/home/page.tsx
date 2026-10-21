@@ -110,9 +110,12 @@ export default function HomePage() {
         <div>
           <p className="text-xs tracking-wide text-faint uppercase">For Tesla owners in India</p>
           <h1 className="mt-5 text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl 2xl:text-6xl">
-            Your Tesla&apos;s updates, tracked.
+            Never miss a Tesla update.
           </h1>
-          <p className="mt-6 text-base text-muted-foreground">Every version, update and release note. Read-only.</p>
+          <p className="mt-6 max-w-md text-base text-muted-foreground">
+            Uplink checks your car every 6 hours and shows what&apos;s new, what&apos;s coming and what changed. Free,
+            read-only, and it never wakes your car.
+          </p>
           <div className="mt-10 flex flex-wrap items-center gap-3">
             <Suspense fallback={<SignInButton />}>
               <SessionCta />
