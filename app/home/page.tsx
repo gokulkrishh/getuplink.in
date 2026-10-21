@@ -66,11 +66,11 @@ export default function HomePage() {
         <div className="max-w-md">
           <p className="text-xs tracking-wide text-faint uppercase">For Tesla owners in India</p>
           <h1 className="mt-4 text-4xl leading-[1.05] font-semibold tracking-tight text-balance sm:text-5xl">
-            Know when your next update lands.
+            Know when your Tesla&apos;s next update lands.
           </h1>
           <p className="mt-5 text-base text-muted-foreground">
-            Uplink checks your car every few hours, keeps a history of every version it sees, and shows Tesla&apos;s
-            release notes. It is read-only and never wakes the car.
+            Uplink tracks your Tesla&apos;s software: every version, update and release note. Read-only, and it never wakes
+            the car.
           </p>
           <a href={APP_URL} className={cn(buttonVariants({ size: "lg" }), "mt-10 h-11 px-5")}>
             Open Uplink

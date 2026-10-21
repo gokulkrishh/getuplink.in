@@ -107,29 +107,67 @@ export async function signIn(code: string): Promise<SignInResult> {
   return data?.owner_sub ? "owner" : "claimed";
 }
 
-// Refresh tokens are single use: the new one must be stored before anything else.
-async function refresh(refreshToken: string): Promise<string> {
-  const tokens = await tokenRequest({
-    grant_type: "refresh_token",
-    client_id: env("TESLA_CLIENT_ID"),
-    refresh_token: refreshToken,
-  });
-  return saveTokens(tokens);
+// Refresh tokens are single use, so the new pair is stored with a compare-and-swap on the refresh
+// token we read. A disconnect or a concurrent refresh changes that column, so we never write
+// tokens back after a disconnect, and a losing request reuses the winner's tokens.
+async function refresh(stored: StoredTokens): Promise<string> {
+  let tokens: TokenResponse;
+  try {
+    tokens = await tokenRequest({
+      grant_type: "refresh_token",
+      client_id: env("TESLA_CLIENT_ID"),
+      refresh_token: stored.refreshToken,
+    });
+  } catch (err) {
+    // Another request may have used the single-use token first; if so its tokens are already stored.
+    const current = await readTokens();
+    if (!current) throw new NotConnectedError();
+    if (current.refreshTokenEnc !== stored.refreshTokenEnc) return current.accessToken;
+    throw err;
+  }
+  const { data, error } = await db()
+    .from("oauth_tokens")
+    .update({
+      access_token_enc: encrypt(tokens.access_token),
+      refresh_token_enc: encrypt(tokens.refresh_token),
+      expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+      scope: tokens.scope ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("provider", "tesla")
+    .eq("refresh_token_enc", stored.refreshTokenEnc)
+    .select("provider");
+  if (error) throw new Error(`Saving tokens failed: ${error.message}`);
+  if (data?.length === 1) return tokens.access_token;
+  // Nothing matched: the owner disconnected (don't write tokens back) or another request stored newer ones.
+  const current = await readTokens();
+  if (!current) throw new NotConnectedError();
+  return current.accessToken;
 }
 
-async function storedTokens() {
+type StoredTokens = NonNullable<Awaited<ReturnType<typeof readTokens>>>;
+
+// Null when the owner row is missing or disconnected.
+async function readTokens() {
   const { data, error } = await db()
     .from("oauth_tokens")
     .select("access_token_enc, refresh_token_enc, expires_at")
     .eq("provider", "tesla")
     .maybeSingle();
   if (error) throw new Error(`Reading tokens failed: ${error.message}`);
-  if (!data?.access_token_enc || !data.refresh_token_enc || !data.expires_at) throw new NotConnectedError();
+  if (!data?.access_token_enc || !data.refresh_token_enc || !data.expires_at) return null;
   return {
     accessToken: decrypt(data.access_token_enc),
     refreshToken: decrypt(data.refresh_token_enc),
+    refreshTokenEnc: data.refresh_token_enc,
     expiresAt: new Date(data.expires_at).getTime(),
   };
+}
+
+async function storedTokens(): Promise<StoredTokens> {
+  const tokens = await readTokens();
+  if (!tokens) throw new NotConnectedError();
+  return tokens;
 }
 
 export async function isConnected(): Promise<boolean> {
@@ -190,7 +228,7 @@ export async function disconnectTesla(): Promise<void> {
 async function accessToken(forceRefresh = false): Promise<string> {
   const tokens = await storedTokens();
   if (forceRefresh || tokens.expiresAt - Date.now() < REFRESH_MARGIN_MS) {
-    return refresh(tokens.refreshToken);
+    return refresh(tokens);
   }
   return tokens.accessToken;
 }

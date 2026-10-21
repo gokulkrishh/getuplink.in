@@ -254,10 +254,24 @@ function HistoryRow({ change, notes }: { change: VersionChange; notes: ReleaseNo
   );
 }
 
+// "Online" only means something right after a check; older than this shows grey.
+const ONLINE_FRESH_MS = 15 * 60 * 1000;
+
 // "● Online" or "● Asleep" as of the last check. When not online, a tooltip says when it last was.
-function CarStatus({ state, seenAt }: { state: string | null; seenAt: string | null }) {
-  const online = state === "online";
-  const label = online ? "Online" : state === "offline" ? "Offline" : state ? "Asleep" : "Not checked yet";
+function CarStatus({ state, seenAt, checkedAt }: { state: string | null; seenAt: string | null; checkedAt: string | null }) {
+  // eslint-disable-next-line react-hooks/purity -- server component on a dynamic page; freshness is per request by design
+  const fresh = checkedAt !== null && Date.now() - Date.parse(checkedAt) < ONLINE_FRESH_MS;
+  const online = state === "online" && fresh;
+  const label =
+    online
+      ? "Online"
+      : state === "online"
+        ? "Online earlier"
+        : state === "offline"
+          ? "Offline"
+          : state
+            ? "Asleep"
+            : "Not checked yet";
   const dot = <span className={cn("size-1.5 rounded-full", online ? "bg-positive" : "bg-faint")} aria-hidden="true" />;
   if (online || !state) {
     return (
@@ -297,7 +311,7 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
             {carLabel && <span className="ml-2 text-faint">· {carLabel}</span>}
           </h2>
           <div className="flex items-center justify-end gap-1 text-sm text-faint tabular-nums">
-            <CarStatus state={latest?.state ?? null} seenAt={vehicle.last_seen_at} />
+            <CarStatus state={latest?.state ?? null} seenAt={vehicle.last_seen_at} checkedAt={latest?.polled_at ?? null} />
             <form action={checkNow}>
               <CheckNowIcon checked={vehicle.last_polled_at ? formatSeen(vehicle.last_polled_at) : undefined} />
             </form>
