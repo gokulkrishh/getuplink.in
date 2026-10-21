@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BatteryHealth, LastCharge, RecentActivity, UpdateSummary, WeekStrip } from "@/components/vehicle-extras";
+import { BatteryHealth, LastCharge, RecentActivity, WeekStrip } from "@/components/vehicle-extras";
 import { VersionChart } from "@/components/version-chart";
 import { formatDate, formatDuration, formatKm, formatSeen, formatShortDate } from "@/lib/format";
 import { AutoRefresh } from "@/components/auto-refresh";
@@ -393,7 +393,6 @@ export function VehicleSection({
             <ReleaseNotesToggle version={vehicle.current_version} notes={notes} />
           </div>
         )}
-        <UpdateSummary version={vehicle.current_version} history={history} now={now} />
         {!vehicle.current_version && (
           <p className="text-sm text-muted-foreground">
             Asleep at every check so far. Open the Tesla app to wake the car; the dashboard updates on its own.

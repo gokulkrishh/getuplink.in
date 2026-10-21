@@ -2,11 +2,9 @@ import Link from "next/link";
 import { ShowMore } from "@/components/show-more";
 import { SessionRow } from "@/components/session-row";
 import { statsHref } from "@/components/stats/periods";
-import { formatDayLabel, formatDays } from "@/lib/format";
+import { formatDayLabel } from "@/lib/format";
 import { compareToLastWeek, type WeekSummary } from "@/lib/dashboard-summary";
 import type { VehicleExtras } from "@/lib/server/dashboard-extras";
-import type { VersionChange } from "@/lib/server/dashboard";
-import { updateStats } from "@/lib/telemetry-derive";
 
 const heading = "text-xs font-medium tracking-wide text-faint uppercase";
 const number = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
@@ -114,19 +112,4 @@ export function RecentActivity({ events, now }: { events: VehicleExtras["activit
       </div>
     </section>
   );
-}
-
-// "On 2026.38.3.1 for 12 days · an update every 35 days on average". The first part needs the version's
-// install date (not the version already on the car when tracking began); the second needs two real updates.
-export function UpdateSummary({ version, history, now }: { version: string | null; history: VersionChange[]; now: number }) {
-  const current = history[0];
-  const real = history.filter((h) => h.previous_version);
-  const stats = updateStats(real, now);
-  const parts = [
-    version && current?.version === version && current.previous_version && `On ${version} for ${formatDays((now - Date.parse(current.detected_at)) / 1000)}`,
-    stats && `an update every ${formatDays(stats.avgGapSec)} on average`,
-  ].filter(Boolean);
-  if (parts.length === 0) return null;
-  const text = parts.join(" · ");
-  return <p className="pt-2 text-xs text-muted-foreground tabular-nums">{text.charAt(0).toUpperCase() + text.slice(1)}</p>;
 }
