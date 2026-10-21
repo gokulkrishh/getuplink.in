@@ -48,20 +48,20 @@ export default function TermsPage() {
         </Link>
       </header>
 
-      <main className="py-16">
+      <article className="py-16">
         <h1 className="text-2xl font-semibold tracking-tight text-balance">Terms</h1>
         <p className="mt-2 text-sm text-faint">Last updated 21 October 2026</p>
 
         <div className="mt-10 grid gap-10">
           {SECTIONS.map((section) => (
             <section key={section.title}>
-              <h2 className="text-base font-medium tracking-[-0.01em]">{section.title}</h2>
+              <h2 className="text-base font-medium tracking-heading">{section.title}</h2>
               <p className="mt-2 text-sm text-muted-foreground">{section.body}</p>
             </section>
           ))}
 
         </div>
-      </main>
+      </article>
 
       <footer className="mt-auto flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-t pt-6 text-xs text-faint">
         <span>Uplink is not affiliated with Tesla, Inc.</span>

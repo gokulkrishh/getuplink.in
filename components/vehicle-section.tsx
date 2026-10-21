@@ -5,7 +5,7 @@ import { formatDate, formatDuration, formatKm, formatSeen, formatShortDate } fro
 import { Check, ChevronRight, Zap } from "lucide-react";
 import { ReleaseNotesList } from "@/components/release-notes";
 import { ShowMore } from "@/components/show-more";
-import { Tip } from "@/components/tip";
+import { Tip, TipTrigger } from "@/components/tip";
 import { Vin } from "@/components/vin";
 import { cn } from "@/lib/utils";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
@@ -33,7 +33,7 @@ function ReleaseNotesToggle({
     <details className="group/notes">
       <summary
         aria-label={`Release notes for ${version}`}
-        className="flex w-fit list-none items-center gap-1.5 text-xs text-muted-foreground group-open/notes:text-foreground hover:text-foreground [&::-webkit-details-marker]:hidden"
+        className="relative flex w-fit list-none items-center gap-1.5 text-xs after:absolute after:-inset-y-2 after:inset-x-0 text-muted-foreground group-open/notes:text-foreground hover:text-foreground [&::-webkit-details-marker]:hidden"
       >
         Release notes
         <ChevronRight className="size-3 text-faint transition-transform group-open/notes:rotate-90" aria-hidden="true" />
@@ -108,10 +108,6 @@ function UpdateStatus({ snapshot, now }: { snapshot: Snapshot | null; now: numbe
   );
 }
 
-// Columns shared by the header and every row: version, received (hidden on phones), installed, odometer.
-const HISTORY_COLS =
-  "grid grid-cols-[minmax(0,1fr)_5.5rem_4.25rem] items-baseline gap-x-3 sm:grid-cols-[minmax(0,1fr)_7.5rem_7.5rem_4.5rem] sm:gap-x-6";
-
 // "12 Oct" this year, "24 Dec 2025" otherwise.
 function historyDate(value: string, now: number): string {
   return formatDate(value).endsWith(formatDate(now).slice(-4)) ? formatShortDate(value) : formatDate(value);
@@ -133,11 +129,11 @@ function HistoryCells({ change, now }: { change: VersionChange; now: number }) {
         <span className="text-right text-muted-foreground tabular-nums">{date}</span>
       ) : (
         // First version seen: installed some time before this date, so it's greyed out and explained on hover.
-        <span tabIndex={0} className="group relative text-right text-faint tabular-nums outline-none">
+        <TipTrigger className="text-right text-faint tabular-nums">
           {date}
           <span className="sr-only">. Already installed when tracking started.</span>
           <Tip>Already installed when tracking started</Tip>
-        </span>
+        </TipTrigger>
       )}
       <span className="text-right text-faint tabular-nums">{change.odometer_km != null && (
           <>
@@ -224,7 +220,7 @@ function HistoryRow({ change, notes, now }: { change: VersionChange; notes: Rele
   const versionNotes = notes[change.version];
   if (!versionNotes) {
     return (
-      <li className={cn(HISTORY_COLS, "border-t py-2.5")}>
+      <li className={cn("history-cols", "border-t py-2.5")}>
         <span className="truncate pl-5 font-mono">{change.version}</span>
         <HistoryCells change={change} now={now} />
       </li>
@@ -233,10 +229,8 @@ function HistoryRow({ change, notes, now }: { change: VersionChange; notes: Rele
   return (
     <li className="border-t">
       <details className="group/row">
-        <summary
-          aria-label={`${change.version}. Show release notes`}
-          className={cn(HISTORY_COLS, "cursor-pointer list-none py-2.5 hover:text-foreground [&::-webkit-details-marker]:hidden")}
-        >
+        <summary className={cn("history-cols", "cursor-pointer list-none py-2.5 hover:text-foreground [&::-webkit-details-marker]:hidden")}>
+          <span className="sr-only">Show release notes</span>
           <span className="flex min-w-0 items-center gap-1.5 font-mono">
             <ChevronRight
               className="size-3.5 shrink-0 self-center text-faint transition-transform group-open/row:rotate-90"
@@ -292,12 +286,12 @@ function CarStatus({
   }
   const detail = seenAt ? `Last online ${formatSeen(seenAt, now)}` : "Not seen online yet";
   return (
-    <span tabIndex={0} className="group relative inline-flex items-center gap-1.5 outline-none">
+    <TipTrigger className="inline-flex items-center gap-1.5">
       {dot}
       {label}
       <span className="sr-only">. {detail}</span>
       <Tip>{detail}</Tip>
-    </span>
+    </TipTrigger>
   );
 }
 
@@ -321,10 +315,8 @@ export function VehicleSection({
   return (
     <section className="space-y-12">
       <header className="space-y-1">
-        {/* Placeholder picture until there's one per model; painted in the car's own colour. */}
-        {/* Car and status on the left; freshness and the refresh control on the right. */}
         {/* Two columns: car and version on the left; status, refresh and VIN on the right. */}
-        <div className="grid grid-cols-[1fr_minmax(0,auto)] items-center gap-x-4 gap-y-1">
+        <div className="grid grid-cols-car-header items-center gap-x-4 gap-y-1">
           <h2 className="text-sm text-muted-foreground">
             {vehicle.display_name || "Tesla"}
             {carLabel && <span className="ml-2 text-faint">· {carLabel}</span>}
@@ -335,7 +327,7 @@ export function VehicleSection({
               <CheckNowIcon checked={vehicle.last_polled_at ? formatSeen(vehicle.last_polled_at, now) : undefined} />
             </form>
           </div>
-          <p className="font-mono text-4xl font-medium tracking-tight tabular-nums sm:text-4xl">
+          <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
             {vehicle.current_version ?? "—"}
           </p>
           {vehicle.vin && (
@@ -395,7 +387,7 @@ export function VehicleSection({
           <>
             <VersionChart changes={[...history].reverse()} until={vehicle.last_polled_at} />
             <div className="pt-6">
-              <div className={cn(HISTORY_COLS, "pb-2 text-xs text-faint")}>
+              <div className={cn("history-cols", "pb-2 text-xs text-faint")}>
                 <h3 className="pl-5">Versions</h3>
                 <span className="hidden text-right sm:block">Received</span>
                 <span className="text-right">Installed</span>

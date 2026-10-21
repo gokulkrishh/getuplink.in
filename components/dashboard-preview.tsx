@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useRef } from "react";
 import { VersionChart } from "@/components/version-chart";
 
 // Real Tesla versions (from Tesla's release list); dates are illustrative.
@@ -10,8 +13,21 @@ const PREVIEW_HISTORY = [
 
 // Static illustration of the dashboard. Used on the sign-in page and the home page; reads no data. Only the chart is interactive.
 export function DashboardPreview() {
+  // The wrapper is hidden from assistive tech, so nothing inside it may take focus. The chart (recharts)
+  // makes its SVG tabbable; take it back out of the tab order, including after it redraws.
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    const untab = () => el.querySelectorAll("[tabindex]:not([tabindex='-1'])").forEach((n) => n.setAttribute("tabindex", "-1"));
+    untab();
+    const observer = new MutationObserver(untab);
+    observer.observe(el, { subtree: true, childList: true, attributes: true, attributeFilter: ["tabindex"] });
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div aria-hidden="true" className="w-full max-w-sm border-l pl-6 text-left select-none sm:pl-8">
+    <div ref={root} aria-hidden="true" className="w-full max-w-sm border-l pl-6 text-left select-none sm:pl-8">
       <p className="text-xs text-faint">Model Y</p>
       <p className="mt-1 font-mono text-4xl font-medium tracking-tight tabular-nums">2026.38.3.1</p>
       <div className="mt-8 flex items-baseline justify-between text-sm">

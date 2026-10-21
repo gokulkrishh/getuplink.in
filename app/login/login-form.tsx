@@ -6,5 +6,5 @@ import { cn } from "@/lib/utils";
 
 export function LoginError({ className }: { className?: string }) {
   const message = loginErrorMessage(useSearchParams().get("error"));
-  return message ? <p className={cn("text-sm text-destructive", className)}>{message}</p> : null;
+  return message ? <p role="alert" className={cn("text-sm text-destructive", className)}>{message}</p> : null;
 }

@@ -65,14 +65,14 @@ export default function HomePage() {
       <section className="grid items-center gap-16 py-16 md:grid-cols-2 md:gap-12 md:py-24">
         <div className="max-w-md">
           <p className="text-xs tracking-wide text-faint uppercase">For Tesla owners in India</p>
-          <h1 className="mt-4 text-4xl leading-[1.05] font-semibold tracking-tight text-balance sm:text-5xl">
+          <h1 className="mt-4 text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl">
             Know when your Tesla&apos;s next update lands.
           </h1>
           <p className="mt-5 text-base text-muted-foreground">
             Uplink tracks your Tesla&apos;s software: every version, update and release note. Read-only, and it never wakes
             the car.
           </p>
-          <a href={APP_URL} className={cn(buttonVariants({ size: "lg" }), "mt-10 h-11 px-5")}>
+          <a href={APP_URL} className={cn(buttonVariants({ size: "xl" }), "mt-10")}>
             Open Uplink
           </a>
         </div>
@@ -85,19 +85,19 @@ export default function HomePage() {
       <section className="grid gap-10 border-t py-16 sm:grid-cols-3 sm:gap-8">
         {FEATURES.map((feature) => (
           <div key={feature.title}>
-            <h2 className="text-sm font-medium tracking-[-0.01em]">{feature.title}</h2>
+            <h2 className="text-sm font-medium tracking-heading">{feature.title}</h2>
             <p className="mt-2 text-sm text-muted-foreground">{feature.body}</p>
           </div>
         ))}
       </section>
 
-      <section className="grid gap-6 border-t py-16 md:grid-cols-[minmax(0,1fr)_2fr] md:gap-12">
+      <section className="grid gap-6 border-t py-16 grid-cols-split md:gap-12">
         <p className="text-xs tracking-wide text-faint uppercase">How it works</p>
         <ol className="grid gap-8 sm:grid-cols-3 sm:gap-8">
           {STEPS.map((step, index) => (
             <li key={step.title}>
               <p className="font-mono text-xs tabular-nums text-faint">{index + 1}</p>
-              <h2 className="mt-2 text-sm font-medium tracking-[-0.01em]">{step.title}</h2>
+              <h2 className="mt-2 text-sm font-medium tracking-heading">{step.title}</h2>
               <p className="mt-2 text-sm text-muted-foreground">{step.body}</p>
             </li>
           ))}
@@ -108,7 +108,7 @@ export default function HomePage() {
         <span>
           &copy; <Year /> · Uplink is not affiliated with Tesla, Inc.
         </span>
-        <nav className="flex gap-4">
+        <nav aria-label="Legal" className="flex gap-4">
           <Link href="/privacy" className="text-muted-foreground transition-colors duration-150 hover:text-foreground">
             Privacy
           </Link>

@@ -20,13 +20,11 @@ import { redirect } from "next/navigation";
 function Header() {
   return (
     <header className="mb-16 flex items-center justify-between gap-4 text-sm">
-      <h1 className="font-medium">
-        <Link href="/" prefetch={true} className="flex items-center gap-2.5">
-          <Logo className="size-5" />
-          Uplink
-        </Link>
-      </h1>
-      <nav className="flex items-baseline gap-4 text-muted-foreground">
+      <Link href="/" className="flex items-center gap-2.5 font-medium">
+        <Logo className="size-5" />
+        Uplink
+      </Link>
+      <nav aria-label="Main" className="flex items-baseline gap-4 text-muted-foreground">
         <Link href="/stats" prefetch={true} className="hover:text-foreground">
           Stats
         </Link>
@@ -43,12 +41,17 @@ function Header() {
 
 function DemoBar({ active }: { active: string }) {
   return (
-    <nav className="mb-12 flex flex-wrap gap-x-4 gap-y-1 border-y py-3 text-xs text-muted-foreground">
+    <nav aria-label="Demo scenarios" className="mb-12 flex flex-wrap gap-x-4 gap-y-1 border-y py-3 text-xs text-muted-foreground">
       <span className="text-faint">Demo</span>
       {Object.entries(DEMO_SCENARIOS).map(([key, label]) => (
-        <a key={key} href={`/?demo=${key}`} className={key === active ? "text-foreground" : "hover:text-foreground"}>
+        <Link
+          key={key}
+          href={`/?demo=${key}`}
+          aria-current={key === active ? "page" : undefined}
+          className={key === active ? "text-foreground" : "hover:text-foreground"}
+        >
           {label}
-        </a>
+        </Link>
       ))}
     </nav>
   );
@@ -69,7 +72,7 @@ function RunError({ error }: { error: string }) {
 function Notice({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-3">
-      <h2 className="text-base font-medium tracking-[-0.01em]">{title}</h2>
+      <h2 className="text-base font-medium tracking-heading">{title}</h2>
       <div className="max-w-md space-y-4 text-sm text-muted-foreground">{children}</div>
     </section>
   );
@@ -99,8 +102,7 @@ async function Dashboard({ searchParams }: PageProps<"/">) {
   return (
     <>
       {DEMO && <DemoBar active={demo} />}
-      <Header />
-      {flash && <p className="mb-12 border-l-2 border-destructive pl-3 text-sm">{flash}</p>}
+      {flash && <p role="alert" className="mb-12 border-l-2 border-destructive pl-3 text-sm">{flash}</p>}
 
       {data.kind === "misconfigured" && (
         <EmptyState
@@ -143,7 +145,7 @@ async function Dashboard({ searchParams }: PageProps<"/">) {
           <Notice title="Couldn't reach Tesla">
             <RunError error={failedRun.error} />
             <form action={checkNow}>
-              <CheckNowButton spinner className={buttonVariants({ variant: "outline", className: "h-9 px-4" })} />
+              <CheckNowButton spinner className={buttonVariants({ variant: "outline", size: "lg" })} />
             </form>
           </Notice>
         ) : (
@@ -152,7 +154,7 @@ async function Dashboard({ searchParams }: PageProps<"/">) {
             title="No vehicles yet"
             action={
               <form action={checkNow}>
-                <CheckNowButton spinner className={buttonVariants({ variant: "outline", className: "h-9 px-4" })} />
+                <CheckNowButton spinner className={buttonVariants({ variant: "outline", size: "lg" })} />
               </form>
             }
           >
@@ -183,17 +185,12 @@ async function Dashboard({ searchParams }: PageProps<"/">) {
   );
 }
 
-// Shown while the dashboard loads: the real header plus faint blocks in the shape of a vehicle section.
+// Shown while the dashboard loads: faint blocks in the shape of a vehicle section.
 function DashboardSkeleton() {
   const block = "bg-muted motion-safe:animate-pulse";
   return (
-    <div aria-busy="true" aria-label="Loading dashboard">
-      <header className="mb-16 flex items-center justify-between gap-4 text-sm">
-        <span className="flex items-center gap-2.5 font-medium">
-          <Logo className="size-5" />
-          Uplink
-        </span>
-      </header>
+    <div role="status" aria-busy="true">
+      <span className="sr-only">Loading…</span>
       <div className="space-y-12">
         <div className="space-y-3">
           <div className={`h-4 w-20 ${block}`} />
@@ -221,6 +218,8 @@ function DashboardSkeleton() {
 export default function Page(props: PageProps<"/">) {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:py-20">
+      <Header />
+      <h1 className="sr-only">Dashboard</h1>
       <Suspense fallback={<DashboardSkeleton />}>
         <Dashboard {...props} />
       </Suspense>

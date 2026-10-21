@@ -79,7 +79,7 @@ async function Settings() {
           description="Ends every session on every device, including this one."
           control={
             <form action={signOutEverywhere}>
-              <Button type="submit" variant="outline" className="h-9 px-4">
+              <Button type="submit" variant="outline" size="lg">
                 Sign out everywhere
               </Button>
             </form>
@@ -106,8 +106,8 @@ export default function SettingsPage() {
           Back to dashboard
         </Link>
       </header>
-      <h1 className="mb-8 text-base font-medium tracking-[-0.01em]">Settings</h1>
-      <Suspense fallback={<div className="h-64 bg-muted motion-safe:animate-pulse" aria-busy="true" aria-label="Loading settings" />}>
+      <h1 className="mb-8 text-base font-medium tracking-heading">Settings</h1>
+      <Suspense fallback={<div role="status" aria-busy="true" className="h-64 bg-muted motion-safe:animate-pulse"><span className="sr-only">Loading…</span></div>}>
         <Settings />
       </Suspense>
       <footer className="mt-16 flex gap-4 border-t pt-6 text-xs text-muted-foreground">

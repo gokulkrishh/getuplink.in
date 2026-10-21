@@ -10,7 +10,7 @@ export function ShowMore({ count, children }: { count: number; children: ReactNo
     <>
       {open && children}
       <div className="flex justify-end pt-2">
-        <Button type="button" variant="ghost" size="xs" className="-mr-2" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <Button type="button" variant="ghost" size="xs" className="relative -mr-2 after:absolute after:-inset-y-1 after:inset-x-0" aria-expanded={open} onClick={() => setOpen(!open)}>
           {open ? "Show less" : `Show ${count} more`}
         </Button>
       </div>

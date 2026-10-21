@@ -14,7 +14,7 @@ export function SignInButton({ className }: { className?: string }) {
       href="/api/auth/connect"
       onClick={() => setPending(true)}
       aria-busy={pending}
-      className={cn(buttonVariants({ size: "lg" }), "h-11 px-5 has-data-[icon=inline-end]:pr-4", pending && "pointer-events-none", className)}
+      className={cn(buttonVariants({ size: "xl" }), pending && "pointer-events-none", className)}
     >
       Sign in with Tesla
       {pending ? <DashRing data-icon="inline-end" aria-hidden="true" /> : <ArrowRight data-icon="inline-end" />}

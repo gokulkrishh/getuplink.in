@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 // `stacked` keeps the category above the change at every width, for narrow columns.
 export function ReleaseNotesList({ notes, stacked = false }: { notes: ReleaseNote[]; stacked?: boolean }) {
   return (
-    <dl className={cn("mt-3 grid gap-x-6 gap-y-4 border-l pl-4", !stacked && "sm:grid-cols-[10rem_1fr]")}>
+    <dl className={cn("mt-3 grid gap-x-6 gap-y-4 border-l pl-4", !stacked && "grid-cols-notes")}>
       {notes.map((note, i) => (
         <Fragment key={`${note.title}-${i}`}>
           <dt className={cn("text-xs text-muted-foreground", !stacked && "sm:pt-0.5")}>{note.title}</dt>

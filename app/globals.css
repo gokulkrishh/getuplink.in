@@ -25,6 +25,8 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
+  --tracking-heading: -0.01em;
+  --leading-display: 1.05;
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -78,7 +80,7 @@
   --positive: #15803d;
   --border: #e6e6e6;
   --input: #dbdbdb;
-  --ring: #b7b7b7;
+  --ring: #737373;
   --chart-1: #0a0a0a;
   --chart-2: #5b5b5b;
   --chart-3: #8f8f8f;
@@ -101,14 +103,14 @@
   --secondary-foreground: #f3f3f3;
   --muted: #171717;
   --muted-foreground: #8a8a8a;
-  --faint: #7c7c7c;
+  --faint: #8a8a8a;
   --accent: #181818;
   --accent-foreground: #f3f3f3;
   --destructive: #ff6362;
   --positive: #4ade80;
   --border: #ffffff1a;
   --input: #ffffff1f;
-  --ring: #555555;
+  --ring: #8a8a8a;
   --chart-1: #f3f3f3;
   --chart-2: #8a8a8a;
   --chart-3: #5d5d5d;
@@ -130,14 +132,14 @@
     --secondary-foreground: #f3f3f3;
     --muted: #171717;
     --muted-foreground: #8a8a8a;
-    --faint: #7c7c7c;
+    --faint: #8a8a8a;
     --accent: #181818;
     --accent-foreground: #f3f3f3;
     --destructive: #ff6362;
     --positive: #4ade80;
     --border: #ffffff1a;
     --input: #ffffff1f;
-    --ring: #555555;
+    --ring: #8a8a8a;
     --chart-1: #f3f3f3;
     --chart-2: #8a8a8a;
     --chart-3: #5d5d5d;
@@ -148,7 +150,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
   body {
     @apply bg-background text-foreground;
@@ -172,7 +174,43 @@
   button[aria-busy="true"] {
     cursor: progress;
   }
+  /* Links, summaries and tabbable spans have no ring of their own; buttons draw theirs. */
+  a:focus-visible,
+  summary:focus-visible,
+  [tabindex]:not([tabindex="-1"]):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
   ::selection {
     @apply bg-foreground text-background;
+  }
+}
+
+/* Repeated grid templates. Breakpoints match Tailwind's sm (40rem) and md (48rem). */
+@utility grid-cols-car-header {
+  grid-template-columns: 1fr minmax(0, auto);
+}
+@utility grid-cols-session {
+  grid-template-columns: 3.5rem minmax(0, 1fr) auto 1.5rem;
+}
+@utility grid-cols-split {
+  @media (width >= 48rem) {
+    grid-template-columns: minmax(0, 1fr) 2fr;
+  }
+}
+@utility grid-cols-notes {
+  @media (width >= 40rem) {
+    grid-template-columns: 10rem 1fr;
+  }
+}
+/* Version history: version, received (hidden on phones), installed, odometer. */
+@utility history-cols {
+  display: grid;
+  align-items: baseline;
+  grid-template-columns: minmax(0, 1fr) 5.5rem 4.25rem;
+  column-gap: 0.75rem;
+  @media (width >= 40rem) {
+    grid-template-columns: minmax(0, 1fr) 7.5rem 7.5rem 4.5rem;
+    column-gap: 1.5rem;
   }
 }

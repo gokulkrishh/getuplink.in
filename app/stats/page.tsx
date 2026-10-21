@@ -50,7 +50,7 @@ function Header() {
         <Logo className="size-5" />
         Uplink
       </Link>
-      <nav className="flex items-baseline gap-4 text-muted-foreground">
+      <nav aria-label="Main" className="flex items-baseline gap-4 text-muted-foreground">
         <Link href="/" prefetch={true} className="hover:text-foreground">
           Dashboard
         </Link>
@@ -62,16 +62,28 @@ function Header() {
   );
 }
 
-function MonthBars({ sessions, now: nowMs }: { sessions: ChargingSession[]; now: number }) {
-  const now = new Date(nowMs);
+// Year and month (1-12) of an instant in IST, so the bars follow the same calendar as the session list.
+const istYearMonth = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "numeric" });
+
+function MonthBars({ sessions, now }: { sessions: ChargingSession[]; now: number }) {
   const currency = totals(sessions).currency;
   const compact = new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 });
+  const parts = istYearMonth.formatToParts(now);
+  const part = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+  const currentIndex = part("year") * 12 + part("month") - 1;
+  // Spend per month, keyed like the rest of the page; each session's month is worked out once.
+  const spend = new Map<string, number>();
+  for (const s of sessions) {
+    const key = formatMonth(s.started_at);
+    spend.set(key, (spend.get(key) ?? 0) + (s.cost_total ?? 0));
+  }
   const months = Array.from({ length: 6 }, (_, k) => {
     const back = 5 - k;
-    const d = new Date(now.getFullYear(), now.getMonth() - back, 15);
+    const index = currentIndex - back;
+    // Noon UTC on the 15th falls in the same IST month in any timezone.
+    const d = new Date(Date.UTC(Math.floor(index / 12), index % 12, 15, 12));
     const key = formatMonth(d);
-    const cost = totals(sessions.filter((s) => formatMonth(s.started_at) === key)).cost;
-    return { key, label: monthLabel.format(d), cost, isCurrent: back === 0 };
+    return { key, label: monthLabel.format(d), cost: spend.get(key) ?? 0, isCurrent: back === 0 };
   });
   const max = Math.max(...months.map((m) => m.cost));
   // Months before the first session stay blank, so the bars start where the history starts.
@@ -85,7 +97,7 @@ function MonthBars({ sessions, now: nowMs }: { sessions: ChargingSession[]; now:
             <li key={m.key} aria-hidden="true" />
           ) : (
             <li key={m.key} className="flex flex-col items-center gap-2">
-              <span className="font-mono text-[11px] text-muted-foreground tabular-nums">{compact.format(m.cost)}</span>
+              <span className="font-mono text-xs text-muted-foreground tabular-nums">{compact.format(m.cost)}</span>
               <div className="flex h-20 w-full items-end">
                 {m.cost > 0 && (
                   <div
@@ -131,7 +143,7 @@ function SessionRow({ session: s }: { session: ChargingSession }) {
   const currency = s.currency ?? "INR";
   const rateText = s.cost_total !== null && s.energy_kwh !== null ? rate(s.cost_total, s.energy_kwh, currency) : null;
   return (
-    <li className="grid grid-cols-[3.5rem_minmax(0,1fr)_auto_1.5rem] items-start gap-x-4 py-3 text-sm">
+    <li className="grid grid-cols-session items-start gap-x-4 py-3 text-sm">
       <div>
         <p className="tabular-nums">{formatShortDate(s.started_at)}</p>
         <p className="text-xs text-faint tabular-nums">{formatClock(s.started_at)}</p>
@@ -153,7 +165,7 @@ function SessionRow({ session: s }: { session: ChargingSession }) {
           <a
             href={`/api/charging/invoice/${encodeURIComponent(invoice.contentId)}`}
             aria-label={`Download invoice for ${formatShortDate(s.started_at)}`}
-            className={buttonVariants({ variant: "ghost", size: "icon-xs", className: "group relative" })}
+            className={buttonVariants({ variant: "ghost", size: "icon-xs", className: "group" })}
           >
             <Download className="size-3.5" aria-hidden="true" />
             <Tip>Download invoice</Tip>
@@ -238,7 +250,8 @@ async function Sessions() {
 function SessionsSkeleton() {
   const block = "bg-muted motion-safe:animate-pulse";
   return (
-    <div aria-busy="true" aria-label="Loading charging sessions" className="space-y-12">
+    <div role="status" aria-busy="true" className="space-y-12">
+      <span className="sr-only">Loading…</span>
       <div className="space-y-8">
         <div className="space-y-2">
           <div className={`h-4 w-28 ${block}`} />
@@ -256,7 +269,7 @@ export default function Page() {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:py-20">
       <Header />
-      <h1 className="text-2xl font-medium tracking-[-0.01em]">Stats</h1>
+      <h1 className="text-2xl font-medium tracking-heading">Stats</h1>
       <p className="mt-2 mb-12 text-sm text-muted-foreground">Your Tesla Supercharger sessions. Third-party chargers coming soon.</p>
       <Suspense fallback={<SessionsSkeleton />}>
         <Sessions />

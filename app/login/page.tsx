@@ -18,7 +18,7 @@ export default function LoginPage() {
       <div className="grid flex-1 items-center gap-16 py-16 md:grid-cols-2 md:gap-12">
         <section className="max-w-md">
           <p className="text-xs tracking-wide text-faint uppercase">For Tesla owners in India</p>
-          <h1 className="mt-4 text-4xl leading-[1.05] font-semibold tracking-tight text-balance sm:text-5xl">
+          <h1 className="mt-4 text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl">
             Know when your Tesla&apos;s next update lands.
           </h1>
           <p className="mt-5 text-base text-muted-foreground">

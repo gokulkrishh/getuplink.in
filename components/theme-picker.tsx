@@ -34,7 +34,7 @@ export function ThemePicker() {
           aria-checked={theme === value}
           onClick={() => choose(value)}
           className={cn(
-            "inline-flex items-center gap-1.5 px-3 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring",
+            "inline-flex items-center gap-1.5 px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
             theme === value ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground",
           )}
         >
