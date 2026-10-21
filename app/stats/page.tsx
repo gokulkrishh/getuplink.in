@@ -3,19 +3,19 @@ import Link from "next/link";
 import { cacheLife, cacheTag, io } from "next/cache";
 import { after } from "next/server";
 import { redirect } from "next/navigation";
-import { Download, Zap } from "lucide-react";
+import { Zap } from "lucide-react";
 import { Suspense } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Logo } from "@/components/logo";
 import { ShowMore } from "@/components/show-more";
-import { Tip } from "@/components/tip";
-import { buttonVariants } from "@/components/ui/button";
-import { Bars, StackedBars, type StackedBar } from "@/components/stats/bars";
+import { type Listed, rate, SessionRow } from "@/components/session-row";
+import { Bars } from "@/components/stats/bars";
+import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
 import { BatteryTrend } from "@/components/stats/battery-trend";
 import { PeriodSwitch } from "@/components/stats/period-switch";
 import { type Period, monthIndex, monthKey, monthShort, parsePeriod, parseView, yearOf } from "@/components/stats/periods";
 import { ViewTabs } from "@/components/stats/view-tabs";
-import { formatClock, formatDays, formatDuration, formatKwh, formatMoney, formatMonth, formatShortDate } from "@/lib/format";
+import { formatDays, formatKwh, formatMoney, formatMonth, formatShortDate } from "@/lib/format";
 import { chargeEfficiency, matchSessions } from "@/lib/charge-sessions";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargingSession, loadChargingSessions, syncChargingHistoryThrottled } from "@/lib/server/charging";
@@ -32,14 +32,6 @@ export const metadata: Metadata = { title: "Stats · Uplink" };
 // Sessions shown per month before "Show N more".
 const MONTH_PREVIEW = 3;
 
-// "Bengaluru, Nexus Koramangala" -> { place: "Nexus Koramangala", city: "Bengaluru" }
-function splitSite(name: string | null): { place: string; city: string | null } {
-  if (!name) return { place: "Supercharger", city: null };
-  const i = name.indexOf(", ");
-  if (i === -1) return { place: name, city: null };
-  return { place: name.slice(i + 2), city: name.slice(0, i) };
-}
-
 function totals(rows: ChargingSession[]) {
   return {
     cost: rows.reduce((sum, s) => sum + (s.cost_total ?? 0), 0),
@@ -47,10 +39,6 @@ function totals(rows: ChargingSession[]) {
     count: rows.length,
     currency: rows.find((s) => s.currency)?.currency ?? "INR",
   };
-}
-
-function rate(cost: number, energy: number, currency: string): string | null {
-  return energy > 0 ? `${formatMoney(cost / energy, currency)}/kWh` : null;
 }
 
 function Header() {
@@ -129,7 +117,7 @@ function Summary({ sessions, now, period }: { sessions: ChargingSession[]; now: 
             .join(" · ")}
         </p>
       </div>
-      <Bars bars={bars} ariaLabel={period === "all" ? "Spend per year" : "Spend per month"} />
+      <Bars bars={bars} ariaLabel={period === "all" ? "Spend per year" : "Spend per month"} prefix="₹" />
     </section>
   );
 }
@@ -141,7 +129,6 @@ const ENERGY_LABELS: Record<Period, string> = {
   all: "in total",
 };
 
-const kwFormat = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 const kwhCompact = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 
 // Tones from the foreground down, so the series read apart without colour.
@@ -353,88 +340,11 @@ function Battery({ trend }: { trend: WeeklyPack[] }) {
   );
 }
 
-// One row of the list: a Tesla Supercharger session (with cost and invoice), or one the car reported
-// itself. A Tesla session that the car also reported keeps its own row and gains the peak power.
-type Listed = { key: string; started_at: string; tesla: ChargingSession | null; stream: StreamChargeSession | null };
-
-function streamTitle(s: StreamChargeSession): string {
-  if (s.supercharger) return "Supercharger";
-  return s.kind === "dc" ? "Third-party charger" : "AC charging";
-}
-
-function levels(s: StreamChargeSession): string | null {
-  return s.start_level !== null && s.end_level !== null ? `${Math.round(s.start_level)}% to ${Math.round(s.end_level)}%` : null;
-}
-
-// The battery's warm-up on a fast charger, which explains a slow session. AC charger details live on the car page.
-function batteryTemp(s: StreamChargeSession): string | null {
-  return s.kind === "dc" && s.temp_start_c !== null && s.temp_max_c !== null
-    ? `battery ${Math.round(s.temp_start_c)} to ${Math.round(s.temp_max_c)} °C`
-    : null;
-}
-
-function SessionRow({ item, serial }: { item: Listed; serial: number }) {
-  const { tesla: s, stream } = item;
-  const invoice = s?.invoices.find((i) => i.contentId);
-  const { place, city } = s ? splitSite(s.site_name) : { place: stream ? streamTitle(stream) : "", city: null };
-  const stoppedAt = s ? s.stopped_at : (stream?.ended_at ?? null);
-  const durationMs = stoppedAt ? Date.parse(stoppedAt) - Date.parse(item.started_at) : 0;
-  const durationText = durationMs > 0 ? formatDuration(durationMs / 1000) : null;
-  const currency = s?.currency ?? "INR";
-  const rateText = s && s.cost_total !== null && s.energy_kwh !== null ? rate(s.cost_total, s.energy_kwh, currency) : null;
-  const peakText = stream?.peak_power_kw ? `up to ${kwFormat.format(stream.peak_power_kw)} kW` : null;
-  const energy = s ? s.energy_kwh : (stream?.energy_added_kwh ?? null);
-  const tempText = stream && batteryTemp(stream);
-  const detail = s
-    ? [city, durationText, peakText, tempText]
-    : [stream && levels(stream), stoppedAt ? durationText : "In progress", peakText, tempText];
-  return (
-    <li className="grid grid-cols-session items-start gap-x-4 py-4 text-sm">
-      <div className="space-y-1">
-        <p className="tabular-nums">{formatShortDate(item.started_at)}</p>
-        <p className="text-xs text-faint tabular-nums">{formatClock(item.started_at)}</p>
-      </div>
-      <div className="min-w-0 space-y-1">
-        <p className="truncate font-medium">
-          <span className="mr-2 font-mono text-xs font-normal text-faint tabular-nums">#{serial}</span>
-          {place}
-        </p>
-        <p className="truncate text-xs text-muted-foreground">{detail.filter(Boolean).join(" · ")}</p>
-      </div>
-      <div className="space-y-1 text-right">
-        {s ? (
-          <>
-            <p className="font-mono font-medium tabular-nums">{s.cost_total === null ? "—" : formatMoney(s.cost_total, currency)}</p>
-            <p className="text-xs text-muted-foreground tabular-nums">
-              {energy === null ? "—" : formatKwh(energy)}
-              {/* The per-kWh rate is hidden on phones so the site name keeps its room. */}
-              {rateText && <span className="hidden sm:inline"> · {rateText}</span>}
-            </p>
-          </>
-        ) : (
-          <p className="font-mono font-medium tabular-nums">{energy === null ? "—" : formatKwh(energy)}</p>
-        )}
-      </div>
-      <div className="flex self-center">
-        {s && invoice?.contentId && (
-          <a
-            href={`/api/charging/invoice/${encodeURIComponent(invoice.contentId)}`}
-            aria-label={`Download invoice for ${formatShortDate(item.started_at)}`}
-            className={buttonVariants({ variant: "ghost", size: "icon-xs", className: "group" })}
-          >
-            <Download className="size-3.5" aria-hidden="true" />
-            <Tip>Download invoice</Tip>
-          </a>
-        )}
-      </div>
-    </li>
-  );
-}
-
 function SessionList({ sessions }: { sessions: Listed[] }) {
   // Sessions arrive newest first, so each month's group is in order too. Numbers count from the first
   // charge, so the newest has the highest.
   const serial = new Map(sessions.map((s, i) => [s.key, sessions.length - i]));
+  const energyTotal = sessions.reduce((sum, s) => sum + ((s.tesla ? s.tesla.energy_kwh : s.stream?.energy_added_kwh) ?? 0), 0);
   const groups = new Map<string, Listed[]>();
   for (const s of sessions) {
     const month = formatMonth(s.started_at);
@@ -443,12 +353,12 @@ function SessionList({ sessions }: { sessions: Listed[] }) {
   return (
     <section className="space-y-6">
       <div className="space-y-3">
-        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Charging sessions</h2>
-        <div className="grid grid-cols-session gap-x-4 text-xs text-faint">
-          <span>When</span>
-          <span>Where</span>
-          <span className="text-right">Cost or energy</span>
-          <span />
+        <div className="flex items-baseline justify-between gap-4 text-xs tracking-wide text-faint uppercase">
+          <h2 className="font-medium">Charging sessions</h2>
+          <p className="tabular-nums">
+            {sessions.length} {sessions.length === 1 ? "session" : "sessions"}
+            {energyTotal > 0 && ` · ${formatKwh(energyTotal)}`}
+          </p>
         </div>
       </div>
     <div className="space-y-10">
@@ -456,13 +366,7 @@ function SessionList({ sessions }: { sessions: Listed[] }) {
         const billed = totals(rows.flatMap((r) => (r.tesla ? [r.tesla] : [])));
         return (
           <section key={month} className="space-y-2">
-            <div className="flex items-baseline justify-between gap-4 text-xs tracking-wide text-faint uppercase">
-              <h2 className="font-medium">{month}</h2>
-              <p className="tabular-nums">
-                {rows.length} {rows.length === 1 ? "session" : "sessions"}
-                {billed.count > 0 && ` · ${formatMoney(billed.cost, billed.currency)}`}
-              </p>
-            </div>
+            <h3 className="text-xs font-medium tracking-wide text-faint uppercase">{month}</h3>
             <div>
               <ul className="divide-y border-t">
                 {rows.slice(0, MONTH_PREVIEW).map((s) => (
@@ -479,6 +383,10 @@ function SessionList({ sessions }: { sessions: Listed[] }) {
                 </ShowMore>
               )}
             </div>
+            <p className="pt-1 text-right text-xs text-faint tabular-nums">
+              {rows.length} {rows.length === 1 ? "session" : "sessions"}
+              {billed.count > 0 && `, ${formatMoney(billed.cost, billed.currency)} at Superchargers`}
+            </p>
           </section>
         );
       })}

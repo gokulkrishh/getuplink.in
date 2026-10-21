@@ -153,13 +153,13 @@ export async function syncStreamSessionsForAllCars(): Promise<void> {
 }
 
 // Newest first. A missing table or a read error shows as an empty list, with a log line.
-export async function loadStreamSessions(): Promise<StreamChargeSession[]> {
-  if (DEMO) return demoStreamSessions();
+export async function loadStreamSessions(limit = LIST_LIMIT): Promise<StreamChargeSession[]> {
+  if (DEMO) return demoStreamSessions().slice(0, limit);
   const { data, error } = await db()
     .from("stream_charge_sessions")
     .select("id, vin, started_at, ended_at, kind, supercharger, energy_added_kwh, start_level, end_level, start_energy_kwh, end_energy_kwh, peak_power_kw, ac_voltage, ac_amps, ac_phases, cable_type, temp_max_c, temp_start_c")
     .order("started_at", { ascending: false })
-    .limit(LIST_LIMIT);
+    .limit(limit);
   if (error) {
     console.warn("Streamed charging sessions unavailable:", error.message);
     return [];

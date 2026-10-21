@@ -1,3 +1,5 @@
+import { istDay } from "@/lib/telemetry-derive";
+
 const IST = "Asia/Kolkata";
 
 const time = new Intl.DateTimeFormat("en-US", { timeZone: IST, hour: "numeric", minute: "2-digit", hour12: true });
@@ -47,6 +49,12 @@ export function formatKm(value: number): string {
 // (taken inside the page's cached loader) because reading the clock while rendering blocks prerendering.
 export function formatSeen(value: string | number | Date, now: number): string {
   return formatDate(value) === formatDate(now) ? formatTime(value) : `${formatShortDate(value)}, ${formatTime(value)}`;
+}
+
+// "Today", "Yesterday" or "19 Oct" (IST). `now` is passed in for the same reason as formatSeen.
+export function formatDayLabel(value: string | number | Date, now: number): string {
+  const days = istDay(now) - istDay(new Date(value).getTime());
+  return days === 0 ? "Today" : days === 1 ? "Yesterday" : formatShortDate(value);
 }
 
 const relative = new Intl.RelativeTimeFormat("en-IN", { numeric: "auto" });

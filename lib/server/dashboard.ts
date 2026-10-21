@@ -3,6 +3,7 @@ import { DEMO, type DemoScenario } from "@/lib/demo";
 import { parseReleaseNotes, type ReleaseNote, type ReleaseNotesByVersion } from "@/lib/release-notes";
 import type { Stream } from "@/lib/telemetry";
 import { type Reading, type UpdateTimeline, updateTimeline } from "@/lib/telemetry-derive";
+import { loadVehicleExtras, type VehicleExtras } from "./dashboard-extras";
 import { demoData, demoStream } from "./demo";
 import { missingEnv } from "./env";
 import { db } from "./supabase";
@@ -66,6 +67,8 @@ export type VehicleView = {
   history: VersionChange[];
   // When the car last streamed anything (any of the fields we read), or null when it never has.
   streamAt: string | null;
+  // The week's figures, battery chart, last charge and recent activity; null when they couldn't be read.
+  extras: VehicleExtras | null;
 };
 
 export type Dashboard =
@@ -118,12 +121,15 @@ async function vehicleView(vehicle: Vehicle, scenario: DemoScenario): Promise<Ve
     // The same steps as below, from the generated car instead of the database.
     const { snapshot, history } = demoData();
     const stream = demoStream(STREAM_FIELDS, scenario);
+    const timelines = withTimelines(vehicle.vin!, history);
+    const [withTimes, extras] = await Promise.all([timelines, loadVehicleExtras(vehicle.vin!, timelines, Date.now())]);
     return {
       vehicle,
       streamAt: newestReading(stream),
       latest: snapshot,
       lastOnline: applyStream(snapshot, stream),
-      history: await withTimelines(vehicle.vin!, history),
+      history: withTimes,
+      extras,
     };
   }
   const [latest, lastOnline, history, stream] = await Promise.all([
@@ -146,12 +152,17 @@ async function vehicleView(vehicle: Vehicle, scenario: DemoScenario): Promise<Ve
   ]);
   const error = latest.error ?? lastOnline.error ?? history.error;
   if (error) throw new Error(error.message);
+  const rows = (history.data ?? []) as VersionChange[];
+  // The timelines are read once and shared: they also feed "Installed ... took" in recent activity.
+  const timelines = vehicle.vin ? withTimelines(vehicle.vin, rows) : Promise.resolve(rows);
+  const [withTimes, extras] = await Promise.all([timelines, vehicle.vin ? loadVehicleExtras(vehicle.vin, timelines, Date.now()) : null]);
   return {
     vehicle,
     streamAt: newestReading(stream),
     latest: latest.data as Snapshot | null,
     lastOnline: applyStream(lastOnline.data as Snapshot | null, stream),
-    history: vehicle.vin ? await withTimelines(vehicle.vin, (history.data ?? []) as VersionChange[]) : ((history.data ?? []) as VersionChange[]),
+    history: withTimes,
+    extras,
   };
 }
 

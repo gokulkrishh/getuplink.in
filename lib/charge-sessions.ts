@@ -322,3 +322,11 @@ export function chargeEfficiency(sessions: EfficiencySpan[]): number | null {
   }
   return delivered > 0 ? stored / delivered : null;
 }
+
+// "Bengaluru, Nexus Koramangala" -> { place: "Nexus Koramangala", city: "Bengaluru" }
+export function splitSite(name: string | null): { place: string; city: string | null } {
+  if (!name) return { place: "Supercharger", city: null };
+  const i = name.indexOf(", ");
+  if (i === -1) return { place: name, city: null };
+  return { place: name.slice(i + 2), city: name.slice(0, i) };
+}

@@ -152,7 +152,7 @@ async function loadHomeCharging(vin: string): Promise<HomeCharging | null> {
   return charger.length > 0 || cable ? { charger: charger.length > 0 ? charger.join(" · ") : null, cable } : null;
 }
 
-async function loadBatteryHealth(vin: string): Promise<BatteryHealth | null> {
+export async function loadBatteryHealth(vin: string): Promise<BatteryHealth | null> {
   const estimates = await loadPackEstimates(vin, new Date(Date.now() - 30 * 86_400_000).toISOString());
   // Battery health is extra; without it the page still shows everything else.
   if (!estimates || estimates.length === 0) return null;

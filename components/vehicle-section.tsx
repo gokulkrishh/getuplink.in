@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { BatteryChart } from "@/components/battery-chart";
+import { BatteryHealth, LastCharge, RecentActivity, UpdateSummary, WeekStrip } from "@/components/vehicle-extras";
 import { VersionChart } from "@/components/version-chart";
 import { formatDate, formatDuration, formatKm, formatSeen, formatShortDate } from "@/lib/format";
 import { AutoRefresh } from "@/components/auto-refresh";
@@ -346,7 +348,7 @@ export function VehicleSection({
   // Render time, taken inside the page's cached loader (see formatSeen).
   now: number;
 }) {
-  const { vehicle, latest, lastOnline, history, streamAt } = view;
+  const { vehicle, latest, lastOnline, history, streamAt, extras } = view;
   // A car that streamed in the last few minutes is awake: keep the page fresh so new data shows up on its own.
   const awake = streamAt !== null && now - Date.parse(streamAt) < AWAKE_MS;
   const pending = Boolean(lastOnline?.update_status && STATUS[lastOnline.update_status]);
@@ -392,6 +394,7 @@ export function VehicleSection({
             <ReleaseNotesToggle version={vehicle.current_version} notes={notes} />
           </div>
         )}
+        <UpdateSummary version={vehicle.current_version} history={history} now={now} />
         {!vehicle.current_version && (
           <p className="text-sm text-muted-foreground">
             Asleep at every check so far. Open the Tesla app to wake the car; the dashboard updates on its own.
@@ -399,32 +402,39 @@ export function VehicleSection({
         )}
       </header>
 
-      {(pending || !lastOnline || battery) && (
-        // Update and Battery side by side; whichever applies alone takes the left half.
-        <dl className="grid gap-8 text-sm sm:grid-cols-2">
-          {(pending || !lastOnline) && (
-            <div>
-              <Label>Update</Label>
-              <dd>
-                <UpdateStatus snapshot={lastOnline} now={now} />
-                {pending && lastOnline?.update_version && notes[lastOnline.update_version] && (
-                  <div className="pt-3">
-                    <ReleaseNotesToggle version={lastOnline.update_version} notes={notes} stacked />
-                  </div>
-                )}
-              </dd>
-            </div>
-          )}
-          {battery && (
-            <div>
-              <Label>Battery</Label>
-              <dd>
-                <BatteryGauge snapshot={battery} />
-              </dd>
-            </div>
-          )}
+      {(pending || !lastOnline) && (
+        <dl className="text-sm">
+          <div>
+            <Label>Update</Label>
+            <dd>
+              <UpdateStatus snapshot={lastOnline} now={now} />
+              {pending && lastOnline?.update_version && notes[lastOnline.update_version] && (
+                <div className="pt-3">
+                  <ReleaseNotesToggle version={lastOnline.update_version} notes={notes} stacked />
+                </div>
+              )}
+            </dd>
+          </div>
         </dl>
       )}
+
+      <WeekStrip week={extras?.week ?? null} />
+
+      {battery && (
+        <dl className="text-sm">
+          <div>
+            <Label>Battery</Label>
+            <dd className="space-y-4">
+              <BatteryGauge snapshot={battery} />
+              {extras && <BatteryChart day={extras.battery.day} week={extras.battery.week} now={now} />}
+              <BatteryHealth id={vehicle.id} kwh={extras?.battery.healthKwh ?? null} />
+            </dd>
+          </div>
+        </dl>
+      )}
+
+      {extras && <LastCharge item={extras.lastCharge} now={now} />}
+      {extras && <RecentActivity events={extras.activity} now={now} />}
 
       {latest?.error && (
         <p className="text-xs text-muted-foreground">The car went to sleep during the last check. Uplink will try again.</p>

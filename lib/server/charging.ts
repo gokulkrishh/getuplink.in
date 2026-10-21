@@ -164,13 +164,13 @@ export async function syncChargingHistoryThrottled(): Promise<void> {
 }
 
 // Newest first. A missing table or a read error shows as an empty list, with a log line.
-export async function loadChargingSessions(): Promise<ChargingSession[]> {
-  if (DEMO) return demoChargingSessions();
+export async function loadChargingSessions(limit = LIST_LIMIT): Promise<ChargingSession[]> {
+  if (DEMO) return demoChargingSessions().slice(0, limit);
   const { data, error } = await db()
     .from("charging_sessions")
     .select("session_id, vehicle_vin, site_name, started_at, stopped_at, energy_kwh, cost_total, currency, invoices")
     .order("started_at", { ascending: false })
-    .limit(LIST_LIMIT);
+    .limit(limit);
   if (error) {
     console.warn("Charging history unavailable:", error.message);
     return [];

@@ -202,6 +202,10 @@
 @utility grid-cols-session {
   grid-template-columns: 3.5rem minmax(0, 1fr) auto 1.5rem;
 }
+/* The same row with room for "Yesterday" in the first column. */
+@utility grid-cols-session-wide {
+  grid-template-columns: 5rem minmax(0, 1fr) auto 1.5rem;
+}
 @utility grid-cols-split {
   @media (width >= 48rem) {
     grid-template-columns: minmax(0, 1fr) 2fr;
