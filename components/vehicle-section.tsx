@@ -188,7 +188,7 @@ function BatteryGauge({ snapshot }: { snapshot: Snapshot }) {
         {charging && <Zap className="size-3" aria-hidden="true" />}
         {charging
           ? power !== null
-            ? `Charging at ${kw.format(power)} kW${level < target ? ` · ${level}% → ${target}%` : ""}`
+            ? `Charging at ${kw.format(power)} kW${level < target ? ` to ${target}%` : ""}`
             : `Charging to ${target}%`
           : limit != null
             ? `Limit ${limit}%`

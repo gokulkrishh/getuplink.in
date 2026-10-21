@@ -63,9 +63,9 @@ export async function loadMonthlyDistance(): Promise<MonthlyDistance[]> {
   return result;
 }
 
-export const DRIVING_DAYS = 30;
+export const DRIVING_DAYS = 90;
 
-// Kilometres per IST day for the last 30 days, from the streamed odometer (see dailyDistance). Empty when
+// Kilometres per IST day for the last 90 days, from the streamed odometer (see dailyDistance). Empty when
 // the stream can't be read.
 export async function loadDailyDistance(): Promise<DayKm[]> {
   const vin = await loadPrimaryVin();

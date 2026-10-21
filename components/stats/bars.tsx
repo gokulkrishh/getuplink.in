@@ -1,3 +1,4 @@
+import { ScrollEnd } from "@/components/stats/scroll-end";
 import { cn } from "@/lib/utils";
 
 export type Bar = { key: string; label: string; value: number; display: string; isCurrent: boolean; blank?: boolean };
@@ -5,19 +6,25 @@ export type Bar = { key: string; label: string; value: number; display: string; 
 // 6 or 12 columns. Value labels are dropped at 12 so they don't collide on a phone.
 // With labelEvery, any number of columns (one per day, say): only every labelEvery-th column from the
 // last one carries its label, and values live in the hover title and for screen readers.
-export function Bars({ bars, ariaLabel, labelEvery }: { bars: Bar[]; ariaLabel: string; labelEvery?: number }) {
-  const dense = bars.length > 6;
+// With visible, only that many columns fit the panel and the rest scroll sideways, opening on the newest.
+export function Bars({ bars: all, ariaLabel, labelEvery, visible }: { bars: Bar[]; ariaLabel: string; labelEvery?: number; visible?: number }) {
+  const dense = all.length > 6;
+  // Months before the history starts are dropped, so the bars begin at the left edge.
+  const bars = labelEvery ? all : leadingTrimmed(all, (b) => b.value > 0);
   const max = Math.max(1, ...bars.map((b) => b.value));
   // Slots before the first value stay blank, so the bars start where the history starts.
   const first = bars.findIndex((b) => b.value > 0);
   const hidden = (b: Bar, k: number) => b.blank ?? k < first;
   const labelled = (k: number) => (labelEvery ? (bars.length - 1 - k) % labelEvery === 0 : true);
 
-  return (
-    <div className="bg-muted px-4 pt-5 pb-3">
+  const scrolls = visible !== undefined && bars.length > visible;
+  const list = (
       <ol
-        className={cn("grid items-end", !labelEvery && (dense ? "grid-cols-12 gap-1" : "grid-cols-6 gap-3"), labelEvery && "gap-0.5")}
-        style={labelEvery ? { gridTemplateColumns: `repeat(${bars.length}, minmax(0, 1fr))` } : undefined}
+        className={cn("grid items-end", labelEvery ? "gap-0.5" : dense ? "gap-1" : "gap-3")}
+        style={{
+          gridTemplateColumns: `repeat(${labelEvery ? bars.length : Math.max(bars.length, MIN_COLUMNS)}, minmax(0, 1fr))`,
+          width: scrolls ? `${(bars.length / visible) * 100}%` : undefined,
+        }}
         aria-label={ariaLabel}
       >
         {bars.map((b, k) =>
@@ -36,15 +43,30 @@ export function Bars({ bars, ariaLabel, labelEvery }: { bars: Bar[]; ariaLabel: 
               </div>
               {/* The label is as wide as its text and may spill over the neighbouring columns. */}
               <span className={cn("h-4 text-xs whitespace-nowrap", b.isCurrent ? "text-foreground" : "text-faint")}>
-                {labelEvery ? (labelled(k) ? b.label : "") : dense ? b.label.slice(0, 1) : b.label}
+                {labelEvery ? (labelled(k) ? b.label : "") : <MonthLabel label={b.label} dense={dense} fromEnd={bars.length - 1 - k} />}
               </span>
               {dense && <span className="sr-only">{b.display}</span>}
             </li>
           ),
         )}
       </ol>
-    </div>
   );
+  return <div className="bg-muted px-4 pt-5 pb-3">{scrolls ? <ScrollEnd label={ariaLabel}>{list}</ScrollEnd> : list}</div>;
+}
+
+// 12 columns: "Jan" rather than "J", and on a phone only every other month (counted from the newest) so
+// the names don't collide.
+function MonthLabel({ label, dense, fromEnd }: { label: string; dense: boolean; fromEnd: number }) {
+  if (!dense) return label;
+  return <span className={cn(fromEnd % 2 === 1 && "max-sm:invisible")}>{label.slice(0, 3)}</span>;
+}
+
+// Below this many columns the bars keep their width and the right side stays empty.
+const MIN_COLUMNS = 6;
+
+function leadingTrimmed<T>(items: T[], hasValue: (item: T) => boolean): T[] {
+  const first = items.findIndex(hasValue);
+  return first > 0 ? items.slice(first) : items;
 }
 
 export type StackedBar = { key: string; label: string; total: number; display: string; isCurrent: boolean; segments: number[] };
@@ -52,8 +74,9 @@ export type StackedSeries = { label: string; className: string };
 
 // Same look as Bars, with each column split into series (first series at the bottom). Tones tell the
 // series apart, a 2px gap separates them, and the legend names them.
-export function StackedBars({ bars, series, ariaLabel }: { bars: StackedBar[]; series: StackedSeries[]; ariaLabel: string }) {
-  const dense = bars.length > 6;
+export function StackedBars({ bars: all, series, ariaLabel }: { bars: StackedBar[]; series: StackedSeries[]; ariaLabel: string }) {
+  const dense = all.length > 6;
+  const bars = leadingTrimmed(all, (b) => b.total > 0);
   const max = Math.max(...bars.map((b) => b.total));
   const first = bars.findIndex((b) => b.total > 0);
   const used = series.filter((_, i) => bars.some((b) => b.segments[i] > 0));
@@ -61,7 +84,11 @@ export function StackedBars({ bars, series, ariaLabel }: { bars: StackedBar[]; s
 
   return (
     <div className="bg-muted px-4 pt-5 pb-3">
-      <ol className={cn("grid items-end", dense ? "grid-cols-12 gap-1" : "grid-cols-6 gap-3")} aria-label={ariaLabel}>
+      <ol
+        className={cn("grid items-end", dense ? "gap-1" : "gap-3")}
+        style={{ gridTemplateColumns: `repeat(${Math.max(bars.length, MIN_COLUMNS)}, minmax(0, 1fr))` }}
+        aria-label={ariaLabel}
+      >
         {bars.map((b, k) =>
           k < first ? (
             <li key={b.key} aria-hidden="true" />
@@ -77,7 +104,9 @@ export function StackedBars({ bars, series, ariaLabel }: { bars: StackedBar[]; s
                   </div>
                 )}
               </div>
-              <span className={cn("text-xs", b.isCurrent ? "text-foreground" : "text-faint")}>{dense ? b.label.slice(0, 1) : b.label}</span>
+              <span className={cn("text-xs whitespace-nowrap", b.isCurrent ? "text-foreground" : "text-faint")}>
+                <MonthLabel label={b.label} dense={dense} fromEnd={bars.length - 1 - k} />
+              </span>
               <span className="sr-only">
                 {dense && `${b.display}. `}
                 {breakdown(b).join(", ")}

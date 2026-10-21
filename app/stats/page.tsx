@@ -312,11 +312,11 @@ function Updates({ rows, now, period }: { rows: UpdateRow[]; now: number; period
   );
 }
 
-// Kilometres per day for the last 30 days, from the streamed odometer.
+// Kilometres per day for the last 90 days, from the streamed odometer; 30 fit the panel and the rest scroll.
 function DailyDriving({ days }: { days: DayKm[] }) {
   // One day of readings has nothing to compare against, so the section waits for a second.
   if (days.filter((d) => d.km !== null).length < 2) return null;
-  const total = days.reduce((sum, d) => sum + (d.km ?? 0), 0);
+  const total = days.slice(-30).reduce((sum, d) => sum + (d.km ?? 0), 0);
   const bars = days.map((d, k) => ({
     key: String(d.day),
     label: formatShortDate(d.start),
@@ -331,7 +331,7 @@ function DailyDriving({ days }: { days: DayKm[] }) {
         <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Driving per day</h2>
         <p className="text-sm text-muted-foreground tabular-nums">{compactNumber.format(total)} km in the last 30 days</p>
       </div>
-      <Bars bars={bars} ariaLabel="Distance per day" labelEvery={7} />
+      <Bars bars={bars} ariaLabel="Distance per day" labelEvery={7} visible={30} />
     </section>
   );
 }
@@ -362,23 +362,17 @@ function streamTitle(s: StreamChargeSession): string {
 }
 
 function levels(s: StreamChargeSession): string | null {
-  return s.start_level !== null && s.end_level !== null ? `${Math.round(s.start_level)}% → ${Math.round(s.end_level)}%` : null;
+  return s.start_level !== null && s.end_level !== null ? `${Math.round(s.start_level)}% to ${Math.round(s.end_level)}%` : null;
 }
 
-// "230 V · 32 A · 1-phase" for an AC session, "Battery 28 → 41 °C" for a DC one; only what the car reported.
-function chargerDetail(s: StreamChargeSession): string | null {
-  if (s.kind === "dc") {
-    return s.temp_start_c !== null && s.temp_max_c !== null ? `Battery ${Math.round(s.temp_start_c)} → ${Math.round(s.temp_max_c)} °C` : null;
-  }
-  const parts = [
-    s.ac_voltage !== null && `${Math.round(s.ac_voltage)} V`,
-    s.ac_amps !== null && `${Math.round(s.ac_amps)} A`,
-    s.ac_phases !== null && `${s.ac_phases}-phase`,
-  ].filter(Boolean);
-  return parts.length > 0 ? parts.join(" · ") : null;
+// The battery's warm-up on a fast charger, which explains a slow session. AC charger details live on the car page.
+function batteryTemp(s: StreamChargeSession): string | null {
+  return s.kind === "dc" && s.temp_start_c !== null && s.temp_max_c !== null
+    ? `battery ${Math.round(s.temp_start_c)} to ${Math.round(s.temp_max_c)} °C`
+    : null;
 }
 
-function SessionRow({ item }: { item: Listed }) {
+function SessionRow({ item, serial }: { item: Listed; serial: number }) {
   const { tesla: s, stream } = item;
   const invoice = s?.invoices.find((i) => i.contentId);
   const { place, city } = s ? splitSite(s.site_name) : { place: stream ? streamTitle(stream) : "", city: null };
@@ -387,23 +381,26 @@ function SessionRow({ item }: { item: Listed }) {
   const durationText = durationMs > 0 ? formatDuration(durationMs / 1000) : null;
   const currency = s?.currency ?? "INR";
   const rateText = s && s.cost_total !== null && s.energy_kwh !== null ? rate(s.cost_total, s.energy_kwh, currency) : null;
-  const peakText = stream?.peak_power_kw ? `${kwFormat.format(stream.peak_power_kw)} kW peak` : null;
+  const peakText = stream?.peak_power_kw ? `up to ${kwFormat.format(stream.peak_power_kw)} kW` : null;
   const energy = s ? s.energy_kwh : (stream?.energy_added_kwh ?? null);
-  const chargerText = stream && chargerDetail(stream);
+  const tempText = stream && batteryTemp(stream);
   const detail = s
-    ? [city, durationText, peakText, chargerText]
-    : [stoppedAt ? durationText : "In progress", stream && levels(stream), peakText, chargerText];
+    ? [city, durationText, peakText, tempText]
+    : [stream && levels(stream), stoppedAt ? durationText : "In progress", peakText, tempText];
   return (
-    <li className="grid grid-cols-session items-start gap-x-4 py-3 text-sm">
-      <div>
+    <li className="grid grid-cols-session items-start gap-x-4 py-4 text-sm">
+      <div className="space-y-1">
         <p className="tabular-nums">{formatShortDate(item.started_at)}</p>
         <p className="text-xs text-faint tabular-nums">{formatClock(item.started_at)}</p>
       </div>
-      <div className="min-w-0">
-        <p className="truncate font-medium">{place}</p>
+      <div className="min-w-0 space-y-1">
+        <p className="truncate font-medium">
+          <span className="mr-2 font-mono text-xs font-normal text-faint tabular-nums">#{serial}</span>
+          {place}
+        </p>
         <p className="truncate text-xs text-muted-foreground">{detail.filter(Boolean).join(" · ")}</p>
       </div>
-      <div className="text-right">
+      <div className="space-y-1 text-right">
         {s ? (
           <>
             <p className="font-mono font-medium tabular-nums">{s.cost_total === null ? "—" : formatMoney(s.cost_total, currency)}</p>
@@ -434,13 +431,25 @@ function SessionRow({ item }: { item: Listed }) {
 }
 
 function SessionList({ sessions }: { sessions: Listed[] }) {
-  // Sessions arrive newest first, so each month's group is in order too.
+  // Sessions arrive newest first, so each month's group is in order too. Numbers count from the first
+  // charge, so the newest has the highest.
+  const serial = new Map(sessions.map((s, i) => [s.key, sessions.length - i]));
   const groups = new Map<string, Listed[]>();
   for (const s of sessions) {
     const month = formatMonth(s.started_at);
     groups.set(month, [...(groups.get(month) ?? []), s]);
   }
   return (
+    <section className="space-y-6">
+      <div className="space-y-3">
+        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Charging sessions</h2>
+        <div className="grid grid-cols-session gap-x-4 text-xs text-faint">
+          <span>When</span>
+          <span>Where</span>
+          <span className="text-right">Cost or energy</span>
+          <span />
+        </div>
+      </div>
     <div className="space-y-10">
       {[...groups].map(([month, rows]) => {
         const billed = totals(rows.flatMap((r) => (r.tesla ? [r.tesla] : [])));
@@ -456,14 +465,14 @@ function SessionList({ sessions }: { sessions: Listed[] }) {
             <div>
               <ul className="divide-y border-t">
                 {rows.slice(0, MONTH_PREVIEW).map((s) => (
-                  <SessionRow key={s.key} item={s} />
+                  <SessionRow key={s.key} item={s} serial={serial.get(s.key) ?? 0} />
                 ))}
               </ul>
               {rows.length > MONTH_PREVIEW && (
                 <ShowMore count={rows.length - MONTH_PREVIEW}>
                   <ul className="divide-y border-t">
                     {rows.slice(MONTH_PREVIEW).map((s) => (
-                      <SessionRow key={s.key} item={s} />
+                      <SessionRow key={s.key} item={s} serial={serial.get(s.key) ?? 0} />
                     ))}
                   </ul>
                 </ShowMore>
@@ -473,6 +482,7 @@ function SessionList({ sessions }: { sessions: Listed[] }) {
         );
       })}
     </div>
+    </section>
   );
 }
 
