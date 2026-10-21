@@ -27,6 +27,13 @@ type VehicleData = {
   vehicle_config?: { car_type?: string; exterior_color?: string; trim_badging?: string };
 };
 
+// The raw response is kept for /api/debug; token fields are never stored.
+const TOKEN_KEYS = ["tokens", "backseat_token", "backseat_token_updated_at"];
+function withoutTokens(data: VehicleData): Record<string, unknown> | null {
+  if (!data) return null;
+  return Object.fromEntries(Object.entries(data).filter(([key]) => !TOKEN_KEYS.includes(key)));
+}
+
 // "2025.32.3 1a2b3c4d" -> "2025.32.3"; the build hash changes nothing for us.
 export function normaliseVersion(version: string | null | undefined): string | null {
   const v = version?.trim().split(/\s+/)[0];
@@ -62,7 +69,9 @@ async function pollVehicle(vehicle: FleetVehicle, now: string) {
 
   let data: VehicleData;
   try {
-    data = await fleetGet<VehicleData>(`/api/1/vehicles/${vehicle.vin}/vehicle_data?endpoints=vehicle_state;charge_state;vehicle_config`);
+    // The section list must be URL-encoded: with a bare ";" Tesla only returned vehicle_state.
+    const endpoints = encodeURIComponent("vehicle_state;charge_state;vehicle_config");
+    data = await fleetGet<VehicleData>(`/api/1/vehicles/${vehicle.vin}/vehicle_data?endpoints=${endpoints}`);
   } catch (err) {
     // 408: the car fell asleep between the list call and this one.
     if (err instanceof TeslaError && err.status === 408) {
@@ -115,7 +124,7 @@ async function pollVehicle(vehicle: FleetVehicle, now: string) {
       battery_range_km: typeof charge.battery_range === "number" ? Math.round(charge.battery_range * MILES_TO_KM * 10) / 10 : null,
       charging_state: charge.charging_state ?? null,
       charge_limit: charge.charge_limit_soc ?? null,
-      raw: data ?? null,
+      raw: withoutTokens(data),
     }),
   );
   await recordReleaseNotes(vehicle.vin, [
