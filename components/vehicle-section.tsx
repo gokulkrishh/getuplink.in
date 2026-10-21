@@ -3,6 +3,7 @@ import { checkNow } from "@/app/actions";
 import { CheckNowIcon } from "@/components/check-now-button";
 import { VersionChart } from "@/components/version-chart";
 import { formatDate, formatDuration, formatKm, formatSeen, formatShortDate } from "@/lib/format";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { Check, ChevronRight, Zap } from "lucide-react";
 import { ReleaseNotesList } from "@/components/release-notes";
 import { ShowMore } from "@/components/show-more";
@@ -63,6 +64,7 @@ function UpdateStatus({ snapshot, now }: { snapshot: Snapshot | null; now: numbe
     status === "installing" ? snapshot.install_perc : status === "downloading" ? snapshot.download_perc : null;
   return (
     <div className="space-y-2">
+      {(status === "downloading" || status === "installing") && <AutoRefresh />}
       <p className="flex items-baseline gap-2">
         {status === "available" ? (
           <span className="inline-flex items-baseline gap-2 text-foreground">

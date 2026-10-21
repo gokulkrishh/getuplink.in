@@ -2,6 +2,7 @@ import "server-only";
 import { parseReleaseNotes, type ReleaseNote, type ReleaseNotesByVersion } from "@/lib/release-notes";
 import { missingEnv } from "./env";
 import { db } from "./supabase";
+import { applyStream, loadStream } from "./telemetry";
 import { isConnected } from "./tesla";
 
 // Tags every page's "use cache: private" loader, so actions that change the owner's data or session
@@ -65,7 +66,7 @@ const SNAPSHOT_COLUMNS =
   "polled_at, state, car_version, update_status, update_version, download_perc, install_perc, expected_duration_sec, scheduled_time_ms, battery_level, battery_range_km, charging_state, charge_limit, error";
 
 async function vehicleView(vehicle: Vehicle): Promise<VehicleView> {
-  const [latest, lastOnline, history] = await Promise.all([
+  const [latest, lastOnline, history, stream] = await Promise.all([
     db().from("snapshots").select(SNAPSHOT_COLUMNS).eq("vehicle_id", vehicle.id).order("polled_at", { ascending: false }).limit(1).maybeSingle(),
     db()
       .from("snapshots")
@@ -81,13 +82,14 @@ async function vehicleView(vehicle: Vehicle): Promise<VehicleView> {
       .eq("vehicle_id", vehicle.id)
       .order("detected_at", { ascending: false })
       .limit(100),
+    vehicle.vin ? loadStream(vehicle.vin) : {},
   ]);
   const error = latest.error ?? lastOnline.error ?? history.error;
   if (error) throw new Error(error.message);
   return {
     vehicle,
     latest: latest.data as Snapshot | null,
-    lastOnline: lastOnline.data as Snapshot | null,
+    lastOnline: applyStream(lastOnline.data as Snapshot | null, stream),
     history: (history.data ?? []) as VersionChange[],
   };
 }
