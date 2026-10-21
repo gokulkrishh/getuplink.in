@@ -8,10 +8,13 @@ import { cn } from "@/lib/utils";
 // (see sessionCookieDomain), so it must render inside <Suspense>; the rest of the page stays static.
 export async function SessionCta({
   size = "xl",
+  label,
   className,
   dashboardOnly = false,
 }: {
   size?: "sm" | "xl";
+  // Text for the signed-out button; defaults to "Sign in with Tesla".
+  label?: string;
   className?: string;
   // The header shows nothing to signed-out visitors; sign-in lives in the page itself.
   dashboardOnly?: boolean;
@@ -25,5 +28,5 @@ export async function SessionCta({
       </a>
     );
   }
-  return dashboardOnly ? null : <SignInButton size={size} className={className} />;
+  return dashboardOnly ? null : <SignInButton size={size} label={label} className={className} />;
 }

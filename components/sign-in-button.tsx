@@ -7,7 +7,15 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 // A plain link (the OAuth flow is a full-page redirect). While Tesla's page loads, the arrow turns into a spinner.
-export function SignInButton({ size = "xl", className }: { size?: "sm" | "xl"; className?: string }) {
+export function SignInButton({
+  size = "xl",
+  label = "Sign in with Tesla",
+  className,
+}: {
+  size?: "sm" | "xl";
+  label?: string;
+  className?: string;
+}) {
   const [pending, setPending] = useState(false);
   return (
     <a
@@ -16,7 +24,7 @@ export function SignInButton({ size = "xl", className }: { size?: "sm" | "xl"; c
       aria-busy={pending}
       className={cn(buttonVariants({ size }), pending && "pointer-events-none", className)}
     >
-      Sign in with Tesla
+      {label}
       {pending ? <DashRing data-icon="inline-end" aria-hidden="true" /> : <ArrowRight data-icon="inline-end" />}
     </a>
   );

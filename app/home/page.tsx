@@ -180,8 +180,8 @@ export default function HomePage() {
         <h2 className="max-w-3xl text-5xl leading-display font-semibold tracking-tight text-balance sm:text-6xl">
           Start tracking in two minutes.
         </h2>
-        <Suspense fallback={<SignInButton />}>
-          <SessionCta />
+        <Suspense fallback={<SignInButton label="Get started" />}>
+          <SessionCta label="Get started" />
         </Suspense>
       </section>
 
