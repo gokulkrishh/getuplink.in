@@ -82,7 +82,7 @@ export function VehicleSection({ view }: { view: VehicleView }) {
         </p>
         {!vehicle.current_version && (
           <p className="text-sm text-muted-foreground">
-            The car has been asleep at every check so far. Its version shows up the next time it is online during a check.
+            Asleep at every check so far. Open the Tesla app to wake the car, then select Check now.
           </p>
         )}
       </header>
@@ -97,7 +97,7 @@ export function VehicleSection({ view }: { view: VehicleView }) {
             )}
           </dd>
         </div>
-        <div>
+        <div className="sm:text-right">
           <Label>Last seen online</Label>
           <dd>
             {vehicle.last_seen_at ? (
@@ -112,7 +112,9 @@ export function VehicleSection({ view }: { view: VehicleView }) {
         </div>
       </dl>
 
-      {latest?.error && <p className="text-xs text-muted-foreground">Last check: {latest.error}</p>}
+      {latest?.error && (
+        <p className="text-xs text-muted-foreground">The car went to sleep during the last check. Uplink will try again.</p>
+      )}
 
       <div className="space-y-4">
         <h3 className="text-xs text-faint">History</h3>

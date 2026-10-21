@@ -53,7 +53,7 @@ function RunError({ error }: { error: string }) {
     <div className="space-y-2">
       <p>{describeRunError(error)}</p>
       <details className="text-xs">
-        <summary className="cursor-pointer text-faint hover:text-muted-foreground">Details</summary>
+        <summary className="text-faint hover:text-muted-foreground">Details</summary>
         <p className="mt-2 font-mono break-all text-muted-foreground">{error}</p>
       </details>
     </div>
@@ -85,26 +85,30 @@ async function Dashboard({ searchParams }: PageProps<"/">) {
 
       {data.kind === "misconfigured" && (
         <Notice title="Not configured">
-          <p>These environment variables are missing in Vercel:</p>
+          <p>Add these in Vercel → Settings → Environment Variables, then redeploy:</p>
           <p className="font-mono text-foreground">{data.missing.join(", ")}</p>
         </Notice>
       )}
 
       {data.kind === "error" && (
-        <Notice title="Something went wrong">
-          <p className="font-mono">{data.message}</p>
+        <Notice title="Couldn't load your dashboard">
+          <p>Reload the page. If it keeps happening, check the Supabase settings in Vercel.</p>
+          <details className="text-xs">
+            <summary className="text-faint hover:text-muted-foreground">Details</summary>
+            <p className="mt-2 font-mono break-all">{data.message}</p>
+          </details>
         </Notice>
       )}
 
       {data.kind === "disconnected" && (
-        <Notice title="Connect your Tesla">
+        <Notice title="Connect your Tesla account">
           <p>
-            Read-only access to vehicle data. The tracker checks every few hours and never wakes the car, so versions
-            appear once it is seen online.
+            Uplink needs read-only access to your vehicle data. It checks every few hours and never wakes the car, so a
+            version appears once the car is seen online.
           </p>
           {/* Plain link: the OAuth flow is a full-page redirect. */}
           <a href="/api/auth/connect" className={buttonVariants({ className: "h-9 px-4" })}>
-            Connect Tesla
+            Sign in with Tesla
           </a>
         </Notice>
       )}
@@ -132,7 +136,7 @@ async function Dashboard({ searchParams }: PageProps<"/">) {
 
       {data.kind === "ready" && data.lastRun && (
         <footer className="mt-24 space-y-2 text-xs text-faint">
-          <p>Last check {formatDateTime(data.lastRun.started_at)}</p>
+          <p>Last checked {formatDateTime(data.lastRun.started_at)}</p>
           {failedRun?.error && data.vehicles.length > 0 && (
             <div className="text-muted-foreground">
               <RunError error={failedRun.error} />
