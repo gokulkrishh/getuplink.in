@@ -20,7 +20,17 @@ function UpdateStatus({ snapshot }: { snapshot: Snapshot | null }) {
   return (
     <div className="space-y-2">
       <p>
-        <span className={status === "available" ? "text-positive" : undefined}>{STATUS[status]}</span>
+        {status === "available" ? (
+          <span className="inline-flex items-center gap-2 text-positive">
+            <span className="relative flex size-2" aria-hidden="true">
+              <span className="absolute inline-flex size-full rounded-full bg-positive opacity-60 motion-safe:animate-ping" />
+              <span className="relative inline-flex size-2 rounded-full bg-positive" />
+            </span>
+            {STATUS[status]}
+          </span>
+        ) : (
+          STATUS[status]
+        )}
         {snapshot.update_version && <span className="ml-2 font-mono text-muted-foreground">{snapshot.update_version}</span>}
       </p>
       {progress != null && (
