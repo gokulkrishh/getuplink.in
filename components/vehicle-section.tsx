@@ -5,6 +5,8 @@ import { formatDate, formatDuration, formatKm, formatSeen, formatShortDate } fro
 import { Check, ChevronRight, Zap } from "lucide-react";
 import { ReleaseNotesList } from "@/components/release-notes";
 import { ShowMore } from "@/components/show-more";
+import { Tip } from "@/components/tip";
+import { cn } from "@/lib/utils";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import type { Snapshot, VehicleView, VersionChange } from "@/lib/server/dashboard";
 
@@ -232,9 +234,28 @@ function HistoryRow({ change, notes }: { change: VersionChange; notes: ReleaseNo
   );
 }
 
+// "● Online" or "● Asleep" as of the last check; the times are in a tooltip on hover or focus.
+function CarStatus({ state, checkedAt, seenAt }: { state: string | null; checkedAt: string | null; seenAt: string | null }) {
+  const online = state === "online";
+  const label = online ? "Online" : state === "offline" ? "Offline" : state ? "Asleep" : "Not checked yet";
+  const detail = [
+    checkedAt && `Checked ${formatSeen(checkedAt)}`,
+    !online && (seenAt ? `Last online ${formatSeen(seenAt)}` : "Not seen online yet"),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return (
+    <span tabIndex={0} className="group relative inline-flex items-center gap-1.5 outline-none">
+      <span className={cn("size-1.5 rounded-full", online ? "bg-positive" : "bg-faint")} aria-hidden="true" />
+      {label}
+      <span className="sr-only">. {detail}</span>
+      <Tip>{detail}</Tip>
+    </span>
+  );
+}
+
 export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?: ReleaseNotesByVersion }) {
   const { vehicle, latest, lastOnline, history } = view;
-  const asleep = latest && latest.state !== "online";
   const pending = Boolean(lastOnline?.update_status && STATUS[lastOnline.update_status]);
   // "Model Y, Pearl White", without repeating the model when the car is already named after it.
   const carLabel = [vehicle.model !== vehicle.display_name && vehicle.model, vehicle.exterior_color].filter(Boolean).join(", ");
@@ -250,10 +271,13 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
             {vehicle.display_name || "Tesla"}
             {carLabel && <span className="ml-2 text-faint">· {carLabel}</span>}
             {!pending && lastOnline && <span className="ml-2 text-faint">· Up to date</span>}
-            {asleep && <span className="ml-2 text-faint">· {latest.state === "offline" ? "Offline" : "Asleep"}</span>}
           </h2>
           <div className="flex shrink-0 items-center gap-1 text-sm text-faint tabular-nums">
-            <span>{vehicle.last_seen_at ? `Seen ${formatSeen(vehicle.last_seen_at)}` : "Not seen yet"}</span>
+            <CarStatus
+              state={latest?.state ?? null}
+              checkedAt={vehicle.last_polled_at}
+              seenAt={vehicle.last_seen_at}
+            />
             <form action={checkNow}>
               <CheckNowIcon />
             </form>
