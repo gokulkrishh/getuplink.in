@@ -2,8 +2,7 @@ import Link from "next/link";
 import { cacheLife, cacheTag } from "next/cache";
 import { Suspense } from "react";
 import { checkNow, logout } from "@/app/actions";
-import { Settings2 } from "lucide-react";
-import { CybercabGlyph } from "@/components/cybercab-glyph";
+import { CarFront, Settings2 } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { Logo } from "@/components/logo";
 import { VehicleSection } from "@/components/vehicle-section";
@@ -80,19 +79,20 @@ function Notice({ title, children }: { title: string; children: React.ReactNode 
 // router cache (never a server cache), so a header link's prefetch can carry it. The check still runs
 // on every server render; redirect() throws, so a signed-out result is never cached. The demo
 // scenario is an argument, so each one gets its own entry.
-async function loadOwnDashboard(demo: string): Promise<DashboardData> {
+async function loadOwnDashboard(demo: string): Promise<{ data: DashboardData; now: number }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   // 60s is enough for a per-link prefetch (30s minimum); the App Shell would need 5 minutes.
   cacheLife({ stale: 60 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
-  return loadDashboard(demo);
+  // The clock is read here, inside the cache, because reading it while rendering blocks prerendering.
+  return { data: await loadDashboard(demo), now: Date.now() };
 }
 
 async function Dashboard({ searchParams }: PageProps<"/">) {
   const params = await searchParams;
   const demo = typeof params.demo === "string" ? params.demo : "full";
-  const data = await loadOwnDashboard(demo);
+  const { data, now } = await loadOwnDashboard(demo);
   const flash = params.error === "check" ? "The check couldn't run. Try again in a minute." : null;
   const failedRun = data.kind === "ready" && data.lastRun?.ok === false ? data.lastRun : null;
 
@@ -148,7 +148,7 @@ async function Dashboard({ searchParams }: PageProps<"/">) {
           </Notice>
         ) : (
           <EmptyState
-            icon={<CybercabGlyph className="mb-1 h-8 w-[4.5rem] text-faint" />}
+            icon={<CarFront className="size-7 text-faint" aria-hidden="true" />}
             title="No vehicles yet"
             action={
               <form action={checkNow}>
@@ -164,7 +164,7 @@ async function Dashboard({ searchParams }: PageProps<"/">) {
       {data.kind === "ready" && data.vehicles.length > 0 && (
         <div className="space-y-24">
           {data.vehicles.map((view) => (
-            <VehicleSection key={view.vehicle.id} view={view} notes={data.releaseNotes} />
+            <VehicleSection key={view.vehicle.id} view={view} notes={data.releaseNotes} now={now} />
           ))}
         </div>
       )}

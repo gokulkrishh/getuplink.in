@@ -62,8 +62,8 @@ function Header() {
   );
 }
 
-function MonthBars({ sessions }: { sessions: ChargingSession[] }) {
-  const now = new Date();
+function MonthBars({ sessions, now: nowMs }: { sessions: ChargingSession[]; now: number }) {
+  const now = new Date(nowMs);
   const currency = totals(sessions).currency;
   const compact = new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 });
   const months = Array.from({ length: 6 }, (_, k) => {
@@ -103,8 +103,8 @@ function MonthBars({ sessions }: { sessions: ChargingSession[] }) {
   );
 }
 
-function Summary({ sessions }: { sessions: ChargingSession[] }) {
-  const month = formatMonth(new Date());
+function Summary({ sessions, now }: { sessions: ChargingSession[]; now: number }) {
+  const month = formatMonth(now);
   const { cost, energy, count, currency } = totals(sessions.filter((s) => formatMonth(s.started_at) === month));
   const rateText = rate(cost, energy, currency);
   return (
@@ -118,7 +118,7 @@ function Summary({ sessions }: { sessions: ChargingSession[] }) {
             .join(" · ")}
         </p>
       </div>
-      <MonthBars sessions={sessions} />
+      <MonthBars sessions={sessions} now={now} />
     </section>
   );
 }
@@ -207,16 +207,17 @@ function SessionList({ sessions }: { sessions: ChargingSession[] }) {
 }
 
 // Session check plus data in one browser-only private cache, so header links can prefetch it (see app/page.tsx).
-async function loadSessions(): Promise<ChargingSession[]> {
+async function loadSessions(): Promise<{ sessions: ChargingSession[]; now: number }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
-  return loadChargingSessions();
+  // The clock is read inside the cache; reading it while rendering blocks prerendering.
+  return { sessions: await loadChargingSessions(), now: Date.now() };
 }
 
 async function Sessions() {
-  const sessions = await loadSessions();
+  const { sessions, now } = await loadSessions();
 
   if (sessions.length === 0) {
     return (
@@ -228,7 +229,7 @@ async function Sessions() {
 
   return (
     <div className="space-y-12">
-      <Summary sessions={sessions} />
+      <Summary sessions={sessions} now={now} />
       <SessionList sessions={sessions} />
     </div>
   );

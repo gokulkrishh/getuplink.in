@@ -44,7 +44,7 @@ function ReleaseNotesToggle({
 }
 
 // Order: status line, then its details (progress, timing).
-function UpdateStatus({ snapshot }: { snapshot: Snapshot | null }) {
+function UpdateStatus({ snapshot, now }: { snapshot: Snapshot | null; now: number }) {
   if (!snapshot) return <p className="text-muted-foreground">Unknown until the car is next seen online.</p>;
   const status = snapshot.update_status;
   if (!status || !STATUS[status]) {
@@ -97,7 +97,7 @@ function UpdateStatus({ snapshot }: { snapshot: Snapshot | null }) {
       {(status === "scheduled" && snapshot.scheduled_time_ms) || snapshot.expected_duration_sec ? (
         <p className="text-xs text-muted-foreground">
           {status === "scheduled" && snapshot.scheduled_time_ms
-            ? `Starts ${formatSeen(snapshot.scheduled_time_ms)}`
+            ? `Starts ${formatSeen(snapshot.scheduled_time_ms, now)}`
             : `Takes about ${formatDuration(snapshot.expected_duration_sec!)}`}
         </p>
       ) : null}
@@ -113,16 +113,16 @@ const HISTORY_COLS =
   "grid grid-cols-[minmax(0,1fr)_5.5rem_4.25rem] items-baseline gap-x-3 sm:grid-cols-[minmax(0,1fr)_7.5rem_7.5rem_4.5rem] sm:gap-x-6";
 
 // "12 Oct" this year, "24 Dec 2025" otherwise.
-function historyDate(value: string): string {
-  return formatDate(value).endsWith(String(new Date().getFullYear())) ? formatShortDate(value) : formatDate(value);
+function historyDate(value: string, now: number): string {
+  return formatDate(value).endsWith(formatDate(now).slice(-4)) ? formatShortDate(value) : formatDate(value);
 }
 
 const km = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 
 // Received, installed and odometer cells of a history row.
-function HistoryCells({ change }: { change: VersionChange }) {
+function HistoryCells({ change, now }: { change: VersionChange; now: number }) {
   // The first version was already installed when tracking began; Tesla doesn't report install dates.
-  const date = historyDate(change.detected_at);
+  const date = historyDate(change.detected_at, now);
   return (
     <>
       <span className="hidden text-right text-faint tabular-nums sm:block">
@@ -220,13 +220,13 @@ function Label({ children }: { children: React.ReactNode }) {
 const HISTORY_PREVIEW = 5;
 
 // One history row: expandable to its release notes when Tesla published them.
-function HistoryRow({ change, notes }: { change: VersionChange; notes: ReleaseNotesByVersion }) {
+function HistoryRow({ change, notes, now }: { change: VersionChange; notes: ReleaseNotesByVersion; now: number }) {
   const versionNotes = notes[change.version];
   if (!versionNotes) {
     return (
       <li className={cn(HISTORY_COLS, "border-t py-2.5")}>
         <span className="truncate pl-5 font-mono">{change.version}</span>
-        <HistoryCells change={change} />
+        <HistoryCells change={change} now={now} />
       </li>
     );
   }
@@ -244,7 +244,7 @@ function HistoryRow({ change, notes }: { change: VersionChange; notes: ReleaseNo
             />
             <span className="truncate">{change.version}</span>
           </span>
-          <HistoryCells change={change} />
+          <HistoryCells change={change} now={now} />
         </summary>
         <div className="pb-4 pl-5">
           <ReleaseNotesList notes={versionNotes} />
@@ -258,9 +258,18 @@ function HistoryRow({ change, notes }: { change: VersionChange; notes: ReleaseNo
 const ONLINE_FRESH_MS = 15 * 60 * 1000;
 
 // "● Online" or "● Asleep" as of the last check. When not online, a tooltip says when it last was.
-function CarStatus({ state, seenAt, checkedAt }: { state: string | null; seenAt: string | null; checkedAt: string | null }) {
-  // eslint-disable-next-line react-hooks/purity -- server component on a dynamic page; freshness is per request by design
-  const fresh = checkedAt !== null && Date.now() - Date.parse(checkedAt) < ONLINE_FRESH_MS;
+function CarStatus({
+  state,
+  seenAt,
+  checkedAt,
+  now,
+}: {
+  state: string | null;
+  seenAt: string | null;
+  checkedAt: string | null;
+  now: number;
+}) {
+  const fresh = checkedAt !== null && now - Date.parse(checkedAt) < ONLINE_FRESH_MS;
   const online = state === "online" && fresh;
   const label =
     online
@@ -281,7 +290,7 @@ function CarStatus({ state, seenAt, checkedAt }: { state: string | null; seenAt:
       </span>
     );
   }
-  const detail = seenAt ? `Last online ${formatSeen(seenAt)}` : "Not seen online yet";
+  const detail = seenAt ? `Last online ${formatSeen(seenAt, now)}` : "Not seen online yet";
   return (
     <span tabIndex={0} className="group relative inline-flex items-center gap-1.5 outline-none">
       {dot}
@@ -292,7 +301,16 @@ function CarStatus({ state, seenAt, checkedAt }: { state: string | null; seenAt:
   );
 }
 
-export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?: ReleaseNotesByVersion }) {
+export function VehicleSection({
+  view,
+  notes = {},
+  now,
+}: {
+  view: VehicleView;
+  notes?: ReleaseNotesByVersion;
+  // Render time, taken inside the page's cached loader (see formatSeen).
+  now: number;
+}) {
   const { vehicle, latest, lastOnline, history } = view;
   const pending = Boolean(lastOnline?.update_status && STATUS[lastOnline.update_status]);
   // "Model Y, Pearl White", without repeating the model when the car is already named after it.
@@ -303,6 +321,7 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
   return (
     <section className="space-y-12">
       <header className="space-y-1">
+        {/* Placeholder picture until there's one per model; painted in the car's own colour. */}
         {/* Car and status on the left; freshness and the refresh control on the right. */}
         {/* Two columns: car and version on the left; status, refresh and VIN on the right. */}
         <div className="grid grid-cols-[1fr_minmax(0,auto)] items-center gap-x-4 gap-y-1">
@@ -311,9 +330,9 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
             {carLabel && <span className="ml-2 text-faint">· {carLabel}</span>}
           </h2>
           <div className="flex items-center justify-end gap-1 text-sm text-faint tabular-nums">
-            <CarStatus state={latest?.state ?? null} seenAt={vehicle.last_seen_at} checkedAt={latest?.polled_at ?? null} />
+            <CarStatus state={latest?.state ?? null} seenAt={vehicle.last_seen_at} checkedAt={latest?.polled_at ?? null} now={now} />
             <form action={checkNow}>
-              <CheckNowIcon checked={vehicle.last_polled_at ? formatSeen(vehicle.last_polled_at) : undefined} />
+              <CheckNowIcon checked={vehicle.last_polled_at ? formatSeen(vehicle.last_polled_at, now) : undefined} />
             </form>
           </div>
           <p className="font-mono text-4xl font-medium tracking-tight tabular-nums sm:text-4xl">
@@ -344,7 +363,7 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
             <div>
               <Label>Update</Label>
               <dd>
-                <UpdateStatus snapshot={lastOnline} />
+                <UpdateStatus snapshot={lastOnline} now={now} />
                 {pending && lastOnline?.update_version && notes[lastOnline.update_version] && (
                   <div className="pt-3">
                     <ReleaseNotesToggle version={lastOnline.update_version} notes={notes} stacked />
@@ -384,14 +403,14 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
               </div>
               <ol className="text-sm">
                 {history.slice(0, HISTORY_PREVIEW).map((change) => (
-                  <HistoryRow key={change.detected_at} change={change} notes={notes} />
+                  <HistoryRow key={change.detected_at} change={change} notes={notes} now={now} />
                 ))}
               </ol>
               {history.length > HISTORY_PREVIEW && (
                 <ShowMore count={history.length - HISTORY_PREVIEW}>
                   <ol className="text-sm">
                     {history.slice(HISTORY_PREVIEW).map((change) => (
-                      <HistoryRow key={change.detected_at} change={change} notes={notes} />
+                      <HistoryRow key={change.detected_at} change={change} notes={notes} now={now} />
                     ))}
                   </ol>
                 </ShowMore>

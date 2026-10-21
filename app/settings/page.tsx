@@ -28,21 +28,22 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
 }
 
 // Session check plus data in one browser-only private cache, so header links can prefetch it (see app/page.tsx).
-async function loadSettings(): Promise<{ account: AccountInfo; lastCheck: string | null }> {
+async function loadSettings(): Promise<{ account: AccountInfo; lastCheck: string | null; now: number }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
-  if (DEMO) return { account: { connected: true, connectedSince: new Date(Date.now() - 86_400_000).toISOString() }, lastCheck: new Date().toISOString() };
+  if (DEMO) return { account: { connected: true, connectedSince: new Date(Date.now() - 86_400_000).toISOString() }, lastCheck: new Date().toISOString(), now: Date.now() };
   const [account, run] = await Promise.all([
     accountInfo(),
     db().from("poll_runs").select("started_at").order("started_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
-  return { account, lastCheck: run.data?.started_at ?? null };
+  // The clock is read inside the cache; reading it while rendering blocks prerendering.
+  return { account, lastCheck: run.data?.started_at ?? null, now: Date.now() };
 }
 
 async function Settings() {
-  const { account, lastCheck } = await loadSettings();
+  const { account, lastCheck, now } = await loadSettings();
   const connectedDescription = account.connectedSince ? `Connected since ${formatDate(account.connectedSince)}` : "Connected";
 
   return (
@@ -57,7 +58,7 @@ async function Settings() {
                 {lastCheck ? (
                   <>
                     Last checked
-                    <span className="block text-sm text-foreground tabular-nums">{formatSeen(lastCheck)}</span>
+                    <span className="block text-sm text-foreground tabular-nums">{formatSeen(lastCheck, now)}</span>
                   </>
                 ) : (
                   "No checks yet"
