@@ -48,7 +48,7 @@ export function DeleteMyData() {
   const [error, action] = useActionState(deleteEverything, null);
   if (!asking) {
     return (
-      <Button type="button" variant="outline" className="h-9 px-4 text-destructive" onClick={() => setAsking(true)}>
+      <Button type="button" variant="destructive" className="h-9 px-4 text-destructive" onClick={() => setAsking(true)}>
         Delete my data
       </Button>
     );

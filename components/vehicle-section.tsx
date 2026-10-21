@@ -19,9 +19,8 @@ function ReleaseNotesToggle({ version, notes }: { version: string; notes: Releas
     <details className="group/notes">
       <summary
         aria-label={`Release notes for ${version}`}
-        className="flex w-fit list-none items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden"
+        className="flex w-fit list-none items-center gap-1.5 text-xs text-muted-foreground group-open/notes:text-foreground hover:text-foreground [&::-webkit-details-marker]:hidden"
       >
-        <ScrollText className="size-3" aria-hidden="true" />
         Release notes
         <ChevronRight className="size-3 text-faint transition-transform group-open/notes:rotate-90" aria-hidden="true" />
       </summary>
@@ -77,7 +76,7 @@ function UpdateStatus({ snapshot, asOf }: { snapshot: Snapshot | null; asOf: str
           >
             {/* A light band sweeps across the filled part so an in-progress update reads as alive. */}
             <div className="relative h-full overflow-hidden bg-foreground" style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}>
-              <span className="absolute inset-y-0 -left-1/2 w-1/2 bg-gradient-to-r from-transparent via-background/50 to-transparent motion-safe:animate-shimmer" />
+              <span className="absolute inset-y-0 -left-1/2 w-1/2 bg-linear-to-r from-transparent via-background/50 to-transparent motion-safe:animate-shimmer" />
             </div>
           </div>
           <span className="w-10 text-right font-mono text-xs tabular-nums text-muted-foreground">{progress}%</span>
@@ -87,7 +86,7 @@ function UpdateStatus({ snapshot, asOf }: { snapshot: Snapshot | null; asOf: str
         <p className="text-xs text-muted-foreground">
           {status === "scheduled" && snapshot.scheduled_time_ms
             ? `Starts ${formatDateTime(snapshot.scheduled_time_ms)}`
-            : `Takes approx. ${formatDuration(snapshot.expected_duration_sec!)}`}
+            : `Takes approx. ~${formatDuration(snapshot.expected_duration_sec!)}`}
         </p>
       ) : null}
       {status === "downloading_wifi_wait" && (
@@ -105,7 +104,7 @@ function HistoryMeta({ change, date }: { change: VersionChange; date: string | n
     change.odometer_km != null && formatKm(change.odometer_km),
   ].filter(Boolean);
   return (
-    <span className="text-right">
+    <div className="text-right gap-1 flex flex-col">
       {date ? (
         <span className="block text-muted-foreground tabular-nums">{date}</span>
       ) : (
@@ -114,7 +113,7 @@ function HistoryMeta({ change, date }: { change: VersionChange; date: string | n
         </span>
       )}
       {details.length > 0 && <span className="block text-xs text-faint tabular-nums">{details.join(" · ")}</span>}
-    </span>
+    </div>
   );
 }
 

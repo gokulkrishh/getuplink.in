@@ -7,7 +7,7 @@ export function ReleaseNotesList({ notes }: { notes: ReleaseNote[] }) {
     <dl className="mt-3 grid gap-x-6 gap-y-4 border-l pl-4 sm:grid-cols-[10rem_1fr]">
       {notes.map((note, i) => (
         <Fragment key={`${note.title}-${i}`}>
-          <dt className="text-xs text-faint sm:pt-0.5">{note.title}</dt>
+          <dt className="text-xs text-muted-foreground sm:pt-0.5">{note.title}</dt>
           <dd className="-mt-3 space-y-1 sm:mt-0">
             {note.subtitle ? (
               <>

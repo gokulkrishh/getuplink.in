@@ -44,13 +44,13 @@ async function Settings() {
 
   return (
     <>
-      <Section title="Appearance" description="Saved in this browser.">
+      <Section title="Appearance">
         <ThemePicker />
       </Section>
 
       <Section title="Checks">
         <p>Uplink checks your car every 6 hours. It never wakes the car.</p>
-        <p className="text-muted-foreground">{lastCheck ? `Last checked ${formatDateTime(lastCheck)}` : "No checks yet."}</p>
+        <p className="text-muted-foreground flex gap-1 items-center">{lastCheck ? `Last checked ${formatDateTime(lastCheck)}` : "No checks yet."}</p>
       </Section>
 
       <Section title="Account">
