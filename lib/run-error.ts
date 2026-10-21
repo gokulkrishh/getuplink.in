@@ -8,5 +8,5 @@ export function describeRunError(error: string): string {
   }
   if (/\(429\)/.test(error)) return "Tesla is rate-limiting requests. The next scheduled check will try again.";
   if (/\(5\d\d\)|fetch failed/i.test(error)) return "Tesla's servers didn't respond. The next scheduled check will try again.";
-  return "The last check failed. Uplink tries again at the next scheduled check, or select Check now.";
+  return "The last check failed. Uplink tries again at the next scheduled check, or refresh now.";
 }

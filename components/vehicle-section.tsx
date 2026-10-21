@@ -199,19 +199,20 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
   return (
     <section className="space-y-12">
       <header className="space-y-1">
-        <div className="flex items-center gap-1">
-        <h2 className="text-sm text-muted-foreground">
-          {vehicle.display_name || "Tesla"}
-          {carLabel && <span className="ml-2 text-faint">· {carLabel}</span>}
-          {!pending && lastOnline && <span className="ml-2 text-faint">· Up to date</span>}
-          {asleep && <span className="ml-2 text-faint">· {latest.state === "offline" ? "Offline" : "Asleep"}</span>}
-          <span className="ml-2 text-faint">
-            · {vehicle.last_seen_at ? `Seen ${formatSeen(vehicle.last_seen_at)}` : "Not seen online yet"}
-          </span>
-        </h2>
-          <form action={checkNow}>
-            <CheckNowIcon />
-          </form>
+        {/* Car and status on the left; freshness and the refresh control on the right. */}
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="min-w-0 text-sm text-muted-foreground">
+            {vehicle.display_name || "Tesla"}
+            {carLabel && <span className="ml-2 text-faint">· {carLabel}</span>}
+            {!pending && lastOnline && <span className="ml-2 text-faint">· Up to date</span>}
+            {asleep && <span className="ml-2 text-faint">· {latest.state === "offline" ? "Offline" : "Asleep"}</span>}
+          </h2>
+          <div className="flex shrink-0 items-center gap-1 text-sm text-faint tabular-nums">
+            <span>{vehicle.last_seen_at ? `Seen ${formatSeen(vehicle.last_seen_at)}` : "Not seen yet"}</span>
+            <form action={checkNow}>
+              <CheckNowIcon />
+            </form>
+          </div>
         </div>
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums sm:text-4xl">
           {vehicle.current_version ?? "—"}
@@ -223,7 +224,7 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
         )}
         {!vehicle.current_version && (
           <p className="text-sm text-muted-foreground">
-            Asleep at every check so far. Open the Tesla app to wake the car, then select Check now.
+            Asleep at every check so far. Open the Tesla app to wake the car, then refresh.
           </p>
         )}
       </header>

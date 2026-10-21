@@ -18,9 +18,9 @@ export function CheckNowButton({ className, spinner = false }: { className?: str
     >
       {spinner && pending && <DashRing className="size-3.5" aria-hidden="true" />}
       <span className="grid">
-        <span className={cn("col-start-1 row-start-1", pending && "invisible")}>Check now</span>
+        <span className={cn("col-start-1 row-start-1", pending && "invisible")}>Refresh</span>
         <span className={cn("col-start-1 row-start-1", !pending && "invisible")} aria-hidden={!pending}>
-          Checking…
+          Refreshing…
         </span>
       </span>
     </button>
@@ -35,7 +35,7 @@ export function CheckNowIcon({ className }: { className?: string }) {
       type="submit"
       disabled={pending}
       aria-busy={pending}
-      aria-label={pending ? "Checking…" : "Check now"}
+      aria-label={pending ? "Refreshing…" : "Refresh"}
       className={cn(
         "group relative inline-flex size-6 cursor-pointer items-center justify-center text-faint transition-colors duration-150 hover:text-foreground disabled:cursor-progress disabled:text-foreground",
         className,
@@ -45,9 +45,9 @@ export function CheckNowIcon({ className }: { className?: string }) {
       {/* Tooltip: positioned out of flow, so showing it never moves anything. */}
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute top-full left-1/2 z-10 mt-1.5 -translate-x-1/2 bg-foreground px-2 py-1 text-xs whitespace-nowrap text-background opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+        className="pointer-events-none absolute right-0 bottom-full z-10 mb-1.5 bg-foreground px-2 py-1 text-xs whitespace-nowrap text-background opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
       >
-        {pending ? "Checking…" : "Check now"}
+        {pending ? "Refreshing…" : "Refresh"}
       </span>
     </button>
   );
