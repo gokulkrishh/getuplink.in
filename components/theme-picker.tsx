@@ -25,7 +25,7 @@ export function ThemePicker() {
   };
 
   return (
-    <div role="radiogroup" aria-label="Theme" className="inline-flex gap-0.5">
+    <div role="radiogroup" aria-label="Theme" className="inline-flex border">
       {OPTIONS.map(({ value, label, Icon }) => (
         <button
           key={value}
@@ -34,8 +34,8 @@ export function ThemePicker() {
           aria-checked={theme === value}
           onClick={() => choose(value)}
           className={cn(
-            "inline-flex h-8 items-center gap-1.5 px-3 text-sm font-medium outline-none transition-[background-color,color] duration-150 ease-out focus-visible:ring-2 focus-visible:ring-ring",
-            theme === value ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground",
+            "inline-flex items-center gap-1.5 px-3 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring",
+            theme === value ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground",
           )}
         >
           <Icon className="size-3.5" aria-hidden="true" />
