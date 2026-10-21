@@ -14,15 +14,17 @@ import { Bars, StackedBars, type StackedBar } from "@/components/stats/bars";
 import { BatteryTrend } from "@/components/stats/battery-trend";
 import { PeriodSwitch } from "@/components/stats/period-switch";
 import { type Period, monthIndex, monthKey, monthShort, parsePeriod, yearOf } from "@/components/stats/periods";
-import { formatClock, formatDuration, formatKwh, formatMoney, formatMonth, formatShortDate } from "@/lib/format";
+import { formatClock, formatDays, formatDuration, formatKwh, formatMoney, formatMonth, formatShortDate } from "@/lib/format";
 import { chargeEfficiency, matchSessions } from "@/lib/charge-sessions";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargingSession, loadChargingSessions } from "@/lib/server/charging";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadBatteryTrend } from "@/lib/server/battery";
+import { loadMonthlyEnergy, type MonthlyEnergy } from "@/lib/server/energy";
+import { loadUpdateRows } from "@/lib/server/updates";
 import { loadDailyDistance, loadMonthlyDistance, type MonthlyDistance } from "@/lib/server/driving";
 import { loadStreamSessions, syncStreamSessionsForAllCars, type StreamChargeSession } from "@/lib/server/stream-charging";
-import type { DayKm, WeeklyPack } from "@/lib/telemetry-derive";
+import { type DayKm, type UpdateRow, type WeeklyPack, combinedWhPerKm, updateStats } from "@/lib/telemetry-derive";
 
 export const metadata: Metadata = { title: "Stats · Uplink" };
 
@@ -236,6 +238,80 @@ function Distance({ distance, now, period }: { distance: MonthlyDistance[]; now:
   );
 }
 
+// Wh/km per month, from the streamed lifetime energy counter and the odometer. It counts everything the
+// car drew, parked time included. Months under 50 km are left out.
+function EnergyUse({ energy, now, period }: { energy: MonthlyEnergy[]; now: number; period: Period }) {
+  const cur = monthIndex(now);
+  const byMonth = new Map(energy.map((e) => [e.month, e.energy]));
+  const slots =
+    period === "year"
+      ? slotsFor("year", cur)
+      : Array.from({ length: period === "all" ? 12 : 6 }, (_, k) => {
+          const id = cur - (period === "all" ? 11 : 5) + k;
+          return { id, label: monthShort(id) };
+        });
+  const inRange = Array.from({ length: 12 }, (_, k) => cur - 11 + k)
+    .filter((index) => inPeriod(period, index, cur))
+    .flatMap((index) => byMonth.get(monthKey(index)) ?? []);
+  const whPerKm = combinedWhPerKm(inRange);
+  if (whPerKm === null) return null;
+  const regenTotal = inRange.reduce((sum, m) => sum + (m.regenKwh ?? 0), 0);
+  const bars = slots.map((slot) => {
+    const value = byMonth.get(monthKey(slot.id))?.whPerKm ?? 0;
+    return { key: String(slot.id), label: slot.label, value, display: compactNumber.format(Math.round(value)), isCurrent: slot.id === cur };
+  });
+  const regenBars = slots.map((slot) => {
+    const value = byMonth.get(monthKey(slot.id))?.regenKwh ?? 0;
+    return { key: String(slot.id), label: slot.label, value, display: kwhCompact.format(value), isCurrent: slot.id === cur };
+  });
+  return (
+    <section className="space-y-8">
+      <div className="space-y-2">
+        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Energy use</h2>
+        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{compactNumber.format(Math.round(whPerKm))} Wh/km</p>
+        <p className="text-sm text-muted-foreground">{DRIVEN_LABELS[period]}</p>
+      </div>
+      <Bars bars={bars} ariaLabel="Energy use per month in Wh per km" />
+      {regenTotal > 0 && (
+        <div className="space-y-4">
+          <p className="text-sm">
+            Regen won back <span className="font-mono font-medium tabular-nums">{formatKwh(regenTotal)}</span>{" "}
+            <span className="text-muted-foreground">{DRIVEN_LABELS[period]}</span>
+          </p>
+          <Bars bars={regenBars} ariaLabel="Energy won back by regen per month in kWh" />
+        </div>
+      )}
+    </section>
+  );
+}
+
+// How long updates take to arrive and how often. Needs two real updates to say anything.
+function Updates({ rows, now, period }: { rows: UpdateRow[]; now: number; period: Period }) {
+  const stats = updateStats(rows, now);
+  if (!stats) return null;
+  const cur = monthIndex(now);
+  const count = rows.filter((r) => inPeriod(period, monthIndex(r.detected_at), cur)).length;
+  const items = [
+    stats.avgWaitSec !== null && { label: "Average wait, available to installed", value: formatDays(stats.avgWaitSec) },
+    { label: `Updates ${ENERGY_LABELS[period]}`, value: String(count) },
+    { label: "Average time between updates", value: formatDays(stats.avgGapSec) },
+    { label: "Longest on one version", value: formatDays(stats.longestSec) },
+  ].filter((item) => item !== false);
+  return (
+    <section className="space-y-4">
+      <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Updates</h2>
+      <dl className="divide-y border-t">
+        {items.map((item) => (
+          <div key={item.label} className="flex items-baseline justify-between gap-4 py-3 text-sm">
+            <dt className="text-muted-foreground">{item.label}</dt>
+            <dd className="font-mono font-medium tabular-nums">{item.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
 // Kilometres per day for the last 30 days, from the streamed odometer.
 function DailyDriving({ days }: { days: DayKm[] }) {
   // One day of readings has nothing to compare against, so the section waits for a second.
@@ -389,6 +465,8 @@ async function loadStats(): Promise<{
   sessions: ChargingSession[];
   streamSessions: StreamChargeSession[];
   distance: MonthlyDistance[];
+  energy: MonthlyEnergy[];
+  updates: UpdateRow[];
   now: number;
 }> {
   "use cache: private";
@@ -396,8 +474,14 @@ async function loadStats(): Promise<{
   cacheLife({ stale: 60 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
-  const [sessions, streamSessions, distance] = await Promise.all([loadChargingSessions(), loadStreamSessions(), loadMonthlyDistance()]);
-  return { sessions, streamSessions, distance, now: Date.now() };
+  const [sessions, streamSessions, distance, energy, updates] = await Promise.all([
+    loadChargingSessions(),
+    loadStreamSessions(),
+    loadMonthlyDistance(),
+    loadMonthlyEnergy(),
+    loadUpdateRows(),
+  ]);
+  return { sessions, streamSessions, distance, energy, updates, now: Date.now() };
 }
 
 async function loadTelemetryStats(): Promise<{ days: DayKm[]; trend: WeeklyPack[] }> {
@@ -412,7 +496,7 @@ async function loadTelemetryStats(): Promise<{ days: DayKm[]; trend: WeeklyPack[
 async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParams">) {
   // Read outside the cache: the period only changes how the cached list is summed.
   const period = parsePeriod((await searchParams).period);
-  const [{ sessions, streamSessions, distance, now }, { days, trend }] = await Promise.all([loadStats(), loadTelemetryStats()]);
+  const [{ sessions, streamSessions, distance, energy, updates, now }, { days, trend }] = await Promise.all([loadStats(), loadTelemetryStats()]);
   // Rebuilds sessions from the car's readings once this response is sent, so the next visit has them.
   after(syncStreamSessionsForAllCars);
 
@@ -435,8 +519,10 @@ async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParam
       )}
       <Distance distance={distance} now={now} period={period} />
       <DailyDriving days={days} />
+      <EnergyUse energy={energy} now={now} period={period} />
       {listed.length > 0 && <SessionList sessions={listed} />}
       <Battery trend={trend} />
+      <Updates rows={updates} now={now} period={period} />
     </div>
   );
 }

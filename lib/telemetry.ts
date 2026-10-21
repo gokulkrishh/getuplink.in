@@ -21,7 +21,7 @@ export function applyStream(snapshot: Snapshot | null, stream: Stream): Snapshot
     const reading = stream[field];
     return reading && Date.parse(reading.at) > polledAt ? reading.value : undefined;
   };
-  const next: Snapshot = { ...snapshot, charge_power_kw: null };
+  const next: Snapshot = { ...snapshot, charge_power_kw: null, time_to_full_h: null };
 
   const updateAt = Math.max(0, ...UPDATE_FIELDS.map((f) => (stream[f] ? Date.parse(stream[f].at) : 0)));
   if (updateAt > polledAt) {
@@ -74,6 +74,9 @@ export function applyStream(snapshot: Snapshot | null, stream: Stream): Snapshot
       .filter((p): p is { at: number; kw: number } => typeof p.kw === "number")
       .sort((a, b) => b.at - a.at)[0];
     if (power) next.charge_power_kw = power.kw;
+    // Assumed to be hours, as in Tesla's vehicle_data time_to_full_charge. Check against the first real reading.
+    const toFull = fresh("TimeToFullCharge");
+    if (typeof toFull === "number" && toFull > 0) next.time_to_full_h = toFull;
   }
   return next;
 }

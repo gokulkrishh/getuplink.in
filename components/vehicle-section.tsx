@@ -155,6 +155,7 @@ function BatteryGauge({ snapshot }: { snapshot: Snapshot }) {
   const limit = snapshot.charge_limit != null ? Math.min(100, Math.max(0, snapshot.charge_limit)) : null;
   const charging = snapshot.charging_state === "Charging";
   const power = charging && snapshot.charge_power_kw != null && snapshot.charge_power_kw > 0 ? snapshot.charge_power_kw : null;
+  const toFull = charging && snapshot.time_to_full_h != null && snapshot.time_to_full_h > 0 ? snapshot.time_to_full_h : null;
   const target = limit ?? 100;
   return (
     <div className="space-y-2">
@@ -193,6 +194,7 @@ function BatteryGauge({ snapshot }: { snapshot: Snapshot }) {
             ? `Limit ${limit}%`
             : null}
       </p>
+      {toFull !== null && <p className="text-xs text-muted-foreground tabular-nums">Full in {formatDuration(toFull * 3600)}</p>}
     </div>
   );
 }

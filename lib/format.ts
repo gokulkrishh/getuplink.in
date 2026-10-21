@@ -76,3 +76,11 @@ const month = new Intl.DateTimeFormat("en-GB", { timeZone: IST, month: "long", y
 export function formatMonth(value: string | number | Date): string {
   return month.format(new Date(value));
 }
+
+// "3 days", "1.5 days"; under a day it falls back to formatDuration ("5 h 20 min").
+export function formatDays(seconds: number): string {
+  const days = seconds / 86_400;
+  if (days < 1) return formatDuration(seconds);
+  const rounded = days < 10 ? Math.round(days * 10) / 10 : Math.round(days);
+  return `${rounded} ${rounded === 1 ? "day" : "days"}`;
+}

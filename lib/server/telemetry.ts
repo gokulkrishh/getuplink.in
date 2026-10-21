@@ -16,6 +16,7 @@ const FIELDS = [
   "DetailedChargeState",
   "ACChargingPower",
   "DCChargingPower",
+  "TimeToFullCharge",
 ];
 
 // Latest Fleet Telemetry reading per field. Rows only arrive when a value changes, so a field's

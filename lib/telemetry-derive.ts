@@ -132,3 +132,54 @@ export function updateTimeline(version: string, series: UpdateSeries): UpdateTim
   const installMin = minutes(installStart, installEnd);
   return downloadMin === undefined && installMin === undefined ? null : { ...(downloadMin !== undefined && { downloadMin }), ...(installMin !== undefined && { installMin }) };
 }
+
+// A cumulative counter's value at the start and end of a month. The streamed counters only send a row
+// when the value changes, so these are the last reading before each boundary, not readings inside the month.
+export type Span = { start: number | null; end: number | null };
+export type EnergyMonthInput = { used: Span; regen: Span; odometerMiles: Span };
+export type EnergyMonth = { km: number; kwh: number; whPerKm: number; regenKwh: number | null };
+
+// Below this a month is too short a drive for the figure to mean anything.
+export const MIN_ENERGY_KM = 50;
+
+const delta = ({ start, end }: Span) => (start !== null && end !== null && end >= start ? end - start : null);
+
+// Energy use for one month: kWh drawn from the battery (LifetimeEnergyUsed) per km of odometer. Null when
+// a counter is missing, the month has under MIN_ENERGY_KM, or no energy was used. Regen is returned
+// whenever its counter has a span, since it doesn't need the distance.
+export function energyUseMonth(input: EnergyMonthInput): EnergyMonth | null {
+  const miles = delta(input.odometerMiles);
+  const kwh = delta(input.used);
+  const km = miles === null ? 0 : miles * MILES_TO_KM;
+  const regenKwh = delta(input.regen);
+  if (kwh === null || kwh <= 0 || km < MIN_ENERGY_KM) return null;
+  return { km, kwh, whPerKm: (kwh * 1000) / km, regenKwh };
+}
+
+// Wh/km over several months: total energy over total distance, so long months weigh more than short ones.
+export function combinedWhPerKm(months: EnergyMonth[]): number | null {
+  const km = months.reduce((sum, m) => sum + m.km, 0);
+  return km > 0 ? (months.reduce((sum, m) => sum + m.kwh, 0) * 1000) / km : null;
+}
+
+// Real updates only (not the version that was already installed when tracking began), as the gaps the
+// Updates section needs. `rows` is any order; `now` closes the open gap on the current version.
+export type UpdateRow = { detected_at: string; available_at: string | null };
+export type UpdateStats = { count: number; avgWaitSec: number | null; avgGapSec: number; longestSec: number };
+
+export function updateStats(rows: UpdateRow[], now: number): UpdateStats | null {
+  const times = rows.map((r) => Date.parse(r.detected_at)).sort((a, b) => a - b);
+  if (times.length < 2) return null;
+  const gaps = times.slice(1).map((t, k) => (t - times[k]) / 1000);
+  const waits = rows.flatMap((r) => {
+    const wait = r.available_at ? (Date.parse(r.detected_at) - Date.parse(r.available_at)) / 1000 : NaN;
+    return Number.isFinite(wait) && wait >= 0 ? [wait] : [];
+  });
+  const open = Math.max(0, (now - times[times.length - 1]) / 1000);
+  return {
+    count: times.length,
+    avgWaitSec: waits.length > 0 ? waits.reduce((a, b) => a + b, 0) / waits.length : null,
+    avgGapSec: gaps.reduce((a, b) => a + b, 0) / gaps.length,
+    longestSec: Math.max(open, ...gaps),
+  };
+}
