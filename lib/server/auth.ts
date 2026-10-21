@@ -11,11 +11,9 @@ export async function hasCurrentSession(): Promise<boolean> {
   const cookie = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!(await isValidSession(cookie))) return false;
   const issuedAt = sessionIssuedAt(cookie) ?? 0;
-  try {
-    return issuedAt >= (await sessionsValidAfter());
-  } catch {
-    return false;
-  }
+  // A database error throws on purpose: the error page shows and the cookie survives, instead of
+  // a hiccup signing everyone out.
+  return issuedAt >= (await sessionsValidAfter());
 }
 
 // Where to send a revoked session: clears the cookie, then shows the login page.

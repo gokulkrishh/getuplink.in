@@ -65,7 +65,7 @@ const DEMO_NOTES: ReleaseNotesByVersion = {
 };
 
 export function isDemoScenario(value: unknown): value is DemoScenario {
-  return typeof value === "string" && value in DEMO_SCENARIOS;
+  return typeof value === "string" && Object.hasOwn(DEMO_SCENARIOS, value);
 }
 
 export function demoDashboard(scenario: DemoScenario = "full"): Dashboard {

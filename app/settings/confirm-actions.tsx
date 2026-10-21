@@ -1,16 +1,30 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { deleteEverything, disconnect } from "./actions";
+import { deleteEverything, disconnect, signOutEverywhereWithError } from "./actions";
 import { Row } from "./row";
 
-function Submit({ children, pendingLabel }: { children: string; pendingLabel: string }) {
+// Opening a confirm form moves focus into it; cancelling hands focus back to the button that opened it.
+function useAskingFocus(
+  asking: boolean,
+  first: React.RefObject<HTMLElement | null>,
+  trigger: React.RefObject<HTMLElement | null>,
+) {
+  const wasAsking = useRef(false);
+  useEffect(() => {
+    if (asking) first.current?.focus();
+    else if (wasAsking.current) trigger.current?.focus();
+    wasAsking.current = asking;
+  }, [asking, first, trigger]);
+}
+
+function Submit({ children, pendingLabel, ref }: { children: string; pendingLabel: string; ref?: React.Ref<HTMLButtonElement> }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant="destructive" disabled={pending} className="h-9 px-4">
+    <Button ref={ref} type="submit" variant="destructive" disabled={pending} className="h-9 px-4">
       {pending ? pendingLabel : children}
     </Button>
   );
@@ -19,27 +33,36 @@ function Submit({ children, pendingLabel }: { children: string; pendingLabel: st
 // Two steps: the button asks, the confirmation repeats the consequence.
 export function DisconnectTesla({ description }: { description: string }) {
   const [asking, setAsking] = useState(false);
+  const [error, action] = useActionState(disconnect, null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const first = useRef<HTMLButtonElement>(null);
+  useAskingFocus(asking, first, trigger);
   return (
     <Row
       title="Tesla account"
       description={description}
       control={
         !asking ? (
-          <Button type="button" variant="outline" className="h-9 px-4" onClick={() => setAsking(true)}>
+          <Button ref={trigger} type="button" variant="outline" className="h-9 px-4" onClick={() => setAsking(true)}>
             Disconnect
           </Button>
         ) : null
       }
     >
       {asking && (
-        <form action={disconnect} className="mt-4 space-y-3 border-l-2 border-destructive pl-4 text-sm">
+        <form action={action} className="mt-4 space-y-3 border-l-2 border-destructive pl-4 text-sm">
           <p className="font-medium">Disconnect your Tesla account?</p>
           <p className="text-muted-foreground">
             Uplink stops checking your car and signs you out on every device. Your history stays. Sign in with Tesla to
             reconnect.
           </p>
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
           <div className="flex gap-2 pt-1">
-            <Submit pendingLabel="Disconnecting…">Disconnect Tesla</Submit>
+            <Submit ref={first} pendingLabel="Disconnecting…">Disconnect Tesla</Submit>
             <Button type="button" variant="ghost" className="h-9 px-4" onClick={() => setAsking(false)}>
               Cancel
             </Button>
@@ -54,13 +77,16 @@ export function DisconnectTesla({ description }: { description: string }) {
 export function DeleteMyData() {
   const [asking, setAsking] = useState(false);
   const [error, action] = useActionState(deleteEverything, null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const input = useRef<HTMLInputElement>(null);
+  useAskingFocus(asking, input, trigger);
   return (
     <Row
       title="Delete my data"
       description="Permanently deletes your vehicles, version history, check logs and Tesla connection."
       control={
         !asking ? (
-          <Button type="button" variant="destructive" className="h-9 px-4" onClick={() => setAsking(true)}>
+          <Button ref={trigger} type="button" variant="destructive" className="h-9 px-4" onClick={() => setAsking(true)}>
             Delete
           </Button>
         ) : null
@@ -75,9 +101,13 @@ export function DeleteMyData() {
           </p>
           <label className="block space-y-1.5">
             <span className="block text-xs text-muted-foreground">Type delete to confirm</span>
-            <Input name="confirm" autoComplete="off" autoFocus placeholder="delete" className="h-9 max-w-48" aria-invalid={error ? true : undefined} />
+            <Input ref={input} name="confirm" autoComplete="off" placeholder="delete" className="h-9 max-w-48" aria-invalid={error ? true : undefined} aria-describedby={error ? "delete-error" : undefined} />
           </label>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && (
+            <p id="delete-error" role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
           <div className="flex gap-2 pt-1">
             <Submit pendingLabel="Deleting…">Delete my data</Submit>
             <Button type="button" variant="ghost" className="h-9 px-4" onClick={() => setAsking(false)}>
@@ -87,5 +117,22 @@ export function DeleteMyData() {
         </form>
       )}
     </Row>
+  );
+}
+
+// "Sign out everywhere" with its failure shown next to the button.
+export function SignOutEverywhere() {
+  const [error, action] = useActionState(signOutEverywhereWithError, null);
+  return (
+    <form action={action} className="flex flex-col items-end gap-1">
+      <Button type="submit" variant="outline" className="h-9 px-4">
+        Sign out everywhere
+      </Button>
+      {error && (
+        <p role="alert" className="text-xs text-destructive">
+          {error}
+        </p>
+      )}
+    </form>
   );
 }

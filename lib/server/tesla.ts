@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { decrypt, encrypt } from "./crypto";
 import { env, fleetApiBase } from "./env";
 import { db } from "./supabase";
@@ -57,32 +58,31 @@ async function tokenRequest(params: Record<string, string>): Promise<TokenRespon
   if (!res.ok) {
     throw new TeslaError(`Token request failed (${res.status}): ${await res.text()}`, res.status);
   }
-  return res.json();
-}
-
-// Omitting ownerSub leaves the stored owner untouched (upsert only sets given columns).
-async function saveTokens(tokens: TokenResponse, ownerSub?: string): Promise<string> {
-  const { error } = await db()
-    .from("oauth_tokens")
-    .upsert({
-      provider: "tesla",
-      ...(ownerSub ? { owner_sub: ownerSub } : {}),
-      access_token_enc: encrypt(tokens.access_token),
-      refresh_token_enc: encrypt(tokens.refresh_token),
-      expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
-      scope: tokens.scope ?? null,
-      updated_at: new Date().toISOString(),
-    });
-  if (error) throw new Error(`Saving tokens failed: ${error.message}`);
-  return tokens.access_token;
+  // Never store half a token pair: a malformed answer must fail here, not as a broken row.
+  const body = (await res.json().catch(() => null)) as Partial<TokenResponse> | null;
+  if (
+    !body ||
+    typeof body.access_token !== "string" ||
+    typeof body.refresh_token !== "string" ||
+    typeof body.expires_in !== "number" ||
+    !Number.isFinite(body.expires_in)
+  ) {
+    throw new TeslaError("Token response was missing a token or expiry", res.status);
+  }
+  return body as TokenResponse;
 }
 
 // The token came straight from Tesla's token endpoint over TLS, so reading the
 // payload without verifying the signature is enough to learn who signed in.
 function idTokenSubject(idToken: string | undefined): string {
   const payload = idToken?.split(".")[1];
-  const sub = payload ? (JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { sub?: string }).sub : undefined;
-  if (!sub) throw new Error("Tesla did not return an id_token with a subject");
+  let sub: unknown;
+  try {
+    sub = payload ? (JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { sub?: unknown }).sub : undefined;
+  } catch {
+    // Falls through to the error below.
+  }
+  if (typeof sub !== "string" || !sub) throw new Error("Tesla did not return an id_token with a subject");
   return sub;
 }
 
@@ -100,11 +100,35 @@ export async function signIn(code: string): Promise<SignInResult> {
     redirect_uri: env("TESLA_REDIRECT_URI"),
   });
   const sub = idTokenSubject(tokens.id_token);
-  const { data, error } = await db().from("oauth_tokens").select("owner_sub").eq("provider", "tesla").maybeSingle();
-  if (error) throw new Error(`Reading owner failed: ${error.message}`);
-  if (data?.owner_sub && data.owner_sub !== sub) return "not-owner";
-  await saveTokens(tokens, sub);
-  return data?.owner_sub ? "owner" : "claimed";
+  // Make sure the row exists without touching an existing one, then claim it with a single
+  // conditional update: of two first sign-ins racing, only one can match "no owner or me".
+  const { error: insertError } = await db()
+    .from("oauth_tokens")
+    .upsert({ provider: "tesla" }, { onConflict: "provider", ignoreDuplicates: true });
+  if (insertError) throw new Error(`Saving tokens failed: ${insertError.message}`);
+  const { data: before, error: readError } = await db()
+    .from("oauth_tokens")
+    .select("owner_sub")
+    .eq("provider", "tesla")
+    .maybeSingle();
+  if (readError) throw new Error(`Reading owner failed: ${readError.message}`);
+  const quoted = `"${sub.replace(/[\\"]/g, "\\$&")}"`;
+  const { data: updated, error } = await db()
+    .from("oauth_tokens")
+    .update({
+      owner_sub: sub,
+      access_token_enc: encrypt(tokens.access_token),
+      refresh_token_enc: encrypt(tokens.refresh_token),
+      expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+      scope: tokens.scope ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("provider", "tesla")
+    .or(`owner_sub.is.null,owner_sub.eq.${quoted}`)
+    .select("provider");
+  if (error) throw new Error(`Saving tokens failed: ${error.message}`);
+  if (!updated?.length) return "not-owner";
+  return before?.owner_sub ? "owner" : "claimed";
 }
 
 // Refresh tokens are single use, so the new pair is stored with a compare-and-swap on the refresh
@@ -170,33 +194,33 @@ async function storedTokens(): Promise<StoredTokens> {
   return tokens;
 }
 
-export async function isConnected(): Promise<boolean> {
-  const { count, error } = await db()
+// The owner row, read once per request however many of the functions below ask for it. Never used
+// for refreshing (readTokens above): that needs a fresh read.
+const readOwnerRow = cache(async () => {
+  const { data, error } = await db()
     .from("oauth_tokens")
-    .select("provider", { count: "exact", head: true })
+    .select("access_token_enc, created_at, sessions_valid_after")
     .eq("provider", "tesla")
-    .not("access_token_enc", "is", null);
-  if (error) throw new Error(`Reading tokens failed: ${error.message}`);
-  return (count ?? 0) > 0;
+    .maybeSingle();
+  if (error) throw new Error(`Reading account failed: ${error.message}`);
+  return data;
+});
+
+export async function isConnected(): Promise<boolean> {
+  return Boolean((await readOwnerRow())?.access_token_enc);
 }
 
 export type AccountInfo = { connected: boolean; connectedSince: string | null };
 
 export async function accountInfo(): Promise<AccountInfo> {
-  const { data, error } = await db()
-    .from("oauth_tokens")
-    .select("access_token_enc, created_at")
-    .eq("provider", "tesla")
-    .maybeSingle();
-  if (error) throw new Error(`Reading account failed: ${error.message}`);
+  const data = await readOwnerRow();
   return { connected: Boolean(data?.access_token_enc), connectedSince: data?.created_at ?? null };
 }
 
 // Sessions issued before this time (ms) are revoked. -infinity (never revoked) reads as 0.
 // With no owner row (fresh install or deleted account) no existing session is valid.
 export async function sessionsValidAfter(): Promise<number> {
-  const { data, error } = await db().from("oauth_tokens").select("sessions_valid_after").eq("provider", "tesla").maybeSingle();
-  if (error) throw new Error(`Reading sessions failed: ${error.message}`);
+  const data = await readOwnerRow();
   if (!data) return Number.POSITIVE_INFINITY;
   const t = new Date(data.sessions_valid_after).getTime();
   return Number.isFinite(t) ? t : 0;
@@ -250,13 +274,14 @@ async function fleetFetch(path: string): Promise<Response> {
   }
 }
 
-export async function fleetGet<T>(path: string): Promise<T> {
+// Tesla can answer 200 with `response: null`; callers decide what that means.
+export async function fleetGet<T>(path: string): Promise<T | null> {
   const res = await fleetFetch(path);
   if (!res.ok) {
     throw new TeslaError(`GET ${path} failed (${res.status}): ${await res.text()}`, res.status);
   }
-  const body = (await res.json()) as { response: T };
-  return body.response;
+  const body = (await res.json()) as { response?: T | null } | null;
+  return body?.response ?? null;
 }
 
 // For binary responses such as invoice PDFs: the body is not JSON, so the caller reads it.
