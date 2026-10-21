@@ -20,7 +20,7 @@ function UpdateStatus({ snapshot }: { snapshot: Snapshot | null }) {
   return (
     <div className="space-y-2">
       <p>
-        {STATUS[status]}
+        <span className={status === "available" ? "text-positive" : undefined}>{STATUS[status]}</span>
         {snapshot.update_version && <span className="ml-2 font-mono text-muted-foreground">{snapshot.update_version}</span>}
       </p>
       {progress != null && (
@@ -57,7 +57,7 @@ export function VehicleSection({ view }: { view: VehicleView }) {
           {vehicle.display_name || "Tesla"}
           {asleep && <span className="ml-2 text-faint">· {latest.state === "offline" ? "Offline" : "Asleep"}</span>}
         </h2>
-        <p className="font-mono text-3xl font-medium tracking-tight tabular-nums sm:text-6xl">
+        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums sm:text-4xl">
           {vehicle.current_version ?? "—"}
         </p>
         {!vehicle.current_version && (

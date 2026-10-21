@@ -93,7 +93,7 @@ export function demoDashboard(scenario: DemoScenario = "full"): Dashboard {
     case "scheduled":
       return one({ update_status: "scheduled", update_version: "2026.38.6", scheduled_time_ms: now + 0.6 * DAY });
     case "available":
-      return one({ update_status: "available", update_version: "2026.38.6", expected_duration_sec: 1800 });
+      return one({ update_status: "available", update_version: "2026.38.6", expected_duration_sec: 2400 });
     case "uptodate":
       return one({});
     case "never-seen":
@@ -109,7 +109,7 @@ export function demoDashboard(scenario: DemoScenario = "full"): Dashboard {
     case "misconfigured":
       return { kind: "misconfigured", missing: ["TOKEN_ENCRYPTION_KEY", "SUPABASE_SERVICE_ROLE_KEY"] };
     case "full": {
-      const downloading = snapshot({ update_status: "downloading", update_version: "2026.38.6", download_perc: 42, expected_duration_sec: 1800 });
+      const downloading = snapshot({ update_status: "downloading", update_version: "2026.38.6", download_perc: 42, expected_duration_sec: 2400 });
       const model3Online = snapshot({
         polled_at: ago(2.4),
         car_version: "2026.32.6 9c1d2e3f",
