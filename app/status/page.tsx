@@ -65,7 +65,7 @@ async function Components() {
           <Component key={item.name} item={item} />
         ))}
       </div>
-      <p className="mt-10 text-xs text-faint">{checkedAt ? `Last checked ${formatDateTime(checkedAt)}` : "Not checked yet"}</p>
+      {checkedAt && <p className="mt-10 text-xs text-faint">Last checked {formatDateTime(checkedAt)}</p>}
     </>
   );
 }
@@ -93,7 +93,6 @@ export default function StatusPage() {
         <Suspense fallback={<p className="mt-2 text-sm text-muted-foreground">Checking…</p>}>
           <Components />
         </Suspense>
-        <p className="mt-2 text-xs text-faint">If the website itself is down, this page is down too.</p>
       </article>
       <Suspense>
         <RecordHealth />
