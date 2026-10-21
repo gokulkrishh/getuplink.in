@@ -4,6 +4,7 @@ import { VersionChart } from "@/components/version-chart";
 import { formatDate, formatDuration, formatKm, formatSeen, formatShortDate } from "@/lib/format";
 import { Check, ChevronRight, Zap } from "lucide-react";
 import { ReleaseNotesList } from "@/components/release-notes";
+import { ShowMore } from "@/components/show-more";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import type { Snapshot, VehicleView, VersionChange } from "@/lib/server/dashboard";
 
@@ -192,6 +193,45 @@ function Label({ children }: { children: React.ReactNode }) {
   return <dt className="mb-1 text-xs text-faint">{children}</dt>;
 }
 
+const HISTORY_PREVIEW = 5;
+
+// One history row: expandable to its release notes when Tesla published them.
+function HistoryRow({ change, notes }: { change: VersionChange; notes: ReleaseNotesByVersion }) {
+  // The first version was already installed when tracking began; Tesla doesn't report install dates.
+  const date = change.previous_version ? formatDate(change.detected_at) : null;
+  const versionNotes = notes[change.version];
+  if (!versionNotes) {
+    return (
+      <li className="flex items-baseline justify-between gap-4 border-t py-2.5 pl-5">
+        <span className="font-mono">{change.version}</span>
+        <HistoryMeta change={change} date={date} />
+      </li>
+    );
+  }
+  return (
+    <li className="border-t">
+      <details className="group/row">
+        <summary
+          aria-label={`${change.version}, ${date ?? "install date unknown"}. Show release notes`}
+          className="flex list-none items-baseline justify-between gap-4 py-2.5 hover:text-foreground [&::-webkit-details-marker]:hidden"
+        >
+          <span className="flex items-center gap-1.5 font-mono">
+            <ChevronRight
+              className="size-3.5 self-center text-faint transition-transform group-open/row:rotate-90"
+              aria-hidden="true"
+            />
+            {change.version}
+          </span>
+          <HistoryMeta change={change} date={date} />
+        </summary>
+        <div className="pb-4 pl-5">
+          <ReleaseNotesList notes={versionNotes} />
+        </div>
+      </details>
+    </li>
+  );
+}
+
 export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?: ReleaseNotesByVersion }) {
   const { vehicle, latest, lastOnline, history } = view;
   const asleep = latest && latest.state !== "online";
@@ -272,43 +312,23 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
         ) : (
           <>
             <VersionChart changes={[...history].reverse()} until={vehicle.last_polled_at} />
-            <ol className="text-sm">
-              {history.map((change) => {
-                // The first version was already installed when tracking began; Tesla doesn't report install dates.
-                const date = change.previous_version ? formatDate(change.detected_at) : null;
-                const versionNotes = notes[change.version];
-                if (!versionNotes) {
-                  return (
-                    <li key={change.detected_at} className="flex items-baseline justify-between gap-4 border-t py-2.5 pl-5">
-                      <span className="font-mono">{change.version}</span>
-                      <HistoryMeta change={change} date={date} />
-                    </li>
-                  );
-                }
-                return (
-                  <li key={change.detected_at} className="border-t">
-                    <details className="group/row">
-                      <summary
-                        aria-label={`${change.version}, ${date ?? "install date unknown"}. Show release notes`}
-                        className="flex list-none items-baseline justify-between gap-4 py-2.5 hover:text-foreground [&::-webkit-details-marker]:hidden"
-                      >
-                        <span className="flex items-center gap-1.5 font-mono">
-                          <ChevronRight
-                            className="size-3.5 self-center text-faint transition-transform group-open/row:rotate-90"
-                            aria-hidden="true"
-                          />
-                          {change.version}
-                        </span>
-                        <HistoryMeta change={change} date={date} />
-                      </summary>
-                      <div className="pb-4 pl-5">
-                        <ReleaseNotesList notes={versionNotes} />
-                      </div>
-                    </details>
-                  </li>
-                );
-              })}
-            </ol>
+            <h3 className="pt-6 text-xs text-faint">Versions</h3>
+            <div>
+              <ol className="text-sm">
+                {history.slice(0, HISTORY_PREVIEW).map((change) => (
+                  <HistoryRow key={change.detected_at} change={change} notes={notes} />
+                ))}
+              </ol>
+              {history.length > HISTORY_PREVIEW && (
+                <ShowMore count={history.length - HISTORY_PREVIEW}>
+                  <ol className="text-sm">
+                    {history.slice(HISTORY_PREVIEW).map((change) => (
+                      <HistoryRow key={change.detected_at} change={change} notes={notes} />
+                    ))}
+                  </ol>
+                </ShowMore>
+              )}
+            </div>
           </>
         )}
       </div>
