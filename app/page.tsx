@@ -104,8 +104,10 @@ async function Dashboard({ searchParams }: PageProps<"/">) {
 
 export default function Page(props: PageProps<"/">) {
   return (
-    <Suspense fallback={<p className="text-sm text-faint">Loading…</p>}>
-      <Dashboard {...props} />
-    </Suspense>
+    <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:py-20">
+      <Suspense fallback={<p className="text-sm text-faint">Loading…</p>}>
+        <Dashboard {...props} />
+      </Suspense>
+    </div>
   );
 }

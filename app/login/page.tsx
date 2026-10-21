@@ -1,23 +1,77 @@
+import { ArrowRight } from "lucide-react";
 import { Suspense } from "react";
 import { Logo } from "@/components/logo";
 import { buttonVariants } from "@/components/ui/button";
 import { LoginError } from "./login-form";
 
+// Static illustration of the dashboard, so the sign-in page shows what you get.
+function Preview() {
+  return (
+    <div aria-hidden="true" className="w-full max-w-sm border p-6 text-left select-none sm:p-8">
+      <p className="text-xs text-faint">Model Y</p>
+      <p className="mt-1 font-mono text-4xl font-medium tracking-tight tabular-nums">2025.38.6</p>
+      <div className="mt-8 flex items-baseline justify-between text-sm">
+        <span>
+          Downloading <span className="ml-1 font-mono text-muted-foreground">2025.38.8</span>
+        </span>
+        <span className="font-mono text-xs tabular-nums text-muted-foreground">42%</span>
+      </div>
+      <div className="mt-2 h-px bg-border">
+        <div className="h-px w-[42%] bg-foreground" />
+      </div>
+      <svg viewBox="0 0 300 48" className="mt-8 h-12 w-full text-foreground" preserveAspectRatio="none">
+        <path d="M0 44H70V34H150V22H232V10H300" fill="none" stroke="currentColor" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <div className="mt-3 flex justify-between text-xs text-faint">
+        <span>Jul</span>
+        <span>Aug</span>
+        <span>Oct</span>
+      </div>
+      <p className="mt-8 border-t pt-4 text-xs text-muted-foreground">Last seen 9:15 AM IST</p>
+    </div>
+  );
+}
+
 export default function LoginPage() {
   return (
-    <section className="m-auto flex w-full max-w-md flex-col items-center text-center">
-      <Logo className="size-24" />
-      <h1 className="mt-6 text-3xl font-black tracking-tight">Uplink</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Tesla software updates, tracked from India.</p>
-      {/* Plain link: the OAuth flow is a full-page redirect. */}
-      <a href="/api/auth/connect" className={buttonVariants({ className: "mt-10 h-10 w-full" })}>
-        Sign in with Tesla
-      </a>
-      <Suspense>
-        <div className="mt-4">
-          <LoginError />
+    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-5 py-8 sm:px-8">
+      <header className="flex items-center gap-2 text-sm font-medium">
+        <Logo className="size-5" />
+        Uplink
+      </header>
+
+      <div className="grid flex-1 items-center gap-16 py-16 md:grid-cols-2 md:gap-12">
+        <section className="max-w-md">
+          <p className="text-xs tracking-wide text-faint uppercase">For Tesla owners in India</p>
+          <h1 className="mt-4 text-4xl leading-[1.05] font-semibold tracking-tight text-balance sm:text-5xl">
+            Know when your next update lands.
+          </h1>
+          <p className="mt-5 text-base text-muted-foreground">
+            Uplink checks your car every few hours and keeps a quiet history of every software version. Read-only, and it
+            never wakes the car.
+          </p>
+          {/* Plain link: the OAuth flow is a full-page redirect. */}
+          <a href="/api/auth/connect" className={buttonVariants({ className: "mt-10 h-11 gap-2 px-5 text-sm" })}>
+            Sign in with Tesla
+            <ArrowRight className="size-4" />
+          </a>
+          <Suspense>
+            <div className="mt-4">
+              <LoginError />
+            </div>
+          </Suspense>
+        </section>
+
+        <div className="flex justify-center md:justify-end">
+          <Preview />
         </div>
-      </Suspense>
-    </section>
+      </div>
+
+      <footer className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-faint">
+        <span>Read-only access</span>
+        <span>Never wakes your car</span>
+        <span>Times in IST</span>
+      </footer>
+    </div>
   );
 }
