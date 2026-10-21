@@ -14,9 +14,8 @@ import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
 import { DriveList } from "@/components/stats/drive-list";
 import { ParkedDrain } from "@/components/stats/parked-drain";
 import { BatteryTrend } from "@/components/stats/battery-trend";
-import { PeriodSwitch } from "@/components/stats/period-switch";
 import { type Period, monthIndex, monthKey, monthShort, parsePeriod, parseView, yearOf } from "@/components/stats/periods";
-import { ViewTabs } from "@/components/stats/view-tabs";
+import { StatsTabs } from "@/components/stats/stats-tabs";
 import { formatDays, formatKwh, formatMoney, formatMonth, formatShortDate } from "@/lib/format";
 import { chargeEfficiency, matchSessions } from "@/lib/charge-sessions";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
@@ -464,43 +463,39 @@ async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParam
   );
 
   return (
-    <div className="space-y-12">
-      <div className="space-y-6">
-        <ViewTabs view={view} period={period} />
-        {/* The battery trend covers its own window, so the period doesn't apply there. */}
-        {view !== "battery" && <PeriodSwitch period={period} view={view} />}
-      </div>
-      {view === "charging" &&
-        (listed.length === 0 ? (
-          notYet("No charging sessions yet", "Your charges will show up here, wherever you plug in.")
-        ) : (
-          <>
-            {sessions.length > 0 && <Summary sessions={sessions} now={now} period={period} />}
-            {streamSessions.length > 0 && <EnergyAdded sessions={sessions} streamOnly={streamOnly} now={now} period={period} />}
-            <SessionList sessions={listed} />
-          </>
-        ))}
-      {view === "driving" &&
-        (hasDriving ? (
-          <>
+    <StatsTabs
+      initial={view}
+      period={period}
+      panels={{
+        charging:
+          listed.length === 0 ? (
+            notYet("No charging sessions yet", "Your charges will show up here, wherever you plug in.")
+          ) : (
+            <div className="space-y-12">
+              {sessions.length > 0 && <Summary sessions={sessions} now={now} period={period} />}
+              {streamSessions.length > 0 && <EnergyAdded sessions={sessions} streamOnly={streamOnly} now={now} period={period} />}
+              <SessionList sessions={listed} />
+            </div>
+          ),
+        driving: hasDriving ? (
+          <div className="space-y-12">
             <Distance distance={distance} now={now} period={period} />
             <DailyDriving days={days} />
             <EnergyUse energy={energy} now={now} period={period} />
             <DriveList drives={driving.drives} now={drivingNow} />
             <ParkedDrain drain={driving.drain} />
-          </>
+          </div>
         ) : (
           notYet("Not enough driving yet", "Distance and energy use show up after a couple of days of driving.")
-        ))}
-      {view === "battery" &&
-        (trend.length >= 2 ? <Battery trend={trend} /> : notYet("Not enough readings yet", "The battery trend shows up after two weeks of readings."))}
-      {view === "updates" &&
-        (updateStats(updates, now) ? (
+        ),
+        battery: trend.length >= 2 ? <Battery trend={trend} /> : notYet("Not enough readings yet", "The battery trend shows up after two weeks of readings."),
+        updates: updateStats(updates, now) ? (
           <Updates rows={updates} now={now} period={period} />
         ) : (
-          notYet("Not enough updates yet", "Update stats show up after your car's second update."))
-        )}
-    </div>
+          notYet("Not enough updates yet", "Update stats show up after your car's second update.")
+        ),
+      }}
+    />
   );
 }
 
