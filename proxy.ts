@@ -57,14 +57,14 @@ export async function proxy(request: NextRequest) {
   }
   // Demo mode serves the app on any host, so plain localhost:3000 works.
   const marketing = !DEMO && Boolean(host && MARKETING_HOSTS.has(host));
+  // Footer Status links, on the home page or in the app, land on the status subdomain.
+  if (pathname === "/status" && !DEMO) return NextResponse.redirect(statusOrigin(request.nextUrl), 308);
   // "Open app" on the home page: the dashboard root on the app host.
   if (pathname === "/app") {
     return NextResponse.redirect(marketing ? appOrigin(request.nextUrl) + "/" : new URL("/", request.url));
   }
   if (marketing) {
     if (pathname === "/") return NextResponse.rewrite(new URL("/home", request.url));
-    // The footer's Status link lands on the status subdomain.
-    if (pathname === "/status") return NextResponse.redirect(statusOrigin(request.nextUrl), 308);
     if (!MARKETING_PATHS.has(pathname)) return NextResponse.redirect(appOrigin(request.nextUrl) + pathname + search, 308);
   }
 

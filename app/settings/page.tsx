@@ -112,6 +112,9 @@ export default function SettingsPage() {
         <Link href="/terms" className="hover:text-foreground transition-colors duration-150">
           Terms
         </Link>
+        <Link href="/status" prefetch={false} className="hover:text-foreground transition-colors duration-150">
+          Status
+        </Link>
       </footer>
     </div>
   );
