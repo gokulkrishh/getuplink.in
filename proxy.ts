@@ -17,6 +17,7 @@ const PUBLIC_PATHS = new Set([
 
 // The bare domain serves the public home page; every other path there goes to the app.
 const MARKETING_HOSTS = new Set(["getuplink.in", "www.getuplink.in"]);
+const MARKETING_PATHS = new Set(["/home", "/favicon.ico", "/icon.svg"]);
 const APP_ORIGIN = "https://app.getuplink.in";
 
 export async function proxy(request: NextRequest) {
@@ -24,7 +25,7 @@ export async function proxy(request: NextRequest) {
   const host = request.headers.get("host")?.split(":")[0];
   if (host && MARKETING_HOSTS.has(host)) {
     if (pathname === "/") return NextResponse.rewrite(new URL("/home", request.url));
-    if (pathname !== "/home") return NextResponse.redirect(APP_ORIGIN + pathname + search, 308);
+    if (!MARKETING_PATHS.has(pathname)) return NextResponse.redirect(APP_ORIGIN + pathname + search, 308);
   }
 
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();

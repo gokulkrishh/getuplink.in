@@ -43,7 +43,7 @@ const STEPS = [
   },
 ];
 
-// Cached so the year is fixed at build time rather than read per request.
+// Cached so the page stays static: the year is read through the cache, not per request.
 async function Year() {
   "use cache";
   return new Date().getFullYear();
