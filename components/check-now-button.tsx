@@ -36,13 +36,19 @@ export function CheckNowIcon({ className }: { className?: string }) {
       disabled={pending}
       aria-busy={pending}
       aria-label={pending ? "Checking…" : "Check now"}
-      title="Check now"
       className={cn(
-        "inline-flex size-6 cursor-pointer items-center justify-center text-faint transition-colors duration-150 hover:text-foreground disabled:cursor-progress disabled:text-foreground",
+        "group relative inline-flex size-6 cursor-pointer items-center justify-center text-faint transition-colors duration-150 hover:text-foreground disabled:cursor-progress disabled:text-foreground",
         className,
       )}
     >
       <RotateCw className={cn("size-3.5", pending && "motion-safe:animate-spin")} aria-hidden="true" />
+      {/* Tooltip: positioned out of flow, so showing it never moves anything. */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute top-full left-1/2 z-10 mt-1.5 -translate-x-1/2 bg-foreground px-2 py-1 text-xs whitespace-nowrap text-background opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+      >
+        {pending ? "Checking…" : "Check now"}
+      </span>
     </button>
   );
 }

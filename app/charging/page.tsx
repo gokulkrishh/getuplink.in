@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import { Download } from "lucide-react";
+import { Download, Zap } from "lucide-react";
 import { Suspense } from "react";
 import { Logo } from "@/components/logo";
 import { formatClock, formatDuration, formatKwh, formatMoney, formatMonth, formatShortDate } from "@/lib/format";
@@ -194,11 +194,10 @@ async function Sessions() {
 
   if (sessions.length === 0) {
     return (
-      <section className="space-y-3">
-        <h2 className="text-base font-medium tracking-[-0.01em]">No Supercharger sessions yet</h2>
-        <p className="max-w-md text-sm text-muted-foreground">
-          Sessions appear after the next check. If none show up, sign out and sign in with Tesla again to allow charging history.
-        </p>
+      <section className="flex flex-col items-center gap-3 rounded-[10px] border border-dashed border-foreground/20 px-6 py-16 text-center">
+        <Zap className="size-5 text-faint" aria-hidden="true" />
+        <h2 className="text-sm font-medium">No Supercharger sessions yet</h2>
+        <p className="max-w-xs text-sm text-balance text-muted-foreground">They&apos;ll show up here after you charge at a Tesla Supercharger.</p>
       </section>
     );
   }
