@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { checkNow, logout } from "@/app/actions";
+import { Logo } from "@/components/logo";
 import { VehicleSection } from "@/components/vehicle-section";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
@@ -8,8 +9,11 @@ import { loadDashboard } from "@/lib/server/dashboard";
 
 function Header({ connected }: { connected: boolean }) {
   return (
-    <header className="mb-16 flex items-baseline justify-between gap-4 text-sm">
-      <h1 className="font-medium">India EV Update Tracker</h1>
+    <header className="mb-16 flex items-center justify-between gap-4 text-sm">
+      <h1 className="flex items-center gap-2.5 font-medium">
+        <Logo className="size-5" />
+        India EV Update Tracker
+      </h1>
       <nav className="flex items-baseline gap-4 text-muted-foreground">
         {connected && (
           <form action={checkNow}>
