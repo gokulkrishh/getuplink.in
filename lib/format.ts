@@ -9,6 +9,11 @@ export function formatTime(value: string | number | Date): string {
   return `${time.format(new Date(value))} IST`;
 }
 
+// "9:15 AM" (IST, no suffix)
+export function formatClock(value: string | number | Date): string {
+  return time.format(new Date(value));
+}
+
 // "21 Oct 2026"
 export function formatDate(value: string | number | Date): string {
   return date.format(new Date(value));
