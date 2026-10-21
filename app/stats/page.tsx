@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { cacheLife, cacheTag } from "next/cache";
-import { after, connection } from "next/server";
+import { cacheLife, cacheTag, io } from "next/cache";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { Download, Zap } from "lucide-react";
 import { Suspense } from "react";
@@ -493,14 +493,18 @@ async function loadTelemetryStats(): Promise<{ days: DayKm[]; trend: WeeklyPack[
   return { days, trend };
 }
 
+// Rebuilds sessions from the car's readings once the response is sent, so the next visit has them.
+// The sync reads the clock, so it waits for a real request and stays out of the prerendered page.
+async function SyncStreamSessions() {
+  await io();
+  after(syncStreamSessionsForAllCars);
+  return null;
+}
+
 async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParams">) {
   // Read outside the cache: the period only changes how the cached list is summed.
   const period = parsePeriod((await searchParams).period);
   const [{ sessions, streamSessions, distance, energy, updates, now }, { days, trend }] = await Promise.all([loadStats(), loadTelemetryStats()]);
-  // Rebuilds sessions from the car's readings once this response is sent, so the next visit has them.
-  // Only for a real request: the sync reads the clock, which can't run while prerendering.
-  await connection();
-  after(syncStreamSessionsForAllCars);
 
   const { pairs, streamOnly } = matchSessions(sessions, streamSessions, now);
   const listed: Listed[] = [
@@ -555,6 +559,9 @@ export default function Page({ searchParams }: PageProps<"/stats">) {
       <p className="mt-2 mb-12 text-sm text-muted-foreground">Your charging sessions. Cost and invoices come from Tesla Superchargers.</p>
       <Suspense fallback={<SessionsSkeleton />}>
         <Sessions searchParams={searchParams} />
+      </Suspense>
+      <Suspense>
+        <SyncStreamSessions />
       </Suspense>
     </div>
   );

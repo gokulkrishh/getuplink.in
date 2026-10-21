@@ -31,7 +31,7 @@ const FEATURES: { icon: LucideIcon; title: string; body: string }[] = [
   { icon: BatteryMedium, title: "Battery at a glance", body: "Charge level, range and charge limit from the last time the car was online." },
   { icon: Zap, title: "Charging and driving", body: "Supercharger sessions with cost in rupees and invoices, and kilometres driven each month." },
   { icon: Car, title: "Your car's details", body: "Model year, drive, factory, paint, wheels and hardware, read from Tesla." },
-  { icon: MoonStar, title: "Never wakes your car", body: "Uplink reads only while your car is already awake and never sends commands, so there's no extra battery drain." },
+  { icon: MoonStar, title: "Never wakes your car", body: "Your car sends updates on its own while it's awake. Uplink never wakes it or sends commands, so there's no extra battery drain." },
 ];
 
 const HISTORY_POINTS = [
@@ -44,20 +44,24 @@ const HISTORY_POINTS = [
 const FAQ = [
   {
     q: "Is it safe to sign in?",
-    a: "You sign in on Tesla's own page. Uplink never sees your password; Tesla gives it read-only access, which you can revoke from your Tesla account at any time.",
+    a: "You sign in on Tesla's own page. Uplink never sees your password. Tesla gives it access to read your car's data, which you can revoke from your Tesla account at any time.",
   },
   {
     q: "Will it wake my car or drain the battery?",
-    a: "No. Uplink only reads data when your car is already online, and never sends commands.",
+    a: "No. Your car sends updates on its own while it's awake, and Uplink never wakes it or sends commands.",
+  },
+  {
+    q: "Why add Uplink's key to my car?",
+    a: "It lets your car send live data to Uplink: update progress, charging and battery. The key can't unlock or drive the car, and you can remove it any time in your car's Locks settings.",
   },
   {
     q: "What data does Uplink store?",
-    a: "Your car's versions, update status, battery and odometer, and Supercharger sessions with invoices. It doesn't read your location. The privacy page lists everything.",
+    a: "Your car's versions and update progress, battery, charging, odometer and energy use, plus Supercharger sessions with invoices. It never reads your location. The privacy page lists everything.",
   },
   { q: "Which cars work?", a: "Any Tesla on your account that Tesla's Fleet API supports, including the Model Y sold in India." },
   {
     q: "How do I delete my data?",
-    a: "Use Delete my data in Settings. It removes your cars, history and charging sessions, and disconnects your Tesla account.",
+    a: "Use Delete my data in Settings. It removes your cars, history and charging, stops your car streaming to Uplink and disconnects your Tesla account. Then remove Uplink's key in your car's Locks settings.",
   },
 ];
 

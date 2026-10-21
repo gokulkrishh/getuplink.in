@@ -234,8 +234,35 @@ export async function revokeAllSessions(): Promise<void> {
   if (error) throw new Error(`Signing out everywhere failed: ${error.message}`);
 }
 
+// Tell Tesla to stop the car streaming to Uplink, for each of the owner's cars. Best effort: a
+// failure is logged and never blocks disconnecting or deleting. Must run before the tokens go.
+async function stopStreaming(): Promise<void> {
+  try {
+    const { data, error } = await db().from("vehicles").select("vin").not("vin", "is", null);
+    if (error) throw new Error(error.message);
+    const token = await accessToken();
+    await Promise.all(
+      (data ?? []).map(async ({ vin }) => {
+        try {
+          const res = await fetch(`${fleetApiBase()}/api/1/vehicles/${vin}/fleet_telemetry_config`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+            cache: "no-store",
+          });
+          if (!res.ok) console.warn(`Stopping streaming failed (${res.status}):`, await res.text());
+        } catch (err) {
+          console.warn("Stopping streaming failed:", err instanceof Error ? err.message : err);
+        }
+      }),
+    );
+  } catch (err) {
+    console.warn("Stopping streaming failed:", err instanceof Error ? err.message : err);
+  }
+}
+
 // Forget the Tesla tokens but keep owner_sub, so only the same Tesla account can sign in again.
 export async function disconnectTesla(): Promise<void> {
+  await stopStreaming();
   const { error } = await db()
     .from("oauth_tokens")
     .update({
@@ -295,13 +322,18 @@ export function fleetGetRaw(path: string): Promise<Response> {
 // Charging sessions are the owner's too. Their table may not exist if its migration was never run
 // (Postgres 42P01, PostgREST PGRST205), which is fine: there is nothing to delete.
 export async function deleteMyData(): Promise<void> {
+  // Before the vehicles go: it needs their VINs. disconnectTesla below repeats it harmlessly.
+  await stopStreaming();
   for (const [table, column] of [
     ["vehicles", "id"],
     ["poll_runs", "id"],
     ["charging_sessions", "session_id"],
+    ["stream_charge_sessions", "vin"],
+    ["telemetry_readings", "vin"],
   ] as const) {
     const { error } = await db().from(table).delete().not(column, "is", null);
-    if (error && !(table === "charging_sessions" && ["42P01", "PGRST205"].includes(error.code))) {
+    const optional = table === "charging_sessions" || table === "stream_charge_sessions";
+    if (error && !(optional && ["42P01", "PGRST205"].includes(error.code))) {
       throw new Error(`Deleting ${table} failed: ${error.message}`);
     }
   }

@@ -73,3 +73,18 @@ export async function loadPrimaryVin(): Promise<string | null> {
   }
   return (data?.vin as string | null) ?? null;
 }
+
+// When the newest streamed reading arrived, or null when there are none (or the query fails).
+export async function lastReadingAt(): Promise<string | null> {
+  const { data, error } = await db()
+    .from("telemetry_readings")
+    .select("created_at")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.warn("Last reading unavailable:", error.message);
+    return null;
+  }
+  return (data?.created_at as string | undefined) ?? null;
+}

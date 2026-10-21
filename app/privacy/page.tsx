@@ -11,15 +11,16 @@ const STORED = [
   "Your Tesla account's sign-in tokens, encrypted",
   "Each car's VIN, name, model, colour and configuration",
   "Software version and update status",
-  "Battery level, range, charge limit and charging state",
+  "Battery level, range, charge limit, charging state and battery temperature",
   "Odometer at each update",
+  "Update progress, gear and energy counters your car streams while it's awake",
   "Release notes",
   "Tesla Supercharger sessions (site, time, energy, cost) and their invoices",
 ];
 
 const NOT_DONE = [
   "It doesn't read your location.",
-  "It doesn't send commands to your car, and it never wakes the car.",
+  "It doesn't send commands to your car, and it never wakes the car. The key you add to your car can't unlock or drive it.",
   "It doesn't sell or share your data.",
   "There are no ads and no tracking. One cookie keeps you signed in, a short-lived one protects the Tesla sign-in, and your theme choice is saved in your browser.",
 ];
@@ -75,23 +76,43 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-base font-medium tracking-heading">Why</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              To show your versions, update status, history and charging. Nothing else.
+              To show your versions, update status, history, charging and energy use. Nothing else.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-base font-medium tracking-heading">How data arrives</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Two ways. Uplink checks Tesla&apos;s Fleet API every 6 hours, and only reads a car that is already
+              online. And once you add Uplink&apos;s key to your car, the car streams changes to Uplink while it&apos;s
+              awake: update progress, battery, charging, odometer, gear, energy counters and battery temperature. It
+              never streams location.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-base font-medium tracking-heading">Uplink&apos;s key</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              The key lets your car send data to Uplink. It can&apos;t unlock or drive the car, and Uplink never sends
+              commands. Remove it any time in your car&apos;s Locks settings.
             </p>
           </section>
 
           <section>
             <h2 className="text-base font-medium tracking-heading">Where it lives</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              The database is hosted by Supabase in Mumbai (ap-south-1). The app is hosted on Vercel. Data goes to
-              Tesla only to fetch your car&apos;s data.
+              Streamed data goes to Uplink&apos;s receiver on Fly.io in Singapore, then to the database, hosted by
+              Supabase in Mumbai (ap-south-1). The app is hosted on Vercel. Data goes to Tesla only to fetch your
+              car&apos;s data.
             </p>
           </section>
 
           <section>
             <h2 className="text-base font-medium tracking-heading">How long we keep it</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Until you delete it. Use Delete my data in Settings to remove your cars, history, snapshots and charging
-              sessions. Use Disconnect to remove your Tesla tokens. Use Sign out everywhere to end all sessions. You
+              Until you delete it. Use Delete my data in Settings to remove your cars, history, snapshots, streamed readings and charging
+              sessions. It also stops your car streaming to Uplink; then remove the key in your car&apos;s Locks
+              settings. Use Disconnect to remove your Tesla tokens. Use Sign out everywhere to end all sessions. You
               can also revoke Uplink&apos;s access from your Tesla account.
             </p>
           </section>

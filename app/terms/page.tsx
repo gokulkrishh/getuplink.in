@@ -18,7 +18,7 @@ const SECTIONS = [
   },
   {
     title: "Read-only",
-    body: "Uplink only reads data. It never controls your car. You are responsible for your car and your Tesla account.",
+    body: "Uplink only reads data. It never sends commands or controls your car, even though the key you add to your car is needed for live data. You are responsible for your car and your Tesla account.",
   },
   {
     title: "Fair use",

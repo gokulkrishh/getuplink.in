@@ -9,6 +9,7 @@ import { formatDate, formatSeen } from "@/lib/format";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { db } from "@/lib/server/supabase";
+import { lastReadingAt } from "@/lib/server/telemetry";
 import { accountInfo, type AccountInfo } from "@/lib/server/tesla";
 import { DeleteMyData, DisconnectTesla, SignOutEverywhere } from "./confirm-actions";
 import { Row } from "./row";
@@ -25,21 +26,22 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
 }
 
 // Session check plus data in one browser-only private cache, so header links can prefetch it (see app/page.tsx).
-async function loadSettings(): Promise<{ account: AccountInfo; lastCheck: string | null; now: number }> {
+async function loadSettings(): Promise<{ account: AccountInfo; lastCheck: string | null; lastReading: string | null; now: number }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
-  const [account, run] = await Promise.all([
+  const [account, run, lastReading] = await Promise.all([
     accountInfo(),
     db().from("poll_runs").select("started_at").order("started_at", { ascending: false }).limit(1).maybeSingle(),
+    lastReadingAt(),
   ]);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
-  return { account, lastCheck: run.data?.started_at ?? null, now: Date.now() };
+  return { account, lastCheck: run.data?.started_at ?? null, lastReading, now: Date.now() };
 }
 
 async function Settings() {
-  const { account, lastCheck, now } = await loadSettings();
+  const { account, lastCheck, lastReading, now } = await loadSettings();
   const connectedDescription = account.connectedSince ? `Connected since ${formatDate(account.connectedSince)}` : "Connected";
 
   return (
@@ -47,10 +49,16 @@ async function Settings() {
       <Group title="General">
         <Row title="Theme" description="Saved in this browser." control={<ThemePicker />} />
         <Row
-          title="Automatic checks"
-          description="Every 6 hours. Uplink never wakes the car."
+          title="Live data"
+          description="Your car sends updates while it's awake. A full check also runs every 6 hours. Uplink never wakes the car."
           control={
             <p className="text-right text-xs text-muted-foreground">
+                {lastReading && (
+                  <>
+                    Last reading
+                    <span className="mb-1 block text-sm text-foreground tabular-nums">{formatSeen(lastReading, now)}</span>
+                  </>
+                )}
                 {lastCheck ? (
                   <>
                     Last checked

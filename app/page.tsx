@@ -110,8 +110,8 @@ async function Dashboard({ searchParams }: PageProps<"/">) {
       {data.kind === "disconnected" && (
         <Notice title="Connect your Tesla account">
           <p>
-            Uplink needs read-only access to your vehicle data. It checks every few hours and never wakes the car, so a
-            version appears once the car is seen online.
+            Uplink needs read-only access to your car&apos;s data. It never wakes the car, so a version appears once the car
+            is seen online.
           </p>
           <SignInButton />
         </Notice>
