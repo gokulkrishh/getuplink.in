@@ -44,7 +44,7 @@ export function CheckNowIcon({ className }: { className?: string }) {
     >
       <RotateCw className={cn("size-3.5", pending && "motion-safe:animate-spin")} aria-hidden="true" />
       {/* A check can only read a car that's awake; asleep, Tesla returns nothing new. */}
-      <Tip>{pending ? "Refreshing…" : "Refresh. Open the Tesla app first so your car is awake."}</Tip>
+      <Tip>{pending ? "Refreshing…" : "Open the Tesla app first so your car is awake."}</Tip>
     </Button>
   );
 }
