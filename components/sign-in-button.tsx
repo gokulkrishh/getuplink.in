@@ -1,6 +1,7 @@
 "use client";
 
 import { DashRing } from "@/components/loading-ui/dash-ring";
+import { ArrowRight } from "lucide-react";
 import { useState } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -24,7 +25,7 @@ export function SignInButton({
       className={cn(buttonVariants({ size }), pending && "pointer-events-none", className)}
     >
       {label}
-      {pending && <DashRing data-icon="inline-end" aria-hidden="true" />}
+      {pending ? <DashRing data-icon="inline-end" aria-hidden="true" /> : <ArrowRight data-icon="inline-end" aria-hidden="true" />}
     </a>
   );
 }

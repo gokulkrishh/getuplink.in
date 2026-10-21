@@ -3,11 +3,11 @@ import Link from "next/link";
 import { Suspense } from "react";
 import {
   BatteryMedium,
+  Car,
   ChevronDown,
   Download,
   History,
   MoonStar,
-  ScrollText,
   Zap,
   type LucideIcon,
 } from "lucide-react";
@@ -26,12 +26,12 @@ export const metadata: Metadata = {
 };
 
 const FEATURES: { icon: LucideIcon; title: string; body: string }[] = [
-  { icon: History, title: "Version history", body: "Every software version your car has run, with when it arrived and when it installed." },
-  { icon: ScrollText, title: "Release notes", body: "Tesla's own notes for each version, exactly as your car received them." },
+  { icon: History, title: "Version history", body: "Every version your car has run, with Tesla's release notes and when it arrived and installed." },
   { icon: Download, title: "Update status", body: "Available, downloading, waiting for Wi-Fi, scheduled or installing, with progress." },
   { icon: BatteryMedium, title: "Battery at a glance", body: "Charge level, range and charge limit from the last time the car was online." },
-  { icon: Zap, title: "Supercharger sessions", body: "Every session with energy, cost in rupees and the invoice, month by month." },
-  { icon: MoonStar, title: "Never wakes your car", body: "Uplink only reads while your car is already awake, so there's no extra battery drain." },
+  { icon: Zap, title: "Charging and driving", body: "Supercharger sessions with cost in rupees and invoices, and kilometres driven each month." },
+  { icon: Car, title: "Your car's details", body: "Model year, drive, factory, paint, wheels and hardware, read from Tesla." },
+  { icon: MoonStar, title: "Never wakes your car", body: "Uplink reads only while your car is already awake and never sends commands, so there's no extra battery drain." },
 ];
 
 const HISTORY_POINTS = [
