@@ -38,6 +38,7 @@ Every variable is listed in [`.env.example`](.env.example). In Vercel: **Project
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Server only. Never prefix with `NEXT_PUBLIC_`. |
 | `TOKEN_ENCRYPTION_KEY` | `openssl rand -base64 32` (must decode to 32 bytes). Also signs session cookies. Changing it signs you out and makes stored tokens unreadable: sign in with Tesla again afterwards. |
 | `CRON_SECRET` | `openssl rand -hex 32`. Vercel sends it to the cron route automatically. |
+| `HEALTH_TOKEN` | Optional. `openssl rand -hex 32`. Bearer token for `GET /api/health/stream`, the streaming health check an external bot polls. Unset, the route answers 503. |
 
 For local scripts, put the same values in `.env.local` (gitignored), e.g. `vercel env pull .env.local`.
 
