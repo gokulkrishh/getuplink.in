@@ -1,18 +1,18 @@
 import Link from "next/link";
-import { cacheLife, cacheTag } from "next/cache";
+import { cacheLife, cacheTag, io } from "next/cache";
+import { after } from "next/server";
 import { Suspense } from "react";
-import { checkNow, logout } from "@/app/actions";
+import { logout } from "@/app/actions";
 import { CarFront, Settings2 } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { Logo } from "@/components/logo";
 import { VehicleSection } from "@/components/vehicle-section";
-import { CheckNowButton } from "@/components/check-now-button";
 import { SignInButton } from "@/components/sign-in-button";
-import { buttonVariants } from "@/components/ui/button";
 import { describeRunError } from "@/lib/run-error";
 import { formatDateTime } from "@/lib/format";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type Dashboard as DashboardData, loadDashboard, OWNER_DATA_TAG } from "@/lib/server/dashboard";
+import { syncStreamVersionsForAllCars } from "@/lib/server/stream-versions";
 import { redirect } from "next/navigation";
 
 function Header() {
@@ -71,16 +71,12 @@ async function loadOwnDashboard(): Promise<{ data: DashboardData; now: number }>
   return { data: await loadDashboard(), now: Date.now() };
 }
 
-async function Dashboard({ searchParams }: PageProps<"/">) {
-  const params = await searchParams;
+async function Dashboard() {
   const { data, now } = await loadOwnDashboard();
-  const flash = params.error === "check" ? "The check couldn't run. Try again in a minute." : null;
   const failedRun = data.kind === "ready" && data.lastRun?.ok === false ? data.lastRun : null;
 
   return (
     <>
-      {flash && <p role="alert" className="mb-12 border-l-2 border-destructive pl-3 text-sm">{flash}</p>}
-
       {data.kind === "misconfigured" && (
         <EmptyState
           icon={<Settings2 className="size-7 text-faint" aria-hidden="true" />}
@@ -121,20 +117,9 @@ async function Dashboard({ searchParams }: PageProps<"/">) {
         failedRun?.error ? (
           <Notice title="Couldn't reach Tesla">
             <RunError error={failedRun.error} />
-            <form action={checkNow}>
-              <CheckNowButton spinner className={buttonVariants({ variant: "outline", size: "lg" })} />
-            </form>
           </Notice>
         ) : (
-          <EmptyState
-            icon={<CarFront className="size-7 text-faint" aria-hidden="true" />}
-            title="No vehicles yet"
-            action={
-              <form action={checkNow}>
-                <CheckNowButton spinner className={buttonVariants({ variant: "outline", size: "lg" })} />
-              </form>
-            }
-          >
+          <EmptyState icon={<CarFront className="size-7 text-faint" aria-hidden="true" />} title="No vehicles yet">
             Your Tesla account is connected, but no cars were found on it yet.
           </EmptyState>
         )
@@ -160,6 +145,15 @@ async function Dashboard({ searchParams }: PageProps<"/">) {
       )}
     </>
   );
+}
+
+// Records version changes the car streamed once the response is sent, so the next visit has them.
+// The sync reads the clock, so it waits for a real request and stays out of the prerendered page.
+async function SyncStreamVersions() {
+  await io();
+  if (!(await hasCurrentSession())) return null;
+  after(syncStreamVersionsForAllCars);
+  return null;
 }
 
 // Shown while the dashboard loads: faint blocks in the shape of a vehicle section.
@@ -192,13 +186,16 @@ function DashboardSkeleton() {
   );
 }
 
-export default function Page(props: PageProps<"/">) {
+export default function Page() {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:py-20">
       <Header />
       <h1 className="sr-only">Dashboard</h1>
       <Suspense fallback={<DashboardSkeleton />}>
-        <Dashboard {...props} />
+        <Dashboard />
+      </Suspense>
+      <Suspense>
+        <SyncStreamVersions />
       </Suspense>
     </div>
   );

@@ -146,7 +146,7 @@ async function Car({ params }: { params: Promise<{ id: string }> }) {
         )}
         {!car.checkedAt && (
           <p className="text-sm text-muted-foreground">
-            The details fill in after a check that finds the car awake. Open the Tesla app, then refresh on the dashboard.
+            The details need a check that finds the car awake. Open the Tesla app; the details fill in on their own.
           </p>
         )}
       </div>

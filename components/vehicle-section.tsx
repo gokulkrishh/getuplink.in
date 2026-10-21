@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { checkNow } from "@/app/actions";
-import { CheckNowIcon } from "@/components/check-now-button";
 import { VersionChart } from "@/components/version-chart";
 import { formatDate, formatDuration, formatKm, formatSeen, formatShortDate } from "@/lib/format";
 import { AutoRefresh } from "@/components/auto-refresh";
@@ -12,6 +10,8 @@ import { Vin } from "@/components/vin";
 import { cn } from "@/lib/utils";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import type { Snapshot, VehicleView, VersionChange } from "@/lib/server/dashboard";
+
+const AWAKE_MS = 10 * 60 * 1000;
 
 const STATUS: Record<string, string> = {
   available: "Available",
@@ -354,7 +354,9 @@ export function VehicleSection({
   // Render time, taken inside the page's cached loader (see formatSeen).
   now: number;
 }) {
-  const { vehicle, latest, lastOnline, history } = view;
+  const { vehicle, latest, lastOnline, history, streamAt } = view;
+  // A car that streamed in the last few minutes is awake: keep the page fresh so new data shows up on its own.
+  const awake = streamAt !== null && now - Date.parse(streamAt) < AWAKE_MS;
   const pending = Boolean(lastOnline?.update_status && STATUS[lastOnline.update_status]);
   // "Model Y, Pearl White", without repeating the model when the car is already named after it.
   const carLabel = [vehicle.model !== vehicle.display_name && vehicle.model, vehicle.exterior_color].filter(Boolean).join(", ");
@@ -363,8 +365,9 @@ export function VehicleSection({
 
   return (
     <section className="space-y-12">
+      {awake && <AutoRefresh />}
       <header className="space-y-1">
-        {/* Two columns: car and version on the left; status, refresh and VIN on the right. */}
+        {/* Two columns: car and version on the left; status and VIN on the right. */}
         <div className="grid grid-cols-car-header items-center gap-x-4 gap-y-1">
           <h2 className="text-sm text-muted-foreground">
             {/* The car's name opens its details page. */}
@@ -375,9 +378,6 @@ export function VehicleSection({
           </h2>
           <div className="flex items-center justify-end gap-1 text-sm text-faint tabular-nums">
             <CarStatus state={latest?.state ?? null} seenAt={vehicle.last_seen_at} checkedAt={latest?.polled_at ?? null} now={now} />
-            <form action={checkNow}>
-              <CheckNowIcon />
-            </form>
           </div>
           <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
             {vehicle.current_version ?? "—"}
@@ -395,7 +395,7 @@ export function VehicleSection({
         )}
         {!vehicle.current_version && (
           <p className="text-sm text-muted-foreground">
-            Asleep at every check so far. Open the Tesla app to wake the car, then refresh.
+            Asleep at every check so far. Open the Tesla app to wake the car; the dashboard updates on its own.
           </p>
         )}
       </header>

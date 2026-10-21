@@ -1,9 +1,19 @@
 import "server-only";
 import { db } from "./supabase";
-import { parseReleaseNotes } from "@/lib/release-notes";
 import { fleetGet, TeslaError } from "./tesla";
 import { syncChargingHistory } from "./charging";
 import { syncStreamSessionsSafely } from "./stream-charging";
+import { syncStreamVersionsSafely } from "./stream-versions";
+import {
+  check,
+  insertVersionChange,
+  latestRecordedVersion,
+  offeredAt,
+  recordReleaseNotes,
+  STALE_RUN_MS,
+  UNIQUE_VIOLATION,
+} from "./version-history";
+import { milesToKm, normaliseVersion } from "@/lib/versions";
 import { colorName, MILES_TO_KM, modelName } from "@/lib/car";
 import { messageOf } from "@/lib/errors";
 
@@ -35,18 +45,6 @@ const TOKEN_KEYS = ["tokens", "backseat_token", "backseat_token_updated_at"];
 function withoutTokens(data: VehicleData): Record<string, unknown> | null {
   if (!data) return null;
   return Object.fromEntries(Object.entries(data).filter(([key]) => !TOKEN_KEYS.includes(key)));
-}
-
-// "2025.32.3 1a2b3c4d" -> "2025.32.3"; the build hash changes nothing for us.
-export function normaliseVersion(version: string | null | undefined): string | null {
-  const v = version?.trim().split(/\s+/)[0];
-  return v && v !== "0.0.0" ? v : null;
-}
-
-async function check<T>(query: PromiseLike<{ data: T; error: { message: string } | null }>): Promise<T> {
-  const { data, error } = await query;
-  if (error) throw new Error(error.message);
-  return data;
 }
 
 async function pollVehicle(vehicle: FleetVehicle, now: string) {
@@ -103,43 +101,17 @@ async function pollVehicle(vehicle: FleetVehicle, now: string) {
   // the next check still sees the change instead of losing it.
   if (version && version !== previous) {
     // A retry after a failed later write would see the same change again; don't record it twice.
-    const latest = await check(
-      db()
-        .from("version_history")
-        .select("version")
-        .eq("vehicle_id", id)
-        .order("detected_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    );
-    if (latest?.version !== version) {
+    if ((await latestRecordedVersion(id)) !== version) {
       // version_history references the vehicle, so a car seen for the first time needs its row first.
       if (!existing) await check(db().from("vehicles").upsert(base));
-      // When was this version first offered to the car? Only meaningful for a real update, not the
-      // version that was already installed when tracking began.
-      const offered = previous
-        ? await check(
-            db()
-              .from("snapshots")
-              .select("polled_at")
-              .eq("vehicle_id", id)
-              .eq("update_version", version)
-              .order("polled_at", { ascending: true })
-              .limit(1)
-              .maybeSingle(),
-          )
-        : null;
-      await check(
-        db().from("version_history").insert({
-          vehicle_id: id,
-          version,
-          previous_version: previous,
-          detected_at: now,
-          available_at: offered?.polled_at ?? null,
-          // Tesla reports the odometer in miles.
-          odometer_km: typeof state.odometer === "number" ? Math.round(state.odometer * 1.609344 * 10) / 10 : null,
-        }),
-      );
+      await insertVersionChange({
+        vehicleId: id,
+        version,
+        previous,
+        detectedAt: now,
+        availableAt: previous ? await offeredAt(id, version) : null,
+        odometerKm: typeof state.odometer === "number" ? milesToKm(state.odometer) : null,
+      });
     }
   }
 
@@ -180,42 +152,7 @@ async function pollVehicle(vehicle: FleetVehicle, now: string) {
   ]);
 }
 
-// Fetch notes once per version, only while the car is already online (we never wake it).
-// `staged=true` asks for the notes of a downloaded or pending update. Failures are logged, not fatal.
-async function recordReleaseNotes(vin: string, versions: { version: string | null; staged: boolean }[]) {
-  const wanted = versions.filter((v): v is { version: string; staged: boolean } => Boolean(v.version));
-  if (wanted.length === 0) return;
-  const { data: stored } = await db()
-    .from("release_notes")
-    .select("version")
-    .in(
-      "version",
-      wanted.map((v) => v.version),
-    );
-  const have = new Set((stored ?? []).map((r: { version: string }) => r.version));
-
-  for (const { version, staged } of wanted) {
-    if (have.has(version)) continue;
-    try {
-      const raw = await fleetGet<Record<string, unknown>>(`/api/1/vehicles/${vin}/release_notes${staged ? "?staged=true" : ""}`);
-      if (!raw) continue;
-      const reported = normaliseVersion(String((staged ? raw?.staged_version : raw?.deployed_version) ?? ""));
-      // Don't file notes under the wrong version if Tesla answers for a different one.
-      if (reported && reported !== version) continue;
-      const notes = parseReleaseNotes(raw);
-      if (notes.length === 0) continue;
-      await check(db().from("release_notes").upsert({ version, notes, raw }, { onConflict: "version", ignoreDuplicates: true }));
-    } catch (err) {
-      console.warn(`Release notes for ${version} unavailable:`, messageOf(err));
-    }
-  }
-}
-
 export type PollResult = { ok: boolean; vehicles: number; error?: string; skipped?: boolean };
-
-// A run that never finished (crash or timeout) stops holding the lock after this long.
-const STALE_RUN_MS = 5 * 60 * 1000;
-const UNIQUE_VIOLATION = "23505";
 
 export async function pollAll(): Promise<PollResult> {
   await check(
@@ -251,6 +188,12 @@ export async function pollAll(): Promise<PollResult> {
         errors.push(`${vehicles[i].display_name ?? vehicles[i].vin}: ${messageOf(result.reason)}`);
       }
     });
+    // Versions the stream saw while the car was asleep for the poll. The poll holds the lock, so the
+    // sync skips its own lock check; it logs its own failures.
+    await syncStreamVersionsSafely(
+      vehicles.map((v) => v.vin),
+      { lockHeld: true },
+    );
   } catch (err) {
     errors.push(messageOf(err));
   }

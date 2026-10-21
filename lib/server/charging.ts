@@ -137,6 +137,28 @@ export async function syncChargingHistory(vins: string[]): Promise<void> {
   }
 }
 
+const MIN_SYNC_GAP_MS = 30 * 60 * 1000;
+// This instance's last attempt: covers the cases the table can't (no sessions yet, a failed sync).
+let lastAttempt = 0;
+
+// For the Stats page: the poll's Supercharger sync, at most once per 30 minutes. The time of the last
+// sync is the newest fetched_at in charging_sessions (every sync rewrites the rows it fetches), so it
+// holds across serverless instances without a settings table; lastAttempt is the per-instance backstop.
+export async function syncChargingHistoryThrottled(): Promise<void> {
+  try {
+    if (Date.now() - lastAttempt < MIN_SYNC_GAP_MS) return;
+    lastAttempt = Date.now();
+    const { data: last, error } = await db().from("charging_sessions").select("fetched_at").order("fetched_at", { ascending: false }).limit(1).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (last?.fetched_at && Date.now() - Date.parse(last.fetched_at as string) < MIN_SYNC_GAP_MS) return;
+    const { data: cars, error: carsError } = await db().from("vehicles").select("vin").not("vin", "is", null);
+    if (carsError) throw new Error(carsError.message);
+    await syncChargingHistory((cars ?? []).map((c) => c.vin as string));
+  } catch (err) {
+    console.warn("Charging history sync failed:", (err as Error).message);
+  }
+}
+
 // Newest first. A missing table or a read error shows as an empty list, with a log line.
 export async function loadChargingSessions(): Promise<ChargingSession[]> {
   const { data, error } = await db()
