@@ -181,6 +181,15 @@
     outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
+  /* Clicking a chart focuses its SVG parts, and the browser rings the line's shape. Keyboard focus
+     still gets a ring, around the whole chart. */
+  .recharts-wrapper *:focus {
+    outline: none;
+  }
+  .recharts-wrapper .recharts-surface:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
   ::selection {
     @apply bg-foreground text-background;
   }
