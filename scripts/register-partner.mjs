@@ -5,7 +5,7 @@
 // at https://<domain>/.well-known/appspecific/com.tesla.3p.public-key.pem.
 const TOKEN_URL = "https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token";
 const base = (process.env.TESLA_FLEET_API_BASE_URL || "https://fleet-api.prd.na.vn.cloud.tesla.com").replace(/\/$/, "");
-const domain = process.env.TESLA_PARTNER_DOMAIN || "getuplink.vercel.app";
+const domain = process.env.TESLA_PARTNER_DOMAIN || "app.getuplink.in";
 
 for (const name of ["TESLA_CLIENT_ID", "TESLA_CLIENT_SECRET"]) {
   if (!process.env[name]) {

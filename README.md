@@ -31,7 +31,7 @@ Every variable is listed in [`.env.example`](.env.example). In Vercel: **Project
 | Variable | Notes |
 | --- | --- |
 | `TESLA_CLIENT_ID`, `TESLA_CLIENT_SECRET` | From the Tesla developer app. |
-| `TESLA_REDIRECT_URI` | `https://getuplink.vercel.app/api/auth/callback` (must match the Tesla app). |
+| `TESLA_REDIRECT_URI` | `https://app.getuplink.in/api/auth/callback` (must match the Tesla app). |
 | `TESLA_FLEET_API_BASE_URL` | Optional. Defaults to the NA/APAC host above. |
 | `TESLA_PUBLIC_KEY_PEM` | From step 2. |
 | `TESLA_PRIVATE_KEY_PEM` | Not used: the app only reads data. Keep the private key offline; only add it if vehicle commands are added later. |
@@ -56,7 +56,7 @@ vercel env add TESLA_PUBLIC_KEY_PEM production < keys/public-key.pem
 Store the private key in a password manager. Never commit it. Redeploy, then confirm the key is live:
 
 ```sh
-curl https://getuplink.vercel.app/.well-known/appspecific/com.tesla.3p.public-key.pem
+curl https://app.getuplink.in/.well-known/appspecific/com.tesla.3p.public-key.pem
 ```
 
 ### 3. Register as a Tesla partner (one time)
@@ -67,7 +67,7 @@ Needs `TESLA_CLIENT_ID` and `TESLA_CLIENT_SECRET` in `.env.local`, and the publi
 bun --env-file=.env.local scripts/register-partner.mjs
 ```
 
-It gets a partner token (`client_credentials`), calls `POST /api/1/partner_accounts` with `{"domain": "getuplink.vercel.app"}`, then reads back `GET /api/1/partner_accounts/public_key` to confirm. Re-run it if you rotate the key.
+It gets a partner token (`client_credentials`), calls `POST /api/1/partner_accounts` with `{"domain": "app.getuplink.in"}`, then reads back `GET /api/1/partner_accounts/public_key` to confirm. Re-run it if you rotate the key.
 
 ### 4. Apply the Supabase migration
 
@@ -84,7 +84,7 @@ supabase db push
 
 Do this right after the first deploy: until someone signs in, the first Tesla account to do so becomes the owner.
 
-1. Open https://getuplink.vercel.app and click **Sign in with Tesla**.
+1. Open https://app.getuplink.in and click **Sign in with Tesla**.
 2. Sign in to Tesla and approve the requested scopes (vehicle data, offline access).
 3. You land on the dashboard and a first check runs immediately. If the car is asleep, it shows as Asleep with no version until a later check finds it online. Use **Check now** after opening the Tesla app (which wakes the car) to record the version straight away.
 

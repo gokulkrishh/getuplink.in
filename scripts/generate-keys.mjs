@@ -31,7 +31,7 @@ Next steps:
        vercel env add TESLA_PUBLIC_KEY_PEM production < ${publicPath}
   2. Keep ${privatePath} somewhere safe (a password manager). Never commit it.
      This app only reads vehicle data, so it does not need the private key at runtime.
-  3. Redeploy, then check https://getuplink.vercel.app/.well-known/appspecific/com.tesla.3p.public-key.pem
+  3. Redeploy, then check https://app.getuplink.in/.well-known/appspecific/com.tesla.3p.public-key.pem
   4. Register the domain: bun --env-file=.env.local scripts/register-partner.mjs
 
 Public key:
