@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { cacheLife, cacheTag } from "next/cache";
-import { after } from "next/server";
+import { after, connection } from "next/server";
 import { redirect } from "next/navigation";
 import { Download, Zap } from "lucide-react";
 import { Suspense } from "react";
@@ -498,6 +498,8 @@ async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParam
   const period = parsePeriod((await searchParams).period);
   const [{ sessions, streamSessions, distance, energy, updates, now }, { days, trend }] = await Promise.all([loadStats(), loadTelemetryStats()]);
   // Rebuilds sessions from the car's readings once this response is sent, so the next visit has them.
+  // Only for a real request: the sync reads the clock, which can't run while prerendering.
+  await connection();
   after(syncStreamSessionsForAllCars);
 
   const { pairs, streamOnly } = matchSessions(sessions, streamSessions, now);
