@@ -54,8 +54,8 @@ function UpdateStatus({ snapshot, asOf }: { snapshot: Snapshot | null; asOf: str
         {status === "available" ? (
           <span className="inline-flex items-center gap-2 text-foreground">
             <span className="relative flex size-2" aria-hidden="true">
-              <span className="absolute inline-flex size-full rounded-full bg-foreground opacity-60 motion-safe:animate-ping" />
-              <span className="relative inline-flex size-2 rounded-full bg-foreground" />
+              <span className="absolute inline-flex size-full rounded-full bg-positive opacity-60 motion-safe:animate-ping" />
+              <span className="relative inline-flex size-2 rounded-full bg-positive" />
             </span>
             {STATUS[status]}
           </span>
