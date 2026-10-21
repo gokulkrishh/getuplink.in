@@ -1,6 +1,6 @@
 import { after, NextResponse, type NextRequest } from "next/server";
 import type { LoginErrorCode } from "@/lib/login-errors";
-import { createSession, safeEqual, SESSION_COOKIE, SESSION_MAX_AGE, STATE_COOKIE } from "@/lib/session";
+import { createSession, safeEqual, SESSION_COOKIE, SESSION_MAX_AGE, sessionCookieDomain, STATE_COOKIE } from "@/lib/session";
 import { pollAll } from "@/lib/server/poll";
 import { signIn, type SignInResult } from "@/lib/server/tesla";
 
@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
 
   const res = done("/");
   res.cookies.set(SESSION_COOKIE, await createSession(), {
+    domain: sessionCookieDomain(request.headers.get("host")),
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

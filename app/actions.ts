@@ -1,16 +1,16 @@
 "use server";
 
 import { revalidatePath, updateTag } from "next/cache";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { DEMO } from "@/lib/demo";
-import { SESSION_COOKIE } from "@/lib/session";
+import { clearSession } from "@/lib/session";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { pollAll } from "@/lib/server/poll";
 
 export async function logout() {
-  (await cookies()).delete(SESSION_COOKIE);
+  clearSession(await cookies(), (await headers()).get("host"));
   // Deleting the cookie alone keeps the router's cached pages, so the next person to sign in on this
   // browser could see them. Drop them, and the private cache entries, before leaving.
   updateTag(OWNER_DATA_TAG);

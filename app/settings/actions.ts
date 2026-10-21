@@ -1,14 +1,14 @@
 "use server";
 
 import { revalidatePath, updateTag } from "next/cache";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { DEMO } from "@/lib/demo";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { deleteMyData, disconnectTesla, revokeAllSessions } from "@/lib/server/tesla";
 import { messageOf } from "@/lib/errors";
-import { SESSION_COOKIE } from "@/lib/session";
+import { clearSession } from "@/lib/session";
 
 // Server actions are reachable by POST from anywhere, so each one re-checks the session.
 async function requireSession() {
@@ -20,7 +20,7 @@ async function endHere() {
   // session; drop them so nothing is shown from before the change.
   updateTag(OWNER_DATA_TAG);
   revalidatePath("/", "layout");
-  (await cookies()).delete(SESSION_COOKIE);
+  clearSession(await cookies(), (await headers()).get("host"));
   redirect("/home");
 }
 

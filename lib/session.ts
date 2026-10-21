@@ -3,6 +3,22 @@ export const SESSION_COOKIE = "tiu_session";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 30;
 export const STATE_COOKIE = "tiu_oauth_state";
 
+// On getuplink.in the session cookie is shared with the home page (getuplink.in) so it can show
+// "Dashboard" to a signed-in owner; it stays HttpOnly. Elsewhere (localhost, previews) it's host-only.
+export function sessionCookieDomain(host: string | null | undefined): string | undefined {
+  const name = host?.split(":")[0];
+  return name && (name === "getuplink.in" || name.endsWith(".getuplink.in")) ? "getuplink.in" : undefined;
+}
+
+type CookieJar = { delete(options: { name: string; path?: string; domain?: string }): unknown };
+
+// Clears both the shared cookie and any older host-only one.
+export function clearSession(jar: CookieJar, host: string | null | undefined) {
+  jar.delete({ name: SESSION_COOKIE, path: "/" });
+  const domain = sessionCookieDomain(host);
+  if (domain) jar.delete({ name: SESSION_COOKIE, path: "/", domain });
+}
+
 const encoder = new TextEncoder();
 
 // Sessions are signed with a key derived from TOKEN_ENCRYPTION_KEY, so rotating
