@@ -108,9 +108,9 @@ function UpdateStatus({ snapshot }: { snapshot: Snapshot | null }) {
   );
 }
 
-// Columns shared by the header and every row: version, received, installed, odometer.
+// Columns shared by the header and every row: version, received (hidden on phones), installed, odometer.
 const HISTORY_COLS =
-  "grid grid-cols-[minmax(0,1fr)_3.75rem_5.5rem_3.5rem] items-baseline gap-x-2 sm:grid-cols-[minmax(0,1fr)_7.5rem_7.5rem_4.5rem] sm:gap-x-6";
+  "grid grid-cols-[minmax(0,1fr)_5.5rem_4.25rem] items-baseline gap-x-3 sm:grid-cols-[minmax(0,1fr)_7.5rem_7.5rem_4.5rem] sm:gap-x-6";
 
 // "12 Oct" this year, "24 Dec 2025" otherwise.
 function historyDate(value: string): string {
@@ -125,7 +125,7 @@ function HistoryCells({ change }: { change: VersionChange }) {
   const date = historyDate(change.detected_at);
   return (
     <>
-      <span className="text-right text-faint tabular-nums">
+      <span className="hidden text-right text-faint tabular-nums sm:block">
         {/* Always within days of Installed, which carries the year. */}
         {change.previous_version && change.available_at ? formatShortDate(change.available_at) : ""}
       </span>
@@ -139,7 +139,12 @@ function HistoryCells({ change }: { change: VersionChange }) {
           <Tip>Already installed when tracking started</Tip>
         </span>
       )}
-      <span className="text-right text-faint tabular-nums">{change.odometer_km != null ? km.format(change.odometer_km) : ""}</span>
+      <span className="text-right text-faint tabular-nums">{change.odometer_km != null && (
+          <>
+            {km.format(change.odometer_km)}
+            <span className="ml-0.5 text-xs">km</span>
+          </>
+        )}</span>
     </>
   );
 }
@@ -359,7 +364,7 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
             <div className="pt-6">
               <div className={cn(HISTORY_COLS, "pb-2 text-xs text-faint")}>
                 <h3 className="pl-5">Versions</h3>
-                <span className="text-right">Received</span>
+                <span className="hidden text-right sm:block">Received</span>
                 <span className="text-right">Installed</span>
                 <span className="text-right">Odometer</span>
               </div>
