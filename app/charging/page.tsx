@@ -66,24 +66,30 @@ function MonthBars({ sessions }: { sessions: ChargingSession[] }) {
     return { key, label: monthLabel.format(d), cost, isCurrent: back === 0 };
   });
   const max = Math.max(...months.map((m) => m.cost));
+  // Months before the first session stay blank, so the bars start where the history starts.
+  const first = months.findIndex((m) => m.cost > 0);
 
   return (
     <div className="bg-muted px-4 pt-5 pb-3">
-      <ol className="grid grid-cols-6 items-end gap-3" aria-label="Spend per month, last 6 months">
-        {months.map((m) => (
-          <li key={m.key} className="flex flex-col items-center gap-2">
-            <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
-              {m.cost > 0 ? compact.format(m.cost) : "—"}
-            </span>
-            <div className="flex h-20 w-full items-end">
-              <div
-                className={cn("w-full", m.isCurrent ? "bg-foreground" : "bg-muted-foreground/40")}
-                style={{ height: m.cost > 0 ? `${Math.max(4, (m.cost / max) * 100)}%` : "1px" }}
-              />
-            </div>
-            <span className={cn("text-xs", m.isCurrent ? "text-foreground" : "text-faint")}>{m.label}</span>
-          </li>
-        ))}
+      <ol className="grid grid-cols-6 items-end gap-3" aria-label="Spend per month">
+        {months.map((m, k) =>
+          k < first ? (
+            <li key={m.key} aria-hidden="true" />
+          ) : (
+            <li key={m.key} className="flex flex-col items-center gap-2">
+              <span className="font-mono text-[11px] text-muted-foreground tabular-nums">{compact.format(m.cost)}</span>
+              <div className="flex h-20 w-full items-end">
+                {m.cost > 0 && (
+                  <div
+                    className={cn("w-full", m.isCurrent ? "bg-foreground" : "bg-muted-foreground/40")}
+                    style={{ height: `${Math.max(4, (m.cost / max) * 100)}%` }}
+                  />
+                )}
+              </div>
+              <span className={cn("text-xs", m.isCurrent ? "text-foreground" : "text-faint")}>{m.label}</span>
+            </li>
+          ),
+        )}
       </ol>
     </div>
   );
@@ -134,13 +140,13 @@ function SessionRow({ session: s }: { session: ChargingSession }) {
           {rateText && <span className="hidden sm:inline"> · {rateText}</span>}
         </p>
       </div>
-      <div className="pt-0.5">
+      <div className="flex self-center">
         {invoice?.contentId && (
           <a
             href={`/api/charging/invoice/${encodeURIComponent(invoice.contentId)}`}
             aria-label={`Download invoice for ${formatShortDate(s.started_at)}`}
             title="Download invoice (PDF)"
-            className="text-muted-foreground transition-colors duration-150 hover:text-foreground"
+            className="flex text-muted-foreground transition-colors duration-150 hover:text-foreground"
           >
             <Download className="size-4" aria-hidden="true" />
           </a>
