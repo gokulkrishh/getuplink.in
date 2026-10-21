@@ -95,7 +95,7 @@ function UpdateStatus({
         <p className="text-xs text-muted-foreground">
           {status === "scheduled" && snapshot.scheduled_time_ms
             ? `Starts ${formatDateTime(snapshot.scheduled_time_ms)}`
-            : `Install takes ~${formatDuration(snapshot.expected_duration_sec!)}`}
+            : `Takes approx. ${formatDuration(snapshot.expected_duration_sec!)}`}
         </p>
       ) : null}
       {asOfLine}
