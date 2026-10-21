@@ -7,7 +7,7 @@ import { LoginError } from "./login-form";
 // Static illustration of the dashboard, so the sign-in page shows what you get.
 function Preview() {
   return (
-    <div aria-hidden="true" className="w-full max-w-sm border p-6 text-left select-none sm:p-8">
+    <div aria-hidden="true" className="w-full max-w-sm border-l pl-6 text-left select-none sm:pl-8">
       <p className="text-xs text-faint">Model Y</p>
       <p className="mt-1 font-mono text-4xl font-medium tracking-tight tabular-nums">2026.32.3</p>
       <div className="mt-8 flex items-baseline justify-between text-sm">

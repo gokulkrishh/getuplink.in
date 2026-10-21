@@ -1,6 +1,6 @@
 import { VersionChart } from "@/components/version-chart";
 import { formatDate, formatDateTime, formatDuration, formatKm, formatShortDate, formatTime } from "@/lib/format";
-import { Check, ChevronRight, ScrollText } from "lucide-react";
+import { Check, ChevronRight } from "lucide-react";
 import { ReleaseNotesList } from "@/components/release-notes";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import type { Snapshot, VehicleView, VersionChange } from "@/lib/server/dashboard";
@@ -38,7 +38,7 @@ function UpdateStatus({ snapshot, asOf }: { snapshot: Snapshot | null; asOf: str
     return (
       <div className="space-y-1">
         <p className="flex items-center gap-1.5">
-          <Check className="size-3.5 text-positive" aria-hidden="true" />
+          <Check className="size-3.5 text-muted-foreground" aria-hidden="true" />
           Up to date
         </p>
         {asOfLine}
@@ -52,10 +52,10 @@ function UpdateStatus({ snapshot, asOf }: { snapshot: Snapshot | null; asOf: str
     <div className="space-y-2">
       <p>
         {status === "available" ? (
-          <span className="inline-flex items-center gap-2 text-positive">
+          <span className="inline-flex items-center gap-2 text-foreground">
             <span className="relative flex size-2" aria-hidden="true">
-              <span className="absolute inline-flex size-full rounded-full bg-positive opacity-60 motion-safe:animate-ping" />
-              <span className="relative inline-flex size-2 rounded-full bg-positive" />
+              <span className="absolute inline-flex size-full rounded-full bg-foreground opacity-60 motion-safe:animate-ping" />
+              <span className="relative inline-flex size-2 rounded-full bg-foreground" />
             </span>
             {STATUS[status]}
           </span>

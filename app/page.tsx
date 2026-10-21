@@ -69,7 +69,7 @@ function RunError({ error }: { error: string }) {
 function Notice({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-3">
-      <h2 className="text-2xl font-medium tracking-tight">{title}</h2>
+      <h2 className="text-base font-medium tracking-[-0.01em]">{title}</h2>
       <div className="max-w-md space-y-4 text-sm text-muted-foreground">{children}</div>
     </section>
   );
@@ -125,7 +125,7 @@ async function Dashboard({ searchParams }: PageProps<"/">) {
             <p>Your Tesla account is connected, but no vehicles were found on it yet.</p>
           )}
           <form action={checkNow}>
-            <CheckNowButton spinner className={buttonVariants({ variant: "outline", className: "h-9 px-4" })} />
+            <CheckNowButton spinner className={buttonVariants({ variant: "ghost", className: "h-8 px-3" })} />
           </form>
         </Notice>
       )}

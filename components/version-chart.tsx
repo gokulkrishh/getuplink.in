@@ -1,5 +1,6 @@
 "use client";
 
+import { useLayoutEffect, useRef, useState } from "react";
 import { Line, LineChart, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import { formatDate, formatShortDate } from "@/lib/format";
@@ -16,13 +17,28 @@ export function VersionChart({
   changes: { version: string; detected_at: string }[];
   until: string | null;
 }) {
+  // Measure the box first and draw at that width, so the chart never renders at a default size and jumps.
+  const box = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => setWidth(Math.round(entry.contentRect.width)));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const data: Point[] = changes.map((c, i) => ({ at: new Date(c.detected_at).getTime(), step: i, version: c.version }));
   const last = data.at(-1);
   if (!last) return null;
   if (until) data.push({ ...last, at: Math.max(new Date(until).getTime(), last.at) });
 
   return (
-    <ChartContainer config={config} className="aspect-auto h-20 w-full">
+    <div ref={box} className="h-20 w-full">
+      {width === 0 ? (
+        <div className="h-full w-full bg-muted motion-safe:animate-pulse" aria-busy="true" aria-label="Loading chart" />
+      ) : (
+    <ChartContainer config={config} className="aspect-auto h-20 w-full" initialDimension={{ width, height: 80 }}>
       <LineChart data={data} margin={{ top: 6, right: 4, bottom: 0, left: 4 }}>
         <XAxis
           dataKey="at"
@@ -60,5 +76,7 @@ export function VersionChart({
         />
       </LineChart>
     </ChartContainer>
+      )}
+    </div>
   );
 }

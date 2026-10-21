@@ -20,7 +20,7 @@ export const metadata: Metadata = { title: "Settings · Uplink" };
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mt-10 first:mt-0">
-      <h2 className="mb-2 text-xs text-faint">{title}</h2>
+      <h2 className="mb-2 text-xs font-medium tracking-wide text-faint uppercase">{title}</h2>
       <div className="divide-y border-t">{children}</div>
     </section>
   );
@@ -67,7 +67,7 @@ async function Settings() {
           description="Ends every session on every device, including this one."
           control={
             <form action={signOutEverywhere}>
-              <Button type="submit" variant="outline" className="h-9 px-4">
+              <Button type="submit" variant="ghost" className="h-8 px-3">
                 Sign out everywhere
               </Button>
             </form>
@@ -94,7 +94,7 @@ export default function SettingsPage() {
           Back to dashboard
         </Link>
       </header>
-      <h1 className="mb-8 text-2xl font-medium tracking-tight">Settings</h1>
+      <h1 className="mb-8 text-base font-medium tracking-[-0.01em]">Settings</h1>
       <Suspense fallback={<div className="h-64 bg-muted motion-safe:animate-pulse" aria-busy="true" aria-label="Loading settings" />}>
         <Settings />
       </Suspense>

@@ -10,7 +10,7 @@ import { Row } from "./row";
 function Submit({ children, pendingLabel }: { children: string; pendingLabel: string }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant="destructive" disabled={pending} className="h-9 px-4">
+    <Button type="submit" variant="destructive" disabled={pending} className="h-8 px-3">
       {pending ? pendingLabel : children}
     </Button>
   );
@@ -25,14 +25,14 @@ export function DisconnectTesla({ description }: { description: string }) {
       description={description}
       control={
         !asking ? (
-          <Button type="button" variant="outline" className="h-9 px-4" onClick={() => setAsking(true)}>
+          <Button type="button" variant="ghost" className="h-8 px-3" onClick={() => setAsking(true)}>
             Disconnect
           </Button>
         ) : null
       }
     >
       {asking && (
-        <form action={disconnect} className="mt-4 space-y-3 border border-destructive/40 p-4 text-sm">
+        <form action={disconnect} className="mt-4 space-y-3 border-l-2 border-destructive pl-4 text-sm">
           <p className="font-medium">Disconnect your Tesla account?</p>
           <p className="text-muted-foreground">
             Uplink stops checking your car and signs you out on every device. Your history stays. Sign in with Tesla to
@@ -40,7 +40,7 @@ export function DisconnectTesla({ description }: { description: string }) {
           </p>
           <div className="flex gap-2 pt-1">
             <Submit pendingLabel="Disconnecting…">Disconnect Tesla</Submit>
-            <Button type="button" variant="ghost" className="h-9 px-4" onClick={() => setAsking(false)}>
+            <Button type="button" variant="ghost" className="h-8 px-3" onClick={() => setAsking(false)}>
               Cancel
             </Button>
           </div>
@@ -60,14 +60,14 @@ export function DeleteMyData() {
       description="Permanently deletes your vehicles, version history, check logs and Tesla connection."
       control={
         !asking ? (
-          <Button type="button" variant="destructive" className="h-9 px-4" onClick={() => setAsking(true)}>
+          <Button type="button" variant="destructiveGhost" className="h-8 px-3" onClick={() => setAsking(true)}>
             Delete
           </Button>
         ) : null
       }
     >
       {asking && (
-        <form action={action} className="mt-4 space-y-3 border border-destructive/40 p-4 text-sm">
+        <form action={action} className="mt-4 space-y-3 border-l-2 border-destructive pl-4 text-sm">
           <p className="font-medium">Delete all your data?</p>
           <p className="text-muted-foreground">
             This permanently deletes your vehicles, version history, check logs and Tesla connection, and signs you out on
@@ -80,7 +80,7 @@ export function DeleteMyData() {
           {error && <p className="text-sm text-destructive">{error}</p>}
           <div className="flex gap-2 pt-1">
             <Submit pendingLabel="Deleting…">Delete my data</Submit>
-            <Button type="button" variant="ghost" className="h-9 px-4" onClick={() => setAsking(false)}>
+            <Button type="button" variant="ghost" className="h-8 px-3" onClick={() => setAsking(false)}>
               Cancel
             </Button>
           </div>
