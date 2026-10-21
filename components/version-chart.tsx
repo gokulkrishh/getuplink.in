@@ -34,9 +34,11 @@ export function VersionChart({
   if (until) data.push({ ...last, at: Math.max(new Date(until).getTime(), last.at) });
 
   return (
+    // A soft panel behind the chart; the inner box is measured so the chart draws at its real width.
+    <div className="bg-muted px-3 pt-4 pb-2">
     <div ref={box} className="h-20 w-full">
       {width === 0 ? (
-        <div className="h-full w-full bg-muted motion-safe:animate-pulse" aria-busy="true" aria-label="Loading chart" />
+        <div className="h-full w-full bg-background/60 motion-safe:animate-pulse" aria-busy="true" aria-label="Loading chart" />
       ) : (
     <ChartContainer config={config} className="aspect-auto h-20 w-full" initialDimension={{ width, height: 80 }}>
       <LineChart data={data} margin={{ top: 6, right: 4, bottom: 0, left: 4 }}>
@@ -77,6 +79,7 @@ export function VersionChart({
       </LineChart>
     </ChartContainer>
       )}
+    </div>
     </div>
   );
 }

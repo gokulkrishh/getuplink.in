@@ -159,6 +159,7 @@ function BatteryGauge({ snapshot }: { snapshot: Snapshot }) {
 function EmptyHistory() {
   return (
     <div className="space-y-4">
+      <div className="bg-muted px-3 pt-4 pb-2">
       <svg viewBox="0 0 300 48" className="h-20 w-full text-border" preserveAspectRatio="none" aria-hidden="true">
         <path
           d="M0 44H80V32H170V20H250V8H300"
@@ -169,6 +170,7 @@ function EmptyHistory() {
           vectorEffect="non-scaling-stroke"
         />
       </svg>
+      </div>
       <div className="space-y-1">
         <p className="text-sm">No versions yet</p>
         <p className="max-w-md text-xs text-muted-foreground">
