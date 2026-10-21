@@ -361,7 +361,7 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
                 <h3 className="pl-5">Versions</h3>
                 <span className="text-right">Received</span>
                 <span className="text-right">Installed</span>
-                <span className="text-right">km</span>
+                <span className="text-right">Odometer</span>
               </div>
               <ol className="text-sm">
                 {history.slice(0, HISTORY_PREVIEW).map((change) => (
