@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "./supabase";
 import { parseReleaseNotes } from "@/lib/release-notes";
 import { fleetGet, TeslaError } from "./tesla";
+import { colorName, MILES_TO_KM, modelName } from "@/lib/car";
 
 type FleetVehicle = {
   id: number;
@@ -22,6 +23,8 @@ type SoftwareUpdate = {
 
 type VehicleData = {
   vehicle_state?: { car_version?: string; odometer?: number; software_update?: SoftwareUpdate };
+  charge_state?: { battery_level?: number; battery_range?: number; charging_state?: string; charge_limit_soc?: number };
+  vehicle_config?: { car_type?: string; exterior_color?: string; trim_badging?: string };
 };
 
 // "2025.32.3 1a2b3c4d" -> "2025.32.3"; the build hash changes nothing for us.
@@ -59,7 +62,7 @@ async function pollVehicle(vehicle: FleetVehicle, now: string) {
 
   let data: VehicleData;
   try {
-    data = await fleetGet<VehicleData>(`/api/1/vehicles/${vehicle.vin}/vehicle_data?endpoints=vehicle_state`);
+    data = await fleetGet<VehicleData>(`/api/1/vehicles/${vehicle.vin}/vehicle_data?endpoints=vehicle_state;charge_state;vehicle_config`);
   } catch (err) {
     // 408: the car fell asleep between the list call and this one.
     if (err instanceof TeslaError && err.status === 408) {
@@ -81,11 +84,20 @@ async function pollVehicle(vehicle: FleetVehicle, now: string) {
   const update = state.software_update ?? {};
   const version = normaliseVersion(state.car_version);
   const previous = existing?.current_version ?? null;
+  const charge = data.charge_state ?? {};
+  const config = data.vehicle_config ?? {};
 
   await check(
     db()
       .from("vehicles")
-      .upsert({ ...base, last_seen_at: now, ...(version ? { current_version: version } : {}) }),
+      .upsert({
+        ...base,
+        last_seen_at: now,
+        ...(version ? { current_version: version } : {}),
+        ...(config.car_type
+          ? { model: modelName(config.car_type), exterior_color: colorName(config.exterior_color), trim_badging: config.trim_badging ?? null }
+          : {}),
+      }),
   );
   await check(
     db().from("snapshots").insert({
@@ -99,7 +111,11 @@ async function pollVehicle(vehicle: FleetVehicle, now: string) {
       install_perc: update.install_perc ?? null,
       expected_duration_sec: update.expected_duration_sec ?? null,
       scheduled_time_ms: update.scheduled_time_ms ?? null,
-      raw: data.vehicle_state ?? null,
+      battery_level: charge.battery_level ?? null,
+      battery_range_km: typeof charge.battery_range === "number" ? Math.round(charge.battery_range * MILES_TO_KM * 10) / 10 : null,
+      charging_state: charge.charging_state ?? null,
+      charge_limit: charge.charge_limit_soc ?? null,
+      raw: data ?? null,
     }),
   );
   await recordReleaseNotes(vehicle.vin, [

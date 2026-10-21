@@ -6,6 +6,7 @@ import { isValidSession, SESSION_COOKIE } from "@/lib/session";
 const PUBLIC_PATHS = new Set([
   "/api/auth/connect",
   "/api/auth/callback",
+  "/api/auth/signed-out", // only clears the session cookie
   "/api/cron/poll", // checks CRON_SECRET itself
   "/api/public-key",
   "/.well-known/appspecific/com.tesla.3p.public-key.pem",

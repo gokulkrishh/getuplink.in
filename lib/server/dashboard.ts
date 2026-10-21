@@ -14,6 +14,8 @@ export type Vehicle = {
   current_version: string | null;
   last_seen_at: string | null;
   last_polled_at: string | null;
+  model: string | null;
+  exterior_color: string | null;
 };
 
 export type Snapshot = {
@@ -26,6 +28,10 @@ export type Snapshot = {
   install_perc: number | null;
   expected_duration_sec: number | null;
   scheduled_time_ms: number | null;
+  battery_level: number | null;
+  battery_range_km: number | null;
+  charging_state: string | null;
+  charge_limit: number | null;
   error: string | null;
 };
 
@@ -54,7 +60,7 @@ export type Dashboard =
   | { kind: "ready"; vehicles: VehicleView[]; lastRun: PollRun | null; releaseNotes: ReleaseNotesByVersion };
 
 const SNAPSHOT_COLUMNS =
-  "polled_at, state, car_version, update_status, update_version, download_perc, install_perc, expected_duration_sec, scheduled_time_ms, error";
+  "polled_at, state, car_version, update_status, update_version, download_perc, install_perc, expected_duration_sec, scheduled_time_ms, battery_level, battery_range_km, charging_state, charge_limit, error";
 
 async function vehicleView(vehicle: Vehicle): Promise<VehicleView> {
   const [latest, lastOnline, history] = await Promise.all([
@@ -109,7 +115,7 @@ export async function loadDashboard(demoScenario?: string): Promise<Dashboard> {
   try {
     if (!(await isConnected())) return { kind: "disconnected" };
     const [vehicles, runs] = await Promise.all([
-      db().from("vehicles").select("id, vin, display_name, last_state, current_version, last_seen_at, last_polled_at").order("created_at"),
+      db().from("vehicles").select("id, vin, display_name, last_state, current_version, last_seen_at, last_polled_at, model, exterior_color").order("created_at"),
       db().from("poll_runs").select("started_at, ok, error").order("started_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
     if (vehicles.error) throw new Error(vehicles.error.message);

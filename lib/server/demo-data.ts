@@ -103,6 +103,10 @@ export function demoDashboard(scenario: DemoScenario = "full"): Dashboard {
     install_perc: null,
     expected_duration_sec: null,
     scheduled_time_ms: null,
+    battery_level: 82,
+    battery_range_km: 398,
+    charging_state: "Disconnected",
+    charge_limit: 90,
     error: null,
     ...overrides,
   });
@@ -112,6 +116,8 @@ export function demoDashboard(scenario: DemoScenario = "full"): Dashboard {
       id: 1,
       vin: "DEMO00000000000001",
       display_name: "Model Y",
+      model: "Model Y",
+      exterior_color: "Pearl White",
       last_state: latest?.state ?? "asleep",
       current_version: rows[0]?.[0] ?? null,
       last_seen_at: lastOnline?.polled_at ?? null,
@@ -165,11 +171,15 @@ export function demoDashboard(scenario: DemoScenario = "full"): Dashboard {
         car_version: "2026.26.8 9c1d2e3f",
         update_status: "available",
         update_version: "2026.32.3",
+        battery_level: 64,
+        battery_range_km: 291,
+        charging_state: "Charging",
+        charge_limit: 80,
       });
       return ready([
         car({}, downloading, downloading, LONG_HISTORY),
         car(
-          { id: 2, vin: "DEMO00000000000002", display_name: "Model 3", last_state: "asleep" },
+          { id: 2, vin: "DEMO00000000000002", display_name: "Model 3", model: "Model 3", exterior_color: "Midnight Silver", last_state: "asleep" },
           snapshot({ state: "asleep", car_version: null }),
           model3Online,
           LONG_HISTORY.slice(1, 6),
