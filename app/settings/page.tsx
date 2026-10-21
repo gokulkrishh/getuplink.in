@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
-import { connection } from "next/server";
 import { Suspense } from "react";
 import { Logo } from "@/components/logo";
 import { ThemePicker } from "@/components/theme-picker";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { DEMO } from "@/lib/demo";
 import { formatDate, formatSeen } from "@/lib/format";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { db } from "@/lib/server/supabase";
 import { accountInfo, type AccountInfo } from "@/lib/server/tesla";
 import { DeleteMyData, DisconnectTesla } from "./confirm-actions";
@@ -26,7 +27,12 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
+// Session check plus data in one browser-only private cache, so header links can prefetch it (see app/page.tsx).
 async function loadSettings(): Promise<{ account: AccountInfo; lastCheck: string | null }> {
+  "use cache: private";
+  cacheTag(OWNER_DATA_TAG);
+  cacheLife({ stale: 60 });
+  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
   if (DEMO) return { account: { connected: true, connectedSince: new Date(Date.now() - 86_400_000).toISOString() }, lastCheck: new Date().toISOString() };
   const [account, run] = await Promise.all([
     accountInfo(),
@@ -36,8 +42,6 @@ async function loadSettings(): Promise<{ account: AccountInfo; lastCheck: string
 }
 
 async function Settings() {
-  await connection();
-  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
   const { account, lastCheck } = await loadSettings();
   const connectedDescription = account.connectedSince ? `Connected since ${formatDate(account.connectedSince)}` : "Connected";
 
@@ -93,11 +97,11 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:py-20">
       <header className="mb-12 flex items-center justify-between gap-4 text-sm">
-        <Link href="/" className="flex items-center gap-2.5 font-medium">
+        <Link href="/" prefetch={true} className="flex items-center gap-2.5 font-medium">
           <Logo className="size-5" />
           Uplink
         </Link>
-        <Link href="/" className="text-muted-foreground hover:text-foreground">
+        <Link href="/" prefetch={true} className="text-muted-foreground hover:text-foreground">
           Back to dashboard
         </Link>
       </header>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { connection } from "next/server";
+import { cacheLife, cacheTag } from "next/cache";
 import { Suspense } from "react";
 import { checkNow, logout } from "@/app/actions";
 import { Settings2 } from "lucide-react";
@@ -15,23 +15,23 @@ import { describeRunError } from "@/lib/run-error";
 import { DEMO_SCENARIOS } from "@/lib/server/demo-data";
 import { formatDateTime } from "@/lib/format";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
-import { loadDashboard } from "@/lib/server/dashboard";
+import { type Dashboard as DashboardData, loadDashboard, OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { redirect } from "next/navigation";
 
 function Header() {
   return (
     <header className="mb-16 flex items-center justify-between gap-4 text-sm">
       <h1 className="font-medium">
-        <Link href="/" className="flex items-center gap-2.5">
+        <Link href="/" prefetch={true} className="flex items-center gap-2.5">
           <Logo className="size-5" />
           Uplink
         </Link>
       </h1>
       <nav className="flex items-baseline gap-4 text-muted-foreground">
-        <Link href="/stats" className="hover:text-foreground">
+        <Link href="/stats" prefetch={true} className="hover:text-foreground">
           Stats
         </Link>
-        <Link href="/settings" className="hover:text-foreground">
+        <Link href="/settings" prefetch={true} className="hover:text-foreground">
           Settings
         </Link>
         <form action={logout}>
@@ -76,12 +76,23 @@ function Notice({ title, children }: { title: string; children: React.ReactNode 
   );
 }
 
-async function Dashboard({ searchParams }: PageProps<"/">) {
-  await connection();
+// The session check and the data share one private scope: the result lives only in this browser's
+// router cache (never a server cache), so a header link's prefetch can carry it. The check still runs
+// on every server render; redirect() throws, so a signed-out result is never cached. The demo
+// scenario is an argument, so each one gets its own entry.
+async function loadOwnDashboard(demo: string): Promise<DashboardData> {
+  "use cache: private";
+  cacheTag(OWNER_DATA_TAG);
+  // 60s is enough for a per-link prefetch (30s minimum); the App Shell would need 5 minutes.
+  cacheLife({ stale: 60 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
+  return loadDashboard(demo);
+}
+
+async function Dashboard({ searchParams }: PageProps<"/">) {
   const params = await searchParams;
   const demo = typeof params.demo === "string" ? params.demo : "full";
-  const data = await loadDashboard(demo);
+  const data = await loadOwnDashboard(demo);
   const flash = params.error === "check" ? "The check couldn't run. Try again in a minute." : null;
   const failedRun = data.kind === "ready" && data.lastRun?.ok === false ? data.lastRun : null;
 
