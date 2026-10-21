@@ -293,17 +293,20 @@ const ONLINE_FRESH_MS = 15 * 60 * 1000;
 // "● Online" or "● Asleep" as of the last check. When not online, a tooltip says when it last was.
 function CarStatus({
   state,
+  streaming,
   seenAt,
   checkedAt,
   now,
 }: {
   state: string | null;
+  // The car streamed a reading in the last few minutes.
+  streaming: boolean;
   seenAt: string | null;
   checkedAt: string | null;
   now: number;
 }) {
   const fresh = checkedAt !== null && now - Date.parse(checkedAt) < ONLINE_FRESH_MS;
-  const online = state === "online" && fresh;
+  const online = streaming || (state === "online" && fresh);
   const label =
     online
       ? "Online"
@@ -377,7 +380,14 @@ export function VehicleSection({
             </Link>
           </h2>
           <div className="flex items-center justify-end gap-1 text-sm text-faint tabular-nums">
-            <CarStatus state={latest?.state ?? null} seenAt={vehicle.last_seen_at} checkedAt={latest?.polled_at ?? null} now={now} />
+            {/* A recent streamed reading means the car is awake now, even between checks. */}
+            <CarStatus
+              state={latest?.state ?? null}
+              streaming={awake}
+              seenAt={streamAt && (!vehicle.last_seen_at || streamAt > vehicle.last_seen_at) ? streamAt : vehicle.last_seen_at}
+              checkedAt={latest?.polled_at ?? null}
+              now={now}
+            />
           </div>
           <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
             {vehicle.current_version ?? "—"}
