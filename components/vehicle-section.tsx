@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { BatteryChart } from "@/components/battery-chart";
 import { BatteryHealth, LastCharge, RecentActivity, UpdateSummary, WeekStrip } from "@/components/vehicle-extras";
 import { VersionChart } from "@/components/version-chart";
 import { formatDate, formatDuration, formatKm, formatSeen, formatShortDate } from "@/lib/format";
@@ -426,8 +425,7 @@ export function VehicleSection({
             <Label>Battery</Label>
             <dd className="space-y-4">
               <BatteryGauge snapshot={battery} />
-              {extras && <BatteryChart day={extras.battery.day} week={extras.battery.week} now={now} />}
-              <BatteryHealth id={vehicle.id} kwh={extras?.battery.healthKwh ?? null} />
+              <BatteryHealth id={vehicle.id} kwh={extras?.healthKwh ?? null} />
             </dd>
           </div>
         </dl>

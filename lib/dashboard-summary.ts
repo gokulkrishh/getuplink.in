@@ -1,6 +1,6 @@
 import { dailyDistance, istDay, istDayStart, num, type Reading, type UpdateTimeline } from "@/lib/telemetry-derive";
 
-// Pure builders for the dashboard's "This week", battery chart and "Recent activity". The loader in
+// Pure builders for the dashboard's "This week" and "Recent activity". The loader in
 // lib/server/dashboard-extras.ts reads the data (or the demo's generated data) and passes it through these.
 
 export const WEEK_DAYS = 7;
@@ -43,25 +43,41 @@ export type ChargeItem = {
   endLevel: number | null;
 };
 
-export type WeekSummary = {
-  km: number | null;
-  usedKwh: number | null;
-  chargedKwh: number | null;
-  whPerKm: number | null;
-};
+export type WeekTotals = { km: number | null; whPerKm: number | null };
 
-// The last 7 IST days (today included). Each figure is null when there is no data for it.
-export function weekSummary(odometer: Reading[], odometerBefore: number | null, used: Reading[], usedBefore: number | null, charges: ChargeItem[], now: number): WeekSummary {
-  const days = dailyDistance(odometer, odometerBefore, now, WEEK_DAYS);
-  const known = days.filter((d) => d.km !== null);
-  const km = known.length > 0 ? known.reduce((sum, d) => sum + (d.km ?? 0), 0) : null;
-  const increases = dailyIncrease(used, usedBefore, now, WEEK_DAYS).filter((v): v is number => v !== null);
-  const usedKwh = increases.length > 0 ? increases.reduce((a, b) => a + b, 0) : null;
-  const from = istDayStart(istDay(now) - WEEK_DAYS + 1);
-  const energies = charges.filter((c) => Date.parse(c.started_at) >= from && c.energyKwh !== null);
-  const chargedKwh = energies.length > 0 ? energies.reduce((sum, c) => sum + (c.energyKwh ?? 0), 0) : null;
-  const whPerKm = km !== null && km >= MIN_EFFICIENCY_KM && usedKwh !== null && usedKwh > 0 ? (usedKwh * 1000) / km : null;
-  return { km, usedKwh, chargedKwh, whPerKm };
+// The last 7 IST days (today included) and the 7 days before them.
+export type WeekSummary = WeekTotals & { previous: WeekTotals };
+
+// Each figure is null when there is no data for it.
+export function weekSummary(odometer: Reading[], odometerBefore: number | null, used: Reading[], usedBefore: number | null, now: number): WeekSummary {
+  const span = WEEK_DAYS * 2;
+  const km = dailyDistance(odometer, odometerBefore, now, span).map((d) => d.km);
+  const usedKwh = dailyIncrease(used, usedBefore, now, span);
+  const sum = (values: (number | null)[]): number | null => {
+    const known = values.filter((v): v is number => v !== null);
+    return known.length > 0 ? known.reduce((a, b) => a + b, 0) : null;
+  };
+  const totals = (from: number): WeekTotals => {
+    const weekKm = sum(km.slice(from, from + WEEK_DAYS));
+    const weekUsed = sum(usedKwh.slice(from, from + WEEK_DAYS));
+    const whPerKm = weekKm !== null && weekKm >= MIN_EFFICIENCY_KM && weekUsed !== null && weekUsed > 0 ? (weekUsed * 1000) / weekKm : null;
+    return { km: weekKm, whPerKm };
+  };
+  return { ...totals(WEEK_DAYS), previous: totals(0) };
+}
+
+// "18 km more than last week", "Same" (within 2%). `lowerIsBetter` words the change as
+// better or worse instead of less or more. Null when last week has no figure.
+export function compareToLastWeek(current: number, previous: number | null, unit: string, opts: { decimals?: number; lowerIsBetter?: boolean } = {}): string | null {
+  if (previous === null) return null;
+  const { decimals = 0, lowerIsBetter = false } = opts;
+  const diff = current - previous;
+  const step = 10 ** -decimals;
+  const rounded = Math.round(Math.abs(diff) / step) * step;
+  if (rounded === 0 || Math.abs(diff) <= Math.abs(previous) * 0.02) return "Same";
+  const up = diff > 0;
+  const word = lowerIsBetter ? (up ? "worse" : "better") : up ? "more" : "less";
+  return `${rounded.toFixed(decimals)} ${unit} ${word}`;
 }
 
 export type ActivityEvent = { at: number; text: string };
@@ -93,7 +109,7 @@ function chargeText(c: ChargeItem): string {
 // Up to `limit` newest events from the last 14 IST days: one entry per day driven, each charge and each
 // update. Newest first.
 export function buildActivity(input: ActivityInput): ActivityEvent[] {
-  const { now, limit = 6 } = input;
+  const { now, limit = 30 } = input;
   const from = istDayStart(istDay(now) - ACTIVITY_DAYS + 1);
   const events: ActivityEvent[] = [];
 
@@ -122,15 +138,5 @@ export function buildActivity(input: ActivityInput): ActivityEvent[] {
   return events.sort((a, b) => b.at - a.at).slice(0, limit);
 }
 
+// Only the unused battery chart components still import this; they await deletion.
 export type LevelPoint = { at: number; level: number };
-
-// BatteryLevel readings thinned to the last reading in each bucket, so a week of readings stays small.
-export function levelSeries(readings: Reading[], from: number, bucketMs: number): LevelPoint[] {
-  const buckets = new Map<number, LevelPoint>();
-  for (const r of readings) {
-    const at = Date.parse(r.at);
-    const level = num(r.value);
-    if (level !== null && at >= from) buckets.set(Math.floor(at / bucketMs), { at, level });
-  }
-  return [...buckets.values()].sort((a, b) => a.at - b.at);
-}

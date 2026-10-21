@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { ShowMore } from "@/components/show-more";
 import { SessionRow } from "@/components/session-row";
 import { statsHref } from "@/components/stats/periods";
 import { formatDayLabel, formatDays } from "@/lib/format";
-import type { WeekSummary } from "@/lib/dashboard-summary";
+import { compareToLastWeek, type WeekSummary } from "@/lib/dashboard-summary";
 import type { VehicleExtras } from "@/lib/server/dashboard-extras";
 import type { VersionChange } from "@/lib/server/dashboard";
 import { updateStats } from "@/lib/telemetry-derive";
@@ -11,7 +12,7 @@ const heading = "text-xs font-medium tracking-wide text-faint uppercase";
 const number = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 const decimal = new Intl.NumberFormat("en-IN", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
-function Stat({ href, label, value, unit }: { href: string; label: string; value: string; unit: string }) {
+function Stat({ href, label, value, unit, note }: { href: string; label: string; value: string; unit: string; note: string | null }) {
   return (
     <Link href={href} prefetch={true} className="group block space-y-1">
       <p className="text-xs text-faint transition-colors duration-150 group-hover:text-foreground">{label}</p>
@@ -19,23 +20,33 @@ function Stat({ href, label, value, unit }: { href: string; label: string; value
         {value}
         <span className="ml-1 text-xs font-normal text-faint">{unit}</span>
       </p>
+      {note && <p className="text-xs whitespace-nowrap text-muted-foreground">{note}</p>}
     </Link>
   );
 }
 
-// The last 7 days in four numbers; each opens the Stats tab it comes from. Hidden when nothing is known.
+// The last 7 days in two numbers, each with a line against the 7 days before; both open the driving
+// stats. Hidden when nothing is known.
 export function WeekStrip({ week }: { week: WeekSummary | null }) {
   if (!week) return null;
   const driving = statsHref("driving", "month");
-  const charging = statsHref("charging", "month");
   return (
     <section className="space-y-4">
-      <h3 className={heading}>This week</h3>
-      <div className="grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-4">
-        {week.km !== null && <Stat href={driving} label="Driven" value={number.format(week.km)} unit="km" />}
-        {week.usedKwh !== null && <Stat href={driving} label="Energy used" value={decimal.format(week.usedKwh)} unit="kWh" />}
-        {week.chargedKwh !== null && <Stat href={charging} label="Charged" value={decimal.format(week.chargedKwh)} unit="kWh" />}
-        {week.whPerKm !== null && <Stat href={driving} label="Efficiency" value={number.format(week.whPerKm)} unit="Wh/km" />}
+      <div className="space-y-1">
+        <h3 className={heading}>This week</h3>
+        <p className="text-xs text-faint">Compared with the 7 days before</p>
+      </div>
+      <div className="grid grid-cols-2 gap-x-6">
+        {week.km !== null && <Stat href={driving} label="Driven" value={number.format(week.km)} unit="km" note={compareToLastWeek(week.km, week.previous.km, "km")} />}
+        {week.whPerKm !== null && (
+          <Stat
+            href={driving}
+            label="Efficiency"
+            value={number.format(week.whPerKm)}
+            unit="Wh/km"
+            note={compareToLastWeek(week.whPerKm, week.previous.whPerKm, "Wh/km", { lowerIsBetter: true })}
+          />
+        )}
       </div>
     </section>
   );
@@ -62,26 +73,45 @@ export function LastCharge({ item, now }: { item: VehicleExtras["lastCharge"]; n
           All sessions
         </Link>
       </div>
-      <ul className="border-t">
-        <SessionRow item={item} now={now} />
-      </ul>
+      <div className="max-sm:-mx-1 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:px-1">
+        <ul className="border-t max-sm:min-w-xl">
+          <SessionRow item={item} now={now} />
+        </ul>
+      </div>
     </section>
+  );
+}
+
+// Recent activity opens on 3 rows; the other lists use LIST_PREVIEW.
+const ACTIVITY_PREVIEW = 3;
+
+function ActivityRows({ events, now }: { events: VehicleExtras["activity"]; now: number }) {
+  return (
+    <ul className="divide-y border-t text-sm">
+      {events.map((e) => (
+        <li key={`${e.at}-${e.text}`} className="flex gap-4 py-2.5">
+          <span className="w-20 shrink-0 text-faint tabular-nums">{formatDayLabel(e.at, now)}</span>
+          <span className="min-w-0 text-muted-foreground tabular-nums">{e.text}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
 export function RecentActivity({ events, now }: { events: VehicleExtras["activity"]; now: number }) {
   if (events.length === 0) return null;
+  const rest = events.slice(ACTIVITY_PREVIEW);
   return (
     <section className="space-y-3">
       <h3 className={heading}>Recent activity</h3>
-      <ul className="divide-y border-t text-sm">
-        {events.map((e) => (
-          <li key={`${e.at}-${e.text}`} className="flex gap-4 py-2.5">
-            <span className="w-20 shrink-0 text-faint tabular-nums">{formatDayLabel(e.at, now)}</span>
-            <span className="min-w-0 text-muted-foreground tabular-nums">{e.text}</span>
-          </li>
-        ))}
-      </ul>
+      <div>
+        <ActivityRows events={events.slice(0, ACTIVITY_PREVIEW)} now={now} />
+        {rest.length > 0 && (
+          <ShowMore count={rest.length}>
+            <ActivityRows events={rest} now={now} />
+          </ShowMore>
+        )}
+      </div>
     </section>
   );
 }
