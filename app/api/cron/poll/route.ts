@@ -19,6 +19,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result, { status: result.ok ? 200 : 500 });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ ok: false, error: (err as Error).message }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Poll failed" }, { status: 500 });
   }
 }

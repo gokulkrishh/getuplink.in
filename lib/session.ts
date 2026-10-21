@@ -40,10 +40,11 @@ async function sign(payload: string): Promise<string> {
   return Array.from(new Uint8Array(sig), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+// Compares every character of the expected value whatever the input's length, so timing reveals
+// neither the secret nor its length.
 export function safeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < b.length; i++) diff |= (a.charCodeAt(i) || 0) ^ b.charCodeAt(i);
   return diff === 0;
 }
 

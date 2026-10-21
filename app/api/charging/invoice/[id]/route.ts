@@ -11,6 +11,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   if (DEMO) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const { id } = await params;
+  // Tesla's content ids are letters, digits and dashes; anything else never reaches Tesla.
+  if (!/^[\w-]{1,128}$/.test(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   let res: Response;
   try {
     res = await fleetGetRaw(`/api/1/dx/charging/invoice/${encodeURIComponent(id)}`);
