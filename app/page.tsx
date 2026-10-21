@@ -125,7 +125,7 @@ async function Dashboard({ searchParams }: PageProps<"/">) {
             <p>Your Tesla account is connected, but no vehicles were found on it yet.</p>
           )}
           <form action={checkNow}>
-            <CheckNowButton spinner className={buttonVariants({ variant: "ghost", className: "h-8 px-3" })} />
+            <CheckNowButton spinner className={buttonVariants({ variant: "outline", className: "h-9 px-4" })} />
           </form>
         </Notice>
       )}

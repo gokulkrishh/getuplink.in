@@ -67,7 +67,7 @@ async function Settings() {
           description="Ends every session on every device, including this one."
           control={
             <form action={signOutEverywhere}>
-              <Button type="submit" variant="ghost" className="h-8 px-3">
+              <Button type="submit" variant="outline" className="h-9 px-4">
                 Sign out everywhere
               </Button>
             </form>
