@@ -66,18 +66,21 @@ export function weekSummary(odometer: Reading[], odometerBefore: number | null, 
   return { ...totals(WEEK_DAYS), previous: totals(0) };
 }
 
+export type Comparison = { text: string; tone: "better" | "worse" | "neutral" };
+
 // "18 km more than last week", "Same" (within 2%). `lowerIsBetter` words the change as
-// better or worse instead of less or more. Null when last week has no figure.
-export function compareToLastWeek(current: number, previous: number | null, unit: string, opts: { decimals?: number; lowerIsBetter?: boolean } = {}): string | null {
+// better or worse (tone better or worse) instead of less or more (tone neutral). Null when last week has no figure.
+export function compareToLastWeek(current: number, previous: number | null, unit: string, opts: { decimals?: number; lowerIsBetter?: boolean } = {}): Comparison | null {
   if (previous === null) return null;
   const { decimals = 0, lowerIsBetter = false } = opts;
   const diff = current - previous;
   const step = 10 ** -decimals;
   const rounded = Math.round(Math.abs(diff) / step) * step;
-  if (rounded === 0 || Math.abs(diff) <= Math.abs(previous) * 0.02) return "Same";
+  if (rounded === 0 || Math.abs(diff) <= Math.abs(previous) * 0.02) return { text: "Same", tone: "neutral" };
   const up = diff > 0;
   const word = lowerIsBetter ? (up ? "worse" : "better") : up ? "more" : "less";
-  return `${rounded.toFixed(decimals)} ${unit} ${word}`;
+  const tone = lowerIsBetter ? (up ? "worse" : "better") : "neutral";
+  return { text: `${rounded.toFixed(decimals)} ${unit} ${word}`, tone };
 }
 
 export type ActivityEvent = { at: number; text: string };

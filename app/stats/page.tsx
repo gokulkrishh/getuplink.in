@@ -132,9 +132,9 @@ const kwhCompact = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 
 // Tones from the foreground down, so the series read apart without colour.
 const ENERGY_SERIES = [
-  { label: "Supercharger", className: "bg-foreground" },
-  { label: "Third-party DC", className: "bg-muted-foreground/60" },
-  { label: "AC", className: "bg-muted-foreground/30" },
+  { label: "Supercharger", className: "bg-chart-1" },
+  { label: "Third-party DC", className: "bg-chart-2" },
+  { label: "AC", className: "bg-chart-3" },
 ];
 
 // Energy added per month (per year for All time), split by charger kind. Supercharger energy is

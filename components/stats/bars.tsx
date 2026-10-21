@@ -50,7 +50,7 @@ export function Bars({
               <div className="flex h-20 w-full items-end">
                 {b.value > 0 && (
                   <div
-                    className={cn("w-full", b.isCurrent ? "bg-foreground" : "bg-muted-foreground/40 group-hover:bg-muted-foreground/70")}
+                    className={cn("w-full", b.isCurrent ? "bg-chart-accent" : "bg-muted-foreground/40 group-hover:bg-muted-foreground/70")}
                     style={{ height: `${Math.max(4, (b.value / max) * 100)}%` }}
                   />
                 )}

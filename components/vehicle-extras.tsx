@@ -3,15 +3,16 @@ import { ShowMore } from "@/components/show-more";
 import { SessionRow } from "@/components/session-row";
 import { statsHref } from "@/components/stats/periods";
 import { formatDayLabel } from "@/lib/format";
-import { compareToLastWeek, type WeekSummary } from "@/lib/dashboard-summary";
+import { compareToLastWeek, type Comparison, type WeekSummary } from "@/lib/dashboard-summary";
 import type { VehicleExtras } from "@/lib/server/dashboard-extras";
 import { LIST_PREVIEW } from "@/lib/list";
+import { cn } from "@/lib/utils";
 
 const heading = "text-xs font-medium tracking-wide text-faint uppercase";
 const number = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 const decimal = new Intl.NumberFormat("en-IN", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
-function Stat({ href, label, value, unit, note }: { href: string; label: string; value: string; unit: string; note: string | null }) {
+function Stat({ href, label, value, unit, note }: { href: string; label: string; value: string; unit: string; note: Comparison | null }) {
   return (
     <Link
       href={href}
@@ -23,7 +24,16 @@ function Stat({ href, label, value, unit, note }: { href: string; label: string;
         {value}
         <span className="ml-1 text-xs font-normal text-faint">{unit}</span>
       </p>
-      {note && <p className="text-xs whitespace-nowrap text-muted-foreground">{note}</p>}
+      {note && (
+        <p
+          className={cn(
+            "text-xs whitespace-nowrap",
+            note.tone === "better" ? "text-chart-better" : note.tone === "worse" ? "text-chart-worse" : "text-muted-foreground",
+          )}
+        >
+          {note.text}
+        </p>
+      )}
     </Link>
   );
 }

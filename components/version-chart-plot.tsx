@@ -5,7 +5,7 @@ import { Line, LineChart, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import { formatDate, formatShortDate } from "@/lib/format";
 
-const config = { step: { label: "Version", color: "var(--foreground)" } } satisfies ChartConfig;
+const config = { step: { label: "Version", color: "var(--chart-accent)" } } satisfies ChartConfig;
 
 type Point = { at: number; step: number; version: string };
 
