@@ -1,6 +1,6 @@
 import { after, NextResponse, type NextRequest } from "next/server";
 import type { LoginErrorCode } from "@/lib/login-errors";
-import { createSession, safeEqual, SESSION_COOKIE, SESSION_MAX_AGE, requestHost, sessionCookieDomain, STATE_COOKIE } from "@/lib/session";
+import { createSession, isValidSession, safeEqual, SESSION_COOKIE, SESSION_MAX_AGE, requestHost, sessionCookieDomain, STATE_COOKIE } from "@/lib/session";
 import { pollAll } from "@/lib/server/poll";
 import { signIn, type SignInResult } from "@/lib/server/tesla";
 
@@ -22,7 +22,12 @@ export async function GET(request: NextRequest) {
   };
 
   if (params.get("error")) return done("/home", "denied");
-  if (!code || !expected || !safeEqual(state, expected)) return done("/home", "expired");
+  if (!code || !expected || !safeEqual(state, expected)) {
+    // A repeat of a callback that already signed this browser in (double click, back, reload) finds
+    // the one-time state cookie gone; that's not a failed sign-in.
+    if (await isValidSession(request.cookies.get(SESSION_COOKIE)?.value)) return done("/");
+    return done("/home", "expired");
+  }
 
   let result: SignInResult;
   try {
