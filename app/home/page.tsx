@@ -205,7 +205,7 @@ export default function HomePage() {
         </Suspense>
       </section>
 
-      <footer className="mt-auto flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-t py-8 text-xs text-faint">
+      <footer className="mt-auto flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 py-8 text-xs text-faint">
         <span>
           &copy; <Year /> · Uplink is not affiliated with Tesla, Inc.
         </span>
