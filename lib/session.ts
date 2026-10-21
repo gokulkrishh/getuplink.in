@@ -3,11 +3,12 @@ export const SESSION_COOKIE = "tiu_session";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 30;
 export const STATE_COOKIE = "tiu_oauth_state";
 
-// On getuplink.in the session cookie is shared with the home page (getuplink.in) so it can show
-// "Dashboard" to a signed-in owner; it stays HttpOnly. Elsewhere (localhost, previews) it's host-only.
+// The session cookie is shared with the home page so it can show "Dashboard" to a signed-in owner; it
+// stays HttpOnly. getuplink.in in production, uplink.localhost locally; host-only elsewhere (previews).
+const SHARED_DOMAINS = ["getuplink.in", "uplink.localhost"];
 export function sessionCookieDomain(host: string | null | undefined): string | undefined {
   const name = host?.split(":")[0];
-  return name && (name === "getuplink.in" || name.endsWith(".getuplink.in")) ? "getuplink.in" : undefined;
+  return SHARED_DOMAINS.find((d) => name === d || name?.endsWith(`.${d}`));
 }
 
 type CookieJar = { delete(options: { name: string; path?: string; domain?: string }): unknown };

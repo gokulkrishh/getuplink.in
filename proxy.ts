@@ -18,13 +18,15 @@ const PUBLIC_PATHS = new Set([
 ]);
 
 // The bare domain serves the public home page; every other path there goes to the app.
-// Locally the same split works with localhost (home) and app.localhost (dashboard).
-const MARKETING_HOSTS = new Set(["getuplink.in", "www.getuplink.in", "localhost"]);
+// Locally the same split runs on uplink.localhost (home) and app.uplink.localhost (dashboard), which can
+// share the session cookie like getuplink.in does. Plain localhost (Tesla's local redirect URI) forwards there.
+const MARKETING_HOSTS = new Set(["getuplink.in", "www.getuplink.in", "uplink.localhost", "localhost"]);
 const MARKETING_PATHS = new Set(["/home", "/privacy", "/terms", "/favicon.ico", "/icon.svg"]);
 const APP_ORIGIN = "https://app.getuplink.in";
 
 function appOrigin(url: URL): string {
-  return url.hostname === "localhost" ? `${url.protocol}//app.localhost${url.port ? `:${url.port}` : ""}` : APP_ORIGIN;
+  const local = url.hostname === "localhost" || url.hostname === "uplink.localhost";
+  return local ? `${url.protocol}//app.uplink.localhost${url.port ? `:${url.port}` : ""}` : APP_ORIGIN;
 }
 
 export async function proxy(request: NextRequest) {
