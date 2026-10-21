@@ -41,8 +41,8 @@ const LONG_HISTORY: [string, number][] = [
   ["2025.26.7.10", 430],
 ];
 
-// A newer real release, for the pending-update scenarios.
-const NEXT_VERSION = "2026.38.5";
+// The most-installed newer release on TeslaFi, for the pending-update scenarios.
+const NEXT_VERSION = "2026.38.5.1";
 
 // Release notes exactly as the Fleet API returned them (after parseReleaseNotes).
 const DEMO_NOTES: ReleaseNotesByVersion = {
