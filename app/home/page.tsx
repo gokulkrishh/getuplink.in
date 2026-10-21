@@ -25,14 +25,6 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
-// Only true statements about how Uplink works; no usage numbers we can't back up.
-const NUMBERS = [
-  { value: "6 h", label: "between automatic checks" },
-  { value: "0", label: "times it wakes your car" },
-  { value: "100%", label: "read-only access to your Tesla" },
-  { value: "2 min", label: "to sign in and see your first check" },
-];
-
 const FEATURES: { icon: LucideIcon; title: string; body: string }[] = [
   { icon: History, title: "Version history", body: "Every software version your car has run, with when it arrived and when it installed." },
   { icon: ScrollText, title: "Release notes", body: "Tesla's own notes for each version, exactly as your car received them." },
@@ -141,15 +133,6 @@ export default function HomePage() {
         <div className="flex justify-center lg:justify-end">
           <DashboardPreview />
         </div>
-      </section>
-
-      <section aria-label="At a glance" className="grid grid-cols-2 gap-x-8 gap-y-12 py-16 lg:grid-cols-4">
-        {NUMBERS.map((n) => (
-          <div key={n.label}>
-            <p className="text-5xl font-medium tracking-tight tabular-nums sm:text-6xl">{n.value}</p>
-            <p className="mt-3 max-w-48 text-sm text-muted-foreground">{n.label}</p>
-          </div>
-        ))}
       </section>
 
       <section id="features" className="scroll-mt-16 py-24">
