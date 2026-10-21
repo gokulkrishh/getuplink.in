@@ -3,7 +3,11 @@ import { Suspense } from "react";
 import { checkNow, logout } from "@/app/actions";
 import { Logo } from "@/components/logo";
 import { VehicleSection } from "@/components/vehicle-section";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { CheckNowButton } from "@/components/check-now-button";
+import { buttonVariants } from "@/components/ui/button";
+import { DEMO } from "@/lib/demo";
+import { describeRunError } from "@/lib/run-error";
+import { DEMO_SCENARIOS } from "@/lib/server/demo-data";
 import { formatDateTime } from "@/lib/format";
 import { loadDashboard } from "@/lib/server/dashboard";
 
@@ -17,7 +21,7 @@ function Header({ connected }: { connected: boolean }) {
       <nav className="flex items-baseline gap-4 text-muted-foreground">
         {connected && (
           <form action={checkNow}>
-            <button className="hover:text-foreground">Check now</button>
+            <CheckNowButton className="hover:text-foreground disabled:text-foreground" />
           </form>
         )}
         <form action={logout}>
@@ -25,6 +29,31 @@ function Header({ connected }: { connected: boolean }) {
         </form>
       </nav>
     </header>
+  );
+}
+
+function DemoBar({ active }: { active: string }) {
+  return (
+    <nav className="mb-12 flex flex-wrap gap-x-4 gap-y-1 border-y py-3 text-xs text-muted-foreground">
+      <span className="text-faint">Demo</span>
+      {Object.entries(DEMO_SCENARIOS).map(([key, label]) => (
+        <a key={key} href={`/?demo=${key}`} className={key === active ? "text-foreground" : "hover:text-foreground"}>
+          {label}
+        </a>
+      ))}
+    </nav>
+  );
+}
+
+function RunError({ error }: { error: string }) {
+  return (
+    <div className="space-y-2">
+      <p>{describeRunError(error)}</p>
+      <details className="text-xs">
+        <summary className="cursor-pointer text-faint hover:text-muted-foreground">Details</summary>
+        <p className="mt-2 font-mono break-all text-muted-foreground">{error}</p>
+      </details>
+    </div>
   );
 }
 
@@ -39,11 +68,15 @@ function Notice({ title, children }: { title: string; children: React.ReactNode 
 
 async function Dashboard({ searchParams }: PageProps<"/">) {
   await connection();
-  const [data, params] = await Promise.all([loadDashboard(), searchParams]);
-  const flash = typeof params.error === "string" ? params.error : null;
+  const params = await searchParams;
+  const demo = typeof params.demo === "string" ? params.demo : "full";
+  const data = await loadDashboard(demo);
+  const flash = params.error === "check" ? "The check couldn't run. Try again in a minute." : null;
+  const failedRun = data.kind === "ready" && data.lastRun?.ok === false ? data.lastRun : null;
 
   return (
     <>
+      {DEMO && <DemoBar active={demo} />}
       <Header connected={data.kind === "ready"} />
       {flash && <p className="mb-12 border-l-2 border-destructive pl-3 text-sm">{flash}</p>}
 
@@ -74,12 +107,14 @@ async function Dashboard({ searchParams }: PageProps<"/">) {
       )}
 
       {data.kind === "ready" && data.vehicles.length === 0 && (
-        <Notice title="No vehicles yet">
-          <p>The account is connected, but no check has found a vehicle so far.</p>
+        <Notice title={failedRun ? "Couldn't reach Tesla" : "No vehicles yet"}>
+          {failedRun?.error ? (
+            <RunError error={failedRun.error} />
+          ) : (
+            <p>Your Tesla account is connected, but no vehicles were found on it yet.</p>
+          )}
           <form action={checkNow}>
-            <Button type="submit" variant="outline" className="h-9 px-4">
-              Check now
-            </Button>
+            <CheckNowButton className={buttonVariants({ variant: "outline", className: "h-9 px-4" })} />
           </form>
         </Notice>
       )}
@@ -93,9 +128,13 @@ async function Dashboard({ searchParams }: PageProps<"/">) {
       )}
 
       {data.kind === "ready" && data.lastRun && (
-        <footer className="mt-24 text-xs text-faint">
-          Last check {formatDateTime(data.lastRun.started_at)}
-          {data.lastRun.ok === false && <span className="block text-muted-foreground">{data.lastRun.error}</span>}
+        <footer className="mt-24 space-y-2 text-xs text-faint">
+          <p>Last check {formatDateTime(data.lastRun.started_at)}</p>
+          {failedRun?.error && data.vehicles.length > 0 && (
+            <div className="text-muted-foreground">
+              <RunError error={failedRun.error} />
+            </div>
+          )}
         </footer>
       )}
     </>

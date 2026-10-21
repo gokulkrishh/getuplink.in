@@ -4,6 +4,7 @@ import { fleetGet, TeslaError } from "./tesla";
 
 type FleetVehicle = {
   id: number;
+  id_s: string; // same id as a string; `id` can exceed Number.MAX_SAFE_INTEGER
   vin: string;
   display_name: string | null;
   state: string; // "online" | "asleep" | "offline"
@@ -35,11 +36,12 @@ async function check<T>(query: PromiseLike<{ data: T; error: { message: string }
 }
 
 async function pollVehicle(vehicle: FleetVehicle, now: string) {
+  const id = vehicle.id_s;
   const existing = await check(
-    db().from("vehicles").select("current_version").eq("id", vehicle.id).maybeSingle(),
+    db().from("vehicles").select("current_version").eq("id", id).maybeSingle(),
   );
   const base = {
-    id: vehicle.id,
+    id,
     vin: vehicle.vin,
     display_name: vehicle.display_name,
     last_state: vehicle.state,
@@ -50,7 +52,7 @@ async function pollVehicle(vehicle: FleetVehicle, now: string) {
   // Never wake the car: vehicle_data is only requested when it is already online.
   if (vehicle.state !== "online") {
     await check(db().from("vehicles").upsert(base));
-    await check(db().from("snapshots").insert({ vehicle_id: vehicle.id, polled_at: now, state: vehicle.state }));
+    await check(db().from("snapshots").insert({ vehicle_id: id, polled_at: now, state: vehicle.state }));
     return;
   }
 
@@ -63,7 +65,7 @@ async function pollVehicle(vehicle: FleetVehicle, now: string) {
       await check(db().from("vehicles").upsert({ ...base, last_state: "asleep" }));
       await check(
         db().from("snapshots").insert({
-          vehicle_id: vehicle.id,
+          vehicle_id: id,
           polled_at: now,
           state: "asleep",
           error: "Vehicle unavailable (408)",
@@ -86,7 +88,7 @@ async function pollVehicle(vehicle: FleetVehicle, now: string) {
   );
   await check(
     db().from("snapshots").insert({
-      vehicle_id: vehicle.id,
+      vehicle_id: id,
       polled_at: now,
       state: "online",
       car_version: state.car_version ?? null,
@@ -102,7 +104,7 @@ async function pollVehicle(vehicle: FleetVehicle, now: string) {
   if (version && version !== previous) {
     await check(
       db().from("version_history").insert({
-        vehicle_id: vehicle.id,
+        vehicle_id: id,
         version,
         previous_version: previous,
         detected_at: now,

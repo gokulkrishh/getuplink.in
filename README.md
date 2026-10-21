@@ -110,6 +110,14 @@ bun run lint
 bun run build
 ```
 
+### Demo mode (see every UI state locally)
+
+```sh
+UPLINK_DEMO=1 bun dev
+```
+
+The dashboard then shows sample data without signing in, with a bar at the top to switch scenarios: two cars with long history, installing, scheduled, update available, up to date, asleep and never seen, no vehicles, a failed check, not connected, and misconfigured. You can also open them directly, e.g. `http://localhost:3000/?demo=installing`. **Check now** shows its loading state but changes nothing. Demo mode only works under `bun dev`: production builds ignore the flag.
+
 Sign in with Tesla only works against the registered redirect URI, so local dev at `localhost` can't sign in unless you add a localhost redirect URI to the Tesla app and set `TESLA_REDIRECT_URI` to match.
 
 To hand the dashboard to a different Tesla account, clear the owner in Supabase (`update oauth_tokens set owner_sub = null;`) and sign in with the new account.

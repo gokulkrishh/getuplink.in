@@ -25,5 +25,6 @@ export function missingEnv(): string[] {
     "SUPABASE_URL",
     "SUPABASE_SERVICE_ROLE_KEY",
     "TOKEN_ENCRYPTION_KEY",
+    "CRON_SECRET",
   ].filter((name) => !process.env[name]);
 }

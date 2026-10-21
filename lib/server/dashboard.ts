@@ -1,4 +1,6 @@
 import "server-only";
+import { DEMO } from "@/lib/demo";
+import { demoDashboard, isDemoScenario } from "./demo-data";
 import { missingEnv } from "./env";
 import { db } from "./supabase";
 import { isConnected } from "./tesla";
@@ -79,7 +81,8 @@ async function vehicleView(vehicle: Vehicle): Promise<VehicleView> {
   };
 }
 
-export async function loadDashboard(): Promise<Dashboard> {
+export async function loadDashboard(demoScenario?: string): Promise<Dashboard> {
+  if (DEMO) return demoDashboard(isDemoScenario(demoScenario) ? demoScenario : "full");
   const missing = missingEnv();
   if (missing.length) return { kind: "misconfigured", missing };
 
