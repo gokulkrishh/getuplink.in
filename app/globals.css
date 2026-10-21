@@ -113,6 +113,15 @@
     @apply font-sans;
     color-scheme: light dark;
   }
+  /* Tailwind v4 resets buttons to the default cursor; clickable controls should show a pointer. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary {
+    cursor: pointer;
+  }
+  button[aria-busy="true"] {
+    cursor: progress;
+  }
   ::selection {
     @apply bg-foreground text-background;
   }
