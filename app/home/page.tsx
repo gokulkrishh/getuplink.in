@@ -117,20 +117,10 @@ export default function HomePage() {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 sm:px-8">
       <header className="flex h-16 items-center justify-between gap-4 text-sm">
-        <div className="flex items-center gap-8">
-          <Link href="/" className="inline-flex items-center gap-2 font-medium">
-            <Logo className="size-5" />
-            Uplink
-          </Link>
-          <nav aria-label="Sections" className="hidden gap-6 text-muted-foreground sm:flex">
-            <a href="#features" className="transition-colors duration-150 hover:text-foreground">
-              Features
-            </a>
-            <a href="#faq" className="transition-colors duration-150 hover:text-foreground">
-              FAQ
-            </a>
-          </nav>
-        </div>
+        <Link href="/" className="inline-flex items-center gap-2 font-medium">
+          <Logo className="size-5" />
+          Uplink
+        </Link>
         <Suspense fallback={<SignInButton size="sm" />}>
           <SessionCta size="sm" />
         </Suspense>
