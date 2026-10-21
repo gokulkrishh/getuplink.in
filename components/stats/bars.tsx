@@ -31,12 +31,13 @@ export function Bars({ bars: all, ariaLabel, labelEvery, visible }: { bars: Bar[
           hidden(b, k) ? (
             <li key={b.key} aria-hidden="true" />
           ) : (
-            <li key={b.key} className="flex flex-col items-center gap-2" title={`${b.label}: ${b.display}`}>
+            <li key={b.key} className="group relative flex flex-col items-center gap-2">
+              <BarTip at={k} of={bars.length} lines={[b.display]} title={b.label} />
               {!dense && <span className="font-mono text-xs text-muted-foreground tabular-nums">{b.display}</span>}
               <div className="flex h-20 w-full items-end">
                 {b.value > 0 && (
                   <div
-                    className={cn("w-full", b.isCurrent ? "bg-foreground" : "bg-muted-foreground/40")}
+                    className={cn("w-full", b.isCurrent ? "bg-foreground" : "bg-muted-foreground/40 group-hover:bg-muted-foreground/70")}
                     style={{ height: `${Math.max(4, (b.value / max) * 100)}%` }}
                   />
                 )}
@@ -59,6 +60,29 @@ export function Bars({ bars: all, ariaLabel, labelEvery, visible }: { bars: Bar[
 function MonthLabel({ label, dense, fromEnd }: { label: string; dense: boolean; fromEnd: number }) {
   if (!dense) return label;
   return <span className={cn(fromEnd % 2 === 1 && "max-sm:invisible")}>{label.slice(0, 3)}</span>;
+}
+
+// The value of the column under the pointer, like the version chart's tooltip. It overlays the top of
+// the column (so a scrolling strip can't clip it) and leans inwards at the edges. Screen readers get the
+// same values from each column's sr-only text.
+function BarTip({ title, lines, at, of }: { title: string; lines: (string | null | false)[]; at: number; of: number }) {
+  const side = at < of / 4 ? "left-0" : at > (of * 3) / 4 ? "right-0" : "left-1/2 -translate-x-1/2";
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "pointer-events-none absolute top-0 z-10 border bg-background px-2 py-1 text-xs whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover:opacity-100",
+        side,
+      )}
+    >
+      <span className="text-muted-foreground">{title}</span>
+      {lines.filter(Boolean).map((line) => (
+        <span key={line as string} className="block font-mono tabular-nums">
+          {line}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 // Below this many columns the bars keep their width and the right side stays empty.
@@ -93,7 +117,8 @@ export function StackedBars({ bars: all, series, ariaLabel }: { bars: StackedBar
           k < first ? (
             <li key={b.key} aria-hidden="true" />
           ) : (
-            <li key={b.key} className="flex flex-col items-center gap-2" title={[`${b.label}: ${b.display}`, ...breakdown(b)].join("\n")}>
+            <li key={b.key} className="group relative flex flex-col items-center gap-2">
+              <BarTip at={k} of={bars.length} lines={[`${b.total.toFixed(1)} kWh in total`, ...breakdown(b)]} title={b.label} />
               {!dense && <span className="font-mono text-xs text-muted-foreground tabular-nums">{b.display}</span>}
               <div className="flex h-20 w-full items-end">
                 {b.total > 0 && (
