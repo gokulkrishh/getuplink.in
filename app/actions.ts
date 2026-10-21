@@ -15,7 +15,7 @@ export async function logout() {
   // browser could see them. Drop them, and the private cache entries, before leaving.
   updateTag(OWNER_DATA_TAG);
   revalidatePath("/", "layout");
-  redirect("/login");
+  redirect("/home");
 }
 
 export async function checkNow() {

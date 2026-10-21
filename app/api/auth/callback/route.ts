@@ -18,17 +18,17 @@ export async function GET(request: NextRequest) {
     return res;
   };
 
-  if (params.get("error")) return done("/login", "denied");
-  if (!code || !expected || !safeEqual(state, expected)) return done("/login", "expired");
+  if (params.get("error")) return done("/home", "denied");
+  if (!code || !expected || !safeEqual(state, expected)) return done("/home", "expired");
 
   let result: SignInResult;
   try {
     result = await signIn(code);
   } catch (err) {
     console.error(err);
-    return done("/login", "failed");
+    return done("/home", "failed");
   }
-  if (result === "not-owner") return done("/login", "not-owner");
+  if (result === "not-owner") return done("/home", "not-owner");
 
   // First sign-in: record a snapshot right away rather than waiting for the cron.
   // Runs after the redirect is sent, so sign-in isn't held up by it.

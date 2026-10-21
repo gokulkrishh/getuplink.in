@@ -21,7 +21,7 @@ async function endHere() {
   updateTag(OWNER_DATA_TAG);
   revalidatePath("/", "layout");
   (await cookies()).delete(SESSION_COOKIE);
-  redirect("/login");
+  redirect("/home");
 }
 
 // For useActionState: returns the error to show, or redirects.

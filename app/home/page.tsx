@@ -1,11 +1,12 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { DashboardPreview } from "@/components/dashboard-preview";
+import { LoginError } from "@/components/login-error";
 import { Logo } from "@/components/logo";
+import { SignInButton } from "@/components/sign-in-button";
 import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
-const APP_URL = "https://app.getuplink.in";
 
 export const metadata: Metadata = {
   title: "Uplink",
@@ -57,7 +58,8 @@ export default function HomePage() {
           <Logo className="size-5" />
           Uplink
         </Link>
-        <a href={APP_URL} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+        {/* /app goes to the dashboard (app.getuplink.in, or app.localhost locally); see proxy.ts. */}
+        <a href="/app" className={buttonVariants({ variant: "outline", size: "sm" })}>
           Open app
         </a>
       </header>
@@ -72,9 +74,12 @@ export default function HomePage() {
             Uplink tracks your Tesla&apos;s software: every version, update and release note. Read-only, and it never wakes
             the car.
           </p>
-          <a href={APP_URL} className={cn(buttonVariants({ size: "xl" }), "mt-10")}>
-            Open Uplink
-          </a>
+          <SignInButton className="mt-10" />
+          <p className="mt-3 text-xs text-faint">Secure sign-in through Tesla.</p>
+          {/* Renders nothing (and takes no space) unless sign-in failed, so the page doesn't shift. */}
+          <Suspense>
+            <LoginError className="mt-4" />
+          </Suspense>
         </div>
 
         <div className="flex justify-center md:justify-end">
@@ -91,13 +96,13 @@ export default function HomePage() {
         ))}
       </section>
 
-      <section className="grid gap-6 border-t py-16 grid-cols-split md:gap-12">
-        <p className="text-xs tracking-wide text-faint uppercase">How it works</p>
-        <ol className="grid gap-8 sm:grid-cols-3 sm:gap-8">
+      <section className="border-t py-16">
+        <h2 className="text-xs tracking-wide text-faint uppercase">How it works</h2>
+        <ol className="mt-8 grid gap-10 sm:grid-cols-3 sm:gap-8">
           {STEPS.map((step, index) => (
             <li key={step.title}>
               <p className="font-mono text-xs tabular-nums text-faint">{index + 1}</p>
-              <h2 className="mt-2 text-sm font-medium tracking-heading">{step.title}</h2>
+              <h3 className="mt-2 text-sm font-medium tracking-heading">{step.title}</h3>
               <p className="mt-2 text-sm text-muted-foreground">{step.body}</p>
             </li>
           ))}
