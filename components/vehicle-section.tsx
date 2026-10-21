@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { checkNow } from "@/app/actions";
 import { CheckNowIcon } from "@/components/check-now-button";
 import { VersionChart } from "@/components/version-chart";
@@ -328,8 +329,11 @@ export function VehicleSection({
         {/* Two columns: car and version on the left; status, refresh and VIN on the right. */}
         <div className="grid grid-cols-car-header items-center gap-x-4 gap-y-1">
           <h2 className="text-sm text-muted-foreground">
-            {vehicle.display_name || "Tesla"}
-            {carLabel && <span className="ml-2 text-faint">· {carLabel}</span>}
+            {/* The car's name opens its details page. */}
+            <Link href={`/car/${vehicle.id}`} prefetch={true} className="transition-colors duration-150 hover:text-foreground">
+              {vehicle.display_name || "Tesla"}
+              {carLabel && <span className="ml-2 text-faint">· {carLabel}</span>}
+            </Link>
           </h2>
           <div className="flex items-center justify-end gap-1 text-sm text-faint tabular-nums">
             <CarStatus state={latest?.state ?? null} seenAt={vehicle.last_seen_at} checkedAt={latest?.polled_at ?? null} now={now} />
