@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCw } from "lucide-react";
+import { RotateCw } from "lucide-react";
 import { useFormStatus } from "react-dom";
 import { cn } from "@/lib/utils";
 
@@ -15,7 +15,7 @@ export function CheckNowButton({ className, spinner = false }: { className?: str
       aria-busy={pending}
       className={cn("inline-flex cursor-pointer items-center gap-1.5 disabled:cursor-progress", className)}
     >
-      {spinner && pending && <RefreshCw className="size-3.5 animate-spin" aria-hidden="true" />}
+      {spinner && pending && <RotateCw className="size-3.5 animate-spin" aria-hidden="true" />}
       <span className="grid">
         <span className={cn("col-start-1 row-start-1", pending && "invisible")}>Check now</span>
         <span className={cn("col-start-1 row-start-1", !pending && "invisible")} aria-hidden={!pending}>

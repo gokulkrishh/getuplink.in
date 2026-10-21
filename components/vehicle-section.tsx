@@ -155,6 +155,30 @@ function BatteryGauge({ snapshot }: { snapshot: Snapshot }) {
   );
 }
 
+// Empty history: a faint dashed preview of the chart, then what will fill it and how to start.
+function EmptyHistory() {
+  return (
+    <div className="space-y-4">
+      <svg viewBox="0 0 300 48" className="h-20 w-full text-border" preserveAspectRatio="none" aria-hidden="true">
+        <path
+          d="M0 44H80V32H170V20H250V8H300"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1"
+          strokeDasharray="4 4"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+      <div className="space-y-1">
+        <p className="text-sm">No versions yet</p>
+        <p className="max-w-md text-xs text-muted-foreground">
+          Uplink records each software version the first time it sees the car online.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function Label({ children }: { children: React.ReactNode }) {
   return <dt className="mb-1 text-xs text-faint">{children}</dt>;
 }
@@ -194,7 +218,8 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
 
       <dl className="grid gap-8 text-sm sm:grid-cols-3">
         {(pending || !lastOnline) && (
-          <div className="sm:col-span-3">
+          // A real update gets the full row; "unknown" shares the row with Last seen online.
+          <div className={pending ? "sm:col-span-3" : "sm:col-span-2"}>
             <Label>Update</Label>
             <dd>
               <UpdateStatus snapshot={lastOnline} asOf={asleep && lastOnline ? lastOnline.polled_at : null} />
@@ -237,7 +262,7 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
       <div className="space-y-4">
         <h3 className="text-xs text-faint">History</h3>
         {history.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No versions recorded yet.</p>
+          <EmptyHistory />
         ) : (
           <>
             <VersionChart changes={[...history].reverse()} until={vehicle.last_polled_at} />
