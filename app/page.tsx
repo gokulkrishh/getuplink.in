@@ -15,7 +15,7 @@ import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { loadDashboard } from "@/lib/server/dashboard";
 import { redirect } from "next/navigation";
 
-function Header({ connected }: { connected: boolean }) {
+function Header() {
   return (
     <header className="mb-16 flex items-center justify-between gap-4 text-sm">
       <h1 className="font-medium">
@@ -25,11 +25,6 @@ function Header({ connected }: { connected: boolean }) {
         </Link>
       </h1>
       <nav className="flex items-baseline gap-4 text-muted-foreground">
-        {connected && (
-          <form action={checkNow}>
-            <CheckNowButton className="hover:text-foreground disabled:text-foreground" />
-          </form>
-        )}
         <Link href="/charging" className="hover:text-foreground">
           Charging
         </Link>
@@ -90,7 +85,7 @@ async function Dashboard({ searchParams }: PageProps<"/">) {
   return (
     <>
       {DEMO && <DemoBar active={demo} />}
-      <Header connected={data.kind === "ready"} />
+      <Header />
       {flash && <p className="mb-12 border-l-2 border-destructive pl-3 text-sm">{flash}</p>}
 
       {data.kind === "misconfigured" && (

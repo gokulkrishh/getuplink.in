@@ -1,3 +1,5 @@
+import { checkNow } from "@/app/actions";
+import { CheckNowIcon } from "@/components/check-now-button";
 import { VersionChart } from "@/components/version-chart";
 import { formatDate, formatDateTime, formatDuration, formatKm, formatSeen, formatShortDate } from "@/lib/format";
 import { Check, ChevronRight, Zap } from "lucide-react";
@@ -197,6 +199,7 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
   return (
     <section className="space-y-12">
       <header className="space-y-1">
+        <div className="flex items-center gap-1">
         <h2 className="text-sm text-muted-foreground">
           {vehicle.display_name || "Tesla"}
           {carLabel && <span className="ml-2 text-faint">· {carLabel}</span>}
@@ -206,6 +209,10 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
             · {vehicle.last_seen_at ? `Seen ${formatSeen(vehicle.last_seen_at)}` : "Not seen online yet"}
           </span>
         </h2>
+          <form action={checkNow}>
+            <CheckNowIcon />
+          </form>
+        </div>
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums sm:text-4xl">
           {vehicle.current_version ?? "—"}
         </p>
