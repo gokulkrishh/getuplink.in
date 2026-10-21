@@ -1,6 +1,6 @@
 import { VersionChart } from "@/components/version-chart";
 import { formatDate, formatDateTime, formatDuration, formatTime } from "@/lib/format";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Sparkles } from "lucide-react";
 import { changeCount, ReleaseNotesList } from "@/components/release-notes";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import type { Snapshot, VehicleView } from "@/lib/server/dashboard";
@@ -17,10 +17,14 @@ function WhatsNew({ version, notes }: { version: string; notes: ReleaseNotesByVe
   if (!notes[version]) return null;
   return (
     <details className="group/notes">
-      <summary className="flex w-fit list-none items-center gap-1 text-xs text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
-        <ChevronRight className="size-3 transition-transform group-open/notes:rotate-90" aria-hidden="true" />
-        What&apos;s new in {version}
+      <summary
+        aria-label={`What's new in ${version}, ${changeCount(notes[version].length)}`}
+        className="flex w-fit list-none items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden"
+      >
+        <Sparkles className="size-3" aria-hidden="true" />
+        What&apos;s new
         <span className="text-faint">· {changeCount(notes[version].length)}</span>
+        <ChevronRight className="size-3 text-faint transition-transform group-open/notes:rotate-90" aria-hidden="true" />
       </summary>
       <ReleaseNotesList notes={notes[version]} />
     </details>
