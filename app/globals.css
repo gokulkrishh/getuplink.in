@@ -186,6 +186,15 @@
   button[aria-busy="true"] {
     cursor: progress;
   }
+  /* Number fields are typed into, not nudged: no spinner arrows. */
+  input[type="number"] {
+    appearance: textfield;
+  }
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
   /* Links, summaries and tabbable spans have no ring of their own; buttons draw theirs. */
   a:focus-visible,
   summary:focus-visible,
