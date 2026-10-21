@@ -160,30 +160,37 @@ export async function loadChargingSessions(): Promise<ChargingSession[]> {
   }));
 }
 
-// Sample sessions for demo mode, dated relative to now (across two months).
+// Demo sessions modelled on real data: India's open Supercharger sites (Mumbai BKC and Navi Mumbai
+// Nexus Seawoods, V4 up to 250 kW), Tesla India's ₹24/kWh rate, and the fee shape of a real
+// charging-history reply (a CHARGING line priced per kWh). Dated relative to now, across two months.
+const DEMO_RATE_INR = 24;
 function demoSessions(): ChargingSession[] {
   const now = Date.now();
-  const sample: { site: string; daysAgo: number; kwh: number; rupees: number; invoice: boolean }[] = [
-    { site: "Bengaluru, Nexus Koramangala", daysAgo: 2, kwh: 38.6, rupees: 868.5, invoice: true },
-    { site: "Mumbai, BKC", daysAgo: 6, kwh: 24.1, rupees: 578.4, invoice: false },
-    { site: "Delhi, Aerocity", daysAgo: 12, kwh: 41.3, rupees: 991.2, invoice: true },
-    { site: "Bengaluru, Hebbal", daysAgo: 13, kwh: 18.2, rupees: 409.5, invoice: false },
-    { site: "Mysuru, Infosys Campus", daysAgo: 14, kwh: 33.7, rupees: 741.4, invoice: true },
-    { site: "Bengaluru, Nexus Koramangala", daysAgo: 15, kwh: 22.9, rupees: 515.3, invoice: false },
-    { site: "Bengaluru, Whitefield", daysAgo: 16, kwh: 29.4, rupees: 661.5, invoice: true },
-    { site: "Pune, Phoenix Marketcity", daysAgo: 25, kwh: 27.8, rupees: 625.5, invoice: false },
-    { site: "Hyderabad, Banjara Hills", daysAgo: 29, kwh: 20.4, rupees: 448.8, invoice: true },
-    { site: "Chennai, Phoenix Mall", daysAgo: 33, kwh: 45.0, rupees: 1035, invoice: false },
+  const BKC = "Mumbai, Bandra Kurla Complex";
+  const SEAWOODS = "Navi Mumbai, Nexus Seawoods";
+  const sample: { site: string; daysAgo: number; kwh: number; invoice: boolean }[] = [
+    { site: BKC, daysAgo: 2, kwh: 38.6, invoice: true },
+    { site: SEAWOODS, daysAgo: 6, kwh: 24.1, invoice: true },
+    { site: BKC, daysAgo: 9, kwh: 41.3, invoice: true },
+    { site: BKC, daysAgo: 11, kwh: 18.2, invoice: true },
+    { site: SEAWOODS, daysAgo: 13, kwh: 33.7, invoice: true },
+    { site: BKC, daysAgo: 15, kwh: 22.9, invoice: true },
+    { site: SEAWOODS, daysAgo: 17, kwh: 29.4, invoice: true },
+    { site: BKC, daysAgo: 25, kwh: 27.8, invoice: true },
+    { site: SEAWOODS, daysAgo: 29, kwh: 20.4, invoice: true },
+    { site: BKC, daysAgo: 33, kwh: 45.0, invoice: true },
   ];
   return sample.map((s, i) => {
     const started = new Date(now - s.daysAgo * DAY);
+    // About 70 kW average on a V4 stall.
+    const minutes = Math.round((s.kwh / 70) * 60);
     return {
       session_id: `demo-${i + 1}`,
       site_name: s.site,
       started_at: started.toISOString(),
-      stopped_at: new Date(started.getTime() + 35 * 60 * 1000).toISOString(),
+      stopped_at: new Date(started.getTime() + minutes * 60 * 1000).toISOString(),
       energy_kwh: s.kwh,
-      cost_total: s.rupees,
+      cost_total: Math.round(s.kwh * DEMO_RATE_INR * 100) / 100,
       currency: "INR",
       invoices: s.invoice ? [{ fileName: "invoice.pdf", contentId: `demo-invoice-${i + 1}`, invoiceType: "CHARGING" }] : [],
     };

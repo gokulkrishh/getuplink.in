@@ -105,10 +105,17 @@ export default function HomePage() {
       </section>
 
       <footer className="mt-auto flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-t pt-6 text-xs text-faint">
-        <span>Uplink is not affiliated with Tesla, Inc.</span>
         <span>
-          &copy; <Year />
+          &copy; <Year /> · Uplink is not affiliated with Tesla, Inc.
         </span>
+        <nav className="flex gap-4">
+          <Link href="/privacy" className="text-muted-foreground transition-colors duration-150 hover:text-foreground">
+            Privacy
+          </Link>
+          <Link href="/terms" className="text-muted-foreground transition-colors duration-150 hover:text-foreground">
+            Terms
+          </Link>
+        </nav>
       </footer>
     </div>
   );

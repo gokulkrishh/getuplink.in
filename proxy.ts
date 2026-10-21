@@ -13,11 +13,13 @@ const PUBLIC_PATHS = new Set([
   "/favicon.ico",
   "/icon.svg",
   "/home", // public marketing page, served on getuplink.in via the rewrite below
+  "/privacy", // public legal pages, served on both hosts
+  "/terms",
 ]);
 
 // The bare domain serves the public home page; every other path there goes to the app.
 const MARKETING_HOSTS = new Set(["getuplink.in", "www.getuplink.in"]);
-const MARKETING_PATHS = new Set(["/home", "/favicon.ico", "/icon.svg"]);
+const MARKETING_PATHS = new Set(["/home", "/privacy", "/terms", "/favicon.ico", "/icon.svg"]);
 const APP_ORIGIN = "https://app.getuplink.in";
 
 export async function proxy(request: NextRequest) {
