@@ -1,7 +1,7 @@
 import { VersionChart } from "@/components/version-chart";
 import { formatDate, formatDateTime, formatDuration, formatTime } from "@/lib/format";
 import { ChevronRight } from "lucide-react";
-import { ReleaseNotesList } from "@/components/release-notes";
+import { changeCount, ReleaseNotesList } from "@/components/release-notes";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import type { Snapshot, VehicleView } from "@/lib/server/dashboard";
 
@@ -20,16 +20,34 @@ function WhatsNew({ version, notes }: { version: string; notes: ReleaseNotesByVe
       <summary className="flex w-fit list-none items-center gap-1 text-xs text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
         <ChevronRight className="size-3 transition-transform group-open/notes:rotate-90" aria-hidden="true" />
         What&apos;s new in {version}
+        <span className="text-faint">· {changeCount(notes[version].length)}</span>
       </summary>
       <ReleaseNotesList notes={notes[version]} />
     </details>
   );
 }
 
-function UpdateStatus({ snapshot, notes }: { snapshot: Snapshot | null; notes: ReleaseNotesByVersion }) {
+// Order: status line, its details (progress, timing, "as of"), then release notes last.
+function UpdateStatus({
+  snapshot,
+  notes,
+  asOf,
+}: {
+  snapshot: Snapshot | null;
+  notes: ReleaseNotesByVersion;
+  asOf: string | null;
+}) {
   if (!snapshot) return <p className="text-muted-foreground">Unknown until the car is next seen online.</p>;
   const status = snapshot.update_status;
-  if (!status || !STATUS[status]) return <p>Up to date</p>;
+  const asOfLine = asOf && <p className="text-xs text-faint">As of {formatDateTime(asOf)}</p>;
+  if (!status || !STATUS[status]) {
+    return (
+      <div className="space-y-1">
+        <p>Up to date</p>
+        {asOfLine}
+      </div>
+    );
+  }
 
   const progress =
     status === "installing" ? snapshot.install_perc : status.startsWith("downloading") ? snapshot.download_perc : null;
@@ -67,14 +85,15 @@ function UpdateStatus({ snapshot, notes }: { snapshot: Snapshot | null; notes: R
           <span className="w-10 text-right font-mono text-xs tabular-nums text-muted-foreground">{progress}%</span>
         </div>
       )}
+      {(status === "scheduled" && snapshot.scheduled_time_ms) || snapshot.expected_duration_sec ? (
+        <p className="text-xs text-muted-foreground">
+          {status === "scheduled" && snapshot.scheduled_time_ms
+            ? `Starts ${formatDateTime(snapshot.scheduled_time_ms)}`
+            : `Install takes ~${formatDuration(snapshot.expected_duration_sec!)}`}
+        </p>
+      ) : null}
+      {asOfLine}
       {snapshot.update_version && <WhatsNew version={snapshot.update_version} notes={notes} />}
-      <p className="text-xs text-muted-foreground">
-        {status === "scheduled" && snapshot.scheduled_time_ms
-          ? `Starts ${formatDateTime(snapshot.scheduled_time_ms)}`
-          : snapshot.expected_duration_sec
-            ? `Install takes ~${formatDuration(snapshot.expected_duration_sec)}`
-            : null}
-      </p>
     </div>
   );
 }
@@ -113,10 +132,7 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
         <div className="sm:col-span-2">
           <Label>Update</Label>
           <dd>
-            <UpdateStatus snapshot={lastOnline} notes={notes} />
-            {asleep && lastOnline && (
-              <p className="mt-1 text-xs text-faint">As of {formatDateTime(lastOnline.polled_at)}</p>
-            )}
+            <UpdateStatus snapshot={lastOnline} notes={notes} asOf={asleep && lastOnline ? lastOnline.polled_at : null} />
           </dd>
         </div>
         <div className="sm:text-right">
@@ -173,7 +189,7 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
                         </span>
                         <span className="text-muted-foreground tabular-nums">{date}</span>
                       </summary>
-                      <div className="pb-2 pl-5">
+                      <div className="pb-4 pl-5">
                         <ReleaseNotesList notes={versionNotes} />
                       </div>
                     </details>

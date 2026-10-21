@@ -1,18 +1,34 @@
+import { Fragment } from "react";
 import type { ReleaseNote } from "@/lib/release-notes";
 
-// Tesla's notes for one version: a title per feature with its description underneath.
+const changes = new Intl.PluralRules("en");
+
+// "2 changes", using the locale's plural rules.
+export function changeCount(n: number): string {
+  return `${n} ${changes.select(n) === "one" ? "change" : "changes"}`;
+}
+
+// Tesla's notes for one version as a quiet changelog: category on the left, the change on the right.
 export function ReleaseNotesList({ notes }: { notes: ReleaseNote[] }) {
   return (
-    <ul className="space-y-4 py-3">
+    <dl className="mt-3 grid gap-x-6 gap-y-4 border-l pl-4 sm:grid-cols-[7rem_1fr]">
       {notes.map((note, i) => (
-        <li key={`${note.title}-${i}`} className="space-y-1">
-          <p className="text-sm">
-            {note.title}
-            {note.subtitle && <span className="ml-2 text-muted-foreground">{note.subtitle}</span>}
-          </p>
-          {note.description && <p className="max-w-prose text-sm whitespace-pre-line text-muted-foreground">{note.description}</p>}
-        </li>
+        <Fragment key={`${note.title}-${i}`}>
+          <dt className="text-xs text-faint sm:pt-0.5">{note.title}</dt>
+          <dd className="-mt-3 space-y-1 sm:mt-0">
+            {note.subtitle ? (
+              <>
+                <p className="text-sm">{note.subtitle}</p>
+                {note.description && (
+                  <p className="max-w-prose text-sm whitespace-pre-line text-muted-foreground">{note.description}</p>
+                )}
+              </>
+            ) : (
+              <p className="max-w-prose text-sm whitespace-pre-line">{note.description ?? note.title}</p>
+            )}
+          </dd>
+        </Fragment>
       ))}
-    </ul>
+    </dl>
   );
 }
