@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { cacheLife, cacheTag } from "next/cache";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { Download, Zap } from "lucide-react";
 import { Suspense } from "react";
@@ -9,14 +10,16 @@ import { Logo } from "@/components/logo";
 import { ShowMore } from "@/components/show-more";
 import { Tip } from "@/components/tip";
 import { buttonVariants } from "@/components/ui/button";
-import { Bars } from "@/components/stats/bars";
+import { Bars, StackedBars, type StackedBar } from "@/components/stats/bars";
 import { PeriodSwitch } from "@/components/stats/period-switch";
 import { type Period, monthIndex, monthKey, monthShort, parsePeriod, yearOf } from "@/components/stats/periods";
 import { formatClock, formatDuration, formatKwh, formatMoney, formatMonth, formatShortDate } from "@/lib/format";
+import { chargeEfficiency, matchSessions } from "@/lib/charge-sessions";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargingSession, loadChargingSessions } from "@/lib/server/charging";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadMonthlyDistance, type MonthlyDistance } from "@/lib/server/driving";
+import { loadStreamSessions, syncStreamSessionsForAllCars, type StreamChargeSession } from "@/lib/server/stream-charging";
 
 export const metadata: Metadata = { title: "Stats · Uplink" };
 
@@ -125,6 +128,79 @@ function Summary({ sessions, now, period }: { sessions: ChargingSession[]; now: 
   );
 }
 
+const ENERGY_LABELS: Record<Period, string> = {
+  month: "this month",
+  "6m": "in the last 6 months",
+  year: "this year",
+  all: "in total",
+};
+
+const kwFormat = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
+const kwhCompact = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
+
+// Tones from the foreground down, so the series read apart without colour.
+const ENERGY_SERIES = [
+  { label: "Supercharger", className: "bg-foreground" },
+  { label: "Third-party DC", className: "bg-muted-foreground/60" },
+  { label: "AC", className: "bg-muted-foreground/30" },
+];
+
+// Energy added per month (per year for All time), split by charger kind. Supercharger energy is
+// Tesla's billed figure; the other two come from the car's own readings.
+function EnergyAdded({
+  sessions,
+  streamOnly,
+  now,
+  period,
+}: {
+  sessions: ChargingSession[];
+  streamOnly: StreamChargeSession[];
+  now: number;
+  period: Period;
+}) {
+  const cur = monthIndex(now);
+  const bucket = (index: number) => (period === "all" ? yearOf(index) : index);
+  const energy = new Map<number, number[]>();
+  let total = 0;
+  const add = (startedAt: string, series: number, kwh: number | null) => {
+    if (!kwh || kwh <= 0) return;
+    const index = monthIndex(startedAt);
+    const row = energy.get(bucket(index)) ?? [0, 0, 0];
+    row[series] += kwh;
+    energy.set(bucket(index), row);
+    if (inPeriod(period, index, cur)) total += kwh;
+  };
+  for (const s of sessions) add(s.started_at, 0, s.energy_kwh);
+  for (const s of streamOnly) add(s.started_at, s.supercharger ? 0 : s.kind === "dc" ? 1 : 2, s.energy_added_kwh);
+  const current = bucket(cur);
+  const bars: StackedBar[] = slotsFor(period, cur).map((slot) => {
+    const segments = energy.get(slot.id) ?? [0, 0, 0];
+    const sum = segments.reduce((a, b) => a + b, 0);
+    return { key: String(slot.id), label: slot.label, total: sum, display: kwhCompact.format(sum), isCurrent: slot.id === current, segments };
+  });
+  const efficiency = chargeEfficiency(streamOnly.filter((s) => s.kind === "ac" && inPeriod(period, monthIndex(s.started_at), cur)));
+  return (
+    <section className="space-y-8">
+      <div className="space-y-2">
+        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Energy added</h2>
+        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatKwh(total)}</p>
+        <p className="text-sm text-muted-foreground">{ENERGY_LABELS[period]}</p>
+      </div>
+      <StackedBars bars={bars} series={ENERGY_SERIES} ariaLabel={period === "all" ? "Energy added per year" : "Energy added per month"} />
+      {efficiency !== null && (
+        <div className="space-y-1">
+          <p className="text-sm">
+            AC charging efficiency <span className="font-mono font-medium tabular-nums">{Math.round(efficiency * 100)}%</span>
+          </p>
+          <p className="text-xs text-muted-foreground">
+            How much of the energy from the charger ended up in the battery, estimated from the car&apos;s own readings.
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function Distance({ distance, now, period }: { distance: MonthlyDistance[]; now: number; period: Period }) {
   // A single reading gives no distance yet, so the section stays out of the way.
   if (!distance.some((d) => d.km > 0)) return null;
@@ -157,36 +233,60 @@ function Distance({ distance, now, period }: { distance: MonthlyDistance[]; now:
   );
 }
 
-function SessionRow({ session: s }: { session: ChargingSession }) {
-  const invoice = s.invoices.find((i) => i.contentId);
-  const { place, city } = splitSite(s.site_name);
-  const durationMs = s.stopped_at ? Date.parse(s.stopped_at) - Date.parse(s.started_at) : 0;
+// One row of the list: a Tesla Supercharger session (with cost and invoice), or one the car reported
+// itself. A Tesla session that the car also reported keeps its own row and gains the peak power.
+type Listed = { key: string; started_at: string; tesla: ChargingSession | null; stream: StreamChargeSession | null };
+
+function streamTitle(s: StreamChargeSession): string {
+  if (s.supercharger) return "Supercharger";
+  return s.kind === "dc" ? "Third-party charger" : "AC charging";
+}
+
+function levels(s: StreamChargeSession): string | null {
+  return s.start_level !== null && s.end_level !== null ? `${Math.round(s.start_level)}% → ${Math.round(s.end_level)}%` : null;
+}
+
+function SessionRow({ item }: { item: Listed }) {
+  const { tesla: s, stream } = item;
+  const invoice = s?.invoices.find((i) => i.contentId);
+  const { place, city } = s ? splitSite(s.site_name) : { place: stream ? streamTitle(stream) : "", city: null };
+  const stoppedAt = s ? s.stopped_at : (stream?.ended_at ?? null);
+  const durationMs = stoppedAt ? Date.parse(stoppedAt) - Date.parse(item.started_at) : 0;
   const durationText = durationMs > 0 ? formatDuration(durationMs / 1000) : null;
-  const currency = s.currency ?? "INR";
-  const rateText = s.cost_total !== null && s.energy_kwh !== null ? rate(s.cost_total, s.energy_kwh, currency) : null;
+  const currency = s?.currency ?? "INR";
+  const rateText = s && s.cost_total !== null && s.energy_kwh !== null ? rate(s.cost_total, s.energy_kwh, currency) : null;
+  const peakText = stream?.peak_power_kw ? `${kwFormat.format(stream.peak_power_kw)} kW peak` : null;
+  const energy = s ? s.energy_kwh : (stream?.energy_added_kwh ?? null);
+  const detail = s ? [city, durationText, peakText] : [stoppedAt ? durationText : "In progress", stream && levels(stream), peakText];
   return (
     <li className="grid grid-cols-session items-start gap-x-4 py-3 text-sm">
       <div>
-        <p className="tabular-nums">{formatShortDate(s.started_at)}</p>
-        <p className="text-xs text-faint tabular-nums">{formatClock(s.started_at)}</p>
+        <p className="tabular-nums">{formatShortDate(item.started_at)}</p>
+        <p className="text-xs text-faint tabular-nums">{formatClock(item.started_at)}</p>
       </div>
       <div className="min-w-0">
         <p className="truncate font-medium">{place}</p>
-        <p className="truncate text-xs text-muted-foreground">{[city, durationText].filter(Boolean).join(" · ")}</p>
+        <p className="truncate text-xs text-muted-foreground">{detail.filter(Boolean).join(" · ")}</p>
       </div>
       <div className="text-right">
-        <p className="font-mono font-medium tabular-nums">{s.cost_total === null ? "—" : formatMoney(s.cost_total, currency)}</p>
-        <p className="text-xs text-muted-foreground tabular-nums">
-          {s.energy_kwh === null ? "—" : formatKwh(s.energy_kwh)}
-          {/* The per-kWh rate is hidden on phones so the site name keeps its room. */}
-          {rateText && <span className="hidden sm:inline"> · {rateText}</span>}
-        </p>
+        {s ? (
+          <>
+            <p className="font-mono font-medium tabular-nums">{s.cost_total === null ? "—" : formatMoney(s.cost_total, currency)}</p>
+            <p className="text-xs text-muted-foreground tabular-nums">
+              {energy === null ? "—" : formatKwh(energy)}
+              {/* The per-kWh rate is hidden on phones so the site name keeps its room. */}
+              {rateText && <span className="hidden sm:inline"> · {rateText}</span>}
+            </p>
+          </>
+        ) : (
+          <p className="font-mono font-medium tabular-nums">{energy === null ? "—" : formatKwh(energy)}</p>
+        )}
       </div>
       <div className="flex self-center">
-        {invoice?.contentId && (
+        {s && invoice?.contentId && (
           <a
             href={`/api/charging/invoice/${encodeURIComponent(invoice.contentId)}`}
-            aria-label={`Download invoice for ${formatShortDate(s.started_at)}`}
+            aria-label={`Download invoice for ${formatShortDate(item.started_at)}`}
             className={buttonVariants({ variant: "ghost", size: "icon-xs", className: "group" })}
           >
             <Download className="size-3.5" aria-hidden="true" />
@@ -198,9 +298,9 @@ function SessionRow({ session: s }: { session: ChargingSession }) {
   );
 }
 
-function SessionList({ sessions }: { sessions: ChargingSession[] }) {
+function SessionList({ sessions }: { sessions: Listed[] }) {
   // Sessions arrive newest first, so each month's group is in order too.
-  const groups = new Map<string, ChargingSession[]>();
+  const groups = new Map<string, Listed[]>();
   for (const s of sessions) {
     const month = formatMonth(s.started_at);
     groups.set(month, [...(groups.get(month) ?? []), s]);
@@ -208,26 +308,27 @@ function SessionList({ sessions }: { sessions: ChargingSession[] }) {
   return (
     <div className="space-y-10">
       {[...groups].map(([month, rows]) => {
-        const { cost, count, currency } = totals(rows);
+        const billed = totals(rows.flatMap((r) => (r.tesla ? [r.tesla] : [])));
         return (
           <section key={month} className="space-y-2">
             <div className="flex items-baseline justify-between gap-4 text-xs tracking-wide text-faint uppercase">
               <h2 className="font-medium">{month}</h2>
               <p className="tabular-nums">
-                {count} {count === 1 ? "session" : "sessions"} · {formatMoney(cost, currency)}
+                {rows.length} {rows.length === 1 ? "session" : "sessions"}
+                {billed.count > 0 && ` · ${formatMoney(billed.cost, billed.currency)}`}
               </p>
             </div>
             <div>
               <ul className="divide-y border-t">
                 {rows.slice(0, MONTH_PREVIEW).map((s) => (
-                  <SessionRow key={s.session_id} session={s} />
+                  <SessionRow key={s.key} item={s} />
                 ))}
               </ul>
               {rows.length > MONTH_PREVIEW && (
                 <ShowMore count={rows.length - MONTH_PREVIEW}>
                   <ul className="divide-y border-t">
                     {rows.slice(MONTH_PREVIEW).map((s) => (
-                      <SessionRow key={s.session_id} session={s} />
+                      <SessionRow key={s.key} item={s} />
                     ))}
                   </ul>
                 </ShowMore>
@@ -241,22 +342,29 @@ function SessionList({ sessions }: { sessions: ChargingSession[] }) {
 }
 
 // Session check plus data in one browser-only private cache, so header links can prefetch it (see app/page.tsx).
-async function loadStats(): Promise<{ sessions: ChargingSession[]; distance: MonthlyDistance[]; now: number }> {
+async function loadStats(): Promise<{
+  sessions: ChargingSession[];
+  streamSessions: StreamChargeSession[];
+  distance: MonthlyDistance[];
+  now: number;
+}> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
-  const [sessions, distance] = await Promise.all([loadChargingSessions(), loadMonthlyDistance()]);
-  return { sessions, distance, now: Date.now() };
+  const [sessions, streamSessions, distance] = await Promise.all([loadChargingSessions(), loadStreamSessions(), loadMonthlyDistance()]);
+  return { sessions, streamSessions, distance, now: Date.now() };
 }
 
 async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParams">) {
   // Read outside the cache: the period only changes how the cached list is summed.
   const period = parsePeriod((await searchParams).period);
-  const { sessions, distance, now } = await loadStats();
+  const { sessions, streamSessions, distance, now } = await loadStats();
+  // Rebuilds sessions from the car's readings once this response is sent, so the next visit has them.
+  after(syncStreamSessionsForAllCars);
 
-  if (sessions.length === 0) {
+  if (sessions.length === 0 && streamSessions.length === 0) {
     return (
       <EmptyState icon={<Zap className="size-7 text-faint" aria-hidden="true" />} title="No Supercharger sessions yet">
         They&apos;ll show up here after you charge at a Tesla Supercharger.
@@ -264,12 +372,19 @@ async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParam
     );
   }
 
+  const { pairs, streamOnly } = matchSessions(sessions, streamSessions, now);
+  const listed: Listed[] = [
+    ...pairs.map((p) => ({ key: p.tesla.session_id, started_at: p.tesla.started_at, tesla: p.tesla, stream: p.stream })),
+    ...streamOnly.map((s) => ({ key: `stream-${s.id}`, started_at: s.started_at, tesla: null, stream: s })),
+  ].sort((a, b) => Date.parse(b.started_at) - Date.parse(a.started_at));
+
   return (
     <div className="space-y-12">
       <PeriodSwitch period={period} />
-      <Summary sessions={sessions} now={now} period={period} />
+      {sessions.length > 0 && <Summary sessions={sessions} now={now} period={period} />}
+      {streamSessions.length > 0 && <EnergyAdded sessions={sessions} streamOnly={streamOnly} now={now} period={period} />}
       <Distance distance={distance} now={now} period={period} />
-      <SessionList sessions={sessions} />
+      <SessionList sessions={listed} />
     </div>
   );
 }
@@ -297,7 +412,7 @@ export default function Page({ searchParams }: PageProps<"/stats">) {
     <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:py-20">
       <Header />
       <h1 className="text-2xl font-medium tracking-heading">Stats</h1>
-      <p className="mt-2 mb-12 text-sm text-muted-foreground">Your Tesla Supercharger sessions. Third-party chargers coming soon.</p>
+      <p className="mt-2 mb-12 text-sm text-muted-foreground">Your charging sessions. Cost and invoices come from Tesla Superchargers.</p>
       <Suspense fallback={<SessionsSkeleton />}>
         <Sessions searchParams={searchParams} />
       </Suspense>

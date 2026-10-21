@@ -117,6 +117,7 @@ function historyDate(value: string, now: number): string {
 }
 
 const km = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
+const kw = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 
 // Received, installed and odometer cells of a history row.
 function HistoryCells({ change, now }: { change: VersionChange; now: number }) {
@@ -153,8 +154,12 @@ function BatteryGauge({ snapshot }: { snapshot: Snapshot }) {
   const level = Math.min(100, Math.max(0, snapshot.battery_level ?? 0));
   const limit = snapshot.charge_limit != null ? Math.min(100, Math.max(0, snapshot.charge_limit)) : null;
   const charging = snapshot.charging_state === "Charging";
+  const power = charging && snapshot.charge_power_kw != null && snapshot.charge_power_kw > 0 ? snapshot.charge_power_kw : null;
+  const target = limit ?? 100;
   return (
     <div className="space-y-2">
+      {/* Streamed power and level move while charging, so the page keeps itself fresh. */}
+      {charging && <AutoRefresh />}
       <p className="flex items-baseline gap-2">
         <span className="font-mono text-2xl font-medium tracking-tight tabular-nums">{level}%</span>
         {snapshot.battery_range_km != null && (
@@ -180,7 +185,13 @@ function BatteryGauge({ snapshot }: { snapshot: Snapshot }) {
       </div>
       <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
         {charging && <Zap className="size-3" aria-hidden="true" />}
-        {charging ? `Charging to ${limit ?? 100}%` : limit != null ? `Limit ${limit}%` : null}
+        {charging
+          ? power !== null
+            ? `Charging at ${kw.format(power)} kW${level < target ? ` · ${level}% → ${target}%` : ""}`
+            : `Charging to ${target}%`
+          : limit != null
+            ? `Limit ${limit}%`
+            : null}
       </p>
     </div>
   );

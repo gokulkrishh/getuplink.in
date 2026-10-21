@@ -35,6 +35,7 @@ export type ChargingInvoice = { fileName: string | null; contentId: string | nul
 
 export type ChargingSession = {
   session_id: string;
+  vehicle_vin: string;
   site_name: string | null;
   started_at: string;
   stopped_at: string | null;
@@ -140,7 +141,7 @@ export async function syncChargingHistory(vins: string[]): Promise<void> {
 export async function loadChargingSessions(): Promise<ChargingSession[]> {
   const { data, error } = await db()
     .from("charging_sessions")
-    .select("session_id, site_name, started_at, stopped_at, energy_kwh, cost_total, currency, invoices")
+    .select("session_id, vehicle_vin, site_name, started_at, stopped_at, energy_kwh, cost_total, currency, invoices")
     .order("started_at", { ascending: false })
     .limit(LIST_LIMIT);
   if (error) {
@@ -149,6 +150,7 @@ export async function loadChargingSessions(): Promise<ChargingSession[]> {
   }
   return (data ?? []).map((row) => ({
     session_id: row.session_id as string,
+    vehicle_vin: row.vehicle_vin as string,
     site_name: (row.site_name as string | null) ?? null,
     started_at: row.started_at as string,
     stopped_at: (row.stopped_at as string | null) ?? null,

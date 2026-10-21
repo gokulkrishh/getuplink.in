@@ -13,6 +13,8 @@ const FIELDS = [
   "RatedRange",
   "ChargeLimitSoc",
   "DetailedChargeState",
+  "ACChargingPower",
+  "DCChargingPower",
 ];
 
 // Latest Fleet Telemetry reading per field. Rows only arrive when a value changes, so a field's

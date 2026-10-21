@@ -35,6 +35,8 @@ export type Snapshot = {
   battery_range_km: number | null;
   charging_state: string | null;
   charge_limit: number | null;
+  // Live charging power in kW, from Fleet Telemetry only (null from polls).
+  charge_power_kw: number | null;
   error: string | null;
 };
 
