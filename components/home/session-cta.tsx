@@ -6,7 +6,16 @@ import { cn } from "@/lib/utils";
 
 // Signed in: a link to the dashboard. Signed out: Sign in with Tesla. Reads the shared session cookie
 // (see sessionCookieDomain), so it must render inside <Suspense>; the rest of the page stays static.
-export async function SessionCta({ size = "xl", className }: { size?: "sm" | "xl"; className?: string }) {
+export async function SessionCta({
+  size = "xl",
+  className,
+  dashboardOnly = false,
+}: {
+  size?: "sm" | "xl";
+  className?: string;
+  // The header shows nothing to signed-out visitors; sign-in lives in the page itself.
+  dashboardOnly?: boolean;
+}) {
   const signedIn = await isValidSession((await cookies()).get(SESSION_COOKIE)?.value);
   if (signedIn) {
     // /app goes to the dashboard (app.getuplink.in, or app.localhost locally); see proxy.ts.
@@ -16,5 +25,5 @@ export async function SessionCta({ size = "xl", className }: { size?: "sm" | "xl
       </a>
     );
   }
-  return <SignInButton size={size} className={className} />;
+  return dashboardOnly ? null : <SignInButton size={size} className={className} />;
 }

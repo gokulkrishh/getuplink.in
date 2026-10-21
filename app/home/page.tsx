@@ -109,8 +109,8 @@ export default function HomePage() {
           <Logo className="size-5" />
           Uplink
         </Link>
-        <Suspense fallback={<SignInButton size="sm" />}>
-          <SessionCta size="sm" />
+        <Suspense>
+          <SessionCta size="sm" dashboardOnly />
         </Suspense>
       </header>
 
