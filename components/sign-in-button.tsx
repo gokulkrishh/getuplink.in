@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowRight, LoaderCircle } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { DashRing } from "@/components/loading-ui/dash-ring";
 import { useState } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -16,7 +17,7 @@ export function SignInButton({ className }: { className?: string }) {
       className={cn(buttonVariants({ size: "lg" }), "h-11 px-5 has-data-[icon=inline-end]:pr-4", pending && "pointer-events-none", className)}
     >
       Sign in with Tesla
-      {pending ? <LoaderCircle data-icon="inline-end" className="animate-spin" /> : <ArrowRight data-icon="inline-end" />}
+      {pending ? <DashRing data-icon="inline-end" aria-hidden="true" /> : <ArrowRight data-icon="inline-end" />}
     </a>
   );
 }
