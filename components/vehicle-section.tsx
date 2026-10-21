@@ -125,12 +125,17 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
   const { vehicle, latest, lastOnline, history } = view;
   const asleep = latest && latest.state !== "online";
   const pending = Boolean(lastOnline?.update_status && STATUS[lastOnline.update_status]);
+  // "Model Y, Pearl White", without repeating the model when the car is already named after it.
+  const carLabel = [vehicle.model !== vehicle.display_name && vehicle.model, vehicle.exterior_color].filter(Boolean).join(", ");
+  // Battery is only known from a poll taken while the car was online.
+  const battery = lastOnline?.battery_level != null ? lastOnline : null;
 
   return (
     <section className="space-y-12">
       <header className="space-y-1">
         <h2 className="text-sm text-muted-foreground">
           {vehicle.display_name || "Tesla"}
+          {carLabel && <span className="ml-2 text-faint">· {carLabel}</span>}
           {!pending && lastOnline && <span className="ml-2 text-faint">· Up to date</span>}
           {asleep && <span className="ml-2 text-faint">· {latest.state === "offline" ? "Offline" : "Asleep"}</span>}
         </h2>
@@ -151,14 +156,32 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
 
       <dl className="grid gap-8 text-sm sm:grid-cols-3">
         {(pending || !lastOnline) && (
-          <div className="sm:col-span-2">
+          <div className="sm:col-span-3">
             <Label>Update</Label>
             <dd>
               <UpdateStatus snapshot={lastOnline} asOf={asleep && lastOnline ? lastOnline.polled_at : null} />
             </dd>
           </div>
         )}
-        <div className={pending || !lastOnline ? "sm:text-right" : undefined}>
+        {battery && (
+          <div>
+            <Label>Battery</Label>
+            <dd>
+              {battery.battery_level}%
+              {battery.battery_range_km != null && (
+                <span className="ml-2 text-muted-foreground">{formatKm(battery.battery_range_km)}</span>
+              )}
+              <span className="block text-xs text-muted-foreground">
+                {battery.charging_state === "Charging"
+                  ? `Charging to ${battery.charge_limit ?? 100}%`
+                  : battery.charge_limit != null
+                    ? `Limit ${battery.charge_limit}%`
+                    : null}
+              </span>
+            </dd>
+          </div>
+        )}
+        <div className={pending || !lastOnline ? "sm:col-start-3 sm:text-right" : undefined}>
           <Label>Last seen online</Label>
           <dd>
             {vehicle.last_seen_at ? (
