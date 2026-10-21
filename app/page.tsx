@@ -85,7 +85,7 @@ async function Dashboard({ searchParams }: PageProps<"/">) {
 
       {data.kind === "misconfigured" && (
         <Notice title="Not configured">
-          <p>Add these in Vercel → Settings → Environment Variables, then redeploy:</p>
+          <p>Add these environment variables in your Vercel project settings, then redeploy.</p>
           <p className="font-mono text-foreground">{data.missing.join(", ")}</p>
         </Notice>
       )}
