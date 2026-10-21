@@ -54,7 +54,6 @@ const FAQ = [
     q: "What data does Uplink store?",
     a: "Your car's versions, update status, battery and odometer, and Supercharger sessions with invoices. It doesn't read your location. The privacy page lists everything.",
   },
-  { q: "Does it cost anything?", a: "No." },
   { q: "Which cars work?", a: "Any Tesla on your account that Tesla's Fleet API supports, including the Model Y sold in India." },
   {
     q: "How do I delete my data?",
@@ -112,7 +111,7 @@ export default function HomePage() {
           <h1 className="mt-5 text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl 2xl:text-6xl">
             Never miss a Tesla update.
           </h1>
-          <p className="mt-6 text-base text-muted-foreground">See what&apos;s new on your car. Free and read-only.</p>
+          <p className="mt-6 text-base text-muted-foreground">See what&apos;s new on your car. Read-only.</p>
           <div className="mt-10 flex flex-wrap items-center gap-3">
             <Suspense fallback={<SignInButton />}>
               <SessionCta />
