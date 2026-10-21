@@ -14,6 +14,13 @@ export type StreamSession = {
   start_energy_kwh: number | null;
   end_energy_kwh: number | null;
   peak_power_kw: number | null;
+  // AC only, from the readings while charging; null when the car did not report them.
+  ac_voltage: number | null;
+  ac_amps: number | null;
+  ac_phases: number | null;
+  cable_type: string | null; // "IEC", "SAE", "GB_AC", ...
+  temp_max_c: number | null; // highest battery module temperature during the session
+  temp_start_c: number | null; // the reading at, or just before, the start
 };
 
 // Fields buildSessions reads; the loader fetches exactly these.
@@ -27,15 +34,44 @@ export const CHARGE_FIELDS = [
   "DCChargingEnergyIn",
   "BatteryLevel",
   "EnergyRemaining",
+  "ChargerVoltage",
+  "ChargeAmps",
+  "ChargerPhases",
+  "ChargingCableType",
+  "ModuleTempMax",
 ];
 
 const START_STATES = new Set(["Starting", "Charging"]);
 const END_STATES = new Set(["Complete", "Stopped", "Disconnected", "NoPower"]);
+// Below this the voltage is idle noise from an unplugged charger.
+const MIN_AC_VOLTS = 50;
 const MIN_SESSION_MS = 2 * 60 * 1000;
 
 function num(value: unknown): number | null {
   const n = typeof value === "string" ? Number(value) : value;
   return typeof n === "number" && Number.isFinite(n) ? n : null;
+}
+
+function median(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const v = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(v.length / 2);
+  return v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2;
+}
+
+function mode(values: number[]): number | null {
+  const counts = new Map<number, number>();
+  for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1);
+  let best: number | null = null;
+  for (const [v, c] of counts) if (best === null || c > counts.get(best)!) best = v;
+  return best;
+}
+
+// "CableTypeIEC" -> "IEC"; unknown or invalid cables are not a reading.
+function cableName(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const name = value.replace(/^CableType/, "");
+  return name === "" || /^(unknown|invalid|snafu)/i.test(name) ? null : name;
 }
 
 function round(value: number | null, digits: number): number | null {
@@ -59,6 +95,12 @@ type Open = {
   dcPower: number | null;
   acEnergy: number | null;
   dcEnergy: number | null;
+  volts: number[];
+  amps: number[];
+  phases: number[];
+  cable: string | null;
+  startTemp: number | null;
+  maxTemp: number | null;
 };
 
 // Readings may be unsorted. Readings that share a timestamp were sent in one record and are applied
@@ -77,6 +119,13 @@ export function buildSessions(readings: ChargeReading[]): StreamSession[] {
   let fastPresent = false;
   let fastType = "";
   let open: Open | null = null;
+  let chargeState: string | null = null;
+  // Latest known values; the car sends them only when they change.
+  let volts: number | null = null;
+  let amps: number | null = null;
+  let phases: number | null = null;
+  let cable: string | null = null;
+  let temp: number | null = null;
 
   const finish = (end: number | null) => {
     if (!open) return;
@@ -97,6 +146,12 @@ export function buildSessions(readings: ChargeReading[]): StreamSession[] {
         start_energy_kwh: round(open.startEnergy, 2),
         end_energy_kwh: round(energy, 2),
         peak_power_kw: round(dc ? open.dcPower : open.acPower, 1),
+        ac_voltage: dc ? null : round(median(open.volts), 1),
+        ac_amps: dc || open.amps.length === 0 ? null : round(Math.max(...open.amps), 1),
+        ac_phases: dc ? null : mode(open.phases),
+        cable_type: dc ? null : open.cable,
+        temp_max_c: round(open.maxTemp, 1),
+        temp_start_c: round(open.startTemp, 1),
       });
     }
     open = null;
@@ -111,6 +166,7 @@ export function buildSessions(readings: ChargeReading[]): StreamSession[] {
 
     const stateReading = batch.findLast((r) => r.field === "DetailedChargeState");
     const state = stateReading ? chargeStateName(stateReading.value) : null;
+    if (state !== null) chargeState = state;
     const starting = state !== null && START_STATES.has(state) && !open;
     if (starting) {
       open = {
@@ -123,6 +179,12 @@ export function buildSessions(readings: ChargeReading[]): StreamSession[] {
         dcPower: null,
         acEnergy: null,
         dcEnergy: null,
+        volts: [],
+        amps: [],
+        phases: [],
+        cable,
+        startTemp: temp,
+        maxTemp: temp,
       };
     }
 
@@ -148,6 +210,29 @@ export function buildSessions(readings: ChargeReading[]): StreamSession[] {
         case "DCChargingPower":
           if (open && n !== null) open.dcPower = Math.max(open.dcPower ?? n, n);
           break;
+        case "ChargerVoltage":
+          volts = n;
+          break;
+        case "ChargeAmps":
+          amps = n;
+          break;
+        case "ChargerPhases":
+          phases = n;
+          break;
+        case "ChargingCableType": {
+          const name = cableName(r.value);
+          if (name) {
+            cable = name;
+            if (open) open.cable = name;
+          }
+          break;
+        }
+        case "ModuleTempMax":
+          if (n !== null) {
+            temp = n;
+            if (open) open.maxTemp = Math.max(open.maxTemp ?? n, n);
+          }
+          break;
         case "ACChargingEnergyIn":
           if (open && n !== null) open.acEnergy = Math.max(open.acEnergy ?? n, n);
           break;
@@ -162,6 +247,14 @@ export function buildSessions(readings: ChargeReading[]): StreamSession[] {
       if (starting) {
         open.startLevel = level;
         open.startEnergy = energy;
+      }
+      // While charging: the values that arrived now, and on entering Charging the ones carried over.
+      if (chargeState === "Charging") {
+        const entering = starting || state === "Charging";
+        const fresh = (field: string) => entering || batch.some((r) => r.field === field);
+        if (volts !== null && volts >= MIN_AC_VOLTS && fresh("ChargerVoltage")) open.volts.push(volts);
+        if (amps !== null && fresh("ChargeAmps")) open.amps.push(amps);
+        if (phases !== null && phases > 0 && fresh("ChargerPhases")) open.phases.push(phases);
       }
     }
 

@@ -44,7 +44,11 @@ export type CarDetails = {
   chargeLimit: number | null;
   checkedAt: string | null;
   battery: BatteryHealth | null;
+  homeCharging: HomeCharging | null;
 };
+
+// From the most recent finished AC session the car streamed. Only the parts the car reported.
+export type HomeCharging = { charger: string | null; cable: string | null };
 
 // Estimated full-pack energy from the car's streamed readings: energy remaining ÷ battery level,
 // using readings the car sent together. The median over the last 30 days, so one odd reading doesn't move it.
@@ -106,7 +110,36 @@ function details(
     chargeLimit,
     checkedAt,
     battery: null,
+    homeCharging: null,
   };
+}
+
+const CABLES: Record<string, string> = { IEC: "Type 2 (IEC)", SAE: "J1772 (SAE)", GB_AC: "GB/T AC" };
+
+async function loadHomeCharging(vin: string): Promise<HomeCharging | null> {
+  const { data, error } = await db()
+    .from("stream_charge_sessions")
+    .select("peak_power_kw, ac_voltage, ac_amps, ac_phases, cable_type")
+    .eq("vin", vin)
+    .eq("kind", "ac")
+    .not("ended_at", "is", null)
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  // Extra detail; the page works without it (and before the columns exist).
+  if (error || !data) return null;
+  const kw = num(data.peak_power_kw);
+  const volts = num(data.ac_voltage);
+  const amps = num(data.ac_amps);
+  const phases = num(data.ac_phases);
+  const charger = [
+    kw !== null && kw > 0 && `${kw.toFixed(1)} kW`,
+    volts !== null && `${Math.round(volts)} V`,
+    amps !== null && `${Math.round(amps)} A`,
+    phases === 1 ? "single-phase" : phases === 3 ? "three-phase" : false,
+  ].filter(Boolean);
+  const cable = typeof data.cable_type === "string" ? (CABLES[data.cable_type] ?? null) : null;
+  return charger.length > 0 || cable ? { charger: charger.length > 0 ? charger.join(" · ") : null, cable } : null;
 }
 
 async function loadBatteryHealth(vin: string): Promise<BatteryHealth | null> {
@@ -157,5 +190,7 @@ export async function loadCarDetails(id: string): Promise<CarDetails | null> {
     num(s?.charge_limit),
     s?.polled_at ?? null,
   );
-  return v.vin ? { ...car, battery: await loadBatteryHealth(v.vin) } : car;
+  if (!v.vin) return car;
+  const [battery, homeCharging] = await Promise.all([loadBatteryHealth(v.vin), loadHomeCharging(v.vin)]);
+  return { ...car, battery, homeCharging };
 }

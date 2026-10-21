@@ -135,6 +135,15 @@ async function Car({ params }: { params: Promise<{ id: string }> }) {
             ]}
           />
         )}
+        {car.homeCharging && (
+          <Group
+            title="Home charging"
+            rows={[
+              ["Charger", car.homeCharging.charger],
+              ["Cable", car.homeCharging.cable],
+            ]}
+          />
+        )}
         {!car.checkedAt && (
           <p className="text-sm text-muted-foreground">
             The details fill in after a check that finds the car awake. Open the Tesla app, then refresh on the dashboard.

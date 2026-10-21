@@ -11,7 +11,7 @@ const LIST_LIMIT = 1000;
 
 // Fields whose last value before the watermark still describes the car at the watermark.
 // The charge state is left out on purpose: replaying an old "Charging" would start a session late.
-const BASELINE_FIELDS = ["BatteryLevel", "EnergyRemaining", "FastChargerPresent", "FastChargerType"];
+const BASELINE_FIELDS = ["BatteryLevel", "EnergyRemaining", "FastChargerPresent", "FastChargerType", "ChargingCableType", "ModuleTempMax"];
 
 export type StreamChargeSession = {
   id: number;
@@ -26,6 +26,12 @@ export type StreamChargeSession = {
   start_energy_kwh: number | null;
   end_energy_kwh: number | null;
   peak_power_kw: number | null;
+  ac_voltage: number | null;
+  ac_amps: number | null;
+  ac_phases: number | null;
+  cable_type: string | null;
+  temp_max_c: number | null;
+  temp_start_c: number | null;
 };
 
 // Numeric columns come back from PostgREST as numbers or strings.
@@ -146,7 +152,7 @@ export async function syncStreamSessionsForAllCars(): Promise<void> {
 export async function loadStreamSessions(): Promise<StreamChargeSession[]> {
   const { data, error } = await db()
     .from("stream_charge_sessions")
-    .select("id, vin, started_at, ended_at, kind, supercharger, energy_added_kwh, start_level, end_level, start_energy_kwh, end_energy_kwh, peak_power_kw")
+    .select("id, vin, started_at, ended_at, kind, supercharger, energy_added_kwh, start_level, end_level, start_energy_kwh, end_energy_kwh, peak_power_kw, ac_voltage, ac_amps, ac_phases, cable_type, temp_max_c, temp_start_c")
     .order("started_at", { ascending: false })
     .limit(LIST_LIMIT);
   if (error) {
@@ -166,5 +172,11 @@ export async function loadStreamSessions(): Promise<StreamChargeSession[]> {
     start_energy_kwh: num(row.start_energy_kwh),
     end_energy_kwh: num(row.end_energy_kwh),
     peak_power_kw: num(row.peak_power_kw),
+    ac_voltage: num(row.ac_voltage),
+    ac_amps: num(row.ac_amps),
+    ac_phases: num(row.ac_phases),
+    cable_type: (row.cable_type as string | null) ?? null,
+    temp_max_c: num(row.temp_max_c),
+    temp_start_c: num(row.temp_start_c),
   }));
 }
