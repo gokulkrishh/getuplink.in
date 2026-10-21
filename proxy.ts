@@ -35,6 +35,10 @@ function homeOrigin(url: URL): string {
   return url.hostname.endsWith("localhost") ? `${url.protocol}//uplink.localhost${url.port ? `:${url.port}` : ""}` : HOME_ORIGIN;
 }
 
+function statusOrigin(url: URL): string {
+  return url.hostname.endsWith("localhost") ? `${url.protocol}//status.uplink.localhost${url.port ? `:${url.port}` : ""}` : "https://status.getuplink.in";
+}
+
 function appOrigin(url: URL): string {
   const local = url.hostname === "localhost" || url.hostname === "uplink.localhost";
   return local ? `${url.protocol}//app.uplink.localhost${url.port ? `:${url.port}` : ""}` : APP_ORIGIN;
@@ -59,6 +63,8 @@ export async function proxy(request: NextRequest) {
   }
   if (marketing) {
     if (pathname === "/") return NextResponse.rewrite(new URL("/home", request.url));
+    // The footer's Status link lands on the status subdomain.
+    if (pathname === "/status") return NextResponse.redirect(statusOrigin(request.nextUrl), 308);
     if (!MARKETING_PATHS.has(pathname)) return NextResponse.redirect(appOrigin(request.nextUrl) + pathname + search, 308);
   }
 

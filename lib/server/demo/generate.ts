@@ -11,7 +11,7 @@ import { istDay, istDayStart, type Reading } from "@/lib/telemetry-derive";
 import type { ChargingSession } from "../charging";
 import type { PollRun, Snapshot, Vehicle, VersionChange } from "../dashboard";
 
-export const DEMO_VIN = "LRWYGCEK3SC100001";
+export const DEMO_VIN = "LRWYGCEK3TC100001";
 
 const MIN = 60_000;
 const HOUR = 3_600_000;
