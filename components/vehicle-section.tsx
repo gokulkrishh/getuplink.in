@@ -79,7 +79,7 @@ function UpdateStatus({ snapshot, asOf }: { snapshot: Snapshot | null; asOf: str
               <span className="absolute inset-y-0 -left-1/2 w-1/2 bg-linear-to-r from-transparent via-background/50 to-transparent motion-safe:animate-shimmer" />
             </div>
           </div>
-          <span className="w-10 text-right font-mono text-xs tabular-nums text-muted-foreground">{progress}%</span>
+          <span className="w-10 text-left font-mono text-xs tabular-nums text-muted-foreground">{progress}%</span>
         </div>
       )}
       {(status === "scheduled" && snapshot.scheduled_time_ms) || snapshot.expected_duration_sec ? (
