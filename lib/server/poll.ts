@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "./supabase";
+import { parseReleaseNotes } from "@/lib/release-notes";
 import { fleetGet, TeslaError } from "./tesla";
 
 type FleetVehicle = {
@@ -101,6 +102,11 @@ async function pollVehicle(vehicle: FleetVehicle, now: string) {
       raw: data.vehicle_state ?? null,
     }),
   );
+  await recordReleaseNotes(vehicle.vin, [
+    { version, staged: false },
+    { version: normaliseVersion(update.version), staged: true },
+  ]);
+
   if (version && version !== previous) {
     await check(
       db().from("version_history").insert({
@@ -110,6 +116,36 @@ async function pollVehicle(vehicle: FleetVehicle, now: string) {
         detected_at: now,
       }),
     );
+  }
+}
+
+// Fetch notes once per version, only while the car is already online (we never wake it).
+// `staged=true` asks for the notes of a downloaded or pending update. Failures are logged, not fatal.
+async function recordReleaseNotes(vin: string, versions: { version: string | null; staged: boolean }[]) {
+  const wanted = versions.filter((v): v is { version: string; staged: boolean } => Boolean(v.version));
+  if (wanted.length === 0) return;
+  const { data: stored } = await db()
+    .from("release_notes")
+    .select("version")
+    .in(
+      "version",
+      wanted.map((v) => v.version),
+    );
+  const have = new Set((stored ?? []).map((r: { version: string }) => r.version));
+
+  for (const { version, staged } of wanted) {
+    if (have.has(version)) continue;
+    try {
+      const raw = await fleetGet<Record<string, unknown>>(`/api/1/vehicles/${vin}/release_notes${staged ? "?staged=true" : ""}`);
+      const reported = normaliseVersion(String((staged ? raw?.staged_version : raw?.deployed_version) ?? ""));
+      // Don't file notes under the wrong version if Tesla answers for a different one.
+      if (reported && reported !== version) continue;
+      const notes = parseReleaseNotes(raw);
+      if (notes.length === 0) continue;
+      await check(db().from("release_notes").upsert({ version, notes, raw }, { onConflict: "version", ignoreDuplicates: true }));
+    } catch (err) {
+      console.warn(`Release notes for ${version} unavailable:`, (err as Error).message);
+    }
   }
 }
 

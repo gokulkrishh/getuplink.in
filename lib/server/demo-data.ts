@@ -1,4 +1,5 @@
 import "server-only";
+import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import type { Dashboard, Snapshot, Vehicle, VehicleView, VersionChange } from "./dashboard";
 
 export const DEMO_SCENARIOS = {
@@ -35,6 +36,23 @@ const LONG_HISTORY: [string, number][] = [
   ["2025.32.6", 398],
   ["2025.26.7", 452],
 ];
+
+// Sample notes (made up for the demo). Some versions have none, as with real data.
+const DEMO_NOTES: ReleaseNotesByVersion = {
+  "2026.38.6": [
+    { title: "Navigation", description: "Route planning now accounts for charger availability along the way." },
+    { title: "Minor fixes", description: "Improvements to stability and performance." },
+  ],
+  "2026.38.4": [
+    { title: "Climate", subtitle: "Cabin overheat protection", description: "Set a fan-only mode to keep the cabin cooler while parked." },
+    { title: "Media", description: "Faster loading for saved playlists." },
+  ],
+  "2026.32.6": [{ title: "Minor fixes", description: "Improvements to stability and performance." }],
+  "2026.26.3": [
+    { title: "Dashcam", description: "Clips are now grouped by drive in the viewer." },
+    { title: "Charging", description: "Scheduled charging can start at a set time or finish by departure." },
+  ],
+};
 
 export function isDemoScenario(value: unknown): value is DemoScenario {
   return typeof value === "string" && value in DEMO_SCENARIOS;
@@ -79,6 +97,7 @@ export function demoDashboard(scenario: DemoScenario = "full"): Dashboard {
   const ready = (vehicles: VehicleView[], failed = false): Dashboard => ({
     kind: "ready",
     vehicles,
+    releaseNotes: DEMO_NOTES,
     lastRun: { started_at: ago(0.1), ok: !failed, error: failed ? REGION_ERROR : null },
   });
 

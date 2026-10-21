@@ -1,5 +1,8 @@
 import { VersionChart } from "@/components/version-chart";
 import { formatDate, formatDateTime, formatDuration, formatTime } from "@/lib/format";
+import { ChevronRight } from "lucide-react";
+import { ReleaseNotesList } from "@/components/release-notes";
+import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import type { Snapshot, VehicleView } from "@/lib/server/dashboard";
 
 const STATUS: Record<string, string> = {
@@ -10,7 +13,20 @@ const STATUS: Record<string, string> = {
   installing: "Installing",
 };
 
-function UpdateStatus({ snapshot }: { snapshot: Snapshot | null }) {
+function WhatsNew({ version, notes }: { version: string; notes: ReleaseNotesByVersion }) {
+  if (!notes[version]) return null;
+  return (
+    <details className="group/notes">
+      <summary className="flex w-fit list-none items-center gap-1 text-xs text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
+        <ChevronRight className="size-3 transition-transform group-open/notes:rotate-90" aria-hidden="true" />
+        What&apos;s new in {version}
+      </summary>
+      <ReleaseNotesList notes={notes[version]} />
+    </details>
+  );
+}
+
+function UpdateStatus({ snapshot, notes }: { snapshot: Snapshot | null; notes: ReleaseNotesByVersion }) {
   if (!snapshot) return <p className="text-muted-foreground">Unknown until the car is next seen online.</p>;
   const status = snapshot.update_status;
   if (!status || !STATUS[status]) return <p>Up to date</p>;
@@ -51,6 +67,7 @@ function UpdateStatus({ snapshot }: { snapshot: Snapshot | null }) {
           <span className="w-10 text-right font-mono text-xs tabular-nums text-muted-foreground">{progress}%</span>
         </div>
       )}
+      {snapshot.update_version && <WhatsNew version={snapshot.update_version} notes={notes} />}
       <p className="text-xs text-muted-foreground">
         {status === "scheduled" && snapshot.scheduled_time_ms
           ? `Starts ${formatDateTime(snapshot.scheduled_time_ms)}`
@@ -66,7 +83,7 @@ function Label({ children }: { children: React.ReactNode }) {
   return <dt className="mb-1 text-xs text-faint">{children}</dt>;
 }
 
-export function VehicleSection({ view }: { view: VehicleView }) {
+export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?: ReleaseNotesByVersion }) {
   const { vehicle, latest, lastOnline, history } = view;
   const asleep = latest && latest.state !== "online";
 
@@ -80,6 +97,11 @@ export function VehicleSection({ view }: { view: VehicleView }) {
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums sm:text-4xl">
           {vehicle.current_version ?? "—"}
         </p>
+        {vehicle.current_version && (
+          <div className="pt-2">
+            <WhatsNew version={vehicle.current_version} notes={notes} />
+          </div>
+        )}
         {!vehicle.current_version && (
           <p className="text-sm text-muted-foreground">
             Asleep at every check so far. Open the Tesla app to wake the car, then select Check now.
@@ -91,7 +113,7 @@ export function VehicleSection({ view }: { view: VehicleView }) {
         <div className="sm:col-span-2">
           <Label>Update</Label>
           <dd>
-            <UpdateStatus snapshot={lastOnline} />
+            <UpdateStatus snapshot={lastOnline} notes={notes} />
             {asleep && lastOnline && (
               <p className="mt-1 text-xs text-faint">As of {formatDateTime(lastOnline.polled_at)}</p>
             )}
@@ -124,14 +146,40 @@ export function VehicleSection({ view }: { view: VehicleView }) {
           <>
             <VersionChart changes={[...history].reverse()} until={vehicle.last_polled_at} />
             <ol className="text-sm">
-              {history.map((change) => (
-                <li key={change.detected_at} className="flex items-baseline justify-between gap-4 border-t py-2.5">
-                  <span className="font-mono">{change.version}</span>
-                  <span className="text-muted-foreground tabular-nums">
-                    {change.previous_version ? formatDate(change.detected_at) : `First seen ${formatDate(change.detected_at)}`}
-                  </span>
-                </li>
-              ))}
+              {history.map((change) => {
+                const date = change.previous_version ? formatDate(change.detected_at) : `First seen ${formatDate(change.detected_at)}`;
+                const versionNotes = notes[change.version];
+                if (!versionNotes) {
+                  return (
+                    <li key={change.detected_at} className="flex items-baseline justify-between gap-4 border-t py-2.5 pl-5">
+                      <span className="font-mono">{change.version}</span>
+                      <span className="text-muted-foreground tabular-nums">{date}</span>
+                    </li>
+                  );
+                }
+                return (
+                  <li key={change.detected_at} className="border-t">
+                    <details className="group/row">
+                      <summary
+                        aria-label={`${change.version}, ${date}. Show release notes`}
+                        className="flex list-none items-baseline justify-between gap-4 py-2.5 hover:text-foreground [&::-webkit-details-marker]:hidden"
+                      >
+                        <span className="flex items-center gap-1.5 font-mono">
+                          <ChevronRight
+                            className="size-3.5 self-center text-faint transition-transform group-open/row:rotate-90"
+                            aria-hidden="true"
+                          />
+                          {change.version}
+                        </span>
+                        <span className="text-muted-foreground tabular-nums">{date}</span>
+                      </summary>
+                      <div className="pb-2 pl-5">
+                        <ReleaseNotesList notes={versionNotes} />
+                      </div>
+                    </details>
+                  </li>
+                );
+              })}
             </ol>
           </>
         )}
