@@ -137,10 +137,10 @@ export default function PrivacyPage() {
       <footer className="mt-auto flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-t pt-6 text-xs text-faint">
         <span>Uplink is not affiliated with Tesla, Inc.</span>
         <nav aria-label="Legal" className="flex gap-4">
-          <Link href="/terms" className="underline underline-offset-4">
+          <Link href="/terms" className="text-muted-foreground transition-colors duration-150 hover:text-foreground">
             Terms
           </Link>
-          <Link href="/status" className="underline underline-offset-4">
+          <Link href="/status" className="text-muted-foreground transition-colors duration-150 hover:text-foreground">
             Status
           </Link>
         </nav>
