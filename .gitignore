@@ -155,8 +155,6 @@ keys/
 .env*.local
 next-env.d.ts
 
-# Local design canvas (dev-only, see app/canvas/_registry.ts)
-/app/canvas/
 
 # Personal Claude Code settings
 .claude/settings.local.json
