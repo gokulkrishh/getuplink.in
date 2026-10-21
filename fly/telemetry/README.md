@@ -4,7 +4,7 @@ Runs Tesla's official `fleet-telemetry` server (image `tesla/fleet-telemetry:v0.
 worker (`worker.ts`). The server terminates mTLS itself and logs decoded records; the worker reads
 those lines and batches rows into Supabase `telemetry_readings` every ~10 s.
 
-- App `uplink-telemetry`, region `bom`, one always-on `shared-cpu-1x` machine.
+- App `uplink-telemetry`, region `sin`, one always-on `shared-cpu-1x` machine.
 - Fly maps external 443 to internal 8443 over raw TCP (no handlers), so the TLS handshake and the
   car's client certificate reach the server untouched.
 - Cars are verified against Tesla's CA, which is embedded in the server. Our own CA only exists so the
