@@ -44,7 +44,7 @@ export function CheckNowIcon({ className, checked }: { className?: string; check
       )}
     >
       <RotateCw className={cn("size-3.5", pending && "motion-safe:animate-spin")} aria-hidden="true" />
-      <Tip>{pending ? "Refreshing…" : checked ? `Refresh · Last checked ${checked}` : "Refresh"}</Tip>
+      <Tip>{pending ? "Refreshing…" : checked ? `Last checked ${checked}` : "Refresh"}</Tip>
     </button>
   );
 }
