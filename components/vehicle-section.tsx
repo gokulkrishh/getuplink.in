@@ -45,7 +45,7 @@ function UpdateStatus({ snapshot }: { snapshot: Snapshot | null }) {
         {status === "scheduled" && snapshot.scheduled_time_ms
           ? `Starts ${formatDateTime(snapshot.scheduled_time_ms)}`
           : snapshot.expected_duration_sec
-            ? `Install takes about ${formatDuration(snapshot.expected_duration_sec)}`
+            ? `Install takes ~${formatDuration(snapshot.expected_duration_sec)}`
             : null}
       </p>
     </div>
