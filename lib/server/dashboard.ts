@@ -33,6 +33,8 @@ export type VersionChange = {
   version: string;
   previous_version: string | null;
   detected_at: string;
+  available_at: string | null; // first check that saw it offered as an update
+  odometer_km: number | null;
 };
 
 export type PollRun = { started_at: string; ok: boolean | null; error: string | null };
@@ -67,7 +69,7 @@ async function vehicleView(vehicle: Vehicle): Promise<VehicleView> {
       .maybeSingle(),
     db()
       .from("version_history")
-      .select("version, previous_version, detected_at")
+      .select("version, previous_version, detected_at, available_at, odometer_km")
       .eq("vehicle_id", vehicle.id)
       .order("detected_at", { ascending: false })
       .limit(100),

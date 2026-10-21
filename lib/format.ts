@@ -30,3 +30,10 @@ export function formatDuration(seconds: number): string {
   const hours = Math.floor(minutes / 60);
   return minutes % 60 ? `${hours} h ${minutes % 60} min` : `${hours} h`;
 }
+
+const km = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
+
+// "12,340 km" (Indian digit grouping: "1,23,400 km")
+export function formatKm(value: number): string {
+  return `${km.format(value)} km`;
+}

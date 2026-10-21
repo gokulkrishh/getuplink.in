@@ -21,7 +21,7 @@ type SoftwareUpdate = {
 };
 
 type VehicleData = {
-  vehicle_state?: { car_version?: string; software_update?: SoftwareUpdate };
+  vehicle_state?: { car_version?: string; odometer?: number; software_update?: SoftwareUpdate };
 };
 
 // "2025.32.3 1a2b3c4d" -> "2025.32.3"; the build hash changes nothing for us.
@@ -108,12 +108,29 @@ async function pollVehicle(vehicle: FleetVehicle, now: string) {
   ]);
 
   if (version && version !== previous) {
+    // When was this version first offered to the car? Only meaningful for a real update, not the
+    // version that was already installed when tracking began.
+    const offered = previous
+      ? await check(
+          db()
+            .from("snapshots")
+            .select("polled_at")
+            .eq("vehicle_id", id)
+            .eq("update_version", version)
+            .order("polled_at", { ascending: true })
+            .limit(1)
+            .maybeSingle(),
+        )
+      : null;
     await check(
       db().from("version_history").insert({
         vehicle_id: id,
         version,
         previous_version: previous,
         detected_at: now,
+        available_at: offered?.polled_at ?? null,
+        // Tesla reports the odometer in miles.
+        odometer_km: typeof state.odometer === "number" ? Math.round(state.odometer * 1.609344 * 10) / 10 : null,
       }),
     );
   }
@@ -149,10 +166,24 @@ async function recordReleaseNotes(vin: string, versions: { version: string | nul
   }
 }
 
-export type PollResult = { ok: boolean; vehicles: number; error?: string };
+export type PollResult = { ok: boolean; vehicles: number; error?: string; skipped?: boolean };
+
+// A run that never finished (crash or timeout) stops holding the lock after this long.
+const STALE_RUN_MS = 5 * 60 * 1000;
+const UNIQUE_VIOLATION = "23505";
 
 export async function pollAll(): Promise<PollResult> {
-  const run = await check(db().from("poll_runs").insert({}).select("id").single());
+  await check(
+    db()
+      .from("poll_runs")
+      .update({ finished_at: new Date().toISOString(), ok: false, error: "Did not finish" })
+      .is("finished_at", null)
+      .lt("started_at", new Date(Date.now() - STALE_RUN_MS).toISOString()),
+  );
+  // poll_runs allows one unfinished row (poll_runs_one_running_idx): inserting is taking the lock.
+  const { data: run, error: lockError } = await db().from("poll_runs").insert({}).select("id").single();
+  if (lockError?.code === UNIQUE_VIOLATION) return { ok: true, vehicles: 0, skipped: true };
+  if (lockError || !run) throw new Error(lockError?.message ?? "Could not start a check");
   const now = new Date().toISOString();
   const errors: string[] = [];
   let vehicles: FleetVehicle[] = [];
@@ -180,7 +211,7 @@ export async function pollAll(): Promise<PollResult> {
         vehicles_seen: result.vehicles,
         error: result.error ?? null,
       })
-      .eq("id", run!.id),
+      .eq("id", run.id),
   );
   return result;
 }

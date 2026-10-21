@@ -5,6 +5,7 @@ import type { Dashboard, Snapshot, Vehicle, VehicleView, VersionChange } from ".
 export const DEMO_SCENARIOS = {
   full: "Two cars, long history",
   installing: "Installing",
+  "wifi-wait": "Waiting for Wi-Fi",
   scheduled: "Scheduled",
   available: "Update available",
   uptodate: "Up to date",
@@ -79,8 +80,18 @@ export function isDemoScenario(value: unknown): value is DemoScenario {
 export function demoDashboard(scenario: DemoScenario = "full"): Dashboard {
   const now = Date.now();
   const ago = (days: number) => new Date(now - days * DAY).toISOString();
+  // Offered 1–3 days before install; about 38 km a day of driving.
   const history = (rows: [string, number][]): VersionChange[] =>
-    rows.map(([version, days], i) => ({ version, previous_version: rows[i + 1]?.[0] ?? null, detected_at: ago(days) }));
+    rows.map(([version, days], i) => {
+      const previous = rows[i + 1]?.[0] ?? null;
+      return {
+        version,
+        previous_version: previous,
+        detected_at: ago(days),
+        available_at: previous ? ago(days + 1 + (i % 3)) : null,
+        odometer_km: Math.round(24310 - days * 38),
+      };
+    });
 
   const snapshot = (overrides: Partial<Snapshot>): Snapshot => ({
     polled_at: ago(0.1),
@@ -127,6 +138,8 @@ export function demoDashboard(scenario: DemoScenario = "full"): Dashboard {
   switch (scenario) {
     case "installing":
       return one({ update_status: "installing", update_version: "2026.38.3", install_perc: 63, expected_duration_sec: 1500 });
+    case "wifi-wait":
+      return one({ update_status: "downloading_wifi_wait", update_version: "2026.38.3", download_perc: 0, expected_duration_sec: 2400 });
     case "scheduled":
       return one({ update_status: "scheduled", update_version: "2026.38.3", scheduled_time_ms: now + 0.6 * DAY });
     case "available":
