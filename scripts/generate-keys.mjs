@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Generates the prime256v1 (P-256) EC key pair Tesla requires for partner registration.
-// Usage: node scripts/generate-keys.mjs
+// Usage: bun scripts/generate-keys.mjs
 // Writes keys/private-key.pem and keys/public-key.pem (both gitignored).
 import { generateKeyPairSync } from "node:crypto";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
@@ -32,7 +32,7 @@ Next steps:
   2. Keep ${privatePath} somewhere safe (a password manager). Never commit it.
      This app only reads vehicle data, so it does not need the private key at runtime.
   3. Redeploy, then check https://tesla-in-updates.vercel.app/.well-known/appspecific/com.tesla.3p.public-key.pem
-  4. Register the domain: node --env-file=.env.local scripts/register-partner.mjs
+  4. Register the domain: bun --env-file=.env.local scripts/register-partner.mjs
 
 Public key:
 ${publicKey}`);

@@ -6,7 +6,7 @@ A single-owner dashboard that tracks Tesla software updates for the vehicles on 
 - Keeps a version history and a small chart of version changes.
 - Polls every 6 hours. It **never wakes the car**: asleep or offline vehicles are recorded as such and skipped.
 
-Stack: Next.js 16 (App Router), shadcn/ui, Geist, Recharts, Supabase Postgres (server-side only), Vercel (region `bom1`).
+Stack: Bun, Next.js 16 (App Router), shadcn/ui, Geist, Recharts, Supabase Postgres (server-side only), Vercel (region `bom1`).
 
 ## How it works
 
@@ -44,7 +44,7 @@ For local scripts, put the same values in `.env.local` (gitignored), e.g. `verce
 ### 2. Generate the Tesla key pair
 
 ```sh
-node scripts/generate-keys.mjs
+bun scripts/generate-keys.mjs
 ```
 
 This writes `keys/public-key.pem` and `keys/private-key.pem` (prime256v1; both gitignored) and prints next steps. Add the public key to Vercel:
@@ -64,7 +64,7 @@ curl https://tesla-in-updates.vercel.app/.well-known/appspecific/com.tesla.3p.pu
 Needs `TESLA_CLIENT_ID` and `TESLA_CLIENT_SECRET` in `.env.local`, and the public key live from step 2.
 
 ```sh
-node --env-file=.env.local scripts/register-partner.mjs
+bun --env-file=.env.local scripts/register-partner.mjs
 ```
 
 It gets a partner token (`client_credentials`), calls `POST /api/1/partner_accounts` with `{"domain": "tesla-in-updates.vercel.app"}`, then reads back `GET /api/1/partner_accounts/public_key` to confirm. Re-run it if you rotate the key.
@@ -102,10 +102,10 @@ Fleet API calls are billed per request. Each poll makes one `vehicles` call plus
 ## Development
 
 ```sh
-npm install
-npm run dev     # http://localhost:3000
-npm run lint
-npm run build
+bun install
+bun dev         # http://localhost:3000
+bun run lint
+bun run build
 ```
 
 OAuth only works against the registered redirect URI, so connect Tesla on the deployed site; local dev can share the same Supabase data.

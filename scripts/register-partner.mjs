@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // One-time Tesla partner registration for this app's domain.
-// Usage: node --env-file=.env.local scripts/register-partner.mjs
+// Usage: bun --env-file=.env.local scripts/register-partner.mjs
 // Needs TESLA_CLIENT_ID and TESLA_CLIENT_SECRET; the public key must already be live
 // at https://<domain>/.well-known/appspecific/com.tesla.3p.public-key.pem.
 const TOKEN_URL = "https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token";
@@ -9,7 +9,7 @@ const domain = process.env.TESLA_PARTNER_DOMAIN || "tesla-in-updates.vercel.app"
 
 for (const name of ["TESLA_CLIENT_ID", "TESLA_CLIENT_SECRET"]) {
   if (!process.env[name]) {
-    console.error(`Missing ${name}. Run with: node --env-file=.env.local scripts/register-partner.mjs`);
+    console.error(`Missing ${name}. Run with: bun --env-file=.env.local scripts/register-partner.mjs`);
     process.exit(1);
   }
 }
