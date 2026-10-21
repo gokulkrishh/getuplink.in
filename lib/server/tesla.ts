@@ -236,13 +236,18 @@ export function fleetGetRaw(path: string): Promise<Response> {
 // "Delete my data": remove the car's data and the Tesla tokens, and sign out everywhere. Vehicles
 // cascade to snapshots and version_history. owner_sub stays, so the dashboard can't be claimed by
 // another Tesla account. Release notes are Tesla's public text per version, not the owner's data.
+// Charging sessions are the owner's too. Their table may not exist if its migration was never run
+// (Postgres 42P01, PostgREST PGRST205), which is fine: there is nothing to delete.
 export async function deleteMyData(): Promise<void> {
   for (const [table, column] of [
     ["vehicles", "id"],
     ["poll_runs", "id"],
+    ["charging_sessions", "session_id"],
   ] as const) {
     const { error } = await db().from(table).delete().not(column, "is", null);
-    if (error) throw new Error(`Deleting ${table} failed: ${error.message}`);
+    if (error && !(table === "charging_sessions" && ["42P01", "PGRST205"].includes(error.code))) {
+      throw new Error(`Deleting ${table} failed: ${error.message}`);
+    }
   }
   await disconnectTesla();
 }
