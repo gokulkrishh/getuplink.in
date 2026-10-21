@@ -10,7 +10,7 @@ import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargingSession, loadChargingSessions } from "@/lib/server/charging";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Charging · Uplink" };
+export const metadata: Metadata = { title: "Stats · Uplink" };
 
 const monthLabel = new Intl.DateTimeFormat("en-GB", { month: "short", timeZone: "Asia/Kolkata" });
 
@@ -231,8 +231,8 @@ export default function Page() {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:py-20">
       <Header />
-      <h1 className="text-2xl font-medium tracking-[-0.01em]">Charging</h1>
-      <p className="mt-2 mb-12 text-sm text-muted-foreground">Tesla Supercharger sessions. Other networks come later.</p>
+      <h1 className="text-2xl font-medium tracking-[-0.01em]">Stats</h1>
+      <p className="mt-2 mb-12 text-sm text-muted-foreground">Charging at Tesla Superchargers. Other networks come later.</p>
       <Suspense fallback={<SessionsSkeleton />}>
         <Sessions />
       </Suspense>

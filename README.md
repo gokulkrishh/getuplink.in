@@ -90,7 +90,7 @@ Do this right after the first deploy: until someone signs in, the first Tesla ac
 
 ### Supercharger history
 
-The **Charging** page lists your Tesla Supercharger sessions with energy, cost and invoice links. It uses the `vehicle_charging_cmds` scope, so **Vehicle Charging Management** must be enabled in the Tesla developer app, or sign-in fails. Owners who signed in before it was added need to sign in with Tesla again to approve it.
+The **Stats** page (`/stats`) lists your Tesla Supercharger sessions with energy, cost and invoice links. It uses the `vehicle_charging_cmds` scope, so **Vehicle Charging Management** must be enabled in the Tesla developer app, or sign-in fails. Owners who signed in before it was added need to sign in with Tesla again to approve it.
 
 Each check then pulls the last 120 days of sessions for every car. Other networks are not covered yet. The migration is [`supabase/migrations/20261021210000_charging_sessions.sql`](supabase/migrations/20261021210000_charging_sessions.sql).
 

@@ -25,8 +25,8 @@ function Header() {
         </Link>
       </h1>
       <nav className="flex items-baseline gap-4 text-muted-foreground">
-        <Link href="/charging" className="hover:text-foreground">
-          Charging
+        <Link href="/stats" className="hover:text-foreground">
+          Stats
         </Link>
         <Link href="/settings" className="hover:text-foreground">
           Settings
