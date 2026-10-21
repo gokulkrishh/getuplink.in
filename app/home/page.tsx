@@ -4,14 +4,10 @@ import { Suspense } from "react";
 import {
   BatteryMedium,
   ChevronDown,
-  Clock,
   Download,
   History,
-  IndianRupee,
-  MapPin,
   MoonStar,
   ScrollText,
-  Sparkles,
   Zap,
   type LucideIcon,
 } from "lucide-react";
@@ -22,7 +18,6 @@ import { LoginError } from "@/components/login-error";
 import { Logo } from "@/components/logo";
 import { SignInButton } from "@/components/sign-in-button";
 import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Uplink · Tesla software updates, tracked from India",
@@ -52,13 +47,6 @@ const HISTORY_POINTS = [
   { title: "Odometer at each update", body: "Know exactly where in your car's life a version arrived." },
   { title: "Spend by month", body: "Supercharging cost and energy, with every invoice a tap away." },
   { title: "Release notes inline", body: "Open any version to read what changed." },
-];
-
-const INDIA: { icon: LucideIcon; title: string; body: string }[] = [
-  { icon: Clock, title: "Times in IST", body: "Every date and time is shown in India Standard Time." },
-  { icon: IndianRupee, title: "Money in rupees", body: "Supercharger costs in ₹, straight from Tesla's invoices." },
-  { icon: MapPin, title: "India's Superchargers", body: "Sessions at Mumbai BKC and Navi Mumbai Seawoods, and new sites as they open." },
-  { icon: Sparkles, title: "India changes, soon", body: "What changes on Tesla India's site and software, as it happens." },
 ];
 
 const FAQ = [
@@ -97,9 +85,9 @@ function SectionTitle({ title, body }: { title: string; body: string }) {
   );
 }
 
-function IconGrid({ items, four = false }: { items: { icon: LucideIcon; title: string; body: string }[]; four?: boolean }) {
+function IconGrid({ items }: { items: { icon: LucideIcon; title: string; body: string }[] }) {
   return (
-    <ul className={cn("mt-14 grid gap-x-10 gap-y-12 sm:grid-cols-2", four ? "lg:grid-cols-4" : "lg:grid-cols-3")}>
+    <ul className="mt-14 grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
       {items.map(({ icon: Icon, title, body }) => (
         <li key={title}>
           <h3 className="flex items-center gap-2.5 text-base font-medium">
@@ -188,11 +176,6 @@ export default function HomePage() {
           </ul>
         </div>
         <HistoryMock />
-      </section>
-
-      <section className="py-24">
-        <SectionTitle title="Built for India" body="Made for Tesla owners here, from the first Supercharger in Mumbai onward." />
-        <IconGrid items={INDIA} four />
       </section>
 
       <section id="faq" className="scroll-mt-16 py-24">
