@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 const FEATURES = [
   {
     title: "Every version, dated",
-    body: "A history of each software version your car has run, with when each update was offered and installed.",
+    body: "A history of each software version your car has run, with when each update became available and when it was installed.",
   },
   {
     title: "Release notes",

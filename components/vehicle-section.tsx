@@ -108,19 +108,19 @@ function UpdateStatus({ snapshot }: { snapshot: Snapshot | null }) {
   );
 }
 
-// Right side of a history row: when the version arrived, plus when it was offered and the odometer.
+// Right side of a history row: when the version arrived, plus when it became available and the odometer.
 function HistoryMeta({ change, date }: { change: VersionChange; date: string | null }) {
   const details = [
-    change.available_at && `Offered ${formatShortDate(change.available_at)}`,
+    change.available_at && `Available ${formatShortDate(change.available_at)}`,
     change.odometer_km != null && formatKm(change.odometer_km),
   ].filter(Boolean);
   return (
     <div className="text-right gap-1 flex flex-col">
       {date ? (
-        <span className="block text-muted-foreground tabular-nums">{date}</span>
+        <span className="block text-muted-foreground tabular-nums">Installed {date}</span>
       ) : (
         // Already installed when tracking began; Tesla doesn't report install dates.
-        <span className="block text-muted-foreground tabular-nums">Before {formatDate(change.detected_at)}</span>
+        <span className="block text-muted-foreground tabular-nums">Installed before {formatDate(change.detected_at)}</span>
       )}
       {details.length > 0 && <span className="block text-xs text-faint tabular-nums">{details.join(" · ")}</span>}
     </div>
