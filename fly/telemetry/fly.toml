@@ -1,0 +1,23 @@
+# Fleet Telemetry receiver. Deploy from this directory: cd fly/telemetry && fly deploy
+# Secrets (never in this file): TLS_SERVER_CERT, TLS_SERVER_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+app = "uplink-telemetry"
+primary_region = "bom"
+
+[build]
+  dockerfile = "Dockerfile"
+
+# Raw TCP passthrough on purpose: no [services.ports.handlers], so TLS (and the car's client
+# certificate) reach fleet-telemetry untouched. Adding "tls" or "http" handlers would break mTLS.
+[[services]]
+  protocol = "tcp"
+  internal_port = 8443
+  auto_stop_machines = "off"
+  auto_start_machines = false
+  min_machines_running = 1
+
+  [[services.ports]]
+    port = 443
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
