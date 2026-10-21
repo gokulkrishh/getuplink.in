@@ -3,6 +3,7 @@ import { db } from "./supabase";
 import { parseReleaseNotes } from "@/lib/release-notes";
 import { fleetGet, TeslaError } from "./tesla";
 import { syncChargingHistory } from "./charging";
+import { syncStreamSessionsSafely } from "./stream-charging";
 import { colorName, MILES_TO_KM, modelName } from "@/lib/car";
 import { messageOf } from "@/lib/errors";
 
@@ -242,6 +243,8 @@ export async function pollAll(): Promise<PollResult> {
       syncChargingHistory(vehicles.map((v) => v.vin)).catch((err) =>
         console.warn("Charging history sync failed:", messageOf(err)),
       ),
+      // Sessions rebuilt from Fleet Telemetry (AC and third-party charging); logs its own failures.
+      syncStreamSessionsSafely(vehicles.map((v) => v.vin)),
     ]);
     results.forEach((result, i) => {
       if (result.status === "rejected") {
