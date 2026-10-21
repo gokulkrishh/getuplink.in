@@ -1,5 +1,6 @@
 import "server-only";
 import { DEMO } from "@/lib/demo";
+import type { ReleaseNote, ReleaseNotesByVersion } from "@/lib/release-notes";
 import { demoDashboard, isDemoScenario } from "./demo-data";
 import { missingEnv } from "./env";
 import { db } from "./supabase";
@@ -48,7 +49,7 @@ export type Dashboard =
   | { kind: "misconfigured"; missing: string[] }
   | { kind: "error"; message: string }
   | { kind: "disconnected" }
-  | { kind: "ready"; vehicles: VehicleView[]; lastRun: PollRun | null };
+  | { kind: "ready"; vehicles: VehicleView[]; lastRun: PollRun | null; releaseNotes: ReleaseNotesByVersion };
 
 const SNAPSHOT_COLUMNS =
   "polled_at, state, car_version, update_status, update_version, download_perc, install_perc, expected_duration_sec, scheduled_time_ms, error";
@@ -81,6 +82,23 @@ async function vehicleView(vehicle: Vehicle): Promise<VehicleView> {
   };
 }
 
+// Notes for every version on screen (history + pending updates), in one query. Missing table or
+// no notes yet just means no notes are shown.
+async function loadReleaseNotes(views: VehicleView[]): Promise<ReleaseNotesByVersion> {
+  const versions = new Set<string>();
+  for (const v of views) {
+    v.history.forEach((h) => versions.add(h.version));
+    if (v.lastOnline?.update_version) versions.add(v.lastOnline.update_version);
+  }
+  if (versions.size === 0) return {};
+  const { data, error } = await db().from("release_notes").select("version, notes").in("version", [...versions]);
+  if (error) {
+    console.warn("Release notes unavailable:", error.message);
+    return {};
+  }
+  return Object.fromEntries((data as { version: string; notes: ReleaseNote[] }[]).map((r) => [r.version, r.notes]));
+}
+
 export async function loadDashboard(demoScenario?: string): Promise<Dashboard> {
   if (DEMO) return demoDashboard(isDemoScenario(demoScenario) ? demoScenario : "full");
   const missing = missingEnv();
@@ -94,10 +112,12 @@ export async function loadDashboard(demoScenario?: string): Promise<Dashboard> {
     ]);
     if (vehicles.error) throw new Error(vehicles.error.message);
     if (runs.error) throw new Error(runs.error.message);
+    const views = await Promise.all((vehicles.data as Vehicle[]).map(vehicleView));
     return {
       kind: "ready",
-      vehicles: await Promise.all((vehicles.data as Vehicle[]).map(vehicleView)),
+      vehicles: views,
       lastRun: runs.data as PollRun | null,
+      releaseNotes: await loadReleaseNotes(views),
     };
   } catch (err) {
     console.error(err);

@@ -129,7 +129,7 @@ async function Dashboard({ searchParams }: PageProps<"/">) {
       {data.kind === "ready" && data.vehicles.length > 0 && (
         <div className="space-y-24">
           {data.vehicles.map((view) => (
-            <VehicleSection key={view.vehicle.id} view={view} />
+            <VehicleSection key={view.vehicle.id} view={view} notes={data.releaseNotes} />
           ))}
         </div>
       )}

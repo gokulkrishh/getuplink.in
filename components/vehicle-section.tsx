@@ -1,5 +1,8 @@
 import { VersionChart } from "@/components/version-chart";
 import { formatDate, formatDateTime, formatDuration, formatTime } from "@/lib/format";
+import { Check, ChevronRight, ScrollText } from "lucide-react";
+import { ReleaseNotesList } from "@/components/release-notes";
+import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import type { Snapshot, VehicleView } from "@/lib/server/dashboard";
 
 const STATUS: Record<string, string> = {
@@ -10,10 +13,39 @@ const STATUS: Record<string, string> = {
   installing: "Installing",
 };
 
-function UpdateStatus({ snapshot }: { snapshot: Snapshot | null }) {
+function ReleaseNotesToggle({ version, notes }: { version: string; notes: ReleaseNotesByVersion }) {
+  if (!notes[version]) return null;
+  return (
+    <details className="group/notes">
+      <summary
+        aria-label={`Release notes for ${version}`}
+        className="flex w-fit list-none items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden"
+      >
+        <ScrollText className="size-3" aria-hidden="true" />
+        Release notes
+        <ChevronRight className="size-3 text-faint transition-transform group-open/notes:rotate-90" aria-hidden="true" />
+      </summary>
+      <ReleaseNotesList notes={notes[version]} />
+    </details>
+  );
+}
+
+// Order: status line, then its details (progress, timing, "as of"). Release notes render below, full width.
+function UpdateStatus({ snapshot, asOf }: { snapshot: Snapshot | null; asOf: string | null }) {
   if (!snapshot) return <p className="text-muted-foreground">Unknown until the car is next seen online.</p>;
   const status = snapshot.update_status;
-  if (!status || !STATUS[status]) return <p>Up to date</p>;
+  const asOfLine = asOf && <p className="text-xs text-faint">As of {formatDateTime(asOf)}</p>;
+  if (!status || !STATUS[status]) {
+    return (
+      <div className="space-y-1">
+        <p className="flex items-center gap-1.5">
+          <Check className="size-3.5 text-positive" aria-hidden="true" />
+          Up to date
+        </p>
+        {asOfLine}
+      </div>
+    );
+  }
 
   const progress =
     status === "installing" ? snapshot.install_perc : status.startsWith("downloading") ? snapshot.download_perc : null;
@@ -51,14 +83,24 @@ function UpdateStatus({ snapshot }: { snapshot: Snapshot | null }) {
           <span className="w-10 text-right font-mono text-xs tabular-nums text-muted-foreground">{progress}%</span>
         </div>
       )}
-      <p className="text-xs text-muted-foreground">
-        {status === "scheduled" && snapshot.scheduled_time_ms
-          ? `Starts ${formatDateTime(snapshot.scheduled_time_ms)}`
-          : snapshot.expected_duration_sec
-            ? `Install takes ~${formatDuration(snapshot.expected_duration_sec)}`
-            : null}
-      </p>
+      {(status === "scheduled" && snapshot.scheduled_time_ms) || snapshot.expected_duration_sec ? (
+        <p className="text-xs text-muted-foreground">
+          {status === "scheduled" && snapshot.scheduled_time_ms
+            ? `Starts ${formatDateTime(snapshot.scheduled_time_ms)}`
+            : `Takes approx. ${formatDuration(snapshot.expected_duration_sec!)}`}
+        </p>
+      ) : null}
+      {asOfLine}
     </div>
+  );
+}
+
+function HistoryDate({ date }: { date: string | null }) {
+  if (date) return <span className="text-muted-foreground tabular-nums">{date}</span>;
+  return (
+    <span className="text-faint" title="Install date unknown: this version was already on the car when Uplink started tracking.">
+      —
+    </span>
   );
 }
 
@@ -66,9 +108,10 @@ function Label({ children }: { children: React.ReactNode }) {
   return <dt className="mb-1 text-xs text-faint">{children}</dt>;
 }
 
-export function VehicleSection({ view }: { view: VehicleView }) {
+export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?: ReleaseNotesByVersion }) {
   const { vehicle, latest, lastOnline, history } = view;
   const asleep = latest && latest.state !== "online";
+  const pending = Boolean(lastOnline?.update_status && STATUS[lastOnline.update_status]);
 
   return (
     <section className="space-y-12">
@@ -80,6 +123,11 @@ export function VehicleSection({ view }: { view: VehicleView }) {
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums sm:text-4xl">
           {vehicle.current_version ?? "—"}
         </p>
+        {vehicle.current_version && (
+          <div className="pt-2">
+            <ReleaseNotesToggle version={vehicle.current_version} notes={notes} />
+          </div>
+        )}
         {!vehicle.current_version && (
           <p className="text-sm text-muted-foreground">
             Asleep at every check so far. Open the Tesla app to wake the car, then select Check now.
@@ -89,12 +137,9 @@ export function VehicleSection({ view }: { view: VehicleView }) {
 
       <dl className="grid gap-8 text-sm sm:grid-cols-3">
         <div className="sm:col-span-2">
-          <Label>Update</Label>
+          {pending ? <Label>Update</Label> : <dt className="sr-only">Update</dt>}
           <dd>
-            <UpdateStatus snapshot={lastOnline} />
-            {asleep && lastOnline && (
-              <p className="mt-1 text-xs text-faint">As of {formatDateTime(lastOnline.polled_at)}</p>
-            )}
+            <UpdateStatus snapshot={lastOnline} asOf={asleep && lastOnline ? lastOnline.polled_at : null} />
           </dd>
         </div>
         <div className="sm:text-right">
@@ -112,6 +157,12 @@ export function VehicleSection({ view }: { view: VehicleView }) {
         </div>
       </dl>
 
+      {pending && lastOnline?.update_version && notes[lastOnline.update_version] && (
+        <div className="-mt-6">
+          <ReleaseNotesToggle version={lastOnline.update_version} notes={notes} />
+        </div>
+      )}
+
       {latest?.error && (
         <p className="text-xs text-muted-foreground">The car went to sleep during the last check. Uplink will try again.</p>
       )}
@@ -124,14 +175,41 @@ export function VehicleSection({ view }: { view: VehicleView }) {
           <>
             <VersionChart changes={[...history].reverse()} until={vehicle.last_polled_at} />
             <ol className="text-sm">
-              {history.map((change) => (
-                <li key={change.detected_at} className="flex items-baseline justify-between gap-4 border-t py-2.5">
-                  <span className="font-mono">{change.version}</span>
-                  <span className="text-muted-foreground tabular-nums">
-                    {change.previous_version ? formatDate(change.detected_at) : `First seen ${formatDate(change.detected_at)}`}
-                  </span>
-                </li>
-              ))}
+              {history.map((change) => {
+                // The first version was already installed when tracking began; Tesla doesn't report install dates.
+                const date = change.previous_version ? formatDate(change.detected_at) : null;
+                const versionNotes = notes[change.version];
+                if (!versionNotes) {
+                  return (
+                    <li key={change.detected_at} className="flex items-baseline justify-between gap-4 border-t py-2.5 pl-5">
+                      <span className="font-mono">{change.version}</span>
+                      <HistoryDate date={date} />
+                    </li>
+                  );
+                }
+                return (
+                  <li key={change.detected_at} className="border-t">
+                    <details className="group/row">
+                      <summary
+                        aria-label={`${change.version}, ${date ?? "install date unknown"}. Show release notes`}
+                        className="flex list-none items-baseline justify-between gap-4 py-2.5 hover:text-foreground [&::-webkit-details-marker]:hidden"
+                      >
+                        <span className="flex items-center gap-1.5 font-mono">
+                          <ChevronRight
+                            className="size-3.5 self-center text-faint transition-transform group-open/row:rotate-90"
+                            aria-hidden="true"
+                          />
+                          {change.version}
+                        </span>
+                        <HistoryDate date={date} />
+                      </summary>
+                      <div className="pb-4 pl-5">
+                        <ReleaseNotesList notes={versionNotes} />
+                      </div>
+                    </details>
+                  </li>
+                );
+              })}
             </ol>
           </>
         )}
