@@ -61,6 +61,8 @@ export type VehicleView = {
   // Most recent snapshot taken while the car was online: the last known update status.
   lastOnline: Snapshot | null;
   history: VersionChange[];
+  // When the car last streamed anything (any of the fields we read), or null when it never has.
+  streamAt: string | null;
 };
 
 export type Dashboard =
@@ -123,8 +125,10 @@ async function vehicleView(vehicle: Vehicle): Promise<VehicleView> {
   ]);
   const error = latest.error ?? lastOnline.error ?? history.error;
   if (error) throw new Error(error.message);
+  const streamTimes = Object.values<{ at: string }>(stream).map((r) => Date.parse(r.at));
   return {
     vehicle,
+    streamAt: streamTimes.length > 0 ? new Date(Math.max(...streamTimes)).toISOString() : null,
     latest: latest.data as Snapshot | null,
     lastOnline: applyStream(lastOnline.data as Snapshot | null, stream),
     history: vehicle.vin ? await withTimelines(vehicle.vin, (history.data ?? []) as VersionChange[]) : ((history.data ?? []) as VersionChange[]),

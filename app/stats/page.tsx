@@ -17,7 +17,7 @@ import { type Period, monthIndex, monthKey, monthShort, parsePeriod, yearOf } fr
 import { formatClock, formatDays, formatDuration, formatKwh, formatMoney, formatMonth, formatShortDate } from "@/lib/format";
 import { chargeEfficiency, matchSessions } from "@/lib/charge-sessions";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
-import { type ChargingSession, loadChargingSessions } from "@/lib/server/charging";
+import { type ChargingSession, loadChargingSessions, syncChargingHistoryThrottled } from "@/lib/server/charging";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadBatteryTrend } from "@/lib/server/battery";
 import { loadMonthlyEnergy, type MonthlyEnergy } from "@/lib/server/energy";
@@ -493,11 +493,12 @@ async function loadTelemetryStats(): Promise<{ days: DayKm[]; trend: WeeklyPack[
   return { days, trend };
 }
 
-// Rebuilds sessions from the car's readings once the response is sent, so the next visit has them.
+// Rebuilds sessions from the car's readings, and pulls Supercharger history (at most every 30 minutes),
+// once the response is sent, so the next visit has them.
 // The sync reads the clock, so it waits for a real request and stays out of the prerendered page.
 async function SyncStreamSessions() {
   await io();
-  after(syncStreamSessionsForAllCars);
+  after(() => Promise.all([syncStreamSessionsForAllCars(), syncChargingHistoryThrottled()]));
   return null;
 }
 
