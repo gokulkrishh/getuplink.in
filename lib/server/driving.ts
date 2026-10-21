@@ -1,6 +1,7 @@
 import "server-only";
 import { monthIndex, monthKey } from "@/components/stats/periods";
 import { MILES_TO_KM } from "@/lib/car";
+import { analyseDriving, DRIVE_DAYS, type Driving } from "@/lib/drives";
 import { type DayKm, dailyDistance, istDay, istDayStart, num } from "@/lib/telemetry-derive";
 import { DEMO } from "@/lib/demo";
 import { demoCounter } from "./demo";
@@ -81,4 +82,19 @@ export async function loadDailyDistance(): Promise<DayKm[]> {
   ]);
   if (!readings || before.error) return [];
   return dailyDistance(readings, num(before.data?.value), now, DRIVING_DAYS);
+}
+
+// Drives and parked drain for the last 90 days (see lib/drives.ts). Empty when the stream can't be read.
+// In demo mode the readings come from the generator, through the same functions.
+export async function loadDriving(): Promise<Driving> {
+  const empty: Driving = { drives: [], drain: null };
+  const vin = await loadPrimaryVin();
+  if (!vin) return empty;
+  const now = Date.now();
+  const from = new Date(now - DRIVE_DAYS * 86_400_000).toISOString();
+  const [gear, odometer, battery, energy, lifetime, range, charge] = await Promise.all(
+    ["Gear", "Odometer", "BatteryLevel", "EnergyRemaining", "LifetimeEnergyUsed", "RatedRange", "DetailedChargeState"].map((field) => loadReadings(vin, field, from)),
+  );
+  if (!gear || !odometer || !battery) return empty;
+  return analyseDriving({ gear, odometer, battery, energy: energy ?? [], lifetime: lifetime ?? [], range: range ?? [], charge: charge ?? [] }, now);
 }

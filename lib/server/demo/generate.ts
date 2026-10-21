@@ -275,6 +275,7 @@ export function generateDemo(now: number): DemoData {
     const steps = Math.max(2, Math.round(km / 1.5));
     parked(start);
     pack(start);
+    push("Gear", start, "ShiftStateD");
     for (let i = 1; i <= steps; i++) {
       const t = start + (minutes * MIN * i) / steps;
       const step = km / steps;
@@ -288,6 +289,7 @@ export function generateDemo(now: number): DemoData {
       counters(t, true);
       pack(t);
     }
+    push("Gear", start + minutes * MIN, "ShiftStateP");
     return start + minutes * MIN;
   };
 
@@ -408,6 +410,7 @@ export function generateDemo(now: number): DemoData {
   push("ChargeLimitSoc", woke, CHARGE_LIMIT);
   // The state the car was in when the window began.
   push("ChargeLimitSoc", windowStart, CHARGE_LIMIT);
+  push("Gear", windowStart, "ShiftStateP");
   push("DetailedChargeState", windowStart, "DetailedChargeStateDisconnected");
   push("FastChargerPresent", windowStart, false);
 

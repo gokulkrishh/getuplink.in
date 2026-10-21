@@ -11,6 +11,8 @@ import { ShowMore } from "@/components/show-more";
 import { type Listed, rate, SessionRow } from "@/components/session-row";
 import { Bars } from "@/components/stats/bars";
 import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
+import { DriveList } from "@/components/stats/drive-list";
+import { ParkedDrain } from "@/components/stats/parked-drain";
 import { BatteryTrend } from "@/components/stats/battery-trend";
 import { PeriodSwitch } from "@/components/stats/period-switch";
 import { type Period, monthIndex, monthKey, monthShort, parsePeriod, parseView, yearOf } from "@/components/stats/periods";
@@ -23,10 +25,11 @@ import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadBatteryTrend } from "@/lib/server/battery";
 import { loadMonthlyEnergy, type MonthlyEnergy } from "@/lib/server/energy";
 import { loadUpdateRows } from "@/lib/server/updates";
-import { loadDailyDistance, loadMonthlyDistance, type MonthlyDistance } from "@/lib/server/driving";
+import { loadDailyDistance, loadDriving, loadMonthlyDistance, type MonthlyDistance } from "@/lib/server/driving";
 import { loadStreamSessions, syncStreamSessionsForAllCars, type StreamChargeSession } from "@/lib/server/stream-charging";
 import { type DayKm, type UpdateRow, type WeeklyPack, combinedWhPerKm, updateStats } from "@/lib/telemetry-derive";
 import { LIST_PREVIEW } from "@/lib/list";
+import type { Driving } from "@/lib/drives";
 
 export const metadata: Metadata = { title: "Stats · Uplink" };
 
@@ -421,13 +424,13 @@ async function loadStats(): Promise<{
   return { sessions, streamSessions, distance, energy, updates, now: Date.now() };
 }
 
-async function loadTelemetryStats(): Promise<{ days: DayKm[]; trend: WeeklyPack[] }> {
+async function loadTelemetryStats(): Promise<{ days: DayKm[]; trend: WeeklyPack[]; driving: Driving; now: number }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
-  const [days, trend] = await Promise.all([loadDailyDistance(), loadBatteryTrend()]);
-  return { days, trend };
+  const [days, trend, driving] = await Promise.all([loadDailyDistance(), loadBatteryTrend(), loadDriving()]);
+  return { days, trend, driving, now: Date.now() };
 }
 
 // Rebuilds sessions from the car's readings, and pulls Supercharger history (at most every 30 minutes),
@@ -444,7 +447,7 @@ async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParam
   const params = await searchParams;
   const period = parsePeriod(params.period);
   const view = parseView(params.view);
-  const [{ sessions, streamSessions, distance, energy, updates, now }, { days, trend }] = await Promise.all([loadStats(), loadTelemetryStats()]);
+  const [{ sessions, streamSessions, distance, energy, updates, now }, { days, trend, driving, now: drivingNow }] = await Promise.all([loadStats(), loadTelemetryStats()]);
 
   const { pairs, streamOnly } = matchSessions(sessions, streamSessions, now);
   const listed: Listed[] = [
@@ -453,7 +456,7 @@ async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParam
   ].sort((a, b) => Date.parse(b.started_at) - Date.parse(a.started_at));
 
   // Mirrors each section's own "enough data" rule, so an empty tab says so instead of showing nothing.
-  const hasDriving = distance.some((d) => d.km > 0) || days.filter((d) => d.km !== null).length >= 2 || energy.length > 0;
+  const hasDriving = distance.some((d) => d.km > 0) || days.filter((d) => d.km !== null).length >= 2 || energy.length > 0 || driving.drives.length > 0;
   const notYet = (title: string, body: string) => (
     <EmptyState icon={<Zap className="size-7 text-faint" aria-hidden="true" />} title={title}>
       {body}
@@ -483,6 +486,8 @@ async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParam
             <Distance distance={distance} now={now} period={period} />
             <DailyDriving days={days} />
             <EnergyUse energy={energy} now={now} period={period} />
+            <DriveList drives={driving.drives} now={drivingNow} />
+            <ParkedDrain drain={driving.drain} />
           </>
         ) : (
           notYet("Not enough driving yet", "Distance and energy use show up after a couple of days of driving.")
