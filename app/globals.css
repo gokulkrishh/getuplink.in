@@ -2,7 +2,17 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (@media (prefers-color-scheme: dark));
+/* Dark when chosen in Settings, or when following the device and the device is dark. */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
 
 @theme inline {
   --animate-shimmer: shimmer 1.6s ease-in-out infinite;
@@ -77,8 +87,37 @@
   --radius: 0rem;
 }
 
+/* Dark tokens: chosen explicitly, or following a dark device. */
+:root[data-theme="dark"] {
+  --background: #040404;
+  --foreground: #f8f8f8;
+  --card: #0a0a0a;
+  --card-foreground: #f3f3f3;
+  --popover: #0e0e0e;
+  --popover-foreground: #f3f3f3;
+  --primary: #f3f3f3;
+  --primary-foreground: #0a0a0a;
+  --secondary: #1e1e1e;
+  --secondary-foreground: #f3f3f3;
+  --muted: #171717;
+  --muted-foreground: #8a8a8a;
+  --faint: #7c7c7c;
+  --accent: #181818;
+  --accent-foreground: #f3f3f3;
+  --destructive: #ff6362;
+  --positive: #4ade80;
+  --border: #ffffff1a;
+  --input: #ffffff1f;
+  --ring: #555555;
+  --chart-1: #f3f3f3;
+  --chart-2: #8a8a8a;
+  --chart-3: #5d5d5d;
+  --chart-4: #333333;
+  --chart-5: #1e1e1e;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --background: #040404;
     --foreground: #f8f8f8;
     --card: #0a0a0a;
@@ -117,6 +156,12 @@
   html {
     @apply font-sans;
     color-scheme: light dark;
+  }
+  html[data-theme="light"] {
+    color-scheme: light;
+  }
+  html[data-theme="dark"] {
+    color-scheme: dark;
   }
   /* Tailwind v4 resets buttons to the default cursor; clickable controls should show a pointer. */
   button:not(:disabled),

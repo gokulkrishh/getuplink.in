@@ -132,6 +132,7 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
       <header className="space-y-1">
         <h2 className="text-sm text-muted-foreground">
           {vehicle.display_name || "Tesla"}
+          {!pending && lastOnline && <span className="ml-2 text-faint">· Up to date</span>}
           {asleep && <span className="ml-2 text-faint">· {latest.state === "offline" ? "Offline" : "Asleep"}</span>}
         </h2>
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums sm:text-4xl">
@@ -150,13 +151,15 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
       </header>
 
       <dl className="grid gap-8 text-sm sm:grid-cols-3">
-        <div className="sm:col-span-2">
-          {pending ? <Label>Update</Label> : <dt className="sr-only">Update</dt>}
-          <dd>
-            <UpdateStatus snapshot={lastOnline} asOf={asleep && lastOnline ? lastOnline.polled_at : null} />
-          </dd>
-        </div>
-        <div className="sm:text-right">
+        {(pending || !lastOnline) && (
+          <div className="sm:col-span-2">
+            <Label>Update</Label>
+            <dd>
+              <UpdateStatus snapshot={lastOnline} asOf={asleep && lastOnline ? lastOnline.polled_at : null} />
+            </dd>
+          </div>
+        )}
+        <div className={pending || !lastOnline ? "sm:text-right" : undefined}>
           <Label>Last seen online</Label>
           <dd>
             {vehicle.last_seen_at ? (

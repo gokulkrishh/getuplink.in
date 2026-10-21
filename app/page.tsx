@@ -5,12 +5,15 @@ import { checkNow, logout } from "@/app/actions";
 import { Logo } from "@/components/logo";
 import { VehicleSection } from "@/components/vehicle-section";
 import { CheckNowButton } from "@/components/check-now-button";
+import { SignInButton } from "@/components/sign-in-button";
 import { buttonVariants } from "@/components/ui/button";
 import { DEMO } from "@/lib/demo";
 import { describeRunError } from "@/lib/run-error";
 import { DEMO_SCENARIOS } from "@/lib/server/demo-data";
 import { formatDateTime } from "@/lib/format";
+import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { loadDashboard } from "@/lib/server/dashboard";
+import { redirect } from "next/navigation";
 
 function Header({ connected }: { connected: boolean }) {
   return (
@@ -27,6 +30,9 @@ function Header({ connected }: { connected: boolean }) {
             <CheckNowButton className="hover:text-foreground disabled:text-foreground" />
           </form>
         )}
+        <Link href="/settings" className="hover:text-foreground">
+          Settings
+        </Link>
         <form action={logout}>
           <button className="cursor-pointer hover:text-foreground">Sign out</button>
         </form>
@@ -71,6 +77,7 @@ function Notice({ title, children }: { title: string; children: React.ReactNode 
 
 async function Dashboard({ searchParams }: PageProps<"/">) {
   await connection();
+  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
   const params = await searchParams;
   const demo = typeof params.demo === "string" ? params.demo : "full";
   const data = await loadDashboard(demo);
@@ -106,10 +113,7 @@ async function Dashboard({ searchParams }: PageProps<"/">) {
             Uplink needs read-only access to your vehicle data. It checks every few hours and never wakes the car, so a
             version appears once the car is seen online.
           </p>
-          {/* Plain link: the OAuth flow is a full-page redirect. */}
-          <a href="/api/auth/connect" className={buttonVariants({ className: "h-9 px-4" })}>
-            Sign in with Tesla
-          </a>
+          <SignInButton />
         </Notice>
       )}
 

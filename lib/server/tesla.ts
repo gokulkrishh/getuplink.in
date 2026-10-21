@@ -123,7 +123,7 @@ async function storedTokens() {
     .eq("provider", "tesla")
     .maybeSingle();
   if (error) throw new Error(`Reading tokens failed: ${error.message}`);
-  if (!data) throw new NotConnectedError();
+  if (!data?.access_token_enc || !data.refresh_token_enc || !data.expires_at) throw new NotConnectedError();
   return {
     accessToken: decrypt(data.access_token_enc),
     refreshToken: decrypt(data.refresh_token_enc),
@@ -135,9 +135,55 @@ export async function isConnected(): Promise<boolean> {
   const { count, error } = await db()
     .from("oauth_tokens")
     .select("provider", { count: "exact", head: true })
-    .eq("provider", "tesla");
+    .eq("provider", "tesla")
+    .not("access_token_enc", "is", null);
   if (error) throw new Error(`Reading tokens failed: ${error.message}`);
   return (count ?? 0) > 0;
+}
+
+export type AccountInfo = { connected: boolean; connectedSince: string | null };
+
+export async function accountInfo(): Promise<AccountInfo> {
+  const { data, error } = await db()
+    .from("oauth_tokens")
+    .select("access_token_enc, created_at")
+    .eq("provider", "tesla")
+    .maybeSingle();
+  if (error) throw new Error(`Reading account failed: ${error.message}`);
+  return { connected: Boolean(data?.access_token_enc), connectedSince: data?.created_at ?? null };
+}
+
+// Sessions issued before this time (ms) are revoked. -infinity (never revoked) reads as 0.
+// With no owner row (fresh install or deleted account) no existing session is valid.
+export async function sessionsValidAfter(): Promise<number> {
+  const { data, error } = await db().from("oauth_tokens").select("sessions_valid_after").eq("provider", "tesla").maybeSingle();
+  if (error) throw new Error(`Reading sessions failed: ${error.message}`);
+  if (!data) return Number.POSITIVE_INFINITY;
+  const t = new Date(data.sessions_valid_after).getTime();
+  return Number.isFinite(t) ? t : 0;
+}
+
+export async function revokeAllSessions(): Promise<void> {
+  const { error } = await db()
+    .from("oauth_tokens")
+    .update({ sessions_valid_after: new Date().toISOString() })
+    .eq("provider", "tesla");
+  if (error) throw new Error(`Signing out everywhere failed: ${error.message}`);
+}
+
+// Forget the Tesla tokens but keep owner_sub, so only the same Tesla account can sign in again.
+export async function disconnectTesla(): Promise<void> {
+  const { error } = await db()
+    .from("oauth_tokens")
+    .update({
+      access_token_enc: null,
+      refresh_token_enc: null,
+      expires_at: null,
+      sessions_valid_after: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("provider", "tesla");
+  if (error) throw new Error(`Disconnecting failed: ${error.message}`);
 }
 
 async function accessToken(forceRefresh = false): Promise<string> {
@@ -166,4 +212,18 @@ export async function fleetGet<T>(path: string): Promise<T> {
     const body = (await res.json()) as { response: T };
     return body.response;
   }
+}
+
+// "Delete my data": remove the car's data and the Tesla tokens, and sign out everywhere. Vehicles
+// cascade to snapshots and version_history. owner_sub stays, so the dashboard can't be claimed by
+// another Tesla account. Release notes are Tesla's public text per version, not the owner's data.
+export async function deleteMyData(): Promise<void> {
+  for (const [table, column] of [
+    ["vehicles", "id"],
+    ["poll_runs", "id"],
+  ] as const) {
+    const { error } = await db().from(table).delete().not(column, "is", null);
+    if (error) throw new Error(`Deleting ${table} failed: ${error.message}`);
+  }
+  await disconnectTesla();
 }
