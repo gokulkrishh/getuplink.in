@@ -8,7 +8,7 @@ import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { deleteMyData, disconnectTesla, revokeAllSessions } from "@/lib/server/tesla";
 import { messageOf } from "@/lib/errors";
-import { clearSession } from "@/lib/session";
+import { clearSession, requestHost } from "@/lib/session";
 
 // Server actions are reachable by POST from anywhere, so each one re-checks the session.
 async function requireSession() {
@@ -20,7 +20,7 @@ async function endHere() {
   // session; drop them so nothing is shown from before the change.
   updateTag(OWNER_DATA_TAG);
   revalidatePath("/", "layout");
-  clearSession(await cookies(), (await headers()).get("host"));
+  clearSession(await cookies(), requestHost(await headers()));
   redirect("/home");
 }
 
