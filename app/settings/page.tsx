@@ -13,17 +13,15 @@ import { db } from "@/lib/server/supabase";
 import { accountInfo, type AccountInfo } from "@/lib/server/tesla";
 import { DeleteMyData, DisconnectTesla } from "./confirm-actions";
 import { signOutEverywhere } from "./actions";
+import { Row } from "./row";
 
 export const metadata: Metadata = { title: "Settings · Uplink" };
 
-function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="grid gap-4 border-t py-8 sm:grid-cols-[12rem_1fr] sm:gap-8">
-      <div className="space-y-1">
-        <h2 className="text-sm font-medium">{title}</h2>
-        {description && <p className="text-xs text-muted-foreground">{description}</p>}
-      </div>
-      <div className="space-y-4 text-sm">{children}</div>
+    <section className="mt-10 first:mt-0">
+      <h2 className="mb-2 text-xs text-faint">{title}</h2>
+      <div className="divide-y border-t">{children}</div>
     </section>
   );
 }
@@ -41,45 +39,45 @@ async function Settings() {
   await connection();
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
   const { account, lastCheck } = await loadSettings();
+  const connectedDescription = account.connectedSince ? `Connected since ${formatDate(account.connectedSince)}` : "Connected";
 
   return (
     <>
-      <Section title="Appearance">
-        <ThemePicker />
-      </Section>
+      <Group title="General">
+        <Row title="Theme" description="Saved in this browser." control={<ThemePicker />} />
+        <Row
+          title="Automatic checks"
+          description="Every 6 hours. Uplink never wakes the car."
+          control={
+            <p className="text-sm text-muted-foreground">
+              {lastCheck ? `Last checked ${formatDateTime(lastCheck)}` : "No checks yet"}
+            </p>
+          }
+        />
+      </Group>
 
-      <Section title="Checks">
-        <p>Uplink checks your car every 6 hours. It never wakes the car.</p>
-        <p className="text-muted-foreground flex gap-1 items-center">{lastCheck ? `Last checked ${formatDateTime(lastCheck)}` : "No checks yet."}</p>
-      </Section>
-
-      <Section title="Account">
-        <p>
-          {account.connected ? "Tesla account connected" : "Tesla account not connected"}
-          {account.connected && account.connectedSince && (
-            <span className="text-muted-foreground"> since {formatDate(account.connectedSince)}</span>
-          )}
-        </p>
-
-        <div className="space-y-2">
-          <form action={signOutEverywhere}>
-            <Button type="submit" variant="outline" className="h-9 px-4">
-              Sign out everywhere
-            </Button>
-          </form>
-          <p className="text-xs text-muted-foreground">Ends every session on every device, including this one.</p>
-        </div>
-
-        {account.connected && (
-          <div className="space-y-2">
-            <DisconnectTesla />
-          </div>
+      <Group title="Account">
+        {account.connected ? (
+          <DisconnectTesla description={connectedDescription} />
+        ) : (
+          <Row title="Tesla account" description="Not connected" />
         )}
-      </Section>
+        <Row
+          title="Sign out everywhere"
+          description="Ends every session on every device, including this one."
+          control={
+            <form action={signOutEverywhere}>
+              <Button type="submit" variant="outline" className="h-9 px-4">
+                Sign out everywhere
+              </Button>
+            </form>
+          }
+        />
+      </Group>
 
-      <Section title="Your data" description="Vehicles, version history, check logs and your Tesla connection.">
+      <Group title="Your data">
         <DeleteMyData />
-      </Section>
+      </Group>
     </>
   );
 }
