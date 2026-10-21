@@ -108,22 +108,39 @@ function UpdateStatus({ snapshot }: { snapshot: Snapshot | null }) {
   );
 }
 
-// Right side of a history row: when the version arrived, plus when it became available and the odometer.
-function HistoryMeta({ change, date }: { change: VersionChange; date: string | null }) {
-  const details = [
-    change.available_at && `Available ${formatShortDate(change.available_at)}`,
-    change.odometer_km != null && formatKm(change.odometer_km),
-  ].filter(Boolean);
+// Columns shared by the header and every row: version, received, installed, odometer.
+const HISTORY_COLS =
+  "grid grid-cols-[minmax(0,1fr)_3.75rem_5.5rem_3.5rem] items-baseline gap-x-2 sm:grid-cols-[minmax(0,1fr)_7.5rem_7.5rem_4.5rem] sm:gap-x-6";
+
+// "12 Oct" this year, "24 Dec 2025" otherwise.
+function historyDate(value: string): string {
+  return formatDate(value).endsWith(String(new Date().getFullYear())) ? formatShortDate(value) : formatDate(value);
+}
+
+const km = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
+
+// Received, installed and odometer cells of a history row.
+function HistoryCells({ change }: { change: VersionChange }) {
+  // The first version was already installed when tracking began; Tesla doesn't report install dates.
+  const date = historyDate(change.detected_at);
   return (
-    <div className="text-right gap-1 flex flex-col">
-      {date ? (
-        <span className="block text-muted-foreground tabular-nums">Installed {date}</span>
+    <>
+      <span className="text-right text-faint tabular-nums">
+        {/* Always within days of Installed, which carries the year. */}
+        {change.previous_version && change.available_at ? formatShortDate(change.available_at) : ""}
+      </span>
+      {change.previous_version ? (
+        <span className="text-right text-muted-foreground tabular-nums">{date}</span>
       ) : (
-        // Already installed when tracking began; Tesla doesn't report install dates.
-        <span className="block text-muted-foreground tabular-nums">Installed before {formatDate(change.detected_at)}</span>
+        // First version seen: installed some time before this date, so it's greyed out and explained on hover.
+        <span tabIndex={0} className="group relative text-right text-faint tabular-nums outline-none">
+          {date}
+          <span className="sr-only">. Already installed when tracking started.</span>
+          <Tip>Already installed when tracking started</Tip>
+        </span>
       )}
-      {details.length > 0 && <span className="block text-xs text-faint tabular-nums">{details.join(" · ")}</span>}
-    </div>
+      <span className="text-right text-faint tabular-nums">{change.odometer_km != null ? km.format(change.odometer_km) : ""}</span>
+    </>
   );
 }
 
@@ -199,14 +216,12 @@ const HISTORY_PREVIEW = 5;
 
 // One history row: expandable to its release notes when Tesla published them.
 function HistoryRow({ change, notes }: { change: VersionChange; notes: ReleaseNotesByVersion }) {
-  // The first version was already installed when tracking began; Tesla doesn't report install dates.
-  const date = change.previous_version ? formatDate(change.detected_at) : null;
   const versionNotes = notes[change.version];
   if (!versionNotes) {
     return (
-      <li className="flex items-baseline justify-between gap-4 border-t py-2.5 pl-5">
-        <span className="font-mono">{change.version}</span>
-        <HistoryMeta change={change} date={date} />
+      <li className={cn(HISTORY_COLS, "border-t py-2.5")}>
+        <span className="truncate pl-5 font-mono">{change.version}</span>
+        <HistoryCells change={change} />
       </li>
     );
   }
@@ -214,17 +229,17 @@ function HistoryRow({ change, notes }: { change: VersionChange; notes: ReleaseNo
     <li className="border-t">
       <details className="group/row">
         <summary
-          aria-label={`${change.version}, ${date ?? "install date unknown"}. Show release notes`}
-          className="flex list-none items-baseline justify-between gap-4 py-2.5 hover:text-foreground [&::-webkit-details-marker]:hidden"
+          aria-label={`${change.version}. Show release notes`}
+          className={cn(HISTORY_COLS, "cursor-pointer list-none py-2.5 hover:text-foreground [&::-webkit-details-marker]:hidden")}
         >
-          <span className="flex items-center gap-1.5 font-mono">
+          <span className="flex min-w-0 items-center gap-1.5 font-mono">
             <ChevronRight
-              className="size-3.5 self-center text-faint transition-transform group-open/row:rotate-90"
+              className="size-3.5 shrink-0 self-center text-faint transition-transform group-open/row:rotate-90"
               aria-hidden="true"
             />
-            {change.version}
+            <span className="truncate">{change.version}</span>
           </span>
-          <HistoryMeta change={change} date={date} />
+          <HistoryCells change={change} />
         </summary>
         <div className="pb-4 pl-5">
           <ReleaseNotesList notes={versionNotes} />
@@ -341,8 +356,13 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
         ) : (
           <>
             <VersionChart changes={[...history].reverse()} until={vehicle.last_polled_at} />
-            <h3 className="pt-6 text-xs text-faint">Versions</h3>
-            <div>
+            <div className="pt-6">
+              <div className={cn(HISTORY_COLS, "pb-2 text-xs text-faint")}>
+                <h3 className="pl-5">Versions</h3>
+                <span className="text-right">Received</span>
+                <span className="text-right">Installed</span>
+                <span className="text-right">km</span>
+              </div>
               <ol className="text-sm">
                 {history.slice(0, HISTORY_PREVIEW).map((change) => (
                   <HistoryRow key={change.detected_at} change={change} notes={notes} />
