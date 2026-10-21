@@ -42,6 +42,16 @@ const ALLOWED_FIELDS = new Set([
   "SoftwareUpdateInstallationPercentComplete",
   "SoftwareUpdateExpectedDurationMinutes",
   "SoftwareUpdateScheduledStartTime",
+  "LifetimeEnergyUsed",
+  "LifetimeEnergyGainedRegen",
+  "TimeToFullCharge",
+  "EstimatedHoursToChargeTermination",
+  "ChargerVoltage",
+  "ChargeAmps",
+  "ChargerPhases",
+  "ChargingCableType",
+  "ModuleTempMax",
+  "ModuleTempMin",
 ]);
 
 type Row = { vin: string; created_at: string; field: string; value: unknown };

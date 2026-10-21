@@ -43,6 +43,12 @@ set(["Soc", "BatteryLevel", "RatedRange", "EnergyRemaining"], 300);
 set(["Odometer", "Gear"], 300);
 // Tesla: SelfDrivingMilesSinceReset needs minimum_delta explicitly set to >= 1 (HW4, fw 2025.44.25.5+).
 set(["SelfDrivingMilesSinceReset"], 3600, { minimum_delta: 1 });
+// Energy use (Wh/km) and regen, from the car's lifetime counters.
+set(["LifetimeEnergyUsed", "LifetimeEnergyGainedRegen"], 300);
+// Time left to finish, the charger's voltage, current and phases, and the cable (Wall Connector check).
+set(["TimeToFullCharge", "EstimatedHoursToChargeTermination", "ChargerVoltage", "ChargeAmps", "ChargerPhases", "ChargingCableType"], 60);
+// Battery temperature, only when it moves by a degree or more.
+set(["ModuleTempMax", "ModuleTempMin"], 300, { minimum_delta: 1 });
 set(
   ["Version", "SoftwareUpdateVersion", "SoftwareUpdateDownloadPercentComplete", "SoftwareUpdateInstallationPercentComplete", "SoftwareUpdateExpectedDurationMinutes", "SoftwareUpdateScheduledStartTime"],
   60,
