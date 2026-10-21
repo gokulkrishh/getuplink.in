@@ -8,12 +8,10 @@ import { ThemePicker } from "@/components/theme-picker";
 import { formatDate, formatSeen } from "@/lib/format";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
-import { loadImportCars, type ImportCar } from "@/lib/server/import-updates";
 import { db } from "@/lib/server/supabase";
 import { lastReadingAt } from "@/lib/server/telemetry";
 import { accountInfo, type AccountInfo } from "@/lib/server/tesla";
-import { DeleteImportedUpdates, DeleteMyData, DisconnectTesla, SignOutEverywhere } from "./confirm-actions";
-import { ImportUpdates } from "./import-updates";
+import { DeleteMyData, DisconnectTesla, SignOutEverywhere } from "./confirm-actions";
 import { Row } from "./row";
 
 export const metadata: Metadata = { title: "Settings · Uplink" };
@@ -28,24 +26,22 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
 }
 
 // Session check plus data in one browser-only private cache, so header links can prefetch it (see app/page.tsx).
-async function loadSettings(): Promise<{ account: AccountInfo; lastCheck: string | null; lastReading: string | null; cars: ImportCar[]; now: number }> {
+async function loadSettings(): Promise<{ account: AccountInfo; lastCheck: string | null; lastReading: string | null; now: number }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
-  const [account, run, lastReading, cars] = await Promise.all([
+  const [account, run, lastReading] = await Promise.all([
     accountInfo(),
     db().from("poll_runs").select("started_at").order("started_at", { ascending: false }).limit(1).maybeSingle(),
     lastReadingAt(),
-    loadImportCars(),
   ]);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
-  return { account, lastCheck: run.data?.started_at ?? null, lastReading, cars, now: Date.now() };
+  return { account, lastCheck: run.data?.started_at ?? null, lastReading, now: Date.now() };
 }
 
 async function Settings() {
-  const { account, lastCheck, lastReading, cars, now } = await loadSettings();
-  const importedTotal = cars.reduce((sum, car) => sum + car.imported, 0);
+  const { account, lastCheck, lastReading, now } = await loadSettings();
   const connectedDescription = account.connectedSince ? `Connected since ${formatDate(account.connectedSince)}` : "Connected";
 
   return (
@@ -90,15 +86,6 @@ async function Settings() {
           }
         />
       </Group>
-
-      {cars.length > 0 && (
-        <Group title="Import past updates">
-          {cars.map((car) => (
-            <ImportUpdates key={car.id} vehicleId={car.id} name={car.name} imported={car.imported} />
-          ))}
-          {importedTotal > 0 && <DeleteImportedUpdates count={importedTotal} />}
-        </Group>
-      )}
 
       <Group title="Your data">
         <DeleteMyData />
