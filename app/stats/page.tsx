@@ -361,8 +361,8 @@ function SessionList({ sessions }: { sessions: Listed[] }) {
         </div>
       </div>
     {/* On phones the list keeps its columns and scrolls sideways. */}
-    <div className="-mx-1 overflow-x-auto px-1">
-    <div className="min-w-xl space-y-10">
+    <div className="max-sm:-mx-1 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:px-1">
+    <div className="max-sm:min-w-xl space-y-10">
       {[...groups].map(([month, rows]) => {
         const billed = totals(rows.flatMap((r) => (r.tesla ? [r.tesla] : [])));
         return (

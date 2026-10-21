@@ -448,8 +448,8 @@ export function VehicleSection({
           <>
             <VersionChart changes={[...history].reverse()} until={vehicle.last_polled_at} />
             {/* On phones the table keeps its columns and scrolls sideways. */}
-            <div className="-mx-1 overflow-x-auto px-1 pt-6">
-              <div className="min-w-xl">
+            <div className="max-sm:-mx-1 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:px-1 pt-6">
+              <div className="max-sm:min-w-xl">
               <div className={cn("history-cols", "pb-2 text-xs text-faint")}>
                 <h3 className="pl-5">Versions</h3>
                 <span className="text-right">Received</span>
