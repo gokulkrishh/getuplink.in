@@ -365,6 +365,19 @@ function levels(s: StreamChargeSession): string | null {
   return s.start_level !== null && s.end_level !== null ? `${Math.round(s.start_level)}% → ${Math.round(s.end_level)}%` : null;
 }
 
+// "230 V · 32 A · 1-phase" for an AC session, "Battery 28 → 41 °C" for a DC one; only what the car reported.
+function chargerDetail(s: StreamChargeSession): string | null {
+  if (s.kind === "dc") {
+    return s.temp_start_c !== null && s.temp_max_c !== null ? `Battery ${Math.round(s.temp_start_c)} → ${Math.round(s.temp_max_c)} °C` : null;
+  }
+  const parts = [
+    s.ac_voltage !== null && `${Math.round(s.ac_voltage)} V`,
+    s.ac_amps !== null && `${Math.round(s.ac_amps)} A`,
+    s.ac_phases !== null && `${s.ac_phases}-phase`,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 function SessionRow({ item }: { item: Listed }) {
   const { tesla: s, stream } = item;
   const invoice = s?.invoices.find((i) => i.contentId);
@@ -376,7 +389,10 @@ function SessionRow({ item }: { item: Listed }) {
   const rateText = s && s.cost_total !== null && s.energy_kwh !== null ? rate(s.cost_total, s.energy_kwh, currency) : null;
   const peakText = stream?.peak_power_kw ? `${kwFormat.format(stream.peak_power_kw)} kW peak` : null;
   const energy = s ? s.energy_kwh : (stream?.energy_added_kwh ?? null);
-  const detail = s ? [city, durationText, peakText] : [stoppedAt ? durationText : "In progress", stream && levels(stream), peakText];
+  const chargerText = stream && chargerDetail(stream);
+  const detail = s
+    ? [city, durationText, peakText, chargerText]
+    : [stoppedAt ? durationText : "In progress", stream && levels(stream), peakText, chargerText];
   return (
     <li className="grid grid-cols-session items-start gap-x-4 py-3 text-sm">
       <div>
