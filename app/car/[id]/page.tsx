@@ -5,7 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { Logo } from "@/components/logo";
 import { Vin } from "@/components/vin";
-import { formatSeen } from "@/lib/format";
+import { formatDate, formatSeen } from "@/lib/format";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type CarDetails, loadCarDetails } from "@/lib/server/car";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -123,6 +123,18 @@ async function Car({ params }: { params: Promise<{ id: string }> }) {
             ["Checked", car.checkedAt && formatSeen(car.checkedAt, now)],
           ]}
         />
+        {car.battery && (
+          <Group
+            title="Battery health"
+            rows={[
+              ["Estimated full pack", `${car.battery.packKwh.toFixed(1)} kWh`],
+              [
+                "Based on",
+                `${new Intl.PluralRules("en-IN").select(car.battery.readings) === "one" ? "1 reading" : `${car.battery.readings} readings`} since ${formatDate(car.battery.since)}`,
+              ],
+            ]}
+          />
+        )}
         {!car.checkedAt && (
           <p className="text-sm text-muted-foreground">
             The details fill in after a check that finds the car awake. Open the Tesla app, then refresh on the dashboard.
