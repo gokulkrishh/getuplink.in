@@ -12,8 +12,7 @@ Stack: Bun, Next.js 16 (App Router), shadcn/ui, Geist, Recharts, Supabase Postgr
 
 | Path | Purpose |
 | --- | --- |
-| `/login` | Passphrase login (`DASHBOARD_PASSPHRASE`), sets an httpOnly cookie. `proxy.ts` guards everything else. |
-| `/api/auth/connect` → `/api/auth/callback` | Tesla OAuth (authorization code + `state` cookie). Tokens are stored AES-256-GCM encrypted in Supabase and refreshed automatically (access tokens last ~8 h, refresh tokens rotate). |
+| `/login` → `/api/auth/connect` → `/api/auth/callback` | **Sign in with Tesla** is both the dashboard login and the data connection (authorization code + `state` cookie). The first Tesla account to sign in becomes the owner (its `id_token` `sub` is stored); any other account is refused. Sign-in sets a signed, httpOnly 30-day session cookie, and `proxy.ts` guards everything else. Tokens are stored AES-256-GCM encrypted in Supabase and refreshed automatically (access tokens last ~8 h, refresh tokens rotate). |
 | `/api/cron/poll` | Called by Vercel Cron with `Authorization: Bearer $CRON_SECRET`. Lists vehicles, fetches `vehicle_state` only for online cars, writes a snapshot per vehicle and a `version_history` row when the version changes. |
 | `/.well-known/appspecific/com.tesla.3p.public-key.pem` | Serves `TESLA_PUBLIC_KEY_PEM` (rewritten to `/api/public-key`). |
 
@@ -35,8 +34,7 @@ Every variable is listed in [`.env.example`](.env.example). In Vercel: **Project
 | `TESLA_PUBLIC_KEY_PEM` | From step 2. |
 | `TESLA_PRIVATE_KEY_PEM` | Not used: the app only reads data. Keep the private key offline; only add it if vehicle commands are added later. |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Server only. Never prefix with `NEXT_PUBLIC_`. |
-| `DASHBOARD_PASSPHRASE` | Anything long. Changing it signs every session out. |
-| `TOKEN_ENCRYPTION_KEY` | `openssl rand -base64 32` (must decode to 32 bytes). Changing it makes stored tokens unreadable: reconnect Tesla afterwards. |
+| `TOKEN_ENCRYPTION_KEY` | `openssl rand -base64 32` (must decode to 32 bytes). Also signs session cookies. Changing it signs you out and makes stored tokens unreadable: sign in with Tesla again afterwards. |
 | `CRON_SECRET` | `openssl rand -hex 32`. Vercel sends it to the cron route automatically. |
 
 For local scripts, put the same values in `.env.local` (gitignored), e.g. `vercel env pull .env.local`.
@@ -80,11 +78,13 @@ supabase link --project-ref fhoqjkriyqwoblfaahpk
 supabase db push
 ```
 
-### 5. Connect Tesla
+### 5. Sign in with Tesla (claims the dashboard)
 
-1. Open https://tesla-in-updates.vercel.app and sign in with `DASHBOARD_PASSPHRASE`.
-2. Click **Connect Tesla**, sign in to Tesla, and approve the requested scopes (vehicle data, offline access).
-3. You land back on the dashboard and a first check runs immediately. If the car is asleep, it shows as Asleep with no version until a later check finds it online. Use **Check now** after opening the Tesla app (which wakes the car) to record the version straight away.
+Do this right after the first deploy: until someone signs in, the first Tesla account to do so becomes the owner.
+
+1. Open https://tesla-in-updates.vercel.app and click **Sign in with Tesla**.
+2. Sign in to Tesla and approve the requested scopes (vehicle data, offline access).
+3. You land on the dashboard and a first check runs immediately. If the car is asleep, it shows as Asleep with no version until a later check finds it online. Use **Check now** after opening the Tesla app (which wakes the car) to record the version straight away.
 
 ## Polling and the Vercel Hobby plan
 
@@ -108,4 +108,6 @@ bun run lint
 bun run build
 ```
 
-OAuth only works against the registered redirect URI, so connect Tesla on the deployed site; local dev can share the same Supabase data.
+Sign in with Tesla only works against the registered redirect URI, so local dev at `localhost` can't sign in unless you add a localhost redirect URI to the Tesla app and set `TESLA_REDIRECT_URI` to match.
+
+To hand the dashboard to a different Tesla account, clear the owner in Supabase (`update oauth_tokens set owner_sub = null;`) and sign in with the new account.

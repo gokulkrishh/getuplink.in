@@ -2,25 +2,8 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { isValidSession, safeEqual, SESSION_COOKIE, SESSION_MAX_AGE, sessionToken } from "@/lib/session";
+import { isValidSession, SESSION_COOKIE } from "@/lib/session";
 import { pollAll } from "@/lib/server/poll";
-
-export async function login(_: string | null, form: FormData): Promise<string | null> {
-  const passphrase = process.env.DASHBOARD_PASSPHRASE;
-  if (!passphrase) return "DASHBOARD_PASSPHRASE is not set";
-  const attempt = String(form.get("passphrase") ?? "");
-  if (!safeEqual(await sessionToken(attempt), await sessionToken(passphrase))) return "Wrong passphrase";
-
-  (await cookies()).set(SESSION_COOKIE, await sessionToken(passphrase), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: SESSION_MAX_AGE,
-  });
-  const next = String(form.get("next") ?? "/");
-  redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/");
-}
 
 export async function logout() {
   (await cookies()).delete(SESSION_COOKIE);

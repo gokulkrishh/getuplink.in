@@ -4,6 +4,8 @@
 
 create table public.oauth_tokens (
   provider text primary key default 'tesla',
+  -- Tesla account (id_token `sub`) allowed to sign in to the dashboard.
+  owner_sub text,
   access_token_enc text not null,
   refresh_token_enc text not null,
   expires_at timestamptz not null,

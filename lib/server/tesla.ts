@@ -15,6 +15,7 @@ type TokenResponse = {
   refresh_token: string;
   expires_in: number;
   scope?: string;
+  id_token?: string;
 };
 
 export class TeslaError extends Error {
@@ -58,11 +59,13 @@ async function tokenRequest(params: Record<string, string>): Promise<TokenRespon
   return res.json();
 }
 
-async function saveTokens(tokens: TokenResponse): Promise<string> {
+// Omitting ownerSub leaves the stored owner untouched (upsert only sets given columns).
+async function saveTokens(tokens: TokenResponse, ownerSub?: string): Promise<string> {
   const { error } = await db()
     .from("oauth_tokens")
     .upsert({
       provider: "tesla",
+      ...(ownerSub ? { owner_sub: ownerSub } : {}),
       access_token_enc: encrypt(tokens.access_token),
       refresh_token_enc: encrypt(tokens.refresh_token),
       expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
@@ -73,7 +76,20 @@ async function saveTokens(tokens: TokenResponse): Promise<string> {
   return tokens.access_token;
 }
 
-export async function exchangeCode(code: string): Promise<void> {
+// The token came straight from Tesla's token endpoint over TLS, so reading the
+// payload without verifying the signature is enough to learn who signed in.
+function idTokenSubject(idToken: string | undefined): string {
+  const payload = idToken?.split(".")[1];
+  const sub = payload ? (JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { sub?: string }).sub : undefined;
+  if (!sub) throw new Error("Tesla did not return an id_token with a subject");
+  return sub;
+}
+
+export type SignInResult = "claimed" | "owner" | "not-owner";
+
+// Sign in with Tesla doubles as the dashboard login: the first account to sign in
+// becomes the owner, and only that account can sign in afterwards.
+export async function signIn(code: string): Promise<SignInResult> {
   const tokens = await tokenRequest({
     grant_type: "authorization_code",
     client_id: env("TESLA_CLIENT_ID"),
@@ -82,7 +98,12 @@ export async function exchangeCode(code: string): Promise<void> {
     audience: fleetApiBase(),
     redirect_uri: env("TESLA_REDIRECT_URI"),
   });
-  await saveTokens(tokens);
+  const sub = idTokenSubject(tokens.id_token);
+  const { data, error } = await db().from("oauth_tokens").select("owner_sub").eq("provider", "tesla").maybeSingle();
+  if (error) throw new Error(`Reading owner failed: ${error.message}`);
+  if (data?.owner_sub && data.owner_sub !== sub) return "not-owner";
+  await saveTokens(tokens, sub);
+  return data?.owner_sub ? "owner" : "claimed";
 }
 
 // Refresh tokens are single use: the new one must be stored before anything else.
