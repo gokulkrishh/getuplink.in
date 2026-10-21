@@ -30,16 +30,8 @@ function ReleaseNotesToggle({ version, notes }: { version: string; notes: Releas
   );
 }
 
-// Order: status line, its details (progress, timing, "as of"), then release notes last.
-function UpdateStatus({
-  snapshot,
-  notes,
-  asOf,
-}: {
-  snapshot: Snapshot | null;
-  notes: ReleaseNotesByVersion;
-  asOf: string | null;
-}) {
+// Order: status line, then its details (progress, timing, "as of"). Release notes render below, full width.
+function UpdateStatus({ snapshot, asOf }: { snapshot: Snapshot | null; asOf: string | null }) {
   if (!snapshot) return <p className="text-muted-foreground">Unknown until the car is next seen online.</p>;
   const status = snapshot.update_status;
   const asOfLine = asOf && <p className="text-xs text-faint">As of {formatDateTime(asOf)}</p>;
@@ -99,7 +91,6 @@ function UpdateStatus({
         </p>
       ) : null}
       {asOfLine}
-      {snapshot.update_version && <ReleaseNotesToggle version={snapshot.update_version} notes={notes} />}
     </div>
   );
 }
@@ -148,7 +139,7 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
         <div className="sm:col-span-2">
           {pending ? <Label>Update</Label> : <dt className="sr-only">Update</dt>}
           <dd>
-            <UpdateStatus snapshot={lastOnline} notes={notes} asOf={asleep && lastOnline ? lastOnline.polled_at : null} />
+            <UpdateStatus snapshot={lastOnline} asOf={asleep && lastOnline ? lastOnline.polled_at : null} />
           </dd>
         </div>
         <div className="sm:text-right">
@@ -165,6 +156,12 @@ export function VehicleSection({ view, notes = {} }: { view: VehicleView; notes?
           </dd>
         </div>
       </dl>
+
+      {pending && lastOnline?.update_version && notes[lastOnline.update_version] && (
+        <div className="-mt-6">
+          <ReleaseNotesToggle version={lastOnline.update_version} notes={notes} />
+        </div>
+      )}
 
       {latest?.error && (
         <p className="text-xs text-muted-foreground">The car went to sleep during the last check. Uplink will try again.</p>
