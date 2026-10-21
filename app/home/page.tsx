@@ -192,7 +192,7 @@ export default function HomePage() {
         <span>
           &copy; <Year /> · Uplink is not affiliated with Tesla, Inc.
         </span>
-        <nav aria-label="Legal" className="flex gap-4">
+        <nav aria-label="Legal" className="ml-auto flex gap-4">
           <Link href="/privacy" className="text-muted-foreground transition-colors duration-150 hover:text-foreground">
             Privacy
           </Link>
