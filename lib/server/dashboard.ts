@@ -11,7 +11,7 @@ import { isConnected } from "./tesla";
 export const OWNER_DATA_TAG = "owner-data";
 
 export type Vehicle = {
-  id: number;
+  id: string | number; // live data is read as text so 17-digit Tesla ids keep precision; demo data still uses numbers
   vin: string | null;
   display_name: string | null;
   last_state: string | null;
@@ -120,11 +120,12 @@ export async function loadDashboard(demoScenario?: string): Promise<Dashboard> {
   if (missing.length) return { kind: "misconfigured", missing };
 
   try {
-    if (!(await isConnected())) return { kind: "disconnected" };
-    const [vehicles, runs] = await Promise.all([
-      db().from("vehicles").select("id, vin, display_name, last_state, current_version, last_seen_at, last_polled_at, model, exterior_color").order("created_at"),
+    const [connected, vehicles, runs] = await Promise.all([
+      isConnected(),
+      db().from("vehicles").select("id:id::text, vin, display_name, last_state, current_version, last_seen_at, last_polled_at, model, exterior_color").order("created_at"),
       db().from("poll_runs").select("started_at, ok, error").order("started_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
+    if (!connected) return { kind: "disconnected" };
     if (vehicles.error) throw new Error(vehicles.error.message);
     if (runs.error) throw new Error(runs.error.message);
     const views = await Promise.all((vehicles.data as Vehicle[]).map(vehicleView));

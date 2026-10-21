@@ -56,10 +56,23 @@ export function formatKwh(value: number): string {
 
 // "₹874.50" for INR (en-IN grouping)
 export function formatMoney(value: number, currency: string): string {
-  return new Intl.NumberFormat("en-IN", { style: "currency", currency }).format(value);
+  let fmt = moneyFormats.get(currency);
+  if (!fmt) {
+    try {
+      fmt = new Intl.NumberFormat("en-IN", { style: "currency", currency });
+    } catch {
+      // Invalid currency code (RangeError): show the raw code rather than crash.
+      return `${currency} ${value.toFixed(2)}`;
+    }
+    moneyFormats.set(currency, fmt);
+  }
+  return fmt.format(value);
 }
+
+const moneyFormats = new Map<string, Intl.NumberFormat>();
+const month = new Intl.DateTimeFormat("en-GB", { timeZone: IST, month: "long", year: "numeric" });
 
 // "October 2026", in IST. Also the key that groups sessions by month.
 export function formatMonth(value: string | number | Date): string {
-  return new Intl.DateTimeFormat("en-GB", { timeZone: IST, month: "long", year: "numeric" }).format(new Date(value));
+  return month.format(new Date(value));
 }

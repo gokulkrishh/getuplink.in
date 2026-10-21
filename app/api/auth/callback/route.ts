@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 import type { LoginErrorCode } from "@/lib/login-errors";
 import { createSession, safeEqual, SESSION_COOKIE, SESSION_MAX_AGE, STATE_COOKIE } from "@/lib/session";
 import { pollAll } from "@/lib/server/poll";
@@ -31,7 +31,8 @@ export async function GET(request: NextRequest) {
   if (result === "not-owner") return done("/login", "not-owner");
 
   // First sign-in: record a snapshot right away rather than waiting for the cron.
-  if (result === "claimed") await pollAll().catch((err) => console.error(err));
+  // Runs after the redirect is sent, so sign-in isn't held up by it.
+  if (result === "claimed") after(() => pollAll().catch((err) => console.error(err)));
 
   const res = done("/");
   res.cookies.set(SESSION_COOKIE, await createSession(), {
