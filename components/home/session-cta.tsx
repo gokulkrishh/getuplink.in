@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { SignInButton } from "@/components/sign-in-button";
 import { buttonVariants } from "@/components/ui/button";
 import { isValidSession, SESSION_COOKIE } from "@/lib/session";
@@ -19,6 +20,8 @@ export async function SessionCta({
   // The header shows nothing to signed-out visitors; sign-in lives in the page itself.
   dashboardOnly?: boolean;
 }) {
+  // The session check reads the clock, so render this only at request time, never ahead of it.
+  await connection();
   const signedIn = await isValidSession((await cookies()).get(SESSION_COOKIE)?.value);
   if (signedIn) {
     // /app goes to the dashboard (app.getuplink.in, or app.localhost locally); see proxy.ts.
