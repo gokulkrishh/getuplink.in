@@ -2,6 +2,7 @@ import { ArrowRight } from "lucide-react";
 import { Suspense } from "react";
 import { Logo } from "@/components/logo";
 import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { LoginError } from "./login-form";
 
 // Static illustration of the dashboard, so the sign-in page shows what you get.
@@ -9,10 +10,10 @@ function Preview() {
   return (
     <div aria-hidden="true" className="w-full max-w-sm border p-6 text-left select-none sm:p-8">
       <p className="text-xs text-faint">Model Y</p>
-      <p className="mt-1 font-mono text-4xl font-medium tracking-tight tabular-nums">2025.38.6</p>
+      <p className="mt-1 font-mono text-4xl font-medium tracking-tight tabular-nums">2026.38.4</p>
       <div className="mt-8 flex items-baseline justify-between text-sm">
         <span>
-          Downloading <span className="ml-1 font-mono text-muted-foreground">2025.38.8</span>
+          Downloading <span className="ml-1 font-mono text-muted-foreground">2026.38.6</span>
         </span>
         <span className="font-mono text-xs tabular-nums text-muted-foreground">42%</span>
       </div>
@@ -25,6 +26,7 @@ function Preview() {
       <div className="mt-3 flex justify-between text-xs text-faint">
         <span>Jul</span>
         <span>Aug</span>
+        <span>Sep</span>
         <span>Oct</span>
       </div>
       <p className="mt-8 border-t pt-4 text-xs text-muted-foreground">Last seen 9:15 AM IST</p>
@@ -47,14 +49,15 @@ export default function LoginPage() {
             Know when your next update lands.
           </h1>
           <p className="mt-5 text-base text-muted-foreground">
-            Uplink checks your car every few hours and keeps a quiet history of every software version. Read-only, and it
+            Uplink checks your car every few hours and keeps a quiet history of every version it sees. Read-only, and it
             never wakes the car.
           </p>
           {/* Plain link: the OAuth flow is a full-page redirect. */}
-          <a href="/api/auth/connect" className={buttonVariants({ className: "mt-10 h-11 gap-2 px-5 text-sm" })}>
+          <a href="/api/auth/connect" className={cn(buttonVariants({ size: "lg" }), "mt-10 h-11 px-5")}>
             Sign in with Tesla
-            <ArrowRight className="size-4" />
+            <ArrowRight data-icon="inline-end" />
           </a>
+          <p className="mt-3 text-xs text-faint">You&apos;ll sign in on tesla.com. Uplink never sees your password.</p>
           <Suspense>
             <div className="mt-4">
               <LoginError />
