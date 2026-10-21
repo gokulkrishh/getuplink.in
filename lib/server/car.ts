@@ -12,6 +12,8 @@ import {
   roofLabel,
   wheelsLabel,
 } from "@/lib/car";
+import { median, num, roundKwh } from "@/lib/telemetry-derive";
+import { loadPackEstimates } from "./battery";
 import { db } from "./supabase";
 
 // What the car details page shows. Everything comes from Tesla's own replies: the car's VIN and the
@@ -65,8 +67,6 @@ type Config = Partial<{
   has_air_suspension: boolean;
 }>;
 
-const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : typeof v === "string" && v !== "" && Number.isFinite(Number(v)) ? Number(v) : null);
-
 function details(
   id: string,
   name: string | null,
@@ -109,38 +109,11 @@ function details(
   };
 }
 
-// Below this the estimate swings with small rounding in the reported level, so those readings are skipped.
-const MIN_LEVEL = 20;
-
 async function loadBatteryHealth(vin: string): Promise<BatteryHealth | null> {
-  const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
-  const read = (field: string) =>
-    db()
-      .from("telemetry_readings")
-      .select("created_at, value")
-      .eq("vin", vin)
-      .eq("field", field)
-      .gte("created_at", since)
-      .order("created_at", { ascending: true })
-      .limit(5000);
-  const [energy, level] = await Promise.all([read("EnergyRemaining"), read("BatteryLevel")]);
+  const estimates = await loadPackEstimates(vin, new Date(Date.now() - 30 * 86_400_000).toISOString());
   // Battery health is extra; without it the page still shows everything else.
-  if (energy.error || level.error) {
-    console.warn("Battery readings unavailable:", (energy.error ?? level.error)!.message);
-    return null;
-  }
-  const levels = new Map((level.data ?? []).map((r) => [Date.parse(r.created_at as string), num(r.value)]));
-  const estimates: { at: string; kwh: number }[] = [];
-  for (const r of energy.data ?? []) {
-    const kwh = num(r.value);
-    const pct = levels.get(Date.parse(r.created_at as string));
-    if (kwh !== null && pct != null && pct >= MIN_LEVEL) estimates.push({ at: r.created_at as string, kwh: kwh / (pct / 100) });
-  }
-  if (estimates.length === 0) return null;
-  const sorted = estimates.map((e) => e.kwh).sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-  return { packKwh: Math.round(median * 10) / 10, readings: estimates.length, since: estimates[0].at };
+  if (!estimates || estimates.length === 0) return null;
+  return { packKwh: roundKwh(median(estimates.map((e) => e.kwh))), readings: estimates.length, since: estimates[0].at };
 }
 
 // Null when there's no such car.

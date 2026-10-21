@@ -218,6 +218,16 @@ function Label({ children }: { children: React.ReactNode }) {
 
 const HISTORY_PREVIEW = 5;
 
+// "Downloaded in 25 min · Installed in 32 min", on its own line under the row (rows without it stay as they were).
+function Timeline({ timeline }: { timeline: VersionChange["timeline"] }) {
+  if (!timeline) return null;
+  const parts = [
+    timeline.downloadMin !== undefined && `Downloaded in ${formatDuration(timeline.downloadMin * 60)}`,
+    timeline.installMin !== undefined && `Installed in ${formatDuration(timeline.installMin * 60)}`,
+  ].filter(Boolean);
+  return parts.length ? <span className="col-span-full -mt-1 pb-0.5 pl-5 text-xs text-faint">{parts.join(" · ")}</span> : null;
+}
+
 // One history row: expandable to its release notes when Tesla published them.
 function HistoryRow({ change, notes, now }: { change: VersionChange; notes: ReleaseNotesByVersion; now: number }) {
   const versionNotes = notes[change.version];
@@ -226,6 +236,7 @@ function HistoryRow({ change, notes, now }: { change: VersionChange; notes: Rele
       <li className={cn("history-cols", "border-t py-2.5")}>
         <span className="truncate pl-5 font-mono">{change.version}</span>
         <HistoryCells change={change} now={now} />
+        <Timeline timeline={change.timeline} />
       </li>
     );
   }
@@ -242,6 +253,7 @@ function HistoryRow({ change, notes, now }: { change: VersionChange; notes: Rele
             <span className="truncate">{change.version}</span>
           </span>
           <HistoryCells change={change} now={now} />
+          <Timeline timeline={change.timeline} />
         </summary>
         <div className="pb-4 pl-5">
           <ReleaseNotesList notes={versionNotes} />
