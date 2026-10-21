@@ -138,5 +138,3 @@ export function buildActivity(input: ActivityInput): ActivityEvent[] {
   return events.sort((a, b) => b.at - a.at).slice(0, limit);
 }
 
-// Only the unused battery chart components still import this; they await deletion.
-export type LevelPoint = { at: number; level: number };

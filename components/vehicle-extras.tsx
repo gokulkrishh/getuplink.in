@@ -12,7 +12,11 @@ const decimal = new Intl.NumberFormat("en-IN", { minimumFractionDigits: 1, maxim
 
 function Stat({ href, label, value, unit, note }: { href: string; label: string; value: string; unit: string; note: string | null }) {
   return (
-    <Link href={href} prefetch={true} className="group block space-y-1">
+    <Link
+      href={href}
+      prefetch={true}
+      className="group block space-y-1 border p-4 transition-colors duration-150 hover:border-muted-foreground/50"
+    >
       <p className="text-xs text-faint transition-colors duration-150 group-hover:text-foreground">{label}</p>
       <p className="font-mono text-2xl font-medium tracking-tight tabular-nums">
         {value}
@@ -34,7 +38,7 @@ export function WeekStrip({ week }: { week: WeekSummary | null }) {
         <h3 className={heading}>This week</h3>
         <p className="text-xs text-faint">Compared with the 7 days before</p>
       </div>
-      <div className="grid grid-cols-2 gap-x-6">
+      <div className="grid grid-cols-2 gap-3">
         {week.km !== null && <Stat href={driving} label="Driven" value={number.format(week.km)} unit="km" note={compareToLastWeek(week.km, week.previous.km, "km")} />}
         {week.whPerKm !== null && (
           <Stat
