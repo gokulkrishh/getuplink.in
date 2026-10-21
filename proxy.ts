@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { isValidSession, SESSION_COOKIE } from "@/lib/session";
+import { isValidSession, requestHost, SESSION_COOKIE } from "@/lib/session";
 
 // Exact paths reachable without a session. Anything not listed here needs one.
 const PUBLIC_PATHS = new Set([
@@ -30,7 +30,9 @@ function appOrigin(url: URL): string {
 
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  const host = request.headers.get("host")?.split(":")[0];
+  // The forwarded host first: Next renders a server action's redirect with an internal request to
+  // localhost, which would otherwise be taken for the home page host.
+  const host = requestHost(request.headers)?.split(":")[0];
   const marketing = Boolean(host && MARKETING_HOSTS.has(host));
   // "Open app" on the home page: the dashboard root on the app host.
   if (pathname === "/app") {
