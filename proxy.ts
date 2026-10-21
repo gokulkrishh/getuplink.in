@@ -15,14 +15,24 @@ const PUBLIC_PATHS = new Set([
   "/home", // public marketing page, served on getuplink.in via the rewrite below
   "/privacy", // public legal pages, served on both hosts
   "/terms",
+  "/status", // public status page, served on status.getuplink.in via the rewrite below
 ]);
 
 // The bare domain serves the public home page; every other path there goes to the app.
 // Locally the same split runs on uplink.localhost (home) and app.uplink.localhost (dashboard), which can
 // share the session cookie like getuplink.in does. Plain localhost (Tesla's local redirect URI) forwards there.
 const MARKETING_HOSTS = new Set(["getuplink.in", "www.getuplink.in", "uplink.localhost", "localhost"]);
-const MARKETING_PATHS = new Set(["/home", "/privacy", "/terms", "/favicon.ico", "/icon.svg"]);
+const MARKETING_PATHS = new Set(["/home", "/privacy", "/terms", "/status", "/favicon.ico", "/icon.svg"]);
 const APP_ORIGIN = "https://app.getuplink.in";
+
+// The status page has its own host. It serves only /status and the icons; anything else goes to the home page host.
+const STATUS_HOSTS = new Set(["status.getuplink.in", "status.uplink.localhost"]);
+const STATUS_PATHS = new Set(["/status", "/favicon.ico", "/icon.svg"]);
+const HOME_ORIGIN = "https://getuplink.in";
+
+function homeOrigin(url: URL): string {
+  return url.hostname.endsWith("localhost") ? `${url.protocol}//uplink.localhost${url.port ? `:${url.port}` : ""}` : HOME_ORIGIN;
+}
 
 function appOrigin(url: URL): string {
   const local = url.hostname === "localhost" || url.hostname === "uplink.localhost";
@@ -34,6 +44,12 @@ export async function proxy(request: NextRequest) {
   // The forwarded host first: Next renders a server action's redirect with an internal request to
   // localhost, which would otherwise be taken for the home page host.
   const host = requestHost(request.headers)?.split(":")[0];
+  if (host && STATUS_HOSTS.has(host)) {
+    if (pathname === "/") return NextResponse.rewrite(new URL("/status", request.url));
+    if (STATUS_PATHS.has(pathname)) return NextResponse.next();
+    // The status page's "home" link points at /home.
+    return NextResponse.redirect(homeOrigin(request.nextUrl) + (pathname === "/home" ? "/" : pathname + search), 308);
+  }
   const marketing = Boolean(host && MARKETING_HOSTS.has(host));
   // "Open app" on the home page: the dashboard root on the app host.
   if (pathname === "/app") {

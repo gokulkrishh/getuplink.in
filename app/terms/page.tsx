@@ -65,9 +65,14 @@ export default function TermsPage() {
 
       <footer className="mt-auto flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-t pt-6 text-xs text-faint">
         <span>Uplink is not affiliated with Tesla, Inc.</span>
-        <Link href="/privacy" className="underline underline-offset-4">
-          Privacy
-        </Link>
+        <nav aria-label="Legal" className="flex gap-4">
+          <Link href="/privacy" className="underline underline-offset-4">
+            Privacy
+          </Link>
+          <Link href="/status" className="underline underline-offset-4">
+            Status
+          </Link>
+        </nav>
       </footer>
     </div>
   );

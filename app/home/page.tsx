@@ -199,6 +199,9 @@ export default function HomePage() {
           <Link href="/terms" className="text-muted-foreground transition-colors duration-150 hover:text-foreground">
             Terms
           </Link>
+          <Link href="/status" className="text-muted-foreground transition-colors duration-150 hover:text-foreground">
+            Status
+          </Link>
         </nav>
       </footer>
     </div>
