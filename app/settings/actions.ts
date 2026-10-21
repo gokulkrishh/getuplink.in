@@ -25,7 +25,7 @@ async function endHere() {
 }
 
 // For useActionState: returns the error to show, or redirects.
-export async function signOutEverywhereWithError(_: string | null): Promise<string | null> {
+export async function signOutEverywhereWithError(): Promise<string | null> {
   await requireSession();
   if (DEMO) redirect("/settings");
   try {
@@ -39,12 +39,7 @@ export async function signOutEverywhereWithError(_: string | null): Promise<stri
 }
 
 // Plain form action kept for pages that don't show the error inline; a failure surfaces on the error page.
-export async function signOutEverywhere(): Promise<void> {
-  const error = await signOutEverywhereWithError(null);
-  if (error) throw new Error(error);
-}
-
-export async function disconnect(_: string | null): Promise<string | null> {
+export async function disconnect(): Promise<string | null> {
   await requireSession();
   if (DEMO) redirect("/settings");
   try {

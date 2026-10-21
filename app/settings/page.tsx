@@ -5,15 +5,13 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Logo } from "@/components/logo";
 import { ThemePicker } from "@/components/theme-picker";
-import { Button } from "@/components/ui/button";
 import { DEMO } from "@/lib/demo";
 import { formatDate, formatSeen } from "@/lib/format";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { db } from "@/lib/server/supabase";
 import { accountInfo, type AccountInfo } from "@/lib/server/tesla";
-import { DeleteMyData, DisconnectTesla } from "./confirm-actions";
-import { signOutEverywhere } from "./actions";
+import { DeleteMyData, DisconnectTesla, SignOutEverywhere } from "./confirm-actions";
 import { Row } from "./row";
 
 export const metadata: Metadata = { title: "Settings · Uplink" };
@@ -78,11 +76,7 @@ async function Settings() {
           title="Sign out everywhere"
           description="Ends every session on every device, including this one."
           control={
-            <form action={signOutEverywhere}>
-              <Button type="submit" variant="outline" size="lg">
-                Sign out everywhere
-              </Button>
-            </form>
+            <SignOutEverywhere />
           }
         />
       </Group>

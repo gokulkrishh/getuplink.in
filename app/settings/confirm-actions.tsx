@@ -24,7 +24,7 @@ function useAskingFocus(
 function Submit({ children, pendingLabel, ref }: { children: string; pendingLabel: string; ref?: React.Ref<HTMLButtonElement> }) {
   const { pending } = useFormStatus();
   return (
-    <Button ref={ref} type="submit" variant="destructive" disabled={pending} className="h-9 px-4">
+    <Button ref={ref} type="submit" variant="destructive" disabled={pending} size="lg">
       {pending ? pendingLabel : children}
     </Button>
   );
@@ -43,7 +43,7 @@ export function DisconnectTesla({ description }: { description: string }) {
       description={description}
       control={
         !asking ? (
-          <Button ref={trigger} type="button" variant="outline" className="h-9 px-4" onClick={() => setAsking(true)}>
+          <Button ref={trigger} type="button" variant="outline" size="lg" onClick={() => setAsking(true)}>
             Disconnect
           </Button>
         ) : null
@@ -63,7 +63,7 @@ export function DisconnectTesla({ description }: { description: string }) {
           )}
           <div className="flex gap-2 pt-1">
             <Submit ref={first} pendingLabel="Disconnecting…">Disconnect Tesla</Submit>
-            <Button type="button" variant="ghost" className="h-9 px-4" onClick={() => setAsking(false)}>
+            <Button type="button" variant="ghost" size="lg" onClick={() => setAsking(false)}>
               Cancel
             </Button>
           </div>
@@ -86,7 +86,7 @@ export function DeleteMyData() {
       description="Permanently deletes your vehicles, version history, check logs and Tesla connection."
       control={
         !asking ? (
-          <Button ref={trigger} type="button" variant="destructive" className="h-9 px-4" onClick={() => setAsking(true)}>
+          <Button ref={trigger} type="button" variant="destructive" size="lg" onClick={() => setAsking(true)}>
             Delete
           </Button>
         ) : null
@@ -110,7 +110,7 @@ export function DeleteMyData() {
           )}
           <div className="flex gap-2 pt-1">
             <Submit pendingLabel="Deleting…">Delete my data</Submit>
-            <Button type="button" variant="ghost" className="h-9 px-4" onClick={() => setAsking(false)}>
+            <Button type="button" variant="ghost" size="lg" onClick={() => setAsking(false)}>
               Cancel
             </Button>
           </div>
@@ -125,7 +125,7 @@ export function SignOutEverywhere() {
   const [error, action] = useActionState(signOutEverywhereWithError, null);
   return (
     <form action={action} className="flex flex-col items-end gap-1">
-      <Button type="submit" variant="outline" className="h-9 px-4">
+      <Button type="submit" variant="outline" size="lg">
         Sign out everywhere
       </Button>
       {error && (
