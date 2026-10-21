@@ -2,6 +2,7 @@
 
 import { DashRing } from "@/components/loading-ui/dash-ring";
 import { RotateCw } from "lucide-react";
+import { Tip } from "@/components/tip";
 import { useFormStatus } from "react-dom";
 import { cn } from "@/lib/utils";
 
@@ -42,13 +43,7 @@ export function CheckNowIcon({ className }: { className?: string }) {
       )}
     >
       <RotateCw className={cn("size-3.5", pending && "motion-safe:animate-spin")} aria-hidden="true" />
-      {/* Tooltip: positioned out of flow, so showing it never moves anything. */}
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute right-0 bottom-full z-10 mb-1.5 bg-foreground px-2 py-1 text-xs whitespace-nowrap text-background opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
-      >
-        {pending ? "Refreshing…" : "Refresh"}
-      </span>
+      <Tip>{pending ? "Refreshing…" : "Refresh"}</Tip>
     </button>
   );
 }

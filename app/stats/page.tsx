@@ -5,12 +5,17 @@ import { connection } from "next/server";
 import { Download, Zap } from "lucide-react";
 import { Suspense } from "react";
 import { Logo } from "@/components/logo";
+import { ShowMore } from "@/components/show-more";
+import { Tip } from "@/components/tip";
 import { formatClock, formatDuration, formatKwh, formatMoney, formatMonth, formatShortDate } from "@/lib/format";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargingSession, loadChargingSessions } from "@/lib/server/charging";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Stats · Uplink" };
+
+// Sessions shown per month before "Show N more".
+const MONTH_PREVIEW = 5;
 
 const monthLabel = new Intl.DateTimeFormat("en-GB", { month: "short", timeZone: "Asia/Kolkata" });
 
@@ -145,10 +150,10 @@ function SessionRow({ session: s }: { session: ChargingSession }) {
           <a
             href={`/api/charging/invoice/${encodeURIComponent(invoice.contentId)}`}
             aria-label={`Download invoice for ${formatShortDate(s.started_at)}`}
-            title="Download invoice (PDF)"
-            className="flex text-muted-foreground transition-colors duration-150 hover:text-foreground"
+            className="group relative flex text-muted-foreground transition-colors duration-150 hover:text-foreground"
           >
             <Download className="size-4" aria-hidden="true" />
+            <Tip>Download invoice</Tip>
           </a>
         )}
       </div>
@@ -175,11 +180,22 @@ function SessionList({ sessions }: { sessions: ChargingSession[] }) {
                 {count} {count === 1 ? "session" : "sessions"} · {formatMoney(cost, currency)}
               </p>
             </div>
-            <ul className="divide-y border-t">
-              {rows.map((s) => (
-                <SessionRow key={s.session_id} session={s} />
-              ))}
-            </ul>
+            <div>
+              <ul className="divide-y border-t">
+                {rows.slice(0, MONTH_PREVIEW).map((s) => (
+                  <SessionRow key={s.session_id} session={s} />
+                ))}
+              </ul>
+              {rows.length > MONTH_PREVIEW && (
+                <ShowMore count={rows.length - MONTH_PREVIEW}>
+                  <ul className="divide-y border-t">
+                    {rows.slice(MONTH_PREVIEW).map((s) => (
+                      <SessionRow key={s.session_id} session={s} />
+                    ))}
+                  </ul>
+                </ShowMore>
+              )}
+            </div>
           </section>
         );
       })}
