@@ -172,7 +172,7 @@ function BatteryGauge({ snapshot }: { snapshot: Snapshot }) {
       >
         <div className="relative h-full overflow-hidden bg-foreground" style={{ width: `${level}%` }}>
           {charging && (
-            <span className="absolute inset-y-0 -left-1/2 w-1/2 bg-gradient-to-r from-transparent via-background/50 to-transparent motion-safe:animate-shimmer" />
+            <span className="absolute inset-y-0 -left-1/2 w-1/2 bg-linear-to-r from-transparent via-background/50 to-transparent motion-safe:animate-shimmer" />
           )}
         </div>
         {limit != null && (
