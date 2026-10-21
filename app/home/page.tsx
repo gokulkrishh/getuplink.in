@@ -90,7 +90,7 @@ async function Year() {
 
 function SectionTitle({ title, body }: { title: string; body: string }) {
   return (
-    <div className="max-w-2xl">
+    <div>
       <h2 className="text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl">{title}</h2>
       <p className="mt-5 text-lg text-muted-foreground">{body}</p>
     </div>
