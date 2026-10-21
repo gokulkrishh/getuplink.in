@@ -309,21 +309,21 @@ async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParam
   const period = parsePeriod((await searchParams).period);
   const [{ sessions, distance, now }, { days, trend }] = await Promise.all([loadStats(), loadTelemetryStats()]);
 
-  if (sessions.length === 0) {
-    return (
-      <EmptyState icon={<Zap className="size-7 text-faint" aria-hidden="true" />} title="No Supercharger sessions yet">
-        They&apos;ll show up here after you charge at a Tesla Supercharger.
-      </EmptyState>
-    );
-  }
-
+  // Driving and battery come from the car itself, so they show even before the first Supercharger session.
+  const charging = sessions.length > 0;
   return (
     <div className="space-y-12">
       <PeriodSwitch period={period} />
-      <Summary sessions={sessions} now={now} period={period} />
+      {charging ? (
+        <Summary sessions={sessions} now={now} period={period} />
+      ) : (
+        <EmptyState icon={<Zap className="size-7 text-faint" aria-hidden="true" />} title="No Supercharger sessions yet">
+          They&apos;ll show up here after you charge at a Tesla Supercharger.
+        </EmptyState>
+      )}
       <Distance distance={distance} now={now} period={period} />
       <DailyDriving days={days} />
-      <SessionList sessions={sessions} />
+      {charging && <SessionList sessions={sessions} />}
       <Battery trend={trend} />
     </div>
   );
