@@ -49,6 +49,17 @@ export function formatSeen(value: string | number | Date, now: number): string {
   return formatDate(value) === formatDate(now) ? formatTime(value) : `${formatShortDate(value)}, ${formatTime(value)}`;
 }
 
+const relative = new Intl.RelativeTimeFormat("en-IN", { numeric: "auto" });
+
+// "just now", "3 minutes ago", "2 hours ago"; older than a day falls back to formatSeen.
+export function formatAgo(value: string | number | Date, now: number): string {
+  const minutes = Math.round((now - new Date(value).getTime()) / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return relative.format(-minutes, "minute");
+  if (minutes < 24 * 60) return relative.format(-Math.round(minutes / 60), "hour");
+  return formatSeen(value, now);
+}
+
 // "32.4 kWh"
 export function formatKwh(value: number): string {
   return `${value.toFixed(1)} kWh`;

@@ -6,7 +6,8 @@ import { Suspense } from "react";
 import { Logo } from "@/components/logo";
 import { ThemePicker } from "@/components/theme-picker";
 import { DEMO } from "@/lib/demo";
-import { formatDate, formatSeen } from "@/lib/format";
+import { formatAgo, formatDate, formatSeen } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { demoData } from "@/lib/server/demo";
@@ -54,25 +55,15 @@ async function Settings() {
         <Row title="Theme" description="Saved in this browser." control={<ThemePicker />} />
         <Row
           title="Live data"
-          description="Your car sends updates while it's awake. A full check also runs every 6 hours. Uplink never wakes the car."
-          control={
-            <p className="text-right text-xs text-muted-foreground">
-                {lastReading && (
-                  <>
-                    Last reading
-                    <span className="mb-1 block text-sm text-foreground tabular-nums">{formatSeen(lastReading, now)}</span>
-                  </>
-                )}
-                {lastCheck ? (
-                  <>
-                    Last checked
-                    <span className="block text-sm text-foreground tabular-nums">{formatSeen(lastCheck, now)}</span>
-                  </>
-                ) : (
-                  "No checks yet"
-                )}
+          description={
+            <>
+              <p>Your car sends updates while it&apos;s awake. Uplink never wakes it.</p>
+              <p className="text-faint">
+                {lastCheck ? `Full check every 6 hours, last at ${formatSeen(lastCheck, now)}` : "Full check every 6 hours"}
               </p>
+            </>
           }
+          control={<LiveStatus lastReading={lastReading} now={now} />}
         />
       </Group>
 
@@ -123,5 +114,20 @@ export default function SettingsPage() {
         </Link>
       </footer>
     </div>
+  );
+}
+
+// Within 10 minutes of a reading the car is awake and streaming; otherwise when it last sent anything.
+function LiveStatus({ lastReading, now }: { lastReading: string | null; now: number }) {
+  if (!lastReading) return <p className="text-xs text-muted-foreground">No readings yet</p>;
+  const live = now - Date.parse(lastReading) < 10 * 60_000;
+  return (
+    <p className="inline-flex items-center gap-2 text-sm whitespace-nowrap">
+      <span className={cn("size-1.5 rounded-full", live ? "bg-positive" : "bg-faint")} aria-hidden="true" />
+      <span>
+        {live ? "Live" : "Asleep"}
+        <span className="text-muted-foreground"> · {formatAgo(lastReading, now)}</span>
+      </span>
+    </p>
   );
 }

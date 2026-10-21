@@ -5,7 +5,7 @@ export function Row({
   children,
 }: {
   title: string;
-  description?: string;
+  description?: React.ReactNode;
   control?: React.ReactNode;
   children?: React.ReactNode;
 }) {
@@ -15,7 +15,7 @@ export function Row({
       <div className="flex items-center justify-between gap-4 sm:gap-8">
         <div className="min-w-0 flex-1 space-y-0.5">
           <p className="text-sm">{title}</p>
-          {description && <p className="text-xs text-muted-foreground">{description}</p>}
+          {description && <div className="space-y-0.5 text-xs text-muted-foreground">{description}</div>}
         </div>
         <div className="shrink-0">{control}</div>
       </div>
