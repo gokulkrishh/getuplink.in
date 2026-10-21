@@ -228,7 +228,7 @@ function EmptyHistory() {
 }
 
 function Label({ children }: { children: React.ReactNode }) {
-  return <dt className="mb-1 text-xs text-faint">{children}</dt>;
+  return <dt className="mb-2 text-xs font-medium tracking-wide text-faint uppercase">{children}</dt>;
 }
 
 const HISTORY_PREVIEW = 5;
@@ -441,7 +441,7 @@ export function VehicleSection({
       )}
 
       <div className="space-y-4">
-        <h3 className="text-xs text-faint">History</h3>
+        <h3 className="text-xs font-medium tracking-wide text-faint uppercase">History</h3>
         {history.length === 0 ? (
           <EmptyHistory />
         ) : (
