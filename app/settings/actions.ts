@@ -5,6 +5,8 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
+import { importPastUpdates, removeImportedUpdates } from "@/lib/server/import-updates";
+import type { ImportState } from "@/lib/import-updates";
 import { deleteMyData, disconnectTesla, revokeAllSessions } from "@/lib/server/tesla";
 import { messageOf } from "@/lib/errors";
 import { clearSession, requestHost } from "@/lib/session";
@@ -59,5 +61,31 @@ export async function deleteEverything(_: string | null, form: FormData): Promis
     return "Couldn't delete your data. Try again in a moment.";
   }
   await endHere();
+  return null;
+}
+
+// Two steps in one action: "preview" checks the pasted list, "import" checks it again and saves.
+export async function importUpdates(_: ImportState, form: FormData): Promise<ImportState> {
+  await requireSession();
+  const confirmed = form.get("intent") === "import";
+  try {
+    const result = await importPastUpdates(String(form.get("vehicle") ?? ""), String(form.get("text") ?? ""), confirmed);
+    if (result.status === "done") updateTag(OWNER_DATA_TAG);
+    return result;
+  } catch (err) {
+    console.error("Import failed:", messageOf(err));
+    return { status: "error", message: "Couldn't import the updates. Try again in a moment.", issues: [], count: 0 };
+  }
+}
+
+export async function deleteImportedUpdates(): Promise<string | null> {
+  await requireSession();
+  try {
+    await removeImportedUpdates();
+  } catch (err) {
+    console.error("Deleting imported updates failed:", messageOf(err));
+    return "Couldn't delete the imported updates. Try again in a moment.";
+  }
+  updateTag(OWNER_DATA_TAG);
   return null;
 }

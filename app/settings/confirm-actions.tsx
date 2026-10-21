@@ -4,7 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { deleteEverything, disconnect, signOutEverywhereWithError } from "./actions";
+import { deleteEverything, deleteImportedUpdates, disconnect, signOutEverywhereWithError } from "./actions";
 import { Row } from "./row";
 
 // Opening a confirm form moves focus into it; cancelling hands focus back to the button that opened it.
@@ -135,5 +135,48 @@ export function SignOutEverywhere() {
         </p>
       )}
     </form>
+  );
+}
+
+// Removes only what was imported; updates Uplink tracked itself stay.
+export function DeleteImportedUpdates({ count }: { count: number }) {
+  const [asking, setAsking] = useState(false);
+  const [error, action] = useActionState(deleteImportedUpdates, null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const first = useRef<HTMLButtonElement>(null);
+  useAskingFocus(asking, first, trigger);
+  const noun = count === 1 ? "update" : "updates";
+  return (
+    <Row
+      title="Imported updates"
+      description={`${count} imported ${noun} in your history.`}
+      control={
+        !asking ? (
+          <Button ref={trigger} type="button" variant="outline" size="lg" onClick={() => setAsking(true)}>
+            Delete imported updates
+          </Button>
+        ) : null
+      }
+    >
+      {asking && (
+        <form action={action} className="mt-4 space-y-3 border-l-2 border-destructive pl-4 text-sm">
+          <p className="font-medium">Delete {count} imported {noun}?</p>
+          <p className="text-muted-foreground">
+            This removes only the updates you imported. The updates Uplink tracked itself stay. You can import a list again.
+          </p>
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
+          <div className="flex gap-2 pt-1">
+            <Submit ref={first} pendingLabel="Deleting…">Delete imported updates</Submit>
+            <Button type="button" variant="ghost" size="lg" onClick={() => setAsking(false)}>
+              Cancel
+            </Button>
+          </div>
+        </form>
+      )}
+    </Row>
   );
 }
