@@ -3,7 +3,8 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { DEMO } from "@/lib/demo";
-import { isValidSession, SESSION_COOKIE } from "@/lib/session";
+import { SESSION_COOKIE } from "@/lib/session";
+import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { pollAll } from "@/lib/server/poll";
 
 export async function logout() {
@@ -16,8 +17,8 @@ export async function checkNow() {
     await new Promise((resolve) => setTimeout(resolve, 1200));
     redirect("/");
   }
-  // Server actions are reachable by POST from anywhere, so re-check the session.
-  if (!(await isValidSession((await cookies()).get(SESSION_COOKIE)?.value))) redirect("/login");
+  // Server actions are reachable by POST from anywhere, so re-check the session (including revocation).
+  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
   // A failed run is recorded in poll_runs and shown on the dashboard; only a crash
   // before that (e.g. the database is unreachable) needs the ?error banner.
   const crashed = await pollAll().then(

@@ -1,9 +1,7 @@
-import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Logo } from "@/components/logo";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { SignInButton } from "@/components/sign-in-button";
 import { LoginError } from "./login-form";
 
 // Static illustration of the dashboard, so the sign-in page shows what you get.
@@ -55,11 +53,7 @@ export default function LoginPage() {
             Uplink checks your car every few hours and keeps a quiet history of every version it sees. Read-only, and it
             never wakes the car.
           </p>
-          {/* Plain link: the OAuth flow is a full-page redirect. */}
-          <a href="/api/auth/connect" className={cn(buttonVariants({ size: "lg" }), "mt-10 h-11 px-5")}>
-            Sign in with Tesla
-            <ArrowRight data-icon="inline-end" />
-          </a>
+          <SignInButton className="mt-10" />
           <p className="mt-3 text-xs text-faint">You&apos;ll sign in on tesla.com. Uplink never sees your password.</p>
           <Suspense>
             <div className="mt-4">

@@ -7,13 +7,13 @@ const encoder = new TextEncoder();
 
 // Sessions are signed with a key derived from TOKEN_ENCRYPTION_KEY, so rotating
 // that key signs everyone out (and makes stored Tesla tokens unreadable).
-async function sign(expiresAt: string): Promise<string> {
+async function sign(payload: string): Promise<string> {
   const secret = process.env.TOKEN_ENCRYPTION_KEY;
   if (!secret) throw new Error("Missing env var TOKEN_ENCRYPTION_KEY");
   const key = await crypto.subtle.importKey("raw", encoder.encode(`session:${secret}`), { name: "HMAC", hash: "SHA-256" }, false, [
     "sign",
   ]);
-  const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(`tesla-in-updates/session/v2:${expiresAt}`));
+  const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(`tesla-in-updates/session/v3:${payload}`));
   return Array.from(new Uint8Array(sig), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
@@ -24,18 +24,25 @@ export function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-// Cookie value: "<expires-at-unix>.<hmac>".
+// Cookie value: "<issued-at-ms>.<expires-at-unix>.<hmac>". The issue time lets "Sign out everywhere"
+// revoke older sessions (checked on the server against oauth_tokens.sessions_valid_after).
 export async function createSession(): Promise<string> {
-  const expiresAt = String(Math.floor(Date.now() / 1000) + SESSION_MAX_AGE);
-  return `${expiresAt}.${await sign(expiresAt)}`;
+  const payload = `${Date.now()}.${Math.floor(Date.now() / 1000) + SESSION_MAX_AGE}`;
+  return `${payload}.${await sign(payload)}`;
 }
 
 export async function isValidSession(cookie: string | undefined): Promise<boolean> {
-  const [expiresAt, sig] = cookie?.split(".") ?? [];
-  if (!expiresAt || !sig || Number(expiresAt) * 1000 < Date.now()) return false;
+  const [issuedAt, expiresAt, sig] = cookie?.split(".") ?? [];
+  if (!issuedAt || !expiresAt || !sig || Number(expiresAt) * 1000 < Date.now()) return false;
   try {
-    return safeEqual(sig, await sign(expiresAt));
+    return safeEqual(sig, await sign(`${issuedAt}.${expiresAt}`));
   } catch {
     return false;
   }
+}
+
+// When the session was created (ms), or null for a malformed cookie.
+export function sessionIssuedAt(cookie: string | undefined): number | null {
+  const issuedAt = Number(cookie?.split(".")[0]);
+  return Number.isFinite(issuedAt) ? issuedAt : null;
 }

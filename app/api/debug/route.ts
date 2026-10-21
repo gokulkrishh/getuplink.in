@@ -1,10 +1,12 @@
 import { connection, NextResponse } from "next/server";
+import { hasCurrentSession } from "@/lib/server/auth";
 import { db } from "@/lib/server/supabase";
 
 // Owner-only (proxy.ts requires a session for /api/*): the raw data Uplink has stored from Tesla,
 // for checking what the Fleet API actually returns. Tokens are never included.
 export async function GET() {
   await connection();
+  if (!(await hasCurrentSession())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const [vehicles, snapshots, notes, runs] = await Promise.all([
     db().from("vehicles").select("id, display_name, last_state, current_version, last_seen_at, last_polled_at"),
     db()
