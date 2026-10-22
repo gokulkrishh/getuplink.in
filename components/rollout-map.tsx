@@ -12,7 +12,7 @@ import {
 import { MAP_HEIGHT, MAP_WIDTH, STATE_PATHS } from "@/lib/india-map";
 import { formatShortDate } from "@/lib/format";
 import { STATES, type StateCode } from "@/lib/india-states";
-import { compareVersions, MIN_GROUP } from "@/lib/rollout";
+import { compareVersions } from "@/lib/rollout";
 import type { VersionStates } from "@/lib/rollout-states";
 import { cn } from "@/lib/utils";
 
@@ -20,10 +20,8 @@ const cars = (n: number) => `${n} ${n === 1 ? "car" : "cars"}`;
 
 type Hover = { code: StateCode; x: number; y: number };
 
-// India's states, shaded where the picked version runs: darker for more cars. Only states shown on their
-// own are shaded; a region roll-up's states stay blank, or the shading would say they have cars.
-// Hovering (or tapping) a state shows its tooltip. Every state without numbers gets the same line, so
-// the tooltip can't say which of them have cars either. With no version to show yet, the map stays blank.
+// India's states, shaded where the picked version runs: darker for more cars. Hovering (or tapping) a
+// state shows its tooltip. With no version to show yet, the map stays blank.
 export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
   // Newest first, so the dropdown opens on the latest version.
   const versions = given.toSorted((a, b) => compareVersions(b.version, a.version));
@@ -34,8 +32,8 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
   const groups = current?.groups ?? [];
   const shades = new Map<StateCode, number>();
   const most = Math.max(1, ...groups.map((g) => g.cars));
-  for (const g of groups) if (g.kind === "state") shades.set(g.code, 0.3 + 0.6 * (g.cars / most));
-  const shown = hover && groups.find((g) => g.kind === "state" && g.code === hover.code);
+  for (const g of groups) shades.set(g.code, 0.3 + 0.6 * (g.cars / most));
+  const shown = hover && groups.find((g) => g.code === hover.code);
 
   // The pointer's place in the frame, as a share of its size, so the tip can lean inwards at the edges.
   const point = (code: StateCode) => (event: PointerEvent<SVGPathElement>) => {
@@ -110,12 +108,12 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
               </span>
             </>
           ) : (
-            <span className="block">No numbers shown</span>
+            <span className="block">No cars on this version</span>
           )}
         </span>
       )}
       </div>
-      {groups.length ? (
+      {groups.length > 0 && (
         <ul className="divide-y border-t text-sm">
           <li className="flex gap-4 py-2 text-xs text-faint">
             <span className="flex-1">State</span>
@@ -123,17 +121,13 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
             <span className="w-14 text-right">Cars</span>
           </li>
           {groups.map((g) => (
-            <li key={g.kind === "state" ? g.code : g.region} className="flex gap-4 py-3 tabular-nums">
-              <span className="min-w-0 flex-1">{g.kind === "state" ? g.name : `Other ${g.region} states`}</span>
+            <li key={g.code} className="flex gap-4 py-3 tabular-nums">
+              <span className="min-w-0 flex-1">{g.name}</span>
               <span className="w-28 text-muted-foreground">{g.firstArrived ? formatShortDate(g.firstArrived) : "Unknown"}</span>
               <span className="w-14 text-right">{g.cars}</span>
             </li>
           ))}
         </ul>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          {current ? `No state has ${cars(MIN_GROUP)} on it yet.` : `States show once ${cars(MIN_GROUP)} in one run the same version.`}
-        </p>
       )}
     </div>
   );

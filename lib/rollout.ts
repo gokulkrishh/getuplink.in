@@ -4,10 +4,6 @@
 import { istDay } from "@/lib/telemetry-derive";
 import { normaliseVersion } from "@/lib/versions";
 
-// The owner's privacy rule for the state map: a state's numbers show only once this many cars there run the
-// version (lib/rollout-states.ts). Version counts across all of India always show: they name no place.
-export const MIN_GROUP = 5;
-
 // When each version was first seen anywhere in the world, as an IST calendar day. Hand-maintained: check a
 // new entry against a public community fleet tracker's firmware page (sites that log the first car seen on
 // each version worldwide) before adding it. A version missing here shows "lag unknown"; nothing is guessed.

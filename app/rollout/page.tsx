@@ -8,7 +8,7 @@ import { Header } from "@/components/header";
 import { RolloutMap } from "@/components/rollout-map";
 import { DEMO } from "@/lib/demo";
 import { formatShortDate } from "@/lib/format";
-import { MIN_GROUP, type RolloutVersion } from "@/lib/rollout";
+import type { RolloutVersion } from "@/lib/rollout";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadRollout, type RolloutPage } from "@/lib/server/rollout";
@@ -91,10 +91,7 @@ async function Rollout() {
         )}
       </header>
 
-      <section className="space-y-2">
-        <h2 className={heading}>Where it runs</h2>
-        <RolloutMap versions={states} />
-      </section>
+      <RolloutMap versions={states} />
 
       <section className="space-y-2">
         <h2 className={heading}>Versions</h2>
@@ -110,8 +107,7 @@ async function Rollout() {
           Pooled across every car Uplink tracks in India. Totals only, never a single car.
         </p>
         <p>
-          A state shows once {MIN_GROUP} cars there run the version. Smaller states are pooled by region when the region has{" "}
-          {MIN_GROUP}, and left out otherwise. A car&apos;s state comes from its location or, until then, its Superchargers.
+          A car&apos;s state comes from its location or, until then, its Superchargers.
         </p>
         <p>Global dates come from a hand-kept list of public first sightings. A version not on it shows the lag as unknown.</p>
         <p>

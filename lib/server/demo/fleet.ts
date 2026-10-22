@@ -10,8 +10,7 @@ const HOUR = 3_600_000;
 const DAY = 86_400_000;
 
 // Oldest first: the version, when the world first saw it and when the first Indian car got it (days ago),
-// and how many of the fleet's cars run it now. 2026.40.2 has three cars, under MIN_GROUP, so /rollout
-// hides its numbers. 2026.26.6 has one car left but forty reported it, so it shows.
+// and how many of the fleet's cars run it now. 2026.40.2 is new, on three cars; 2026.26.6 has one left.
 const RELEASES: [version: string, globalDaysAgo: number, indiaDaysAgo: number, carsNow: number][] = [
   ["2026.26.6", 104, 88, 1],
   ["2026.32.3", 70, 55, 7],
