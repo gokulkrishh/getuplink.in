@@ -18,13 +18,12 @@ export function parsePeriod(value: string | string[] | undefined, allowed?: Peri
   return PERIODS.find((p) => p.value === value && (!allowed || allowed.includes(p.value)))?.value ?? "month";
 }
 
-export type View = "charging" | "driving" | "battery" | "updates";
+export type View = "charging" | "driving" | "battery";
 
 export const VIEWS: { value: View; label: string }[] = [
   { value: "charging", label: "Charging" },
   { value: "driving", label: "Driving" },
   { value: "battery", label: "Battery" },
-  { value: "updates", label: "Updates" },
 ];
 
 export function parseView(value: string | string[] | undefined): View {

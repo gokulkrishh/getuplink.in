@@ -13,13 +13,11 @@ import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
 import { DriveList } from "@/components/stats/drive-list";
 import { ParkedDrain } from "@/components/stats/parked-drain";
 import { BatteryTrend } from "@/components/stats/battery-trend";
-import { AwakeTimeline } from "@/components/stats/awake-timeline";
 import { ChargeLevelChart } from "@/components/stats/charge-level";
 import { ProjectedRange } from "@/components/stats/projected-range";
 import { PERIODS, parsePeriod, parseView } from "@/components/stats/periods";
 import { inPeriod, inSpan, monthIndex, monthKey, monthShort, type Period, PERIOD_WORDS, periodSpan, slotsFor, sumBySlot, yearOf } from "@/lib/periods";
 import { ByPeriod } from "@/components/stats/period-scope";
-import { UpdateStats } from "@/components/updates/update-stats";
 import { StatsTabs } from "@/components/stats/stats-tabs";
 import { formatKwh, formatMoney, formatMonth, formatShortDate } from "@/lib/format";
 import { chargeEfficiency, matchSessions } from "@/lib/charge-sessions";
@@ -28,15 +26,12 @@ import { loadChargingRates } from "@/lib/server/charging-rates";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargingSession, loadChargingSessions, syncChargingHistoryThrottled } from "@/lib/server/charging";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
-import { loadAwake } from "@/lib/server/awake";
-import { type DayStrip, hasPresence } from "@/lib/awake";
 import type { ChargeLevel, WeeklyRange } from "@/lib/charge-level";
 import { loadMonthlyEnergy, type MonthlyEnergy } from "@/lib/server/energy";
-import { loadUpdateRows } from "@/lib/server/updates";
 import { loadMonthlyDistance, loadWindowStats, type MonthlyDistance } from "@/lib/server/driving";
 import { loadStreamSessions, syncStreamSessionsForAllCars, type StreamChargeSession } from "@/lib/server/stream-charging";
 import { loadPrimaryVehicle } from "@/lib/server/telemetry";
-import { type DayKm, type UpdateRow, type WeeklyPack, combinedWhPerKm, updateStats } from "@/lib/telemetry-derive";
+import { type DayKm, type WeeklyPack, combinedWhPerKm } from "@/lib/telemetry-derive";
 import { LIST_PREVIEW } from "@/lib/list";
 import type { Driving } from "@/lib/drives";
 
@@ -341,13 +336,11 @@ async function loadStats(): Promise<{
   streamSessions: StreamChargeSession[];
   distance: MonthlyDistance[];
   energy: MonthlyEnergy[];
-  updates: UpdateRow[];
   days: DayKm[];
   trend: WeeklyPack[];
   driving: Driving;
   level: ChargeLevel | null;
   range: WeeklyRange[];
-  awake: DayStrip[];
   rates: ChargingRates;
   now: number;
 }> {
@@ -358,17 +351,15 @@ async function loadStats(): Promise<{
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
   const now = Date.now();
   const vehicle = loadPrimaryVehicle();
-  const [sessions, streamSessions, distance, energy, updates, { days, trend, driving, level, range }, awake, rates] = await Promise.all([
+  const [sessions, streamSessions, distance, energy, { days, trend, driving, level, range }, rates] = await Promise.all([
     loadChargingSessions(),
     loadStreamSessions(),
     vehicle.then((v) => loadMonthlyDistance(v?.vin ?? null)),
     vehicle.then((v) => loadMonthlyEnergy(v?.vin ?? null)),
-    vehicle.then((v) => loadUpdateRows(v?.id ?? null)),
     vehicle.then((v) => loadWindowStats(v?.vin ?? null, now)),
-    vehicle.then((v) => loadAwake(v, now)),
     loadChargingRates(),
   ]);
-  return { sessions, streamSessions, distance, energy, updates, days, trend, driving, level, range, awake, rates, now };
+  return { sessions, streamSessions, distance, energy, days, trend, driving, level, range, rates, now };
 }
 
 // Rebuilds sessions from the car's readings, and pulls Supercharger history (at most every 30 minutes),
@@ -390,7 +381,7 @@ async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParam
   const params = await searchParams;
   const period = parsePeriod(params.period);
   const view = parseView(params.view);
-  const { sessions, streamSessions, distance, energy, updates, days, trend, driving, level, range, awake, rates, now } = await loadStats();
+  const { sessions, streamSessions, distance, energy, days, trend, driving, level, range, rates, now } = await loadStats();
 
   const { pairs, streamOnly } = matchSessions(sessions, streamSessions, now);
   const priced = pricedSessions(streamOnly, rates);
@@ -443,17 +434,6 @@ async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParam
           ) : (
             notYet("Not enough readings yet", "The battery trend shows up after two weeks of readings.")
           ),
-        updates: updateStats(updates, now) || hasPresence(awake) ? (
-          <div className="space-y-12">
-            <section className="space-y-4">
-              <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Updates</h2>
-              {eachPeriod((p) => <UpdateStats rows={updates} now={now} period={p} />)}
-            </section>
-            <AwakeTimeline days={awake} now={now} />
-          </div>
-        ) : (
-          notYet("Not enough updates yet", "Update stats show up after your car's second update.")
-        ),
       }}
     />
   );
@@ -482,7 +462,7 @@ export default function Page({ searchParams }: PageProps<"/stats">) {
     <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:py-20">
       <Header current="stats" />
       <h1 className="text-2xl font-medium tracking-heading">Stats</h1>
-      <p className="mt-2 mb-12 text-sm text-muted-foreground">Charging, driving, battery and updates over time.</p>
+      <p className="mt-2 mb-12 text-sm text-muted-foreground">Charging, driving and battery over time.</p>
       <Suspense fallback={<SessionsSkeleton />}>
         <Sessions searchParams={searchParams} />
       </Suspense>

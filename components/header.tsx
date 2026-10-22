@@ -3,10 +3,11 @@ import { logout } from "@/app/actions";
 import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
 
-export type Section = "stats" | "car" | "settings";
+export type Section = "stats" | "updates" | "car" | "settings";
 
 const LINKS: { section: Section; href: string; label: string }[] = [
   { section: "stats", href: "/stats", label: "Stats" },
+  { section: "updates", href: "/updates", label: "Updates" },
   // The single car: /car shows the primary one, so the header needs no data and stays in the static shell.
   { section: "car", href: "/car", label: "Car" },
   { section: "settings", href: "/settings", label: "Settings" },

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { DEMO } from "@/lib/demo";
 import { isValidSession, requestHost, SESSION_COOKIE } from "@/lib/session";
+import { statsRedirect } from "@/lib/stats-redirect";
 
 // Exact paths reachable without a session. Anything not listed here needs one.
 const PUBLIC_PATHS = new Set([
@@ -66,6 +67,12 @@ export async function proxy(request: NextRequest) {
   if (marketing) {
     if (pathname === "/") return NextResponse.rewrite(new URL("/home", request.url));
     if (!MARKETING_PATHS.has(pathname)) return NextResponse.redirect(appOrigin(request.nextUrl) + pathname + search, 308);
+  }
+
+  // Old Stats links (/stats?view=…) land on the page that has that topic now.
+  if (pathname === "/stats") {
+    const target = statsRedirect(request.nextUrl.searchParams);
+    if (target) return NextResponse.redirect(new URL(target, request.url));
   }
 
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();

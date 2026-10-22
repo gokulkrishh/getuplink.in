@@ -5,8 +5,7 @@ import { AutoRefresh } from "@/components/auto-refresh";
 import { Zap } from "lucide-react";
 import { AWAKE_MS, CarStatus } from "@/components/car-status";
 import { ReleaseNotesToggle } from "@/components/release-notes";
-import { VersionHistory } from "@/components/updates/history";
-import { isPending, UpdateStatus } from "@/components/updates/update-status";
+import { UpdateBanner } from "@/components/updates/update-banner";
 import { Vin } from "@/components/vin";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import type { Snapshot, VehicleView } from "@/lib/server/dashboard";
@@ -77,10 +76,9 @@ export function VehicleSection({
   // Render time, taken inside the page's cached loader (see formatSeen).
   now: number;
 }) {
-  const { vehicle, latest, lastOnline, history, streamAt, extras } = view;
+  const { vehicle, latest, lastOnline, streamAt, extras } = view;
   // A car that streamed in the last few minutes is awake: keep the page fresh so new data shows up on its own.
   const awake = streamAt !== null && now - Date.parse(streamAt) < AWAKE_MS;
-  const pending = isPending(lastOnline);
   // "Model Y, Pearl White", without repeating the model when the car is already named after it.
   const carLabel = [vehicle.model !== vehicle.display_name && vehicle.model, vehicle.exterior_color].filter(Boolean).join(", ");
   // Battery is only known from a poll taken while the car was online.
@@ -130,21 +128,7 @@ export function VehicleSection({
         )}
       </header>
 
-      {(pending || !lastOnline) && (
-        <dl className="text-sm">
-          <div>
-            <Label>Update</Label>
-            <dd>
-              <UpdateStatus snapshot={lastOnline} now={now} />
-              {pending && lastOnline?.update_version && notes[lastOnline.update_version] && (
-                <div className="pt-3">
-                  <ReleaseNotesToggle version={lastOnline.update_version} notes={notes} stacked />
-                </div>
-              )}
-            </dd>
-          </div>
-        </dl>
-      )}
+      <UpdateBanner snapshot={lastOnline} />
 
       <WeekStrip week={extras?.week ?? null} />
 
@@ -167,7 +151,6 @@ export function VehicleSection({
         <p className="text-xs text-muted-foreground">The car went to sleep during the last check. Uplink will try again.</p>
       )}
 
-      <VersionHistory history={history} notes={notes} now={now} until={vehicle.last_polled_at} />
     </section>
   );
 }
