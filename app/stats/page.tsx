@@ -21,6 +21,8 @@ import { type Period, PERIODS, monthIndex, monthKey, monthShort, parsePeriod, pa
 import { ByPeriod, StatsTabs } from "@/components/stats/stats-tabs";
 import { formatDays, formatKwh, formatMoney, formatMonth, formatShortDate } from "@/lib/format";
 import { chargeEfficiency, matchSessions } from "@/lib/charge-sessions";
+import { type ChargingRates, type Priced, pricedSessions } from "@/lib/charging-rates";
+import { loadChargingRates } from "@/lib/server/charging-rates";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargingSession, loadChargingSessions, syncChargingHistoryThrottled } from "@/lib/server/charging";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -98,15 +100,23 @@ function slotsFor(period: Period, cur: number): { id: number; label: string }[] 
   return Array.from({ length: 6 }, (_, k) => ({ id: cur - 5 + k, label: monthShort(cur - 5 + k) }));
 }
 
-function Summary({ sessions, now, period }: { sessions: ChargingSession[]; now: number; period: Period }) {
+// Supercharger spend is Tesla's billed amount; priced sessions add AC and third-party charging at the owner's rates.
+function Summary({ sessions, priced, now, period }: { sessions: ChargingSession[]; priced: Priced[]; now: number; period: Period }) {
   const cur = monthIndex(now);
   // Each session's month is worked out once, then reused for the totals and the bars.
   const dated = sessions.map((s) => ({ s, index: monthIndex(s.started_at) }));
-  const { cost, energy, count, currency } = totals(dated.filter((d) => inPeriod(period, d.index, cur)).map((d) => d.s));
+  const billed = totals(dated.filter((d) => inPeriod(period, d.index, cur)).map((d) => d.s));
+  const pricedIn = priced.filter((p) => inPeriod(period, monthIndex(p.started_at), cur));
+  const atYourRates = pricedIn.reduce((sum, p) => sum + p.cost, 0);
+  const cost = billed.cost + atYourRates;
+  const energy = billed.energy + pricedIn.reduce((sum, p) => sum + p.energy, 0);
+  const count = billed.count + pricedIn.length;
+  const currency = billed.currency;
   const rateText = rate(cost, energy, currency);
   const bucket = (index: number) => (period === "all" ? yearOf(index) : index);
   const spend = new Map<number, number>();
   for (const { s, index } of dated) spend.set(bucket(index), (spend.get(bucket(index)) ?? 0) + (s.cost_total ?? 0));
+  for (const p of priced) spend.set(bucket(monthIndex(p.started_at)), (spend.get(bucket(monthIndex(p.started_at))) ?? 0) + p.cost);
   const compact = new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 });
   const current = bucket(cur);
   const bars = slotsFor(period, cur).map((slot) => {
@@ -123,6 +133,9 @@ function Summary({ sessions, now, period }: { sessions: ChargingSession[]; now: 
             .filter(Boolean)
             .join(" · ")}
         </p>
+        {atYourRates > 0 && (
+          <p className="text-xs text-faint tabular-nums">Includes {formatMoney(atYourRates, currency)} at your rates</p>
+        )}
       </div>
       <Bars bars={bars} ariaLabel={period === "all" ? "Spend per year" : "Spend per month"} prefix="₹" />
     </section>
@@ -347,7 +360,7 @@ function Battery({ trend }: { trend: WeeklyPack[] }) {
   );
 }
 
-function SessionList({ sessions }: { sessions: Listed[] }) {
+function SessionList({ sessions, rates }: { sessions: Listed[]; rates: ChargingRates }) {
   // Sessions arrive newest first, so each month's group is in order too. Numbers count from the first
   // charge, so the newest has the highest.
   const serial = new Map(sessions.map((s, i) => [s.key, sessions.length - i]));
@@ -373,20 +386,21 @@ function SessionList({ sessions }: { sessions: Listed[] }) {
     <div className="max-sm:min-w-xl space-y-10">
       {[...groups].map(([month, rows]) => {
         const billed = totals(rows.flatMap((r) => (r.tesla ? [r.tesla] : [])));
+        const atYourRates = pricedSessions(rows.flatMap((r) => (!r.tesla && r.stream ? [r.stream] : [])), rates).reduce((sum, p) => sum + p.cost, 0);
         return (
           <section key={month} className="space-y-2">
             <h3 className="text-xs font-medium tracking-wide text-faint uppercase">{month}</h3>
             <div>
               <ul className="divide-y border-t">
                 {rows.slice(0, LIST_PREVIEW).map((s) => (
-                  <SessionRow key={s.key} item={s} serial={serial.get(s.key) ?? 0} />
+                  <SessionRow key={s.key} item={s} serial={serial.get(s.key) ?? 0} rates={rates} />
                 ))}
               </ul>
               {rows.length > LIST_PREVIEW && (
                 <ShowMore count={rows.length - LIST_PREVIEW}>
                   <ul className="divide-y border-t">
                     {rows.slice(LIST_PREVIEW).map((s) => (
-                      <SessionRow key={s.key} item={s} serial={serial.get(s.key) ?? 0} />
+                      <SessionRow key={s.key} item={s} serial={serial.get(s.key) ?? 0} rates={rates} />
                     ))}
                   </ul>
                 </ShowMore>
@@ -395,6 +409,7 @@ function SessionList({ sessions }: { sessions: Listed[] }) {
             <p className="pt-1 text-right text-xs text-faint tabular-nums">
               {rows.length} {rows.length === 1 ? "session" : "sessions"}
               {billed.count > 0 && `, ${formatMoney(billed.cost, billed.currency)} at Superchargers`}
+              {atYourRates > 0 && `, ${formatMoney(atYourRates, "INR")} at your rates`}
             </p>
           </section>
         );
@@ -419,6 +434,7 @@ async function loadStats(): Promise<{
   level: ChargeLevel | null;
   range: WeeklyRange[];
   awake: DayStrip[];
+  rates: ChargingRates;
   now: number;
 }> {
   "use cache: private";
@@ -428,7 +444,7 @@ async function loadStats(): Promise<{
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
   const now = Date.now();
   const vehicle = loadPrimaryVehicle();
-  const [sessions, streamSessions, distance, energy, updates, { days, trend, driving, level, range }, awake] = await Promise.all([
+  const [sessions, streamSessions, distance, energy, updates, { days, trend, driving, level, range }, awake, rates] = await Promise.all([
     loadChargingSessions(),
     loadStreamSessions(),
     vehicle.then((v) => loadMonthlyDistance(v?.vin ?? null)),
@@ -436,8 +452,9 @@ async function loadStats(): Promise<{
     vehicle.then((v) => loadUpdateRows(v?.id ?? null)),
     vehicle.then((v) => loadWindowStats(v?.vin ?? null, now)),
     vehicle.then((v) => loadAwake(v, now)),
+    loadChargingRates(),
   ]);
-  return { sessions, streamSessions, distance, energy, updates, days, trend, driving, level, range, awake, now };
+  return { sessions, streamSessions, distance, energy, updates, days, trend, driving, level, range, awake, rates, now };
 }
 
 // Rebuilds sessions from the car's readings, and pulls Supercharger history (at most every 30 minutes),
@@ -459,9 +476,10 @@ async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParam
   const params = await searchParams;
   const period = parsePeriod(params.period);
   const view = parseView(params.view);
-  const { sessions, streamSessions, distance, energy, updates, days, trend, driving, level, range, awake, now } = await loadStats();
+  const { sessions, streamSessions, distance, energy, updates, days, trend, driving, level, range, awake, rates, now } = await loadStats();
 
   const { pairs, streamOnly } = matchSessions(sessions, streamSessions, now);
+  const priced = pricedSessions(streamOnly, rates);
   const listed: Listed[] = [
     ...pairs.map((p) => ({ key: p.tesla.session_id, started_at: p.tesla.started_at, tesla: p.tesla, stream: p.stream })),
     ...streamOnly.map((s) => ({ key: `stream-${s.id}`, started_at: s.started_at, tesla: null, stream: s })),
@@ -485,9 +503,9 @@ async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParam
             notYet("No charging sessions yet", "Your charges will show up here, wherever you plug in.")
           ) : (
             <div className="space-y-12">
-              {sessions.length > 0 && eachPeriod((p) => <Summary sessions={sessions} now={now} period={p} />)}
+              {(sessions.length > 0 || priced.length > 0) && eachPeriod((p) => <Summary sessions={sessions} priced={priced} now={now} period={p} />)}
               {streamSessions.length > 0 && eachPeriod((p) => <EnergyAdded sessions={sessions} streamOnly={streamOnly} now={now} period={p} />)}
-              <SessionList sessions={listed} />
+              <SessionList sessions={listed} rates={rates} />
             </div>
           ),
         driving: hasDriving ? (
