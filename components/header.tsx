@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { cacheLife } from "next/cache";
-import { LogOut, Settings, ShieldCheck, User } from "lucide-react";
+import { LogOut, Settings, ShieldCheck } from "lucide-react";
 import { Suspense } from "react";
 import { logout } from "@/app/actions";
+import { AvatarBlob } from "@/components/avatar-blob";
 import { Logo } from "@/components/logo";
 import {
   DropdownMenu,
@@ -12,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { isAdmin } from "@/lib/server/admin";
+import { ownerSub } from "@/lib/server/tesla";
 import { cn } from "@/lib/utils";
 
 export type Section = "updates" | "rollout" | "settings";
@@ -26,6 +28,20 @@ async function adminSession(): Promise<boolean> {
   "use cache: private";
   cacheLife({ stale: 300 });
   return isAdmin();
+}
+
+// The avatar's seed is the Tesla account, so it streams in like the Admin item; until then (and in
+// demo mode, with no account) the blob draws from a fixed seed.
+const FALLBACK_SEED = "uplink";
+
+async function accountSeed(): Promise<string> {
+  "use cache: private";
+  cacheLife({ stale: 300 });
+  return (await ownerSub()) ?? FALLBACK_SEED;
+}
+
+async function AccountAvatar() {
+  return <AvatarBlob seed={await accountSeed()} />;
 }
 
 // Only admins (ADMIN_ACCOUNTS) see the Admin item; for everyone else /admin is a 404.
@@ -66,9 +82,11 @@ export function Header({ current }: { current?: Section }) {
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label="Account menu"
-            className="flex size-8 cursor-pointer items-center justify-center rounded-full border bg-background hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none data-popup-open:bg-muted data-popup-open:text-foreground"
+            className="flex size-8 cursor-pointer items-center justify-center overflow-hidden rounded-full border bg-background hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none data-popup-open:bg-muted"
           >
-            <User className="size-4" aria-hidden />
+            <Suspense fallback={<AvatarBlob seed={FALLBACK_SEED} />}>
+              <AccountAvatar />
+            </Suspense>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-40">
             <DropdownMenuItem render={<Link href="/settings" prefetch={true} />}>
