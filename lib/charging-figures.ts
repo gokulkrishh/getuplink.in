@@ -33,9 +33,18 @@ export function firstStartedAt(...lists: { started_at: string }[][]): number | n
   return first;
 }
 
+const kwh = (value: number | null) => (value && value > 0 ? value : 0);
+
+// Energy per bar, counted like energyIn.
+export function energyBySlot(sessions: Billed[], streamOnly: Streamed[], slots: Slot[]): number[] {
+  const at = (s: { started_at: string }) => Date.parse(s.started_at);
+  const billed = sumBySlot(sessions, slots, at, (s) => kwh(s.energy_kwh));
+  const streamed = sumBySlot(streamOnly, slots, at, (s) => kwh(s.energy_added_kwh));
+  return billed.map((value, k) => value + streamed[k]);
+}
+
 // Tesla's billed kWh for its sessions, the car's own figure for the others.
 export function energyIn(sessions: Billed[], streamOnly: Streamed[], span: Span): number {
-  const kwh = (value: number | null) => (value && value > 0 ? value : 0);
   return (
     sessions.filter(within(span)).reduce((sum, s) => sum + kwh(s.energy_kwh), 0) +
     streamOnly.filter(within(span)).reduce((sum, s) => sum + kwh(s.energy_added_kwh), 0)

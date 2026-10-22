@@ -15,11 +15,27 @@ export function compareToPrevious(
   span: string,
   opts: { decimals?: number; lowerIsBetter?: boolean } = {},
 ): Comparison | null {
+  const change = changeToPrevious(current, previous, unit, opts);
+  if (!change) return null;
+  if (change.direction === "same") return { text: `Same as ${span}`, tone: "neutral" };
+  return { text: `${change.amount} ${change.word} than ${span}`, tone: change.tone };
+}
+
+// The same change in parts, for the headline's delta line: which way it went, its rounded size with the
+// unit ("13 km", "₹171") and compareToPrevious's word for it. Null when there is no previous figure.
+export type Change = { direction: "up" | "down" | "same"; amount: string; word: string; tone: Comparison["tone"] };
+
+export function changeToPrevious(
+  current: number,
+  previous: number | null,
+  unit: string | ((amount: number) => string),
+  opts: { decimals?: number; lowerIsBetter?: boolean } = {},
+): Change | null {
   const change = changeFrom(current, previous, opts);
   if (!change) return null;
-  if (change.same) return { text: `Same as ${span}`, tone: "neutral" };
   const amount = typeof unit === "function" ? unit(change.amount) : `${change.amount.toFixed(opts.decimals ?? 0)} ${unit}`;
-  return { text: `${amount} ${change.word} than ${span}`, tone: change.tone };
+  if (change.same) return { direction: "same", amount, word: "same", tone: "neutral" };
+  return { direction: change.up ? "up" : "down", amount, word: change.word, tone: change.tone };
 }
 
 // The rounded size and direction of a change. Within 2% of the previous figure counts as the same.
@@ -32,5 +48,5 @@ function changeFrom(current: number, previous: number | null, { decimals = 0, lo
   const up = diff > 0;
   const word = lowerIsBetter ? (up ? "worse" : "better") : up ? "more" : "less";
   const tone: Comparison["tone"] = lowerIsBetter ? (up ? "worse" : "better") : "neutral";
-  return { same, amount, word, tone };
+  return { same, up, amount, word, tone };
 }

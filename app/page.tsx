@@ -111,9 +111,14 @@ function HomeSkeleton() {
       </div>
       <div className="space-y-6">
         <div className={`h-8 w-64 ${block}`} />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-px border bg-border bg-clip-padding sm:grid-cols-4">
           {[0, 1, 2, 3].map((k) => (
-            <div key={k} className={`h-24 ${block}`} />
+            <div key={k} className="space-y-2 bg-background p-3 sm:p-4">
+              <div className={`h-3 w-16 ${block}`} />
+              <div className={`h-6 w-20 ${block}`} />
+              <div className={`h-10 w-full ${block}`} />
+              <div className={`h-6 w-full ${block}`} />
+            </div>
           ))}
         </div>
       </div>

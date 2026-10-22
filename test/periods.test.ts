@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { energyIn, firstStartedAt, spendIn } from "@/lib/charging-figures";
-import { compareToPrevious } from "@/lib/dashboard-summary";
+import { energyBySlot, energyIn, firstStartedAt, spendIn } from "@/lib/charging-figures";
+import { changeToPrevious, compareToPrevious } from "@/lib/dashboard-summary";
 import { formatShortDate } from "@/lib/format";
 import { inSpan, monthIndex, monthStart, periodSpan, previousLabel, previousSpan, slotsFor, sumBySlot, trackingGap } from "@/lib/periods";
 
@@ -109,6 +109,39 @@ describe("slotsFor", () => {
     expect(sumBySlot(items, slots, (i) => i.at, (i) => i.v)).toEqual([0, 0, 0, 0, 0, 1, 10]);
     expect(inSpan(ist("2026-10-16T00:00:00"), periodSpan("week", now))).toBe(true);
     expect(inSpan(ist("2026-10-15T23:59:59"), periodSpan("week", now))).toBe(false);
+  });
+});
+
+describe("changeToPrevious", () => {
+  test("gives the direction and the rounded amount with its unit", () => {
+    expect(changeToPrevious(842, 746, "km")).toEqual({ direction: "up", amount: "96 km", word: "more", tone: "neutral" });
+    expect(changeToPrevious(3120, 3530, (n) => `₹${n}`)).toEqual({ direction: "down", amount: "₹410", word: "less", tone: "neutral" });
+  });
+  test("within 2% is the same", () => {
+    expect(changeToPrevious(186, 184, "kWh")?.direction).toBe("same");
+  });
+  test("lower is better: down is better", () => {
+    expect(changeToPrevious(158, 162, "Wh/km", { lowerIsBetter: true })).toEqual({ direction: "down", amount: "4 Wh/km", word: "better", tone: "better" });
+    expect(changeToPrevious(170, 158, "Wh/km", { lowerIsBetter: true })).toMatchObject({ direction: "up", word: "worse" });
+  });
+  test("null without a previous figure", () => {
+    expect(changeToPrevious(10, null, "km")).toBeNull();
+  });
+});
+
+describe("energyBySlot", () => {
+  test("adds billed and streamed kWh per slot, like energyIn", () => {
+    const now = ist("2026-10-22T12:00:00");
+    const slots = slotsFor("week", now);
+    const billed = [
+      { started_at: "2026-10-22T03:00:00Z", cost_total: 100, energy_kwh: 20, currency: "INR" },
+      { started_at: "2026-10-21T03:00:00Z", cost_total: 50, energy_kwh: null, currency: "INR" },
+    ];
+    const streamed = [
+      { started_at: "2026-10-22T05:00:00Z", energy_added_kwh: 5 },
+      { started_at: "2026-10-01T05:00:00Z", energy_added_kwh: 9 },
+    ];
+    expect(energyBySlot(billed, streamed, slots)).toEqual([0, 0, 0, 0, 0, 0, 25]);
   });
 });
 
