@@ -5,7 +5,7 @@ import type { DemoScenario } from "@/lib/demo";
 import type { CounterColumn } from "@/lib/driving-figures";
 import type { ChargingRates } from "@/lib/charging-rates";
 import type { Stream } from "@/lib/telemetry";
-import { istDay, istDayStart, num, type Reading, type UpdateRow } from "@/lib/telemetry-derive";
+import { istDay, istDayStart, num, type Reading } from "@/lib/telemetry-derive";
 import type { ChargingSession } from "../charging";
 import type { VersionChange } from "../dashboard";
 import type { StreamChargeSession } from "../stream-charging";
@@ -144,14 +144,4 @@ export function demoStreamSessions(): StreamChargeSession[] {
 
 export function demoChargingSessions(): ChargingSession[] {
   return demoData().teslaSessions;
-}
-
-// ---- Updates ----
-
-// Real updates only, oldest first.
-export function demoUpdateRows(): UpdateRow[] {
-  return demoData()
-    .history.filter((h) => h.previous_version)
-    .map((h) => ({ detected_at: h.detected_at, available_at: h.available_at, source: h.source }))
-    .reverse();
 }

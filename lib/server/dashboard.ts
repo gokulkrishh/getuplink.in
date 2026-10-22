@@ -3,7 +3,6 @@ import { DEMO, type DemoScenario } from "@/lib/demo";
 import { parseReleaseNotes, type ReleaseNote, type ReleaseNotesByVersion } from "@/lib/release-notes";
 import type { Stream } from "@/lib/telemetry";
 import { type Reading, type UpdateTimeline, updateTimeline } from "@/lib/telemetry-derive";
-import type { VehicleExtras } from "./dashboard-extras";
 import { demoData, demoStream } from "./demo";
 import { missingEnv } from "./env";
 import { db } from "./supabase";
@@ -62,24 +61,18 @@ export type VersionChange = {
 
 export type PollRun = { started_at: string; ok: boolean | null; error: string | null };
 
-export type VehicleView = {
-  vehicle: Vehicle;
-  latest: Snapshot | null;
-  // Most recent snapshot taken while the car was online: the last known update status.
-  lastOnline: Snapshot | null;
-  history: VersionChange[];
-  // When the car last streamed anything (any of the fields we read), or null when it never has.
-  streamAt: string | null;
-  // The week's figures, battery chart, last charge and recent activity; null when they couldn't be read.
-  extras: VehicleExtras | null;
-};
-
 // Why a page has no cars to show, or the cars: the same gate on every page that reads the car's state.
 export type OwnerGate = { kind: "misconfigured"; missing: string[] } | { kind: "error"; message: string } | { kind: "disconnected" };
 
 // The car's latest check, its last online check with newer streamed values laid over it, and when it last
 // streamed one of the fields read.
-export type CarState = Pick<VehicleView, "latest" | "lastOnline" | "streamAt">;
+export type CarState = {
+  latest: Snapshot | null;
+  // Most recent snapshot taken while the car was online: the last known update status.
+  lastOnline: Snapshot | null;
+  // When the car last streamed anything (any of the fields we read), or null when it never has.
+  streamAt: string | null;
+};
 
 const SNAPSHOT_COLUMNS =
   "polled_at, state, car_version, update_status, update_version, download_perc, install_perc, expected_duration_sec, scheduled_time_ms, battery_level, battery_range_km, charging_state, charge_limit, error";

@@ -1,12 +1,5 @@
 import "server-only";
-import { istWeek, istWeekStart, packEstimates, type PackEstimate, type Reading, type WeeklyPack, weeklyPack } from "@/lib/telemetry-derive";
-import { loadReadings } from "./telemetry";
-
-// Pack estimates (see packEstimates) from the readings in a window. Null when the readings can't be read.
-export async function loadPackEstimates(vin: string, from: string, to?: string): Promise<PackEstimate[] | null> {
-  const [energy, level] = await Promise.all([loadReadings(vin, "EnergyRemaining", from, to), loadReadings(vin, "BatteryLevel", from, to)]);
-  return energy && level ? packEstimates(energy, level) : null;
-}
+import { istWeek, istWeekStart, packEstimates, type Reading, type WeeklyPack, weeklyPack } from "@/lib/telemetry-derive";
 
 const WEEKS = 12;
 

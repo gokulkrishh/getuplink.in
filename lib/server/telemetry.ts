@@ -1,9 +1,9 @@
 import "server-only";
 import { DEMO } from "@/lib/demo";
-import { demoCounter, demoData, demoLastReadingAt, demoReadings, demoStream } from "./demo";
+import { demoData, demoLastReadingAt, demoReadings, demoStream } from "./demo";
 import { db } from "./supabase";
 import type { Stream } from "@/lib/telemetry";
-import { num, type Reading } from "@/lib/telemetry-derive";
+import type { Reading } from "@/lib/telemetry-derive";
 
 export { applyStream } from "@/lib/telemetry";
 
@@ -66,17 +66,6 @@ export async function loadReadings(vin: string, field: string, from: string, to?
     if ((data?.length ?? 0) < PAGE) break;
   }
   return rows;
-}
-
-// A field's last value before an instant, so a window of a counter has something to count from.
-export async function loadReadingBefore(vin: string, field: string, before: string): Promise<number | null> {
-  if (DEMO) return demoCounter(field, before);
-  const { data, error } = await db().from("telemetry_readings").select("value").eq("vin", vin).eq("field", field).lt("created_at", before).order("created_at", { ascending: false }).limit(1).maybeSingle();
-  if (error) {
-    console.warn(`Telemetry ${field} unavailable:`, error.message);
-    return null;
-  }
-  return num(data?.value);
 }
 
 // The connected car's id and VIN, read once per page and handed to the loaders that need them.

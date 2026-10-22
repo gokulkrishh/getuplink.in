@@ -6,7 +6,7 @@ import { PeriodSwitch } from "./period-switch";
 
 type Scope = { period: Period; select: (period: Period) => void };
 
-export const PeriodContext = createContext<Scope>({ period: "month", select: () => {} });
+const PeriodContext = createContext<Scope>({ period: "month", select: () => {} });
 
 export const usePeriod = () => useContext(PeriodContext).period;
 

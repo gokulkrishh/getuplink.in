@@ -12,8 +12,7 @@ import {
   wheelsLabel,
 } from "@/lib/car";
 import { DEMO } from "@/lib/demo";
-import { istWeek, istWeekStart, median, num, packEstimates, roundKwh, typicalChargeKw, type WeeklyPack, weeklyPack } from "@/lib/telemetry-derive";
-import { loadPackEstimates } from "./battery";
+import { istWeek, istWeekStart, num, packEstimates, typicalChargeKw, type WeeklyPack, weeklyPack } from "@/lib/telemetry-derive";
 import { demoData, demoStreamSessions } from "./demo";
 import { db } from "./supabase";
 import { loadReadingsByField } from "./telemetry-window";
@@ -48,10 +47,6 @@ export type CarDetails = {
 
 // From the most recent finished AC session the car streamed. Only the parts the car reported.
 export type LastAcCharge = { charger: string | null; cable: string | null };
-
-// Estimated full-pack energy from the car's streamed readings: energy remaining ÷ battery level,
-// using readings the car sent together. The median over the last 30 days, so one odd reading doesn't move it.
-export type BatteryHealth = { packKwh: number; readings: number; since: string };
 
 type Config = Partial<{
   car_type: string;
@@ -157,13 +152,6 @@ async function loadLatestWeekPack(vin: string, now: number): Promise<WeeklyPack 
   const readings = await loadReadingsByField(vin, ["EnergyRemaining", "BatteryLevel"], from, new Date(now).toISOString());
   // Battery health is extra; without it the page still shows everything else.
   return readings ? (weeklyPack(packEstimates(readings.EnergyRemaining, readings.BatteryLevel)).at(-1) ?? null) : null;
-}
-
-export async function loadBatteryHealth(vin: string): Promise<BatteryHealth | null> {
-  const estimates = await loadPackEstimates(vin, new Date(Date.now() - 30 * 86_400_000).toISOString());
-  // Battery health is extra; without it the page still shows everything else.
-  if (!estimates || estimates.length === 0) return null;
-  return { packKwh: roundKwh(median(estimates.map((e) => e.kwh))), readings: estimates.length, since: estimates[0].at };
 }
 
 // Null when there's no such car.
