@@ -16,10 +16,11 @@ const STORED = [
   "Update progress, gear and energy counters your car streams while it's awake",
   "Release notes",
   "Tesla Supercharger sessions (site, time, energy, cost) and their invoices",
+  "Each car's home state, such as Karnataka, for the India rollout map. Never the car's location itself",
 ];
 
 const NOT_DONE = [
-  "It doesn't read your location.",
+  "It doesn't keep your location or track where you drive. If you allow it, Uplink reads where the car is at its 6-hourly check, turns that into a state and discards the location.",
   "It doesn't send commands to your car, and it never wakes the car. The key you add to your car can't unlock or drive it.",
   "It doesn't sell or share your data.",
   "There are no ads and no tracking. One cookie keeps you signed in, a short-lived one protects the Tesla sign-in, and your theme choice is saved in your browser.",
@@ -39,7 +40,7 @@ export default function PrivacyPage() {
 
       <article className="py-16">
         <h1 className="text-2xl font-semibold tracking-tight text-balance">Privacy</h1>
-        <p className="mt-2 text-sm text-faint">Last updated 21 October 2026</p>
+        <p className="mt-2 text-sm text-faint">Last updated 22 October 2026</p>
 
         <div className="mt-10 grid gap-10">
           <section>
@@ -78,7 +79,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-base font-medium tracking-heading">Why</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              To show your versions, update status, history, charging and energy use. Nothing else.
+              To show your versions, update status, history, charging and energy use, and which states each update has reached. Nothing else.
             </p>
           </section>
 

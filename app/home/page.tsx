@@ -47,7 +47,7 @@ const CAN = [
 const CANNOT = [
   "Wake your car",
   "Unlock, drive or send commands",
-  "See your location",
+  "Track where you drive",
 ];
 
 const FAQ = [
