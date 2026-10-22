@@ -14,6 +14,9 @@ import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
 import { DriveList } from "@/components/stats/drive-list";
 import { ParkedDrain } from "@/components/stats/parked-drain";
 import { BatteryTrend } from "@/components/stats/battery-trend";
+import { AwakeTimeline } from "@/components/stats/awake-timeline";
+import { ChargeLevelChart } from "@/components/stats/charge-level";
+import { ProjectedRange } from "@/components/stats/projected-range";
 import { type Period, PERIODS, monthIndex, monthKey, monthShort, parsePeriod, parseView, yearOf } from "@/components/stats/periods";
 import { ByPeriod, StatsTabs } from "@/components/stats/stats-tabs";
 import { formatDays, formatKwh, formatMoney, formatMonth, formatShortDate } from "@/lib/format";
@@ -21,6 +24,9 @@ import { chargeEfficiency, matchSessions } from "@/lib/charge-sessions";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargingSession, loadChargingSessions, syncChargingHistoryThrottled } from "@/lib/server/charging";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
+import { loadAwake } from "@/lib/server/awake";
+import { type DayStrip, hasPresence } from "@/lib/awake";
+import type { ChargeLevel, WeeklyRange } from "@/lib/charge-level";
 import { loadMonthlyEnergy, type MonthlyEnergy } from "@/lib/server/energy";
 import { loadUpdateRows } from "@/lib/server/updates";
 import { loadMonthlyDistance, loadWindowStats, type MonthlyDistance } from "@/lib/server/driving";
@@ -410,6 +416,9 @@ async function loadStats(): Promise<{
   days: DayKm[];
   trend: WeeklyPack[];
   driving: Driving;
+  level: ChargeLevel | null;
+  range: WeeklyRange[];
+  awake: DayStrip[];
   now: number;
 }> {
   "use cache: private";
@@ -419,15 +428,16 @@ async function loadStats(): Promise<{
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
   const now = Date.now();
   const vehicle = loadPrimaryVehicle();
-  const [sessions, streamSessions, distance, energy, updates, { days, trend, driving }] = await Promise.all([
+  const [sessions, streamSessions, distance, energy, updates, { days, trend, driving, level, range }, awake] = await Promise.all([
     loadChargingSessions(),
     loadStreamSessions(),
     vehicle.then((v) => loadMonthlyDistance(v?.vin ?? null)),
     vehicle.then((v) => loadMonthlyEnergy(v?.vin ?? null)),
     vehicle.then((v) => loadUpdateRows(v?.id ?? null)),
     vehicle.then((v) => loadWindowStats(v?.vin ?? null, now)),
+    vehicle.then((v) => loadAwake(v, now)),
   ]);
-  return { sessions, streamSessions, distance, energy, updates, days, trend, driving, now };
+  return { sessions, streamSessions, distance, energy, updates, days, trend, driving, level, range, awake, now };
 }
 
 // Rebuilds sessions from the car's readings, and pulls Supercharger history (at most every 30 minutes),
@@ -449,7 +459,7 @@ async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParam
   const params = await searchParams;
   const period = parsePeriod(params.period);
   const view = parseView(params.view);
-  const { sessions, streamSessions, distance, energy, updates, days, trend, driving, now } = await loadStats();
+  const { sessions, streamSessions, distance, energy, updates, days, trend, driving, level, range, awake, now } = await loadStats();
 
   const { pairs, streamOnly } = matchSessions(sessions, streamSessions, now);
   const listed: Listed[] = [
@@ -491,9 +501,21 @@ async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParam
         ) : (
           notYet("Not enough driving yet", "Distance and energy use show up after a couple of days of driving.")
         ),
-        battery: trend.length >= 2 ? <Battery trend={trend} /> : notYet("Not enough readings yet", "The battery trend shows up after two weeks of readings."),
-        updates: updateStats(updates, now) ? (
-          eachPeriod((p) => <Updates rows={updates} now={now} period={p} />)
+        battery:
+          trend.length >= 2 || range.length > 0 || (level?.points.length ?? 0) >= 2 ? (
+            <div className="space-y-12">
+              <Battery trend={trend} />
+              <ProjectedRange weeks={range} />
+              <ChargeLevelChart level={level} now={now} />
+            </div>
+          ) : (
+            notYet("Not enough readings yet", "The battery trend shows up after two weeks of readings.")
+          ),
+        updates: updateStats(updates, now) || hasPresence(awake) ? (
+          <div className="space-y-12">
+            {eachPeriod((p) => <Updates rows={updates} now={now} period={p} />)}
+            <AwakeTimeline days={awake} now={now} />
+          </div>
         ) : (
           notYet("Not enough updates yet", "Update stats show up after your car's second update.")
         ),

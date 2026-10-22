@@ -1,10 +1,12 @@
 import "server-only";
 import { monthIndex, monthKey } from "@/components/stats/periods";
 import { MILES_TO_KM } from "@/lib/car";
+import { type ChargeLevel, type WeeklyRange } from "@/lib/charge-level";
 import { analyseDriving, DRIVE_DAYS, type Driving } from "@/lib/drives";
 import { type DayKm, dailyDistance, istDay, istDayStart, num, type WeeklyPack } from "@/lib/telemetry-derive";
 import { DEMO } from "@/lib/demo";
 import { batteryTrend, trendWindow } from "./battery";
+import { chargeLevel, fullRange } from "./charge-level";
 import { demoCounter } from "./demo";
 import { db } from "./supabase";
 import { type CounterColumn, type CounterValue, loadCounters, monthBounds, toColumn } from "./energy";
@@ -70,14 +72,14 @@ export const DRIVING_DAYS = 90;
 // Everything the 90-day sections read, in one query (see loadReadingsByField).
 const WINDOW_FIELDS = ["Gear", "Odometer", "BatteryLevel", "EnergyRemaining", "LifetimeEnergyUsed", "RatedRange", "DetailedChargeState"];
 
-export type WindowStats = { days: DayKm[]; driving: Driving; trend: WeeklyPack[] };
+export type WindowStats = { days: DayKm[]; driving: Driving; trend: WeeklyPack[]; level: ChargeLevel | null; range: WeeklyRange[] };
 
 // Kilometres per IST day for the last 90 days (see dailyDistance), drives and parked drain for the last
 // 90 days (see lib/drives.ts) and the 12-week battery trend, from one read of the streamed readings that
 // covers all three windows. Each part keeps to its own window. Empty when the stream can't be read.
 // In demo mode the readings come from the generator, through the same functions.
 export async function loadWindowStats(vin: string | null, now: number): Promise<WindowStats> {
-  const empty: WindowStats = { days: [], driving: { drives: [], drain: null }, trend: [] };
+  const empty: WindowStats = { days: [], driving: { drives: [], drain: null }, trend: [], level: null, range: [] };
   if (!vin) return empty;
   const dailyFrom = new Date(istDayStart(istDay(now) - DRIVING_DAYS + 1)).toISOString();
   const driveFrom = now - DRIVE_DAYS * 86_400_000;
@@ -96,5 +98,7 @@ export async function loadWindowStats(vin: string | null, now: number): Promise<
     days: before.error ? [] : dailyDistance(since("Odometer", Date.parse(dailyFrom)), num(before.data?.value), now, DRIVING_DAYS),
     driving: analyseDriving({ gear, odometer, battery, energy, lifetime, range, charge }, now),
     trend: batteryTrend(readings.EnergyRemaining, readings.BatteryLevel, now),
+    level: chargeLevel(readings.BatteryLevel, readings.DetailedChargeState, now),
+    range: fullRange(readings.RatedRange, readings.BatteryLevel, now),
   };
 }
