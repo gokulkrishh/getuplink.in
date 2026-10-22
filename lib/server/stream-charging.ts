@@ -152,19 +152,12 @@ export async function syncStreamSessionsForAllCars(): Promise<void> {
   await syncStreamSessionsSafely((data ?? []).map((v) => v.vin as string | null));
 }
 
-// Newest first. A missing table or a read error shows as an empty list, with a log line.
-export async function loadStreamSessions(limit = LIST_LIMIT): Promise<StreamChargeSession[]> {
-  if (DEMO) return demoStreamSessions().slice(0, limit);
-  const { data, error } = await db()
-    .from("stream_charge_sessions")
-    .select("id, vin, started_at, ended_at, kind, supercharger, energy_added_kwh, start_level, end_level, start_energy_kwh, end_energy_kwh, peak_power_kw, ac_voltage, ac_amps, ac_phases, cable_type, temp_max_c, temp_start_c")
-    .order("started_at", { ascending: false })
-    .limit(limit);
-  if (error) {
-    console.warn("Streamed charging sessions unavailable:", error.message);
-    return [];
-  }
-  return (data ?? []).map((row) => ({
+// The columns the loaders read, and how a row becomes a session.
+export const SESSION_COLUMNS =
+  "id, vin, started_at, ended_at, kind, supercharger, energy_added_kwh, start_level, end_level, start_energy_kwh, end_energy_kwh, peak_power_kw, ac_voltage, ac_amps, ac_phases, cable_type, temp_max_c, temp_start_c";
+
+export function toStreamSession(row: Record<string, unknown>): StreamChargeSession {
+  return {
     id: row.id as number,
     vin: row.vin as string,
     started_at: row.started_at as string,
@@ -183,5 +176,20 @@ export async function loadStreamSessions(limit = LIST_LIMIT): Promise<StreamChar
     cable_type: (row.cable_type as string | null) ?? null,
     temp_max_c: num(row.temp_max_c),
     temp_start_c: num(row.temp_start_c),
-  }));
+  };
+}
+
+// Newest first. A missing table or a read error shows as an empty list, with a log line.
+export async function loadStreamSessions(limit = LIST_LIMIT): Promise<StreamChargeSession[]> {
+  if (DEMO) return demoStreamSessions().slice(0, limit);
+  const { data, error } = await db()
+    .from("stream_charge_sessions")
+    .select(SESSION_COLUMNS)
+    .order("started_at", { ascending: false })
+    .limit(limit);
+  if (error) {
+    console.warn("Streamed charging sessions unavailable:", error.message);
+    return [];
+  }
+  return (data ?? []).map(toStreamSession);
 }

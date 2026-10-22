@@ -1,4 +1,5 @@
 import { Download } from "lucide-react";
+import Link from "next/link";
 import { Tip } from "@/components/tip";
 import { buttonVariants } from "@/components/ui/button";
 import { splitSite } from "@/lib/charge-sessions";
@@ -17,7 +18,7 @@ export function rate(cost: number, energy: number, currency: string): string | n
 // itself. A Tesla session that the car also reported keeps its own row and gains the peak power.
 export type Listed = { key: string; started_at: string; tesla: ChargingSession | null; stream: StreamChargeSession | null };
 
-function streamTitle(s: StreamChargeSession): string {
+export function streamTitle(s: StreamChargeSession): string {
   if (s.supercharger) return "Supercharger";
   return s.kind === "dc" ? "Third-party charger" : "AC charging";
 }
@@ -45,11 +46,13 @@ export function SessionRow({ item, serial, now }: { item: Listed; serial?: numbe
   const peakText = stream?.peak_power_kw ? `up to ${kwFormat.format(stream.peak_power_kw)} kW` : null;
   const energy = s ? s.energy_kwh : (stream?.energy_added_kwh ?? null);
   const tempText = stream && batteryTemp(stream);
+  // Sessions the car streamed open their power curve; the title link covers the whole row.
+  const href = stream ? `/stats/charging/${stream.id}` : null;
   const detail = s
     ? [city, durationText, peakText, tempText]
     : [stream && levels(stream), stoppedAt ? durationText : "In progress", peakText, tempText];
   return (
-    <li className={cn(now === undefined ? "grid-cols-session" : "grid-cols-session-wide", "grid items-start gap-x-4 py-4 text-sm")}>
+    <li className={cn(now === undefined ? "grid-cols-session" : "grid-cols-session-wide", "grid items-start gap-x-4 py-4 text-sm", href && "relative")}>
       <div className="space-y-1">
         <p className="tabular-nums">{now === undefined ? formatShortDate(item.started_at) : formatDayLabel(item.started_at, now)}</p>
         <p className="text-xs text-faint tabular-nums">{formatClock(item.started_at)}</p>
@@ -57,7 +60,13 @@ export function SessionRow({ item, serial, now }: { item: Listed; serial?: numbe
       <div className="min-w-0 space-y-1">
         <p className="truncate font-medium">
           {serial !== undefined && <span className="mr-2 font-mono text-xs font-normal text-faint tabular-nums">#{serial}</span>}
-          {place}
+          {href ? (
+            <Link href={href} className="after:absolute after:inset-0 hover:underline hover:underline-offset-4">
+              {place}
+            </Link>
+          ) : (
+            place
+          )}
         </p>
         <p className="truncate text-xs text-muted-foreground">{detail.filter(Boolean).join(" · ")}</p>
       </div>
@@ -79,7 +88,7 @@ export function SessionRow({ item, serial, now }: { item: Listed; serial?: numbe
           <a
             href={`/api/charging/invoice/${encodeURIComponent(invoice.contentId)}`}
             aria-label={`Download invoice for ${formatShortDate(item.started_at)}`}
-            className={buttonVariants({ variant: "ghost", size: "icon-xs", className: "group" })}
+            className={buttonVariants({ variant: "ghost", size: "icon-xs", className: "group relative" })}
           >
             <Download className="size-3.5" aria-hidden="true" />
             <Tip>Download invoice</Tip>
