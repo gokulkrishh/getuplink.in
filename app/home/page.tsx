@@ -1,17 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import {
-  BatteryMedium,
-  Car,
-  ChevronDown,
-  Download,
-  History,
-  MoonStar,
-  Zap,
-  type LucideIcon,
-} from "lucide-react";
+import { ChevronDown, CircleCheck, CircleX } from "lucide-react";
 import { DashboardPreview } from "@/components/dashboard-preview";
+import { CarGlanceMock } from "@/components/home/car-glance-mock";
 import { HistoryMock } from "@/components/home/history-mock";
 import { SessionCta } from "@/components/home/session-cta";
 import { LoginError } from "@/components/login-error";
@@ -20,48 +12,53 @@ import { SignInButton } from "@/components/sign-in-button";
 import { buttonVariants } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: "Uplink · Tesla software updates, tracked from India",
-  description: "Know when your Tesla's next update lands. Every version, release note and Supercharger session, read-only.",
+  title: "Uplink · Your Tesla's updates, charging and driving, in one place",
+  description: "Software updates, Supercharger spend, battery and kilometres driven for your Tesla in India. Read-only.",
   robots: { index: true, follow: true },
 };
 
-const FEATURES: { icon: LucideIcon; title: string; body: string }[] = [
-  { icon: History, title: "Version history", body: "Every version your car has run, with Tesla's release notes and when it arrived and installed." },
-  { icon: Download, title: "Update status", body: "Available, downloading, waiting for Wi-Fi, scheduled or installing, with progress." },
-  { icon: BatteryMedium, title: "Battery at a glance", body: "Charge level, range and charge limit from the last time the car was online." },
-  { icon: Zap, title: "Charging and driving", body: "Supercharger sessions with cost in rupees and invoices, and kilometres driven each month." },
-  { icon: Car, title: "Your car's details", body: "Model year, drive, factory, paint, wheels and hardware, read from Tesla." },
-  { icon: MoonStar, title: "Never wakes your car", body: "Your car sends updates on its own while it's awake. Uplink never wakes it or sends commands, so there's no extra battery drain." },
+const STEPS = [
+  { title: "Sign in on Tesla's page", body: "Uplink never sees your password." },
+  { title: "Add Uplink's key to your car", body: "Lets the car send data. Can't unlock or drive." },
+  { title: "Updates show up on their own", body: "Data arrives whenever your car is awake." },
 ];
 
-const HISTORY_POINTS = [
-  { title: "Received and installed", body: "See how long each update waited before it went in." },
-  { title: "Odometer at each update", body: "Know exactly where in your car's life a version arrived." },
-  { title: "Spend by month", body: "Supercharging cost and energy, with every invoice a tap away." },
-  { title: "Release notes inline", body: "Open any version to read what changed." },
+const SHOWCASE = [
+  {
+    title: "Your car's whole history",
+    body: "The Tesla app shows today. Uplink keeps the rest.",
+    points: ["How long each update waited", "Odometer at every update", "Supercharging spend in rupees"],
+    mock: <HistoryMock />,
+  },
+  {
+    title: "Your car at a glance",
+    body: "Charge, battery health, distance and specs from your car.",
+    points: ["Charge, range and limit", "Battery health and odometer", "Kilometres driven each month"],
+    mock: <CarGlanceMock />,
+  },
+];
+
+const CAN = [
+  "Software version and update progress",
+  "Battery, charging and odometer",
+  "Supercharger sessions and invoices",
+];
+
+const CANNOT = [
+  "Wake your car",
+  "Unlock, drive or send commands",
+  "See your location",
 ];
 
 const FAQ = [
   {
-    q: "Is it safe to sign in?",
-    a: "You sign in on Tesla's own page. Uplink never sees your password. Tesla gives it access to read your car's data, which you can revoke from your Tesla account at any time.",
-  },
-  {
-    q: "Will it wake my car or drain the battery?",
-    a: "No. Your car sends updates on its own while it's awake, and Uplink never wakes it or sends commands.",
-  },
-  {
     q: "Why add Uplink's key to my car?",
-    a: "It lets your car send live data to Uplink: update progress, charging and battery. The key can't unlock or drive the car, and you can remove it any time in your car's Locks settings.",
+    a: "It lets your car send live data. It can't unlock or drive, and you can remove it in Locks settings.",
   },
-  {
-    q: "What data does Uplink store?",
-    a: "Your car's versions and update progress, battery, charging, odometer and energy use, plus Supercharger sessions with invoices. It never reads your location. The privacy page lists everything.",
-  },
-  { q: "Which cars work?", a: "Any Tesla on your account that Tesla's Fleet API supports, including the Model Y sold in India." },
+  { q: "Which cars work?", a: "Any Tesla the Fleet API supports, including the Indian Model Y." },
   {
     q: "How do I delete my data?",
-    a: "Use Delete my data in Settings. It removes your cars, history and charging, stops your car streaming to Uplink and disconnects your Tesla account. Then remove Uplink's key in your car's Locks settings.",
+    a: "Use Delete my data in Settings. Then remove Uplink's key in your car's Locks settings.",
   },
 ];
 
@@ -71,28 +68,17 @@ async function Year() {
   return new Date().getFullYear();
 }
 
-function SectionTitle({ title, body }: { title: string; body: string }) {
+function Steps() {
   return (
-    <div>
-      <h2 className="text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl">{title}</h2>
-      <p className="mt-5 text-lg text-muted-foreground">{body}</p>
-    </div>
-  );
-}
-
-function IconGrid({ items }: { items: { icon: LucideIcon; title: string; body: string }[] }) {
-  return (
-    <ul className="mt-14 grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
-      {items.map(({ icon: Icon, title, body }) => (
-        <li key={title}>
-          <h3 className="flex items-center gap-2.5 text-base font-medium">
-            <Icon className="size-4 text-muted-foreground" aria-hidden="true" />
-            {title}
-          </h3>
-          <p className="mt-3 text-base text-muted-foreground">{body}</p>
+    <ol className="grid gap-x-10 gap-y-8 sm:grid-cols-3">
+      {STEPS.map((step, i) => (
+        <li key={step.title} className="border-t pt-5">
+          <span className="font-mono text-xs text-faint tabular-nums">0{i + 1}.</span>
+          <h3 className="mt-3 text-base font-medium">{step.title}</h3>
+          <p className="mt-2 text-base text-muted-foreground">{step.body}</p>
         </li>
       ))}
-    </ul>
+    </ol>
   );
 }
 
@@ -109,22 +95,25 @@ export default function HomePage() {
         </Suspense>
       </header>
 
+      {/* Hero: the job, the price and the risk, all above the fold. */}
       <section className="grid items-center gap-16 py-20 lg:grid-cols-2 lg:gap-12 lg:py-28">
         <div>
           <p className="text-xs tracking-wide text-faint uppercase">For Tesla owners in India</p>
           <h1 className="mt-5 text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl 2xl:text-6xl">
-            Never miss a Tesla update.
+            Your Tesla, all in one place.
           </h1>
-          <p className="mt-6 text-base text-muted-foreground">See what&apos;s new on your car. Read-only.</p>
+          <p className="mt-6 max-w-md text-lg text-muted-foreground">
+            Software updates, charging spend, battery and kilometres driven.
+          </p>
           <div className="mt-10 flex flex-wrap items-center gap-3">
             <Suspense fallback={<SignInButton />}>
               <SessionCta />
             </Suspense>
-            <a href="#features" className={buttonVariants({ variant: "outline", size: "xl" })}>
-              See what it does
+            <a href="#how" className={buttonVariants({ variant: "secondary", size: "xl" })}>
+              How it works
             </a>
           </div>
-          <p className="mt-4 text-xs text-faint">Secure sign-in through Tesla.</p>
+          <p className="mt-4 text-xs text-faint">Read-only · Never wakes your car · Revoke access any time</p>
           {/* Renders nothing (and takes no space) unless sign-in failed, so the page doesn't shift. */}
           <Suspense>
             <LoginError className="mt-4" />
@@ -135,34 +124,74 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="features" className="scroll-mt-16 py-24">
-        <SectionTitle
-          title="Everything about your updates"
-          body="One calm page for what's on your car, what's coming, and everything that came before."
-        />
-        <IconGrid items={FEATURES} />
+      {/* How it works, early: the effort is small, so show it before the features. */}
+      <section id="how" className="scroll-mt-16 py-20">
+        <h2 className="text-3xl leading-display font-semibold tracking-tight text-balance sm:text-4xl">
+          Set up once.
+        </h2>
+        <div className="mt-12">
+          <Steps />
+        </div>
       </section>
 
-      <section className="grid items-center gap-14 py-24 lg:grid-cols-2 lg:gap-16">
-        <div>
-          <SectionTitle
-            title="Your car's whole history"
-            body="Uplink keeps a quiet record from the day you sign in: versions, dates, kilometres and charging."
-          />
-          <ul className="mt-12 grid gap-x-10 gap-y-8 sm:grid-cols-2">
-            {HISTORY_POINTS.map((p) => (
-              <li key={p.title}>
-                <h3 className="text-base font-medium">{p.title}</h3>
-                <p className="mt-2 text-base text-muted-foreground">{p.body}</p>
-              </li>
-            ))}
-          </ul>
+      {SHOWCASE.map((item, i) => (
+        <section key={item.title} className="grid items-center gap-14 py-20 lg:grid-cols-2 lg:gap-16">
+          <div className={i % 2 === 1 ? "lg:order-2" : undefined}>
+            <h2 className="text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl">{item.title}</h2>
+            <p className="mt-5 text-lg text-muted-foreground">{item.body}</p>
+            <ul className="mt-8 flex flex-col gap-3">
+              {item.points.map((point) => (
+                <li key={point} className="flex items-baseline gap-3 text-base">
+                  <CircleCheck className="size-4 shrink-0 translate-y-0.5 text-muted-foreground" aria-hidden="true" />
+                  {point}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className={i % 2 === 1 ? "lg:order-1" : undefined}>{item.mock}</div>
+        </section>
+      ))}
+
+      {/* Trust: what Uplink can and can't do, side by side. */}
+      <section className="py-24">
+        <h2 className="text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl">Read-only by design</h2>
+        <p className="mt-5 max-w-2xl text-lg text-muted-foreground">
+          Tesla&apos;s official Fleet API, read access only.
+        </p>
+        <div className="mt-12 grid border sm:grid-cols-2">
+          <div className="p-6 sm:p-8">
+            <h3 className="text-xs tracking-wide text-faint uppercase">Uplink can</h3>
+            <ul className="mt-5 flex flex-col gap-4">
+              {CAN.map((line) => (
+                <li key={line} className="flex items-baseline gap-3 text-base">
+                  <CircleCheck className="size-4 shrink-0 translate-y-0.5 text-positive" aria-hidden="true" />
+                  {line}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="border-t p-6 sm:border-t-0 sm:border-l sm:p-8">
+            <h3 className="text-xs tracking-wide text-faint uppercase">Uplink can&apos;t</h3>
+            <ul className="mt-5 flex flex-col gap-4">
+              {CANNOT.map((line) => (
+                <li key={line} className="flex items-baseline gap-3 text-base">
+                  <CircleX className="size-4 shrink-0 translate-y-0.5 text-muted-foreground" aria-hidden="true" />
+                  {line}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
-        <HistoryMock />
+        <p className="mt-6 text-sm text-muted-foreground">
+          Revoke access from your Tesla account, or delete everything from Settings, any time.{" "}
+          <Link href="/privacy" className="underline underline-offset-4 hover:text-foreground">
+            Read the privacy page
+          </Link>
+        </p>
       </section>
 
       <section id="faq" className="scroll-mt-16 py-24">
-        <SectionTitle title="Questions" body="The short answers. The privacy page has the long ones." />
+        <h2 className="text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl">FAQ</h2>
         <div className="mt-12 max-w-3xl divide-y border-y">
           {FAQ.map((item) => (
             <details key={item.q} className="group">
@@ -183,9 +212,12 @@ export default function HomePage() {
         <h2 className="max-w-3xl text-5xl leading-display font-semibold tracking-tight text-balance sm:text-6xl">
           Start tracking in two minutes.
         </h2>
-        <Suspense fallback={<SignInButton label="Get started" />}>
-          <SessionCta label="Get started" />
-        </Suspense>
+        <div>
+          <Suspense fallback={<SignInButton label="Get started" />}>
+            <SessionCta label="Get started" />
+          </Suspense>
+          <p className="mt-4 text-xs text-faint">Read-only. Revoke access any time.</p>
+        </div>
       </section>
 
       <footer className="mt-auto flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 py-8 text-xs text-faint">

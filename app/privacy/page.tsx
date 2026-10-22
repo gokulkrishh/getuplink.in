@@ -25,6 +25,8 @@ const NOT_DONE = [
   "There are no ads and no tracking. One cookie keeps you signed in, a short-lived one protects the Tesla sign-in, and your theme choice is saved in your browser.",
 ];
 
+const LIST = "mt-2 list-disc space-y-1.5 pl-5 text-sm text-muted-foreground marker:text-faint";
+
 export default function PrivacyPage() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-5 py-8 sm:px-8">
@@ -57,7 +59,7 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-base font-medium tracking-heading">What Uplink stores</h2>
-            <ul className="mt-2 grid gap-1 text-sm text-muted-foreground">
+            <ul className={LIST}>
               {STORED.map((item) => (
                 <li key={item}>{item}</li>
               ))}
@@ -66,7 +68,7 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-base font-medium tracking-heading">What Uplink doesn&apos;t do</h2>
-            <ul className="mt-2 grid gap-1 text-sm text-muted-foreground">
+            <ul className={LIST}>
               {NOT_DONE.map((item) => (
                 <li key={item}>{item}</li>
               ))}
@@ -82,12 +84,15 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-base font-medium tracking-heading">How data arrives</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Two ways. Uplink checks Tesla&apos;s Fleet API every 6 hours, and only reads a car that is already
-              online. And once you add Uplink&apos;s key to your car, the car streams changes to Uplink while it&apos;s
-              awake: update progress, battery, charging, odometer, gear, energy counters and battery temperature. It
-              never streams location.
-            </p>
+            <p className="mt-2 text-sm text-muted-foreground">Two ways.</p>
+            <ul className={LIST}>
+              <li>Uplink checks Tesla&apos;s Fleet API every 6 hours, and only reads a car that is already online.</li>
+              <li>
+                Once you add Uplink&apos;s key to your car, the car streams changes to Uplink while it&apos;s awake:
+                update progress, battery, charging, odometer, gear, energy counters and battery temperature.
+              </li>
+              <li>It never streams location.</li>
+            </ul>
           </section>
 
           <section>
@@ -100,21 +105,27 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-base font-medium tracking-heading">Where it lives</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Streamed data goes to Uplink&apos;s receiver on Fly.io in Singapore, then to the database, hosted by
-              Supabase in Mumbai (ap-south-1). The app is hosted on Vercel. Data goes to Tesla only to fetch your
-              car&apos;s data.
-            </p>
+            <ul className={LIST}>
+              <li>Streamed data goes to Uplink&apos;s receiver on Fly.io in Singapore.</li>
+              <li>The database is hosted by Supabase in Mumbai (ap-south-1).</li>
+              <li>The app is hosted on Vercel.</li>
+              <li>Data goes to Tesla only to fetch your car&apos;s data.</li>
+            </ul>
           </section>
 
           <section>
             <h2 className="text-base font-medium tracking-heading">How long we keep it</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Until you delete it. Use Delete my data in Settings to remove your cars, history, snapshots, streamed readings and charging
-              sessions. It also stops your car streaming to Uplink; then remove the key in your car&apos;s Locks
-              settings. Use Disconnect to remove your Tesla tokens. Use Sign out everywhere to end all sessions. You
-              can also revoke Uplink&apos;s access from your Tesla account.
-            </p>
+            <p className="mt-2 text-sm text-muted-foreground">Until you delete it.</p>
+            <ul className={LIST}>
+              <li>
+                Delete my data in Settings removes your cars, history, snapshots, streamed readings and charging
+                sessions. It also stops your car streaming to Uplink; then remove the key in your car&apos;s Locks
+                settings.
+              </li>
+              <li>Disconnect removes your Tesla tokens.</li>
+              <li>Sign out everywhere ends all sessions.</li>
+              <li>You can also revoke Uplink&apos;s access from your Tesla account.</li>
+            </ul>
           </section>
 
           <section>
