@@ -1,5 +1,5 @@
 import "server-only";
-import { monthIndex, monthKey } from "@/components/stats/periods";
+import { monthIndex, monthKey } from "@/lib/periods";
 import { type EnergyMonth, type Span, energyUseMonth, num } from "@/lib/telemetry-derive";
 import { DEMO } from "@/lib/demo";
 import { demoCounter } from "./demo";

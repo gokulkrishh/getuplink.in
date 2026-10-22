@@ -1,5 +1,5 @@
 import "server-only";
-import { monthIndex, monthKey } from "@/components/stats/periods";
+import { monthIndex, monthKey } from "@/lib/periods";
 import { MILES_TO_KM } from "@/lib/car";
 import { type ChargeLevel, type WeeklyRange } from "@/lib/charge-level";
 import { analyseDriving, DRIVE_DAYS, type Driving } from "@/lib/drives";

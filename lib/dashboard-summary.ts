@@ -74,16 +74,39 @@ export type Comparison = { text: string; tone: "better" | "worse" | "neutral" };
 // "18 km more than last week", "Same" (within 2%). `lowerIsBetter` words the change as
 // better or worse (tone better or worse) instead of less or more (tone neutral). Null when last week has no figure.
 export function compareToLastWeek(current: number, previous: number | null, unit: string, opts: { decimals?: number; lowerIsBetter?: boolean } = {}): Comparison | null {
+  const change = changeFrom(current, previous, opts);
+  if (!change) return null;
+  return change.same ? { text: "Same", tone: "neutral" } : { text: `${change.amount.toFixed(opts.decimals ?? 0)} ${unit} ${change.word}`, tone: change.tone };
+}
+
+// "96 km more than 1–22 Sept", "₹410 less than the 7 days before", "Same as 1–22 Sept" (within 2%). `span` is
+// the previous span in words (see previousLabel); `unit` is a word after the number, or formats the number
+// itself (money). `lowerIsBetter` words the change as better or worse. Null when there is no previous figure.
+export function compareToPrevious(
+  current: number,
+  previous: number | null,
+  unit: string | ((amount: number) => string),
+  span: string,
+  opts: { decimals?: number; lowerIsBetter?: boolean } = {},
+): Comparison | null {
+  const change = changeFrom(current, previous, opts);
+  if (!change) return null;
+  if (change.same) return { text: `Same as ${span}`, tone: "neutral" };
+  const amount = typeof unit === "function" ? unit(change.amount) : `${change.amount.toFixed(opts.decimals ?? 0)} ${unit}`;
+  return { text: `${amount} ${change.word} than ${span}`, tone: change.tone };
+}
+
+// The rounded size and direction of a change. Within 2% of the previous figure counts as the same.
+function changeFrom(current: number, previous: number | null, { decimals = 0, lowerIsBetter = false }: { decimals?: number; lowerIsBetter?: boolean }) {
   if (previous === null) return null;
-  const { decimals = 0, lowerIsBetter = false } = opts;
   const diff = current - previous;
   const step = 10 ** -decimals;
-  const rounded = Math.round(Math.abs(diff) / step) * step;
-  if (rounded === 0 || Math.abs(diff) <= Math.abs(previous) * 0.02) return { text: "Same", tone: "neutral" };
+  const amount = Math.round(Math.abs(diff) / step) * step;
+  const same = amount === 0 || Math.abs(diff) <= Math.abs(previous) * 0.02;
   const up = diff > 0;
   const word = lowerIsBetter ? (up ? "worse" : "better") : up ? "more" : "less";
-  const tone = lowerIsBetter ? (up ? "worse" : "better") : "neutral";
-  return { text: `${rounded.toFixed(decimals)} ${unit} ${word}`, tone };
+  const tone: Comparison["tone"] = lowerIsBetter ? (up ? "worse" : "better") : "neutral";
+  return { same, amount, word, tone };
 }
 
 export type ActivityEvent = { at: number; text: string };

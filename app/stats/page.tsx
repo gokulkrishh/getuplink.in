@@ -16,7 +16,8 @@ import { BatteryTrend } from "@/components/stats/battery-trend";
 import { AwakeTimeline } from "@/components/stats/awake-timeline";
 import { ChargeLevelChart } from "@/components/stats/charge-level";
 import { ProjectedRange } from "@/components/stats/projected-range";
-import { type Period, PERIODS, monthIndex, monthKey, monthShort, parsePeriod, parseView, yearOf } from "@/components/stats/periods";
+import { PERIODS, parsePeriod, parseView } from "@/components/stats/periods";
+import { inPeriod, inSpan, monthIndex, monthKey, monthShort, type Period, PERIOD_WORDS, periodSpan, slotsFor, sumBySlot, yearOf } from "@/lib/periods";
 import { ByPeriod, StatsTabs } from "@/components/stats/stats-tabs";
 import { formatDays, formatKwh, formatMoney, formatMonth, formatShortDate } from "@/lib/format";
 import { chargeEfficiency, matchSessions } from "@/lib/charge-sessions";
@@ -51,62 +52,41 @@ function totals(rows: ChargingSession[]) {
 
 const compactNumber = new Intl.NumberFormat("en-IN");
 
-const SPENT_LABELS: Record<Period, string> = {
-  month: "Spent this month",
-  "6m": "Spent in the last 6 months",
-  year: "Spent this year",
-  all: "Spent in total",
-};
+// Distance and energy use come from 12 monthly counters, so All covers those 12 months.
+const DRIVEN_LABELS: Record<Period, string> = { ...PERIOD_WORDS, all: "in the last 12 months" };
 
-const DRIVEN_LABELS: Record<Period, string> = {
-  month: "this month",
-  "6m": "in the last 6 months",
-  year: "this year",
-  all: "in the last 12 months",
-};
-
-// Which months a period covers, given the current month index.
-function inPeriod(period: Period, index: number, cur: number): boolean {
-  if (period === "month") return index === cur;
-  if (period === "6m") return index > cur - 6 && index <= cur;
-  if (period === "year") return yearOf(index) === yearOf(cur);
-  return true;
-}
-
-// Bar slots: 6 months (Month, 6 months), the 12 months of this year (Year), or 6 years (All time).
-function slotsFor(period: Period, cur: number): { id: number; label: string }[] {
-  if (period === "year") return Array.from({ length: 12 }, (_, m) => ({ id: yearOf(cur) * 12 + m, label: monthShort(yearOf(cur) * 12 + m) }));
-  if (period === "all") return Array.from({ length: 6 }, (_, k) => ({ id: yearOf(cur) - 5 + k, label: String(yearOf(cur) - 5 + k) }));
-  return Array.from({ length: 6 }, (_, k) => ({ id: cur - 5 + k, label: monthShort(cur - 5 + k) }));
+// Month bars for the monthly counters: this year's 12 (Year), the 12 the loader has (All), or the last 6.
+function monthSlots(period: Period, cur: number): { id: number; label: string }[] {
+  const ids =
+    period === "year"
+      ? Array.from({ length: 12 }, (_, m) => yearOf(cur) * 12 + m)
+      : Array.from({ length: period === "all" ? 12 : 6 }, (_, k) => cur - (period === "all" ? 11 : 5) + k);
+  return ids.map((id) => ({ id, label: monthShort(id) }));
 }
 
 // Supercharger spend is Tesla's billed amount; priced sessions add AC and third-party charging at the owner's rates.
 function Summary({ sessions, priced, now, period }: { sessions: ChargingSession[]; priced: Priced[]; now: number; period: Period }) {
-  const cur = monthIndex(now);
-  // Each session's month is worked out once, then reused for the totals and the bars.
-  const dated = sessions.map((s) => ({ s, index: monthIndex(s.started_at) }));
-  const billed = totals(dated.filter((d) => inPeriod(period, d.index, cur)).map((d) => d.s));
-  const pricedIn = priced.filter((p) => inPeriod(period, monthIndex(p.started_at), cur));
+  const span = periodSpan(period, now);
+  const billed = totals(sessions.filter((s) => inSpan(Date.parse(s.started_at), span)));
+  const pricedIn = priced.filter((p) => inSpan(Date.parse(p.started_at), span));
   const atYourRates = pricedIn.reduce((sum, p) => sum + p.cost, 0);
   const cost = billed.cost + atYourRates;
   const energy = billed.energy + pricedIn.reduce((sum, p) => sum + p.energy, 0);
   const count = billed.count + pricedIn.length;
   const currency = billed.currency;
   const rateText = rate(cost, energy, currency);
-  const bucket = (index: number) => (period === "all" ? yearOf(index) : index);
-  const spend = new Map<number, number>();
-  for (const { s, index } of dated) spend.set(bucket(index), (spend.get(bucket(index)) ?? 0) + (s.cost_total ?? 0));
-  for (const p of priced) spend.set(bucket(monthIndex(p.started_at)), (spend.get(bucket(monthIndex(p.started_at))) ?? 0) + p.cost);
+  const slots = slotsFor(period, now);
+  const billedSpend = sumBySlot(sessions, slots, (s) => Date.parse(s.started_at), (s) => s.cost_total ?? 0);
+  const pricedSpend = sumBySlot(priced, slots, (p) => Date.parse(p.started_at), (p) => p.cost);
   const compact = new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 });
-  const current = bucket(cur);
-  const bars = slotsFor(period, cur).map((slot) => {
-    const value = spend.get(slot.id) ?? 0;
-    return { key: String(slot.id), label: slot.label, value, display: compact.format(value), isCurrent: slot.id === current };
+  const bars = slots.map((slot, k) => {
+    const value = billedSpend[k] + pricedSpend[k];
+    return { key: String(slot.id), label: slot.label, value, display: compact.format(value), isCurrent: slot.isCurrent };
   });
   return (
     <section className="space-y-8">
       <div className="space-y-2">
-        <p className="text-xs tracking-wide text-faint uppercase">{SPENT_LABELS[period]}</p>
+        <p className="text-xs tracking-wide text-faint uppercase">Spent {PERIOD_WORDS[period]}</p>
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatMoney(cost, currency)}</p>
         <p className="text-sm text-muted-foreground tabular-nums">
           {[formatKwh(energy), `${count} ${count === 1 ? "session" : "sessions"}`, rateText && `${rateText} avg`]
@@ -121,13 +101,6 @@ function Summary({ sessions, priced, now, period }: { sessions: ChargingSession[
     </section>
   );
 }
-
-const ENERGY_LABELS: Record<Period, string> = {
-  month: "this month",
-  "6m": "in the last 6 months",
-  year: "this year",
-  all: "in total",
-};
 
 const kwhCompact = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 
@@ -151,33 +124,31 @@ function EnergyAdded({
   now: number;
   period: Period;
 }) {
-  const cur = monthIndex(now);
-  const bucket = (index: number) => (period === "all" ? yearOf(index) : index);
-  const energy = new Map<number, number[]>();
+  const span = periodSpan(period, now);
+  const slots = slotsFor(period, now);
+  // Supercharger, third-party DC and AC energy per slot.
+  const energy = slots.map(() => [0, 0, 0]);
   let total = 0;
   const add = (startedAt: string, series: number, kwh: number | null) => {
     if (!kwh || kwh <= 0) return;
-    const index = monthIndex(startedAt);
-    const row = energy.get(bucket(index)) ?? [0, 0, 0];
-    row[series] += kwh;
-    energy.set(bucket(index), row);
-    if (inPeriod(period, index, cur)) total += kwh;
+    const at = Date.parse(startedAt);
+    const k = slots.findIndex((slot) => inSpan(at, slot));
+    if (k >= 0) energy[k][series] += kwh;
+    if (inSpan(at, span)) total += kwh;
   };
   for (const s of sessions) add(s.started_at, 0, s.energy_kwh);
   for (const s of streamOnly) add(s.started_at, s.supercharger ? 0 : s.kind === "dc" ? 1 : 2, s.energy_added_kwh);
-  const current = bucket(cur);
-  const bars: StackedBar[] = slotsFor(period, cur).map((slot) => {
-    const segments = energy.get(slot.id) ?? [0, 0, 0];
-    const sum = segments.reduce((a, b) => a + b, 0);
-    return { key: String(slot.id), label: slot.label, total: sum, display: kwhCompact.format(sum), isCurrent: slot.id === current, segments };
+  const bars: StackedBar[] = slots.map((slot, k) => {
+    const sum = energy[k].reduce((a, b) => a + b, 0);
+    return { key: String(slot.id), label: slot.label, total: sum, display: kwhCompact.format(sum), isCurrent: slot.isCurrent, segments: energy[k] };
   });
-  const efficiency = chargeEfficiency(streamOnly.filter((s) => s.kind === "ac" && inPeriod(period, monthIndex(s.started_at), cur)));
+  const efficiency = chargeEfficiency(streamOnly.filter((s) => s.kind === "ac" && inSpan(Date.parse(s.started_at), span)));
   return (
     <section className="space-y-8">
       <div className="space-y-2">
         <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Energy added</h2>
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatKwh(total)}</p>
-        <p className="text-sm text-muted-foreground">{ENERGY_LABELS[period]}</p>
+        <p className="text-sm text-muted-foreground">{PERIOD_WORDS[period]}</p>
       </div>
       <StackedBars bars={bars} series={ENERGY_SERIES} ariaLabel={period === "all" ? "Energy added per year" : "Energy added per month"} />
       {efficiency !== null && (
@@ -200,13 +171,7 @@ function Distance({ distance, now, period }: { distance: MonthlyDistance[]; now:
   const cur = monthIndex(now);
   const km = new Map(distance.map((d) => [d.month, d.km]));
   // The loader has 12 months, so All time shows those 12 and Year shows this calendar year's months.
-  const slots =
-    period === "year"
-      ? slotsFor("year", cur)
-      : Array.from({ length: period === "all" ? 12 : 6 }, (_, k) => {
-          const id = cur - (period === "all" ? 11 : 5) + k;
-          return { id, label: monthShort(id) };
-        });
+  const slots = monthSlots(period, cur);
   const total = Array.from({ length: 12 }, (_, k) => cur - 11 + k)
     .filter((index) => inPeriod(period, index, cur))
     .reduce((sum, index) => sum + (km.get(monthKey(index)) ?? 0), 0);
@@ -231,13 +196,7 @@ function Distance({ distance, now, period }: { distance: MonthlyDistance[]; now:
 function EnergyUse({ energy, now, period }: { energy: MonthlyEnergy[]; now: number; period: Period }) {
   const cur = monthIndex(now);
   const byMonth = new Map(energy.map((e) => [e.month, e.energy]));
-  const slots =
-    period === "year"
-      ? slotsFor("year", cur)
-      : Array.from({ length: period === "all" ? 12 : 6 }, (_, k) => {
-          const id = cur - (period === "all" ? 11 : 5) + k;
-          return { id, label: monthShort(id) };
-        });
+  const slots = monthSlots(period, cur);
   const inRange = Array.from({ length: 12 }, (_, k) => cur - 11 + k)
     .filter((index) => inPeriod(period, index, cur))
     .flatMap((index) => byMonth.get(monthKey(index)) ?? []);
@@ -282,7 +241,7 @@ function Updates({ rows, now, period }: { rows: UpdateRow[]; now: number; period
   const imported = rows.filter((r) => r.source === "imported").length;
   const items = [
     stats.avgWaitSec !== null && { label: "Average wait, available to installed", value: formatDays(stats.avgWaitSec) },
-    { label: `Updates ${ENERGY_LABELS[period]}`, value: String(count) },
+    { label: `Updates ${PERIOD_WORDS[period]}`, value: String(count) },
     { label: "Average time between updates", value: formatDays(stats.avgGapSec) },
     { label: "Longest on one version", value: formatDays(stats.longestSec) },
   ].filter((item) => item !== false);
