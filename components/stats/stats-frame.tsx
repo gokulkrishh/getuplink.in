@@ -16,7 +16,7 @@ export function eachPeriod(render: (period: Period) => ReactNode) {
 // sections use one, the period switch. `period` is the one in the URL.
 export function StatsFrame({ view, period, periodSwitch = true, children }: { view: View; period: Period; periodSwitch?: boolean; children: ReactNode }) {
   return (
-    <PeriodScope initial={period}>
+    <PeriodScope key={period} initial={period}>
       <div className="space-y-12">
         <div className="space-y-6">
           <ViewTabs view={view} />

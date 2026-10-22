@@ -139,3 +139,6 @@ export const PERIOD_WORDS: Record<Period, string> = {
   year: "this year",
   all: "in total",
 };
+
+// What one bar of slotsFor covers, for screen readers: "Spend per day".
+export const SLOT_NAMES: Record<Period, string> = { week: "day", month: "month", year: "month", all: "year" };

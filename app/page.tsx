@@ -70,6 +70,8 @@ async function HomeContent({ searchParams }: Pick<PageProps<"/">, "searchParams"
   const { home, now } = await loadOwnHome(demo);
   const failedRun = home.kind === "ready" && home.lastRun?.ok === false ? home.lastRun : null;
   const cars = home.kind === "ready" ? home.cars : [];
+  // The primary car, as loadHome picks it: the first with a VIN. The odometer is its.
+  const primaryId = cars.find((car) => car.vehicle.vin)?.vehicle.id;
 
   return (
     <>
@@ -77,14 +79,14 @@ async function HomeContent({ searchParams }: Pick<PageProps<"/">, "searchParams"
       <OwnerNotices data={home} count={cars.length} failedRun={failedRun} />
       {home.kind === "ready" && cars.length > 0 && (
         <div className="space-y-12">
-          {cars.map((car, k) => (
+          {cars.map((car) => (
             <div key={car.vehicle.id} className="space-y-6">
-              {/* The odometer is the primary car's, the first. */}
-              <NowStrip car={car} odometerKm={k === 0 ? home.figures.odometerKm : null} now={now} />
+              <NowStrip car={car} odometerKm={car.vehicle.id === primaryId ? home.figures.odometerKm : null} now={now} />
               <UpdateBanner snapshot={car.lastOnline} />
             </div>
           ))}
-          <PeriodScope initial={period}>
+          {/* Keyed so a navigation to another ?period= (the logo link to /) resets the switch. */}
+          <PeriodScope key={period} initial={period}>
             <Totals home={home} now={now} />
           </PeriodScope>
           {cars.some((car) => car.latest?.error) && (

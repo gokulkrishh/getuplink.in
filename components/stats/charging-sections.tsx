@@ -3,10 +3,11 @@ import { ShowMore } from "@/components/show-more";
 import { Bars } from "@/components/stats/bars";
 import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
 import { chargeEfficiency } from "@/lib/charge-sessions";
+import { spendBySlot, spendIn } from "@/lib/charging-figures";
 import { type ChargingRates, type Priced, pricedSessions } from "@/lib/charging-rates";
 import { formatKwh, formatMoney, formatMonth } from "@/lib/format";
 import { LIST_PREVIEW } from "@/lib/list";
-import { inSpan, type Period, PERIOD_WORDS, periodSpan, slotsFor, sumBySlot } from "@/lib/periods";
+import { inSpan, type Period, PERIOD_WORDS, periodSpan, SLOT_NAMES, slotsFor } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
 
@@ -26,20 +27,15 @@ export function Summary({ sessions, priced, now, period }: { sessions: ChargingS
   const span = periodSpan(period, now);
   const billed = totals(sessions.filter((s) => inSpan(Date.parse(s.started_at), span)));
   const pricedIn = priced.filter((p) => inSpan(Date.parse(p.started_at), span));
-  const atYourRates = pricedIn.reduce((sum, p) => sum + p.cost, 0);
-  const cost = billed.cost + atYourRates;
+  const { cost, atYourRates } = spendIn(sessions, priced, span);
   const energy = billed.energy + pricedIn.reduce((sum, p) => sum + p.energy, 0);
   const count = billed.count + pricedIn.length;
   const currency = billed.currency;
   const rateText = rate(cost, energy, currency);
   const slots = slotsFor(period, now);
-  const billedSpend = sumBySlot(sessions, slots, (s) => Date.parse(s.started_at), (s) => s.cost_total ?? 0);
-  const pricedSpend = sumBySlot(priced, slots, (p) => Date.parse(p.started_at), (p) => p.cost);
+  const spend = spendBySlot(sessions, priced, slots);
   const compact = new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 });
-  const bars = slots.map((slot, k) => {
-    const value = billedSpend[k] + pricedSpend[k];
-    return { key: String(slot.id), label: slot.label, value, display: compact.format(value), isCurrent: slot.isCurrent };
-  });
+  const bars = slots.map((slot, k) => ({ key: String(slot.id), label: slot.label, value: spend[k], display: compact.format(spend[k]), isCurrent: slot.isCurrent }));
   return (
     <section className="space-y-8">
       <div className="space-y-2">
@@ -54,7 +50,7 @@ export function Summary({ sessions, priced, now, period }: { sessions: ChargingS
           <p className="text-xs text-faint tabular-nums">Includes {formatMoney(atYourRates, currency)} at your rates</p>
         )}
       </div>
-      <Bars bars={bars} ariaLabel={period === "all" ? "Spend per year" : "Spend per month"} prefix="₹" />
+      <Bars bars={bars} ariaLabel={`Spend per ${SLOT_NAMES[period]}`} prefix="₹" />
     </section>
   );
 }
@@ -107,7 +103,7 @@ export function EnergyAdded({
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatKwh(total)}</p>
         <p className="text-sm text-muted-foreground">{PERIOD_WORDS[period]}</p>
       </div>
-      <StackedBars bars={bars} series={ENERGY_SERIES} ariaLabel={period === "all" ? "Energy added per year" : "Energy added per month"} />
+      <StackedBars bars={bars} series={ENERGY_SERIES} ariaLabel={`Energy added per ${SLOT_NAMES[period]}`} />
       {efficiency !== null && (
         <div className="space-y-1">
           <p className="text-sm">

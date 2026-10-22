@@ -3,14 +3,15 @@ import { type Listed, SessionRow } from "@/components/session-row";
 import { Bars } from "@/components/stats/bars";
 import { BatteryTrend } from "@/components/stats/battery-trend";
 import { DriveRow } from "@/components/stats/drive-list";
-import { ByPeriod } from "@/components/stats/period-scope";
-import { PERIODS, type View } from "@/components/stats/periods";
+import type { View } from "@/components/stats/periods";
+import { eachPeriod } from "@/components/stats/stats-frame";
 import type { Drive, DrainSummary } from "@/lib/drives";
+import { spendBySlot } from "@/lib/charging-figures";
 import type { ChargingRates, Priced } from "@/lib/charging-rates";
 import type { WeeklyRange } from "@/lib/charge-level";
 import type { DrivingFigures } from "@/lib/driving-figures";
 import { formatKm } from "@/lib/format";
-import { type Period, slotsFor, sumBySlot } from "@/lib/periods";
+import { type Period, SLOT_NAMES, slotsFor } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { WeeklyPack } from "@/lib/telemetry-derive";
 import { MoreLink } from "./more-link";
@@ -33,12 +34,6 @@ function Section({ title, view, more, children }: { title: string; view: View; m
     </section>
   );
 }
-
-// What one bar covers, for screen readers.
-const PER: Record<Period, string> = { week: "day", month: "month", year: "month", all: "year" };
-
-// A chart per period, so the switch needs no server trip (see ByPeriod).
-const eachPeriod = (render: (period: Period) => ReactNode) => <ByPeriod panels={Object.fromEntries(PERIODS.map(({ value }) => [value, render(value)]))} />;
 
 // Rows keep their columns and scroll sideways on a phone, like the lists on the Stats pages.
 function Rows({ children }: { children: ReactNode }) {
@@ -68,13 +63,12 @@ export function ChargingSection({
   const compact = new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 });
   const bars = (period: Period) => {
     const slots = slotsFor(period, now);
-    const billed = sumBySlot(sessions, slots, (s) => Date.parse(s.started_at), (s) => s.cost_total ?? 0);
-    const atRates = sumBySlot(priced, slots, (p) => Date.parse(p.started_at), (p) => p.cost);
-    return slots.map((slot, k) => ({ key: String(slot.id), label: slot.label, value: billed[k] + atRates[k], display: compact.format(billed[k] + atRates[k]), isCurrent: slot.isCurrent }));
+    const spend = spendBySlot(sessions, priced, slots);
+    return slots.map((slot, k) => ({ key: String(slot.id), label: slot.label, value: spend[k], display: compact.format(spend[k]), isCurrent: slot.isCurrent }));
   };
   return (
     <Section title="Charging" view="charging" more="All sessions">
-      {eachPeriod((p) => <Bars bars={bars(p)} ariaLabel={`Spend per ${PER[p]}`} prefix="₹" />)}
+      {eachPeriod((p) => <Bars bars={bars(p)} ariaLabel={`Spend per ${SLOT_NAMES[p]}`} prefix="₹" />)}
       <Rows>
         {listed.slice(0, ROWS).map((item) => (
           <SessionRow key={item.key} item={item} now={now} rates={rates} />
@@ -94,7 +88,7 @@ export function DrivingSection({ figures, drives, now }: { figures: DrivingFigur
     });
   return (
     <Section title="Driving" view="driving" more="All drives">
-      {eachPeriod((p) => <Bars bars={bars(p)} ariaLabel={`Distance per ${PER[p]} in km`} />)}
+      {eachPeriod((p) => <Bars bars={bars(p)} ariaLabel={`Distance per ${SLOT_NAMES[p]} in km`} />)}
       {drives.length > 0 && (
         <Rows>
           {drives.slice(0, ROWS).map((d, i) => (

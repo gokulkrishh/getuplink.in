@@ -1,16 +1,13 @@
 import { Bars } from "@/components/stats/bars";
 import { formatKwh, formatShortDate } from "@/lib/format";
 import type { DrivingFigures } from "@/lib/driving-figures";
-import { type Period, PERIOD_WORDS, slotsFor } from "@/lib/periods";
+import { type Period, PERIOD_WORDS, SLOT_NAMES, slotsFor } from "@/lib/periods";
 import type { DayKm } from "@/lib/telemetry-derive";
 
 // The Driving page's sections: distance per month and per day, and energy use with regen.
 
 const compactNumber = new Intl.NumberFormat("en-IN");
 const kwhCompact = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
-
-// What one bar covers, for screen readers.
-const SLOT_NAMES: Record<Period, string> = { week: "day", month: "month", year: "month", all: "year" };
 
 // Distance for the period, with a bar per day (Week), month or year.
 export function Distance({ figures, now, period }: { figures: DrivingFigures; now: number; period: Period }) {

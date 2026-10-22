@@ -1,5 +1,5 @@
 import type { Priced } from "@/lib/charging-rates";
-import { inSpan, type Span } from "@/lib/periods";
+import { inSpan, type Slot, type Span, sumBySlot } from "@/lib/periods";
 
 // What charging cost and added in a span, counted the way the Charging page counts it. Pass Tesla's
 // sessions and only the streamed sessions Tesla didn't bill (see matchSessions), so none counts twice.
@@ -19,6 +19,13 @@ export function spendIn(sessions: Billed[], priced: Priced[], span: Span): { cos
     atYourRates,
     currency: sessions.find((s) => s.currency)?.currency ?? "INR",
   };
+}
+
+// Spend per bar, counted like spendIn.
+export function spendBySlot(sessions: Billed[], priced: Priced[], slots: Slot[]): number[] {
+  const billed = sumBySlot(sessions, slots, (s) => Date.parse(s.started_at), (s) => s.cost_total ?? 0);
+  const atYourRates = sumBySlot(priced, slots, (p) => Date.parse(p.started_at), (p) => p.cost);
+  return billed.map((value, k) => value + atYourRates[k]);
 }
 
 // Tesla's billed kWh for its sessions, the car's own figure for the others.

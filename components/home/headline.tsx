@@ -75,7 +75,8 @@ export function Headline({
   const energyBefore = comparable ? energyIn(sessions, streamOnly, before) : null;
   const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: spend.currency, maximumFractionDigits: 0 });
   const compare = (value: number | null, earlier: number | null, unit: string | ((n: number) => string), lowerIsBetter = false) =>
-    value === null ? null : (compareToPrevious(value, earlier, unit, label, { lowerIsBetter }) ?? tracking);
+    // "Tracking since" only explains a missing comparison when tracking began after the span compared with.
+    value === null ? null : (compareToPrevious(value, earlier, unit, label, { lowerIsBetter }) ?? (comparable ? null : tracking));
 
   return (
     <div className="grid grid-cols-2 gap-3">

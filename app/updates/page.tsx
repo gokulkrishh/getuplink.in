@@ -124,7 +124,7 @@ async function Updates({ searchParams }: Pick<PageProps<"/updates">, "searchPara
       {DEMO && <DemoBar active={demo} path="/updates" />}
       <OwnerNotices data={data} count={cars.length} failedRun={failedRun} />
       {data.kind === "ready" && cars.length > 0 && (
-        <PeriodScope initial={period}>
+        <PeriodScope key={period} initial={period}>
           <div className="space-y-24">
             {cars.map((car) => (
               <CarUpdates
