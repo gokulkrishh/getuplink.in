@@ -67,3 +67,33 @@ export function generationLabel(pkg: string | null | undefined): string | null {
   const m = pkg?.match(/Refresh(\d{4})/);
   return m ? `${m[1]} refresh` : null;
 }
+
+// trim_badging is the pack's badge: "50" is the Standard Range pack, "74"/"74d" the Long Range one.
+// Only the codes we're sure of; anything else hides the row.
+const TRIMS: Record<string, string> = { "50": "Standard Range", "74": "Long Range", "74d": "Long Range" };
+export function trimLabel(trim: string | null | undefined): string | null {
+  return (trim && TRIMS[trim.toLowerCase()]) || null;
+}
+
+// Tesla doesn't report the cell chemistry. Shanghai-built cars that default to charging to 100% carry
+// LFP packs (LFP is fine kept full; nickel packs default lower), so that pair is a fair guess.
+export function likelyLfp(vin: string | null | undefined, defaultChargeToMax: boolean | null | undefined): boolean {
+  return !!vin && vin.charAt(10).toUpperCase() === "C" && defaultChargeToMax === true;
+}
+
+// From the drive units the car reports; null when it reports none.
+export function motorLayout(rear: string | null | undefined, front: string | null | undefined): string | null {
+  if (rear && front) return "Dual motor";
+  return rear ? "Single rear motor" : null;
+}
+
+const PSI_PER_BAR = 14.5038;
+// Tesla's recommended cold pressures, in bar: "2.9 bar (42 psi)", or front and rear when they differ.
+export function tyrePressureLabel(front: number | null | undefined, rear: number | null | undefined): string | null {
+  const ok = (v: number | null | undefined): v is number => typeof v === "number" && v > 0;
+  const bar = (v: number) => `${v.toFixed(1)} bar`;
+  const psi = (v: number) => `${Math.round(v * PSI_PER_BAR)} psi`;
+  if (!ok(front) || !ok(rear)) return null;
+  if (bar(front) === bar(rear)) return `${bar(front)} (${psi(front)})`;
+  return `${bar(front)} front · ${bar(rear)} rear (${psi(front)} · ${psi(rear)})`;
+}

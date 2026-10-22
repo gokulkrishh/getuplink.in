@@ -102,6 +102,20 @@ const CONFIG = {
   has_seat_cooling: true,
   rear_seat_heaters: 1,
   has_air_suspension: false,
+  rear_drive_unit: "PM216MOSFET",
+  default_charge_to_max: true,
+  motorized_charge_port: true,
+  wheel_caps_on: true,
+  exterior_trim: "Black",
+};
+
+// The rest of the poll's raw JSON the car page reads.
+const VEHICLE_STATE = {
+  tpms_rcp_front_value: 2.9,
+  tpms_rcp_rear_value: 2.9,
+  sentry_mode_available: true,
+  dashcam_clip_save_supported: true,
+  webcam_supported: true,
 };
 
 export type HealthRow = { component: string; status: Status; checked_at: string };
@@ -113,6 +127,8 @@ export type DemoData = {
   vehicle: Vehicle;
   snapshot: Snapshot;
   config: typeof CONFIG;
+  vehicleState: typeof VEHICLE_STATE;
+  superchargingEnabled: boolean;
   odometerMiles: number;
   history: VersionChange[]; // newest first
   notes: ReleaseNotesByVersion;
@@ -570,6 +586,8 @@ export function generateDemo(now: number): DemoData {
     vehicle,
     snapshot,
     config: CONFIG,
+    vehicleState: VEHICLE_STATE,
+    superchargingEnabled: true,
     odometerMiles: odometer,
     history: history.reverse(),
     notes: NOTES,

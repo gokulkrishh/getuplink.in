@@ -73,6 +73,7 @@ async function Car({ id }: { id: Promise<string | null> }) {
             ["Wheels", car.wheels],
             ["Roof", car.roof],
             ["Interior", car.interior],
+            ["Exterior trim", car.exteriorTrim],
           ]}
         />
         <Group
@@ -84,26 +85,63 @@ async function Car({ id }: { id: Promise<string | null> }) {
             ["Ventilated front seats", yesNo(car.seatCooling)],
             ["Heated rear seats", yesNo(car.rearSeatHeaters)],
             ["Air suspension", yesNo(car.airSuspension)],
+            ["Recommended tyre pressure", car.tyrePressure],
+            [
+              "Software",
+              car.version && (
+                <Link href="/updates" prefetch={true} className="font-mono hover:text-muted-foreground">
+                  {car.version}
+                </Link>
+              ),
+            ],
           ]}
         />
-        {car.battery && (
-          <div className="space-y-3">
-            <Group
-              title="Battery health"
-              rows={[
-                ["Estimated full pack", `${car.battery.kwh.toFixed(1)} kWh`],
-                [
-                  "Based on",
-                  `${car.battery.readings === 1 ? "1 reading" : `${car.battery.readings} readings`} in the week of ${formatShortDate(car.battery.weekStart)}`,
-                ],
-              ]}
-            />
+        {car.supported.length > 0 && <Group title="Supported" rows={car.supported.map((name) => [name, "Yes"])} />}
+        <div className="space-y-3">
+          <Group
+            title="Battery & drive"
+            rows={[
+              ["Battery", car.pack],
+              // The latest week's estimate, as on /stats/battery; shown once, here.
+              [
+                "Pack",
+                car.battery && (
+                  <>
+                    ≈{Math.round(car.battery.kwh)} kWh (estimated)
+                    <span className="block text-xs text-muted-foreground">
+                      {car.battery.readings === 1 ? "1 reading" : `${car.battery.readings} readings`} in the week of{" "}
+                      {formatShortDate(car.battery.weekStart)}
+                    </span>
+                  </>
+                ),
+              ],
+              [
+                "Chemistry",
+                car.likelyLfp && (
+                  <>
+                    LFP (likely)
+                    <span className="block text-xs text-muted-foreground">Inferred from where it was built and its charging defaults.</span>
+                  </>
+                ),
+              ],
+              [
+                "Motor",
+                car.motor && (
+                  <>
+                    {car.motor}
+                    {car.rearDriveUnit && <span className="ml-2 font-mono text-xs text-muted-foreground">{car.rearDriveUnit}</span>}
+                  </>
+                ),
+              ],
+            ]}
+          />
+          {car.battery && (
             <Link href="/stats/battery" prefetch={true} className="flex w-fit items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
               Battery trend
               <ChevronRight className="size-3" aria-hidden="true" />
             </Link>
-          </div>
-        )}
+          )}
+        </div>
         {car.lastAcCharge && (
           <Group
             title="Last AC charge"

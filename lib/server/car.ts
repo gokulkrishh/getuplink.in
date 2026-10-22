@@ -6,9 +6,13 @@ import {
   generationLabel,
   hardwareLabel,
   interiorLabel,
+  likelyLfp,
   modelName,
+  motorLayout,
   modelYear,
   roofLabel,
+  trimLabel,
+  tyrePressureLabel,
   wheelsLabel,
 } from "@/lib/car";
 import { DEMO } from "@/lib/demo";
@@ -38,6 +42,17 @@ export type CarDetails = {
   seatCooling: boolean | null;
   rearSeatHeaters: boolean | null;
   airSuspension: boolean | null;
+  exteriorTrim: string | null;
+  // Battery & drive. Chemistry is a guess (see likelyLfp), so it's only ever "LFP" or unknown.
+  pack: string | null;
+  likelyLfp: boolean;
+  motor: string | null;
+  rearDriveUnit: string | null;
+  tyrePressure: string | null;
+  // The software the latest online check saw.
+  version: string | null;
+  // The features the car says it has, readable; empty when it said none.
+  supported: string[];
   // The latest check that saw the car online; the details need one.
   checkedAt: string | null;
   // The latest week's estimated full pack, as the battery trend on /stats/battery has it.
@@ -63,15 +78,33 @@ type Config = Partial<{
   has_seat_cooling: boolean;
   rear_seat_heaters: number;
   has_air_suspension: boolean;
+  rear_drive_unit: string;
+  front_drive_unit: string;
+  default_charge_to_max: boolean;
+  motorized_charge_port: boolean;
+  wheel_caps_on: boolean;
+  exterior_trim: string;
 }>;
+
+// The parts of the poll's vehicle_state the page uses.
+type VehicleState = Partial<{
+  tpms_rcp_front_value: number;
+  tpms_rcp_rear_value: number;
+  sentry_mode_available: boolean;
+  dashcam_clip_save_supported: boolean;
+  webcam_supported: boolean;
+}>;
+
+type Check = { polledAt: string; version: string | null; config: Config; state: VehicleState; supercharging: boolean | null };
 
 function details(
   id: string,
   name: string | null,
   vin: string | null,
-  config: Config,
-  checkedAt: string | null,
+  check: Check | null,
 ): CarDetails {
+  const config = check?.config ?? {};
+  const state = check?.state ?? {};
   const model = modelName(config.car_type);
   return {
     id,
@@ -83,16 +116,29 @@ function details(
     factory: factory(vin),
     drive: driveLabel(config.trim_badging, config.performance_package),
     paint: colorName(config.exterior_color),
-    wheels: wheelsLabel(config.wheel_type),
+    wheels: [wheelsLabel(config.wheel_type), config.wheel_caps_on && "aero covers"].filter(Boolean).join(" · ") || null,
     roof: roofLabel(config.roof_color),
     interior: interiorLabel(config.interior_trim_type),
     hardware: hardwareLabel(config.driver_assist),
-    chargePort: config.charge_port_type ?? null,
+    chargePort: [config.charge_port_type, config.motorized_charge_port && "motorised door"].filter(Boolean).join(" · ") || null,
     steering: config.rhd === undefined ? null : config.rhd ? "Right-hand drive" : "Left-hand drive",
     seatCooling: config.has_seat_cooling ?? null,
     rearSeatHeaters: config.rear_seat_heaters === undefined ? null : config.rear_seat_heaters > 0,
     airSuspension: config.has_air_suspension ?? null,
-    checkedAt,
+    exteriorTrim: colorName(config.exterior_trim),
+    pack: trimLabel(config.trim_badging),
+    likelyLfp: likelyLfp(vin, config.default_charge_to_max),
+    motor: motorLayout(config.rear_drive_unit, config.front_drive_unit),
+    rearDriveUnit: config.rear_drive_unit ?? null,
+    tyrePressure: tyrePressureLabel(state.tpms_rcp_front_value, state.tpms_rcp_rear_value),
+    version: check?.version ?? null,
+    supported: [
+      state.sentry_mode_available && "Sentry mode",
+      state.dashcam_clip_save_supported && "Dashcam",
+      state.webcam_supported && "Cabin camera",
+      check?.supercharging && "Supercharging",
+    ].filter((s): s is string => typeof s === "string"),
+    checkedAt: check?.polledAt ?? null,
     battery: null,
     lastAcCharge: null,
   };
@@ -158,9 +204,15 @@ async function loadLatestWeekPack(vin: string, now: number): Promise<WeeklyPack 
 export async function loadCarDetails(id: string): Promise<CarDetails | null> {
   if (!/^\d+$/.test(id)) return null;
   if (DEMO) {
-    const { vehicle, snapshot, config } = demoData();
+    const { vehicle, snapshot, config, vehicleState, superchargingEnabled } = demoData();
     if (id !== vehicle.id || !vehicle.vin) return null;
-    const car = details(vehicle.id, vehicle.display_name, vehicle.vin, config, snapshot.polled_at);
+    const car = details(vehicle.id, vehicle.display_name, vehicle.vin, {
+      polledAt: snapshot.polled_at,
+      version: snapshot.car_version,
+      config,
+      state: vehicleState,
+      supercharging: superchargingEnabled,
+    });
     const [battery, lastAcCharge] = await Promise.all([loadLatestWeekPack(vehicle.vin, Date.now()), loadLastAcCharge(vehicle.vin)]);
     return { ...car, battery, lastAcCharge };
   }
@@ -168,8 +220,14 @@ export async function loadCarDetails(id: string): Promise<CarDetails | null> {
     db().from("vehicles").select("id:id::text, vin, display_name").eq("id", id).maybeSingle(),
     db()
       .from("snapshots")
+      // Picked keys only: vehicle_state carries more than the page needs, and nothing location-related is read.
       .select(
-        "polled_at, config:raw->vehicle_config",
+        [
+          "polled_at, car_version, config:raw->vehicle_config, supercharging:raw->supercharging_enabled",
+          "tpms_front:raw->vehicle_state->tpms_rcp_front_value, tpms_rear:raw->vehicle_state->tpms_rcp_rear_value",
+          "sentry:raw->vehicle_state->sentry_mode_available, dashcam:raw->vehicle_state->dashcam_clip_save_supported",
+          "webcam:raw->vehicle_state->webcam_supported",
+        ].join(", "),
       )
       .eq("vehicle_id", id)
       .eq("state", "online")
@@ -182,8 +240,36 @@ export async function loadCarDetails(id: string): Promise<CarDetails | null> {
   if (snapshot.error) throw new Error(`Reading the car's last check failed: ${snapshot.error.message}`);
   if (!vehicle.data) return null;
   const v = vehicle.data as { id: string; vin: string | null; display_name: string | null };
-  const s = snapshot.data as { polled_at: string; config: Config | null } | null;
-  const car = details(v.id, v.display_name, v.vin, s?.config ?? {}, s?.polled_at ?? null);
+  const s = snapshot.data as {
+    polled_at: string;
+    car_version: string | null;
+    config: Config | null;
+    supercharging: unknown;
+    tpms_front: unknown;
+    tpms_rear: unknown;
+    sentry: unknown;
+    dashcam: unknown;
+    webcam: unknown;
+  } | null;
+  const flag = (v: unknown) => (typeof v === "boolean" ? v : undefined);
+  const car = details(
+    v.id,
+    v.display_name,
+    v.vin,
+    s && {
+      polledAt: s.polled_at,
+      version: s.car_version,
+      config: s.config ?? {},
+      state: {
+        tpms_rcp_front_value: num(s.tpms_front) ?? undefined,
+        tpms_rcp_rear_value: num(s.tpms_rear) ?? undefined,
+        sentry_mode_available: flag(s.sentry),
+        dashcam_clip_save_supported: flag(s.dashcam),
+        webcam_supported: flag(s.webcam),
+      },
+      supercharging: flag(s.supercharging) ?? null,
+    },
+  );
   if (!v.vin) return car;
   const [battery, lastAcCharge] = await Promise.all([loadLatestWeekPack(v.vin, Date.now()), loadLastAcCharge(v.vin)]);
   return { ...car, battery, lastAcCharge };
