@@ -340,9 +340,10 @@ export async function deleteMyData(): Promise<void> {
     ["charging_sessions", "session_id"],
     ["stream_charge_sessions", "vin"],
     ["telemetry_readings", "vin"],
+    ["owner_settings", "owner"],
   ] as const) {
     const { error } = await db().from(table).delete().not(column, "is", null);
-    const optional = table === "charging_sessions" || table === "stream_charge_sessions";
+    const optional = table === "charging_sessions" || table === "stream_charge_sessions" || table === "owner_settings";
     if (error && !(optional && ["42P01", "PGRST205"].includes(error.code))) {
       throw new Error(`Deleting ${table} failed: ${error.message}`);
     }
