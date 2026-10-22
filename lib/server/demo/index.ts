@@ -3,6 +3,7 @@ import { buildSessions, CHARGE_FIELDS } from "@/lib/charge-sessions";
 import { MILES_TO_KM } from "@/lib/car";
 import { type WeekSummary, weekSummary } from "@/lib/dashboard-summary";
 import type { DemoScenario } from "@/lib/demo";
+import type { CounterColumn } from "@/lib/driving-figures";
 import type { ChargingRates } from "@/lib/charging-rates";
 import type { Stream } from "@/lib/telemetry";
 import { istDay, istDayStart, num, type Reading, type UpdateRow } from "@/lib/telemetry-derive";
@@ -59,6 +60,26 @@ export function demoCounter(field: string, before: string | null, ascending = fa
   const limit = before ? Date.parse(before) : Infinity;
   const last = readings.findLast((r) => Date.parse(r.at) < limit);
   return num(last?.value);
+}
+
+// loadCounters for the demo car: each field's first reading, and its last reading before each instant
+// (Infinity: the latest), with when they were read. `since` drops the readings before it, like a car
+// connected then (the First week scenario).
+export function demoCounters(fields: string[], instants: number[], since = -Infinity): Map<string, CounterColumn> {
+  const data = demoData();
+  return new Map(
+    fields.map((field) => {
+      const readings = (data.readings[field] ?? [])
+        .map((r) => ({ value: num(r.value), at: Date.parse(r.at) }))
+        .filter((r): r is { value: number; at: number } => r.value !== null && r.at >= since);
+      return [field, { first: readings[0] ?? null, bounds: instants.map((t) => readings.findLast((r) => r.at < t) ?? null) }];
+    }),
+  );
+}
+
+// When the First week scenario's car was connected: four days ago, at the start of the IST day.
+export function demoFirstWeekStart(): number {
+  return istDayStart(istDay(demoData().now) - 4);
 }
 
 export function demoLastReadingAt(): string | null {

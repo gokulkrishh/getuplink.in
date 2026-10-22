@@ -5,11 +5,12 @@ import { type ChargeLevel, type WeeklyRange } from "@/lib/charge-level";
 import { analyseDriving, DRIVE_DAYS, type Driving } from "@/lib/drives";
 import { type DayKm, dailyDistance, istDay, istDayStart, num, type WeeklyPack } from "@/lib/telemetry-derive";
 import { DEMO } from "@/lib/demo";
+import { type DrivingFigures, drivingFigures, figureInstants } from "@/lib/driving-figures";
 import { batteryTrend, trendWindow } from "./battery";
 import { chargeLevel, fullRange } from "./charge-level";
-import { demoCounter } from "./demo";
+import { demoCounter, demoCounters } from "./demo";
 import { db } from "./supabase";
-import { type CounterColumn, type CounterValue, loadCounters, monthBounds, toColumn } from "./energy";
+import { type CounterColumn, type CounterValue, LATEST, loadCounters, monthBounds, toColumn } from "./energy";
 import { loadReadingsByField } from "./telemetry-window";
 
 export type MonthlyDistance = { month: string; km: number };
@@ -65,6 +66,22 @@ export async function loadMonthlyDistance(vin: string | null): Promise<MonthlyDi
     result.push({ month: monthKey(firstIndex + k), km: Math.max(0, Math.round(end - start)) });
   }
   return result;
+}
+
+const FIGURE_FIELDS = ["Odometer", "LifetimeEnergyUsed", "LifetimeEnergyGainedRegen"];
+
+// Distance, energy use and regen for every period (see drivingFigures), in two requests: the streamed
+// counters and the polled odometer, each at every instant the figures need. `demoSince` is the demo's
+// First week cut (see demoFirstWeekStart); it does nothing outside demo mode.
+export async function loadDrivingFigures(vin: string | null, now: number, demoSince?: number): Promise<DrivingFigures> {
+  const instants = figureInstants(now);
+  const bounds = instants.map((t) => (t === Infinity ? LATEST : new Date(t).toISOString()));
+  const [counters, polledOdometer] = await Promise.all([
+    !vin ? null : DEMO && demoSince !== undefined ? demoCounters(FIGURE_FIELDS, instants, demoSince) : loadCounters(vin, FIGURE_FIELDS, bounds),
+    loadPolledOdometers(bounds),
+  ]);
+  const column = (field: string) => counters?.get(field) ?? null;
+  return drivingFigures({ instants, odometer: column("Odometer"), used: column("LifetimeEnergyUsed"), regen: column("LifetimeEnergyGainedRegen"), polledOdometer }, now);
 }
 
 export const DRIVING_DAYS = 90;

@@ -4,7 +4,9 @@ import { istDay, istDayStart } from "@/lib/telemetry-derive";
 // Pure period maths for the home page and the Stats pages: which instants a period covers, the bars it
 // draws and the span it is compared with. Everything is in IST, never server-local date getters.
 
-export type Period = "week" | "month" | "6m" | "year" | "all";
+export type Period = "week" | "month" | "year" | "all";
+
+export const PERIOD_ORDER: Period[] = ["week", "month", "year", "all"];
 
 const DAY_MS = 86_400_000;
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
@@ -39,7 +41,6 @@ export const monthStart = (index: number) => Date.UTC(yearOf(index), index % 12,
 // current month, as close as monthly data gets.
 export function inPeriod(period: Period, index: number, cur: number): boolean {
   if (period === "month" || period === "week") return index === cur;
-  if (period === "6m") return index > cur - 6 && index <= cur;
   if (period === "year") return yearOf(index) === yearOf(cur);
   return true;
 }
@@ -52,12 +53,11 @@ export type Span = { from: number; to: number };
 
 export const inSpan = (at: number, span: Span) => at >= span.from && at < span.to;
 
-// The period so far: the last 7 IST days (today included), this month, the last 6 months, this year, or everything.
+// The period so far: the last 7 IST days (today included), this month, this year, or everything.
 export function periodSpan(period: Period, now: number): Span {
   const cur = monthIndex(now);
   if (period === "week") return { from: istDayStart(istDay(now) - WEEK_DAYS + 1), to: Infinity };
   if (period === "month") return { from: monthStart(cur), to: Infinity };
-  if (period === "6m") return { from: monthStart(cur - 5), to: Infinity };
   if (period === "year") return { from: monthStart(yearOf(cur) * 12), to: Infinity };
   return { from: -Infinity, to: Infinity };
 }
@@ -69,7 +69,7 @@ export function previousSpan(period: Period, now: number): Span | null {
   const { from } = periodSpan(period, now);
   if (period === "week") return { from: from - WEEK_DAYS * DAY_MS, to: from };
   const cur = monthIndex(now);
-  const start = monthStart(period === "month" ? cur - 1 : period === "6m" ? cur - 11 : (yearOf(cur) - 1) * 12);
+  const start = monthStart(period === "month" ? cur - 1 : (yearOf(cur) - 1) * 12);
   return { from: start, to: Math.min(from, start + (now - from)) };
 }
 
@@ -92,8 +92,8 @@ export function previousLabel(period: Period, now: number): string | null {
 // One bar: the instants it covers and its label. Its id is its start, unique within a period.
 export type Slot = { id: number; label: string; from: number; to: number; isCurrent: boolean };
 
-// The bars a period draws: the last 7 days (Week), 6 months (Month, 6 months), the 12 months of this year
-// (Year), or 6 years (All).
+// The bars a period draws: the last 7 days (Week), the last 6 months (Month, so the half-year shape stays),
+// the 12 months of this year (Year), or 6 years (All).
 export function slotsFor(period: Period, now: number): Slot[] {
   const cur = monthIndex(now);
   const month = (index: number): Slot => ({
@@ -137,7 +137,6 @@ export function sumBySlot<T>(items: T[], slots: Slot[], at: (item: T) => number,
 export const PERIOD_WORDS: Record<Period, string> = {
   week: "in the last 7 days",
   month: "this month",
-  "6m": "in the last 6 months",
   year: "this year",
   all: "in total",
 };

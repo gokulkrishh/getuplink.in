@@ -1,8 +1,9 @@
 import "server-only";
 import { monthIndex, monthKey } from "@/lib/periods";
 import { type EnergyMonth, type Span, energyUseMonth, num } from "@/lib/telemetry-derive";
+import type { CounterColumn, CounterValue } from "@/lib/driving-figures";
 import { DEMO } from "@/lib/demo";
-import { demoCounter } from "./demo";
+import { demoCounters } from "./demo";
 import { db } from "./supabase";
 
 export type MonthlyEnergy = { month: string; energy: EnergyMonth | null };
@@ -22,10 +23,7 @@ export function monthBounds(firstIndex: number): string[] {
   return [...Array.from({ length: MONTHS }, (_, k) => monthStart(firstIndex + k)), LATEST];
 }
 
-// A counter's value and when it was read (ms).
-export type CounterValue = { value: number; at: number };
-// The first reading ever, then the last reading before each boundary.
-export type CounterColumn = { first: CounterValue | null; bounds: (CounterValue | null)[] };
+export type { CounterColumn, CounterValue };
 // A row from counter_values_at / snapshot_odometer_at: `at` is the boundary, or null for the first reading.
 export type BoundRow = { at: string | null; value: number | null; readAt: string | null };
 
@@ -50,15 +48,7 @@ export function toColumn(bounds: string[], rows: BoundRow[]): CounterColumn {
 // Counters at each boundary, per field, in one request. The counters only send a row when they change, so
 // the last reading before a boundary is the value there. Null when the query fails.
 export async function loadCounters(vin: string, fields: string[], bounds: string[]): Promise<Map<string, CounterColumn> | null> {
-  if (DEMO) {
-    const reading = (value: number | null) => (value === null ? null : { value, at: 0 });
-    return new Map(
-      fields.map((field) => [
-        field,
-        { first: reading(demoCounter(field, null, true)), bounds: bounds.map((bound) => reading(demoCounter(field, bound === LATEST ? null : bound))) },
-      ]),
-    );
-  }
+  if (DEMO) return demoCounters(fields, bounds.map((bound) => (bound === LATEST ? Infinity : Date.parse(bound))));
   const { data, error } = await db().rpc("counter_values_at", { p_vin: vin, p_fields: fields, p_at: bounds });
   if (error) {
     console.warn(`Telemetry ${fields.join(", ")} unavailable:`, error.message);

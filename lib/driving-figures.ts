@@ -1,0 +1,127 @@
+import { MILES_TO_KM } from "@/lib/car";
+import { MIN_EFFICIENCY_KM } from "@/lib/dashboard-summary";
+import { type Period, PERIOD_ORDER, periodSpan, previousSpan, slotsFor, type Span } from "@/lib/periods";
+import { MIN_ENERGY_KM } from "@/lib/telemetry-derive";
+
+// Distance, energy use and regen for every period, its comparison span and its bars, from cumulative
+// counters read at a fixed list of instants (see figureInstants). Pure: the loader in lib/server/driving.ts
+// reads the counters (or the demo's) in two requests and passes them through here.
+
+// A counter's value and when it was read (ms).
+export type CounterValue = { value: number; at: number };
+// The first reading ever, then the last reading before each instant of a list.
+export type CounterColumn = { first: CounterValue | null; bounds: (CounterValue | null)[] };
+
+// Every instant the figures read the counters at: each bar's edges, each period's start and the span it is
+// compared with. Instants after now become Infinity, whose last reading is the latest.
+export function figureInstants(now: number): number[] {
+  const instants = new Set<number>([Infinity]);
+  const add = (t: number) => {
+    if (Number.isFinite(t)) instants.add(t > now ? Infinity : t);
+  };
+  for (const period of PERIOD_ORDER) {
+    add(periodSpan(period, now).from);
+    const previous = previousSpan(period, now);
+    if (previous) {
+      add(previous.from);
+      add(previous.to);
+    }
+    for (const slot of slotsFor(period, now)) {
+      add(slot.from);
+      add(slot.to);
+    }
+  }
+  return [...instants].sort((a, b) => a - b);
+}
+
+// A counter's readings by instant.
+type Readings = { first: CounterValue | null; before: Map<number, CounterValue | null> };
+
+function byInstant(instants: number[], column: CounterColumn | null): Readings | null {
+  return column ? { first: column.first, before: new Map(instants.map((t, k) => [t, column.bounds[k] ?? null])) } : null;
+}
+
+// Two sources of one counter (the streamed odometer and the polled one): the reading taken last before each
+// instant, and the earlier first reading.
+function newest(a: Readings | null, b: Readings | null): Readings | null {
+  if (!a || !b) return a ?? b;
+  const later = (x: CounterValue | null, y: CounterValue | null) => (!x ? y : !y ? x : y.at > x.at ? y : x);
+  const earlier = (x: CounterValue | null, y: CounterValue | null) => (!x ? y : !y ? x : y.at < x.at ? y : x);
+  return { first: earlier(a.first, b.first), before: new Map([...a.before].map(([t, x]) => [t, later(x, b.before.get(t) ?? null)])) };
+}
+
+const valueBefore = (r: Readings, t: number, now: number) => r.before.get(t > now ? Infinity : t)?.value ?? null;
+
+// The span has a reading before it starts, so its rise is the whole span's, not part of it.
+const covers = (r: Readings | null, span: Span, now: number) => Boolean(r) && Number.isFinite(span.from) && valueBefore(r!, span.from, now) !== null;
+
+// How much a counter rose over a span: from its last value before the span (its first reading when there
+// is none: the span began before tracking did) to its last value before the span ends. Null when nothing
+// was read by the end, or the span lies ahead.
+function rise(r: Readings | null, span: Span, now: number): number | null {
+  if (!r || span.from > now) return null;
+  const end = valueBefore(r, span.to, now);
+  const start = (Number.isFinite(span.from) ? valueBefore(r, span.from, now) : null) ?? r.first?.value ?? null;
+  return end === null || start === null ? null : Math.max(0, end - start);
+}
+
+export type DrivingFigure = { km: number | null; whPerKm: number | null; regenKwh: number | null };
+// `previous` is the span it is compared with (see previousSpan); a figure there is null unless its counter
+// was read before that span began. `bars` follow slotsFor.
+export type DrivingPeriod = { current: DrivingFigure; previous: DrivingFigure | null; bars: DrivingFigure[] };
+// `since` is the first odometer reading (when tracking began); `odometerKm` the latest.
+export type DrivingFigures = { periods: Record<Period, DrivingPeriod>; since: number | null; odometerKm: number | null };
+
+export type DrivingCounters = {
+  instants: number[];
+  // Streamed counters: Odometer (miles), LifetimeEnergyUsed and LifetimeEnergyGainedRegen (kWh).
+  odometer: CounterColumn | null;
+  used: CounterColumn | null;
+  regen: CounterColumn | null;
+  // The polled odometer (miles), from before the stream began.
+  polledOdometer: CounterColumn | null;
+};
+
+export function drivingFigures(input: DrivingCounters, now: number): DrivingFigures {
+  const at = (column: CounterColumn | null) => byInstant(input.instants, column);
+  const streamed = at(input.odometer);
+  const odometer = newest(streamed, at(input.polledOdometer));
+  const used = at(input.used);
+  const regen = at(input.regen);
+
+  // Energy use needs the streamed odometer: the energy counter only exists since the stream began. Below
+  // minKm the figure is mostly parked use (Sentry Mode, climate), so there is none.
+  const figure = (span: Span, minKm: number, onlyCovered = false): DrivingFigure => {
+    const counted = (r: Readings | null) => (!onlyCovered || covers(r, span, now) ? r : null);
+    const miles = rise(counted(odometer), span, now);
+    const streamedMiles = rise(counted(streamed), span, now);
+    const kwh = rise(counted(used), span, now);
+    const streamedKm = streamedMiles === null ? 0 : streamedMiles * MILES_TO_KM;
+    return {
+      km: miles === null ? null : Math.round(miles * MILES_TO_KM),
+      whPerKm: kwh !== null && kwh > 0 && streamedKm >= minKm ? (kwh * 1000) / streamedKm : null,
+      regenKwh: rise(counted(regen), span, now),
+    };
+  };
+
+  const periods = Object.fromEntries(
+    PERIOD_ORDER.map((period) => {
+      const minKm = period === "week" ? MIN_EFFICIENCY_KM : MIN_ENERGY_KM;
+      const previous = previousSpan(period, now);
+      return [
+        period,
+        {
+          current: figure(periodSpan(period, now), minKm),
+          previous: previous && figure(previous, minKm, true),
+          bars: slotsFor(period, now).map((slot) => figure(slot, minKm)),
+        },
+      ];
+    }),
+  ) as Record<Period, DrivingPeriod>;
+  const latest = odometer ? valueBefore(odometer, Infinity, now) : null;
+  return {
+    periods,
+    since: odometer?.first?.at ?? null,
+    odometerKm: latest === null ? null : Math.round(latest * MILES_TO_KM),
+  };
+}

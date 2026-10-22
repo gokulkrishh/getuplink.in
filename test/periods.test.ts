@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { energyIn, spendIn } from "@/lib/charging-figures";
 import { compareToPrevious } from "@/lib/dashboard-summary";
 import { formatShortDate } from "@/lib/format";
 import { inSpan, monthIndex, monthStart, periodSpan, previousLabel, previousSpan, slotsFor, sumBySlot } from "@/lib/periods";
@@ -127,5 +128,24 @@ describe("compareToPrevious", () => {
   });
   test("null without a previous figure", () => {
     expect(compareToPrevious(10, null, "km", "1–22 Oct")).toBeNull();
+  });
+});
+
+describe("spendIn and energyIn", () => {
+  const span = { from: ist("2026-10-01T00:00:00"), to: Infinity };
+  const tesla = [
+    { started_at: "2026-10-10T05:00:00Z", cost_total: 1012, energy_kwh: 42, currency: "INR" },
+    { started_at: "2026-09-20T05:00:00Z", cost_total: 900, energy_kwh: 40, currency: "INR" },
+  ];
+  const streamOnly = [
+    { started_at: "2026-10-12T05:00:00Z", energy_added_kwh: 30.1 },
+    { started_at: "2026-10-15T05:00:00Z", energy_added_kwh: null },
+  ];
+  const priced = [{ started_at: "2026-10-12T05:00:00Z", cost: 690, energy: 30.1 }];
+  test("Tesla's bill plus the owner's rates, in the span only", () => {
+    expect(spendIn(tesla, priced, span)).toEqual({ cost: 1702, atYourRates: 690, currency: "INR" });
+  });
+  test("energy from Tesla's sessions and the car's own", () => {
+    expect(energyIn(tesla, streamOnly, span)).toBeCloseTo(72.1, 6);
   });
 });
