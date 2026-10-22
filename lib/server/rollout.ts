@@ -1,11 +1,20 @@
 import "server-only";
 import { DEMO } from "@/lib/demo";
 import { buildRollout, GLOBAL_RELEASES, type Rollout, type RolloutChange } from "@/lib/rollout";
+import { buildStateRollout, type VersionStates } from "@/lib/rollout-states";
 import { demoFleet } from "./demo";
 import { missingEnv } from "./env";
+import { carStates } from "./home-state";
 import { db } from "./supabase";
 
-export type RolloutPage = { kind: "ready"; rollout: Rollout } | { kind: "error"; message: string };
+export type RolloutPage = { kind: "ready"; rollout: Rollout; states: VersionStates[] } | { kind: "error"; message: string };
+
+// The version totals and, for each shown version cars run now, its states. Neither carries a car key out.
+function build(cars: Awaited<ReturnType<typeof carStates>>, changes: RolloutChange[], globalReleases: Record<string, string>): RolloutPage {
+  const rollout = buildRollout(cars, changes, globalReleases);
+  const versions = rollout.versions.flatMap((v) => (v.shown && v.carsNow > 0 ? [v.version] : []));
+  return { kind: "ready", rollout, states: buildStateRollout(cars, changes, versions) };
+}
 
 const PAGE = 1000; // PostgREST's default row cap per request
 
@@ -29,18 +38,16 @@ async function allChanges(): Promise<RolloutChange[]> {
 export async function loadRollout(): Promise<RolloutPage> {
   if (DEMO) {
     const fleet = demoFleet();
-    const cars = fleet.vehicles.map((v) => ({ car: v.id, version: v.current_version }));
     const changes = fleet.history.map((h) => ({ car: h.vehicle_id, version: h.version, previous: h.previous_version, at: h.detected_at, source: h.source }));
-    return { kind: "ready", rollout: buildRollout(cars, changes, fleet.globalReleases) };
+    return build(await carStates(), changes, fleet.globalReleases);
   }
   try {
     const missing = missingEnv();
     if (missing.length) return { kind: "error", message: `Missing env vars: ${missing.join(", ")}` };
     // Every owner's cars count by default. The opt-out (phase 6, with per-owner settings) goes here: drop the
     // cars and rows of owners who turned it off before they reach buildRollout.
-    const [vehicles, changes] = await Promise.all([db().from("vehicles").select("car:id::text, version:current_version"), allChanges()]);
-    if (vehicles.error) throw new Error(vehicles.error.message);
-    return { kind: "ready", rollout: buildRollout(vehicles.data as { car: string; version: string | null }[], changes, GLOBAL_RELEASES) };
+    const [cars, changes] = await Promise.all([carStates(), allChanges()]);
+    return build(cars, changes, GLOBAL_RELEASES);
   } catch (err) {
     console.error(err);
     return { kind: "error", message: (err as Error).message };

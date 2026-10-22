@@ -1,7 +1,7 @@
 import "server-only";
 import { DEMO } from "@/lib/demo";
 import { db } from "./supabase";
-import { fleetGet, TeslaError } from "./tesla";
+import { fleetGet, hasScope, LOCATION_SCOPE, TeslaError } from "./tesla";
 import { syncChargingHistory } from "./charging";
 import { syncStreamSessionsSafely } from "./stream-charging";
 import { syncStreamVersionsSafely } from "./stream-versions";
@@ -17,6 +17,8 @@ import {
 import { milesToKm, normaliseVersion } from "@/lib/versions";
 import { colorName, MILES_TO_KM, modelName } from "@/lib/car";
 import { messageOf } from "@/lib/errors";
+import { mostCommonState } from "@/lib/india-states";
+import { stateAt } from "@/lib/india-map";
 
 type FleetVehicle = {
   id: number;
@@ -39,16 +41,45 @@ type VehicleData = {
   vehicle_state?: { car_version?: string; odometer?: number; software_update?: SoftwareUpdate };
   charge_state?: { battery_level?: number; battery_range?: number; charging_state?: string; charge_limit_soc?: number };
   vehicle_config?: { car_type?: string; exterior_color?: string; trim_badging?: string };
+  // Only with the location scope. Never stored: see homeStateFrom.
+  drive_state?: { latitude?: number; longitude?: number; native_latitude?: number; native_longitude?: number };
 };
 
-// The raw response is kept for /api/debug; token fields are never stored.
-const TOKEN_KEYS = ["tokens", "backseat_token", "backseat_token_updated_at"];
+// How many located checks decide a car's home state (the column's check allows up to this many).
+const RECENT_STATES = 30;
+
+// The raw response is kept for /api/debug; token fields are never stored, and neither is drive_state,
+// which holds where the car is.
+const TOKEN_KEYS = ["tokens", "backseat_token", "backseat_token_updated_at", "drive_state"];
 function withoutTokens(data: VehicleData): Record<string, unknown> | null {
   if (!data) return null;
   return Object.fromEntries(Object.entries(data).filter(([key]) => !TOKEN_KEYS.includes(key)));
 }
 
-async function pollVehicle(vehicle: FleetVehicle, now: string) {
+// The state the car is in now, from drive_state, which is then dropped from `data`: the coordinates are
+// never stored, logged or passed on. Null when Tesla sent no location or it is outside India.
+function homeStateFrom(data: VehicleData): string | null {
+  const drive = data.drive_state;
+  delete data.drive_state;
+  const lat = drive?.latitude ?? drive?.native_latitude;
+  const lon = drive?.longitude ?? drive?.native_longitude;
+  return typeof lat === "number" && typeof lon === "number" ? stateAt(lat, lon) : null;
+}
+
+// Adds this check's state to the car's recent ones and moves home_state to the most common. Separate from
+// the vehicle upsert, so a database without the columns yet only loses the state. The message is fixed:
+// nothing about the car's location reaches the log.
+async function recordState(id: string, state: string) {
+  try {
+    const row = await check(db().from("vehicles").select("recent_states").eq("id", id).maybeSingle());
+    const recent = [...((row?.recent_states as string[] | null) ?? []), state].slice(-RECENT_STATES);
+    await check(db().from("vehicles").update({ recent_states: recent, home_state: mostCommonState(recent) }).eq("id", id));
+  } catch {
+    console.warn("Saving the home state failed");
+  }
+}
+
+async function pollVehicle(vehicle: FleetVehicle, now: string, located: boolean) {
   const id = vehicle.id_s;
   const existing = await check(
     db().from("vehicles").select("current_version").eq("id", id).maybeSingle(),
@@ -71,9 +102,18 @@ async function pollVehicle(vehicle: FleetVehicle, now: string) {
 
   let data: VehicleData;
   try {
-    // The section list must be URL-encoded: with a bare ";" Tesla only returned vehicle_state.
-    const endpoints = encodeURIComponent("vehicle_state;charge_state;vehicle_config");
-    data = (await fleetGet<VehicleData>(`/api/1/vehicles/${vehicle.vin}/vehicle_data?endpoints=${endpoints}`)) ?? {};
+    // The section list must be URL-encoded: with a bare ";" Tesla only returned vehicle_state. Current
+    // firmware sends drive_state's latitude and longitude only when location_data is asked for too.
+    const read = (sections: string) =>
+      fleetGet<VehicleData>(`/api/1/vehicles/${vehicle.vin}/vehicle_data?endpoints=${encodeURIComponent(sections)}`);
+    const sections = "vehicle_state;charge_state;vehicle_config";
+    try {
+      data = (await read(located ? `${sections};location_data` : sections)) ?? {};
+    } catch (err) {
+      // A 403 for the location sections (scope withdrawn in the app) mustn't cost the rest of the check.
+      if (!(located && err instanceof TeslaError && err.status === 403)) throw err;
+      data = (await read(sections)) ?? {};
+    }
   } catch (err) {
     // 408: the car fell asleep between the list call and this one.
     if (err instanceof TeslaError && err.status === 408) {
@@ -91,6 +131,7 @@ async function pollVehicle(vehicle: FleetVehicle, now: string) {
     throw err;
   }
 
+  const homeState = homeStateFrom(data);
   const state = data.vehicle_state ?? {};
   const update = state.software_update ?? {};
   const version = normaliseVersion(state.car_version);
@@ -147,6 +188,7 @@ async function pollVehicle(vehicle: FleetVehicle, now: string) {
       raw: withoutTokens(data),
     }),
   );
+  if (homeState) await recordState(id, homeState);
   await recordReleaseNotes(vehicle.vin, [
     { version, staged: false },
     { version: normaliseVersion(update.version), staged: true },
@@ -175,10 +217,13 @@ export async function pollAll(): Promise<PollResult> {
   try {
     const listed = await fleetGet<FleetVehicle[]>("/api/1/vehicles");
     vehicles = Array.isArray(listed) ? listed : [];
+    // Location is read only with the scope (granted at a sign-in since it was added), and only when the
+    // car is already online for the check: never a wake.
+    const located = await hasScope(LOCATION_SCOPE).catch(() => false);
     // Supercharger history is extra and can never fail the check; it touches its own table, so it
     // runs alongside the vehicles. Each car is polled on its own: one failing can't block another.
     const [results] = await Promise.all([
-      Promise.allSettled(vehicles.map((vehicle) => pollVehicle(vehicle, now))),
+      Promise.allSettled(vehicles.map((vehicle) => pollVehicle(vehicle, now, located))),
       syncChargingHistory(vehicles.map((v) => v.vin)).catch((err) =>
         console.warn("Charging history sync failed:", messageOf(err)),
       ),

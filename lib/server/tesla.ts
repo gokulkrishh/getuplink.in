@@ -8,8 +8,19 @@ import { db } from "./supabase";
 
 export const AUTHORIZE_URL = "https://auth.tesla.com/oauth2/v3/authorize";
 export const TOKEN_URL = "https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token";
-// vehicle_charging_cmds is for Supercharger history; it must be enabled in the Tesla developer app.
-export const SCOPES = ["openid", "offline_access", "vehicle_device_data", "vehicle_charging_cmds"].join(" ");
+// vehicle_charging_cmds is for Supercharger history and vehicle_location for the car's home state; both must
+// be enabled in the Tesla developer app. A token from before a scope was added lacks it until the next sign-in.
+// Location is asked for only with TESLA_LOCATION_SCOPE=1, so deploying before the scope is enabled in the
+// developer app can't break sign-in.
+export const LOCATION_SCOPE = "vehicle_location";
+export const LOCATION_REQUESTED = process.env.TESLA_LOCATION_SCOPE === "1";
+export const SCOPES = [
+  "openid",
+  "offline_access",
+  "vehicle_device_data",
+  "vehicle_charging_cmds",
+  ...(LOCATION_REQUESTED ? [LOCATION_SCOPE] : []),
+].join(" ");
 
 // Refresh a little early so a token never expires mid-poll.
 const REFRESH_MARGIN_MS = 5 * 60 * 1000;
@@ -227,6 +238,23 @@ export async function accountInfo(): Promise<AccountInfo> {
 export async function ownerSub(): Promise<string | null> {
   if (DEMO) return null;
   return ((await readOwnerRow())?.owner_sub as string | null | undefined) ?? null;
+}
+
+// Whether the stored token was granted a scope. Tesla's token answer lists them in `scope`, saved at
+// sign-in and each refresh; when that's missing, the access token's own `scp` claim says. Unknown is no.
+export async function hasScope(scope: string): Promise<boolean> {
+  if (DEMO) return true;
+  const { data, error } = await db().from("oauth_tokens").select("scope, access_token_enc").eq("provider", "tesla").maybeSingle();
+  if (error) throw new Error(`Reading account failed: ${error.message}`);
+  if (typeof data?.scope === "string" && data.scope) return data.scope.split(" ").includes(scope);
+  if (!data?.access_token_enc) return false;
+  try {
+    const payload = decrypt(data.access_token_enc).split(".")[1];
+    const scp = (JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { scp?: unknown }).scp;
+    return Array.isArray(scp) ? scp.includes(scope) : typeof scp === "string" && scp.split(" ").includes(scope);
+  } catch {
+    return false;
+  }
 }
 
 // Sessions issued before this time (ms) are revoked. -infinity (never revoked) reads as 0.

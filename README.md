@@ -45,6 +45,7 @@ Every variable is listed in [`.env.example`](.env.example). In Vercel: **Project
 | `TOKEN_ENCRYPTION_KEY` | `openssl rand -base64 32` (must decode to 32 bytes). Also signs session cookies. Changing it signs you out and makes stored tokens unreadable: sign in with Tesla again afterwards. |
 | `CRON_SECRET` | `openssl rand -hex 32`. Vercel sends it to the cron route automatically. |
 | `HEALTH_TOKEN` | Optional. `openssl rand -hex 32`. Bearer token for `GET /api/health/stream`, the streaming health check an external bot polls. Unset, the route answers 503. |
+| `TESLA_LOCATION_SCOPE` | Optional. `1` asks Tesla for `vehicle_location` at sign-in, so the 6-hourly check can work out the car's home state (only the state is kept). Enable Vehicle Location in the Tesla developer app first, then sign in again. Unset: the state comes from Supercharger history. |
 | `ADMIN_ACCOUNTS` | Optional. Comma-separated Tesla account ids that can open `/admin` (totals across every owner). The id is the `sub` Tesla's sign-in returns, stored after your first sign-in: `select owner_sub from oauth_tokens;` in the Supabase SQL editor. Unset, `/admin` is a 404 for everyone. Demo mode always shows it. |
 
 For local scripts, put the same values in `.env.local` (gitignored), e.g. `vercel env pull .env.local`.

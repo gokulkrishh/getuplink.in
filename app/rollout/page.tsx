@@ -5,6 +5,7 @@ import { Globe } from "lucide-react";
 import { Suspense } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Header } from "@/components/header";
+import { RolloutMap } from "@/components/rollout-map";
 import { DEMO } from "@/lib/demo";
 import { formatShortDate } from "@/lib/format";
 import { MIN_GROUP, type RolloutVersion } from "@/lib/rollout";
@@ -70,6 +71,7 @@ async function Rollout() {
     );
   }
   const { versions, counted, headline } = data.rollout;
+  const { states } = data;
   if (versions.length === 0) {
     return (
       <EmptyState icon={<Globe className="size-7 text-faint" aria-hidden="true" />} title="No versions yet">
@@ -93,6 +95,13 @@ async function Rollout() {
         )}
       </header>
 
+      {states.length > 0 && (
+        <section className="space-y-2">
+          <h2 className={heading}>Where it runs</h2>
+          <RolloutMap versions={states} />
+        </section>
+      )}
+
       <section className="space-y-2">
         <h2 className={heading}>Versions</h2>
         <ul className="divide-y border-t">
@@ -107,7 +116,19 @@ async function Rollout() {
           Pooled across every car Uplink tracks in India. Totals only: a version&apos;s numbers show once {MIN_GROUP} cars report it, and cars on
           a version with fewer are left out of every total.
         </p>
+        <p>
+          A state shows once {MIN_GROUP} cars there run the version. Smaller states are pooled by region when the region has{" "}
+          {MIN_GROUP}, and left out otherwise. A car&apos;s state comes from its location or, until then, its Superchargers.
+        </p>
         <p>Global dates come from a hand-kept list of public first sightings. A version not on it shows the lag as unknown.</p>
+        <p>
+          State boundaries:{" "}
+          <a href="https://github.com/datameet/maps" className="underline underline-offset-2 hover:text-foreground">
+            DataMeet India community
+          </a>{" "}
+          (<a href="https://creativecommons.org/licenses/by/4.0/" className="underline underline-offset-2 hover:text-foreground">CC BY 4.0</a>),
+          simplified. Map not to scale.
+        </p>
         {DEMO && <p>Demo mode: a simulated fleet of Indian cars, with simulated global dates.</p>}
       </div>
     </div>

@@ -2,6 +2,7 @@
 // other pages show. Seeded like generate.ts, so the same fleet comes back on every rebuild, and anchored to
 // "now". It writes rows shaped like the vehicles and version_history tables, so the pages run them through
 // the same functions as real data.
+import type { StateCode } from "@/lib/india-states";
 import { istDay } from "@/lib/status";
 import { between, rngFor } from "./generate";
 
@@ -14,14 +15,24 @@ const DAY = 86_400_000;
 const RELEASES: [version: string, globalDaysAgo: number, indiaDaysAgo: number, carsNow: number][] = [
   ["2026.26.6", 104, 88, 1],
   ["2026.32.3", 70, 55, 7],
-  ["2026.38.3.1", 45, 27, 11],
-  ["2026.38.5.1", 31, 16, 18],
+  ["2026.38.3.1", 45, 27, 9],
+  ["2026.38.5.1", 31, 16, 20],
   ["2026.40.2", 12, 3, 3],
+];
+// Home states of the cars on each version, in RELEASES order, as [state, cars]. On 2026.38.5.1 the map
+// shows Karnataka and Maharashtra, pools Tamil Nadu and Kerala into "Other South states", and leaves
+// Haryana out: its 3 cars and the 2 with no state yet make 5 uncounted, so nothing can be subtracted.
+const HOMES: [StateCode | null, number][][] = [
+  [["KA", 1]],
+  [["MH", 7]],
+  [["KA", 9]],
+  [["KA", 5], ["MH", 5], ["TN", 3], ["KL", 2], ["HR", 3], [null, 2]],
+  [["KA", 2], ["MH", 1]],
 ];
 const SHIPPED = "2026.20.6.10"; // what every car ran before its first recorded update
 const SHARED_CARS = 3; // owners with two cars, so 40 cars have 37 owners
 
-export type FleetVehicle = { id: string; current_version: string; last_seen_at: string };
+export type FleetVehicle = { id: string; current_version: string; last_seen_at: string; home_state: StateCode | null };
 export type FleetChange = { vehicle_id: string; version: string; previous_version: string; detected_at: string; source: "tracked" };
 export type FleetRun = { started_at: string; ok: boolean };
 
@@ -41,6 +52,7 @@ export function generateFleet(now: number): DemoFleet {
   const history: FleetChange[] = [];
   let n = 0;
   RELEASES.forEach(([, , , carsNow], current) => {
+    const homes = HOMES[current].flatMap(([state, cars]) => Array<StateCode | null>(cars).fill(state));
     for (let k = 0; k < carsNow; k++, n++) {
       const rng = rngFor(41, n);
       const id = String(9000 + n);
@@ -57,7 +69,8 @@ export function generateFleet(now: number): DemoFleet {
       }
       // Most cars were online at a check this week; a few have been parked longer.
       const quiet = rng() < 0.15;
-      vehicles.push({ id, current_version: previous, last_seen_at: new Date(now - between(rng, quiet ? 8 : 0, quiet ? 20 : 6) * DAY).toISOString() });
+      const last_seen_at = new Date(now - between(rng, quiet ? 8 : 0, quiet ? 20 : 6) * DAY).toISOString();
+      vehicles.push({ id, current_version: previous, last_seen_at, home_state: homes[k] ?? null });
     }
   });
   history.sort((a, b) => Date.parse(a.detected_at) - Date.parse(b.detected_at));

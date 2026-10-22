@@ -6,10 +6,12 @@ import { Suspense } from "react";
 import { Header } from "@/components/header";
 import { ThemePicker } from "@/components/theme-picker";
 import { DEMO } from "@/lib/demo";
+import { STATES } from "@/lib/india-states";
 import { formatAgo, formatDate, formatSeen } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
+import { ownHomeState, type OwnHomeState } from "@/lib/server/home-state";
 import { demoData } from "@/lib/server/demo";
 import { db } from "@/lib/server/supabase";
 import { lastReadingAt } from "@/lib/server/telemetry";
@@ -29,24 +31,35 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
 }
 
 // Session check plus data in one browser-only private cache, so header links can prefetch it (see app/page.tsx).
-async function loadSettings(): Promise<{ account: AccountInfo; lastCheck: string | null; lastReading: string | null; now: number }> {
+async function loadSettings(): Promise<{
+  account: AccountInfo;
+  lastCheck: string | null;
+  lastReading: string | null;
+  home: OwnHomeState;
+  now: number;
+}> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
-  const [account, run, lastReading] = await Promise.all([
+  const [account, run, lastReading, home] = await Promise.all([
     accountInfo(),
     DEMO
       ? { data: demoData().lastRun }
       : db().from("poll_runs").select("started_at").order("started_at", { ascending: false }).limit(1).maybeSingle(),
     lastReadingAt(),
+    // Never fails the page: an unknown home state just says so.
+    ownHomeState().catch((err): OwnHomeState => {
+      console.warn("Home state unavailable:", (err as Error).message);
+      return { state: null, source: null, locationAllowed: false, askLocation: false };
+    }),
   ]);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
-  return { account, lastCheck: run.data?.started_at ?? null, lastReading, now: Date.now() };
+  return { account, lastCheck: run.data?.started_at ?? null, lastReading, home, now: Date.now() };
 }
 
 async function Settings() {
-  const { account, lastCheck, lastReading, now } = await loadSettings();
+  const { account, lastCheck, lastReading, home, now } = await loadSettings();
   const connectedDescription = account.connectedSince ? `Connected since ${formatDate(account.connectedSince)}` : "Connected";
 
   return (
@@ -65,6 +78,7 @@ async function Settings() {
           }
           control={<LiveStatus lastReading={lastReading} now={now} />}
         />
+        <HomeState home={home} />
       </Group>
 
       <Group title="Account">
@@ -109,6 +123,32 @@ export default function SettingsPage() {
         </Link>
       </footer>
     </div>
+  );
+}
+
+// Read-only: worked out from the car, for the India rollout map.
+function HomeState({ home }: { home: OwnHomeState }) {
+  const from = home.source === "location" ? "from your car's location" : "from your Supercharger history";
+  return (
+    <Row
+      title="Home state"
+      description={
+        <>
+          <p>For the India rollout map. Uplink keeps only the state, never where your car is.</p>
+          {home.askLocation && <p className="text-faint">Sign in again to let Uplink read your car&apos;s location.</p>}
+        </>
+      }
+      control={
+        home.state ? (
+          <p className="text-right text-sm">
+            {STATES[home.state].name}
+            <span className="block text-xs text-muted-foreground">{from}</span>
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">Not known yet</p>
+        )
+      }
+    />
   );
 }
 
