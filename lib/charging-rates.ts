@@ -8,7 +8,8 @@ export const MAX_RATE = 100;
 export function parseRate(raw: unknown): { ok: true; value: number | null } | { ok: false } {
   const text = typeof raw === "string" ? raw.trim() : "";
   if (text === "") return { ok: true, value: null };
-  if (!/^\d{1,3}(\.\d{1,2})?$/.test(text)) return { ok: false };
+  // Digits only ("1e1" passes Number); ".5" and "5." are fine, as browsers send them.
+  if (!/^(?=\.?\d)\d{0,3}(\.\d{0,2})?$/.test(text)) return { ok: false };
   const value = Number(text);
   return value > 0 && value <= MAX_RATE ? { ok: true, value } : { ok: false };
 }
