@@ -30,8 +30,7 @@ const cars = (n: number) => `${n} ${n === 1 ? "car" : "cars"}`;
 // A release list date is an IST calendar day; noon IST keeps it on that day.
 const releaseDay = (day: string) => formatShortDate(`${day}T12:00:00+05:30`);
 
-function lagWords(days: number | null): string {
-  if (days === null) return "Lag unknown";
+function lagWords(days: number): string {
   if (days === 0) return "Same day as the world";
   return `${days} ${days === 1 ? "day" : "days"} behind`;
 }
@@ -47,11 +46,14 @@ function VersionRow({ v, counted }: { v: RolloutVersion; counted: number }) {
       <div className="h-1.5 w-full bg-muted" aria-hidden>
         <div className="h-full bg-foreground/70" style={{ width: `${counted ? (v.carsNow / counted) * 100 : 0}%` }} />
       </div>
-      <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground tabular-nums">
-        <span>First in India {v.firstInIndia ? formatShortDate(v.firstInIndia) : "unknown"}</span>
-        <span>Global {v.globalRelease ? releaseDay(v.globalRelease) : "unknown"}</span>
-        <span className="text-foreground">{lagWords(v.lagDays)}</span>
-      </p>
+      {/* Only what's known: a car already on the version when tracking began has no arrival date. */}
+      {(v.firstInIndia || v.globalRelease) && (
+        <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground tabular-nums">
+          {v.firstInIndia && <span>First in India {formatShortDate(v.firstInIndia)}</span>}
+          {v.globalRelease && <span>Global {releaseDay(v.globalRelease)}</span>}
+          {v.lagDays !== null && <span className="text-foreground">{lagWords(v.lagDays)}</span>}
+        </p>
+      )}
     </li>
   );
 }
