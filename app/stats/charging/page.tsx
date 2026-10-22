@@ -41,8 +41,8 @@ async function Charging() {
         <NotYet title="No charging sessions yet">Your charges will show up here, wherever you plug in.</NotYet>
       ) : (
         <div className="space-y-12">
-          {(sessions.length > 0 || priced.length > 0) && eachPeriod((p) => <Summary sessions={sessions} priced={priced} now={now} period={p} />)}
-          {streamSessions.length > 0 && eachPeriod((p) => <EnergyAdded sessions={sessions} streamOnly={streamOnly} now={now} period={p} />)}
+          {(sessions.length > 0 || priced.length > 0) && eachPeriod((p) => <Summary sessions={sessions} priced={priced} now={now} period={p} />, { steady: true })}
+          {streamSessions.length > 0 && eachPeriod((p) => <EnergyAdded sessions={sessions} streamOnly={streamOnly} now={now} period={p} />, { steady: true })}
           <SessionList sessions={listed} rates={rates} />
         </div>
       )}

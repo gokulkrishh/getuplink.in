@@ -37,9 +37,9 @@ async function Driving() {
     <StatsFrame view="driving" periodSwitch={hasDriving}>
       {hasDriving ? (
         <div className="space-y-12">
-          {eachPeriod((p) => <Distance figures={figures} now={now} period={p} />)}
+          {eachPeriod((p) => <Distance figures={figures} now={now} period={p} />, { steady: true })}
           <DailyDriving days={days} />
-          {eachPeriod((p) => <EnergyUse figures={figures} now={now} period={p} />)}
+          {eachPeriod((p) => <EnergyUse figures={figures} now={now} period={p} />, { steady: true })}
           <DriveList drives={driving.drives} now={now} />
         </div>
       ) : (
