@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { BatteryHealth, LastCharge, RecentActivity, WeekStrip } from "@/components/vehicle-extras";
 import { VersionChart } from "@/components/version-chart";
-import { formatDate, formatDuration, formatKm, formatSeen, formatShortDate } from "@/lib/format";
+import { formatDate, formatDuration, formatKm, formatSeen, formatTimeToFull, formatShortDate } from "@/lib/format";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { Check, ChevronRight, Zap } from "lucide-react";
 import { ReleaseNotesList } from "@/components/release-notes";
@@ -196,7 +196,7 @@ function BatteryGauge({ snapshot }: { snapshot: Snapshot }) {
             ? `Limit ${limit}%`
             : null}
       </p>
-      {toFull !== null && <p className="text-xs text-muted-foreground tabular-nums">Full in {formatDuration(toFull * 3600)}</p>}
+      {toFull !== null && <p className="text-xs text-muted-foreground tabular-nums">{formatTimeToFull(toFull)}</p>}
     </div>
   );
 }

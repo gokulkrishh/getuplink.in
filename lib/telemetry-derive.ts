@@ -18,6 +18,13 @@ export function median(values: number[]): number {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
+// Typical AC power over a session: the median of readings while drawing power (ramp-up and closing
+// zeros skipped). Null with fewer than 3 such readings.
+export function typicalChargeKw(readings: Reading[]): number | null {
+  const kws = readings.map((r) => num(r.value)).filter((kw): kw is number => kw !== null && kw > 0.5);
+  return kws.length >= 3 ? median(kws) : null;
+}
+
 // Below this the estimate swings with small rounding in the reported level, so those readings are skipped.
 export const MIN_LEVEL = 20;
 

@@ -13,10 +13,11 @@ import {
   wheelsLabel,
 } from "@/lib/car";
 import { DEMO } from "@/lib/demo";
-import { median, num, roundKwh } from "@/lib/telemetry-derive";
+import { median, num, roundKwh, typicalChargeKw } from "@/lib/telemetry-derive";
 import { loadPackEstimates } from "./battery";
 import { demoData, demoStreamSessions } from "./demo";
 import { db } from "./supabase";
+import { loadReadingsByField } from "./telemetry-window";
 
 // What the car details page shows. Everything comes from Tesla's own replies: the car's VIN and the
 // vehicle_config / vehicle_state / charge_state sections of the latest check that saw the car online.
@@ -46,11 +47,11 @@ export type CarDetails = {
   chargeLimit: number | null;
   checkedAt: string | null;
   battery: BatteryHealth | null;
-  homeCharging: HomeCharging | null;
+  lastAcCharge: LastAcCharge | null;
 };
 
 // From the most recent finished AC session the car streamed. Only the parts the car reported.
-export type HomeCharging = { charger: string | null; cable: string | null };
+export type LastAcCharge = { charger: string | null; cable: string | null };
 
 // Estimated full-pack energy from the car's streamed readings: energy remaining ÷ battery level,
 // using readings the car sent together. The median over the last 30 days, so one odd reading doesn't move it.
@@ -112,22 +113,31 @@ function details(
     chargeLimit,
     checkedAt,
     battery: null,
-    homeCharging: null,
+    lastAcCharge: null,
   };
 }
 
 const CABLES: Record<string, string> = { IEC: "Type 2 (IEC)", SAE: "J1772 (SAE)", GB_AC: "GB/T AC" };
 
-type HomeChargeRow = { peak_power_kw: unknown; ac_voltage: unknown; ac_amps: unknown; ac_phases: unknown; cable_type: unknown };
+type AcChargeRow = {
+  started_at: string;
+  ended_at: string | null;
+  peak_power_kw: unknown;
+  ac_voltage: unknown;
+  ac_amps: unknown;
+  ac_phases: unknown;
+  cable_type: unknown;
+};
 
-async function loadHomeCharging(vin: string): Promise<HomeCharging | null> {
-  let data: HomeChargeRow | null;
+// The newest finished AC session, wherever it was.
+async function loadLastAcCharge(vin: string): Promise<LastAcCharge | null> {
+  let data: AcChargeRow | null;
   if (DEMO) {
     data = demoStreamSessions().find((s) => s.kind === "ac" && s.ended_at) ?? null;
   } else {
     const result = await db()
       .from("stream_charge_sessions")
-      .select("peak_power_kw, ac_voltage, ac_amps, ac_phases, cable_type")
+      .select("started_at, ended_at, peak_power_kw, ac_voltage, ac_amps, ac_phases, cable_type")
       .eq("vin", vin)
       .eq("kind", "ac")
       .not("ended_at", "is", null)
@@ -137,8 +147,10 @@ async function loadHomeCharging(vin: string): Promise<HomeCharging | null> {
     // Extra detail; the page works without it (and before the columns exist).
     data = result.error ? null : result.data;
   }
-  if (!data) return null;
-  const kw = num(data.peak_power_kw);
+  if (!data?.ended_at) return null;
+  // The typical draw over the session's window; the peak when there are too few readings.
+  const readings = await loadReadingsByField(vin, ["ACChargingPower"], data.started_at, data.ended_at);
+  const kw = typicalChargeKw(readings?.ACChargingPower ?? []) ?? num(data.peak_power_kw);
   const volts = num(data.ac_voltage);
   const amps = num(data.ac_amps);
   const phases = num(data.ac_phases);
@@ -166,8 +178,8 @@ export async function loadCarDetails(id: string): Promise<CarDetails | null> {
     const { vehicle, snapshot, config, odometerMiles } = demoData();
     if (id !== vehicle.id || !vehicle.vin) return null;
     const car = details(vehicle.id, vehicle.display_name, vehicle.vin, vehicle.current_version, config, odometerMiles, snapshot.battery_level, snapshot.battery_range_km, snapshot.charge_limit, snapshot.polled_at);
-    const [battery, homeCharging] = await Promise.all([loadBatteryHealth(vehicle.vin), loadHomeCharging(vehicle.vin)]);
-    return { ...car, battery, homeCharging };
+    const [battery, lastAcCharge] = await Promise.all([loadBatteryHealth(vehicle.vin), loadLastAcCharge(vehicle.vin)]);
+    return { ...car, battery, lastAcCharge };
   }
   const [vehicle, snapshot] = await Promise.all([
     db().from("vehicles").select("id:id::text, vin, display_name, current_version").eq("id", id).maybeSingle(),
@@ -208,6 +220,6 @@ export async function loadCarDetails(id: string): Promise<CarDetails | null> {
     s?.polled_at ?? null,
   );
   if (!v.vin) return car;
-  const [battery, homeCharging] = await Promise.all([loadBatteryHealth(v.vin), loadHomeCharging(v.vin)]);
-  return { ...car, battery, homeCharging };
+  const [battery, lastAcCharge] = await Promise.all([loadBatteryHealth(v.vin), loadLastAcCharge(v.vin)]);
+  return { ...car, battery, lastAcCharge };
 }

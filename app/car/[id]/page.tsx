@@ -135,12 +135,12 @@ async function Car({ params }: { params: Promise<{ id: string }> }) {
             ]}
           />
         )}
-        {car.homeCharging && (
+        {car.lastAcCharge && (
           <Group
-            title="Home charging"
+            title="Last AC charge"
             rows={[
-              ["Charger", car.homeCharging.charger],
-              ["Cable", car.homeCharging.cable],
+              ["Charger", car.lastAcCharge.charger],
+              ["Cable", car.lastAcCharge.cable],
             ]}
           />
         )}

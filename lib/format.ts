@@ -38,6 +38,11 @@ export function formatDuration(seconds: number): string {
   return minutes % 60 ? `${hours} h ${minutes % 60} min` : `${hours} h`;
 }
 
+// "Full in 1 h 5 min" while charging; under a minute left, "Almost full" (not "Full in 0 min").
+export function formatTimeToFull(hours: number): string {
+  return hours < 1 / 60 ? "Almost full" : `Full in ${formatDuration(hours * 3600)}`;
+}
+
 const km = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 
 // "12,340 km" (Indian digit grouping: "1,23,400 km")
