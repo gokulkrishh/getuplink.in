@@ -3,7 +3,6 @@
 import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { MAX_RATE, parseRate } from "@/lib/charging-rates";
-import { DEMO } from "@/lib/demo";
 import { messageOf } from "@/lib/errors";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { saveChargingRates } from "@/lib/server/charging-rates";
@@ -22,7 +21,6 @@ export async function saveRates(_: RatesState, form: FormData): Promise<RatesSta
   if (!homeRate.ok || !otherRate.ok) {
     return { error: `Enter a rate above ₹0 and up to ₹${MAX_RATE}, with at most 2 decimals.`, saved: false, home, other };
   }
-  if (DEMO) redirect("/settings");
   try {
     await saveChargingRates({ home: homeRate.value, other: otherRate.value });
   } catch (err) {

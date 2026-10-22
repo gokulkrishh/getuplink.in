@@ -3,6 +3,7 @@ import { buildSessions, CHARGE_FIELDS } from "@/lib/charge-sessions";
 import { MILES_TO_KM } from "@/lib/car";
 import { type WeekSummary, weekSummary } from "@/lib/dashboard-summary";
 import type { DemoScenario } from "@/lib/demo";
+import type { ChargingRates } from "@/lib/charging-rates";
 import type { Stream } from "@/lib/telemetry";
 import { istDay, istDayStart, num, type Reading, type UpdateRow } from "@/lib/telemetry-derive";
 import type { ChargingSession } from "../charging";
@@ -29,6 +30,17 @@ export function demoData(): DemoData {
 
 export function setDemoImported(rows: VersionChange[]): void {
   imported = rows;
+}
+
+// Settings > Charging rates in demo mode: starts at the presets and keeps what was saved until the server restarts.
+let rates: ChargingRates = { home: 8.5, other: 20 };
+
+export function demoRates(): ChargingRates {
+  return rates;
+}
+
+export function setDemoRates(next: ChargingRates): void {
+  rates = next;
 }
 
 // ---- Fleet Telemetry ----
