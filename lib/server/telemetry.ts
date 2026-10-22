@@ -46,8 +46,8 @@ export async function loadStream(vin: string): Promise<Stream> {
   return Object.fromEntries(results.filter((r) => r !== null));
 }
 
-const PAGE = 1000;
-const MAX_PAGES = 20;
+export const PAGE = 1000;
+export const MAX_PAGES = 20;
 
 // One field's readings in a time window, oldest first. PostgREST caps a response at 1000 rows, so this
 // pages through with .range(), up to MAX_PAGES. Null when the query fails (telemetry is a bonus).
@@ -79,15 +79,15 @@ export async function loadReadingBefore(vin: string, field: string, before: stri
   return num(data?.value);
 }
 
-// The VIN of the connected car, for loaders that aren't handed one.
-export async function loadPrimaryVin(): Promise<string | null> {
-  if (DEMO) return demoData().vin;
-  const { data, error } = await db().from("vehicles").select("vin").not("vin", "is", null).order("created_at").limit(1).maybeSingle();
+// The connected car's id and VIN, read once per page and handed to the loaders that need them.
+export async function loadPrimaryVehicle(): Promise<{ id: string; vin: string } | null> {
+  if (DEMO) return { id: demoData().vehicle.id, vin: demoData().vin };
+  const { data, error } = await db().from("vehicles").select("id:id::text, vin").not("vin", "is", null).order("created_at").limit(1).maybeSingle();
   if (error) {
     console.warn("Vehicle VIN unavailable:", error.message);
     return null;
   }
-  return (data?.vin as string | null) ?? null;
+  return data ? { id: data.id as string, vin: data.vin as string } : null;
 }
 
 // When the newest streamed reading arrived, or null when there are none (or the query fails).

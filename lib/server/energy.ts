@@ -4,7 +4,6 @@ import { type EnergyMonth, type Span, energyUseMonth, num } from "@/lib/telemetr
 import { DEMO } from "@/lib/demo";
 import { demoCounter } from "./demo";
 import { db } from "./supabase";
-import { loadPrimaryVin } from "./telemetry";
 
 export type MonthlyEnergy = { month: string; energy: EnergyMonth | null };
 
@@ -79,8 +78,7 @@ export async function loadCounters(vin: string, fields: string[], bounds: string
 
 // Energy use per month for the last 12 months (IST), from the streamed lifetime counters and odometer.
 // Months stay null until the counters cover them. Empty when there is no car or no reading.
-export async function loadMonthlyEnergy(): Promise<MonthlyEnergy[]> {
-  const vin = await loadPrimaryVin();
+export async function loadMonthlyEnergy(vin: string | null): Promise<MonthlyEnergy[]> {
   if (!vin) return [];
   const firstIndex = monthIndex(Date.now()) - (MONTHS - 1);
   const counters = await loadCounters(vin, ["LifetimeEnergyUsed", "LifetimeEnergyGainedRegen", "Odometer"], monthBounds(firstIndex));

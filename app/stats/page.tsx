@@ -21,11 +21,11 @@ import { chargeEfficiency, matchSessions } from "@/lib/charge-sessions";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargingSession, loadChargingSessions, syncChargingHistoryThrottled } from "@/lib/server/charging";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
-import { loadBatteryTrend } from "@/lib/server/battery";
 import { loadMonthlyEnergy, type MonthlyEnergy } from "@/lib/server/energy";
 import { loadUpdateRows } from "@/lib/server/updates";
-import { loadDailyDistance, loadDriving, loadMonthlyDistance, type MonthlyDistance } from "@/lib/server/driving";
+import { loadMonthlyDistance, loadWindowStats, type MonthlyDistance } from "@/lib/server/driving";
 import { loadStreamSessions, syncStreamSessionsForAllCars, type StreamChargeSession } from "@/lib/server/stream-charging";
+import { loadPrimaryVehicle } from "@/lib/server/telemetry";
 import { type DayKm, type UpdateRow, type WeeklyPack, combinedWhPerKm, updateStats } from "@/lib/telemetry-derive";
 import { LIST_PREVIEW } from "@/lib/list";
 import type { Driving } from "@/lib/drives";
@@ -400,12 +400,16 @@ function SessionList({ sessions }: { sessions: Listed[] }) {
 }
 
 // Session check plus data in one browser-only private cache, so header links can prefetch it (see app/page.tsx).
+// One cache, so the session is checked and the car read once; the loaders share its id and VIN.
 async function loadStats(): Promise<{
   sessions: ChargingSession[];
   streamSessions: StreamChargeSession[];
   distance: MonthlyDistance[];
   energy: MonthlyEnergy[];
   updates: UpdateRow[];
+  days: DayKm[];
+  trend: WeeklyPack[];
+  driving: Driving;
   now: number;
 }> {
   "use cache: private";
@@ -413,23 +417,17 @@ async function loadStats(): Promise<{
   cacheLife({ stale: 60 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
-  const [sessions, streamSessions, distance, energy, updates] = await Promise.all([
+  const now = Date.now();
+  const vehicle = loadPrimaryVehicle();
+  const [sessions, streamSessions, distance, energy, updates, { days, trend, driving }] = await Promise.all([
     loadChargingSessions(),
     loadStreamSessions(),
-    loadMonthlyDistance(),
-    loadMonthlyEnergy(),
-    loadUpdateRows(),
+    vehicle.then((v) => loadMonthlyDistance(v?.vin ?? null)),
+    vehicle.then((v) => loadMonthlyEnergy(v?.vin ?? null)),
+    vehicle.then((v) => loadUpdateRows(v?.id ?? null)),
+    vehicle.then((v) => loadWindowStats(v?.vin ?? null, now)),
   ]);
-  return { sessions, streamSessions, distance, energy, updates, now: Date.now() };
-}
-
-async function loadTelemetryStats(): Promise<{ days: DayKm[]; trend: WeeklyPack[]; driving: Driving; now: number }> {
-  "use cache: private";
-  cacheTag(OWNER_DATA_TAG);
-  cacheLife({ stale: 60 });
-  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
-  const [days, trend, driving] = await Promise.all([loadDailyDistance(), loadBatteryTrend(), loadDriving()]);
-  return { days, trend, driving, now: Date.now() };
+  return { sessions, streamSessions, distance, energy, updates, days, trend, driving, now };
 }
 
 // Rebuilds sessions from the car's readings, and pulls Supercharger history (at most every 30 minutes),
@@ -446,7 +444,7 @@ async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParam
   const params = await searchParams;
   const period = parsePeriod(params.period);
   const view = parseView(params.view);
-  const [{ sessions, streamSessions, distance, energy, updates, now }, { days, trend, driving, now: drivingNow }] = await Promise.all([loadStats(), loadTelemetryStats()]);
+  const { sessions, streamSessions, distance, energy, updates, days, trend, driving, now } = await loadStats();
 
   const { pairs, streamOnly } = matchSessions(sessions, streamSessions, now);
   const listed: Listed[] = [
@@ -482,7 +480,7 @@ async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParam
             <Distance distance={distance} now={now} period={period} />
             <DailyDriving days={days} />
             <EnergyUse energy={energy} now={now} period={period} />
-            <DriveList drives={driving.drives} now={drivingNow} />
+            <DriveList drives={driving.drives} now={now} />
             <ParkedDrain drain={driving.drain} />
           </div>
         ) : (

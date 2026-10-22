@@ -1,0 +1,39 @@
+import "server-only";
+import { DEMO } from "@/lib/demo";
+import type { Reading } from "@/lib/telemetry-derive";
+import { demoReadings } from "./demo";
+import { db } from "./supabase";
+import { MAX_PAGES, PAGE } from "./telemetry";
+
+// Several fields' readings in one window [from, to), by field, oldest first: one query instead of one
+// per field. Rows come ordered by field then time, which the (vin, field, created_at) index serves, and
+// the fixed upper bound keeps the offsets still while pages load. The first page brings the row count,
+// so the rest are fetched together. The page cap is the per-field one pooled (MAX_PAGES per field), so
+// past it the fields last in name order lose rows first. Null when the query fails (telemetry is a bonus).
+export async function loadReadingsByField(vin: string, fields: string[], from: string, to: string): Promise<Record<string, Reading[]> | null> {
+  if (DEMO) return Object.fromEntries(fields.map((field) => [field, demoReadings(field, from, to)]));
+  const page = (k: number, count?: "exact") =>
+    db()
+      .from("telemetry_readings")
+      .select("field, created_at, value", { count })
+      .eq("vin", vin)
+      .in("field", fields)
+      .gte("created_at", from)
+      .lt("created_at", to)
+      .order("field", { ascending: true })
+      .order("created_at", { ascending: true })
+      .range(k * PAGE, (k + 1) * PAGE - 1);
+  const first = await page(0, "exact");
+  const total = first.count ?? first.data?.length ?? 0;
+  const pages = Math.min(Math.ceil(total / PAGE), MAX_PAGES * fields.length);
+  const rest = await Promise.all(Array.from({ length: Math.max(0, pages - 1) }, (_, k) => page(k + 1)));
+  const byField: Record<string, Reading[]> = Object.fromEntries(fields.map((field) => [field, []]));
+  for (const { data, error } of [first, ...rest]) {
+    if (error) {
+      console.warn("Telemetry window unavailable:", error.message);
+      return null;
+    }
+    for (const r of data ?? []) byField[r.field as string]?.push({ at: r.created_at as string, value: r.value as unknown });
+  }
+  return byField;
+}
