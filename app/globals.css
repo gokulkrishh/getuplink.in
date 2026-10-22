@@ -271,13 +271,13 @@
   grid-template-columns: 3.5rem minmax(0, 1fr) 5rem;
 }
 @utility grid-cols-charge-cost {
-  grid-template-columns: 3.5rem minmax(0, 1fr) 5rem 6rem;
+  grid-template-columns: 3.5rem minmax(0, 1fr) 5rem 7rem;
 }
 @utility grid-cols-charge-wide {
   grid-template-columns: 5rem minmax(0, 1fr) 5rem;
 }
 @utility grid-cols-charge-wide-cost {
-  grid-template-columns: 5rem minmax(0, 1fr) 5rem 6rem;
+  grid-template-columns: 5rem minmax(0, 1fr) 5rem 7rem;
 }
 @utility grid-cols-split {
   @media (width >= 48rem) {
