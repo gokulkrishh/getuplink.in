@@ -1,4 +1,4 @@
-import { type Listed, rate, SessionRow } from "@/components/session-row";
+import { hasCosts, type Listed, rate, SessionHeader, SessionRow } from "@/components/session-row";
 import { ShowMore } from "@/components/show-more";
 import { Bars } from "@/components/stats/bars";
 import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
@@ -114,6 +114,7 @@ export function SessionList({ sessions }: { sessions: Listed[] }) {
   // charge, so the newest has the highest.
   const serial = new Map(sessions.map((s, i) => [s.key, sessions.length - i]));
   const energyTotal = sessions.reduce((sum, s) => sum + ((s.tesla ? s.tesla.energy_kwh : s.stream?.energy_added_kwh) ?? 0), 0);
+  const costs = hasCosts(sessions);
   const groups = new Map<string, Listed[]>();
   for (const s of sessions) {
     const month = formatMonth(s.started_at);
@@ -139,16 +140,17 @@ export function SessionList({ sessions }: { sessions: Listed[] }) {
           <section key={month} className="space-y-2">
             <h3 className="text-xs font-medium tracking-wide text-faint uppercase">{month}</h3>
             <div>
+              <SessionHeader costs={costs} />
               <ul className="divide-y border-t">
                 {rows.slice(0, LIST_PREVIEW).map((s) => (
-                  <SessionRow key={s.key} item={s} serial={serial.get(s.key) ?? 0} />
+                  <SessionRow key={s.key} item={s} serial={serial.get(s.key) ?? 0} costs={costs} />
                 ))}
               </ul>
               {rows.length > LIST_PREVIEW && (
                 <ShowMore count={rows.length - LIST_PREVIEW}>
                   <ul className="divide-y border-t">
                     {rows.slice(LIST_PREVIEW).map((s) => (
-                      <SessionRow key={s.key} item={s} serial={serial.get(s.key) ?? 0} />
+                      <SessionRow key={s.key} item={s} serial={serial.get(s.key) ?? 0} costs={costs} />
                     ))}
                   </ul>
                 </ShowMore>

@@ -43,7 +43,33 @@ function batteryTemp(s: StreamChargeSession): string | null {
     : null;
 }
 
-export function SessionRow({ item, serial, now }: { item: Listed; serial?: number; now?: number }) {
+// Whether a list needs the Cost column: only Tesla bills a session. Decided per list, so mixed rows keep
+// one set of columns; a row without a cost shows a faint dash there.
+export function hasCosts(items: Listed[]): boolean {
+  return items.some((item) => item.tesla);
+}
+
+// Static class names, so Tailwind sees them. Wide fits "Yesterday" in the first column (with `now`).
+function columns(wide: boolean, costs: boolean): string {
+  if (wide) return costs ? "grid-cols-charge-wide-cost" : "grid-cols-charge-wide";
+  return costs ? "grid-cols-charge-cost" : "grid-cols-charge";
+}
+
+// The column names above a list of SessionRows, in the same grid.
+export function SessionHeader({ costs, wide = false }: { costs: boolean; wide?: boolean }) {
+  return (
+    <div className={cn(columns(wide, costs), "grid gap-x-4 pb-2 text-xs text-faint")} aria-hidden="true">
+      <span>Date</span>
+      <span>Session</span>
+      <span className="text-right">Energy</span>
+      {costs && <span className="text-right">Cost</span>}
+    </div>
+  );
+}
+
+// `costs` comes from hasCosts over the whole list. The invoice download sits before the cost, so a row
+// without one leaves no gap and the last column stays flush right.
+export function SessionRow({ item, serial, now, costs }: { item: Listed; serial?: number; now?: number; costs: boolean }) {
   const { tesla: s, stream } = item;
   const invoice = s?.invoices.find((i) => i.contentId);
   const { place, city } = s ? splitSite(s.site_name) : { place: stream ? streamTitle(stream) : "", city: null };
@@ -61,7 +87,7 @@ export function SessionRow({ item, serial, now }: { item: Listed; serial?: numbe
     ? [city, durationText, peakText, tempText]
     : [stream && levels(stream), stoppedAt ? durationText : "In progress", peakText, tempText];
   return (
-    <li className={cn(now === undefined ? "grid-cols-session" : "grid-cols-session-wide", "grid items-start gap-x-4 py-4 text-sm", href && "relative")}>
+    <li className={cn(columns(now !== undefined, costs), "grid items-start gap-x-4 py-4 text-sm", href && "relative")}>
       <div className="space-y-1">
         <p className="tabular-nums">{now === undefined ? formatShortDate(item.started_at) : formatDayLabel(item.started_at, now)}</p>
         <p className="text-xs text-faint tabular-nums">{formatClock(item.started_at)}</p>
@@ -79,31 +105,28 @@ export function SessionRow({ item, serial, now }: { item: Listed; serial?: numbe
         </p>
         <p className="truncate text-xs text-muted-foreground">{detail.filter(Boolean).join(" · ")}</p>
       </div>
-      <div className="space-y-1 text-right">
-        {s ? (
-          <>
-            <p className="font-mono font-medium tabular-nums">{s.cost_total === null ? "—" : formatMoney(s.cost_total, currency)}</p>
-            <p className="text-xs text-muted-foreground tabular-nums">
-              {energy === null ? "—" : formatKwh(energy)}
-                            {rateText && <span> · {rateText}</span>}
+      <p className="text-right font-mono font-medium whitespace-nowrap tabular-nums">{energy === null ? "—" : formatKwh(energy)}</p>
+      {costs &&
+        (s && s.cost_total !== null ? (
+          <div className="space-y-1 text-right">
+            <p className="flex items-center justify-end gap-1 font-mono font-medium whitespace-nowrap tabular-nums">
+              {invoice?.contentId && (
+                <a
+                  href={`/api/charging/invoice/${encodeURIComponent(invoice.contentId)}`}
+                  aria-label={`Download invoice for ${formatShortDate(item.started_at)}`}
+                  className={buttonVariants({ variant: "ghost", size: "icon-xs", className: "group relative z-10 -my-0.5" })}
+                >
+                  <Download className="size-3.5" aria-hidden="true" />
+                  <Tip>Download invoice</Tip>
+                </a>
+              )}
+              {formatMoney(s.cost_total, currency)}
             </p>
-          </>
+            {rateText && <p className="text-xs whitespace-nowrap text-muted-foreground tabular-nums">{rateText}</p>}
+          </div>
         ) : (
-          <p className="font-mono font-medium tabular-nums">{energy === null ? "—" : formatKwh(energy)}</p>
-        )}
-      </div>
-      <div className="flex self-center">
-        {s && invoice?.contentId && (
-          <a
-            href={`/api/charging/invoice/${encodeURIComponent(invoice.contentId)}`}
-            aria-label={`Download invoice for ${formatShortDate(item.started_at)}`}
-            className={buttonVariants({ variant: "ghost", size: "icon-xs", className: "group relative" })}
-          >
-            <Download className="size-3.5" aria-hidden="true" />
-            <Tip>Download invoice</Tip>
-          </a>
-        )}
-      </div>
+          <p className="text-right text-faint">—</p>
+        ))}
     </li>
   );
 }

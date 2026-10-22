@@ -261,12 +261,23 @@
 @utility grid-cols-car-header {
   grid-template-columns: 1fr minmax(0, auto);
 }
-@utility grid-cols-session {
-  grid-template-columns: 3.5rem minmax(0, 1fr) auto 1.5rem;
-}
-/* The same row with room for "Yesterday" in the first column. */
+/* A drive: when, what, the figure and a spare column. Room for "Yesterday" in the first. */
 @utility grid-cols-session-wide {
   grid-template-columns: 5rem minmax(0, 1fr) auto 1.5rem;
+}
+/* A charging session: when, what, energy, and cost when the list has any (see SessionRow). Fixed widths
+   so each row's own grid lines up with the header and the rows around it. "-wide" fits "Yesterday". */
+@utility grid-cols-charge {
+  grid-template-columns: 3.5rem minmax(0, 1fr) 5rem;
+}
+@utility grid-cols-charge-cost {
+  grid-template-columns: 3.5rem minmax(0, 1fr) 5rem 6rem;
+}
+@utility grid-cols-charge-wide {
+  grid-template-columns: 5rem minmax(0, 1fr) 5rem;
+}
+@utility grid-cols-charge-wide-cost {
+  grid-template-columns: 5rem minmax(0, 1fr) 5rem 6rem;
 }
 @utility grid-cols-split {
   @media (width >= 48rem) {

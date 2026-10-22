@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { type Listed, SessionRow } from "@/components/session-row";
+import { hasCosts, type Listed, SessionHeader, SessionRow } from "@/components/session-row";
 import { Bars } from "@/components/stats/bars";
 import { BatteryTrend } from "@/components/stats/battery-trend";
 import { DriveRow } from "@/components/stats/drive-list";
@@ -34,11 +34,15 @@ function Section({ title, view, more, children }: { title: string; view: View; m
   );
 }
 
-// Rows keep their columns and scroll sideways on a phone, like the lists on the Stats pages.
-function Rows({ children }: { children: ReactNode }) {
+// Rows keep their columns and scroll sideways on a phone, like the lists on the Stats pages. A header
+// names the columns above them.
+function Rows({ header, children }: { header?: ReactNode; children: ReactNode }) {
   return (
     <div className="max-sm:-mx-1 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:px-1">
-      <ul className="divide-y border-t max-sm:min-w-xl">{children}</ul>
+      <div className="max-sm:min-w-xl">
+        {header}
+        <ul className="divide-y border-t">{children}</ul>
+      </div>
     </div>
   );
 }
@@ -46,6 +50,8 @@ function Rows({ children }: { children: ReactNode }) {
 // Spend per bar (Tesla's Supercharger bill, as in Spent), then the newest sessions.
 export function ChargingSection({ sessions, listed, now }: { sessions: ChargingSession[]; listed: Listed[]; now: number }) {
   if (listed.length === 0) return null;
+  const shown = listed.slice(0, ROWS);
+  const costs = hasCosts(shown);
   const currency = sessions.find((s) => s.currency)?.currency ?? "INR";
   const compact = new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 });
   const bars = (period: Period) => {
@@ -56,9 +62,9 @@ export function ChargingSection({ sessions, listed, now }: { sessions: ChargingS
   return (
     <Section title="Charging" view="charging" more="All sessions">
       {eachPeriod((p) => <Bars bars={bars(p)} ariaLabel={`Spend per ${SLOT_NAMES[p]}`} prefix="₹" />, { steady: true })}
-      <Rows>
-        {listed.slice(0, ROWS).map((item) => (
-          <SessionRow key={item.key} item={item} now={now} />
+      <Rows header={<SessionHeader costs={costs} wide />}>
+        {shown.map((item) => (
+          <SessionRow key={item.key} item={item} now={now} costs={costs} />
         ))}
       </Rows>
     </Section>
