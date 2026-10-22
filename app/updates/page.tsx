@@ -74,12 +74,14 @@ function CarUpdates({ car, notes, label, now }: { car: UpdatesCar; notes: Releas
         )}
       </header>
 
+      {/* Only while an update is on its way; the version above already says what the car runs. */}
+      {pending && (
       <dl className="text-sm">
         <div>
           <dt className={`mb-2 ${heading}`}>Update</dt>
           <dd>
             <UpdateStatus snapshot={lastOnline} now={now} />
-            {pending && lastOnline?.update_version && notes[lastOnline.update_version] && (
+            {lastOnline?.update_version && notes[lastOnline.update_version] && (
               <div className="pt-3">
                 <ReleaseNotesToggle version={lastOnline.update_version} notes={notes} stacked />
               </div>
@@ -87,6 +89,7 @@ function CarUpdates({ car, notes, label, now }: { car: UpdatesCar; notes: Releas
           </dd>
         </div>
       </dl>
+      )}
 
       {latest?.error && <p className="text-xs text-muted-foreground">The car went to sleep during the last check. Uplink will try again.</p>}
 

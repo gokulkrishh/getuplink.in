@@ -1,4 +1,3 @@
-import { Check } from "lucide-react";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { formatDuration, formatSeen } from "@/lib/format";
 import type { Snapshot } from "@/lib/server/dashboard";
@@ -18,18 +17,8 @@ export function isPending(snapshot: Snapshot | null): boolean {
 
 // Order: status line, then its details (progress, timing).
 export function UpdateStatus({ snapshot, now }: { snapshot: Snapshot | null; now: number }) {
-  if (!snapshot) return <p className="text-muted-foreground">Unknown until the car is next seen online.</p>;
-  const status = snapshot.update_status;
-  if (!status || !STATUS[status]) {
-    return (
-      <div className="space-y-1">
-        <p className="flex items-center gap-1.5">
-          <Check className="size-3.5 text-muted-foreground" aria-hidden="true" />
-          Up to date
-        </p>
-      </div>
-    );
-  }
+  const status = snapshot?.update_status;
+  if (!snapshot || !status || !STATUS[status]) return null;
 
   const progress =
     status === "installing" ? snapshot.install_perc : status === "downloading" ? snapshot.download_perc : null;
