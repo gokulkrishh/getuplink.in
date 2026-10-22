@@ -7,12 +7,15 @@ export type Bar = { key: string; label: string; value: number; display: string; 
 // With labelEvery, any number of columns (one per day, say): only every labelEvery-th column from the
 // last one carries its label, and values live in the hover title and for screen readers.
 // With visible, only that many columns fit the panel and the rest scroll sideways, opening on the newest.
+// `unit` titles the y axis and follows each value in the hover tip and for screen readers; `display` is
+// the bare number (money carries its own sign, with `prefix` on the axis).
 export function Bars({
   bars: all,
   ariaLabel,
   labelEvery,
   visible,
   prefix,
+  unit,
 }: {
   bars: Bar[];
   ariaLabel: string;
@@ -20,6 +23,8 @@ export function Bars({
   visible?: number;
   // Put before the y-axis numbers, like "₹".
   prefix?: string;
+  // Like "km" or "% a day".
+  unit?: string;
 }) {
   const dense = all.length > 6;
   // Months before the history starts are dropped, so the bars begin at the left edge.
@@ -45,7 +50,7 @@ export function Bars({
             <li key={b.key} aria-hidden="true" />
           ) : (
             <li key={b.key} className="group relative flex flex-col items-center gap-2">
-              <BarTip at={k} of={bars.length} lines={[b.display]} title={b.label} />
+              <BarTip at={k} of={bars.length} lines={[withUnit(b.display, unit)]} title={b.label} />
               {!dense && <span className="font-mono text-xs text-muted-foreground tabular-nums">{b.display}</span>}
               <div className="flex h-20 w-full items-end">
                 {b.value > 0 && (
@@ -59,17 +64,22 @@ export function Bars({
               <span className={cn("h-4 text-xs whitespace-nowrap", b.isCurrent ? "text-foreground" : "text-faint")}>
                 {labelEvery ? (labelled(k) ? b.label : "") : <MonthLabel label={b.label} dense={dense} fromEnd={bars.length - 1 - k} />}
               </span>
-              {dense && <span className="sr-only">{b.display}</span>}
+              {dense && <span className="sr-only">{withUnit(b.display, unit)}</span>}
             </li>
           ),
         )}
       </ol>
   );
   return (
-    <ChartFrame max={max} dense={dense} prefix={prefix}>
+    <ChartFrame max={max} dense={dense} prefix={prefix} unit={unit}>
       {scrolls ? <ScrollEnd label={ariaLabel}>{list}</ScrollEnd> : list}
     </ChartFrame>
   );
+}
+
+// "12 km", "1.2% a day": a space before a unit, none before a percent sign.
+export function withUnit(value: string, unit?: string): string {
+  return unit ? `${value}${unit.startsWith("%") ? "" : " "}${unit}` : value;
 }
 
 // The y-axis top: the data's maximum rounded up to 1, 2, 2.5 or 5 times a power of ten.
@@ -82,11 +92,17 @@ const axisNumber = new Intl.NumberFormat("en-IN", { notation: "compact", maximum
 
 // The panel with a y axis (0, half and the top) on the left and matching gridlines behind the bars. The
 // axis lines up with the bars' h-20 area: below the value labels (h-4 plus the gap) unless the chart is
-// dense, and above the x-axis labels. The bottom gridline is the x axis.
-export function ChartFrame({ max, dense, prefix = "", children }: { max: number; dense: boolean; prefix?: string; children: React.ReactNode }) {
+// dense, and above the x-axis labels. The bottom gridline is the x axis. `unit` sits above the axis, in
+// the top padding; a dense chart has its top number there too, so it gets a little more room.
+export function ChartFrame({ max, dense, prefix = "", unit, children }: { max: number; dense: boolean; prefix?: string; unit?: string; children: React.ReactNode }) {
   const top = dense ? "top-0" : "top-6";
   return (
-    <div className="flex gap-2 bg-muted pt-5 pr-4 pb-3 pl-2">
+    <div className={cn("relative flex gap-2 bg-muted pr-4 pb-3 pl-2", unit && dense ? "pt-8" : "pt-5")}>
+      {unit && (
+        <span className="absolute top-1 left-2 font-mono text-xs text-faint" aria-hidden="true">
+          {unit}
+        </span>
+      )}
       <div className={cn("relative w-8 shrink-0", dense ? "mb-6" : "my-6")} aria-hidden="true">
         <div className="relative h-20 text-right font-mono text-xs text-faint tabular-nums">
           {[max, max / 2, 0].map((v, i) => (

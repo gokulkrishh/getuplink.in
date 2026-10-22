@@ -88,7 +88,7 @@ export function DrivingSection({ figures, drives, now }: { figures: DrivingFigur
     });
   return (
     <Section title="Driving" view="driving" more="All drives">
-      {eachPeriod((p) => <Bars bars={bars(p)} ariaLabel={`Distance per ${SLOT_NAMES[p]} in km`} />, { steady: true })}
+      {eachPeriod((p) => <Bars bars={bars(p)} ariaLabel={`Distance per ${SLOT_NAMES[p]} in km`} unit="km" />, { steady: true })}
       {drives.length > 0 && (
         <Rows>
           {drives.slice(0, ROWS).map((d, i) => (

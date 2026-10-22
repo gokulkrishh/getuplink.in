@@ -31,7 +31,7 @@ export function StackedBars({ bars: all, series, ariaLabel }: { bars: StackedBar
 
   return (
     <div className="space-y-3">
-      <ChartFrame max={max} dense={dense}>
+      <ChartFrame max={max} dense={dense} unit="kWh">
         <ol
           className={cn("grid items-end", dense ? "gap-1" : "gap-3")}
           style={{ gridTemplateColumns: `repeat(${Math.max(bars.length, MIN_COLUMNS)}, minmax(0, 1fr))` }}

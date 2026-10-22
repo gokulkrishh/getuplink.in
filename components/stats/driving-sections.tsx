@@ -25,7 +25,7 @@ export function Distance({ figures, now, period }: { figures: DrivingFigures; no
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{compactNumber.format(current.km ?? 0)} km</p>
         <p className="text-sm text-muted-foreground">{PERIOD_WORDS[period]}</p>
       </div>
-      <Bars bars={bars} ariaLabel={`Distance per ${SLOT_NAMES[period]}`} />
+      <Bars bars={bars} ariaLabel={`Distance per ${SLOT_NAMES[period]}`} unit="km" />
     </section>
   );
 }
@@ -52,14 +52,14 @@ export function EnergyUse({ figures, now, period }: { figures: DrivingFigures; n
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{compactNumber.format(Math.round(current.whPerKm))} Wh/km</p>
         <p className="text-sm text-muted-foreground">{PERIOD_WORDS[period]}</p>
       </div>
-      <Bars bars={bars} ariaLabel={`Energy use per ${SLOT_NAMES[period]} in Wh per km`} />
+      <Bars bars={bars} ariaLabel={`Energy use per ${SLOT_NAMES[period]} in Wh per km`} unit="Wh/km" />
       {regenTotal > 0 && (
         <div className="space-y-4">
           <p className="text-sm">
             Regen won back <span className="font-mono font-medium tabular-nums">{formatKwh(regenTotal)}</span>{" "}
             <span className="text-muted-foreground">{PERIOD_WORDS[period]}</span>
           </p>
-          <Bars bars={regenBars} ariaLabel={`Energy won back by regen per ${SLOT_NAMES[period]} in kWh`} />
+          <Bars bars={regenBars} ariaLabel={`Energy won back by regen per ${SLOT_NAMES[period]} in kWh`} unit="kWh" />
         </div>
       )}
     </section>
@@ -75,7 +75,7 @@ export function DailyDriving({ days }: { days: DayKm[] }) {
     key: String(d.day),
     label: formatShortDate(d.start),
     value: d.km ?? 0,
-    display: `${compactNumber.format(d.km ?? 0)} km`,
+    display: compactNumber.format(d.km ?? 0),
     isCurrent: k === days.length - 1,
     blank: d.km === null,
   }));
@@ -85,7 +85,7 @@ export function DailyDriving({ days }: { days: DayKm[] }) {
         <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Driving per day</h2>
         <p className="text-sm text-muted-foreground tabular-nums">{compactNumber.format(total)} km in the last 30 days</p>
       </div>
-      <Bars bars={bars} ariaLabel="Distance per day" labelEvery={7} visible={30} />
+      <Bars bars={bars} ariaLabel="Distance per day" labelEvery={7} visible={30} unit="km" />
     </section>
   );
 }

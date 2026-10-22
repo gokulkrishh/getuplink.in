@@ -57,7 +57,7 @@ export default function ChargeCurvePlot({ points }: { points: CurvePoint[] }) {
                 minTickGap={48}
                 tick={tick}
               />
-              <YAxis yAxisId="kw" domain={[0, "auto"]} width={36} tickCount={3} tickLine={false} axisLine={{ stroke: "var(--border)" }} tick={tick} />
+              <YAxis yAxisId="kw" domain={[0, "auto"]} unit=" kW" width={44} tickCount={3} tickLine={false} axisLine={{ stroke: "var(--border)" }} tick={tick} />
               <YAxis yAxisId="level" orientation="right" domain={[0, 100]} width={32} ticks={[0, 50, 100]} tickFormatter={(v: number) => `${v}%`} tickLine={false} axisLine={{ stroke: "var(--border)" }} tick={tick} />
               <ChartTooltip
                 cursor={{ stroke: "var(--border)" }}

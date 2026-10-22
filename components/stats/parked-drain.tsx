@@ -18,7 +18,7 @@ export function ParkedDrain({ drain }: { drain: DrainSummary | null }) {
     key: String(p.start),
     label: formatShortDate(p.end),
     value: p.percentPerDay,
-    display: `${oneDecimal(p.percentPerDay)}% a day`,
+    display: oneDecimal(p.percentPerDay),
     isCurrent: k === recent.length - 1,
   }));
   return (
@@ -31,7 +31,7 @@ export function ParkedDrain({ drain }: { drain: DrainSummary | null }) {
         <p className="text-sm text-muted-foreground tabular-nums">Based on {count} nights parked</p>
         <p className="text-xs text-muted-foreground">Sentry Mode, cabin overheat protection and app checks raise this.</p>
       </div>
-      {count >= MIN_FOR_CHART && <Bars bars={bars} ariaLabel="Battery lost per day while parked" labelEvery={7} />}
+      {count >= MIN_FOR_CHART && <Bars bars={bars} ariaLabel="Battery lost per day while parked" labelEvery={7} unit="% a day" />}
     </section>
   );
 }

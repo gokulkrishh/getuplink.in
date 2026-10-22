@@ -54,7 +54,7 @@ export default function BatteryTrendPlot({ points }: { points: TrendPoint[] }) {
                 minTickGap={48}
                 tick={{ fontSize: 11, fill: "var(--faint)" }}
               />
-              <YAxis domain={domain} width={36} tickCount={3} tickLine={false} axisLine={{ stroke: "var(--border)" }} tick={{ fontSize: 11, fill: "var(--faint)" }} />
+              <YAxis domain={domain} unit=" kWh" width={52} tickCount={3} tickLine={false} axisLine={{ stroke: "var(--border)" }} tick={{ fontSize: 11, fill: "var(--faint)" }} />
               <ChartTooltip
                 cursor={{ stroke: "var(--border)" }}
                 content={({ active, payload }) => {
