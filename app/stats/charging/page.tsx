@@ -3,7 +3,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { SyncChargingSessions } from "@/components/background-sync";
-import type { Listed } from "@/components/session-row";
+import { listSessions } from "@/components/session-row";
 import { EnergyAdded, SessionList, Summary } from "@/components/stats/charging-sections";
 import { parsePeriod } from "@/components/stats/periods";
 import { eachPeriod, NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/components/stats/stats-frame";
@@ -36,10 +36,7 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
   const { sessions, streamSessions, rates, now } = await loadCharging();
   const { pairs, streamOnly } = matchSessions(sessions, streamSessions, now);
   const priced = pricedSessions(streamOnly, rates);
-  const listed: Listed[] = [
-    ...pairs.map((p) => ({ key: p.tesla.session_id, started_at: p.tesla.started_at, tesla: p.tesla, stream: p.stream })),
-    ...streamOnly.map((s) => ({ key: `stream-${s.id}`, started_at: s.started_at, tesla: null, stream: s })),
-  ].sort((a, b) => Date.parse(b.started_at) - Date.parse(a.started_at));
+  const listed = listSessions(pairs, streamOnly);
 
   return (
     <StatsFrame view="charging" period={period} periodSwitch={listed.length > 0}>

@@ -99,7 +99,7 @@ function ChargeSkeleton() {
 export default function Page({ params }: PageProps<"/stats/charging/[id]">) {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:py-20">
-      <Header current="stats" />
+      <Header />
       <Suspense fallback={<ChargeSkeleton />}>
         <ChargeLoader params={params} />
       </Suspense>

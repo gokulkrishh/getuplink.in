@@ -19,6 +19,15 @@ export function rate(cost: number, energy: number, currency: string): string | n
 // itself. A Tesla session that the car also reported keeps its own row and gains the peak power.
 export type Listed = { key: string; started_at: string; tesla: ChargingSession | null; stream: StreamChargeSession | null };
 
+// Tesla's sessions (with the car's own record of each, when it has one) and the ones only the car
+// reported, newest first (see matchSessions).
+export function listSessions(pairs: { tesla: ChargingSession; stream: StreamChargeSession | null }[], streamOnly: StreamChargeSession[]): Listed[] {
+  return [
+    ...pairs.map((p) => ({ key: p.tesla.session_id, started_at: p.tesla.started_at, tesla: p.tesla, stream: p.stream })),
+    ...streamOnly.map((s) => ({ key: `stream-${s.id}`, started_at: s.started_at, tesla: null, stream: s })),
+  ].sort((a, b) => Date.parse(b.started_at) - Date.parse(a.started_at));
+}
+
 export function streamTitle(s: StreamChargeSession): string {
   if (s.supercharger) return "Supercharger";
   return s.kind === "dc" ? "Third-party charger" : "AC charging";

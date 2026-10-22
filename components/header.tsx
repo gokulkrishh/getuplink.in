@@ -3,17 +3,17 @@ import { logout } from "@/app/actions";
 import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
 
-export type Section = "stats" | "updates" | "car" | "settings";
+export type Section = "updates" | "car" | "settings";
 
 const LINKS: { section: Section; href: string; label: string }[] = [
-  { section: "stats", href: "/stats/charging", label: "Stats" },
   { section: "updates", href: "/updates", label: "Updates" },
   // The single car: /car shows the primary one, so the header needs no data and stays in the static shell.
   { section: "car", href: "/car", label: "Car" },
   { section: "settings", href: "/settings", label: "Settings" },
 ];
 
-// The same header on every signed-in page; `current` marks the page's own link.
+// The same header on every signed-in page; `current` marks the page's own link. The Stats pages open from
+// the home page's sections, so they have none.
 export function Header({ current }: { current?: Section }) {
   return (
     <header className="mb-16 flex items-center justify-between gap-4 text-sm">

@@ -6,7 +6,7 @@ import { type ChargingSession, loadChargingSessions } from "./charging";
 import { loadChargingRates } from "./charging-rates";
 import { type CarState, loadCarState, loadOwnerCars, type OwnerGate, type PollRun, type Vehicle } from "./dashboard";
 import { demoFirstWeekStart } from "./demo";
-import { loadDrivingFigures } from "./driving";
+import { loadDrivingFigures, loadWindowStats, type WindowStats } from "./driving";
 import { loadStreamSessions, type StreamChargeSession } from "./stream-charging";
 
 export type HomeCar = CarState & { vehicle: Vehicle };
@@ -19,6 +19,8 @@ export type HomeData = {
   sessions: ChargingSession[];
   streamSessions: StreamChargeSession[];
   rates: ChargingRates;
+  // The primary car's last 90 days of streamed readings: drives, the battery trend, range and parked drain.
+  window: WindowStats;
 };
 
 export type Home = OwnerGate | ({ kind: "ready" } & HomeData);
@@ -33,15 +35,25 @@ export async function loadHome(scenario: DemoScenario, now: number): Promise<Hom
     const primary = owner.vehicles.find((v) => v.vin) ?? null;
     // The demo's First week: a car connected four days ago, so nothing before then exists.
     const demoSince = DEMO && scenario === "firstWeek" ? demoFirstWeekStart() : undefined;
-    const [cars, figures, sessions, streamSessions, rates] = await Promise.all([
+    const [cars, figures, sessions, streamSessions, rates, window] = await Promise.all([
       Promise.all(owner.vehicles.map(async (vehicle) => ({ vehicle, ...(await loadCarState(vehicle, scenario)) }))),
       loadDrivingFigures(primary?.vin ?? null, now, demoSince),
       loadChargingSessions(),
       loadStreamSessions(),
       loadChargingRates(),
+      loadWindowStats(primary?.vin ?? null, now),
     ]);
     const after = (s: { started_at: string }) => demoSince === undefined || Date.parse(s.started_at) >= demoSince;
-    return { kind: "ready", cars, lastRun: owner.lastRun, figures, sessions: sessions.filter(after), streamSessions: streamSessions.filter(after), rates };
+    return {
+      kind: "ready",
+      cars,
+      lastRun: owner.lastRun,
+      figures,
+      sessions: sessions.filter(after),
+      streamSessions: streamSessions.filter(after),
+      rates,
+      window: { ...window, driving: { ...window.driving, drives: window.driving.drives.filter((d) => demoSince === undefined || d.start >= demoSince) } },
+    };
   } catch (err) {
     if (DEMO) throw err;
     console.error(err);

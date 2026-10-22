@@ -3,7 +3,7 @@ import type { Drive } from "@/lib/drives";
 import { formatClock, formatDayLabel, formatDuration, formatKm } from "@/lib/format";
 import { LIST_PREVIEW } from "@/lib/list";
 
-function DriveRow({ drive, serial, now }: { drive: Drive; serial: number; now: number }) {
+export function DriveRow({ drive, serial, now }: { drive: Drive; serial: number; now: number }) {
   const levels =
     drive.startLevel !== null && drive.endLevel !== null ? `${Math.round(drive.startLevel)}% to ${Math.round(drive.endLevel)}%` : null;
   return (
