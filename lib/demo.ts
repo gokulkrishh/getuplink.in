@@ -8,7 +8,7 @@ export const DEMO_SCENARIOS = {
   charging: "Charging",
   updating: "Downloading an update",
   installing: "Installing an update",
-  // "This week" with nothing before it to compare against: "Tracking since <date>".
+  // A car connected four days ago: nothing before then, so the home page says "Tracking since <date>".
   firstWeek: "First week",
 } as const;
 

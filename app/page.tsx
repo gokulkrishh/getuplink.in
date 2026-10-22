@@ -1,7 +1,7 @@
 import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { SyncChargingSessions, SyncStreamVersions } from "@/components/background-sync";
+import { SyncStreamSessions, SyncStreamVersions } from "@/components/background-sync";
 import { DemoBar } from "@/components/demo-bar";
 import { Header } from "@/components/header";
 import { Headline } from "@/components/home/headline";
@@ -133,7 +133,7 @@ export default function Page({ searchParams }: PageProps<"/">) {
         <SyncStreamVersions />
       </Suspense>
       <Suspense>
-        <SyncChargingSessions />
+        <SyncStreamSessions />
       </Suspense>
     </div>
   );

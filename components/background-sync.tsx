@@ -16,7 +16,15 @@ export async function SyncStreamVersions() {
   return null;
 }
 
-// Rebuilds sessions from the car's readings, and pulls Supercharger history (at most every 30 minutes).
+// Rebuilds sessions from the car's readings. Database only, and incremental from the last open session.
+export async function SyncStreamSessions() {
+  await io();
+  after(syncStreamSessionsForAllCars);
+  return null;
+}
+
+// The same, and pulls Supercharger history (at most every 30 minutes). That is a billed Fleet API call,
+// so only the Charging page makes it; the poll does too.
 export async function SyncChargingSessions() {
   await io();
   after(() => Promise.all([syncStreamSessionsForAllCars(), syncChargingHistoryThrottled()]));
