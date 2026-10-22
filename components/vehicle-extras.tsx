@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ShowMore } from "@/components/show-more";
 import { SessionRow } from "@/components/session-row";
 import { statsHref } from "@/components/stats/periods";
-import { formatDayLabel } from "@/lib/format";
+import { formatDayLabel, formatShortDate } from "@/lib/format";
 import { compareToLastWeek, type Comparison, type WeekSummary } from "@/lib/dashboard-summary";
 import type { VehicleExtras } from "@/lib/server/dashboard-extras";
 import { LIST_PREVIEW } from "@/lib/list";
@@ -43,6 +43,8 @@ function Stat({ href, label, value, unit, note }: { href: string; label: string;
 export function WeekStrip({ week }: { week: WeekSummary | null }) {
   if (!week) return null;
   const driving = statsHref("driving", "month");
+  // With nothing to compare against, say how far back the readings go instead.
+  const coverage: Comparison | null = week.since !== null ? { text: `Tracking since ${formatShortDate(week.since)}`, tone: "neutral" } : null;
   return (
     <section className="space-y-4">
       <div className="space-y-1">
@@ -50,14 +52,14 @@ export function WeekStrip({ week }: { week: WeekSummary | null }) {
         <p className="text-xs text-faint">Compared with the 7 days before</p>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        {week.km !== null && <Stat href={driving} label="Driven" value={number.format(week.km)} unit="km" note={compareToLastWeek(week.km, week.previous.km, "km")} />}
+        {week.km !== null && <Stat href={driving} label="Driven" value={number.format(week.km)} unit="km" note={compareToLastWeek(week.km, week.previous.km, "km") ?? coverage} />}
         {week.whPerKm !== null && (
           <Stat
             href={driving}
             label="Efficiency"
             value={number.format(week.whPerKm)}
             unit="Wh/km"
-            note={compareToLastWeek(week.whPerKm, week.previous.whPerKm, "Wh/km", { lowerIsBetter: true })}
+            note={compareToLastWeek(week.whPerKm, week.previous.whPerKm, "Wh/km", { lowerIsBetter: true }) ?? coverage}
           />
         )}
       </div>

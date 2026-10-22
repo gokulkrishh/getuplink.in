@@ -45,8 +45,9 @@ export type ChargeItem = {
 
 export type WeekTotals = { km: number | null; whPerKm: number | null };
 
-// The last 7 IST days (today included) and the 7 days before them.
-export type WeekSummary = WeekTotals & { previous: WeekTotals };
+// The last 7 IST days (today included) and the 7 days before them. `since` is when the odometer readings
+// start, when nothing older is known; else null.
+export type WeekSummary = WeekTotals & { previous: WeekTotals; since: number | null };
 
 // Each figure is null when there is no data for it.
 export function weekSummary(odometer: Reading[], odometerBefore: number | null, used: Reading[], usedBefore: number | null, now: number): WeekSummary {
@@ -63,7 +64,9 @@ export function weekSummary(odometer: Reading[], odometerBefore: number | null, 
     const whPerKm = weekKm !== null && weekKm >= MIN_EFFICIENCY_KM && weekUsed !== null && weekUsed > 0 ? (weekUsed * 1000) / weekKm : null;
     return { km: weekKm, whPerKm };
   };
-  return { ...totals(WEEK_DAYS), previous: totals(0) };
+  const first = odometer.find((r) => num(r.value) !== null);
+  const since = odometerBefore === null && first ? Date.parse(first.at) : null;
+  return { ...totals(WEEK_DAYS), previous: totals(0), since };
 }
 
 export type Comparison = { text: string; tone: "better" | "worse" | "neutral" };

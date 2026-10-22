@@ -9,11 +9,13 @@ import {
   type WeekSummary,
   weekSummary,
 } from "@/lib/dashboard-summary";
-import { istDay, istDayStart } from "@/lib/telemetry-derive";
+import { DEMO } from "@/lib/demo";
+import { istDay, istDayStart, num, type Reading } from "@/lib/telemetry-derive";
 import { loadBatteryHealth } from "./car";
 import { loadChargingSessions } from "./charging";
 import type { VersionChange } from "./dashboard";
 import { loadStreamSessions } from "./stream-charging";
+import { db } from "./supabase";
 import { loadReadingBefore, loadReadings } from "./telemetry";
 
 // What the dashboard shows under the version, for one car. Every part is empty when its data is.
@@ -27,8 +29,29 @@ export type VehicleExtras = {
 // Sessions per source to read: the 14-day window plus the last charge, whatever its age.
 const SESSION_LIMIT = 40;
 
+// The odometer (miles, as telemetry has it) of the car's last online check before `before`, for when
+// telemetry has nothing older than its first reading. `vehicleId` is the car's id as text (see Vehicle).
+// Null when there is none or the read fails.
+async function snapshotOdometerBefore(vehicleId: string, before: string): Promise<Reading | null> {
+  if (DEMO) return null;
+  const { data, error } = await db()
+    .from("snapshots")
+    .select("polled_at, odometer:raw->vehicle_state->>odometer")
+    .eq("vehicle_id", vehicleId)
+    .eq("state", "online")
+    .not("raw->vehicle_state->>odometer", "is", null)
+    .lt("polled_at", before)
+    .order("polled_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+  const check = data as { polled_at: string; odometer: string | null };
+  const value = num(check.odometer);
+  return value === null ? null : { at: check.polled_at, value };
+}
+
 // All the dashboard's extra reads at once, in narrow windows (14 days of the odometer and energy counters). Never throws: the dashboard works without any of this.
-export async function loadVehicleExtras(vin: string, history: Promise<VersionChange[]>, now: number): Promise<VehicleExtras | null> {
+export async function loadVehicleExtras(vehicleId: string, vin: string, history: Promise<VersionChange[]>, now: number): Promise<VehicleExtras | null> {
   try {
     const from = new Date(istDayStart(istDay(now) - ACTIVITY_DAYS + 1)).toISOString();
     const [odometer, odometerBefore, used, usedBefore, health, teslaSessions, streamSessions, versions] = await Promise.all([
@@ -62,12 +85,20 @@ export async function loadVehicleExtras(vin: string, history: Promise<VersionCha
       endLevel: stream?.end_level ?? null,
     }));
 
-    const odometerReadings = odometer ?? [];
+    let odometerReadings = odometer ?? [];
+    let odometerStart = odometerBefore;
+    // Without an older telemetry reading the first tracked day has nothing to count from: use the car's
+    // last check before it. A check inside the window counts as a reading there, an older one as the start.
+    if (odometerStart === null && odometerReadings.length > 0) {
+      const check = await snapshotOdometerBefore(vehicleId, odometerReadings[0].at);
+      if (check && Date.parse(check.at) >= Date.parse(from)) odometerReadings = [check, ...odometerReadings];
+      else if (check) odometerStart = num(check.value);
+    }
     const usedReadings = used ?? [];
-    const week = weekSummary(odometerReadings, odometerBefore, usedReadings, usedBefore, now);
+    const week = weekSummary(odometerReadings, odometerStart, usedReadings, usedBefore, now);
     const activity = buildActivity({
       odometer: odometerReadings,
-      odometerBefore,
+      odometerBefore: odometerStart,
       used: usedReadings,
       usedBefore,
       charges,
@@ -75,7 +106,7 @@ export async function loadVehicleExtras(vin: string, history: Promise<VersionCha
       now,
     });
     return {
-      week: [week.km, week.whPerKm].some((v) => v !== null) ? week : null,
+      week: week.km !== null ? week : null,
       healthKwh: health?.packKwh ?? null,
       lastCharge: listed[0] ?? null,
       activity,

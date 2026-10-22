@@ -122,7 +122,7 @@ async function vehicleView(vehicle: Vehicle, scenario: DemoScenario): Promise<Ve
     const { snapshot, history } = demoData();
     const stream = demoStream(STREAM_FIELDS, scenario);
     const timelines = withTimelines(vehicle.vin!, history);
-    const [withTimes, extras] = await Promise.all([timelines, loadVehicleExtras(vehicle.vin!, timelines, Date.now())]);
+    const [withTimes, extras] = await Promise.all([timelines, loadVehicleExtras(vehicle.id, vehicle.vin!, timelines, Date.now())]);
     return {
       vehicle,
       streamAt: newestReading(stream),
@@ -155,7 +155,7 @@ async function vehicleView(vehicle: Vehicle, scenario: DemoScenario): Promise<Ve
   const rows = (history.data ?? []) as VersionChange[];
   // The timelines are read once and shared: they also feed "Installed ... took" in recent activity.
   const timelines = vehicle.vin ? withTimelines(vehicle.vin, rows) : Promise.resolve(rows);
-  const [withTimes, extras] = await Promise.all([timelines, vehicle.vin ? loadVehicleExtras(vehicle.vin, timelines, Date.now()) : null]);
+  const [withTimes, extras] = await Promise.all([timelines, vehicle.vin ? loadVehicleExtras(vehicle.id, vehicle.vin, timelines, Date.now()) : null]);
   return {
     vehicle,
     streamAt: newestReading(stream),
