@@ -146,7 +146,7 @@ function RolloutSkeleton() {
 
 export default function Page() {
   return (
-    <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:py-20">
+    <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
       <Header current="rollout" />
       <h1 className="sr-only">India rollout</h1>
       <Suspense fallback={<RolloutSkeleton />}>

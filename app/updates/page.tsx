@@ -168,7 +168,7 @@ function UpdatesSkeleton() {
 
 export default function Page({ searchParams }: PageProps<"/updates">) {
   return (
-    <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:py-20">
+    <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
       <Header current="updates" />
       <h1 className="sr-only">Software updates</h1>
       <Suspense fallback={<UpdatesSkeleton />}>

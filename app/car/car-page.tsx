@@ -176,7 +176,7 @@ function CarSkeleton() {
 // /car/[id] and /car (the primary car, id null) render this.
 export function CarPage({ id }: { id: Promise<string | null> }) {
   return (
-    <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:py-20">
+    <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
       <Header />
       <Suspense fallback={<CarSkeleton />}>
         <Car id={id} />
