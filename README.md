@@ -20,7 +20,7 @@ Stack: Bun, Next.js 16 (App Router), shadcn/ui, Geist, Recharts, Supabase Postgr
 | `/` | Home: the car now (status, battery, version, odometer), one period switch (Week, Month, Year, All) for the distance, spend, energy added and efficiency, each compared with the same span before, then charging, driving and battery. |
 | `/updates` | The installed version, any pending update with progress, the version history with download and install times, update stats, and when the car was online or asleep. |
 | `/stats/charging`, `/stats/driving`, `/stats/battery` | One topic each, in depth: every session, drive and chart. The period carries over in `?period=`. Old `/stats?view=…` links redirect here (update stats to `/updates`). |
-| `/car`, `/settings` | The car's details and battery health; theme, charging rates, importing past updates and the account. |
+| `/car`, `/settings` | The car's details and battery health; theme, importing past updates and the account. |
 
 The dashboard also has a **Check now** button that runs the same poll.
 

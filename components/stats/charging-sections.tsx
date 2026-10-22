@@ -3,8 +3,7 @@ import { ShowMore } from "@/components/show-more";
 import { Bars } from "@/components/stats/bars";
 import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
 import { chargeEfficiency } from "@/lib/charge-sessions";
-import { spendBySlot, spendIn } from "@/lib/charging-figures";
-import { type ChargingRates, type Priced, pricedSessions } from "@/lib/charging-rates";
+import { spendBySlot } from "@/lib/charging-figures";
 import { formatKwh, formatMoney, formatMonth } from "@/lib/format";
 import { LIST_PREVIEW } from "@/lib/list";
 import { inSpan, type Period, PERIOD_WORDS, periodSpan, SLOT_NAMES, slotsFor } from "@/lib/periods";
@@ -22,18 +21,13 @@ function totals(rows: ChargingSession[]) {
   };
 }
 
-// Supercharger spend is Tesla's billed amount; priced sessions add AC and third-party charging at the owner's rates.
-export function Summary({ sessions, priced, now, period }: { sessions: ChargingSession[]; priced: Priced[]; now: number; period: Period }) {
+// Spend is Tesla's billed Supercharger amount, with the energy and sessions it covers.
+export function Summary({ sessions, now, period }: { sessions: ChargingSession[]; now: number; period: Period }) {
   const span = periodSpan(period, now);
-  const billed = totals(sessions.filter((s) => inSpan(Date.parse(s.started_at), span)));
-  const pricedIn = priced.filter((p) => inSpan(Date.parse(p.started_at), span));
-  const { cost, atYourRates } = spendIn(sessions, priced, span);
-  const energy = billed.energy + pricedIn.reduce((sum, p) => sum + p.energy, 0);
-  const count = billed.count + pricedIn.length;
-  const currency = billed.currency;
+  const { cost, energy, count, currency } = totals(sessions.filter((s) => inSpan(Date.parse(s.started_at), span)));
   const rateText = rate(cost, energy, currency);
   const slots = slotsFor(period, now);
-  const spend = spendBySlot(sessions, priced, slots);
+  const spend = spendBySlot(sessions, slots);
   const compact = new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 });
   const bars = slots.map((slot, k) => ({ key: String(slot.id), label: slot.label, value: spend[k], display: compact.format(spend[k]), isCurrent: slot.isCurrent }));
   return (
@@ -46,9 +40,6 @@ export function Summary({ sessions, priced, now, period }: { sessions: ChargingS
             .filter(Boolean)
             .join(" · ")}
         </p>
-        {atYourRates > 0 && (
-          <p className="text-xs text-faint tabular-nums">Includes {formatMoney(atYourRates, currency)} at your rates</p>
-        )}
       </div>
       <Bars bars={bars} ariaLabel={`Spend per ${SLOT_NAMES[period]}`} prefix="₹" />
     </section>
@@ -118,7 +109,7 @@ export function EnergyAdded({
   );
 }
 
-export function SessionList({ sessions, rates }: { sessions: Listed[]; rates: ChargingRates }) {
+export function SessionList({ sessions }: { sessions: Listed[] }) {
   // Sessions arrive newest first, so each month's group is in order too. Numbers count from the first
   // charge, so the newest has the highest.
   const serial = new Map(sessions.map((s, i) => [s.key, sessions.length - i]));
@@ -144,21 +135,20 @@ export function SessionList({ sessions, rates }: { sessions: Listed[]; rates: Ch
     <div className="max-sm:min-w-xl space-y-10">
       {[...groups].map(([month, rows]) => {
         const billed = totals(rows.flatMap((r) => (r.tesla ? [r.tesla] : [])));
-        const atYourRates = pricedSessions(rows.flatMap((r) => (!r.tesla && r.stream ? [r.stream] : [])), rates).reduce((sum, p) => sum + p.cost, 0);
         return (
           <section key={month} className="space-y-2">
             <h3 className="text-xs font-medium tracking-wide text-faint uppercase">{month}</h3>
             <div>
               <ul className="divide-y border-t">
                 {rows.slice(0, LIST_PREVIEW).map((s) => (
-                  <SessionRow key={s.key} item={s} serial={serial.get(s.key) ?? 0} rates={rates} />
+                  <SessionRow key={s.key} item={s} serial={serial.get(s.key) ?? 0} />
                 ))}
               </ul>
               {rows.length > LIST_PREVIEW && (
                 <ShowMore count={rows.length - LIST_PREVIEW}>
                   <ul className="divide-y border-t">
                     {rows.slice(LIST_PREVIEW).map((s) => (
-                      <SessionRow key={s.key} item={s} serial={serial.get(s.key) ?? 0} rates={rates} />
+                      <SessionRow key={s.key} item={s} serial={serial.get(s.key) ?? 0} />
                     ))}
                   </ul>
                 </ShowMore>
@@ -166,9 +156,7 @@ export function SessionList({ sessions, rates }: { sessions: Listed[]; rates: Ch
             </div>
             <p className="pt-1 text-right text-xs text-faint tabular-nums">
               {rows.length} {rows.length === 1 ? "session" : "sessions"}
-              {billed.count > 0 && `, ${formatMoney(billed.cost, billed.currency)} at Superchargers`}
-              {atYourRates > 0 && `, ${formatMoney(atYourRates, "INR")} at your rates`}
-            </p>
+              {billed.count > 0 && `, ${formatMoney(billed.cost, billed.currency)} at Superchargers`}            </p>
           </section>
         );
       })}

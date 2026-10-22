@@ -83,7 +83,7 @@ export function DeleteMyData() {
   return (
     <Row
       title="Delete my data"
-      description="Permanently deletes your vehicles, history, streamed readings, check logs, charging rates and Tesla connection."
+      description="Permanently deletes your vehicles, history, streamed readings, check logs and Tesla connection."
       control={
         !asking ? (
           <Button ref={trigger} type="button" variant="destructive" size="lg" onClick={() => setAsking(true)}>
@@ -96,7 +96,7 @@ export function DeleteMyData() {
         <form action={action} className="mt-4 space-y-3 border-l-2 border-destructive pl-4 text-sm">
           <p className="font-medium">Delete all your data?</p>
           <p className="text-muted-foreground">
-            This permanently deletes your vehicles, history, streamed readings, check logs, charging rates and Tesla connection, stops your
+            This permanently deletes your vehicles, history, streamed readings, check logs and Tesla connection, stops your
             car streaming to Uplink and signs you out on every device. It can&apos;t be undone. You stay the owner: only
             your Tesla account can sign in again. Then remove Uplink&apos;s key in your car&apos;s Locks settings.
           </p>

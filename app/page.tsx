@@ -14,7 +14,6 @@ import { PERIODS } from "@/components/stats/periods";
 import { UpdateBanner } from "@/components/updates/update-banner";
 import { matchSessions } from "@/lib/charge-sessions";
 import { firstStartedAt } from "@/lib/charging-figures";
-import { pricedSessions } from "@/lib/charging-rates";
 import { DEMO, type DemoScenario, parseScenario } from "@/lib/demo";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -40,7 +39,6 @@ async function loadOwnHome(demo: DemoScenario): Promise<{ home: Home; now: numbe
 // period, so the switch needs no server trip (see ByPeriod).
 function Totals({ home, now }: { home: Extract<Home, { kind: "ready" }>; now: number }) {
   const { pairs, streamOnly } = matchSessions(home.sessions, home.streamSessions, now);
-  const priced = pricedSessions(streamOnly, home.rates);
   const { window } = home;
   const chargingSince = firstStartedAt(home.sessions, home.streamSessions);
   return (
@@ -52,12 +50,12 @@ function Totals({ home, now }: { home: Extract<Home, { kind: "ready" }>; now: nu
           panels={Object.fromEntries(
             PERIODS.map(({ value }) => [
               value,
-              <Headline key={value} period={value} now={now} figures={home.figures} sessions={home.sessions} streamOnly={streamOnly} priced={priced} chargingSince={chargingSince} />,
+              <Headline key={value} period={value} now={now} figures={home.figures} sessions={home.sessions} streamOnly={streamOnly} chargingSince={chargingSince} />,
             ]),
           )}
         />
       </section>
-      <ChargingSection sessions={home.sessions} priced={priced} listed={listSessions(pairs, streamOnly)} rates={home.rates} now={now} />
+      <ChargingSection sessions={home.sessions} listed={listSessions(pairs, streamOnly)} now={now} />
       <DrivingSection figures={home.figures} drives={window.driving.drives} now={now} />
       <BatterySection trend={window.trend} range={window.range} drain={window.driving.drain} />
     </div>

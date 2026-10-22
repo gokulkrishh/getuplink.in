@@ -3,7 +3,6 @@ import Link from "next/link";
 import { Tip } from "@/components/tip";
 import { buttonVariants } from "@/components/ui/button";
 import { splitSite } from "@/lib/charge-sessions";
-import { type ChargingRates, streamCost } from "@/lib/charging-rates";
 import { formatClock, formatDayLabel, formatDuration, formatKwh, formatMoney, formatShortDate } from "@/lib/format";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
@@ -44,8 +43,7 @@ function batteryTemp(s: StreamChargeSession): string | null {
     : null;
 }
 
-// With rates, a session Tesla doesn't bill shows its cost at the owner's rate.
-export function SessionRow({ item, serial, now, rates }: { item: Listed; serial?: number; now?: number; rates?: ChargingRates }) {
+export function SessionRow({ item, serial, now }: { item: Listed; serial?: number; now?: number }) {
   const { tesla: s, stream } = item;
   const invoice = s?.invoices.find((i) => i.contentId);
   const { place, city } = s ? splitSite(s.site_name) : { place: stream ? streamTitle(stream) : "", city: null };
@@ -57,7 +55,6 @@ export function SessionRow({ item, serial, now, rates }: { item: Listed; serial?
   const peakText = stream?.peak_power_kw ? `up to ${kwFormat.format(stream.peak_power_kw)} kW` : null;
   const energy = s ? s.energy_kwh : (stream?.energy_added_kwh ?? null);
   const tempText = stream && batteryTemp(stream);
-  const estimate = !s && stream && rates ? streamCost(stream, rates) : null;
   // Sessions the car streamed open their power curve; the title link covers the whole row.
   const href = stream ? `/stats/charging/${stream.id}` : null;
   const detail = s
@@ -89,13 +86,6 @@ export function SessionRow({ item, serial, now, rates }: { item: Listed; serial?
             <p className="text-xs text-muted-foreground tabular-nums">
               {energy === null ? "—" : formatKwh(energy)}
                             {rateText && <span> · {rateText}</span>}
-            </p>
-          </>
-        ) : estimate !== null && energy !== null ? (
-          <>
-            <p className="font-mono font-medium tabular-nums">{formatMoney(estimate, "INR")}</p>
-            <p className="text-xs text-muted-foreground tabular-nums">
-              {formatKwh(energy)} · <span className="text-faint">at your rate</span>
             </p>
           </>
         ) : (

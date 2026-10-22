@@ -1,4 +1,3 @@
-import type { Priced } from "@/lib/charging-rates";
 import { inSpan, type Slot, type Span, sumBySlot } from "@/lib/periods";
 
 // What charging cost and added in a span, counted the way the Charging page counts it. Pass Tesla's
@@ -9,23 +8,17 @@ type Streamed = { started_at: string; energy_added_kwh: number | null };
 
 const within = (span: Span) => (s: { started_at: string }) => inSpan(Date.parse(s.started_at), span);
 
-// Tesla's billed Supercharger amounts plus the rest at the owner's rates (`priced`, see pricedSessions).
-// `atYourRates` is the second part, for the "Includes ₹x at your rates" note.
-export function spendIn(sessions: Billed[], priced: Priced[], span: Span): { cost: number; atYourRates: number; currency: string } {
-  const billed = sessions.filter(within(span));
-  const atYourRates = priced.filter(within(span)).reduce((sum, p) => sum + p.cost, 0);
+// Tesla's billed Supercharger amounts. The sessions only the car reported have no cost.
+export function spendIn(sessions: Billed[], span: Span): { cost: number; currency: string } {
   return {
-    cost: billed.reduce((sum, s) => sum + (s.cost_total ?? 0), 0) + atYourRates,
-    atYourRates,
+    cost: sessions.filter(within(span)).reduce((sum, s) => sum + (s.cost_total ?? 0), 0),
     currency: sessions.find((s) => s.currency)?.currency ?? "INR",
   };
 }
 
 // Spend per bar, counted like spendIn.
-export function spendBySlot(sessions: Billed[], priced: Priced[], slots: Slot[]): number[] {
-  const billed = sumBySlot(sessions, slots, (s) => Date.parse(s.started_at), (s) => s.cost_total ?? 0);
-  const atYourRates = sumBySlot(priced, slots, (p) => Date.parse(p.started_at), (p) => p.cost);
-  return billed.map((value, k) => value + atYourRates[k]);
+export function spendBySlot(sessions: Billed[], slots: Slot[]): number[] {
+  return sumBySlot(sessions, slots, (s) => Date.parse(s.started_at), (s) => s.cost_total ?? 0);
 }
 
 // When charging tracking began: the first session in any of the lists (billed or streamed), or null.

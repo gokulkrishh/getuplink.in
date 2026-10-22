@@ -10,16 +10,13 @@ import { ThemePicker } from "@/components/theme-picker";
 import { DEMO } from "@/lib/demo";
 import { formatAgo, formatDate, formatSeen } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { ChargingRates } from "@/lib/charging-rates";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
-import { loadChargingRates } from "@/lib/server/charging-rates";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { demoData } from "@/lib/server/demo";
 import { countImported } from "@/lib/server/import-updates";
 import { db } from "@/lib/server/supabase";
 import { lastReadingAt } from "@/lib/server/telemetry";
 import { accountInfo, type AccountInfo } from "@/lib/server/tesla";
-import { ChargingRatesForm } from "./charging-rates";
 import { DeleteMyData, DisconnectTesla, SignOutEverywhere } from "./confirm-actions";
 import { ImportUpdates, UndoImport } from "./import-updates";
 import { Row } from "./row";
@@ -40,7 +37,6 @@ async function loadSettings(): Promise<{
   account: AccountInfo;
   lastCheck: string | null;
   lastReading: string | null;
-  rates: ChargingRates;
   imported: number;
   now: number;
 }> {
@@ -48,21 +44,20 @@ async function loadSettings(): Promise<{
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
-  const [account, run, lastReading, rates, imported] = await Promise.all([
+  const [account, run, lastReading, imported] = await Promise.all([
     accountInfo(),
     DEMO
       ? { data: demoData().lastRun }
       : db().from("poll_runs").select("started_at").order("started_at", { ascending: false }).limit(1).maybeSingle(),
     lastReadingAt(),
-    loadChargingRates(),
     countImported(),
   ]);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
-  return { account, lastCheck: run.data?.started_at ?? null, lastReading, rates, imported, now: Date.now() };
+  return { account, lastCheck: run.data?.started_at ?? null, lastReading, imported, now: Date.now() };
 }
 
 async function Settings() {
-  const { account, lastCheck, lastReading, rates, imported, now } = await loadSettings();
+  const { account, lastCheck, lastReading, imported, now } = await loadSettings();
   const connectedDescription = account.connectedSince ? `Connected since ${formatDate(account.connectedSince)}` : "Connected";
 
   return (
@@ -81,10 +76,6 @@ async function Settings() {
           }
           control={<LiveStatus lastReading={lastReading} now={now} />}
         />
-      </Group>
-
-      <Group title="Charging rates">
-        <ChargingRatesForm rates={rates} />
       </Group>
 
       <Group title="Version history">

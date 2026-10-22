@@ -1,7 +1,6 @@
 import { PeriodLink } from "@/components/home/more-link";
 import type { View } from "@/components/stats/periods";
 import { energyIn, spendIn } from "@/lib/charging-figures";
-import type { Priced } from "@/lib/charging-rates";
 import { type Comparison, compareToPrevious } from "@/lib/dashboard-summary";
 import type { DrivingFigures } from "@/lib/driving-figures";
 import { formatDate, formatShortDate } from "@/lib/format";
@@ -12,7 +11,8 @@ import { cn } from "@/lib/utils";
 
 const number = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 
-function Card({ view, label, value, unit, note, footnote }: { view: View; label: string; value: string; unit?: string; note: Comparison | null; footnote?: string | null }) {
+// Every card keeps its note line, empty or not, so the cards are one height in every period.
+function Card({ view, label, value, unit, note }: { view: View; label: string; value: string; unit?: string; note: Comparison | null }) {
   return (
     <PeriodLink view={view} className="group block space-y-1 border p-4 transition-colors duration-150 hover:border-muted-foreground/50">
       <p className="text-xs text-faint transition-colors duration-150 group-hover:text-foreground">{label}</p>
@@ -20,7 +20,7 @@ function Card({ view, label, value, unit, note, footnote }: { view: View; label:
         {value}
         {unit && <span className="ml-1 text-xs font-normal text-faint">{unit}</span>}
       </p>
-      {note && (
+      {note ? (
         <p
           className={cn(
             "text-xs",
@@ -29,14 +29,17 @@ function Card({ view, label, value, unit, note, footnote }: { view: View; label:
         >
           {note.text}
         </p>
+      ) : (
+        <p aria-hidden="true" className="text-xs">
+          &nbsp;
+        </p>
       )}
-      {footnote && <p className="text-xs text-faint tabular-nums">{footnote}</p>}
     </PeriodLink>
   );
 }
 
 // The period's four numbers, each against the same span before (see previousSpan). Driving comes from the
-// primary car's counters; charging is every session, priced like the Charging page. A comparison needs
+// primary car's counters; charging is every session, counted like the Charging page. A comparison needs
 // tracking to have begun before that span, or it would compare against part of one: driving tracking
 // begins at the first odometer reading, charging at the first session. A card without a comparison shows
 // none, and one line under the cards says since when (see trackingGap). All has nothing to compare with.
@@ -47,7 +50,6 @@ export function Headline({
   figures,
   sessions,
   streamOnly,
-  priced,
   chargingSince,
 }: {
   period: Period;
@@ -56,7 +58,6 @@ export function Headline({
   // Tesla's sessions, and the streamed ones Tesla didn't bill (see matchSessions).
   sessions: ChargingSession[];
   streamOnly: StreamChargeSession[];
-  priced: Priced[];
   // The first charging session, billed or streamed (see firstStartedAt).
   chargingSince: number | null;
 }) {
@@ -70,8 +71,8 @@ export function Headline({
   const gapText = gap === null ? null : formatDate(gap).slice(-4) === formatDate(now).slice(-4) ? formatShortDate(gap) : formatDate(gap);
   const { current, previous } = figures.periods[period];
 
-  const spend = spendIn(sessions, priced, span);
-  const spendBefore = before && chargingTracked ? spendIn(sessions, priced, before).cost : null;
+  const spend = spendIn(sessions, span);
+  const spendBefore = before && chargingTracked ? spendIn(sessions, before).cost : null;
   const energy = energyIn(sessions, streamOnly, span);
   const energyBefore = before && chargingTracked ? energyIn(sessions, streamOnly, before) : null;
   const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: spend.currency, maximumFractionDigits: 0 });
@@ -93,7 +94,6 @@ export function Headline({
           label="Spent"
           value={money.format(spend.cost)}
           note={compare(spend.cost, spendBefore, (n) => money.format(n))}
-          footnote={spend.atYourRates > 0 ? `Includes ${money.format(spend.atYourRates)} at your rates` : null}
         />
         <Card
           view="charging"

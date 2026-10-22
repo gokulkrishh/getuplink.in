@@ -7,7 +7,6 @@ import type { View } from "@/components/stats/periods";
 import { eachPeriod } from "@/components/stats/stats-frame";
 import type { Drive, DrainSummary } from "@/lib/drives";
 import { spendBySlot } from "@/lib/charging-figures";
-import type { ChargingRates, Priced } from "@/lib/charging-rates";
 import type { WeeklyRange } from "@/lib/charge-level";
 import type { DrivingFigures } from "@/lib/driving-figures";
 import { formatKm } from "@/lib/format";
@@ -44,26 +43,14 @@ function Rows({ children }: { children: ReactNode }) {
   );
 }
 
-// Spend per bar (Tesla's bill plus the owner's rates, as in Spent), then the newest sessions.
-export function ChargingSection({
-  sessions,
-  priced,
-  listed,
-  rates,
-  now,
-}: {
-  sessions: ChargingSession[];
-  priced: Priced[];
-  listed: Listed[];
-  rates: ChargingRates;
-  now: number;
-}) {
+// Spend per bar (Tesla's Supercharger bill, as in Spent), then the newest sessions.
+export function ChargingSection({ sessions, listed, now }: { sessions: ChargingSession[]; listed: Listed[]; now: number }) {
   if (listed.length === 0) return null;
   const currency = sessions.find((s) => s.currency)?.currency ?? "INR";
   const compact = new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 });
   const bars = (period: Period) => {
     const slots = slotsFor(period, now);
-    const spend = spendBySlot(sessions, priced, slots);
+    const spend = spendBySlot(sessions, slots);
     return slots.map((slot, k) => ({ key: String(slot.id), label: slot.label, value: spend[k], display: compact.format(spend[k]), isCurrent: slot.isCurrent }));
   };
   return (
@@ -71,7 +58,7 @@ export function ChargingSection({
       {eachPeriod((p) => <Bars bars={bars(p)} ariaLabel={`Spend per ${SLOT_NAMES[p]}`} prefix="₹" />, { steady: true })}
       <Rows>
         {listed.slice(0, ROWS).map((item) => (
-          <SessionRow key={item.key} item={item} now={now} rates={rates} />
+          <SessionRow key={item.key} item={item} now={now} />
         ))}
       </Rows>
     </Section>

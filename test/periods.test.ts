@@ -141,9 +141,8 @@ describe("spendIn and energyIn", () => {
     { started_at: "2026-10-12T05:00:00Z", energy_added_kwh: 30.1 },
     { started_at: "2026-10-15T05:00:00Z", energy_added_kwh: null },
   ];
-  const priced = [{ started_at: "2026-10-12T05:00:00Z", cost: 690, energy: 30.1 }];
-  test("Tesla's bill plus the owner's rates, in the span only", () => {
-    expect(spendIn(tesla, priced, span)).toEqual({ cost: 1702, atYourRates: 690, currency: "INR" });
+  test("Tesla's bill, in the span only", () => {
+    expect(spendIn(tesla, span)).toEqual({ cost: 1012, currency: "INR" });
   });
   test("energy from Tesla's sessions and the car's own", () => {
     expect(energyIn(tesla, streamOnly, span)).toBeCloseTo(72.1, 6);
