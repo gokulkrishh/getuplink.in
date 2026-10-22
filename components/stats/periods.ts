@@ -30,11 +30,7 @@ export function parseView(value: string | string[] | undefined): View {
   return VIEWS.find((v) => v.value === value)?.value ?? "charging";
 }
 
-// The Stats URL for a tab and period; the defaults stay out of it.
+// A Stats page's URL with a period; Month, the default, stays out of it.
 export function statsHref(view: View, period: Period): string {
-  const params = new URLSearchParams();
-  if (view !== "charging") params.set("view", view);
-  if (period !== "month") params.set("period", period);
-  const query = params.toString();
-  return query ? `/stats?${query}` : "/stats";
+  return period === "month" ? `/stats/${view}` : `/stats/${view}?period=${period}`;
 }

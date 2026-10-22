@@ -1,11 +1,15 @@
-import type { Period } from "@/lib/periods";
+import { parsePeriod, statsHref, UPDATE_PERIODS, type View, VIEWS } from "@/components/stats/periods";
 
-const UPDATE_PERIODS: Period[] = ["month", "year", "all"];
-
-// Where an old /stats link goes, keeping its period where the new page offers it. Update stats moved to
-// /updates (Month, Year and All only). Null keeps the request on /stats.
-export function statsRedirect(params: URLSearchParams): string | null {
-  if (params.get("view") !== "updates") return null;
-  const period = params.get("period") as Period | null;
-  return period && period !== "month" && UPDATE_PERIODS.includes(period) ? `/updates?period=${period}` : "/updates";
+// Where an old /stats link goes: each tab is its own page now (Charging when none is named), and update
+// stats moved to /updates. The period carries over where the new page offers it; Month, the default,
+// stays out of the URL.
+export function statsRedirect(params: URLSearchParams): string {
+  const view = params.get("view");
+  const period = params.get("period") ?? undefined;
+  if (view === "updates") {
+    const kept = parsePeriod(period, UPDATE_PERIODS);
+    return kept === "month" ? "/updates" : `/updates?period=${kept}`;
+  }
+  const page = VIEWS.find((v) => v.value === view)?.value ?? ("charging" satisfies View);
+  return statsHref(page, parsePeriod(period));
 }

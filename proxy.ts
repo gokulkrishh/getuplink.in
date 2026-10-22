@@ -70,10 +70,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Old Stats links (/stats?view=…) land on the page that has that topic now.
-  if (pathname === "/stats") {
-    const target = statsRedirect(request.nextUrl.searchParams);
-    if (target) return NextResponse.redirect(new URL(target, request.url));
-  }
+  if (pathname === "/stats") return NextResponse.redirect(new URL(statsRedirect(request.nextUrl.searchParams), request.url));
 
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
 

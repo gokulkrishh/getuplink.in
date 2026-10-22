@@ -19,8 +19,17 @@ describe("statsRedirect", () => {
     expect(target("view=updates&period=week")).toBe("/updates");
     expect(target("view=updates&period=nonsense")).toBe("/updates");
   });
-  test("other views stay on /stats", () => {
-    expect(target("")).toBeNull();
-    expect(target("view=driving&period=year")).toBeNull();
+  test("each tab has its own page now, with the period", () => {
+    expect(target("view=driving&period=year")).toBe("/stats/driving?period=year");
+    expect(target("view=battery")).toBe("/stats/battery");
+    expect(target("view=charging&period=all")).toBe("/stats/charging?period=all");
+  });
+  test("no view, or one that doesn't exist, opens Charging", () => {
+    expect(target("")).toBe("/stats/charging");
+    expect(target("view=nonsense&period=year")).toBe("/stats/charging?period=year");
+  });
+  test("Month and unknown periods stay out of the URL", () => {
+    expect(target("view=driving&period=month")).toBe("/stats/driving");
+    expect(target("view=driving&period=decade")).toBe("/stats/driving");
   });
 });

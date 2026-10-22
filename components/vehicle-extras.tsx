@@ -84,7 +84,7 @@ export function LastCharge({ item, now }: { item: VehicleExtras["lastCharge"]; n
     <section>
       <div className="mb-2 flex items-baseline justify-between gap-4">
         <h3 className={heading}>Last charge</h3>
-        <Link href="/stats" prefetch={true} className="text-xs text-muted-foreground hover:text-foreground">
+        <Link href="/stats/charging" prefetch={true} className="text-xs text-muted-foreground hover:text-foreground">
           All sessions
         </Link>
       </div>
