@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { hasCosts, type Listed, SessionHeader, SessionRow } from "@/components/session-row";
+import { hasCosts, hasStationNames, type Listed, OsmCredit, SessionHeader, SessionRow } from "@/components/session-row";
 import { Bars } from "@/components/stats/bars";
 import { BatteryTrend } from "@/components/stats/battery-trend";
 import { DriveRow } from "@/components/stats/drive-list";
@@ -67,6 +67,7 @@ export function ChargingSection({ sessions, listed, now }: { sessions: ChargingS
           <SessionRow key={item.key} item={item} now={now} costs={costs} />
         ))}
       </Rows>
+      {hasStationNames(shown) && <OsmCredit className="mt-3" />}
     </Section>
   );
 }

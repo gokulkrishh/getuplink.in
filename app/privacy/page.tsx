@@ -17,10 +17,12 @@ const STORED = [
   "Release notes",
   "Tesla Supercharger sessions (site, time, energy, cost) and their invoices",
   "Each car's home state, such as Karnataka, for the India rollout map. Never the car's location itself",
+  "The name of the charging station each session happened at, such as Statiq, Koramangala. Never the car's location itself",
 ];
 
 const NOT_DONE = [
   "It doesn't keep your location or track where you drive. If you allow it, Uplink reads where the car is at its 6-hourly check, turns that into a state and discards the location.",
+  "While your car is charging, Uplink may read its location once to name the charging station, from OpenStreetMap. It keeps only the station name and discards the location.",
   "It doesn't send commands to your car, and it never wakes the car. The key you add to your car can't unlock or drive it.",
   "It doesn't sell or share your data.",
   "There are no ads and no tracking. One cookie keeps you signed in, a short-lived one protects the Tesla sign-in, and your theme choice is saved in your browser.",
@@ -87,7 +89,10 @@ export default function PrivacyPage() {
             <h2 className="text-base font-medium tracking-heading">How data arrives</h2>
             <p className="mt-2 text-sm text-muted-foreground">Two ways.</p>
             <ul className={LIST}>
-              <li>Uplink checks Tesla&apos;s Fleet API every 6 hours, and only reads a car that is already online.</li>
+              <li>
+                Uplink checks Tesla&apos;s Fleet API every 6 hours, and while a charge is in progress, once more to
+                name the station. It only reads a car that is already online.
+              </li>
               <li>
                 Once you add Uplink&apos;s key to your car, the car streams changes to Uplink while it&apos;s awake:
                 update progress, battery, charging, odometer, gear, energy counters and battery temperature.

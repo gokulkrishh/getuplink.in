@@ -34,6 +34,7 @@ export type StreamChargeSession = {
   cable_type: string | null;
   temp_max_c: number | null;
   temp_start_c: number | null;
+  station_name: string | null; // from OpenStreetMap; null when unknown (see station-check.ts)
 };
 
 // Numeric columns come back from PostgREST as numbers or strings.
@@ -156,6 +157,16 @@ export async function syncStreamSessionsForAllCars(): Promise<void> {
 export const SESSION_COLUMNS =
   "id, vin, started_at, ended_at, kind, supercharger, energy_added_kwh, start_level, end_level, start_energy_kwh, end_energy_kwh, peak_power_kw, ac_voltage, ac_amps, ac_phases, cable_type, temp_max_c, temp_start_c";
 
+// Undefined column (Postgres) or one missing from PostgREST's schema cache.
+const MISSING_COLUMN = ["42703", "PGRST204"];
+
+// Runs a select with the station column, and again without it on a database that hasn't had its
+// migration yet, so the sessions still show (unlabelled) instead of vanishing.
+export async function selectSessions<T extends { error: { code: string } | null }>(run: (columns: string) => PromiseLike<T>): Promise<T> {
+  const result = await run(`${SESSION_COLUMNS}, station_name`);
+  return result.error && MISSING_COLUMN.includes(result.error.code) ? run(SESSION_COLUMNS) : result;
+}
+
 export function toStreamSession(row: Record<string, unknown>): StreamChargeSession {
   return {
     id: row.id as number,
@@ -176,20 +187,20 @@ export function toStreamSession(row: Record<string, unknown>): StreamChargeSessi
     cable_type: (row.cable_type as string | null) ?? null,
     temp_max_c: num(row.temp_max_c),
     temp_start_c: num(row.temp_start_c),
+    station_name: typeof row.station_name === "string" && row.station_name ? row.station_name : null,
   };
 }
 
 // Newest first. A missing table or a read error shows as an empty list, with a log line.
 export async function loadStreamSessions(limit = LIST_LIMIT): Promise<StreamChargeSession[]> {
   if (DEMO) return demoStreamSessions().slice(0, limit);
-  const { data, error } = await db()
-    .from("stream_charge_sessions")
-    .select(SESSION_COLUMNS)
-    .order("started_at", { ascending: false })
-    .limit(limit);
+  const { data, error } = await selectSessions((columns) =>
+    db().from("stream_charge_sessions").select(columns).order("started_at", { ascending: false }).limit(limit),
+  );
   if (error) {
     console.warn("Streamed charging sessions unavailable:", error.message);
     return [];
   }
-  return (data ?? []).map(toStreamSession);
+  // A select built from a string has no row type.
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map(toStreamSession);
 }

@@ -5,7 +5,7 @@ import { DEMO } from "@/lib/demo";
 import type { Reading } from "@/lib/telemetry-derive";
 import { type ChargingSession, loadChargingSessions } from "./charging";
 import { demoStreamSessions } from "./demo";
-import { SESSION_COLUMNS, type StreamChargeSession, toStreamSession } from "./stream-charging";
+import { selectSessions, type StreamChargeSession, toStreamSession } from "./stream-charging";
 import { db } from "./supabase";
 import { loadReadingsByField } from "./telemetry-window";
 
@@ -17,12 +17,13 @@ export type ChargeDetail = { session: StreamChargeSession; tesla: ChargingSessio
 
 async function loadStreamSession(id: number): Promise<StreamChargeSession | null> {
   if (DEMO) return demoStreamSessions().find((s) => s.id === id) ?? null;
-  const { data, error } = await db().from("stream_charge_sessions").select(SESSION_COLUMNS).eq("id", id).maybeSingle();
+  const { data, error } = await selectSessions((columns) => db().from("stream_charge_sessions").select(columns).eq("id", id).maybeSingle());
   if (error) {
     console.warn("Streamed charging session unavailable:", error.message);
     return null;
   }
-  return data ? toStreamSession(data) : null;
+  // A select built from a string has no row type.
+  return data ? toStreamSession(data as unknown as Record<string, unknown>) : null;
 }
 
 // Readings from the start on. The car only sends a value when it changes, so a field that carries over

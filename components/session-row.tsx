@@ -27,9 +27,30 @@ export function listSessions(pairs: { tesla: ChargingSession; stream: StreamChar
   ].sort((a, b) => Date.parse(b.started_at) - Date.parse(a.started_at));
 }
 
+// The station's name from OpenStreetMap when the station check found one (shown whole: it is
+// "Operator, Area", not Tesla's "City, Site" that splitSite reads).
 export function streamTitle(s: StreamChargeSession): string {
   if (s.supercharger) return "Supercharger";
+  if (s.station_name) return s.station_name;
   return s.kind === "dc" ? "Third-party charger" : "AC charging";
+}
+
+// Whether any shown row is named from OpenStreetMap, so the page credits it.
+export function hasStationNames(items: Listed[]): boolean {
+  return items.some((item) => !item.tesla && item.stream?.station_name && !item.stream.supercharger);
+}
+
+// ODbL asks for the credit wherever OpenStreetMap's names show.
+export function OsmCredit({ className }: { className?: string }) {
+  return (
+    <p className={cn("text-xs text-faint", className)}>
+      Station names ©{" "}
+      <a href="https://www.openstreetmap.org/copyright" className="underline underline-offset-2 hover:text-foreground">
+        OpenStreetMap contributors
+      </a>
+      , ODbL
+    </p>
+  );
 }
 
 function levels(s: StreamChargeSession): string | null {
@@ -85,7 +106,7 @@ export function SessionRow({ item, serial, now, costs }: { item: Listed; serial?
   const href = stream ? `/stats/charging/${stream.id}` : null;
   const detail = s
     ? [city, durationText, peakText, tempText]
-    : [stream && levels(stream), stoppedAt ? durationText : "In progress", peakText, tempText];
+    : [stream?.station_name && !stream.supercharger && stream.kind.toUpperCase(), stream && levels(stream), stoppedAt ? durationText : "In progress", peakText, tempText];
   return (
     <li className={cn(columns(now !== undefined, costs), "grid items-start gap-x-4 py-4 text-sm", href && "relative")}>
       <div className="space-y-1">

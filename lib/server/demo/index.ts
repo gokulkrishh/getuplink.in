@@ -3,6 +3,7 @@ import { buildSessions, CHARGE_FIELDS } from "@/lib/charge-sessions";
 import { MILES_TO_KM } from "@/lib/car";
 import type { DemoScenario } from "@/lib/demo";
 import type { CounterColumn } from "@/lib/driving-figures";
+import { stationAt } from "@/lib/stations";
 import type { Stream } from "@/lib/telemetry";
 import { istDay, istDayStart, num, type Reading } from "@/lib/telemetry-derive";
 import type { ChargingSession } from "../charging";
@@ -120,11 +121,27 @@ export function demoStream(fields: string[], scenario: DemoScenario = "normal"):
 // ---- Sessions ----
 
 // Streamed sessions, rebuilt from the readings by the same function the real sync uses. Newest first.
+const DEMO_STATIONS = [
+  [12.91546, 77.61589], // Magenta, BTM
+  [12.99474, 77.6993], // BESCOM, Mahadevapura
+  [12.97254, 77.70781], // Shell, Marathahalli
+]
+  .map(([lat, lon]) => stationAt(lat, lon))
+  .filter((label): label is string => label !== null);
+
 export function demoStreamSessions(): StreamChargeSession[] {
   const data = demoData();
   const readings = CHARGE_FIELDS.flatMap((field) => (data.readings[field] ?? []).map((r) => ({ field, at: r.at, value: r.value })));
+  // Third-party DC sessions take turns at real Bengaluru stations from the OpenStreetMap extract, as the
+  // station check would name them; AC charging (at home) stays unnamed.
+  let dc = 0;
   return buildSessions(readings)
-    .map((s, i) => ({ ...s, id: i + 1, vin: data.vin }))
+    .map((s, i) => ({
+      ...s,
+      id: i + 1,
+      vin: data.vin,
+      station_name: s.kind === "dc" && !s.supercharger ? (DEMO_STATIONS[dc++ % DEMO_STATIONS.length] ?? null) : null,
+    }))
     .reverse();
 }
 

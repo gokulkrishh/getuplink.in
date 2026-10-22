@@ -3,7 +3,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
-import { rate, streamTitle } from "@/components/session-row";
+import { OsmCredit, rate, streamTitle } from "@/components/session-row";
 import { ChargeCurve } from "@/components/stats/charge-curve";
 import { splitSite } from "@/lib/charge-sessions";
 import { formatClock, formatDate, formatDuration, formatKwh, formatMoney } from "@/lib/format";
@@ -72,6 +72,7 @@ function Charge({ detail }: { detail: ChargeDetail }) {
           </section>
         )}
       </div>
+      {!tesla && !s.supercharger && s.station_name && <OsmCredit className="mt-8" />}
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { hasCosts, type Listed, rate, SessionHeader, SessionRow } from "@/components/session-row";
+import { hasCosts, hasStationNames, type Listed, OsmCredit, rate, SessionHeader, SessionRow } from "@/components/session-row";
 import { ShowMore } from "@/components/show-more";
 import { Bars } from "@/components/stats/bars";
 import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
@@ -164,6 +164,7 @@ export function SessionList({ sessions }: { sessions: Listed[] }) {
       })}
     </div>
     </div>
+    {hasStationNames(sessions) && <OsmCredit />}
     </section>
   );
 }
