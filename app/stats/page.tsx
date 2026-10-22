@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { cacheLife, cacheTag, io } from "next/cache";
 import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { Zap } from "lucide-react";
 import { type ReactNode, Suspense } from "react";
 import { EmptyState } from "@/components/empty-state";
-import { Logo } from "@/components/logo";
+import { Header } from "@/components/header";
 import { ShowMore } from "@/components/show-more";
 import { type Listed, rate, SessionRow } from "@/components/session-row";
 import { Bars } from "@/components/stats/bars";
@@ -48,25 +47,6 @@ function totals(rows: ChargingSession[]) {
     count: rows.length,
     currency: rows.find((s) => s.currency)?.currency ?? "INR",
   };
-}
-
-function Header() {
-  return (
-    <header className="mb-16 flex items-center justify-between gap-4 text-sm">
-      <Link href="/" prefetch={true} className="flex items-center gap-2.5 font-medium">
-        <Logo className="size-5" />
-        Uplink
-      </Link>
-      <nav aria-label="Main" className="flex items-baseline gap-4 text-muted-foreground">
-        <Link href="/" prefetch={true} className="hover:text-foreground">
-          Dashboard
-        </Link>
-        <Link href="/settings" prefetch={true} className="hover:text-foreground">
-          Settings
-        </Link>
-      </nav>
-    </header>
-  );
 }
 
 const compactNumber = new Intl.NumberFormat("en-IN");
@@ -565,7 +545,7 @@ function SessionsSkeleton() {
 export default function Page({ searchParams }: PageProps<"/stats">) {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:py-20">
-      <Header />
+      <Header current="stats" />
       <h1 className="text-2xl font-medium tracking-heading">Stats</h1>
       <p className="mt-2 mb-12 text-sm text-muted-foreground">Charging, driving, battery and updates over time.</p>
       <Suspense fallback={<SessionsSkeleton />}>

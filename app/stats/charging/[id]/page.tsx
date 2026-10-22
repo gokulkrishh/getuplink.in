@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
-import { Logo } from "@/components/logo";
+import { Header } from "@/components/header";
 import { rate, streamTitle } from "@/components/session-row";
 import { ChargeCurve } from "@/components/stats/charge-curve";
 import { splitSite } from "@/lib/charge-sessions";
@@ -15,28 +14,6 @@ import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 export const metadata: Metadata = { title: "Charge · Uplink" };
 
 const kwFormat = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
-
-function Header() {
-  return (
-    <header className="mb-16 flex items-center justify-between gap-4 text-sm">
-      <Link href="/" prefetch={true} className="flex items-center gap-2.5 font-medium">
-        <Logo className="size-5" />
-        Uplink
-      </Link>
-      <nav aria-label="Main" className="flex items-baseline gap-4 text-muted-foreground">
-        <Link href="/" prefetch={true} className="hover:text-foreground">
-          Dashboard
-        </Link>
-        <Link href="/stats" prefetch={true} className="hover:text-foreground">
-          Stats
-        </Link>
-        <Link href="/settings" prefetch={true} className="hover:text-foreground">
-          Settings
-        </Link>
-      </nav>
-    </header>
-  );
-}
 
 // Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx).
 async function loadDetail(id: number): Promise<ChargeDetail | null> {
@@ -122,7 +99,7 @@ function ChargeSkeleton() {
 export default function Page({ params }: PageProps<"/stats/charging/[id]">) {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:py-20">
-      <Header />
+      <Header current="stats" />
       <Suspense fallback={<ChargeSkeleton />}>
         <ChargeLoader params={params} />
       </Suspense>

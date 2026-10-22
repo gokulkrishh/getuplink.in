@@ -3,7 +3,7 @@ import Link from "next/link";
 import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { Logo } from "@/components/logo";
+import { Header } from "@/components/header";
 import { ThemePicker } from "@/components/theme-picker";
 import { DEMO } from "@/lib/demo";
 import { formatAgo, formatDate, formatSeen } from "@/lib/format";
@@ -115,15 +115,7 @@ async function Settings() {
 export default function SettingsPage() {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:py-20">
-      <header className="mb-12 flex items-center justify-between gap-4 text-sm">
-        <Link href="/" prefetch={true} className="flex items-center gap-2.5 font-medium">
-          <Logo className="size-5" />
-          Uplink
-        </Link>
-        <Link href="/" prefetch={true} className="text-muted-foreground hover:text-foreground">
-          Back to dashboard
-        </Link>
-      </header>
+      <Header current="settings" />
       <h1 className="mb-8 text-base font-medium tracking-heading">Settings</h1>
       <Suspense fallback={<div role="status" aria-busy="true" className="h-64 bg-muted motion-safe:animate-pulse"><span className="sr-only">Loading…</span></div>}>
         <Settings />

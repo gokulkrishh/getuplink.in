@@ -2,10 +2,9 @@ import Link from "next/link";
 import { cacheLife, cacheTag, io } from "next/cache";
 import { after } from "next/server";
 import { Suspense } from "react";
-import { logout } from "@/app/actions";
 import { CarFront, Settings2 } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
-import { Logo } from "@/components/logo";
+import { Header } from "@/components/header";
 import { VehicleSection } from "@/components/vehicle-section";
 import { SignInButton } from "@/components/sign-in-button";
 import { DEMO, DEMO_SCENARIOS, type DemoScenario, parseScenario } from "@/lib/demo";
@@ -15,28 +14,6 @@ import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type Dashboard as DashboardData, loadDashboard, OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { syncStreamVersionsForAllCars } from "@/lib/server/stream-versions";
 import { redirect } from "next/navigation";
-
-function Header() {
-  return (
-    <header className="mb-16 flex items-center justify-between gap-4 text-sm">
-      <Link href="/" className="flex items-center gap-2.5 font-medium">
-        <Logo className="size-5" />
-        Uplink
-      </Link>
-      <nav aria-label="Main" className="flex items-baseline gap-4 text-muted-foreground">
-        <Link href="/stats" prefetch={true} className="hover:text-foreground">
-          Stats
-        </Link>
-        <Link href="/settings" prefetch={true} className="hover:text-foreground">
-          Settings
-        </Link>
-        <form action={logout}>
-          <button className="cursor-pointer hover:text-foreground">Sign out</button>
-        </form>
-      </nav>
-    </header>
-  );
-}
 
 // Local demo mode only: switches the car between the states the dashboard can be in.
 function DemoBar({ active }: { active: DemoScenario }) {
