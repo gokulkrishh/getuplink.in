@@ -10,7 +10,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MAP_HEIGHT, MAP_WIDTH, STATE_PATHS } from "@/lib/india-map";
-import { formatShortDate } from "@/lib/format";
 import { STATES, type StateCode } from "@/lib/india-states";
 import { compareVersions } from "@/lib/rollout";
 import type { VersionStates } from "@/lib/rollout-states";
@@ -34,8 +33,6 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
   const most = Math.max(1, ...groups.map((g) => g.cars));
   for (const g of groups) shades.set(g.code, 0.3 + 0.6 * (g.cars / most));
   const shown = hover && groups.find((g) => g.code === hover.code);
-  // The column shows once any state has a date; until then every row would say the same "unknown".
-  const dated = groups.some((g) => g.firstArrived);
 
   // The pointer's place in the frame, as a share of its size, so the tip can lean inwards at the edges.
   const point = (code: StateCode) => (event: PointerEvent<SVGPathElement>) => {
@@ -105,9 +102,6 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
           {shown ? (
             <>
               <span className="block font-mono tabular-nums">{cars(shown.cars)}</span>
-              {shown.firstArrived && (
-                <span className="block font-mono tabular-nums">First {formatShortDate(shown.firstArrived)}</span>
-              )}
             </>
           ) : (
             <span className="block">No cars on this version</span>
@@ -119,13 +113,11 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
         <ul className="divide-y border-t text-sm">
           <li className="flex gap-4 py-2 text-xs text-faint">
             <span className="flex-1">State</span>
-            {dated && <span className="w-28">First arrived</span>}
             <span className="w-14 text-right">Cars</span>
           </li>
           {groups.map((g) => (
             <li key={g.code} className="flex gap-4 py-3 tabular-nums">
               <span className="min-w-0 flex-1">{g.name}</span>
-              {dated && <span className="w-28 text-muted-foreground">{g.firstArrived ? formatShortDate(g.firstArrived) : "—"}</span>}
               <span className="w-14 text-right">{g.cars}</span>
             </li>
           ))}

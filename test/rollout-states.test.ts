@@ -1,52 +1,35 @@
 import { describe, expect, test } from "bun:test";
 import { isStateCode, mostCommonState, siteState, STATES, type StateCode } from "@/lib/india-states";
-import type { RolloutChange } from "@/lib/rollout";
 import { buildStateRollout, type StateCar } from "@/lib/rollout-states";
 
 const V = "2026.38.5.1";
 
-// `count` cars in `state` on V, each updated to it at `at` plus a day per car.
-function group(prefix: string, count: number, state: StateCode | null, at = "2026-10-05T04:00:00Z") {
-  const cars: StateCar[] = [];
-  const changes: RolloutChange[] = [];
-  for (let i = 0; i < count; i++) {
-    cars.push({ car: `${prefix}${i}`, version: V, state });
-    changes.push({ car: `${prefix}${i}`, version: V, previous: "2026.32.3", at: new Date(Date.parse(at) + i * 86_400_000).toISOString(), source: "tracked" });
-  }
-  return { cars, changes };
+// `count` cars in `state` on V.
+function group(prefix: string, count: number, state: StateCode | null): StateCar[] {
+  return Array.from({ length: count }, (_, i) => ({ car: `${prefix}${i}`, version: V, state }));
 }
 
-function build(...groups: ReturnType<typeof group>[]) {
-  const [result] = buildStateRollout(
-    groups.flatMap((g) => g.cars),
-    groups.flatMap((g) => g.changes),
-    [V],
-  );
-  return result.groups;
-}
+const build = (...groups: StateCar[][]) => buildStateRollout(groups.flat(), [V])[0].groups;
 
 describe("buildStateRollout", () => {
-  test("every state with cars shows its real count and first arrival, most cars first", () => {
-    expect(build(group("k", 1, "KA"), group("m", 6, "MH", "2026-10-01T04:00:00Z"), group("t", 2, "TN"))).toEqual([
-      { code: "MH", name: "Maharashtra", firstArrived: "2026-10-01T04:00:00.000Z", cars: 6 },
-      { code: "TN", name: "Tamil Nadu", firstArrived: "2026-10-05T04:00:00.000Z", cars: 2 },
-      { code: "KA", name: "Karnataka", firstArrived: "2026-10-05T04:00:00.000Z", cars: 1 },
+  test("every state with cars shows its real count, most cars first", () => {
+    expect(build(group("k", 1, "KA"), group("m", 6, "MH"), group("t", 2, "TN"))).toEqual([
+      { code: "MH", name: "Maharashtra", cars: 6 },
+      { code: "TN", name: "Tamil Nadu", cars: 2 },
+      { code: "KA", name: "Karnataka", cars: 1 },
     ]);
   });
 
   test("a car whose state isn't known is on no state", () => {
-    expect(build(group("k", 3, "KA"), group("u", 2, null))).toEqual([
-      { code: "KA", name: "Karnataka", firstArrived: "2026-10-05T04:00:00.000Z", cars: 3 },
-    ]);
+    expect(build(group("k", 3, "KA"), group("u", 2, null))).toEqual([{ code: "KA", name: "Karnataka", cars: 3 }]);
   });
 
-  test("a first sighting isn't an arrival; versions not passed in are skipped", () => {
-    const seen = group("s", 5, "KA");
-    const changes = seen.changes.map((c) => ({ ...c, previous: null }));
-    const result = buildStateRollout(seen.cars, changes, [V, "2026.40.2"]);
-    expect(result[0].groups).toEqual([{ code: "KA", name: "Karnataka", firstArrived: null, cars: 5 }]);
-    expect(result[1]).toEqual({ version: "2026.40.2", groups: [] });
-    expect(buildStateRollout(seen.cars, changes, [])).toEqual([]);
+  test("cars on other versions and versions not passed in are skipped", () => {
+    const cars = [...group("k", 2, "KA"), { car: "x", version: "2026.40.2", state: "KA" as StateCode }];
+    expect(buildStateRollout(cars, [V, "2026.44.1"])).toEqual([
+      { version: V, groups: [{ code: "KA", name: "Karnataka", cars: 2 }] },
+      { version: "2026.44.1", groups: [] },
+    ]);
   });
 });
 

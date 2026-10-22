@@ -13,7 +13,7 @@ export type RolloutPage = { kind: "ready"; rollout: Rollout; states: VersionStat
 function build(cars: Awaited<ReturnType<typeof carStates>>, changes: RolloutChange[], globalReleases: Record<string, string>): RolloutPage {
   const rollout = buildRollout(cars, changes, globalReleases);
   const versions = rollout.versions.flatMap((v) => (v.carsNow > 0 ? [v.version] : []));
-  return { kind: "ready", rollout, states: buildStateRollout(cars, changes, versions) };
+  return { kind: "ready", rollout, states: buildStateRollout(cars, versions) };
 }
 
 const PAGE = 1000; // PostgREST's default row cap per request
