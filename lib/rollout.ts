@@ -4,8 +4,8 @@
 import { istDay } from "@/lib/telemetry-derive";
 import { normaliseVersion } from "@/lib/versions";
 
-// The owner's privacy rule: a version's numbers show only once this many distinct cars have reported it.
-// Fewer, and the page names the version but no counts or dates, so no single car's update can be picked out.
+// The owner's privacy rule for the state map: a state's numbers show only once this many cars there run the
+// version (lib/rollout-states.ts). Version counts across all of India always show: they name no place.
 export const MIN_GROUP = 5;
 
 // When each version was first seen anywhere in the world, as an IST calendar day. Hand-maintained: check a
@@ -18,25 +18,20 @@ export type RolloutCar = { car: string; version: string | null };
 // One version_history row.
 export type RolloutChange = { car: string; version: string; previous: string | null; at: string; source: string };
 
-export type RolloutVersion =
-  | {
-      version: string;
-      shown: true;
-      carsNow: number;
-      // The first time an Indian car was recorded updating to it; null when every row is a first sight.
-      firstInIndia: string | null;
-      globalRelease: string | null;
-      lagDays: number | null;
-    }
-  // Fewer than MIN_GROUP cars: the version name only, no counts or dates.
-  | { version: string; shown: false };
+export type RolloutVersion = {
+  version: string;
+  carsNow: number;
+  // The first time an Indian car was recorded updating to it; null when every row is a first sight.
+  firstInIndia: string | null;
+  globalRelease: string | null;
+  lagDays: number | null;
+};
 
 export type Rollout = {
   versions: RolloutVersion[]; // newest first
-  // Cars now on a shown version. Cars on a hidden one are left out of every total, so no count can be
-  // worked out by subtracting the visible ones.
+  // Cars now on any version.
   counted: number;
-  // The newest shown version that cars run now.
+  // The newest version that cars run now.
   headline: { version: string; cars: number; of: number } | null;
 };
 
@@ -87,13 +82,11 @@ export function buildRollout(cars: RolloutCar[], changes: RolloutChange[], globa
   }
 
   const versions: RolloutVersion[] = [...reporters.keys()].sort((a, b) => compareVersions(b, a)).map((version) => {
-    if ((reporters.get(version)?.size ?? 0) < MIN_GROUP) return { version, shown: false };
     const globalRelease = globalReleases[version] ?? null;
     const at = first.get(version);
     const firstInIndia = at === undefined ? null : new Date(at).toISOString();
     return {
       version,
-      shown: true,
       carsNow: now.get(version) ?? 0,
       firstInIndia,
       globalRelease,
@@ -102,8 +95,8 @@ export function buildRollout(cars: RolloutCar[], changes: RolloutChange[], globa
   });
 
   let counted = 0;
-  for (const v of versions) if (v.shown) counted += v.carsNow;
-  const top = versions.find((v) => v.shown && v.carsNow > 0);
-  const headline = top?.shown ? { version: top.version, cars: top.carsNow, of: counted } : null;
+  for (const v of versions) counted += v.carsNow;
+  const top = versions.find((v) => v.carsNow > 0);
+  const headline = top ? { version: top.version, cars: top.carsNow, of: counted } : null;
   return { versions, counted, headline };
 }

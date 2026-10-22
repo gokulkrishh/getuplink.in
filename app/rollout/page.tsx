@@ -42,20 +42,16 @@ function VersionRow({ v, counted }: { v: RolloutVersion; counted: number }) {
     <li className="space-y-2 py-4">
       <div className="flex items-baseline justify-between gap-4">
         <span className="font-mono text-sm font-medium tabular-nums">{v.version}</span>
-        <span className={v.shown ? "text-sm tabular-nums" : "text-sm text-faint"}>{v.shown ? cars(v.carsNow) : `Fewer than ${MIN_GROUP} cars`}</span>
+        <span className="text-sm tabular-nums">{cars(v.carsNow)}</span>
       </div>
-      {v.shown && (
-        <div className="h-1.5 w-full bg-muted" aria-hidden>
-          <div className="h-full bg-foreground/70" style={{ width: `${counted ? (v.carsNow / counted) * 100 : 0}%` }} />
-        </div>
-      )}
-      {v.shown && (
-        <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground tabular-nums">
-          <span>First in India {v.firstInIndia ? formatShortDate(v.firstInIndia) : "unknown"}</span>
-          <span>Global {v.globalRelease ? releaseDay(v.globalRelease) : "unknown"}</span>
-          <span className="text-foreground">{lagWords(v.lagDays)}</span>
-        </p>
-      )}
+      <div className="h-1.5 w-full bg-muted" aria-hidden>
+        <div className="h-full bg-foreground/70" style={{ width: `${counted ? (v.carsNow / counted) * 100 : 0}%` }} />
+      </div>
+      <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground tabular-nums">
+        <span>First in India {v.firstInIndia ? formatShortDate(v.firstInIndia) : "unknown"}</span>
+        <span>Global {v.globalRelease ? releaseDay(v.globalRelease) : "unknown"}</span>
+        <span className="text-foreground">{lagWords(v.lagDays)}</span>
+      </p>
     </li>
   );
 }
@@ -75,7 +71,7 @@ async function Rollout() {
   if (versions.length === 0) {
     return (
       <EmptyState icon={<Globe className="size-7 text-faint" aria-hidden="true" />} title="No versions yet">
-        Shown once {MIN_GROUP} cars report a version.
+        Shown once a car reports its version.
       </EmptyState>
     );
   }
@@ -91,7 +87,7 @@ async function Rollout() {
             </p>
           </>
         ) : (
-          <p className="text-sm text-muted-foreground">Shown once {MIN_GROUP} cars report a version.</p>
+          <p className="text-sm text-muted-foreground">No car runs a reported version right now.</p>
         )}
       </header>
 
@@ -111,8 +107,7 @@ async function Rollout() {
 
       <div className="space-y-2 text-xs text-faint">
         <p>
-          Pooled across every car Uplink tracks in India. Totals only: a version&apos;s numbers show once {MIN_GROUP} cars report it, and cars on
-          a version with fewer are left out of every total.
+          Pooled across every car Uplink tracks in India. Totals only, never a single car.
         </p>
         <p>
           A state shows once {MIN_GROUP} cars there run the version. Smaller states are pooled by region when the region has{" "}

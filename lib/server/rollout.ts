@@ -9,10 +9,10 @@ import { db } from "./supabase";
 
 export type RolloutPage = { kind: "ready"; rollout: Rollout; states: VersionStates[] } | { kind: "error"; message: string };
 
-// The version totals and, for each shown version cars run now, its states. Neither carries a car key out.
+// The version totals and, for each version cars run now, its states. Neither carries a car key out.
 function build(cars: Awaited<ReturnType<typeof carStates>>, changes: RolloutChange[], globalReleases: Record<string, string>): RolloutPage {
   const rollout = buildRollout(cars, changes, globalReleases);
-  const versions = rollout.versions.flatMap((v) => (v.shown && v.carsNow > 0 ? [v.version] : []));
+  const versions = rollout.versions.flatMap((v) => (v.carsNow > 0 ? [v.version] : []));
   return { kind: "ready", rollout, states: buildStateRollout(cars, changes, versions) };
 }
 
