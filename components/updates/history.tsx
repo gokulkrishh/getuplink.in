@@ -26,7 +26,7 @@ function HistoryCells({ change, now }: { change: VersionChange; now: number }) {
         {/* Always within days of Installed, which carries the year. */}
         {change.previous_version && change.available_at ? formatShortDate(change.available_at) : ""}
       </span>
-      {change.previous_version || change.source === "imported" ? (
+      {change.previous_version ? (
         <span className="text-right text-muted-foreground tabular-nums">{date}</span>
       ) : (
         // First version seen: installed some time before this date, so it's greyed out and explained on hover.
@@ -82,21 +82,13 @@ function Timeline({ timeline }: { timeline: VersionChange["timeline"] }) {
   return parts.length ? <span className="col-span-full -mt-1 pb-0.5 pl-5 text-xs text-faint">{parts.join(" · ")}</span> : null;
 }
 
-// Rows the owner imported from before tracking began. They may have no release notes.
-function ImportedMark({ change }: { change: VersionChange }) {
-  return change.source === "imported" ? <span className="ml-2 font-sans text-xs text-faint">Imported</span> : null;
-}
-
 // One history row: expandable to its release notes when Tesla published them.
 function HistoryRow({ change, notes, now }: { change: VersionChange; notes: ReleaseNotesByVersion; now: number }) {
   const versionNotes = notes[change.version];
   if (!versionNotes) {
     return (
       <li className={cn("history-cols", "border-t py-2.5")}>
-        <span className="truncate pl-5 font-mono">
-          {change.version}
-          <ImportedMark change={change} />
-        </span>
+        <span className="truncate pl-5 font-mono">{change.version}</span>
         <HistoryCells change={change} now={now} />
         <Timeline timeline={change.timeline} />
       </li>
@@ -112,10 +104,7 @@ function HistoryRow({ change, notes, now }: { change: VersionChange; notes: Rele
               className="size-3.5 shrink-0 self-center text-faint transition-transform group-open/row:rotate-90"
               aria-hidden="true"
             />
-            <span className="truncate">
-              {change.version}
-              <ImportedMark change={change} />
-            </span>
+            <span className="truncate">{change.version}</span>
           </span>
           <HistoryCells change={change} now={now} />
           <Timeline timeline={change.timeline} />

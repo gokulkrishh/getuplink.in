@@ -34,7 +34,7 @@ export type UpdatesPage = OwnerGate | { kind: "ready"; cars: UpdatesCar[]; lastR
 function updateRows(history: VersionChange[]): UpdateRow[] {
   return history
     .filter((h) => h.previous_version)
-    .map((h) => ({ detected_at: h.detected_at, available_at: h.available_at, source: h.source }))
+    .map((h) => ({ detected_at: h.detected_at, available_at: h.available_at }))
     .reverse();
 }
 

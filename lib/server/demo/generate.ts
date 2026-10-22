@@ -466,8 +466,6 @@ export function generateDemo(now: number): DemoData {
       detected_at: new Date(detected).toISOString(),
       available_at: availableAt === null ? null : new Date(availableAt).toISOString(),
       odometer_km: Math.round(odometerAt(detected) * MILES_TO_KM),
-      // The two oldest stand in for updates the owner imported from before tracking began.
-      source: i < 2 ? "imported" : "tracked",
     };
   });
   // What the car streamed around each update inside the window.

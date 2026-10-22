@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -137,13 +136,7 @@ async function Updates({ searchParams }: Pick<PageProps<"/updates">, "searchPara
         </PeriodScope>
       )}
       {data.kind === "ready" && (
-        <CheckedFooter lastRun={data.lastRun} showError={cars.length > 0}>
-          <p>
-            <Link href="/settings" prefetch={true} className="text-muted-foreground hover:text-foreground">
-              Import past updates in Settings
-            </Link>
-          </p>
-        </CheckedFooter>
+        <CheckedFooter lastRun={data.lastRun} showError={cars.length > 0} />
       )}
     </>
   );

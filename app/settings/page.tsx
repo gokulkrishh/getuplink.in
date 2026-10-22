@@ -13,12 +13,10 @@ import { cn } from "@/lib/utils";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { demoData } from "@/lib/server/demo";
-import { countImported } from "@/lib/server/import-updates";
 import { db } from "@/lib/server/supabase";
 import { lastReadingAt } from "@/lib/server/telemetry";
 import { accountInfo, type AccountInfo } from "@/lib/server/tesla";
 import { DeleteMyData, DisconnectTesla, SignOutEverywhere } from "./confirm-actions";
-import { ImportUpdates, UndoImport } from "./import-updates";
 import { Row } from "./row";
 
 export const metadata: Metadata = { title: "Settings · Uplink" };
@@ -33,31 +31,24 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
 }
 
 // Session check plus data in one browser-only private cache, so header links can prefetch it (see app/page.tsx).
-async function loadSettings(): Promise<{
-  account: AccountInfo;
-  lastCheck: string | null;
-  lastReading: string | null;
-  imported: number;
-  now: number;
-}> {
+async function loadSettings(): Promise<{ account: AccountInfo; lastCheck: string | null; lastReading: string | null; now: number }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
-  const [account, run, lastReading, imported] = await Promise.all([
+  const [account, run, lastReading] = await Promise.all([
     accountInfo(),
     DEMO
       ? { data: demoData().lastRun }
       : db().from("poll_runs").select("started_at").order("started_at", { ascending: false }).limit(1).maybeSingle(),
     lastReadingAt(),
-    countImported(),
   ]);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
-  return { account, lastCheck: run.data?.started_at ?? null, lastReading, imported, now: Date.now() };
+  return { account, lastCheck: run.data?.started_at ?? null, lastReading, now: Date.now() };
 }
 
 async function Settings() {
-  const { account, lastCheck, lastReading, imported, now } = await loadSettings();
+  const { account, lastCheck, lastReading, now } = await loadSettings();
   const connectedDescription = account.connectedSince ? `Connected since ${formatDate(account.connectedSince)}` : "Connected";
 
   return (
@@ -76,11 +67,6 @@ async function Settings() {
           }
           control={<LiveStatus lastReading={lastReading} now={now} />}
         />
-      </Group>
-
-      <Group title="Version history">
-        <ImportUpdates />
-        <UndoImport count={imported} />
       </Group>
 
       <Group title="Account">
