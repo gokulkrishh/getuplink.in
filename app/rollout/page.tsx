@@ -9,6 +9,7 @@ import { RolloutMap } from "@/components/rollout-map";
 import { DEMO } from "@/lib/demo";
 import { formatShortDate } from "@/lib/format";
 import type { RolloutVersion } from "@/lib/rollout";
+import type { Arriving, YourCar } from "@/lib/rollout-arriving";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadRollout, type RolloutPage } from "@/lib/server/rollout";
@@ -33,6 +34,25 @@ const releaseDay = (day: string) => formatShortDate(`${day}T12:00:00+05:30`);
 function lagWords(days: number): string {
   if (days === 0) return "Same day as the world";
   return `${days} ${days === 1 ? "day" : "days"} behind`;
+}
+
+// The owner's car against India, in one line.
+function yourCarWords(car: YourCar): string {
+  if (car.kind === "waiting") return `${car.version} is waiting on your car`;
+  if (car.kind === "newest") return "You're on the newest version in India";
+  return `You're ${car.versions} ${car.versions === 1 ? "version" : "versions"} behind: ${car.newest} is on ${cars(car.cars)}`;
+}
+
+// One version on offer: cars it's waiting on and cars already on it.
+function ArrivingRow({ a }: { a: Arriving }) {
+  return (
+    <li className="flex items-baseline justify-between gap-4 py-3 text-sm tabular-nums">
+      <span className="font-mono font-medium">{a.version}</span>
+      <span className="text-muted-foreground">
+        Offered to {cars(a.offered)} · on {a.on}
+      </span>
+    </li>
+  );
 }
 
 // One version: cars on it now with a bar against every counted car, and how its arrival compares with the world.
@@ -69,7 +89,7 @@ async function Rollout() {
     );
   }
   const { versions, counted, headline } = data.rollout;
-  const { states } = data;
+  const { states, arriving, yourCar } = data;
   if (versions.length === 0) {
     return (
       <EmptyState icon={<Globe className="size-7 text-faint" aria-hidden="true" />} title="No versions yet">
@@ -91,7 +111,20 @@ async function Rollout() {
         ) : (
           <p className="text-sm text-muted-foreground">No car runs a reported version right now.</p>
         )}
+        {yourCar && <p className="pt-2 text-sm">{yourCarWords(yourCar)}</p>}
       </header>
+
+      {arriving.length > 0 && (
+        <section className="space-y-2">
+          <h2 className={heading}>Arriving now</h2>
+          <ul className="divide-y border-t">
+            {arriving.map((a) => (
+              <ArrivingRow key={a.version} a={a} />
+            ))}
+          </ul>
+          <p className="text-xs text-faint">Updates Tesla has offered but cars haven&apos;t installed yet, and how many cars already run each.</p>
+        </section>
+      )}
 
       <RolloutMap versions={states} />
 
@@ -106,7 +139,8 @@ async function Rollout() {
 
       <div className="space-y-2 text-xs text-faint">
         <p>
-          Pooled across every car Uplink tracks in India. Totals only, never a single car.
+          Pooled across every car Uplink tracks in India. Totals only, never a single car. An offer counts from
+          each car&apos;s last check while it was awake.
         </p>
         <p>
           A car&apos;s state comes from its location or, until then, its Superchargers.

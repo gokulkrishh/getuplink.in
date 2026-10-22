@@ -4,7 +4,7 @@
 // the same functions as real data.
 import type { StateCode } from "@/lib/india-states";
 import { istDay } from "@/lib/status";
-import { between, rngFor } from "./generate";
+import { between, PENDING_VERSION, rngFor } from "./generate";
 
 const HOUR = 3_600_000;
 const DAY = 86_400_000;
@@ -28,11 +28,21 @@ const HOMES: [StateCode | null, number][][] = [
   [["KA", 5], ["MH", 5], ["TN", 3], ["KL", 2], ["HR", 3], [null, 2]],
   [["KA", 2], ["MH", 1]],
 ];
+// Updates offered but not installed yet, as [version, offered to cars on this version, their statuses]:
+// 2026.40.2 is reaching more 2026.38.5.1 cars, two 2026.38.3.1 cars have 2026.38.5.1 waiting, and one
+// 2026.40.2 car is the first offered the demo car's next update.
+const OFFERS: [version: string, from: string, statuses: string[]][] = [
+  ["2026.40.2", "2026.38.5.1", ["available", "downloading", "downloading_wifi_wait", "scheduled", "installing"]],
+  ["2026.38.5.1", "2026.38.3.1", ["available", "available"]],
+  [PENDING_VERSION, "2026.40.2", ["available"]],
+];
 const SHIPPED = "2026.20.6.10"; // what every car ran before its first recorded update
 const SHARED_CARS = 3; // owners with two cars, so 40 cars have 37 owners
 
 export type FleetVehicle = { id: string; current_version: string; last_seen_at: string; home_state: StateCode | null };
 export type FleetChange = { vehicle_id: string; version: string; previous_version: string; detected_at: string; source: "tracked" };
+// Each offered car's last online check, shaped like a snapshots row.
+export type FleetOffer = { vehicle_id: string; state: "online"; update_status: string; update_version: string };
 export type FleetRun = { started_at: string; ok: boolean };
 
 export type DemoFleet = {
@@ -40,6 +50,7 @@ export type DemoFleet = {
   owners: number;
   vehicles: FleetVehicle[];
   history: FleetChange[]; // oldest first
+  offers: FleetOffer[];
   globalReleases: Record<string, string>; // simulated, IST days
   runs: FleetRun[]; // the last 7 days of checks, newest first
   // Simulated: real Fleet API requests and spend aren't counted anywhere yet.
@@ -74,6 +85,14 @@ export function generateFleet(now: number): DemoFleet {
   });
   history.sort((a, b) => Date.parse(a.detected_at) - Date.parse(b.detected_at));
 
+  // The last cars on each version get its offers, so every offer is newer than what its car runs.
+  const offers: FleetOffer[] = OFFERS.flatMap(([version, from, statuses]) =>
+    vehicles
+      .filter((v) => v.current_version === from)
+      .slice(-statuses.length)
+      .map((v, i) => ({ vehicle_id: v.id, state: "online" as const, update_status: statuses[i], update_version: version })),
+  );
+
   // A check every 6 hours; two failed this week.
   const runs: FleetRun[] = [];
   for (let i = 0; i < 28; i++) {
@@ -85,6 +104,7 @@ export function generateFleet(now: number): DemoFleet {
     owners: vehicles.length - SHARED_CARS,
     vehicles,
     history,
+    offers,
     globalReleases: Object.fromEntries(RELEASES.map(([version, globalDaysAgo]) => [version, istDay(now - globalDaysAgo * DAY)])),
     runs,
     api: { requests, costUsd: Math.round(requests * 0.0011 * 100) / 100 },
