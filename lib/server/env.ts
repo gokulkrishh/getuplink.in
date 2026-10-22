@@ -1,4 +1,5 @@
 import "server-only";
+import { parseAdminAccounts } from "@/lib/admin";
 
 export const FLEET_API_DEFAULT = "https://fleet-api.prd.na.vn.cloud.tesla.com";
 
@@ -27,4 +28,10 @@ export function missingEnv(): string[] {
     "TOKEN_ENCRYPTION_KEY",
     "CRON_SECRET",
   ].filter((name) => !process.env[name]);
+}
+
+// Optional, so not in missingEnv: ADMIN_ACCOUNTS lists the Tesla accounts (oauth_tokens.owner_sub) that
+// can open /admin, comma-separated. Unset, /admin is a 404 for everyone.
+export function adminAccounts(): Set<string> {
+  return parseAdminAccounts(process.env.ADMIN_ACCOUNTS);
 }

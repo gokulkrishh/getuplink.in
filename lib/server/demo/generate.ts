@@ -142,7 +142,7 @@ export type DemoData = {
 
 // Small seeded generator (mulberry32). Each use is seeded by what it describes (a day, an update), so a
 // day looks the same however often the data is rebuilt.
-function rngFor(...parts: number[]) {
+export function rngFor(...parts: number[]) {
   let seed = parts.reduce((h, p) => Math.imul(h ^ (p | 0), 0x9e3779b1) >>> 0, 0x1234567);
   return () => {
     seed = (seed + 0x6d2b79f5) | 0;
@@ -151,8 +151,8 @@ function rngFor(...parts: number[]) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-type Rng = () => number;
-const between = (rng: Rng, a: number, b: number) => a + rng() * (b - a);
+export type Rng = () => number;
+export const between = (rng: Rng, a: number, b: number) => a + rng() * (b - a);
 const round = (value: number, digits: number) => Math.round(value * 10 ** digits) / 10 ** digits;
 const dow = (day: number) => (day + 4) % 7; // 0 = Sunday; 1970-01-01 was a Thursday
 const weekend = (day: number) => dow(day) === 0 || dow(day) === 6;

@@ -7,6 +7,7 @@ import type { Stream } from "@/lib/telemetry";
 import { istDay, istDayStart, num, type Reading } from "@/lib/telemetry-derive";
 import type { ChargingSession } from "../charging";
 import type { StreamChargeSession } from "../stream-charging";
+import { type DemoFleet, generateFleet } from "./fleet";
 import { type DemoData, generateDemo, PENDING_VERSION } from "./generate";
 
 // Everything the loaders return in demo mode comes from here. The data is rebuilt at most once a
@@ -17,6 +18,15 @@ export function demoData(): DemoData {
   const now = Date.now();
   if (!cached || now - cached.now > 60_000) cached = generateDemo(now);
   return cached;
+}
+
+// The simulated fleet for /rollout and /admin, rebuilt on the same minute as the demo car.
+let fleet: DemoFleet | undefined;
+
+export function demoFleet(): DemoFleet {
+  const now = Date.now();
+  if (!fleet || now - fleet.now > 60_000) fleet = generateFleet(now);
+  return fleet;
 }
 
 // ---- Fleet Telemetry ----

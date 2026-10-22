@@ -21,6 +21,8 @@ Stack: Bun, Next.js 16 (App Router), shadcn/ui, Geist, Recharts, Supabase Postgr
 | `/updates` | The installed version, any pending update with progress, the version history with download and install times, update stats, and when the car was online or asleep. |
 | `/stats/charging`, `/stats/driving`, `/stats/battery` | One topic each, in depth: every session, drive and chart. The period carries over in `?period=`. Old `/stats?view=…` links redirect here (update stats to `/updates`). |
 | `/car`, `/settings` | The car's details and battery health; theme, importing past updates and the account. |
+| `/rollout` | India rollout tracker, pooled across every car: versions on Indian cars, when the first got each, cars on each now and the lag behind the global release (from a hand-kept list in `lib/rollout.ts`). Totals only; a version's numbers show once 5 cars report it. |
+| `/admin` | For `ADMIN_ACCOUNTS` only (404 for anyone else): owners, cars, version spread, failed checks and health checks. Tesla API usage and cost aren't tracked yet. |
 
 The dashboard also has a **Check now** button that runs the same poll.
 
@@ -43,6 +45,7 @@ Every variable is listed in [`.env.example`](.env.example). In Vercel: **Project
 | `TOKEN_ENCRYPTION_KEY` | `openssl rand -base64 32` (must decode to 32 bytes). Also signs session cookies. Changing it signs you out and makes stored tokens unreadable: sign in with Tesla again afterwards. |
 | `CRON_SECRET` | `openssl rand -hex 32`. Vercel sends it to the cron route automatically. |
 | `HEALTH_TOKEN` | Optional. `openssl rand -hex 32`. Bearer token for `GET /api/health/stream`, the streaming health check an external bot polls. Unset, the route answers 503. |
+| `ADMIN_ACCOUNTS` | Optional. Comma-separated Tesla account ids that can open `/admin` (totals across every owner). The id is the `sub` Tesla's sign-in returns, stored after your first sign-in: `select owner_sub from oauth_tokens;` in the Supabase SQL editor. Unset, `/admin` is a 404 for everyone. Demo mode always shows it. |
 
 For local scripts, put the same values in `.env.local` (gitignored), e.g. `vercel env pull .env.local`.
 

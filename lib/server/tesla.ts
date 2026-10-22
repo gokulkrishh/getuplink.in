@@ -202,7 +202,7 @@ async function storedTokens(): Promise<StoredTokens> {
 const readOwnerRow = cache(async () => {
   const { data, error } = await db()
     .from("oauth_tokens")
-    .select("access_token_enc, created_at, sessions_valid_after")
+    .select("access_token_enc, created_at, sessions_valid_after, owner_sub")
     .eq("provider", "tesla")
     .maybeSingle();
   if (error) throw new Error(`Reading account failed: ${error.message}`);
@@ -220,6 +220,13 @@ export async function accountInfo(): Promise<AccountInfo> {
   if (DEMO) return { connected: true, connectedSince: demoData().history.at(-1)?.detected_at ?? null };
   const data = await readOwnerRow();
   return { connected: Boolean(data?.access_token_enc), connectedSince: data?.created_at ?? null };
+}
+
+// The Tesla account (id_token `sub`) that owns the dashboard, or null before the first sign-in. The
+// session cookie carries no identity: with one owner, a current session is that account's.
+export async function ownerSub(): Promise<string | null> {
+  if (DEMO) return null;
+  return ((await readOwnerRow())?.owner_sub as string | null | undefined) ?? null;
 }
 
 // Sessions issued before this time (ms) are revoked. -infinity (never revoked) reads as 0.
