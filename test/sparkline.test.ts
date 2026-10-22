@@ -1,5 +1,21 @@
 import { describe, expect, test } from "bun:test";
-import { sparkBars, sparkLine } from "@/lib/sparkline";
+import { hasSparkData, sparkBars, sparkLine } from "@/lib/sparkline";
+
+describe("hasSparkData", () => {
+  test("bars need a value above zero", () => {
+    expect(hasSparkData("bars", [0, null, 0])).toBe(false);
+    expect(hasSparkData("bars", [null, null])).toBe(false);
+    expect(hasSparkData("bars", [0, 3, 0])).toBe(true);
+  });
+  test("a line needs any value", () => {
+    expect(hasSparkData("line", [null, null])).toBe(false);
+    expect(hasSparkData("line", [null, 142])).toBe(true);
+  });
+  test("nothing at all", () => {
+    expect(hasSparkData("bars", [])).toBe(false);
+    expect(hasSparkData("line", [])).toBe(false);
+  });
+});
 
 describe("sparkBars", () => {
   test("scales to the largest value from a zero baseline", () => {

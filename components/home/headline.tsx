@@ -7,7 +7,7 @@ import { formatDate, formatShortDate } from "@/lib/format";
 import { type Period, periodSpan, previousLabel, previousSpan, slotsFor, trackingGap } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
-import { SLOT_WIDTH, sparkBars, sparkLine } from "@/lib/sparkline";
+import { hasSparkData, SLOT_WIDTH, sparkBars, sparkLine } from "@/lib/sparkline";
 import { cn } from "@/lib/utils";
 
 const number = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
@@ -21,8 +21,11 @@ const TONES: Record<Change["tone"], string> = { better: "text-chart-better", wor
 type Spark = { kind: "bars" | "line"; values: (number | null)[]; current: number };
 
 // The period's shape behind the number: bars for totals, a line for a rate. Decorative; the number and
-// the delta carry the meaning.
+// the delta carry the meaning. With nothing to draw it says so in the same height, not a bare baseline.
 function Sparkline({ kind, values, current }: Spark) {
+  if (!hasSparkData(kind, values)) {
+    return <p className="flex h-6 items-center text-xs text-faint">No data yet</p>;
+  }
   const width = values.length * SLOT_WIDTH;
   return (
     <svg

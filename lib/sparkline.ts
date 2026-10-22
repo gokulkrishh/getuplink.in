@@ -7,6 +7,12 @@ const BAR_WIDTH = 6;
 // A bar above zero is at least this tall, so a small value still shows.
 const MIN_BAR = 1.5;
 
+// Whether a sparkline has anything to draw. Bars are totals, so a period of zeros (parked since
+// tracking began) has nothing to chart; a line is a rate, null when there was nothing to rate.
+export function hasSparkData(kind: "bars" | "line", values: (number | null)[]): boolean {
+  return kind === "bars" ? values.some((v) => v !== null && v > 0) : values.some((v) => v !== null);
+}
+
 export type SparkBar = { k: number; x: number; y: number; width: number; height: number };
 
 // Bars from a zero baseline at `height`, scaled to the largest value. Zero and null slots have no bar.
