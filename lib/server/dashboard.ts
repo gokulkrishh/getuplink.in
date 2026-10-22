@@ -3,8 +3,8 @@ import { DEMO, type DemoScenario } from "@/lib/demo";
 import { parseReleaseNotes, type ReleaseNote, type ReleaseNotesByVersion } from "@/lib/release-notes";
 import type { Stream } from "@/lib/telemetry";
 import { type Reading, type UpdateTimeline, updateTimeline } from "@/lib/telemetry-derive";
-import { loadVehicleExtras, type VehicleExtras } from "./dashboard-extras";
-import { demoData, demoFirstWeek, demoStream } from "./demo";
+import type { VehicleExtras } from "./dashboard-extras";
+import { demoData, demoStream } from "./demo";
 import { missingEnv } from "./env";
 import { db } from "./supabase";
 import { applyStream, loadStream, STREAM_FIELDS } from "./telemetry";
@@ -76,8 +76,6 @@ export type VehicleView = {
 
 // Why a page has no cars to show, or the cars: the same gate on every page that reads the car's state.
 export type OwnerGate = { kind: "misconfigured"; missing: string[] } | { kind: "error"; message: string } | { kind: "disconnected" };
-
-export type Dashboard = OwnerGate | { kind: "ready"; vehicles: VehicleView[]; lastRun: PollRun | null; releaseNotes: ReleaseNotesByVersion };
 
 // The car's latest check, its last online check with newer streamed values laid over it, and when it last
 // streamed one of the fields read.
@@ -161,20 +159,6 @@ export async function loadHistory(vehicle: Vehicle): Promise<VersionChange[]> {
   return (data ?? []) as VersionChange[];
 }
 
-async function vehicleView(vehicle: Vehicle, scenario: DemoScenario): Promise<VehicleView> {
-  const [state, rows] = await Promise.all([loadCarState(vehicle, scenario), loadHistory(vehicle)]);
-  // The timelines are read once and shared: they also feed "Installed ... took" in recent activity.
-  const timelines = vehicle.vin ? withTimelines(vehicle.vin, rows) : Promise.resolve(rows);
-  const [history, extras] = await Promise.all([timelines, vehicle.vin ? loadVehicleExtras(vehicle.id, vehicle.vin, timelines, Date.now()) : null]);
-  return {
-    vehicle,
-    ...state,
-    history,
-    // The demo's first week: the same car, connected four days ago (see demoFirstWeek).
-    extras: DEMO && extras && scenario === "firstWeek" ? { ...extras, week: demoFirstWeek() } : extras,
-  };
-}
-
 // The versions a page can show notes for: each car's history and pending update.
 export function versionsOnScreen(cars: { history: VersionChange[]; lastOnline: Snapshot | null }[]): string[] {
   const versions = new Set<string>();
@@ -217,18 +201,4 @@ export async function loadOwnerCars(): Promise<OwnerGate | { kind: "ready"; vehi
   if (vehicles.error) throw new Error(vehicles.error.message);
   if (runs.error) throw new Error(runs.error.message);
   return { kind: "ready", vehicles: vehicles.data as Vehicle[], lastRun: runs.data as PollRun | null };
-}
-
-export async function loadDashboard(scenario: DemoScenario = "normal"): Promise<Dashboard> {
-  try {
-    const owner = await loadOwnerCars();
-    if (owner.kind !== "ready") return owner;
-    const views = await Promise.all(owner.vehicles.map((v) => vehicleView(v, scenario)));
-    return { kind: "ready", vehicles: views, lastRun: owner.lastRun, releaseNotes: await loadReleaseNotes(versionsOnScreen(views)) };
-  } catch (err) {
-    // Demo mode never fails, so its errors are real bugs: let them show.
-    if (DEMO) throw err;
-    console.error(err);
-    return { kind: "error", message: (err as Error).message };
-  }
 }

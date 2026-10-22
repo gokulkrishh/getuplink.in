@@ -8,7 +8,7 @@ import type { OwnerGate, PollRun } from "@/lib/server/dashboard";
 
 // What a page that reads the car shows when it can't (see OwnerGate), and the footer under the cars.
 
-export function RunError({ error }: { error: string }) {
+function RunError({ error }: { error: string }) {
   return (
     <div className="space-y-2">
       <p>{describeRunError(error)}</p>

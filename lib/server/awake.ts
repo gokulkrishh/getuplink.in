@@ -22,13 +22,9 @@ async function loadPolls(vehicleId: string, from: string): Promise<Poll[]> {
   return (data ?? []).map((r) => ({ at: Date.parse(r.polled_at as string), state: r.state as string }));
 }
 
-// Online, asleep and offline per IST day for the last 14 days (see awakeDays).
-export async function loadAwake(vehicle: { id: string; vin: string } | null, now: number): Promise<DayStrip[]> {
-  return (await loadPresence(vehicle, now)).days;
-}
-
-// The same, plus when the car last sent one of the presence fields: they change every few minutes while
-// it is awake, so this says whether it is awake now without reading every field's latest value.
+// Online, asleep and offline per IST day for the last 14 days (see awakeDays), and when the car last sent
+// one of the presence fields: they change every few minutes while it is awake, so this says whether it is
+// awake now without reading every field's latest value.
 export async function loadPresence(vehicle: { id: string; vin: string } | null, now: number): Promise<{ days: DayStrip[]; newest: string | null }> {
   if (!vehicle) return { days: [], newest: null };
   const from = new Date(now - (AWAKE_DAYS + 1) * 86_400_000).toISOString();

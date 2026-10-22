@@ -11,7 +11,7 @@ import { loadStreamSessions, type StreamChargeSession } from "./stream-charging"
 
 export type HomeCar = CarState & { vehicle: Vehicle };
 
-export type HomeData = {
+type HomeData = {
   cars: HomeCar[];
   lastRun: PollRun | null;
   // Driving figures are the primary car's; charging covers every car, like the Charging page.

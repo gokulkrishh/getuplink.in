@@ -1,27 +1,14 @@
 import "server-only";
-import { monthIndex, monthKey } from "@/lib/periods";
-import { type EnergyMonth, type Span, energyUseMonth, num } from "@/lib/telemetry-derive";
+import { num } from "@/lib/telemetry-derive";
 import type { CounterColumn, CounterValue } from "@/lib/driving-figures";
 import { DEMO } from "@/lib/demo";
 import { demoCounters } from "./demo";
 import { db } from "./supabase";
 
-export type MonthlyEnergy = { month: string; energy: EnergyMonth | null };
-
-const MONTHS = 12;
-const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+// Cumulative counters at chosen instants, from the streamed readings (see loadDrivingFigures).
 
 // Passed as the last boundary, it stands for "now": the last reading before it is the latest one.
 export const LATEST = "infinity";
-
-function monthStart(index: number): string {
-  return new Date(Date.UTC(Math.floor(index / 12), index % 12, 1) - IST_OFFSET_MS).toISOString();
-}
-
-// The month starts of the window, then LATEST, so bounds[k] opens window month k and bounds[k + 1] closes it.
-export function monthBounds(firstIndex: number): string[] {
-  return [...Array.from({ length: MONTHS }, (_, k) => monthStart(firstIndex + k)), LATEST];
-}
 
 export type { CounterColumn, CounterValue };
 // A row from counter_values_at / snapshot_odometer_at: `at` is the boundary, or null for the first reading.
@@ -64,21 +51,4 @@ export async function loadCounters(vin: string, fields: string[], bounds: string
       ),
     ]),
   );
-}
-
-// Energy use per month for the last 12 months (IST), from the streamed lifetime counters and odometer.
-// Months stay null until the counters cover them. Empty when there is no car or no reading.
-export async function loadMonthlyEnergy(vin: string | null): Promise<MonthlyEnergy[]> {
-  if (!vin) return [];
-  const firstIndex = monthIndex(Date.now()) - (MONTHS - 1);
-  const counters = await loadCounters(vin, ["LifetimeEnergyUsed", "LifetimeEnergyGainedRegen", "Odometer"], monthBounds(firstIndex));
-  const span = (field: string, k: number): Span => {
-    const column = counters?.get(field);
-    // With nothing before the month, count from the first reading ever taken.
-    return { start: (column?.bounds[k] ?? column?.first)?.value ?? null, end: column?.bounds[k + 1]?.value ?? null };
-  };
-  return Array.from({ length: MONTHS }, (_, k) => ({
-    month: monthKey(firstIndex + k),
-    energy: energyUseMonth({ used: span("LifetimeEnergyUsed", k), regen: span("LifetimeEnergyGainedRegen", k), odometerMiles: span("Odometer", k) }),
-  }));
 }

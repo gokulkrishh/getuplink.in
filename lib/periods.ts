@@ -1,4 +1,4 @@
-import { formatDate, formatMonth, formatShortDate } from "@/lib/format";
+import { formatDate, formatShortDate } from "@/lib/format";
 import { istDay, istDayStart } from "@/lib/telemetry-derive";
 
 // Pure period maths for the home page and the Stats pages: which instants a period covers, the bars it
@@ -32,7 +32,6 @@ function monthDate(index: number): Date {
   return new Date(Date.UTC(yearOf(index), index % 12, 15, 12));
 }
 
-export const monthKey = (index: number) => formatMonth(monthDate(index));
 export const monthShort = (index: number) => shortMonth.format(monthDate(index));
 // The instant an IST month starts.
 export const monthStart = (index: number) => Date.UTC(yearOf(index), index % 12, 1) - IST_OFFSET_MS;

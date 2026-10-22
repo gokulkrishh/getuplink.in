@@ -1,7 +1,6 @@
 import "server-only";
 import { buildSessions, CHARGE_FIELDS } from "@/lib/charge-sessions";
 import { MILES_TO_KM } from "@/lib/car";
-import { type WeekSummary, weekSummary } from "@/lib/dashboard-summary";
 import type { DemoScenario } from "@/lib/demo";
 import type { CounterColumn } from "@/lib/driving-figures";
 import type { ChargingRates } from "@/lib/charging-rates";
@@ -53,10 +52,9 @@ export function demoReadings(field: string, from: string, to?: string): Reading[
   return (demoData().readings[field] ?? []).filter((r) => Date.parse(r.at) >= start && Date.parse(r.at) < end);
 }
 
-// The value of a field's last reading before an instant (or its latest, with none), or its first ever.
-export function demoCounter(field: string, before: string | null, ascending = false): number | null {
+// The value of a field's last reading before an instant (or its latest, with none).
+export function demoCounter(field: string, before: string | null): number | null {
   const readings = demoData().readings[field] ?? [];
-  if (ascending) return num(readings[0]?.value);
   const limit = before ? Date.parse(before) : Infinity;
   const last = readings.findLast((r) => Date.parse(r.at) < limit);
   return num(last?.value);
@@ -131,14 +129,6 @@ export function demoStream(fields: string[], scenario: DemoScenario = "normal"):
     if (fields.includes(field)) stream[field] = { at, value };
   }
   return stream;
-}
-
-// The dashboard's "This week" for a car connected four days ago: the same readings, cut at that day, with
-// nothing before them, so the card says "Tracking since" instead of comparing.
-export function demoFirstWeek(): WeekSummary {
-  const { now } = demoData();
-  const from = new Date(istDayStart(istDay(now) - 4)).toISOString();
-  return weekSummary(demoReadings("Odometer", from), null, demoReadings("LifetimeEnergyUsed", from), null, now);
 }
 
 // ---- Sessions ----

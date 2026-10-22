@@ -152,7 +152,7 @@ async function loadLastAcCharge(vin: string): Promise<LastAcCharge | null> {
 
 // The newest IST week's median full-pack estimate (see weeklyPack), from this week's and last week's readings:
 // the battery trend's latest point whenever the car streamed in the last two weeks.
-export async function loadLatestWeekPack(vin: string, now: number): Promise<WeeklyPack | null> {
+async function loadLatestWeekPack(vin: string, now: number): Promise<WeeklyPack | null> {
   const from = new Date(istWeekStart(istWeek(now) - 1)).toISOString();
   const readings = await loadReadingsByField(vin, ["EnergyRemaining", "BatteryLevel"], from, new Date(now).toISOString());
   // Battery health is extra; without it the page still shows everything else.

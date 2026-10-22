@@ -1,6 +1,4 @@
 import "server-only";
-import { monthIndex, monthKey } from "@/lib/periods";
-import { MILES_TO_KM } from "@/lib/car";
 import { type ChargeLevel, type WeeklyRange } from "@/lib/charge-level";
 import { analyseDriving, DRIVE_DAYS, type Driving } from "@/lib/drives";
 import { type DayKm, dailyDistance, istDay, istDayStart, num, type WeeklyPack } from "@/lib/telemetry-derive";
@@ -10,12 +8,8 @@ import { batteryTrend, trendWindow } from "./battery";
 import { chargeLevel, fullRange } from "./charge-level";
 import { demoCounter, demoCounters } from "./demo";
 import { db } from "./supabase";
-import { type CounterColumn, type CounterValue, LATEST, loadCounters, monthBounds, toColumn } from "./energy";
+import { type CounterColumn, LATEST, loadCounters, toColumn } from "./energy";
 import { loadReadingsByField } from "./telemetry-window";
-
-export type MonthlyDistance = { month: string; km: number };
-
-const MONTHS = 12;
 
 // The online polls' odometer (miles) at each boundary, in one request. The poll ran before the stream
 // began, so earlier months only have these. In demo mode the counters cover it. Null when the query fails.
@@ -34,38 +28,6 @@ async function loadPolledOdometers(bounds: string[]): Promise<CounterColumn | nu
       return { at: row.at, value: Number.isFinite(miles) ? miles : null, readAt: row.polled_at };
     }),
   );
-}
-
-type OdometerReading = CounterValue | null | undefined;
-const newer = (a: OdometerReading, b: OdometerReading) => (!a ? b : !b ? a : b.at > a.at ? b : a);
-const older = (a: OdometerReading, b: OdometerReading) => (!a ? b : !b ? a : b.at < a.at ? b : a);
-
-// Kilometres driven per month for the last 12 months (IST), from the odometer: the streamed one or the
-// polled one, whichever was read last before each boundary. One reading per boundary instead of every
-// poll, which would run into PostgREST's row cap. `vin` is the car's (see loadPrimaryVehicle); without one
-// only the polled odometer counts.
-export async function loadMonthlyDistance(vin: string | null): Promise<MonthlyDistance[]> {
-  const firstIndex = monthIndex(Date.now()) - (MONTHS - 1);
-  const bounds = monthBounds(firstIndex);
-  const [streamed, polled] = await Promise.all([
-    vin ? loadCounters(vin, ["Odometer"], bounds).then((counters) => counters?.get("Odometer") ?? null) : null,
-    loadPolledOdometers(bounds),
-  ]);
-  const km = (reading: OdometerReading) => (reading ? reading.value * MILES_TO_KM : null);
-  // ends[k] is the last reading before window month k starts (so it closes the month before it);
-  // ends[MONTHS] is the latest reading, which closes the current month.
-  const ends = bounds.map((_, k) => km(newer(streamed?.bounds[k], polled?.bounds[k])));
-  const first = km(older(streamed?.first, polled?.first));
-  const result: MonthlyDistance[] = [];
-  for (let k = 0; k < MONTHS; k++) {
-    const end = ends[k + 1];
-    // With nothing before the month, count from the first reading ever taken.
-    const start = ends[k] ?? first;
-    // Before the car's first reading there is nothing to show, so those months are left out.
-    if (end == null || start == null) continue;
-    result.push({ month: monthKey(firstIndex + k), km: Math.max(0, Math.round(end - start)) });
-  }
-  return result;
 }
 
 const FIGURE_FIELDS = ["Odometer", "LifetimeEnergyUsed", "LifetimeEnergyGainedRegen"];

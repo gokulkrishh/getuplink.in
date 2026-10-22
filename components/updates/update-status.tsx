@@ -3,7 +3,7 @@ import { AutoRefresh } from "@/components/auto-refresh";
 import { formatDuration, formatSeen } from "@/lib/format";
 import type { Snapshot } from "@/lib/server/dashboard";
 
-export const STATUS: Record<string, string> = {
+const STATUS: Record<string, string> = {
   available: "Available",
   scheduled: "Scheduled",
   downloading: "Downloading",

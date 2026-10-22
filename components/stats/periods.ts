@@ -26,10 +26,6 @@ export const VIEWS: { value: View; label: string }[] = [
   { value: "battery", label: "Battery" },
 ];
 
-export function parseView(value: string | string[] | undefined): View {
-  return VIEWS.find((v) => v.value === value)?.value ?? "charging";
-}
-
 // A Stats page's URL with a period; Month, the default, stays out of it.
 export function statsHref(view: View, period: Period): string {
   return period === "month" ? `/stats/${view}` : `/stats/${view}?period=${period}`;
