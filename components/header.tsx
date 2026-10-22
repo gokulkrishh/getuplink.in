@@ -1,14 +1,17 @@
 import Link from "next/link";
+import { LogOut, Settings, User } from "lucide-react";
 import { logout } from "@/app/actions";
 import { Logo } from "@/components/logo";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 export type Section = "updates" | "settings";
-
-const LINKS: { section: Section; href: string; label: string }[] = [
-  { section: "updates", href: "/updates", label: "Updates" },
-  { section: "settings", href: "/settings", label: "Settings" },
-];
 
 // The same header on every signed-in page; `current` marks the page's own link. The Stats pages open from
 // the home page's sections and the car page from the car's name there, so they have none.
@@ -19,22 +22,37 @@ export function Header({ current }: { current?: Section }) {
         <Logo className="size-5" />
         Uplink
       </Link>
-      {/* Wraps rather than overflowing on a narrow phone. */}
-      <nav aria-label="Main" className="flex flex-wrap items-baseline justify-end gap-x-3 gap-y-1 text-muted-foreground sm:gap-x-4">
-        {LINKS.map(({ section, href, label }) => (
-          <Link
-            key={section}
-            href={href}
-            prefetch={true}
-            aria-current={current === section ? "page" : undefined}
-            className={cn("hover:text-foreground", current === section && "text-foreground")}
+      <nav aria-label="Main" className="flex items-center gap-3 text-muted-foreground sm:gap-4">
+        <Link
+          href="/updates"
+          prefetch={true}
+          aria-current={current === "updates" ? "page" : undefined}
+          className={cn("hover:text-foreground", current === "updates" && "text-foreground")}
+        >
+          Updates
+        </Link>
+        {/* The menu's Sign out item submits this form by id, so signing out stays the same POST to the
+            server action; the form sits outside the menu because the menu's popup unmounts on close. */}
+        <form id="sign-out" action={logout} hidden />
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            aria-label="Account menu"
+            className="flex size-8 cursor-pointer items-center justify-center rounded-full border bg-background hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none data-popup-open:bg-muted data-popup-open:text-foreground"
           >
-            {label}
-          </Link>
-        ))}
-        <form action={logout}>
-          <button className="cursor-pointer hover:text-foreground">Sign out</button>
-        </form>
+            <User className="size-4" aria-hidden />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuItem render={<Link href="/settings" prefetch={true} />}>
+              <Settings aria-hidden />
+              Settings
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem render={<button type="submit" form="sign-out" />} nativeButton className="w-full">
+              <LogOut aria-hidden />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </nav>
     </header>
   );
