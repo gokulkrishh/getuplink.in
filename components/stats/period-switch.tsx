@@ -1,13 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { type Period, PERIODS, statsHref, type View } from "./periods";
+import { type Period, PERIODS } from "./periods";
 
-// The choice lives in the URL so a period can be shared; the server page reads it.
-export function PeriodSwitch({ period, view }: { period: Period; view: View }) {
-  const router = useRouter();
+// Picks the period in the browser; StatsTabs keeps it in the URL so a period can be shared.
+export function PeriodSwitch({ period, onChange }: { period: Period; onChange: (period: Period) => void }) {
   return (
     <div role="group" aria-label="Period" className="inline-flex border">
       {PERIODS.map(({ value, label }) => (
@@ -17,7 +15,7 @@ export function PeriodSwitch({ period, view }: { period: Period; view: View }) {
           variant="ghost"
           size="sm"
           aria-pressed={period === value}
-          onClick={() => router.replace(statsHref(view, value), { scroll: false })}
+          onClick={() => onChange(value)}
           className={cn("rounded-none", period === value && "bg-secondary text-foreground")}
         >
           {label}

@@ -4,7 +4,7 @@ import { cacheLife, cacheTag, io } from "next/cache";
 import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { Zap } from "lucide-react";
-import { Suspense } from "react";
+import { type ReactNode, Suspense } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Logo } from "@/components/logo";
 import { ShowMore } from "@/components/show-more";
@@ -14,8 +14,8 @@ import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
 import { DriveList } from "@/components/stats/drive-list";
 import { ParkedDrain } from "@/components/stats/parked-drain";
 import { BatteryTrend } from "@/components/stats/battery-trend";
-import { type Period, monthIndex, monthKey, monthShort, parsePeriod, parseView, yearOf } from "@/components/stats/periods";
-import { StatsTabs } from "@/components/stats/stats-tabs";
+import { type Period, PERIODS, monthIndex, monthKey, monthShort, parsePeriod, parseView, yearOf } from "@/components/stats/periods";
+import { ByPeriod, StatsTabs } from "@/components/stats/stats-tabs";
 import { formatDays, formatKwh, formatMoney, formatMonth, formatShortDate } from "@/lib/format";
 import { chargeEfficiency, matchSessions } from "@/lib/charge-sessions";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
@@ -439,8 +439,13 @@ async function SyncStreamSessions() {
   return null;
 }
 
+// A section that depends on the period, rendered for each one so the switch needs no server trip (see ByPeriod).
+function eachPeriod(render: (period: Period) => ReactNode) {
+  return <ByPeriod panels={Object.fromEntries(PERIODS.map(({ value }) => [value, render(value)])) as Record<Period, ReactNode>} />;
+}
+
 async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParams">) {
-  // Read outside the cache: the tab and period only change what's shown from the cached data.
+  // Read outside the cache: the tab and period only pick what's shown first, and switch in the browser.
   const params = await searchParams;
   const period = parsePeriod(params.period);
   const view = parseView(params.view);
@@ -463,23 +468,23 @@ async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParam
   return (
     <StatsTabs
       initial={view}
-      period={period}
+      initialPeriod={period}
       panels={{
         charging:
           listed.length === 0 ? (
             notYet("No charging sessions yet", "Your charges will show up here, wherever you plug in.")
           ) : (
             <div className="space-y-12">
-              {sessions.length > 0 && <Summary sessions={sessions} now={now} period={period} />}
-              {streamSessions.length > 0 && <EnergyAdded sessions={sessions} streamOnly={streamOnly} now={now} period={period} />}
+              {sessions.length > 0 && eachPeriod((p) => <Summary sessions={sessions} now={now} period={p} />)}
+              {streamSessions.length > 0 && eachPeriod((p) => <EnergyAdded sessions={sessions} streamOnly={streamOnly} now={now} period={p} />)}
               <SessionList sessions={listed} />
             </div>
           ),
         driving: hasDriving ? (
           <div className="space-y-12">
-            <Distance distance={distance} now={now} period={period} />
+            {eachPeriod((p) => <Distance distance={distance} now={now} period={p} />)}
             <DailyDriving days={days} />
-            <EnergyUse energy={energy} now={now} period={period} />
+            {eachPeriod((p) => <EnergyUse energy={energy} now={now} period={p} />)}
             <DriveList drives={driving.drives} now={now} />
             <ParkedDrain drain={driving.drain} />
           </div>
@@ -488,7 +493,7 @@ async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParam
         ),
         battery: trend.length >= 2 ? <Battery trend={trend} /> : notYet("Not enough readings yet", "The battery trend shows up after two weeks of readings."),
         updates: updateStats(updates, now) ? (
-          <Updates rows={updates} now={now} period={period} />
+          eachPeriod((p) => <Updates rows={updates} now={now} period={p} />)
         ) : (
           notYet("Not enough updates yet", "Update stats show up after your car's second update.")
         ),

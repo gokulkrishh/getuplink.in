@@ -1,17 +1,26 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { PeriodSwitch } from "./period-switch";
 import { type Period, statsHref, type View, VIEWS } from "./periods";
 
-// All four tabs arrive in the first response, so switching is instant: only the address bar changes,
-// and a shared link still opens the same tab. The period still reloads from the server.
-export function StatsTabs({ initial, period, panels }: { initial: View; period: Period; panels: Record<View, ReactNode> }) {
+const PeriodContext = createContext<Period>("month");
+
+// A section that depends on the period, rendered by the server for each one; shows the one picked.
+export function ByPeriod({ panels }: { panels: Record<Period, ReactNode> }) {
+  return panels[useContext(PeriodContext)];
+}
+
+// All four tabs, in every period, arrive in the first response, so switching either is instant: only
+// the address bar changes, and a shared link still opens the same tab and period.
+export function StatsTabs({ initial, initialPeriod, panels }: { initial: View; initialPeriod: Period; panels: Record<View, ReactNode> }) {
   const [view, setView] = useState(initial);
-  const select = (next: View) => {
-    setView(next);
-    window.history.replaceState(null, "", statsHref(next, period));
+  const [period, setPeriod] = useState(initialPeriod);
+  const select = (nextView: View, nextPeriod: Period) => {
+    setView(nextView);
+    setPeriod(nextPeriod);
+    window.history.replaceState(null, "", statsHref(nextView, nextPeriod));
   };
   return (
     <div className="space-y-12">
@@ -24,7 +33,7 @@ export function StatsTabs({ initial, period, panels }: { initial: View; period: 
               onClick={(e) => {
                 if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
                 e.preventDefault();
-                select(value);
+                select(value, period);
               }}
               aria-current={view === value ? "page" : undefined}
               className={cn(
@@ -37,9 +46,9 @@ export function StatsTabs({ initial, period, panels }: { initial: View; period: 
           ))}
         </nav>
         {/* The battery trend covers its own window, so the period doesn't apply there. */}
-        {view !== "battery" && <PeriodSwitch period={period} view={view} />}
+        {view !== "battery" && <PeriodSwitch period={period} onChange={(next) => select(view, next)} />}
       </div>
-      {panels[view]}
+      <PeriodContext value={period}>{panels[view]}</PeriodContext>
     </div>
   );
 }
