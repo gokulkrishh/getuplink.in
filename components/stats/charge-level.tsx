@@ -2,9 +2,8 @@
 
 import dynamic from "next/dynamic";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Segmented } from "@/components/segmented";
 import type { ChargeLevel } from "@/lib/charge-level";
-import { cn } from "@/lib/utils";
 
 // Same box as the loaded chart (panel + h-40), so nothing shifts when recharts arrives after hydration.
 function Placeholder() {
@@ -22,8 +21,8 @@ const Plot = dynamic(() => import("./charge-level-plot"), { ssr: false, loading:
 
 const DAY = 86_400_000;
 const RANGES = [
-  { days: 7, label: "7 days" },
-  { days: 30, label: "30 days" },
+  { value: 7, label: "7 days" },
+  { value: 30, label: "30 days" },
 ];
 
 // Battery level over the last 7 or 30 days, with charging shaded. The switch is local: all 30 days
@@ -45,21 +44,7 @@ export function ChargeLevelChart({ level, now }: { level: ChargeLevel | null; no
         </p>
       </div>
       <div className="space-y-4">
-        <div role="group" aria-label="Range" className="inline-flex border">
-          {RANGES.map((r) => (
-            <Button
-              key={r.days}
-              type="button"
-              variant="ghost"
-              size="sm"
-              aria-pressed={days === r.days}
-              onClick={() => setDays(r.days)}
-              className={cn("rounded-none", days === r.days && "bg-secondary text-foreground")}
-            >
-              {r.label}
-            </Button>
-          ))}
-        </div>
+        <Segmented label="Range" options={RANGES} value={days} onChange={setDays} />
         {points.length >= 2 ? (
           <Plot points={points} charging={charging} from={from} to={now} />
         ) : (

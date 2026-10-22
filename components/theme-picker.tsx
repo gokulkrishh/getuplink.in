@@ -1,48 +1,30 @@
 "use client";
 
 import { Monitor, Moon, Sun } from "lucide-react";
-import { useSyncExternalStore } from "react";
+import { type ReactNode, useState, useSyncExternalStore } from "react";
+import { Segmented } from "@/components/segmented";
 import { applyTheme, storedTheme, type Theme } from "@/lib/theme";
-import { cn } from "@/lib/utils";
 
-const OPTIONS: { value: Theme; label: string; Icon: typeof Sun }[] = [
-  { value: "system", label: "System", Icon: Monitor },
-  { value: "light", label: "Light", Icon: Sun },
-  { value: "dark", label: "Dark", Icon: Moon },
+const ICON = "size-3.5";
+const OPTIONS: { value: Theme; label: string; icon: ReactNode }[] = [
+  { value: "system", label: "System", icon: <Monitor className={ICON} aria-hidden="true" /> },
+  { value: "light", label: "Light", icon: <Sun className={ICON} aria-hidden="true" /> },
+  { value: "dark", label: "Dark", icon: <Moon className={ICON} aria-hidden="true" /> },
 ];
 
-const listeners = new Set<() => void>();
-const subscribe = (fn: () => void) => {
-  listeners.add(fn);
-  return () => listeners.delete(fn);
-};
+const subscribe = () => () => {};
 
+// The stored theme is read once the page is in the browser (the server can't see it). A pick is kept in
+// state instead of re-read from the store: store updates render outside any Transition, and the
+// highlight only slides inside one.
 export function ThemePicker() {
-  const theme = useSyncExternalStore(subscribe, storedTheme, () => "system" as Theme);
+  const stored = useSyncExternalStore(subscribe, storedTheme, () => "system" as Theme);
+  const [picked, setPicked] = useState<Theme | null>(null);
   const choose = (value: Theme) => {
     applyTheme(value);
-    listeners.forEach((fn) => fn());
+    setPicked(value);
   };
 
-  return (
-    <div role="radiogroup" aria-label="Theme" className="inline-flex border">
-      {OPTIONS.map(({ value, label, Icon }) => (
-        <button
-          key={value}
-          type="button"
-          role="radio"
-          aria-checked={theme === value}
-          onClick={() => choose(value)}
-          className={cn(
-            "inline-flex items-center gap-1.5 px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-            theme === value ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          <Icon className="size-3.5" aria-hidden="true" />
-          {/* Icons only on phones so the switch fits beside its row title. */}
-          <span className="sr-only sm:not-sr-only">{label}</span>
-        </button>
-      ))}
-    </div>
-  );
+  // Icons only on phones so the switch fits beside its row title.
+  return <Segmented label="Theme" role="radio" size="md" phoneLabels={false} options={OPTIONS} value={picked ?? stored} onChange={choose} />;
 }

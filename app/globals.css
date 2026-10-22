@@ -216,6 +216,47 @@
   }
 }
 
+/* View transitions: only a tab strip's highlight moves (see components/segmented.tsx). The page itself
+   never cross-fades: the new page shows live, so everything else swaps in place and stays clickable. */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-old(root) {
+  display: none;
+}
+::view-transition-new(root) {
+  animation: none;
+}
+/* The highlight slides as one solid piece. Its strip is lifted above it, shown live and still (no
+   cross-fade), so the labels stay on top of the highlight while it passes under them. */
+::view-transition-group(.tab-indicator) {
+  animation-duration: 200ms;
+  animation-timing-function: ease-out;
+}
+::view-transition-old(.tab-indicator),
+::view-transition-new(.tab-indicator) {
+  animation: none;
+  height: 100%;
+}
+::view-transition-group(.tab-labels) {
+  animation: none;
+  z-index: 1;
+}
+::view-transition-old(.tab-labels) {
+  display: none;
+}
+::view-transition-new(.tab-labels) {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}
+
 /* Repeated grid templates. Breakpoints match Tailwind's sm (40rem) and md (48rem). */
 @utility grid-cols-car-header {
   grid-template-columns: 1fr minmax(0, auto);

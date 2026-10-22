@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { TabLinks } from "@/components/segmented";
 import { usePeriod } from "./period-scope";
 import { statsHref, type View, VIEWS } from "./periods";
 
@@ -9,22 +8,11 @@ import { statsHref, type View, VIEWS } from "./periods";
 export function ViewTabs({ view }: { view: View }) {
   const period = usePeriod();
   return (
-    <nav aria-label="Stats sections" className="flex gap-6 border-b text-sm">
-      {VIEWS.map(({ value, label }) => (
-        <Link
-          key={value}
-          href={statsHref(value, period)}
-          prefetch={true}
-          scroll={false}
-          aria-current={view === value ? "page" : undefined}
-          className={cn(
-            "-mb-px border-b py-2 transition-colors duration-150",
-            view === value ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
-          )}
-        >
-          {label}
-        </Link>
-      ))}
-    </nav>
+    <TabLinks
+      name="stats-view-indicator"
+      label="Stats sections"
+      options={VIEWS.map(({ value, label }) => ({ value, label, href: statsHref(value, period) }))}
+      value={view}
+    />
   );
 }
