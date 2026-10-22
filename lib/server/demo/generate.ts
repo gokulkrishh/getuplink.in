@@ -342,6 +342,8 @@ export function generateDemo(now: number): DemoData {
     push("FastChargerType", arrive, stop.supercharger ? "FastChargerSupercharger" : "FastChargerCombo");
     push("ChargingCableType", arrive, "CableTypeCCS");
     push("ModuleTempMax", arrive, tempStart);
+    // The coolest module runs a steady 2 °C under the hottest.
+    push("ModuleTempMin", arrive, round(tempStart - 2, 1));
     const start = arrive + 2.2 * MIN;
     push("DetailedChargeState", start, "DetailedChargeStateStarting");
     pack(start);
@@ -353,7 +355,11 @@ export function generateDemo(now: number): DemoData {
       push("DCChargingPower", t, kw);
       push("DCChargingEnergyIn", t, round(delivered, 2));
       pack(t);
-      if (k % 2 === 1) push("ModuleTempMax", t, round(tempStart + (tempPeak - tempStart) * (1 - Math.exp(-k / 14)), 1));
+      if (k % 2 === 1) {
+        const hottest = tempStart + (tempPeak - tempStart) * (1 - Math.exp(-k / 14));
+        push("ModuleTempMax", t, round(hottest, 1));
+        push("ModuleTempMin", t, round(hottest - 2, 1));
+      }
       if (level(t) >= targetLevel) break;
       delivered += kw / 60;
       energy += (kw / 60) * DC_EFFICIENCY;

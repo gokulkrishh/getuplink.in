@@ -1,0 +1,131 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { cacheLife, cacheTag } from "next/cache";
+import { notFound, redirect } from "next/navigation";
+import { Suspense } from "react";
+import { Logo } from "@/components/logo";
+import { rate, streamTitle } from "@/components/session-row";
+import { ChargeCurve } from "@/components/stats/charge-curve";
+import { splitSite } from "@/lib/charge-sessions";
+import { formatClock, formatDate, formatDuration, formatKwh, formatMoney } from "@/lib/format";
+import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { type ChargeDetail, loadChargeDetail } from "@/lib/server/charge-curve";
+import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
+
+export const metadata: Metadata = { title: "Charge · Uplink" };
+
+const kwFormat = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
+
+function Header() {
+  return (
+    <header className="mb-16 flex items-center justify-between gap-4 text-sm">
+      <Link href="/" prefetch={true} className="flex items-center gap-2.5 font-medium">
+        <Logo className="size-5" />
+        Uplink
+      </Link>
+      <nav aria-label="Main" className="flex items-baseline gap-4 text-muted-foreground">
+        <Link href="/" prefetch={true} className="hover:text-foreground">
+          Dashboard
+        </Link>
+        <Link href="/stats" prefetch={true} className="hover:text-foreground">
+          Stats
+        </Link>
+        <Link href="/settings" prefetch={true} className="hover:text-foreground">
+          Settings
+        </Link>
+      </nav>
+    </header>
+  );
+}
+
+// Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx).
+async function loadDetail(id: number): Promise<ChargeDetail | null> {
+  "use cache: private";
+  cacheTag(OWNER_DATA_TAG);
+  cacheLife({ stale: 60 });
+  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
+  // The clock is read inside the cache; reading it while rendering blocks prerendering.
+  return loadChargeDetail(id, Date.now());
+}
+
+function Charge({ detail }: { detail: ChargeDetail }) {
+  const { session: s, tesla, curve } = detail;
+  const { place, city } = tesla ? splitSite(tesla.site_name) : { place: streamTitle(s), city: null };
+  const stoppedAt = tesla?.stopped_at ?? s.ended_at;
+  const span = stoppedAt
+    ? `${formatClock(s.started_at)} to ${formatClock(stoppedAt)} · ${formatDuration((Date.parse(stoppedAt) - Date.parse(s.started_at)) / 1000)}`
+    : `From ${formatClock(s.started_at)} · In progress`;
+  const peak = s.peak_power_kw ?? curve.peakKw;
+  const energy = tesla?.energy_kwh ?? s.energy_added_kwh;
+  const currency = tesla?.currency ?? "INR";
+  // The stored temperatures can carry over from long before an AC charge, so only DC falls back to them.
+  const tempLow = curve.tempMinC ?? (s.kind === "dc" ? s.temp_start_c : null);
+  const tempHigh = curve.tempMaxC ?? (s.kind === "dc" ? s.temp_max_c : null);
+  const rows: [string, string | null][] = [
+    ["Peak power", peak ? `${kwFormat.format(peak)} kW` : null],
+    ["Average power", curve.avgKw ? `${kwFormat.format(curve.avgKw)} kW` : null],
+    ["Battery", s.start_level !== null && s.end_level !== null ? `${Math.round(s.start_level)}% to ${Math.round(s.end_level)}%` : null],
+    ["Energy added", energy !== null ? formatKwh(energy) : null],
+    ["Cost", tesla && tesla.cost_total !== null ? [formatMoney(tesla.cost_total, currency), energy && rate(tesla.cost_total, energy, currency)].filter(Boolean).join(" · ") : null],
+    ["Battery temperature", tempLow !== null && tempHigh !== null ? `${Math.round(tempLow)} to ${Math.round(tempHigh)} °C` : null],
+  ];
+  const shown = rows.filter((r): r is [string, string] => r[1] !== null);
+  return (
+    <>
+      <h1 className="text-2xl font-medium tracking-heading">{place}</h1>
+      <p className="mt-2 mb-12 text-sm text-muted-foreground tabular-nums">{[city, formatDate(s.started_at), span].filter(Boolean).join(" · ")}</p>
+      <div className="space-y-12">
+        {curve.points.length > 0 && (
+          <section className="space-y-4">
+            <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Power and battery</h2>
+            <ChargeCurve points={curve.points} />
+          </section>
+        )}
+        {shown.length > 0 && (
+          <section className="space-y-4">
+            <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Session</h2>
+            <dl className="divide-y border-t">
+              {shown.map(([label, value]) => (
+                <div key={label} className="flex items-baseline justify-between gap-4 py-3 text-sm">
+                  <dt className="text-muted-foreground">{label}</dt>
+                  <dd className="font-mono font-medium tabular-nums">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        )}
+      </div>
+    </>
+  );
+}
+
+async function ChargeLoader({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  if (!/^\d{1,15}$/.test(id)) notFound();
+  const detail = await loadDetail(Number(id));
+  if (!detail) notFound();
+  return <Charge detail={detail} />;
+}
+
+function ChargeSkeleton() {
+  const block = "bg-muted motion-safe:animate-pulse";
+  return (
+    <div role="status" className="space-y-12">
+      <span className="sr-only">Loading…</span>
+      <div className={`h-8 w-48 ${block}`} />
+      <div className={`h-44 w-full ${block}`} />
+      <div className={`h-40 w-full ${block}`} />
+    </div>
+  );
+}
+
+export default function Page({ params }: PageProps<"/stats/charging/[id]">) {
+  return (
+    <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:py-20">
+      <Header />
+      <Suspense fallback={<ChargeSkeleton />}>
+        <ChargeLoader params={params} />
+      </Suspense>
+    </div>
+  );
+}
