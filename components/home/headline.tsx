@@ -13,6 +13,9 @@ import { cn } from "@/lib/utils";
 const number = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 const SPARK_HEIGHT = 24;
 const ARROWS: Record<Change["direction"], string> = { up: "↑", down: "↓", same: "—" };
+// The arrow and amount are coloured by meaning, not direction; a change that is neither (more driving,
+// more charging, or the same) stays muted. The faint better or worse after it says the same without colour.
+const TONES: Record<Change["tone"], string> = { better: "text-chart-better", worse: "text-chart-worse", neutral: "text-muted-foreground" };
 
 // One value per slot, null where there's nothing to draw. `current` is the slot holding now.
 type Spark = { kind: "bars" | "line"; values: (number | null)[]; current: number };
@@ -94,9 +97,11 @@ function Cell({
       <div className="text-xs leading-5">
         {change ? (
           <>
-            <p aria-hidden="true" className="truncate text-muted-foreground tabular-nums">
-              {ARROWS[change.direction]} {change.direction === "same" ? "Same" : change.amount}
-              {(change.tone === "better" || change.tone === "worse") && <span className="text-faint"> {change.word}</span>}
+            <p aria-hidden="true" className="truncate tabular-nums">
+              <span className={TONES[change.tone]}>
+                {ARROWS[change.direction]} {change.direction === "same" ? "Same" : change.amount}
+              </span>
+              {change.tone !== "neutral" && <span className="text-faint"> {change.word}</span>}
             </p>
             <p aria-hidden="true" title={`vs ${span}`} className="truncate text-faint">
               vs {span}
@@ -165,9 +170,16 @@ export function Headline({
   const upToNow = (values: (number | null)[]): (number | null)[] => values.map((v, k) => (slots[k].from > now ? null : v));
   const spark = (kind: Spark["kind"], values: (number | null)[]): Spark => ({ kind, values: upToNow(values), current: currentSlot });
 
-  const delta = (value: number | null, earlier: number | null, unit: string | ((n: number) => string), lowerIsBetter = false) => ({
+  // `lowerIsBetter` makes the delta better or worse. `sayBetterOrWorse: false` words the screen-reader
+  // sentence as more or less instead: "₹171 more than the 7 days before" reads better than "₹171 worse than".
+  const delta = (
+    value: number | null,
+    earlier: number | null,
+    unit: string | ((n: number) => string),
+    { lowerIsBetter = false, sayBetterOrWorse = lowerIsBetter }: { lowerIsBetter?: boolean; sayBetterOrWorse?: boolean } = {},
+  ) => ({
     change: value === null ? null : changeToPrevious(value, earlier, unit, { lowerIsBetter }),
-    sentence: value === null ? null : (compareToPrevious(value, earlier, unit, label, { lowerIsBetter })?.text ?? null),
+    sentence: value === null ? null : (compareToPrevious(value, earlier, unit, label, { lowerIsBetter: sayBetterOrWorse })?.text ?? null),
     span: shortLabel,
   });
 
@@ -189,7 +201,7 @@ export function Headline({
           view="charging"
           label="Spent"
           value={money.format(spend.cost)}
-          {...delta(spend.cost, spendBefore, (n) => money.format(n))}
+          {...delta(spend.cost, spendBefore, (n) => money.format(n), { lowerIsBetter: true, sayBetterOrWorse: false })}
           spark={spark("bars", spendBySlot(sessions, slots))}
         />
         <Cell
@@ -205,7 +217,7 @@ export function Headline({
           label="Efficiency"
           value={current.whPerKm === null ? "—" : number.format(current.whPerKm)}
           unit="Wh/km"
-          {...delta(current.whPerKm, previous?.whPerKm ?? null, "Wh/km", true)}
+          {...delta(current.whPerKm, previous?.whPerKm ?? null, "Wh/km", { lowerIsBetter: true })}
           spark={spark(
             "line",
             bars.map((b) => b.whPerKm),
