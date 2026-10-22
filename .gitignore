@@ -158,3 +158,5 @@ next-env.d.ts
 
 # Personal Claude Code settings
 .claude/settings.local.json
+# Git worktrees Claude Code agents work in
+.claude/worktrees/
