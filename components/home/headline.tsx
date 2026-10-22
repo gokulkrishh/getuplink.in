@@ -1,24 +1,20 @@
-import Link from "next/link";
-import { statsHref } from "@/components/stats/periods";
+import { PeriodLink } from "@/components/home/more-link";
+import type { View } from "@/components/stats/periods";
 import { energyIn, spendIn } from "@/lib/charging-figures";
 import type { Priced } from "@/lib/charging-rates";
 import { type Comparison, compareToPrevious } from "@/lib/dashboard-summary";
 import type { DrivingFigures } from "@/lib/driving-figures";
 import { formatDate, formatShortDate } from "@/lib/format";
-import { type Period, periodSpan, previousLabel, previousSpan } from "@/lib/periods";
+import { type Period, periodSpan, previousLabel, previousSpan, trackingGap } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { cn } from "@/lib/utils";
 
 const number = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 
-function Card({ href, label, value, unit, note, footnote }: { href: string; label: string; value: string; unit?: string; note: Comparison | null; footnote?: string | null }) {
+function Card({ view, label, value, unit, note, footnote }: { view: View; label: string; value: string; unit?: string; note: Comparison | null; footnote?: string | null }) {
   return (
-    <Link
-      href={href}
-      prefetch={true}
-      className="group block space-y-1 border p-4 transition-colors duration-150 hover:border-muted-foreground/50"
-    >
+    <PeriodLink view={view} className="group block space-y-1 border p-4 transition-colors duration-150 hover:border-muted-foreground/50">
       <p className="text-xs text-faint transition-colors duration-150 group-hover:text-foreground">{label}</p>
       <p className="font-mono text-2xl font-medium tracking-tight tabular-nums">
         {value}
@@ -35,15 +31,16 @@ function Card({ href, label, value, unit, note, footnote }: { href: string; labe
         </p>
       )}
       {footnote && <p className="text-xs text-faint tabular-nums">{footnote}</p>}
-    </Link>
+    </PeriodLink>
   );
 }
 
 // The period's four numbers, each against the same span before (see previousSpan). Driving comes from the
 // primary car's counters; charging is every session, priced like the Charging page. A comparison needs
-// tracking to have begun before that span, or it would compare against part of one; until then the card
-// says since when. Driving tracking begins at the first odometer reading, charging at the first session.
-// All has nothing to compare with.
+// tracking to have begun before that span, or it would compare against part of one: driving tracking
+// begins at the first odometer reading, charging at the first session. A card without a comparison shows
+// none, and one line under the cards says since when (see trackingGap). All has nothing to compare with.
+// Every period is laid out on home at once (ByPeriod's steady), so the cards keep one height on a switch.
 export function Headline({
   period,
   now,
@@ -66,62 +63,54 @@ export function Headline({
   const span = periodSpan(period, now);
   const before = previousSpan(period, now);
   const label = previousLabel(period, now) ?? "";
-  // Whether tracking that began at `since` covers the whole span before, and if not, the note saying since when.
-  const trackedFrom = (since: number | null) => {
-    const comparable = before !== null && since !== null && since <= before.from;
-    // "18 Oct" this year, "30 Dec 2025" before it.
-    const sinceText = since === null ? null : formatDate(since).slice(-4) === formatDate(now).slice(-4) ? formatShortDate(since) : formatDate(since);
-    const tracking: Comparison | null = !comparable && period !== "all" && sinceText ? { text: `Tracking since ${sinceText}`, tone: "neutral" } : null;
-    return { comparable, tracking };
-  };
-  const driving = trackedFrom(figures.since);
-  const charging = trackedFrom(chargingSince);
+  // The driving counters already leave out a span they don't cover (see drivingFigures); charging is checked here.
+  const chargingTracked = before !== null && chargingSince !== null && chargingSince <= before.from;
+  const gap = trackingGap(before, [figures.since, chargingSince]);
+  // "18 Oct" this year, "30 Dec 2025" before it.
+  const gapText = gap === null ? null : formatDate(gap).slice(-4) === formatDate(now).slice(-4) ? formatShortDate(gap) : formatDate(gap);
   const { current, previous } = figures.periods[period];
 
   const spend = spendIn(sessions, priced, span);
-  const spendBefore = charging.comparable && before ? spendIn(sessions, priced, before).cost : null;
+  const spendBefore = before && chargingTracked ? spendIn(sessions, priced, before).cost : null;
   const energy = energyIn(sessions, streamOnly, span);
-  const energyBefore = charging.comparable && before ? energyIn(sessions, streamOnly, before) : null;
+  const energyBefore = before && chargingTracked ? energyIn(sessions, streamOnly, before) : null;
   const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: spend.currency, maximumFractionDigits: 0 });
-  // "Tracking since" only explains a missing comparison when tracking began after the span compared with.
-  const compare = (
-    tracked: { tracking: Comparison | null },
-    value: number | null,
-    earlier: number | null,
-    unit: string | ((n: number) => string),
-    lowerIsBetter = false,
-  ) => (value === null ? null : (compareToPrevious(value, earlier, unit, label, { lowerIsBetter }) ?? tracked.tracking));
+  const compare = (value: number | null, earlier: number | null, unit: string | ((n: number) => string), lowerIsBetter = false) =>
+    value === null ? null : compareToPrevious(value, earlier, unit, label, { lowerIsBetter });
 
   return (
-    <div className="grid grid-cols-2 gap-3">
-      <Card
-        href={statsHref("driving", period)}
-        label="Driven"
-        value={current.km === null ? "—" : number.format(current.km)}
-        unit="km"
-        note={compare(driving, current.km, previous?.km ?? null, "km")}
-      />
-      <Card
-        href={statsHref("charging", period)}
-        label="Spent"
-        value={money.format(spend.cost)}
-        note={compare(charging, spend.cost, spendBefore, (n) => money.format(n))}
-        footnote={spend.atYourRates > 0 ? `Includes ${money.format(spend.atYourRates)} at your rates` : null}
-      />
-      <Card
-        href={statsHref("charging", period)}
-        label="Energy added"
-        value={number.format(energy)}
-        unit="kWh"
-        note={compare(charging, energy, energyBefore, "kWh")}
-      />
-      <Card
-        href={statsHref("driving", period)}
-        label="Efficiency"
-        value={current.whPerKm === null ? "—" : number.format(current.whPerKm)}
-        unit="Wh/km"
-        note={compare(driving, current.whPerKm, previous?.whPerKm ?? null, "Wh/km", true)}
-      />
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <Card
+          view="driving"
+          label="Driven"
+          value={current.km === null ? "—" : number.format(current.km)}
+          unit="km"
+          note={compare(current.km, previous?.km ?? null, "km")}
+        />
+        <Card
+          view="charging"
+          label="Spent"
+          value={money.format(spend.cost)}
+          note={compare(spend.cost, spendBefore, (n) => money.format(n))}
+          footnote={spend.atYourRates > 0 ? `Includes ${money.format(spend.atYourRates)} at your rates` : null}
+        />
+        <Card
+          view="charging"
+          label="Energy added"
+          value={number.format(energy)}
+          unit="kWh"
+          note={compare(energy, energyBefore, "kWh")}
+        />
+        <Card
+          view="driving"
+          label="Efficiency"
+          value={current.whPerKm === null ? "—" : number.format(current.whPerKm)}
+          unit="Wh/km"
+          note={compare(current.whPerKm, previous?.whPerKm ?? null, "Wh/km", true)}
+        />
+      </div>
+      {gapText && <p className="text-xs text-muted-foreground">Tracking since {gapText} · no earlier period to compare</p>}
     </div>
   );
 }

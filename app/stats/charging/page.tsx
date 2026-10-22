@@ -5,7 +5,6 @@ import { Suspense } from "react";
 import { SyncChargingSessions } from "@/components/background-sync";
 import { listSessions } from "@/components/session-row";
 import { EnergyAdded, SessionList, Summary } from "@/components/stats/charging-sections";
-import { parsePeriod } from "@/components/stats/periods";
 import { eachPeriod, NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/components/stats/stats-frame";
 import { matchSessions } from "@/lib/charge-sessions";
 import { type ChargingRates, pricedSessions } from "@/lib/charging-rates";
@@ -30,16 +29,14 @@ async function loadCharging(): Promise<{ sessions: ChargingSession[]; streamSess
   return { sessions, streamSessions, rates, now };
 }
 
-async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "searchParams">) {
-  // Read outside the cache: the period only picks what's shown first, and switches in the browser.
-  const period = parsePeriod((await searchParams).period);
+async function Charging() {
   const { sessions, streamSessions, rates, now } = await loadCharging();
   const { pairs, streamOnly } = matchSessions(sessions, streamSessions, now);
   const priced = pricedSessions(streamOnly, rates);
   const listed = listSessions(pairs, streamOnly);
 
   return (
-    <StatsFrame view="charging" period={period} periodSwitch={listed.length > 0}>
+    <StatsFrame view="charging" periodSwitch={listed.length > 0}>
       {listed.length === 0 ? (
         <NotYet title="No charging sessions yet">Your charges will show up here, wherever you plug in.</NotYet>
       ) : (
@@ -53,11 +50,11 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
   );
 }
 
-export default function Page({ searchParams }: PageProps<"/stats/charging">) {
+export default function Page() {
   return (
     <StatsPage description="What charging cost, the energy it added, and every session.">
       <Suspense fallback={<StatsSkeleton />}>
-        <Charging searchParams={searchParams} />
+        <Charging />
       </Suspense>
       <Suspense>
         <SyncChargingSessions />

@@ -68,7 +68,7 @@ export function ChargingSection({
   };
   return (
     <Section title="Charging" view="charging" more="All sessions">
-      {eachPeriod((p) => <Bars bars={bars(p)} ariaLabel={`Spend per ${SLOT_NAMES[p]}`} prefix="₹" />)}
+      {eachPeriod((p) => <Bars bars={bars(p)} ariaLabel={`Spend per ${SLOT_NAMES[p]}`} prefix="₹" />, { steady: true })}
       <Rows>
         {listed.slice(0, ROWS).map((item) => (
           <SessionRow key={item.key} item={item} now={now} rates={rates} />
@@ -88,7 +88,7 @@ export function DrivingSection({ figures, drives, now }: { figures: DrivingFigur
     });
   return (
     <Section title="Driving" view="driving" more="All drives">
-      {eachPeriod((p) => <Bars bars={bars(p)} ariaLabel={`Distance per ${SLOT_NAMES[p]} in km`} />)}
+      {eachPeriod((p) => <Bars bars={bars(p)} ariaLabel={`Distance per ${SLOT_NAMES[p]} in km`} />, { steady: true })}
       {drives.length > 0 && (
         <Rows>
           {drives.slice(0, ROWS).map((d, i) => (

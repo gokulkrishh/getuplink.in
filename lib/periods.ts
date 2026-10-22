@@ -142,3 +142,12 @@ export const PERIOD_WORDS: Record<Period, string> = {
 
 // What one bar of slotsFor covers, for screen readers: "Spend per day".
 export const SLOT_NAMES: Record<Period, string> = { week: "day", month: "month", year: "month", all: "year" };
+
+// When some figure has nothing to compare with because its tracking began after the span before started
+// (`starts`: when each kind of tracking began, null for none), the earliest such start; else null. All has
+// no span before, so null.
+export function trackingGap(before: Span | null, starts: (number | null)[]): number | null {
+  if (before === null) return null;
+  const late = starts.filter((at): at is number => at !== null && at > before.from);
+  return late.length > 0 ? Math.min(...late) : null;
+}

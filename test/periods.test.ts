@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { energyIn, firstStartedAt, spendIn } from "@/lib/charging-figures";
 import { compareToPrevious } from "@/lib/dashboard-summary";
 import { formatShortDate } from "@/lib/format";
-import { inSpan, monthIndex, monthStart, periodSpan, previousLabel, previousSpan, slotsFor, sumBySlot } from "@/lib/periods";
+import { inSpan, monthIndex, monthStart, periodSpan, previousLabel, previousSpan, slotsFor, sumBySlot, trackingGap } from "@/lib/periods";
 
 // An instant given as IST wall-clock time.
 const ist = (local: string) => Date.parse(`${local}+05:30`);
@@ -152,5 +152,19 @@ describe("spendIn and energyIn", () => {
     expect(firstStartedAt(tesla, streamOnly)).toBe(Date.parse("2026-09-20T05:00:00Z"));
     expect(firstStartedAt([], [{ started_at: "2026-10-12T05:00:00Z" }])).toBe(Date.parse("2026-10-12T05:00:00Z"));
     expect(firstStartedAt([], [])).toBeNull();
+  });
+});
+
+describe("trackingGap", () => {
+  const before = { from: ist("2025-01-01T00:00:00"), to: ist("2025-10-22T14:00:00") };
+  test("the earliest tracking that began after the span before started", () => {
+    expect(trackingGap(before, [ist("2025-12-30T10:00:00"), ist("2026-01-09T10:00:00")])).toBe(ist("2025-12-30T10:00:00"));
+  });
+  test("tracking from before the span, or none at all, leaves no gap", () => {
+    expect(trackingGap(before, [ist("2024-12-01T00:00:00"), null])).toBeNull();
+    expect(trackingGap(before, [ist("2024-12-01T00:00:00"), ist("2025-03-01T00:00:00")])).toBe(ist("2025-03-01T00:00:00"));
+  });
+  test("All has no span before", () => {
+    expect(trackingGap(null, [ist("2026-01-09T10:00:00")])).toBeNull();
   });
 });

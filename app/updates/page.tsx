@@ -12,7 +12,7 @@ import { CheckedFooter, OwnerNotices } from "@/components/owner-notices";
 import { ReleaseNotesToggle } from "@/components/release-notes";
 import { AwakeTimeline } from "@/components/stats/awake-timeline";
 import { ByPeriod, PeriodPicker, PeriodScope } from "@/components/stats/period-scope";
-import { parsePeriod, UPDATE_PERIODS } from "@/components/stats/periods";
+import { UPDATE_PERIODS } from "@/components/stats/periods";
 import { VersionHistory } from "@/components/updates/history";
 import { UpdateStats } from "@/components/updates/update-stats";
 import { isPending, UpdateStatus } from "@/components/updates/update-status";
@@ -96,7 +96,7 @@ function CarUpdates({ car, notes, label, now }: { car: UpdatesCar; notes: Releas
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h2 className={heading}>Stats</h2>
-          {hasStats && <PeriodPicker options={UPDATE_PERIODS} />}
+          {hasStats && <PeriodPicker />}
         </div>
         {hasStats ? (
           <ByPeriod panels={Object.fromEntries(UPDATE_PERIODS.map((p) => [p, <UpdateStats key={p} rows={updates} now={now} period={p} />]))} />
@@ -111,10 +111,8 @@ function CarUpdates({ car, notes, label, now }: { car: UpdatesCar; notes: Releas
 }
 
 async function Updates({ searchParams }: Pick<PageProps<"/updates">, "searchParams">) {
-  // Read outside the cache: the period only picks what's shown first, and switches in the browser.
   const params = await searchParams;
   const demo = DEMO ? parseScenario(params.demo) : "normal";
-  const period = parsePeriod(params.period, UPDATE_PERIODS);
   const { data, now } = await loadOwnUpdates(demo);
   const failedRun = data.kind === "ready" && data.lastRun?.ok === false ? data.lastRun : null;
   const cars = data.kind === "ready" ? data.cars : [];
@@ -124,7 +122,7 @@ async function Updates({ searchParams }: Pick<PageProps<"/updates">, "searchPara
       {DEMO && <DemoBar active={demo} path="/updates" />}
       <OwnerNotices data={data} count={cars.length} failedRun={failedRun} />
       {data.kind === "ready" && cars.length > 0 && (
-        <PeriodScope key={period} initial={period}>
+        <PeriodScope options={UPDATE_PERIODS}>
           <div className="space-y-24">
             {cars.map((car) => (
               <CarUpdates

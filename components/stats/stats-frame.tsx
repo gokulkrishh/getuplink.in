@@ -7,16 +7,17 @@ import { ByPeriod, PeriodPicker, PeriodScope } from "./period-scope";
 import { PERIODS, type View } from "./periods";
 import { ViewTabs } from "./view-tabs";
 
-// A section that depends on the period, rendered for each one so the switch needs no server trip (see ByPeriod).
-export function eachPeriod(render: (period: Period) => ReactNode) {
-  return <ByPeriod panels={Object.fromEntries(PERIODS.map(({ value }) => [value, render(value)]))} />;
+// A section that depends on the period, rendered for each one so the switch needs no server trip (see ByPeriod,
+// and `steady` there).
+export function eachPeriod(render: (period: Period) => ReactNode, { steady = false }: { steady?: boolean } = {}) {
+  return <ByPeriod steady={steady} panels={Object.fromEntries(PERIODS.map(({ value }) => [value, render(value)]))} />;
 }
 
 // What every Stats page shows around its sections, once its data is in: the topic links and, when the
-// sections use one, the period switch. `period` is the one in the URL.
-export function StatsFrame({ view, period, periodSwitch = true, children }: { view: View; period: Period; periodSwitch?: boolean; children: ReactNode }) {
+// sections use one, the period switch. The period is the URL's (see PeriodScope).
+export function StatsFrame({ view, periodSwitch = true, children }: { view: View; periodSwitch?: boolean; children: ReactNode }) {
   return (
-    <PeriodScope key={period} initial={period}>
+    <PeriodScope>
       <div className="space-y-12">
         <div className="space-y-6">
           <ViewTabs view={view} />

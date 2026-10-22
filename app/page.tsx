@@ -10,7 +10,7 @@ import { BatterySection, ChargingSection, DrivingSection } from "@/components/ho
 import { CheckedFooter, OwnerNotices } from "@/components/owner-notices";
 import { listSessions } from "@/components/session-row";
 import { ByPeriod, PeriodPicker, PeriodScope } from "@/components/stats/period-scope";
-import { parsePeriod, PERIODS } from "@/components/stats/periods";
+import { PERIODS } from "@/components/stats/periods";
 import { UpdateBanner } from "@/components/updates/update-banner";
 import { matchSessions } from "@/lib/charge-sessions";
 import { firstStartedAt } from "@/lib/charging-figures";
@@ -48,6 +48,7 @@ function Totals({ home, now }: { home: Extract<Home, { kind: "ready" }>; now: nu
       <section aria-label="Totals" className="space-y-6">
         <PeriodPicker />
         <ByPeriod
+          steady
           panels={Object.fromEntries(
             PERIODS.map(({ value }) => [
               value,
@@ -67,8 +68,6 @@ async function HomeContent({ searchParams }: Pick<PageProps<"/">, "searchParams"
   const params = await searchParams;
   // Only demo mode reads the scenario, so the real page stays as it was.
   const demo = DEMO ? parseScenario(params.demo) : "normal";
-  // Read outside the cache: the period only picks what's shown first, and switches in the browser.
-  const period = parsePeriod(params.period);
   const { home, now } = await loadOwnHome(demo);
   const failedRun = home.kind === "ready" && home.lastRun?.ok === false ? home.lastRun : null;
   const cars = home.kind === "ready" ? home.cars : [];
@@ -87,8 +86,7 @@ async function HomeContent({ searchParams }: Pick<PageProps<"/">, "searchParams"
               <UpdateBanner snapshot={car.lastOnline} />
             </div>
           ))}
-          {/* Keyed so a navigation to another ?period= (the logo link to /) resets the switch. */}
-          <PeriodScope key={period} initial={period}>
+          <PeriodScope>
             <Totals home={home} now={now} />
           </PeriodScope>
           {cars.some((car) => car.latest?.error) && (

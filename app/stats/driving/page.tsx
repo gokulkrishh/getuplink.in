@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { DriveList } from "@/components/stats/drive-list";
 import { DailyDriving, Distance, EnergyUse } from "@/components/stats/driving-sections";
-import { parsePeriod } from "@/components/stats/periods";
 import { eachPeriod, NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/components/stats/stats-frame";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -28,16 +27,14 @@ async function loadDriving(): Promise<{ figures: DrivingFigures; window: WindowS
   return { figures, window, now };
 }
 
-async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "searchParams">) {
-  // Read outside the cache: the period only picks what's shown first, and switches in the browser.
-  const period = parsePeriod((await searchParams).period);
+async function Driving() {
   const { figures, window, now } = await loadDriving();
   const { days, driving } = window;
   // Mirrors the sections' own "enough data" rules, so an empty page says so instead of showing nothing.
   const hasDriving = (figures.periods.all.current.km ?? 0) > 0 || days.filter((d) => d.km !== null).length >= 2 || driving.drives.length > 0;
 
   return (
-    <StatsFrame view="driving" period={period} periodSwitch={hasDriving}>
+    <StatsFrame view="driving" periodSwitch={hasDriving}>
       {hasDriving ? (
         <div className="space-y-12">
           {eachPeriod((p) => <Distance figures={figures} now={now} period={p} />)}
@@ -52,11 +49,11 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
   );
 }
 
-export default function Page({ searchParams }: PageProps<"/stats/driving">) {
+export default function Page() {
   return (
     <StatsPage description="How far you drove, the energy it took, and every drive.">
       <Suspense fallback={<StatsSkeleton />}>
-        <Driving searchParams={searchParams} />
+        <Driving />
       </Suspense>
     </StatsPage>
   );
