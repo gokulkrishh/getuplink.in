@@ -42,7 +42,8 @@ function Card({ href, label, value, unit, note, footnote }: { href: string; labe
 // The period's four numbers, each against the same span before (see previousSpan). Driving comes from the
 // primary car's counters; charging is every session, priced like the Charging page. A comparison needs
 // tracking to have begun before that span, or it would compare against part of one; until then the card
-// says since when. All has nothing to compare with.
+// says since when. Driving tracking begins at the first odometer reading, charging at the first session.
+// All has nothing to compare with.
 export function Headline({
   period,
   now,
@@ -50,6 +51,7 @@ export function Headline({
   sessions,
   streamOnly,
   priced,
+  chargingSince,
 }: {
   period: Period;
   now: number;
@@ -58,25 +60,37 @@ export function Headline({
   sessions: ChargingSession[];
   streamOnly: StreamChargeSession[];
   priced: Priced[];
+  // The first charging session, billed or streamed (see firstStartedAt).
+  chargingSince: number | null;
 }) {
   const span = periodSpan(period, now);
   const before = previousSpan(period, now);
   const label = previousLabel(period, now) ?? "";
-  const { since } = figures;
-  const comparable = before !== null && since !== null && since <= before.from;
-  // "18 Oct" this year, "30 Dec 2025" before it.
-  const sinceText = since === null ? null : formatDate(since).slice(-4) === formatDate(now).slice(-4) ? formatShortDate(since) : formatDate(since);
-  const tracking: Comparison | null = period !== "all" && sinceText ? { text: `Tracking since ${sinceText}`, tone: "neutral" } : null;
+  // Whether tracking that began at `since` covers the whole span before, and if not, the note saying since when.
+  const trackedFrom = (since: number | null) => {
+    const comparable = before !== null && since !== null && since <= before.from;
+    // "18 Oct" this year, "30 Dec 2025" before it.
+    const sinceText = since === null ? null : formatDate(since).slice(-4) === formatDate(now).slice(-4) ? formatShortDate(since) : formatDate(since);
+    const tracking: Comparison | null = !comparable && period !== "all" && sinceText ? { text: `Tracking since ${sinceText}`, tone: "neutral" } : null;
+    return { comparable, tracking };
+  };
+  const driving = trackedFrom(figures.since);
+  const charging = trackedFrom(chargingSince);
   const { current, previous } = figures.periods[period];
 
   const spend = spendIn(sessions, priced, span);
-  const spendBefore = comparable ? spendIn(sessions, priced, before).cost : null;
+  const spendBefore = charging.comparable && before ? spendIn(sessions, priced, before).cost : null;
   const energy = energyIn(sessions, streamOnly, span);
-  const energyBefore = comparable ? energyIn(sessions, streamOnly, before) : null;
+  const energyBefore = charging.comparable && before ? energyIn(sessions, streamOnly, before) : null;
   const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: spend.currency, maximumFractionDigits: 0 });
-  const compare = (value: number | null, earlier: number | null, unit: string | ((n: number) => string), lowerIsBetter = false) =>
-    // "Tracking since" only explains a missing comparison when tracking began after the span compared with.
-    value === null ? null : (compareToPrevious(value, earlier, unit, label, { lowerIsBetter }) ?? (comparable ? null : tracking));
+  // "Tracking since" only explains a missing comparison when tracking began after the span compared with.
+  const compare = (
+    tracked: { tracking: Comparison | null },
+    value: number | null,
+    earlier: number | null,
+    unit: string | ((n: number) => string),
+    lowerIsBetter = false,
+  ) => (value === null ? null : (compareToPrevious(value, earlier, unit, label, { lowerIsBetter }) ?? tracked.tracking));
 
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -85,13 +99,13 @@ export function Headline({
         label="Driven"
         value={current.km === null ? "—" : number.format(current.km)}
         unit="km"
-        note={compare(current.km, previous?.km ?? null, "km")}
+        note={compare(driving, current.km, previous?.km ?? null, "km")}
       />
       <Card
         href={statsHref("charging", period)}
         label="Spent"
         value={money.format(spend.cost)}
-        note={compare(spend.cost, spendBefore, (n) => money.format(n))}
+        note={compare(charging, spend.cost, spendBefore, (n) => money.format(n))}
         footnote={spend.atYourRates > 0 ? `Includes ${money.format(spend.atYourRates)} at your rates` : null}
       />
       <Card
@@ -99,14 +113,14 @@ export function Headline({
         label="Energy added"
         value={number.format(energy)}
         unit="kWh"
-        note={compare(energy, energyBefore, "kWh")}
+        note={compare(charging, energy, energyBefore, "kWh")}
       />
       <Card
         href={statsHref("driving", period)}
         label="Efficiency"
         value={current.whPerKm === null ? "—" : number.format(current.whPerKm)}
         unit="Wh/km"
-        note={compare(current.whPerKm, previous?.whPerKm ?? null, "Wh/km", true)}
+        note={compare(driving, current.whPerKm, previous?.whPerKm ?? null, "Wh/km", true)}
       />
     </div>
   );

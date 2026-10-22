@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { energyIn, spendIn } from "@/lib/charging-figures";
+import { energyIn, firstStartedAt, spendIn } from "@/lib/charging-figures";
 import { compareToPrevious } from "@/lib/dashboard-summary";
 import { formatShortDate } from "@/lib/format";
 import { inSpan, monthIndex, monthStart, periodSpan, previousLabel, previousSpan, slotsFor, sumBySlot } from "@/lib/periods";
@@ -147,5 +147,10 @@ describe("spendIn and energyIn", () => {
   });
   test("energy from Tesla's sessions and the car's own", () => {
     expect(energyIn(tesla, streamOnly, span)).toBeCloseTo(72.1, 6);
+  });
+  test("charging tracking begins at the first session of either kind", () => {
+    expect(firstStartedAt(tesla, streamOnly)).toBe(Date.parse("2026-09-20T05:00:00Z"));
+    expect(firstStartedAt([], [{ started_at: "2026-10-12T05:00:00Z" }])).toBe(Date.parse("2026-10-12T05:00:00Z"));
+    expect(firstStartedAt([], [])).toBeNull();
   });
 });

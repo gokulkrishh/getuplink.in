@@ -13,6 +13,7 @@ import { ByPeriod, PeriodPicker, PeriodScope } from "@/components/stats/period-s
 import { parsePeriod, PERIODS } from "@/components/stats/periods";
 import { UpdateBanner } from "@/components/updates/update-banner";
 import { matchSessions } from "@/lib/charge-sessions";
+import { firstStartedAt } from "@/lib/charging-figures";
 import { pricedSessions } from "@/lib/charging-rates";
 import { DEMO, type DemoScenario, parseScenario } from "@/lib/demo";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
@@ -41,6 +42,7 @@ function Totals({ home, now }: { home: Extract<Home, { kind: "ready" }>; now: nu
   const { pairs, streamOnly } = matchSessions(home.sessions, home.streamSessions, now);
   const priced = pricedSessions(streamOnly, home.rates);
   const { window } = home;
+  const chargingSince = firstStartedAt(home.sessions, home.streamSessions);
   return (
     <div className="space-y-16">
       <section aria-label="Totals" className="space-y-6">
@@ -49,7 +51,7 @@ function Totals({ home, now }: { home: Extract<Home, { kind: "ready" }>; now: nu
           panels={Object.fromEntries(
             PERIODS.map(({ value }) => [
               value,
-              <Headline key={value} period={value} now={now} figures={home.figures} sessions={home.sessions} streamOnly={streamOnly} priced={priced} />,
+              <Headline key={value} period={value} now={now} figures={home.figures} sessions={home.sessions} streamOnly={streamOnly} priced={priced} chargingSince={chargingSince} />,
             ]),
           )}
         />

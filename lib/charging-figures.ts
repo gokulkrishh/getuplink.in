@@ -28,6 +28,18 @@ export function spendBySlot(sessions: Billed[], priced: Priced[], slots: Slot[])
   return billed.map((value, k) => value + atYourRates[k]);
 }
 
+// When charging tracking began: the first session in any of the lists (billed or streamed), or null.
+export function firstStartedAt(...lists: { started_at: string }[][]): number | null {
+  let first: number | null = null;
+  for (const list of lists) {
+    for (const s of list) {
+      const at = Date.parse(s.started_at);
+      if (Number.isFinite(at) && (first === null || at < first)) first = at;
+    }
+  }
+  return first;
+}
+
 // Tesla's billed kWh for its sessions, the car's own figure for the others.
 export function energyIn(sessions: Billed[], streamOnly: Streamed[], span: Span): number {
   const kwh = (value: number | null) => (value && value > 0 ? value : 0);
