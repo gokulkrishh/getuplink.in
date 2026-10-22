@@ -7,7 +7,7 @@ import { type ChargingSession, loadChargingSessions } from "./charging";
 import { demoStreamSessions } from "./demo";
 import { SESSION_COLUMNS, type StreamChargeSession, toStreamSession } from "./stream-charging";
 import { db } from "./supabase";
-import { loadReadings } from "./telemetry";
+import { loadReadingsByField } from "./telemetry-window";
 
 const MIN = 60 * 1000;
 // A level or temperature sent this long before the start still describes the battery at the start.
@@ -42,20 +42,18 @@ export async function loadChargeDetail(id: number, now: number): Promise<ChargeD
   const from = new Date(Date.parse(session.started_at) - LEAD_MS).toISOString();
   // The 0 kW reading that closes a session can land just after its end.
   const to = new Date(end + MIN).toISOString();
-  const read = async (field: string) => (await loadReadings(session.vin, field, from, to)) ?? [];
-  const [power, level, tempMin, tempMax, tesla] = await Promise.all([
-    read(session.kind === "dc" ? "DCChargingPower" : "ACChargingPower"),
-    read("BatteryLevel"),
-    read("ModuleTempMin"),
-    read("ModuleTempMax"),
+  const powerField = session.kind === "dc" ? "DCChargingPower" : "ACChargingPower";
+  const [byField, tesla] = await Promise.all([
+    loadReadingsByField(session.vin, [powerField, "BatteryLevel", "ModuleTempMin", "ModuleTempMax"], from, to),
     loadChargingSessions(),
   ]);
+  const read = (field: string) => byField?.[field] ?? [];
   const twin = matchSessions(tesla, [session], now).pairs.find((p) => p.stream)?.tesla ?? null;
   const curve = chargeCurve({
-    power: fromStart(power, session.started_at, false),
-    level: fromStart(level, session.started_at, true),
-    tempMin: fromStart(tempMin, session.started_at, true),
-    tempMax: fromStart(tempMax, session.started_at, true),
+    power: fromStart(read(powerField), session.started_at, false),
+    level: fromStart(read("BatteryLevel"), session.started_at, true),
+    tempMin: fromStart(read("ModuleTempMin"), session.started_at, true),
+    tempMax: fromStart(read("ModuleTempMax"), session.started_at, true),
     end,
   });
   return { session, tesla: twin, curve };
