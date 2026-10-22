@@ -1,3 +1,4 @@
+import { formatClock, formatDuration } from "@/lib/format";
 import { istDay, istDayStart } from "@/lib/telemetry-derive";
 
 // Pure helpers for the online and asleep timeline on the Updates tab.
@@ -57,4 +58,15 @@ export function awakeDays(readings: number[], polls: Poll[], now: number, days: 
 // Whether the strips hold anything but unknown, so the section can stay hidden without data.
 export function hasPresence(strips: DayStrip[]): boolean {
   return strips.some((d) => d.runs.some((r) => r.state !== "unknown"));
+}
+
+export const PRESENCE_LABEL: Record<Presence, string> = { online: "Online", asleep: "Asleep", offline: "Offline", unknown: "No data" };
+
+// "Online · 7:12–7:40 PM · 28 min", or "Asleep · 11:30 PM–6:05 AM · 6 h 35 min" when the run spans
+// AM and PM. IST, 12-hour like the strip's axis; the shared AM or PM is said once.
+export function runLabel(run: Run): string {
+  const [from, to] = [formatClock(run.start), formatClock(run.end)];
+  const same = from.slice(-2) === to.slice(-2);
+  const range = `${same ? from.slice(0, -3) : from}\u2013${to}`;
+  return `${PRESENCE_LABEL[run.state]} · ${range} · ${formatDuration((run.end - run.start) / 1000)}`;
 }

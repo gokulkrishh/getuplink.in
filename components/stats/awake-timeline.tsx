@@ -1,16 +1,16 @@
+import { AwakeStrip } from "@/components/stats/awake-strip";
 import { type DayStrip, hasPresence, type Presence } from "@/lib/awake";
-import { formatClock, formatDayLabel, formatDuration } from "@/lib/format";
+import { formatDayLabel, formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
-
-const DAY = 86_400_000;
 
 const STATES: { state: Presence; label: string; className: string }[] = [
   { state: "online", label: "Online", className: "bg-chart-accent" },
   { state: "asleep", label: "Asleep", className: "bg-muted-foreground/30" },
   { state: "offline", label: "Offline", className: "bg-muted-foreground/70" },
-  { state: "unknown", label: "No data", className: "bg-background" },
+  // Hollow with a hairline, like its legend square, so a day with no data can't pass for asleep.
+  { state: "unknown", label: "No data", className: "border border-muted-foreground/25" },
 ];
-const style = new Map(STATES.map((s) => [s.state, s]));
+const classes = Object.fromEntries(STATES.map((s) => [s.state, s.className])) as Record<Presence, string>;
 
 // A thin strip per IST day for the last 14 days, newest on top: when the car was online, asleep or
 // offline. Updates only download while it's awake, so this answers "why hasn't it arrived yet?".
@@ -33,16 +33,7 @@ export function AwakeTimeline({ days, now }: { days: DayStrip[]; now: number }) 
           {[...days].reverse().map((d) => (
             <li key={d.day} className="flex items-center gap-3">
               <span className="w-16 shrink-0 text-xs text-faint">{formatDayLabel(d.start, now)}</span>
-              <div className="relative h-2.5 flex-1 overflow-hidden" aria-hidden="true">
-                {d.runs.map((r) => (
-                  <span
-                    key={r.start}
-                    title={`${style.get(r.state)!.label}, ${formatClock(r.start)} to ${formatClock(r.end)}`}
-                    className={cn("absolute inset-y-0", style.get(r.state)!.className)}
-                    style={{ left: `${((r.start - d.start) / DAY) * 100}%`, width: `${((r.end - r.start) / DAY) * 100}%` }}
-                  />
-                ))}
-              </div>
+              <AwakeStrip start={d.start} runs={d.runs} classes={classes} />
               <span className="sr-only">{summary(d)}</span>
             </li>
           ))}
@@ -61,7 +52,7 @@ export function AwakeTimeline({ days, now }: { days: DayStrip[]; now: number }) 
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
         {STATES.map((s) => (
           <li key={s.state} className="inline-flex items-center gap-1.5">
-            <span className={cn("size-2", s.className, s.state === "unknown" && "border")} aria-hidden="true" />
+            <span className={cn("size-2", s.className)} aria-hidden="true" />
             {s.label}
           </li>
         ))}
