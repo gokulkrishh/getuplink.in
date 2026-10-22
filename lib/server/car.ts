@@ -6,21 +6,20 @@ import {
   generationLabel,
   hardwareLabel,
   interiorLabel,
-  MILES_TO_KM,
   modelName,
   modelYear,
   roofLabel,
   wheelsLabel,
 } from "@/lib/car";
 import { DEMO } from "@/lib/demo";
-import { median, num, roundKwh, typicalChargeKw } from "@/lib/telemetry-derive";
+import { istWeek, istWeekStart, median, num, packEstimates, roundKwh, typicalChargeKw, type WeeklyPack, weeklyPack } from "@/lib/telemetry-derive";
 import { loadPackEstimates } from "./battery";
 import { demoData, demoStreamSessions } from "./demo";
 import { db } from "./supabase";
 import { loadReadingsByField } from "./telemetry-window";
 
-// What the car details page shows. Everything comes from Tesla's own replies: the car's VIN and the
-// vehicle_config / vehicle_state / charge_state sections of the latest check that saw the car online.
+// What the car details page shows: the car's VIN and the vehicle_config section of the latest check that
+// saw the car online, with the battery's weekly figure and the last AC charge from its streamed readings.
 export type CarDetails = {
   id: string;
   name: string;
@@ -40,13 +39,10 @@ export type CarDetails = {
   seatCooling: boolean | null;
   rearSeatHeaters: boolean | null;
   airSuspension: boolean | null;
-  version: string | null;
-  odometerKm: number | null;
-  batteryLevel: number | null;
-  rangeKm: number | null;
-  chargeLimit: number | null;
+  // The latest check that saw the car online; the details need one.
   checkedAt: string | null;
-  battery: BatteryHealth | null;
+  // The latest week's estimated full pack, as the battery trend on /stats/battery has it.
+  battery: WeeklyPack | null;
   lastAcCharge: LastAcCharge | null;
 };
 
@@ -78,12 +74,7 @@ function details(
   id: string,
   name: string | null,
   vin: string | null,
-  version: string | null,
   config: Config,
-  odometerMiles: number | null,
-  batteryLevel: number | null,
-  rangeKm: number | null,
-  chargeLimit: number | null,
   checkedAt: string | null,
 ): CarDetails {
   const model = modelName(config.car_type);
@@ -106,11 +97,6 @@ function details(
     seatCooling: config.has_seat_cooling ?? null,
     rearSeatHeaters: config.rear_seat_heaters === undefined ? null : config.rear_seat_heaters > 0,
     airSuspension: config.has_air_suspension ?? null,
-    version,
-    odometerKm: odometerMiles === null ? null : Math.round(odometerMiles * MILES_TO_KM),
-    batteryLevel,
-    rangeKm,
-    chargeLimit,
     checkedAt,
     battery: null,
     lastAcCharge: null,
@@ -164,6 +150,15 @@ async function loadLastAcCharge(vin: string): Promise<LastAcCharge | null> {
   return charger.length > 0 || cable ? { charger: charger.length > 0 ? charger.join(" · ") : null, cable } : null;
 }
 
+// The newest IST week's median full-pack estimate (see weeklyPack), from this week's and last week's readings:
+// the battery trend's latest point whenever the car streamed in the last two weeks.
+export async function loadLatestWeekPack(vin: string, now: number): Promise<WeeklyPack | null> {
+  const from = new Date(istWeekStart(istWeek(now) - 1)).toISOString();
+  const readings = await loadReadingsByField(vin, ["EnergyRemaining", "BatteryLevel"], from, new Date(now).toISOString());
+  // Battery health is extra; without it the page still shows everything else.
+  return readings ? (weeklyPack(packEstimates(readings.EnergyRemaining, readings.BatteryLevel)).at(-1) ?? null) : null;
+}
+
 export async function loadBatteryHealth(vin: string): Promise<BatteryHealth | null> {
   const estimates = await loadPackEstimates(vin, new Date(Date.now() - 30 * 86_400_000).toISOString());
   // Battery health is extra; without it the page still shows everything else.
@@ -175,18 +170,18 @@ export async function loadBatteryHealth(vin: string): Promise<BatteryHealth | nu
 export async function loadCarDetails(id: string): Promise<CarDetails | null> {
   if (!/^\d+$/.test(id)) return null;
   if (DEMO) {
-    const { vehicle, snapshot, config, odometerMiles } = demoData();
+    const { vehicle, snapshot, config } = demoData();
     if (id !== vehicle.id || !vehicle.vin) return null;
-    const car = details(vehicle.id, vehicle.display_name, vehicle.vin, vehicle.current_version, config, odometerMiles, snapshot.battery_level, snapshot.battery_range_km, snapshot.charge_limit, snapshot.polled_at);
-    const [battery, lastAcCharge] = await Promise.all([loadBatteryHealth(vehicle.vin), loadLastAcCharge(vehicle.vin)]);
+    const car = details(vehicle.id, vehicle.display_name, vehicle.vin, config, snapshot.polled_at);
+    const [battery, lastAcCharge] = await Promise.all([loadLatestWeekPack(vehicle.vin, Date.now()), loadLastAcCharge(vehicle.vin)]);
     return { ...car, battery, lastAcCharge };
   }
   const [vehicle, snapshot] = await Promise.all([
-    db().from("vehicles").select("id:id::text, vin, display_name, current_version").eq("id", id).maybeSingle(),
+    db().from("vehicles").select("id:id::text, vin, display_name").eq("id", id).maybeSingle(),
     db()
       .from("snapshots")
       .select(
-        "polled_at, battery_level, battery_range_km, charge_limit, config:raw->vehicle_config, odometer:raw->vehicle_state->>odometer",
+        "polled_at, config:raw->vehicle_config",
       )
       .eq("vehicle_id", id)
       .eq("state", "online")
@@ -198,28 +193,10 @@ export async function loadCarDetails(id: string): Promise<CarDetails | null> {
   if (vehicle.error) throw new Error(`Reading the car failed: ${vehicle.error.message}`);
   if (snapshot.error) throw new Error(`Reading the car's last check failed: ${snapshot.error.message}`);
   if (!vehicle.data) return null;
-  const v = vehicle.data as { id: string; vin: string | null; display_name: string | null; current_version: string | null };
-  const s = snapshot.data as {
-    polled_at: string;
-    battery_level: unknown;
-    battery_range_km: unknown;
-    charge_limit: unknown;
-    config: Config | null;
-    odometer: string | null;
-  } | null;
-  const car = details(
-    v.id,
-    v.display_name,
-    v.vin,
-    v.current_version,
-    s?.config ?? {},
-    num(s?.odometer),
-    num(s?.battery_level),
-    num(s?.battery_range_km),
-    num(s?.charge_limit),
-    s?.polled_at ?? null,
-  );
+  const v = vehicle.data as { id: string; vin: string | null; display_name: string | null };
+  const s = snapshot.data as { polled_at: string; config: Config | null } | null;
+  const car = details(v.id, v.display_name, v.vin, s?.config ?? {}, s?.polled_at ?? null);
   if (!v.vin) return car;
-  const [battery, lastAcCharge] = await Promise.all([loadBatteryHealth(v.vin), loadLastAcCharge(v.vin)]);
+  const [battery, lastAcCharge] = await Promise.all([loadLatestWeekPack(v.vin, Date.now()), loadLastAcCharge(v.vin)]);
   return { ...car, battery, lastAcCharge };
 }

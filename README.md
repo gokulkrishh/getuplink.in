@@ -17,6 +17,10 @@ Stack: Bun, Next.js 16 (App Router), shadcn/ui, Geist, Recharts, Supabase Postgr
 | `/login` → `/api/auth/connect` → `/api/auth/callback` | **Sign in with Tesla** is both the dashboard login and the data connection (authorization code + `state` cookie). The first Tesla account to sign in becomes the owner (its `id_token` `sub` is stored); any other account is refused. Sign-in sets a signed, httpOnly 30-day session cookie, and `proxy.ts` guards everything else. Tokens are stored AES-256-GCM encrypted in Supabase and refreshed automatically (access tokens last ~8 h, refresh tokens rotate). |
 | `/api/cron/poll` | Called by Vercel Cron with `Authorization: Bearer $CRON_SECRET`. Lists vehicles, fetches `vehicle_state` only for online cars, writes a snapshot per vehicle and a `version_history` row when the version changes. |
 | `/.well-known/appspecific/com.tesla.3p.public-key.pem` | Serves `TESLA_PUBLIC_KEY_PEM` (rewritten to `/api/public-key`). |
+| `/` | Home: the car now (status, battery, version, odometer), one period switch (Week, Month, Year, All) for the distance, spend, energy added and efficiency, each compared with the same span before, then charging, driving and battery. |
+| `/updates` | The installed version, any pending update with progress, the version history with download and install times, update stats, and when the car was online or asleep. |
+| `/stats/charging`, `/stats/driving`, `/stats/battery` | One topic each, in depth: every session, drive and chart. The period carries over in `?period=`. Old `/stats?view=…` links redirect here (update stats to `/updates`). |
+| `/car`, `/settings` | The car's details and battery health; theme, charging rates, importing past updates and the account. |
 
 The dashboard also has a **Check now** button that runs the same poll.
 
@@ -91,7 +95,7 @@ Do this right after the first deploy: until someone signs in, the first Tesla ac
 
 ### Supercharger history
 
-The **Stats** page (`/stats`) lists your Tesla Supercharger sessions with energy, cost and invoice links. It uses the `vehicle_charging_cmds` scope, so **Vehicle Charging Management** must be enabled in the Tesla developer app, or sign-in fails. Owners who signed in before it was added need to sign in with Tesla again to approve it.
+The **Charging** page (`/stats/charging`) lists your Tesla Supercharger sessions with energy, cost and invoice links. It uses the `vehicle_charging_cmds` scope, so **Vehicle Charging Management** must be enabled in the Tesla developer app, or sign-in fails. Owners who signed in before it was added need to sign in with Tesla again to approve it.
 
 Each check then pulls the last 120 days of sessions for every car. Other networks are not covered yet. The migration is [`supabase/migrations/20261021210000_charging_sessions.sql`](supabase/migrations/20261021210000_charging_sessions.sql).
 
@@ -123,7 +127,7 @@ bun run build
 bun run demo
 ```
 
-Runs `bun dev` with generated data for one car ("Shadow", ten months of updates, three months of driving, charging and battery readings) and signs you in without Tesla or the database. A bar at the top of the dashboard switches the car between parked, charging, downloading an update and installing one. Nothing is read from or written to Supabase or Tesla. Demo mode only works under `bun dev`: production builds ignore the flag.
+Runs `bun dev` with generated data for one car ("Shadow", ten months of updates, three months of driving, charging and battery readings) and signs you in without Tesla or the database. A bar at the top of the home and Updates pages switches the car between parked, charging, downloading an update, installing one, and its first week. Nothing is read from or written to Supabase or Tesla. Demo mode only works under `bun dev`: production builds ignore the flag.
 
 Sign in with Tesla only works against the registered redirect URI, so local dev at `localhost` can't sign in unless you add a localhost redirect URI to the Tesla app and set `TESLA_REDIRECT_URI` to match.
 

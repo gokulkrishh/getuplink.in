@@ -1,26 +1,25 @@
+import { ChevronRight } from "lucide-react";
+import Link from "next/link";
 import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { Header } from "@/components/header";
 import { Vin } from "@/components/vin";
-import { formatDate, formatSeen } from "@/lib/format";
+import { formatShortDate } from "@/lib/format";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type CarDetails, loadCarDetails } from "@/lib/server/car";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadPrimaryVehicle } from "@/lib/server/telemetry";
 
-const km = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
-
 // Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx).
 // A null id is the primary car (/car), so the header's Car link needs no data.
-async function loadCar(id: string | null): Promise<{ car: CarDetails | null; now: number }> {
+async function loadCar(id: string | null): Promise<CarDetails | null> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
   const carId = id ?? (await loadPrimaryVehicle())?.id ?? null;
-  // The clock is read inside the cache; reading it while rendering blocks prerendering.
-  return { car: carId ? await loadCarDetails(carId) : null, now: Date.now() };
+  return carId ? loadCarDetails(carId) : null;
 }
 
 const yesNo = (v: boolean | null) => (v === null ? null : v ? "Yes" : "No");
@@ -46,7 +45,7 @@ function Group({ title, rows }: { title: string; rows: [string, ReactNode][] }) 
 
 async function Car({ id }: { id: Promise<string | null> }) {
   const carId = await id;
-  const { car, now } = await loadCar(carId);
+  const car = await loadCar(carId);
   if (!car && carId === null) return <p className="text-sm text-muted-foreground">No car on your Tesla account yet.</p>;
   if (!car) notFound();
 
@@ -87,31 +86,23 @@ async function Car({ id }: { id: Promise<string | null> }) {
             ["Air suspension", yesNo(car.airSuspension)],
           ]}
         />
-        <Group
-          title="Latest check"
-          rows={[
-            ["Software", car.version && <span className="font-mono">{car.version}</span>],
-            ["Odometer", car.odometerKm !== null && `${km.format(car.odometerKm)} km`],
-            [
-              "Battery",
-              car.batteryLevel !== null &&
-                `${car.batteryLevel}%${car.rangeKm !== null ? ` · ${km.format(car.rangeKm)} km` : ""}`,
-            ],
-            ["Charge limit", car.chargeLimit !== null && `${car.chargeLimit}%`],
-            ["Checked", car.checkedAt && formatSeen(car.checkedAt, now)],
-          ]}
-        />
         {car.battery && (
-          <Group
-            title="Battery health"
-            rows={[
-              ["Estimated full pack", `${car.battery.packKwh.toFixed(1)} kWh`],
-              [
-                "Based on",
-                `${new Intl.PluralRules("en-IN").select(car.battery.readings) === "one" ? "1 reading" : `${car.battery.readings} readings`} since ${formatDate(car.battery.since)}`,
-              ],
-            ]}
-          />
+          <div className="space-y-3">
+            <Group
+              title="Battery health"
+              rows={[
+                ["Estimated full pack", `${car.battery.kwh.toFixed(1)} kWh`],
+                [
+                  "Based on",
+                  `${car.battery.readings === 1 ? "1 reading" : `${car.battery.readings} readings`} in the week of ${formatShortDate(car.battery.weekStart)}`,
+                ],
+              ]}
+            />
+            <Link href="/stats/battery" prefetch={true} className="flex w-fit items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+              Battery trend
+              <ChevronRight className="size-3" aria-hidden="true" />
+            </Link>
+          </div>
         )}
         {car.lastAcCharge && (
           <Group

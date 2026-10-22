@@ -3,7 +3,9 @@ import Link from "next/link";
 import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { logout } from "@/app/actions";
 import { Header } from "@/components/header";
+import { Button } from "@/components/ui/button";
 import { ThemePicker } from "@/components/theme-picker";
 import { DEMO } from "@/lib/demo";
 import { formatAgo, formatDate, formatSeen } from "@/lib/format";
@@ -96,6 +98,17 @@ async function Settings() {
         ) : (
           <Row title="Tesla account" description="Not connected" />
         )}
+        <Row
+          title="Sign out"
+          description="On this device."
+          control={
+            <form action={logout}>
+              <Button type="submit" variant="outline" size="lg">
+                Sign out
+              </Button>
+            </form>
+          }
+        />
         <Row
           title="Sign out everywhere"
           description="Ends every session on every device, including this one."
