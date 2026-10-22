@@ -164,7 +164,7 @@ export function combinedWhPerKm(months: EnergyMonth[]): number | null {
 
 // Real updates only (not the version that was already installed when tracking began), as the gaps the
 // Updates section needs. `rows` is any order; `now` closes the open gap on the current version.
-export type UpdateRow = { detected_at: string; available_at: string | null };
+export type UpdateRow = { detected_at: string; available_at: string | null; source: "tracked" | "imported" };
 export type UpdateStats = { count: number; avgWaitSec: number | null; avgGapSec: number; longestSec: number };
 
 export function updateStats(rows: UpdateRow[], now: number): UpdateStats | null {

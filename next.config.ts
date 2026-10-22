@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
   // Reuse a page's data for 60s when navigating back to it, so the header links don't flash a skeleton.
   experimental: {
     staleTimes: { dynamic: 60 },
+    // Settings > Import past updates takes files up to 2 MB; the rest is form overhead.
+    serverActions: { bodySizeLimit: "3mb" },
   },
   turbopack: {
     rules: {
