@@ -10,8 +10,12 @@ export const PERIODS: { value: Period; label: string }[] = [
   { value: "all", label: "All time" },
 ];
 
-export function parsePeriod(value: string | string[] | undefined): Period {
-  return PERIODS.find((p) => p.value === value)?.value ?? "month";
+// Updates come too seldom for a week (or six months) to say anything.
+export const UPDATE_PERIODS: Period[] = ["month", "year", "all"];
+
+// The period in a URL, if the page offers it (`allowed`, all of PERIODS by default); otherwise Month.
+export function parsePeriod(value: string | string[] | undefined, allowed?: Period[]): Period {
+  return PERIODS.find((p) => p.value === value && (!allowed || allowed.includes(p.value)))?.value ?? "month";
 }
 
 export type View = "charging" | "driving" | "battery" | "updates";

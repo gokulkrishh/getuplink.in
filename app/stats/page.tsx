@@ -18,8 +18,10 @@ import { ChargeLevelChart } from "@/components/stats/charge-level";
 import { ProjectedRange } from "@/components/stats/projected-range";
 import { PERIODS, parsePeriod, parseView } from "@/components/stats/periods";
 import { inPeriod, inSpan, monthIndex, monthKey, monthShort, type Period, PERIOD_WORDS, periodSpan, slotsFor, sumBySlot, yearOf } from "@/lib/periods";
-import { ByPeriod, StatsTabs } from "@/components/stats/stats-tabs";
-import { formatDays, formatKwh, formatMoney, formatMonth, formatShortDate } from "@/lib/format";
+import { ByPeriod } from "@/components/stats/period-scope";
+import { UpdateStats } from "@/components/updates/update-stats";
+import { StatsTabs } from "@/components/stats/stats-tabs";
+import { formatKwh, formatMoney, formatMonth, formatShortDate } from "@/lib/format";
 import { chargeEfficiency, matchSessions } from "@/lib/charge-sessions";
 import { type ChargingRates, type Priced, pricedSessions } from "@/lib/charging-rates";
 import { loadChargingRates } from "@/lib/server/charging-rates";
@@ -228,35 +230,6 @@ function EnergyUse({ energy, now, period }: { energy: MonthlyEnergy[]; now: numb
           <Bars bars={regenBars} ariaLabel="Energy won back by regen per month in kWh" />
         </div>
       )}
-    </section>
-  );
-}
-
-// How long updates take to arrive and how often. Needs two real updates to say anything.
-function Updates({ rows, now, period }: { rows: UpdateRow[]; now: number; period: Period }) {
-  const stats = updateStats(rows, now);
-  if (!stats) return null;
-  const cur = monthIndex(now);
-  const count = rows.filter((r) => inPeriod(period, monthIndex(r.detected_at), cur)).length;
-  const imported = rows.filter((r) => r.source === "imported").length;
-  const items = [
-    stats.avgWaitSec !== null && { label: "Average wait, available to installed", value: formatDays(stats.avgWaitSec) },
-    { label: `Updates ${PERIOD_WORDS[period]}`, value: String(count) },
-    { label: "Average time between updates", value: formatDays(stats.avgGapSec) },
-    { label: "Longest on one version", value: formatDays(stats.longestSec) },
-  ].filter((item) => item !== false);
-  return (
-    <section className="space-y-4">
-      <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Updates</h2>
-      <dl className="divide-y border-t">
-        {items.map((item) => (
-          <div key={item.label} className="flex items-baseline justify-between gap-4 py-3 text-sm">
-            <dt className="text-muted-foreground">{item.label}</dt>
-            <dd className="font-mono font-medium tabular-nums">{item.value}</dd>
-          </div>
-        ))}
-      </dl>
-      {imported > 0 && <p className="text-xs text-faint">Includes {imported} imported</p>}
     </section>
   );
 }
@@ -472,7 +445,10 @@ async function Sessions({ searchParams }: Pick<PageProps<"/stats">, "searchParam
           ),
         updates: updateStats(updates, now) || hasPresence(awake) ? (
           <div className="space-y-12">
-            {eachPeriod((p) => <Updates rows={updates} now={now} period={p} />)}
+            <section className="space-y-4">
+              <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Updates</h2>
+              {eachPeriod((p) => <UpdateStats rows={updates} now={now} period={p} />)}
+            </section>
             <AwakeTimeline days={awake} now={now} />
           </div>
         ) : (

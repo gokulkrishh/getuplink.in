@@ -21,13 +21,13 @@ export const STREAM_FIELDS = [
   "TimeToFullCharge",
 ];
 
-// Latest Fleet Telemetry reading per field. Rows only arrive when a value changes, so a field's
-// latest row can be days old. One small query per field: the (vin, field, created_at) index serves each.
-// Telemetry is a bonus on top of the poll, so a failed query just means no stream.
-export async function loadStream(vin: string): Promise<Stream> {
-  if (DEMO) return demoStream(STREAM_FIELDS);
+// Latest Fleet Telemetry reading per field (STREAM_FIELDS unless given). Rows only arrive when a value
+// changes, so a field's latest row can be days old. One small query per field: the (vin, field, created_at)
+// index serves each. Telemetry is a bonus on top of the poll, so a failed query just means no stream.
+export async function loadStream(vin: string, fields: string[] = STREAM_FIELDS): Promise<Stream> {
+  if (DEMO) return demoStream(fields);
   const results = await Promise.all(
-    STREAM_FIELDS.map(async (field) => {
+    fields.map(async (field) => {
       const { data, error } = await db()
         .from("telemetry_readings")
         .select("created_at, value")

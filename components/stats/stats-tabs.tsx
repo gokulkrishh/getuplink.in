@@ -1,16 +1,10 @@
 "use client";
 
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { PeriodContext } from "./period-scope";
 import { PeriodSwitch } from "./period-switch";
 import { type Period, statsHref, type View, VIEWS } from "./periods";
-
-const PeriodContext = createContext<Period>("month");
-
-// A section that depends on the period, rendered by the server for each one; shows the one picked.
-export function ByPeriod({ panels }: { panels: Record<Period, ReactNode> }) {
-  return panels[useContext(PeriodContext)];
-}
 
 // All four tabs, in every period, arrive in the first response, so switching either is instant: only
 // the address bar changes, and a shared link still opens the same tab and period.
@@ -48,7 +42,7 @@ export function StatsTabs({ initial, initialPeriod, panels }: { initial: View; i
         {/* The battery trend covers its own window, so the period doesn't apply there. */}
         {view !== "battery" && <PeriodSwitch period={period} onChange={(next) => select(view, next)} />}
       </div>
-      <PeriodContext value={period}>{panels[view]}</PeriodContext>
+      <PeriodContext value={{ period, select: (next) => select(view, next) }}>{panels[view]}</PeriodContext>
     </div>
   );
 }

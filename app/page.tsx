@@ -1,54 +1,14 @@
-import Link from "next/link";
-import { cacheLife, cacheTag, io } from "next/cache";
-import { after } from "next/server";
+import { cacheLife, cacheTag } from "next/cache";
 import { Suspense } from "react";
-import { CarFront, Settings2 } from "lucide-react";
-import { EmptyState } from "@/components/empty-state";
+import { SyncStreamVersions } from "@/components/background-sync";
+import { DemoBar } from "@/components/demo-bar";
 import { Header } from "@/components/header";
+import { CheckedFooter, OwnerNotices } from "@/components/owner-notices";
 import { VehicleSection } from "@/components/vehicle-section";
-import { SignInButton } from "@/components/sign-in-button";
-import { DEMO, DEMO_SCENARIOS, type DemoScenario, parseScenario } from "@/lib/demo";
-import { describeRunError } from "@/lib/run-error";
-import { formatDateTime } from "@/lib/format";
+import { DEMO, type DemoScenario, parseScenario } from "@/lib/demo";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type Dashboard as DashboardData, loadDashboard, OWNER_DATA_TAG } from "@/lib/server/dashboard";
-import { syncStreamVersionsForAllCars } from "@/lib/server/stream-versions";
 import { redirect } from "next/navigation";
-
-// Local demo mode only: switches the car between the states the dashboard can be in.
-function DemoBar({ active }: { active: DemoScenario }) {
-  return (
-    <nav aria-label="Demo scenarios" className="mb-12 flex flex-wrap gap-x-4 gap-y-1 border-y py-3 text-xs text-muted-foreground">
-      <span className="text-faint">Demo</span>
-      {Object.entries(DEMO_SCENARIOS).map(([key, label]) => (
-        <Link key={key} href={`/?demo=${key}`} aria-current={key === active ? "page" : undefined} className={key === active ? "text-foreground" : "hover:text-foreground"}>
-          {label}
-        </Link>
-      ))}
-    </nav>
-  );
-}
-
-function RunError({ error }: { error: string }) {
-  return (
-    <div className="space-y-2">
-      <p>{describeRunError(error)}</p>
-      <details className="text-xs">
-        <summary className="text-faint hover:text-muted-foreground">Details</summary>
-        <p className="mt-2 font-mono break-all text-muted-foreground">{error}</p>
-      </details>
-    </div>
-  );
-}
-
-function Notice({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="space-y-3">
-      <h2 className="text-base font-medium tracking-heading">{title}</h2>
-      <div className="max-w-md space-y-4 text-sm text-muted-foreground">{children}</div>
-    </section>
-  );
-}
 
 // The session check and the data share one private scope: the result lives only in this browser's
 // router cache (never a server cache), so a header link's prefetch can carry it. The check still runs
@@ -73,53 +33,7 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/">, "searchParams">)
   return (
     <>
       {DEMO && <DemoBar active={demo} />}
-      {data.kind === "misconfigured" && (
-        <EmptyState
-          icon={<Settings2 className="size-7 text-faint" aria-hidden="true" />}
-          title="Not configured"
-          action={
-            <ul className="space-y-1 font-mono text-xs text-foreground">
-              {data.missing.map((name) => (
-                <li key={name}>{name}</li>
-              ))}
-            </ul>
-          }
-        >
-          Add these environment variables in your Vercel project settings, then redeploy.
-        </EmptyState>
-      )}
-
-      {data.kind === "error" && (
-        <Notice title="Couldn't load your dashboard">
-          <p>Reload the page. If it keeps happening, check the Supabase settings in Vercel.</p>
-          <details className="text-xs">
-            <summary className="text-faint hover:text-muted-foreground">Details</summary>
-            <p className="mt-2 font-mono break-all">{data.message}</p>
-          </details>
-        </Notice>
-      )}
-
-      {data.kind === "disconnected" && (
-        <Notice title="Connect your Tesla account">
-          <p>
-            Uplink needs read-only access to your car&apos;s data. It never wakes the car, so a version appears once the car
-            is seen online.
-          </p>
-          <SignInButton />
-        </Notice>
-      )}
-
-      {data.kind === "ready" && data.vehicles.length === 0 && (
-        failedRun?.error ? (
-          <Notice title="Couldn't reach Tesla">
-            <RunError error={failedRun.error} />
-          </Notice>
-        ) : (
-          <EmptyState icon={<CarFront className="size-7 text-faint" aria-hidden="true" />} title="No vehicles yet">
-            Your Tesla account is connected, but no cars were found on it yet.
-          </EmptyState>
-        )
-      )}
+      <OwnerNotices data={data} count={data.kind === "ready" ? data.vehicles.length : 0} failedRun={failedRun} />
 
       {data.kind === "ready" && data.vehicles.length > 0 && (
         <div className="space-y-24">
@@ -129,27 +43,9 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/">, "searchParams">)
         </div>
       )}
 
-      {data.kind === "ready" && data.lastRun && (
-        <footer className="mt-24 space-y-2 text-xs text-faint">
-          <p>Last checked {formatDateTime(data.lastRun.started_at)}</p>
-          {failedRun?.error && data.vehicles.length > 0 && (
-            <div className="text-muted-foreground">
-              <RunError error={failedRun.error} />
-            </div>
-          )}
-        </footer>
-      )}
+      {data.kind === "ready" && <CheckedFooter lastRun={data.lastRun} showError={data.vehicles.length > 0} />}
     </>
   );
-}
-
-// Records version changes the car streamed once the response is sent, so the next visit has them.
-// The sync reads the clock, so it waits for a real request and stays out of the prerendered page.
-async function SyncStreamVersions() {
-  await io();
-  if (!(await hasCurrentSession())) return null;
-  after(syncStreamVersionsForAllCars);
-  return null;
 }
 
 // Shown while the dashboard loads: faint blocks in the shape of a vehicle section.

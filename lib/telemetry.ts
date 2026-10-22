@@ -5,7 +5,8 @@ export type StreamValue = { at: string; value: unknown };
 // Latest streamed reading per Fleet Telemetry field.
 export type Stream = Record<string, StreamValue>;
 
-const UPDATE_FIELDS = [
+// The fields a pending update is read from.
+export const UPDATE_FIELDS = [
   "SoftwareUpdateVersion",
   "SoftwareUpdateDownloadPercentComplete",
   "SoftwareUpdateInstallationPercentComplete",

@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { type Period, PERIODS } from "./periods";
 
-// Picks the period in the browser; StatsTabs keeps it in the URL so a period can be shared.
-export function PeriodSwitch({ period, onChange }: { period: Period; onChange: (period: Period) => void }) {
+// Picks the period in the browser; its scope keeps it in the URL so a period can be shared. `options`
+// limits the choice (all of PERIODS by default).
+export function PeriodSwitch({ period, options, onChange }: { period: Period; options?: Period[]; onChange: (period: Period) => void }) {
   return (
     <div role="group" aria-label="Period" className="inline-flex border">
-      {PERIODS.map(({ value, label }) => (
+      {PERIODS.filter(({ value }) => !options || options.includes(value)).map(({ value, label }) => (
         <Button
           key={value}
           type="button"

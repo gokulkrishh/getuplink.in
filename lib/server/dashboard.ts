@@ -7,7 +7,8 @@ import { loadVehicleExtras, type VehicleExtras } from "./dashboard-extras";
 import { demoData, demoFirstWeek, demoStream } from "./demo";
 import { missingEnv } from "./env";
 import { db } from "./supabase";
-import { applyStream, loadReadings, loadStream, STREAM_FIELDS } from "./telemetry";
+import { applyStream, loadStream, STREAM_FIELDS } from "./telemetry";
+import { loadReadingsByField } from "./telemetry-window";
 import { isConnected } from "./tesla";
 
 // Tags every page's "use cache: private" loader, so actions that change the owner's data or session
@@ -73,32 +74,33 @@ export type VehicleView = {
   extras: VehicleExtras | null;
 };
 
-export type Dashboard =
-  | { kind: "misconfigured"; missing: string[] }
-  | { kind: "error"; message: string }
-  | { kind: "disconnected" }
-  | { kind: "ready"; vehicles: VehicleView[]; lastRun: PollRun | null; releaseNotes: ReleaseNotesByVersion };
+// Why a page has no cars to show, or the cars: the same gate on every page that reads the car's state.
+export type OwnerGate = { kind: "misconfigured"; missing: string[] } | { kind: "error"; message: string } | { kind: "disconnected" };
+
+export type Dashboard = OwnerGate | { kind: "ready"; vehicles: VehicleView[]; lastRun: PollRun | null; releaseNotes: ReleaseNotesByVersion };
+
+// The car's latest check, its last online check with newer streamed values laid over it, and when it last
+// streamed one of the fields read.
+export type CarState = Pick<VehicleView, "latest" | "lastOnline" | "streamAt">;
 
 const SNAPSHOT_COLUMNS =
   "polled_at, state, car_version, update_status, update_version, download_perc, install_perc, expected_duration_sec, scheduled_time_ms, battery_level, battery_range_km, charging_state, charge_limit, error";
 
 const DAY_MS = 86_400_000;
 
+const TIMELINE_FIELDS = ["SoftwareUpdateVersion", "SoftwareUpdateDownloadPercentComplete", "SoftwareUpdateInstallationPercentComplete", "Version"];
+
 // Download and install durations for the versions in history, from the streamed update fields. These only
-// change during an update, so one query per field from the oldest version on screen stays small. Anything
-// that can't be read just leaves the rows without timings.
-async function withTimelines(vin: string, history: VersionChange[]): Promise<VersionChange[]> {
+// change during an update, so one read of the four fields from the oldest version on screen stays small.
+// Anything that can't be read just leaves the rows without timings.
+export async function withTimelines(vin: string, history: VersionChange[]): Promise<VersionChange[]> {
   // Streamed readings only exist since tracking began, so imported rows neither get a timeline nor widen the range.
   const tracked = history.filter((change) => change.source === "tracked");
   if (tracked.length === 0) return history;
   const from = new Date(Date.parse(tracked[tracked.length - 1].detected_at) - 14 * DAY_MS).toISOString();
-  const [pending, download, install, installed] = await Promise.all([
-    loadReadings(vin, "SoftwareUpdateVersion", from),
-    loadReadings(vin, "SoftwareUpdateDownloadPercentComplete", from),
-    loadReadings(vin, "SoftwareUpdateInstallationPercentComplete", from),
-    loadReadings(vin, "Version", from),
-  ]);
-  if (!pending || !download || !install || !installed) return history;
+  const readings = await loadReadingsByField(vin, TIMELINE_FIELDS, from, new Date().toISOString());
+  if (!readings) return history;
+  const [pending, download, install, installed] = TIMELINE_FIELDS.map((field) => readings[field]);
   // The readings around one version: from two weeks before it was detected to a day after.
   const within = (readings: Reading[], start: number, end: number) => readings.filter((r) => Date.parse(r.at) >= start && Date.parse(r.at) <= end);
   return history.map((change) => {
@@ -121,23 +123,15 @@ function newestReading(stream: Stream): string | null {
   return times.length > 0 ? new Date(Math.max(...times)).toISOString() : null;
 }
 
-async function vehicleView(vehicle: Vehicle, scenario: DemoScenario): Promise<VehicleView> {
+// See CarState. `fields` are the stream fields to read; streamAt only covers those.
+export async function loadCarState(vehicle: Vehicle, scenario: DemoScenario, fields: string[] = STREAM_FIELDS): Promise<CarState> {
   if (DEMO) {
     // The same steps as below, from the generated car instead of the database.
-    const { snapshot, history } = demoData();
-    const stream = demoStream(STREAM_FIELDS, scenario);
-    const timelines = withTimelines(vehicle.vin!, history);
-    const [withTimes, extras] = await Promise.all([timelines, loadVehicleExtras(vehicle.id, vehicle.vin!, timelines, Date.now())]);
-    return {
-      vehicle,
-      streamAt: newestReading(stream),
-      latest: snapshot,
-      lastOnline: applyStream(snapshot, stream),
-      history: withTimes,
-      extras: extras && scenario === "firstWeek" ? { ...extras, week: demoFirstWeek() } : extras,
-    };
+    const { snapshot } = demoData();
+    const stream = demoStream(fields, scenario);
+    return { latest: snapshot, lastOnline: applyStream(snapshot, stream), streamAt: newestReading(stream) };
   }
-  const [latest, lastOnline, history, stream] = await Promise.all([
+  const [latest, lastOnline, stream] = await Promise.all([
     db().from("snapshots").select(SNAPSHOT_COLUMNS).eq("vehicle_id", vehicle.id).order("polled_at", { ascending: false }).limit(1).maybeSingle(),
     db()
       .from("snapshots")
@@ -147,41 +141,55 @@ async function vehicleView(vehicle: Vehicle, scenario: DemoScenario): Promise<Ve
       .order("polled_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
-    db()
-      .from("version_history")
-      .select("version, previous_version, detected_at, available_at, odometer_km, source")
-      .eq("vehicle_id", vehicle.id)
-      .order("detected_at", { ascending: false })
-      .limit(100),
-    vehicle.vin ? loadStream(vehicle.vin) : {},
+    vehicle.vin ? loadStream(vehicle.vin, fields) : {},
   ]);
-  const error = latest.error ?? lastOnline.error ?? history.error;
+  const error = latest.error ?? lastOnline.error;
   if (error) throw new Error(error.message);
-  const rows = (history.data ?? []) as VersionChange[];
+  return { latest: latest.data as Snapshot | null, lastOnline: applyStream(lastOnline.data as Snapshot | null, stream), streamAt: newestReading(stream) };
+}
+
+// The car's version history, newest first, without timings (see withTimelines).
+export async function loadHistory(vehicle: Vehicle): Promise<VersionChange[]> {
+  if (DEMO) return demoData().history;
+  const { data, error } = await db()
+    .from("version_history")
+    .select("version, previous_version, detected_at, available_at, odometer_km, source")
+    .eq("vehicle_id", vehicle.id)
+    .order("detected_at", { ascending: false })
+    .limit(100);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as VersionChange[];
+}
+
+async function vehicleView(vehicle: Vehicle, scenario: DemoScenario): Promise<VehicleView> {
+  const [state, rows] = await Promise.all([loadCarState(vehicle, scenario), loadHistory(vehicle)]);
   // The timelines are read once and shared: they also feed "Installed ... took" in recent activity.
   const timelines = vehicle.vin ? withTimelines(vehicle.vin, rows) : Promise.resolve(rows);
-  const [withTimes, extras] = await Promise.all([timelines, vehicle.vin ? loadVehicleExtras(vehicle.id, vehicle.vin, timelines, Date.now()) : null]);
+  const [history, extras] = await Promise.all([timelines, vehicle.vin ? loadVehicleExtras(vehicle.id, vehicle.vin, timelines, Date.now()) : null]);
   return {
     vehicle,
-    streamAt: newestReading(stream),
-    latest: latest.data as Snapshot | null,
-    lastOnline: applyStream(lastOnline.data as Snapshot | null, stream),
-    history: withTimes,
-    extras,
+    ...state,
+    history,
+    // The demo's first week: the same car, connected four days ago (see demoFirstWeek).
+    extras: DEMO && extras && scenario === "firstWeek" ? { ...extras, week: demoFirstWeek() } : extras,
   };
 }
 
-// Notes for every version on screen (history + pending updates), in one query. Missing table or
-// no notes yet just means no notes are shown.
-async function loadReleaseNotes(views: VehicleView[]): Promise<ReleaseNotesByVersion> {
+// The versions a page can show notes for: each car's history and pending update.
+export function versionsOnScreen(cars: { history: VersionChange[]; lastOnline: Snapshot | null }[]): string[] {
   const versions = new Set<string>();
-  for (const v of views) {
-    v.history.forEach((h) => versions.add(h.version));
-    if (v.lastOnline?.update_version) versions.add(v.lastOnline.update_version);
+  for (const car of cars) {
+    car.history.forEach((h) => versions.add(h.version));
+    if (car.lastOnline?.update_version) versions.add(car.lastOnline.update_version);
   }
-  if (versions.size === 0) return {};
-  if (DEMO) return Object.fromEntries(Object.entries(demoData().notes).filter(([version]) => versions.has(version)));
-  const { data, error } = await db().from("release_notes").select("version, notes, raw").in("version", [...versions]);
+  return [...versions];
+}
+
+// Notes for these versions, in one query. Missing table or no notes yet just means no notes are shown.
+export async function loadReleaseNotes(versions: string[]): Promise<ReleaseNotesByVersion> {
+  if (versions.length === 0) return {};
+  if (DEMO) return Object.fromEntries(Object.entries(demoData().notes).filter(([version]) => versions.includes(version)));
+  const { data, error } = await db().from("release_notes").select("version, notes, raw").in("version", versions);
   if (error) {
     console.warn("Release notes unavailable:", error.message);
     return {};
@@ -192,32 +200,34 @@ async function loadReleaseNotes(views: VehicleView[]): Promise<ReleaseNotesByVer
   );
 }
 
-export async function loadDashboard(scenario: DemoScenario = "normal"): Promise<Dashboard> {
+// The owner's cars and the latest poll run, or why there are none to show. Throws on a read error.
+export async function loadOwnerCars(): Promise<OwnerGate | { kind: "ready"; vehicles: Vehicle[]; lastRun: PollRun | null }> {
   if (DEMO) {
     const { vehicle, lastRun } = demoData();
-    const views = [await vehicleView(vehicle, scenario)];
-    return { kind: "ready", vehicles: views, lastRun, releaseNotes: await loadReleaseNotes(views) };
+    return { kind: "ready", vehicles: [vehicle], lastRun };
   }
   const missing = missingEnv();
   if (missing.length) return { kind: "misconfigured", missing };
+  const [connected, vehicles, runs] = await Promise.all([
+    isConnected(),
+    db().from("vehicles").select("id:id::text, vin, display_name, last_state, current_version, last_seen_at, last_polled_at, model, exterior_color").order("created_at"),
+    db().from("poll_runs").select("started_at, ok, error").order("started_at", { ascending: false }).limit(1).maybeSingle(),
+  ]);
+  if (!connected) return { kind: "disconnected" };
+  if (vehicles.error) throw new Error(vehicles.error.message);
+  if (runs.error) throw new Error(runs.error.message);
+  return { kind: "ready", vehicles: vehicles.data as Vehicle[], lastRun: runs.data as PollRun | null };
+}
 
+export async function loadDashboard(scenario: DemoScenario = "normal"): Promise<Dashboard> {
   try {
-    const [connected, vehicles, runs] = await Promise.all([
-      isConnected(),
-      db().from("vehicles").select("id:id::text, vin, display_name, last_state, current_version, last_seen_at, last_polled_at, model, exterior_color").order("created_at"),
-      db().from("poll_runs").select("started_at, ok, error").order("started_at", { ascending: false }).limit(1).maybeSingle(),
-    ]);
-    if (!connected) return { kind: "disconnected" };
-    if (vehicles.error) throw new Error(vehicles.error.message);
-    if (runs.error) throw new Error(runs.error.message);
-    const views = await Promise.all((vehicles.data as Vehicle[]).map((v) => vehicleView(v, scenario)));
-    return {
-      kind: "ready",
-      vehicles: views,
-      lastRun: runs.data as PollRun | null,
-      releaseNotes: await loadReleaseNotes(views),
-    };
+    const owner = await loadOwnerCars();
+    if (owner.kind !== "ready") return owner;
+    const views = await Promise.all(owner.vehicles.map((v) => vehicleView(v, scenario)));
+    return { kind: "ready", vehicles: views, lastRun: owner.lastRun, releaseNotes: await loadReleaseNotes(versionsOnScreen(views)) };
   } catch (err) {
+    // Demo mode never fails, so its errors are real bugs: let them show.
+    if (DEMO) throw err;
     console.error(err);
     return { kind: "error", message: (err as Error).message };
   }

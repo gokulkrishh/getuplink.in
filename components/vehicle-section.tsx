@@ -1,157 +1,18 @@
 import Link from "next/link";
 import { BatteryHealth, LastCharge, RecentActivity, WeekStrip } from "@/components/vehicle-extras";
-import { VersionChart } from "@/components/version-chart";
-import { formatDate, formatDuration, formatKm, formatSeen, formatTimeToFull, formatShortDate } from "@/lib/format";
+import { formatKm, formatTimeToFull } from "@/lib/format";
 import { AutoRefresh } from "@/components/auto-refresh";
-import { Check, ChevronRight, Zap } from "lucide-react";
-import { ReleaseNotesList } from "@/components/release-notes";
-import { ShowMore } from "@/components/show-more";
-import { Tip, TipTrigger } from "@/components/tip";
+import { Zap } from "lucide-react";
+import { AWAKE_MS, CarStatus } from "@/components/car-status";
+import { ReleaseNotesToggle } from "@/components/release-notes";
+import { VersionHistory } from "@/components/updates/history";
+import { isPending, UpdateStatus } from "@/components/updates/update-status";
 import { Vin } from "@/components/vin";
-import { cn } from "@/lib/utils";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
-import type { Snapshot, VehicleView, VersionChange } from "@/lib/server/dashboard";
-import { LIST_PREVIEW } from "@/lib/list";
+import type { Snapshot, VehicleView } from "@/lib/server/dashboard";
 
-const AWAKE_MS = 10 * 60 * 1000;
-
-const STATUS: Record<string, string> = {
-  available: "Available",
-  scheduled: "Scheduled",
-  downloading: "Downloading",
-  downloading_wifi_wait: "Waiting for Wi-Fi",
-  installing: "Installing",
-};
-
-function ReleaseNotesToggle({
-  version,
-  notes,
-  stacked = false,
-}: {
-  version: string;
-  notes: ReleaseNotesByVersion;
-  stacked?: boolean;
-}) {
-  if (!notes[version]) return null;
-  return (
-    <details className="group/notes">
-      <summary
-        aria-label={`Release notes for ${version}`}
-        className="relative flex w-fit list-none items-center gap-1.5 text-xs after:absolute after:-inset-y-2 after:inset-x-0 text-muted-foreground group-open/notes:text-foreground hover:text-foreground [&::-webkit-details-marker]:hidden"
-      >
-        Release notes
-        <ChevronRight className="size-3 text-faint transition-transform group-open/notes:rotate-90" aria-hidden="true" />
-      </summary>
-      <ReleaseNotesList notes={notes[version]} stacked={stacked} />
-    </details>
-  );
-}
-
-// Order: status line, then its details (progress, timing).
-function UpdateStatus({ snapshot, now }: { snapshot: Snapshot | null; now: number }) {
-  if (!snapshot) return <p className="text-muted-foreground">Unknown until the car is next seen online.</p>;
-  const status = snapshot.update_status;
-  if (!status || !STATUS[status]) {
-    return (
-      <div className="space-y-1">
-        <p className="flex items-center gap-1.5">
-          <Check className="size-3.5 text-muted-foreground" aria-hidden="true" />
-          Up to date
-        </p>
-      </div>
-    );
-  }
-
-  const progress =
-    status === "installing" ? snapshot.install_perc : status === "downloading" ? snapshot.download_perc : null;
-  return (
-    <div className="space-y-2">
-      {(status === "downloading" || status === "installing") && <AutoRefresh />}
-      <p className="flex items-baseline gap-2">
-        {status === "available" ? (
-          <span className="inline-flex items-baseline gap-2 text-foreground">
-            <span className="relative flex size-2 self-center" aria-hidden="true">
-              <span className="absolute inline-flex size-full rounded-full bg-positive opacity-60 motion-safe:animate-ping" />
-              <span className="relative inline-flex size-2 rounded-full bg-positive" />
-            </span>
-            {STATUS[status]}
-          </span>
-        ) : (
-          STATUS[status]
-        )}
-        {snapshot.update_version && <span className="font-mono text-muted-foreground">{snapshot.update_version}</span>}
-      </p>
-      {progress != null && (
-        <div className="flex items-center gap-3">
-          <div
-            role="progressbar"
-            aria-valuenow={progress}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-label={`${STATUS[status]} ${progress}%`}
-            className="h-1 flex-1 overflow-hidden bg-border"
-          >
-            {/* A light band sweeps across the filled part so an in-progress update reads as alive. */}
-            <div className="relative h-full overflow-hidden bg-foreground" style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}>
-              <span className="absolute inset-y-0 -left-1/2 w-1/2 bg-linear-to-r from-transparent via-background/50 to-transparent motion-safe:animate-shimmer" />
-            </div>
-          </div>
-          <span className="w-10 text-left font-mono text-xs tabular-nums text-muted-foreground">{progress}%</span>
-        </div>
-      )}
-      {(status === "scheduled" && snapshot.scheduled_time_ms) || snapshot.expected_duration_sec ? (
-        <p className="text-xs text-muted-foreground">
-          {status === "scheduled" && snapshot.scheduled_time_ms
-            ? `Starts ${formatSeen(snapshot.scheduled_time_ms, now)}`
-            : `Takes about ${formatDuration(snapshot.expected_duration_sec!)}`}
-        </p>
-      ) : null}
-      {status === "downloading_wifi_wait" && (
-        <p className="text-xs text-muted-foreground">Connect the car to Wi-Fi to start the download.</p>
-      )}
-    </div>
-  );
-}
-
-// "12 Oct" this year, "24 Dec 2025" otherwise.
-function historyDate(value: string, now: number): string {
-  return formatDate(value).endsWith(formatDate(now).slice(-4)) ? formatShortDate(value) : formatDate(value);
-}
-
-const km = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 const kw = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 
-// Received, installed and odometer cells of a history row.
-function HistoryCells({ change, now }: { change: VersionChange; now: number }) {
-  // The first version was already installed when tracking began; Tesla doesn't report install dates.
-  const date = historyDate(change.detected_at, now);
-  return (
-    <>
-      <span className="text-right text-faint tabular-nums">
-        {/* Always within days of Installed, which carries the year. */}
-        {change.previous_version && change.available_at ? formatShortDate(change.available_at) : ""}
-      </span>
-      {change.previous_version || change.source === "imported" ? (
-        <span className="text-right text-muted-foreground tabular-nums">{date}</span>
-      ) : (
-        // First version seen: installed some time before this date, so it's greyed out and explained on hover.
-        <TipTrigger className="text-right text-faint tabular-nums">
-          {date}
-          <span className="sr-only">. Already installed when tracking started.</span>
-          <Tip>Already installed when tracking started</Tip>
-        </TipTrigger>
-      )}
-      <span className="text-right text-faint tabular-nums">{change.odometer_km != null && (
-          <>
-            {km.format(change.odometer_km)}
-            <span className="ml-0.5 text-xs">km</span>
-          </>
-        )}</span>
-    </>
-  );
-}
-
-// Battery as a readable gauge: big %, range beside it, a thin bar with a tick at the charge limit.
 function BatteryGauge({ snapshot }: { snapshot: Snapshot }) {
   const level = Math.min(100, Math.max(0, snapshot.battery_level ?? 0));
   const limit = snapshot.charge_limit != null ? Math.min(100, Math.max(0, snapshot.charge_limit)) : null;
@@ -201,152 +62,10 @@ function BatteryGauge({ snapshot }: { snapshot: Snapshot }) {
   );
 }
 
-// Empty history: a faint dashed preview of the chart, then what will fill it and how to start.
-function EmptyHistory() {
-  return (
-    <div className="space-y-4">
-      <div className="bg-muted px-3 pt-4 pb-2">
-      <svg viewBox="0 0 300 48" className="h-20 w-full text-border" preserveAspectRatio="none" aria-hidden="true">
-        <path
-          d="M0 44H80V32H170V20H250V8H300"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1"
-          strokeDasharray="4 4"
-          vectorEffect="non-scaling-stroke"
-        />
-      </svg>
-      </div>
-      <div className="space-y-1">
-        <p className="text-sm">No versions yet</p>
-        <p className="max-w-md text-xs text-muted-foreground">
-          Uplink records each software version the first time it sees the car online.
-        </p>
-      </div>
-    </div>
-  );
-}
-
 function Label({ children }: { children: React.ReactNode }) {
   return <dt className="mb-2 text-xs font-medium tracking-wide text-faint uppercase">{children}</dt>;
 }
 
-
-// "Downloaded in 25 min · Installed in 32 min", on its own line under the row (rows without it stay as they were).
-function Timeline({ timeline }: { timeline: VersionChange["timeline"] }) {
-  if (!timeline) return null;
-  const parts = [
-    timeline.downloadMin !== undefined && `Downloaded in ${formatDuration(timeline.downloadMin * 60)}`,
-    timeline.installMin !== undefined && `Installed in ${formatDuration(timeline.installMin * 60)}`,
-  ].filter(Boolean);
-  return parts.length ? <span className="col-span-full -mt-1 pb-0.5 pl-5 text-xs text-faint">{parts.join(" · ")}</span> : null;
-}
-
-// Rows the owner imported from before tracking began. They may have no release notes.
-function ImportedMark({ change }: { change: VersionChange }) {
-  return change.source === "imported" ? <span className="ml-2 font-sans text-xs text-faint">Imported</span> : null;
-}
-
-// One history row: expandable to its release notes when Tesla published them.
-function HistoryRow({ change, notes, now }: { change: VersionChange; notes: ReleaseNotesByVersion; now: number }) {
-  const versionNotes = notes[change.version];
-  if (!versionNotes) {
-    return (
-      <li className={cn("history-cols", "border-t py-2.5")}>
-        <span className="truncate pl-5 font-mono">
-          {change.version}
-          <ImportedMark change={change} />
-        </span>
-        <HistoryCells change={change} now={now} />
-        <Timeline timeline={change.timeline} />
-      </li>
-    );
-  }
-  return (
-    <li className="border-t">
-      <details className="group/row">
-        <summary className={cn("history-cols", "cursor-pointer list-none py-2.5 hover:text-foreground [&::-webkit-details-marker]:hidden")}>
-          <span className="sr-only">Show release notes</span>
-          <span className="flex min-w-0 items-center gap-1.5 font-mono">
-            <ChevronRight
-              className="size-3.5 shrink-0 self-center text-faint transition-transform group-open/row:rotate-90"
-              aria-hidden="true"
-            />
-            <span className="truncate">
-              {change.version}
-              <ImportedMark change={change} />
-            </span>
-          </span>
-          <HistoryCells change={change} now={now} />
-          <Timeline timeline={change.timeline} />
-        </summary>
-        <div className="pb-4 pl-5">
-          <ReleaseNotesList notes={versionNotes} />
-        </div>
-      </details>
-    </li>
-  );
-}
-
-// "Online" only means something right after a check; older than this shows grey.
-const ONLINE_FRESH_MS = 15 * 60 * 1000;
-
-// "● Online" or "● Asleep" as of the last check. When not online, a tooltip says when it last was.
-function CarStatus({
-  state,
-  streaming,
-  seenAt,
-  checkedAt,
-  now,
-}: {
-  state: string | null;
-  // The car streamed a reading in the last few minutes.
-  streaming: boolean;
-  seenAt: string | null;
-  checkedAt: string | null;
-  now: number;
-}) {
-  const fresh = checkedAt !== null && now - Date.parse(checkedAt) < ONLINE_FRESH_MS;
-  const online = streaming || (state === "online" && fresh);
-  const label =
-    online
-      ? "Online"
-      : state === "online"
-        ? "Online earlier"
-        : state === "offline"
-          ? "Offline"
-          : state
-            ? "Asleep"
-            : "Not checked yet";
-  const dot = <span className={cn("size-1.5 rounded-full", online ? "bg-positive" : "bg-faint")} aria-hidden="true" />;
-  // Both times live in this one tooltip: when the car was last reachable, and when Uplink last looked.
-  const lines = [
-    !online && (seenAt ? `Last online ${formatSeen(seenAt, now)}` : "Not seen online yet"),
-    checkedAt && `Last checked ${formatSeen(checkedAt, now)}`,
-  ].filter((line): line is string => Boolean(line));
-  if (lines.length === 0) {
-    return (
-      <span className="inline-flex items-center gap-1.5">
-        {dot}
-        {label}
-      </span>
-    );
-  }
-  return (
-    <TipTrigger className="inline-flex items-center gap-1.5">
-      {dot}
-      {label}
-      <span className="sr-only">. {lines.join(". ")}</span>
-      <Tip>
-        {lines.map((line) => (
-          <span key={line} className="block">
-            {line}
-          </span>
-        ))}
-      </Tip>
-    </TipTrigger>
-  );
-}
 
 export function VehicleSection({
   view,
@@ -361,7 +80,7 @@ export function VehicleSection({
   const { vehicle, latest, lastOnline, history, streamAt, extras } = view;
   // A car that streamed in the last few minutes is awake: keep the page fresh so new data shows up on its own.
   const awake = streamAt !== null && now - Date.parse(streamAt) < AWAKE_MS;
-  const pending = Boolean(lastOnline?.update_status && STATUS[lastOnline.update_status]);
+  const pending = isPending(lastOnline);
   // "Model Y, Pearl White", without repeating the model when the car is already named after it.
   const carLabel = [vehicle.model !== vehicle.display_name && vehicle.model, vehicle.exterior_color].filter(Boolean).join(", ");
   // Battery is only known from a poll taken while the car was online.
@@ -448,41 +167,7 @@ export function VehicleSection({
         <p className="text-xs text-muted-foreground">The car went to sleep during the last check. Uplink will try again.</p>
       )}
 
-      <div className="space-y-4">
-        <h3 className="text-xs font-medium tracking-wide text-faint uppercase">History</h3>
-        {history.length === 0 ? (
-          <EmptyHistory />
-        ) : (
-          <>
-            <VersionChart changes={[...history].reverse()} until={vehicle.last_polled_at} />
-            {/* On phones the table keeps its columns and scrolls sideways. */}
-            <div className="max-sm:-mx-1 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:px-1 pt-6">
-              <div className="max-sm:min-w-xl">
-              <div className={cn("history-cols", "pb-2 text-xs text-faint")}>
-                <h3 className="pl-5">Versions</h3>
-                <span className="text-right">Received</span>
-                <span className="text-right">Installed</span>
-                <span className="text-right">Odometer</span>
-              </div>
-              <ol className="text-sm">
-                {history.slice(0, LIST_PREVIEW).map((change) => (
-                  <HistoryRow key={change.detected_at} change={change} notes={notes} now={now} />
-                ))}
-              </ol>
-              {history.length > LIST_PREVIEW && (
-                <ShowMore count={history.length - LIST_PREVIEW}>
-                  <ol className="text-sm">
-                    {history.slice(LIST_PREVIEW).map((change) => (
-                      <HistoryRow key={change.detected_at} change={change} notes={notes} now={now} />
-                    ))}
-                  </ol>
-                </ShowMore>
-              )}
-              </div>
-            </div>
-          </>
-        )}
-      </div>
+      <VersionHistory history={history} notes={notes} now={now} until={vehicle.last_polled_at} />
     </section>
   );
 }
