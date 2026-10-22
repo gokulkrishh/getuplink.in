@@ -139,7 +139,7 @@ function CarSkeleton() {
 export function CarPage({ id }: { id: Promise<string | null> }) {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:py-20">
-      <Header current="car" />
+      <Header />
       <Suspense fallback={<CarSkeleton />}>
         <Car id={id} />
       </Suspense>
