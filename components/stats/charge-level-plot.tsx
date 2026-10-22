@@ -8,7 +8,8 @@ import { formatClock, formatShortDate } from "@/lib/format";
 
 const config = { level: { label: "Battery level", color: "var(--chart-accent)" } } satisfies ChartConfig;
 
-// Battery level on a fixed 0–100% axis, with a faint band behind each charge.
+// Battery level on a fixed 0–100% axis, with a faint band behind each charge. Ticks are bare numbers
+// with % titled above the axis; the margins leave room for the top tick and the last date.
 export default function ChargeLevelPlot({ points, charging, from, to }: { points: LevelPoint[]; charging: ChargeStretch[]; from: number; to: number }) {
   // Measure the box first and draw at that width, so the chart never renders at a default size and jumps.
   const box = useRef<HTMLDivElement>(null);
@@ -26,7 +27,10 @@ export default function ChargeLevelPlot({ points, charging, from, to }: { points
   const high = Math.round(Math.max(...levels));
 
   return (
-    <div className="bg-muted px-3 pt-4 pb-2">
+    <div className="relative bg-muted px-3 pt-6 pb-2">
+      <span className="absolute top-1.5 left-3 font-mono text-xs text-faint" aria-hidden="true">
+        %
+      </span>
       <div
         ref={box}
         className="h-40 w-full"
@@ -37,7 +41,7 @@ export default function ChargeLevelPlot({ points, charging, from, to }: { points
           <div className="h-full w-full bg-background/60 motion-safe:animate-pulse" aria-busy="true" aria-label="Loading chart" />
         ) : (
           <ChartContainer config={config} className="aspect-auto h-40 w-full" initialDimension={{ width, height: 160 }}>
-            <LineChart data={points} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
+            <LineChart data={points} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
               <XAxis
                 dataKey="at"
                 type="number"
@@ -52,8 +56,7 @@ export default function ChargeLevelPlot({ points, charging, from, to }: { points
               <YAxis
                 domain={[0, 100]}
                 ticks={[0, 50, 100]}
-                tickFormatter={(v: number) => `${v}%`}
-                width={36}
+                width={32}
                 tickLine={false}
                 axisLine={{ stroke: "var(--border)" }}
                 tick={{ fontSize: 11, fill: "var(--faint)" }}

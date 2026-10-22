@@ -104,7 +104,7 @@ export function ChartFrame({ max, dense, prefix = "", unit, children }: { max: n
         </span>
       )}
       <div className={cn("relative w-8 shrink-0", dense ? "mb-6" : "my-6")} aria-hidden="true">
-        <div className="relative h-20 text-right font-mono text-xs text-faint tabular-nums">
+        <div className="relative h-20 text-right font-mono text-xs whitespace-nowrap text-faint tabular-nums">
           {[max, max / 2, 0].map((v, i) => (
             <span key={i} className={cn("absolute right-0", i === 0 ? "top-0 -translate-y-1/2" : i === 1 ? "top-1/2 -translate-y-1/2" : "bottom-0 translate-y-1/2")}>
               {prefix}

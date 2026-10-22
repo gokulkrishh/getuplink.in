@@ -9,8 +9,11 @@ const config = { kwh: { label: "Estimated full pack", color: "var(--chart-accent
 
 export type TrendPoint = { weekStart: number; kwh: number };
 
+const axisNumber = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
+
 // Weekly median of the estimated full pack. The axis hugs the data (±2 kWh) instead of starting at 0,
-// since the pack moves by tenths of a kWh.
+// since the pack moves by tenths of a kWh. Ticks are bare numbers with the unit titled above the axis,
+// so they stay on one line; the margins leave room for the top tick and the last date.
 export default function BatteryTrendPlot({ points }: { points: TrendPoint[] }) {
   // Measure the box first and draw at that width, so the chart never renders at a default size and jumps.
   const box = useRef<HTMLDivElement>(null);
@@ -31,7 +34,10 @@ export default function BatteryTrendPlot({ points }: { points: TrendPoint[] }) {
   const last = points[points.length - 1];
 
   return (
-    <div className="bg-muted px-3 pt-4 pb-2">
+    <div className="relative bg-muted px-3 pt-6 pb-2">
+      <span className="absolute top-1.5 left-3 font-mono text-xs text-faint" aria-hidden="true">
+        kWh
+      </span>
       <div
         ref={box}
         className="h-40 w-full"
@@ -42,7 +48,7 @@ export default function BatteryTrendPlot({ points }: { points: TrendPoint[] }) {
           <div className="h-full w-full bg-background/60 motion-safe:animate-pulse" aria-busy="true" aria-label="Loading chart" />
         ) : (
           <ChartContainer config={config} className="aspect-auto h-40 w-full" initialDimension={{ width, height: 160 }}>
-            <LineChart data={points} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
+            <LineChart data={points} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
               <XAxis
                 dataKey="weekStart"
                 type="number"
@@ -54,7 +60,15 @@ export default function BatteryTrendPlot({ points }: { points: TrendPoint[] }) {
                 minTickGap={48}
                 tick={{ fontSize: 11, fill: "var(--faint)" }}
               />
-              <YAxis domain={domain} unit=" kWh" width={52} tickCount={3} tickLine={false} axisLine={{ stroke: "var(--border)" }} tick={{ fontSize: 11, fill: "var(--faint)" }} />
+              <YAxis
+                domain={domain}
+                width={28}
+                tickCount={3}
+                allowDecimals={false}
+                tickFormatter={(v: number) => axisNumber.format(v)}
+                tickLine={false} axisLine={{ stroke: "var(--border)" }}
+                tick={{ fontSize: 11, fill: "var(--faint)" }}
+              />
               <ChartTooltip
                 cursor={{ stroke: "var(--border)" }}
                 content={({ active, payload }) => {

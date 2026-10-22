@@ -14,7 +14,9 @@ const config = {
 const kwFormat = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 const tick = { fontSize: 11, fill: "var(--faint)" };
 
-// Power in kW on the left axis and battery % on the right, against the time of day.
+// Power in kW on the left axis and battery % on the right, against the time of day. Ticks are bare
+// numbers with each axis's unit titled above it, so they stay on one line; the right axis leaves room
+// for the last clock time.
 export default function ChargeCurvePlot({ points }: { points: CurvePoint[] }) {
   // Measure the box first and draw at that width, so the chart never renders at a default size and jumps.
   const box = useRef<HTMLDivElement>(null);
@@ -34,7 +36,13 @@ export default function ChargeCurvePlot({ points }: { points: CurvePoint[] }) {
   const levelText = levels.length ? `, battery ${Math.round(levels[0])}% to ${Math.round(levels[levels.length - 1])}%` : "";
 
   return (
-    <div className="bg-muted px-3 pt-4 pb-2">
+    <div className="relative bg-muted px-3 pt-6 pb-2">
+      <span className="absolute top-1.5 left-3 font-mono text-xs text-faint" aria-hidden="true">
+        kW
+      </span>
+      <span className="absolute top-1.5 right-3 font-mono text-xs text-faint" aria-hidden="true">
+        %
+      </span>
       <div
         ref={box}
         className="h-40 w-full"
@@ -45,7 +53,7 @@ export default function ChargeCurvePlot({ points }: { points: CurvePoint[] }) {
           <div className="h-full w-full bg-background/60 motion-safe:animate-pulse" aria-busy="true" aria-label="Loading chart" />
         ) : (
           <ChartContainer config={config} className="aspect-auto h-40 w-full" initialDimension={{ width, height: 160 }}>
-            <LineChart data={points} margin={{ top: 6, right: 0, bottom: 0, left: 0 }}>
+            <LineChart data={points} margin={{ top: 8, right: 0, bottom: 0, left: 0 }}>
               <XAxis
                 dataKey="t"
                 type="number"
@@ -57,8 +65,16 @@ export default function ChargeCurvePlot({ points }: { points: CurvePoint[] }) {
                 minTickGap={48}
                 tick={tick}
               />
-              <YAxis yAxisId="kw" domain={[0, "auto"]} unit=" kW" width={44} tickCount={3} tickLine={false} axisLine={{ stroke: "var(--border)" }} tick={tick} />
-              <YAxis yAxisId="level" orientation="right" domain={[0, 100]} width={32} ticks={[0, 50, 100]} tickFormatter={(v: number) => `${v}%`} tickLine={false} axisLine={{ stroke: "var(--border)" }} tick={tick} />
+              <YAxis
+                yAxisId="kw"
+                domain={[0, "auto"]}
+                width={32}
+                tickCount={3}
+                tickFormatter={(v: number) => kwFormat.format(v)}
+                tickLine={false} axisLine={{ stroke: "var(--border)" }}
+                tick={tick}
+              />
+              <YAxis yAxisId="level" orientation="right" domain={[0, 100]} width={32} ticks={[0, 50, 100]} tickLine={false} axisLine={{ stroke: "var(--border)" }} tick={tick} />
               <ChartTooltip
                 cursor={{ stroke: "var(--border)" }}
                 content={({ active, payload }) => {
