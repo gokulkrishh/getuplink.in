@@ -18,7 +18,8 @@ const HOUR = 3_600_000;
 const DAY = 86_400_000;
 
 const DAYS = 296; // the car is ten months old
-const WINDOW_DAYS = 90; // detailed readings (battery, charging, updates) cover the last 90 days
+const WINDOW_DAYS = 90; // detailed readings (battery, drives, updates) cover the last 90 days; charging covers every day
+const STATUS_DAYS = 90; // the status page's health checks
 const START_KM = 18;
 const NOW_KM = 3335;
 const NOW_LEVEL = 61;
@@ -31,7 +32,9 @@ const AC_KW = 7.2; // 230 V x 32 A, single phase
 const AC_EFFICIENCY = 0.92; // wall to pack
 const DC_EFFICIENCY = 0.95;
 const RATE_INR = 24;
-const SITES = ["Bengaluru, Nexus Koramangala", "Mumbai, Bandra Kurla Complex", "Navi Mumbai, Nexus Seawoods", "Delhi, Aerocity"];
+// The car lives in Bengaluru: weekend detours stop in town, long trips on the way to Mysuru.
+const CITY_SITES = ["Bengaluru, Nexus Koramangala", "Bengaluru, Phoenix Marketcity Whitefield", "Bengaluru, Mall of Asia Hebbal"];
+const HIGHWAY_SITES = ["Mysuru, Mall of Mysore", "Maddur, Bengaluru-Mysuru Expressway"];
 
 // Full-pack energy: about 64 kWh now, a little more before (about 1% per 90 days). Flat before four months back.
 const packKwh = (now: number, t: number) => 64 + 0.0071 * Math.min(120, Math.max(0, (now - t) / DAY));
@@ -139,7 +142,9 @@ const dow = (day: number) => (day + 4) % 7; // 0 = Sunday; 1970-01-01 was a Thur
 const weekend = (day: number) => dow(day) === 0 || dow(day) === 6;
 
 type Stop = { supercharger: boolean; at: number }; // at: how far along the trip (0-1) the stop is
-type Trip = { start: number; km: number; mult: number; kind: "regular" | "detour" | "long"; stop?: Stop; after?: boolean };
+// after: the days since the last charge (scaled to the level now). pinned: the two weeks the dashboard's
+// "This week" compares, set by hand so the comparison reads like a normal week.
+type Trip = { start: number; km: number; mult: number; kind: "regular" | "detour" | "long"; stop?: Stop; after?: boolean; pinned?: boolean };
 
 export function generateDemo(now: number): DemoData {
   const today = istDay(now);
@@ -150,7 +155,7 @@ export function generateDemo(now: number): DemoData {
   // What each day holds. Detours and long trips stop at a fast charger.
   const special = new Map<number, Trip[]>();
   const precharge = new Set<number>(); // the evening before a long trip is a charge to the limit
-  for (let d = first + 3; d <= today - 7; d++) {
+  for (let d = first + 3; d <= today - 14; d++) {
     const rng = rngFor(3, d);
     const roll = rng();
     if (dow(d) === 6 && roll < 0.06) {
@@ -171,7 +176,7 @@ export function generateDemo(now: number): DemoData {
   for (let d = first; d <= today; d++) {
     const rng = rngFor(1, d);
     const mult = () => between(rng, 0.92, 1.1);
-    if (d >= today - 4) continue; // the last days are fixed below
+    if (d >= today - 13) continue; // the last two weeks are fixed below
     const planned = special.get(d);
     if (planned) {
       trips.push(...planned.map((t) => ({ ...t, mult: mult() })));
@@ -194,6 +199,18 @@ export function generateDemo(now: number): DemoData {
     [today, 8.3, 7],
   ];
   for (const [d, hour, km] of after) trips.push({ start: at(d, hour), km, mult: 1.03, kind: "regular", after: true });
+  // The nine days before those: an office commute on weekdays and one errand on weekend days, so the
+  // week before this one drives about as far as this one.
+  for (let d = today - 13; d <= today - 5; d++) {
+    const rng = rngFor(17, d);
+    const mult = () => between(rng, 0.95, 1.06);
+    if (weekend(d)) {
+      trips.push({ start: at(d, between(rng, 10.5, 12.5)), km: round(between(rng, 14, 20), 1), mult: mult(), kind: "regular", pinned: true });
+    } else {
+      trips.push({ start: at(d, between(rng, 8, 9.2)), km: round(between(rng, 7, 9), 1), mult: mult(), kind: "regular", pinned: true });
+      trips.push({ start: at(d, between(rng, 18, 19.5)), km: round(between(rng, 7, 9), 1), mult: mult(), kind: "regular", pinned: true });
+    }
+  }
   const done = (t: Trip) => t.start + (t.km * 2 + 20) * MIN <= now - 15 * MIN;
   const kept = trips.filter((t) => t.start <= now && done(t));
 
@@ -206,8 +223,8 @@ export function generateDemo(now: number): DemoData {
   for (const t of afterTrips) t.km *= afterScale;
   // The rest of the regular driving adds up to the odometer now.
   const afterKm = afterTrips.reduce((sum, t) => sum + t.km, 0);
-  const fixedKm = kept.filter((t) => t.kind !== "regular").reduce((sum, t) => sum + t.km, 0);
-  const base = kept.filter((t) => t.kind === "regular" && !t.after);
+  const fixedKm = kept.filter((t) => t.kind !== "regular" || t.pinned).reduce((sum, t) => sum + t.km, 0);
+  const base = kept.filter((t) => t.kind === "regular" && !t.after && !t.pinned);
   const baseScale = (NOW_KM - START_KM - fixedKm - afterKm) / base.reduce((sum, t) => sum + t.km, 0);
   for (const t of base) t.km *= baseScale;
 
@@ -222,14 +239,18 @@ export function generateDemo(now: number): DemoData {
     const rng = rngFor(9, d);
     events.push({ start: at(d, between(rng, 20.5, 23)), ac: { final: d === today - 5, force: precharge.has(d), below: between(rng, 50, 66) } });
   }
-  for (let d = first; d <= today; d++) if (at(d, 23.5) <= now) events.push({ start: at(d, 23.5) });
+  // At 23:18 IST, over 10 minutes before the night check (23:30), so that check finds the car asleep.
+  for (let d = first; d <= today; d++) if (at(d, 23.3) <= now) events.push({ start: at(d, 23.3) });
   events.sort((a, b) => a.start - b.start);
 
   // ---- The simulation ----
   const rows: { field: string; t: number; value: unknown }[] = [];
   const COUNTERS = new Set(["Odometer", "LifetimeEnergyUsed", "LifetimeEnergyGainedRegen"]);
+  // Counters and charging sessions are kept for every day, so the monthly charts and the session list go
+  // back to delivery; everything else only inside the window.
+  let charging = false;
   const push = (field: string, t: number, value: unknown) => {
-    if (COUNTERS.has(field) || t >= windowStart) rows.push({ field, t, value });
+    if (COUNTERS.has(field) || charging || t >= windowStart) rows.push({ field, t, value });
   };
   const noise = rngFor(10);
   const gauss = () => (noise() + noise() + noise() - 1.5) * 2;
@@ -299,6 +320,7 @@ export function generateDemo(now: number): DemoData {
     parked(start);
     const rng = rngFor(11, start / MIN);
     if (!ac.final && !ac.force && level(start) >= ac.below) return;
+    charging = true;
     push("ChargingCableType", start, "CableTypeIEC");
     push("DetailedChargeState", start, "DetailedChargeStateStarting");
     pack(start);
@@ -324,6 +346,7 @@ export function generateDemo(now: number): DemoData {
     push("ACChargingPower", t, 0);
     push("DetailedChargeState", t, "DetailedChargeStateComplete");
     push("DetailedChargeState", t + 25 * MIN, "DetailedChargeStateDisconnected");
+    charging = false;
     clock = t;
   };
 
@@ -331,9 +354,10 @@ export function generateDemo(now: number): DemoData {
   const curve = (l: number) =>
     l < 10 ? 0.75 + 0.025 * l : l < 40 ? 1 : l < 60 ? 1 - (0.38 * (l - 40)) / 20 : l < 80 ? 0.62 - (0.32 * (l - 60)) / 20 : l < 90 ? 0.3 - (0.15 * (l - 80)) / 10 : 0.12;
 
-  const fastCharge = (arrive: number, stop: Stop, aboutLevel: number) => {
+  const fastCharge = (arrive: number, stop: Stop, aboutLevel: number, long: boolean) => {
     const rng = rngFor(12, arrive / MIN);
     parked(arrive);
+    charging = true;
     const peak = stop.supercharger ? between(rng, 165, 195) : between(rng, 50, 58);
     const targetLevel = Math.min(CHARGE_LIMIT, Math.max(aboutLevel, level(arrive) + 8));
     const tempStart = round(between(rng, 29, 35) + (stop.supercharger ? 3 : 0), 1);
@@ -369,10 +393,12 @@ export function generateDemo(now: number): DemoData {
     push("DetailedChargeState", end, "DetailedChargeStateComplete");
     push("FastChargerPresent", end + 3 * MIN, false);
     push("DetailedChargeState", end + 3 * MIN, "DetailedChargeStateDisconnected");
+    charging = false;
     clock = end + 3 * MIN;
     if (stop.supercharger && delivered >= 1) {
       const kwh = round(delivered, 2);
-      const site = SITES[Math.floor(rng() * SITES.length)];
+      const sites = long ? HIGHWAY_SITES : CITY_SITES;
+      const site = sites[Math.floor(rng() * sites.length)];
       sessionNo++;
       teslaSessions.push({
         session_id: String(4_810_000 + sessionNo * 37),
@@ -396,7 +422,7 @@ export function generateDemo(now: number): DemoData {
       } else {
         const rng = rngFor(13, trip.start / MIN);
         const arrived = drive(trip.start, trip.km * trip.stop.at, trip.mult);
-        fastCharge(arrived + 2 * MIN, trip.stop, trip.kind === "long" ? between(rng, 72, 80) : between(rng, 68, 80));
+        fastCharge(arrived + 2 * MIN, trip.stop, trip.kind === "long" ? between(rng, 72, 80) : between(rng, 68, 80), trip.kind === "long");
         drive(clock + 5 * MIN, trip.km * (1 - trip.stop.at), trip.mult);
       }
     } else if (event.ac) {
@@ -414,11 +440,12 @@ export function generateDemo(now: number): DemoData {
   pack(woke);
   push("DetailedChargeState", woke, "DetailedChargeStateDisconnected");
   push("ChargeLimitSoc", woke, CHARGE_LIMIT);
-  // The state the car was in when the window began.
+  // The state the car was in when the window began. The charging fields go back to delivery, so theirs
+  // is the state on the first morning (inside the window, it could split a session in two).
   push("ChargeLimitSoc", windowStart, CHARGE_LIMIT);
   push("Gear", windowStart, "ShiftStateP");
-  push("DetailedChargeState", windowStart, "DetailedChargeStateDisconnected");
-  push("FastChargerPresent", windowStart, false);
+  rows.push({ field: "DetailedChargeState", t: at(first, 7), value: "DetailedChargeStateDisconnected" });
+  rows.push({ field: "FastChargerPresent", t: at(first, 7), value: false });
 
   // ---- Versions and updates ----
   const odometerAt = (t: number) => {
@@ -521,7 +548,7 @@ export function generateDemo(now: number): DemoData {
   const components = ["Website", "Database", "Live data receiver", "Car data stream"];
   const degradedDay = istDayName(now - 34 * DAY);
   const healthAll: HealthRow[] = [];
-  for (let t = Math.floor((now - WINDOW_DAYS * DAY) / (30 * MIN)) * 30 * MIN; t <= now; t += 30 * MIN) {
+  for (let t = Math.floor((now - STATUS_DAYS * DAY) / (30 * MIN)) * 30 * MIN; t <= now; t += 30 * MIN) {
     const day = istDayName(t);
     const hour = ((t + 5.5 * HOUR) % DAY) / HOUR;
     for (const component of components) {

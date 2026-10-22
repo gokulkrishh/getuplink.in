@@ -8,6 +8,8 @@ export const DEMO_SCENARIOS = {
   charging: "Charging",
   updating: "Downloading an update",
   installing: "Installing an update",
+  // "This week" with nothing before it to compare against: "Tracking since <date>".
+  firstWeek: "First week",
 } as const;
 
 export type DemoScenario = keyof typeof DEMO_SCENARIOS;

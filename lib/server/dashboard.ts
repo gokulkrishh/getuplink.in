@@ -4,7 +4,7 @@ import { parseReleaseNotes, type ReleaseNote, type ReleaseNotesByVersion } from 
 import type { Stream } from "@/lib/telemetry";
 import { type Reading, type UpdateTimeline, updateTimeline } from "@/lib/telemetry-derive";
 import { loadVehicleExtras, type VehicleExtras } from "./dashboard-extras";
-import { demoData, demoStream } from "./demo";
+import { demoData, demoFirstWeek, demoStream } from "./demo";
 import { missingEnv } from "./env";
 import { db } from "./supabase";
 import { applyStream, loadReadings, loadStream, STREAM_FIELDS } from "./telemetry";
@@ -134,7 +134,7 @@ async function vehicleView(vehicle: Vehicle, scenario: DemoScenario): Promise<Ve
       latest: snapshot,
       lastOnline: applyStream(snapshot, stream),
       history: withTimes,
-      extras,
+      extras: extras && scenario === "firstWeek" ? { ...extras, week: demoFirstWeek() } : extras,
     };
   }
   const [latest, lastOnline, history, stream] = await Promise.all([

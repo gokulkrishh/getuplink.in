@@ -1,9 +1,10 @@
 import "server-only";
 import { buildSessions, CHARGE_FIELDS } from "@/lib/charge-sessions";
 import { MILES_TO_KM } from "@/lib/car";
+import { type WeekSummary, weekSummary } from "@/lib/dashboard-summary";
 import type { DemoScenario } from "@/lib/demo";
 import type { Stream } from "@/lib/telemetry";
-import { num, type Reading, type UpdateRow } from "@/lib/telemetry-derive";
+import { istDay, istDayStart, num, type Reading, type UpdateRow } from "@/lib/telemetry-derive";
 import type { ChargingSession } from "../charging";
 import type { VersionChange } from "../dashboard";
 import type { StreamChargeSession } from "../stream-charging";
@@ -97,6 +98,14 @@ export function demoStream(fields: string[], scenario: DemoScenario = "normal"):
     if (fields.includes(field)) stream[field] = { at, value };
   }
   return stream;
+}
+
+// The dashboard's "This week" for a car connected four days ago: the same readings, cut at that day, with
+// nothing before them, so the card says "Tracking since" instead of comparing.
+export function demoFirstWeek(): WeekSummary {
+  const { now } = demoData();
+  const from = new Date(istDayStart(istDay(now) - 4)).toISOString();
+  return weekSummary(demoReadings("Odometer", from), null, demoReadings("LifetimeEnergyUsed", from), null, now);
 }
 
 // ---- Sessions ----
