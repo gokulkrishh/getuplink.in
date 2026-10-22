@@ -98,7 +98,8 @@ function toRow(vin: string, item: HistoryItem, fetchedAt: string): ChargingRow |
 }
 
 // Pages through the last 120 days for one car. Keyed by session so a session that moves between
-// pages is only written once (a single upsert cannot contain the same key twice).
+// pages is only written once (a single upsert cannot contain the same key twice). No sortBy: Tesla
+// rejects "StartDateTime" with a 400, and the order doesn't matter since every page is read.
 async function fetchVinHistory(vin: string, startTime: string): Promise<ChargingRow[]> {
   const fetchedAt = new Date().toISOString();
   const rows = new Map<string, ChargingRow>();
@@ -108,8 +109,6 @@ async function fetchVinHistory(vin: string, startTime: string): Promise<Charging
       startTime,
       pageNo: String(pageNo),
       pageSize: String(PAGE_SIZE),
-      sortBy: "StartDateTime",
-      sortOrder: "DESC",
     });
     const page = await fleetGet<HistoryPage>(`/api/1/dx/charging/history?${query}`);
     const items = Array.isArray(page) ? page : Array.isArray(page?.data) ? page.data : [];

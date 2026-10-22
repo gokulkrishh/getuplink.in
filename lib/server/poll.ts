@@ -103,12 +103,13 @@ async function pollVehicle(vehicle: FleetVehicle, now: string, located: boolean)
   let data: VehicleData;
   try {
     // The section list must be URL-encoded: with a bare ";" Tesla only returned vehicle_state. Current
-    // firmware sends drive_state's latitude and longitude only when location_data is asked for too.
+    // firmware sends drive_state's latitude and longitude only when location_data is asked for too, and
+    // drive_state itself has to be in the list.
     const read = (sections: string) =>
       fleetGet<VehicleData>(`/api/1/vehicles/${vehicle.vin}/vehicle_data?endpoints=${encodeURIComponent(sections)}`);
     const sections = "vehicle_state;charge_state;vehicle_config";
     try {
-      data = (await read(located ? `${sections};location_data` : sections)) ?? {};
+      data = (await read(located ? `${sections};drive_state;location_data` : sections)) ?? {};
     } catch (err) {
       // A 403 for the location sections (scope withdrawn in the app) mustn't cost the rest of the check.
       if (!(located && err instanceof TeslaError && err.status === 403)) throw err;
@@ -131,7 +132,11 @@ async function pollVehicle(vehicle: FleetVehicle, now: string, located: boolean)
     throw err;
   }
 
+  const hadLocation = typeof (data.drive_state?.latitude ?? data.drive_state?.native_latitude) === "number";
   const homeState = homeStateFrom(data);
+  // Yes/no only, so a missing state can be traced; never the coordinates or the state.
+  if (located) console.info(`Location: ${hadLocation ? "received" : "not sent"}, state ${homeState ? "found" : "not found"}`);
+  else console.info("Location: not asked (the Tesla token has no vehicle_location scope)");
   const state = data.vehicle_state ?? {};
   const update = state.software_update ?? {};
   const version = normaliseVersion(state.car_version);
