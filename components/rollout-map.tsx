@@ -23,7 +23,7 @@ type Hover = { code: StateCode; x: number; y: number };
 // India's states, shaded where the picked version runs: darker for more cars. Only states shown on their
 // own are shaded; a region roll-up's states stay blank, or the shading would say they have cars.
 // Hovering (or tapping) a state shows its tooltip. Every state without numbers gets the same line, so
-// the tooltip can't say which of them have cars either.
+// the tooltip can't say which of them have cars either. With no version to show yet, the map stays blank.
 export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
   // Newest first, so the dropdown opens on the latest version.
   const versions = given.toSorted((a, b) => compareVersions(b.version, a.version));
@@ -31,11 +31,11 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
   const [hover, setHover] = useState<Hover | null>(null);
   const frame = useRef<HTMLDivElement>(null);
   const current = versions.find((v) => v.version === picked) ?? versions[0];
-  if (!current) return null;
+  const groups = current?.groups ?? [];
   const shades = new Map<StateCode, number>();
-  const most = Math.max(1, ...current.groups.map((g) => g.cars));
-  for (const g of current.groups) if (g.kind === "state") shades.set(g.code, 0.3 + 0.6 * (g.cars / most));
-  const shown = hover && current.groups.find((g) => g.kind === "state" && g.code === hover.code);
+  const most = Math.max(1, ...groups.map((g) => g.cars));
+  for (const g of groups) if (g.kind === "state") shades.set(g.code, 0.3 + 0.6 * (g.cars / most));
+  const shown = hover && groups.find((g) => g.kind === "state" && g.code === hover.code);
 
   // The pointer's place in the frame, as a share of its size, so the tip can lean inwards at the edges.
   const point = (code: StateCode) => (event: PointerEvent<SVGPathElement>) => {
@@ -46,7 +46,7 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
 
   return (
     <div className="space-y-4">
-      {versions.length > 1 && (
+      {current && versions.length > 1 && (
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label="Version"
@@ -70,7 +70,7 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
       <svg
         viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
         role="img"
-        aria-label={`Map of India: states where ${current.version} runs`}
+        aria-label={current ? `Map of India: states where ${current.version} runs` : "Map of India"}
         className="block h-auto w-full"
       >
         {(Object.entries(STATE_PATHS) as [StateCode, string][]).map(([code, d]) => {
@@ -115,14 +115,14 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
         </span>
       )}
       </div>
-      {current.groups.length ? (
+      {groups.length ? (
         <ul className="divide-y border-t text-sm">
           <li className="flex gap-4 py-2 text-xs text-faint">
             <span className="flex-1">State</span>
             <span className="w-28">First arrived</span>
             <span className="w-14 text-right">Cars</span>
           </li>
-          {current.groups.map((g) => (
+          {groups.map((g) => (
             <li key={g.kind === "state" ? g.code : g.region} className="flex gap-4 py-3 tabular-nums">
               <span className="min-w-0 flex-1">{g.kind === "state" ? g.name : `Other ${g.region} states`}</span>
               <span className="w-28 text-muted-foreground">{g.firstArrived ? formatShortDate(g.firstArrived) : "Unknown"}</span>
@@ -131,7 +131,9 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-muted-foreground">No state has {cars(MIN_GROUP)} on it yet.</p>
+        <p className="text-sm text-muted-foreground">
+          {current ? `No state has ${cars(MIN_GROUP)} on it yet.` : `States show once ${cars(MIN_GROUP)} in one run the same version.`}
+        </p>
       )}
     </div>
   );

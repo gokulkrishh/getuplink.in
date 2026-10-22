@@ -95,12 +95,10 @@ async function Rollout() {
         )}
       </header>
 
-      {states.length > 0 && (
-        <section className="space-y-2">
-          <h2 className={heading}>Where it runs</h2>
-          <RolloutMap versions={states} />
-        </section>
-      )}
+      <section className="space-y-2">
+        <h2 className={heading}>Where it runs</h2>
+        <RolloutMap versions={states} />
+      </section>
 
       <section className="space-y-2">
         <h2 className={heading}>Versions</h2>
