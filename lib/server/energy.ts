@@ -11,22 +11,70 @@ export type MonthlyEnergy = { month: string; energy: EnergyMonth | null };
 const MONTHS = 12;
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
+// Passed as the last boundary, it stands for "now": the last reading before it is the latest one.
+export const LATEST = "infinity";
+
 function monthStart(index: number): string {
   return new Date(Date.UTC(Math.floor(index / 12), index % 12, 1) - IST_OFFSET_MS).toISOString();
 }
 
-// One counter's value: the last reading before an instant (or the latest, with none), or the first
-// reading ever. The counters only send a row when they change, so this is how a month gets its start and end.
-async function counter(vin: string, field: string, before: string | null, ascending = false): Promise<number | null> {
-  if (DEMO) return demoCounter(field, before, ascending);
-  let query = db().from("telemetry_readings").select("value").eq("vin", vin).eq("field", field);
-  if (before) query = query.lt("created_at", before);
-  const { data, error } = await query.order("created_at", { ascending }).limit(1).maybeSingle();
+// The month starts of the window, then LATEST, so bounds[k] opens window month k and bounds[k + 1] closes it.
+export function monthBounds(firstIndex: number): string[] {
+  return [...Array.from({ length: MONTHS }, (_, k) => monthStart(firstIndex + k)), LATEST];
+}
+
+// A counter's value and when it was read (ms).
+export type CounterValue = { value: number; at: number };
+// The first reading ever, then the last reading before each boundary.
+export type CounterColumn = { first: CounterValue | null; bounds: (CounterValue | null)[] };
+// A row from counter_values_at / snapshot_odometer_at: `at` is the boundary, or null for the first reading.
+export type BoundRow = { at: string | null; value: number | null; readAt: string | null };
+
+const instant = (at: string) => (at === LATEST ? Infinity : Date.parse(at));
+
+// Places rows on their boundaries. Postgres echoes the boundary in its own format, so they match by instant.
+export function toColumn(bounds: string[], rows: BoundRow[]): CounterColumn {
+  const index = new Map(bounds.map((bound, k) => [instant(bound), k]));
+  const column: CounterColumn = { first: null, bounds: bounds.map(() => null) };
+  for (const row of rows) {
+    if (row.value === null || !row.readAt) continue;
+    const reading = { value: row.value, at: Date.parse(row.readAt) };
+    if (row.at === null) column.first = reading;
+    else {
+      const k = index.get(instant(row.at));
+      if (k !== undefined) column.bounds[k] = reading;
+    }
+  }
+  return column;
+}
+
+// Counters at each boundary, per field, in one request. The counters only send a row when they change, so
+// the last reading before a boundary is the value there. Null when the query fails.
+export async function loadCounters(vin: string, fields: string[], bounds: string[]): Promise<Map<string, CounterColumn> | null> {
+  if (DEMO) {
+    const reading = (value: number | null) => (value === null ? null : { value, at: 0 });
+    return new Map(
+      fields.map((field) => [
+        field,
+        { first: reading(demoCounter(field, null, true)), bounds: bounds.map((bound) => reading(demoCounter(field, bound === LATEST ? null : bound))) },
+      ]),
+    );
+  }
+  const { data, error } = await db().rpc("counter_values_at", { p_vin: vin, p_fields: fields, p_at: bounds });
   if (error) {
-    console.warn(`Telemetry ${field} unavailable:`, error.message);
+    console.warn(`Telemetry ${fields.join(", ")} unavailable:`, error.message);
     return null;
   }
-  return num(data?.value);
+  const rows = data as { field: string; at: string | null; value: unknown; created_at: string | null }[];
+  return new Map(
+    fields.map((field) => [
+      field,
+      toColumn(
+        bounds,
+        rows.filter((row) => row.field === field).map((row) => ({ at: row.at, value: num(row.value), readAt: row.created_at })),
+      ),
+    ]),
+  );
 }
 
 // Energy use per month for the last 12 months (IST), from the streamed lifetime counters and odometer.
@@ -35,23 +83,14 @@ export async function loadMonthlyEnergy(): Promise<MonthlyEnergy[]> {
   const vin = await loadPrimaryVin();
   if (!vin) return [];
   const firstIndex = monthIndex(Date.now()) - (MONTHS - 1);
-  const fields = ["LifetimeEnergyUsed", "LifetimeEnergyGainedRegen", "Odometer"];
-  // Per field: the first reading ever, then one value per month boundary (the last one is the latest reading).
-  const columns = await Promise.all(
-    fields.map((field) =>
-      Promise.all([
-        counter(vin, field, null, true),
-        ...Array.from({ length: MONTHS + 1 }, (_, k) => counter(vin, field, k === MONTHS ? null : monthStart(firstIndex + k))),
-      ]),
-    ),
-  );
-  const span = (column: (number | null)[], k: number): Span => {
-    const [first, ...bounds] = column;
+  const counters = await loadCounters(vin, ["LifetimeEnergyUsed", "LifetimeEnergyGainedRegen", "Odometer"], monthBounds(firstIndex));
+  const span = (field: string, k: number): Span => {
+    const column = counters?.get(field);
     // With nothing before the month, count from the first reading ever taken.
-    return { start: bounds[k] ?? first, end: bounds[k + 1] };
+    return { start: (column?.bounds[k] ?? column?.first)?.value ?? null, end: column?.bounds[k + 1]?.value ?? null };
   };
   return Array.from({ length: MONTHS }, (_, k) => ({
     month: monthKey(firstIndex + k),
-    energy: energyUseMonth({ used: span(columns[0], k), regen: span(columns[1], k), odometerMiles: span(columns[2], k) }),
+    energy: energyUseMonth({ used: span("LifetimeEnergyUsed", k), regen: span("LifetimeEnergyGainedRegen", k), odometerMiles: span("Odometer", k) }),
   }));
 }

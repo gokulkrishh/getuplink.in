@@ -6,52 +6,51 @@ import { type DayKm, dailyDistance, istDay, istDayStart, num } from "@/lib/telem
 import { DEMO } from "@/lib/demo";
 import { demoCounter } from "./demo";
 import { db } from "./supabase";
+import { type CounterColumn, type CounterValue, loadCounters, monthBounds, toColumn } from "./energy";
 import { loadPrimaryVin, loadReadings } from "./telemetry";
 
 export type MonthlyDistance = { month: string; km: number };
 
 const MONTHS = 12;
-const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
-// First instant of a month in IST, as an ISO string for the query.
-function monthStart(index: number): string {
-  return new Date(Date.UTC(Math.floor(index / 12), index % 12, 1) - IST_OFFSET_MS).toISOString();
-}
-
-// Latest (or earliest) online odometer reading, optionally before an instant. Raw payload is in miles.
-async function reading(before: string | null, ascending: boolean): Promise<number | null> {
-  if (DEMO) {
-    const miles = demoCounter("Odometer", before, ascending);
-    return miles === null ? null : miles * MILES_TO_KM;
-  }
-  let query = db()
-    .from("snapshots")
-    .select("polled_at, odometer:raw->vehicle_state->>odometer")
-    .eq("state", "online")
-    .not("raw->vehicle_state->>odometer", "is", null)
-    .order("polled_at", { ascending })
-    .limit(1);
-  if (before) query = query.lt("polled_at", before);
-  const { data, error } = await query;
+// The online polls' odometer (miles) at each boundary, in one request. The poll ran before the stream
+// began, so earlier months only have these. In demo mode the counters cover it. Null when the query fails.
+async function loadPolledOdometers(bounds: string[]): Promise<CounterColumn | null> {
+  if (DEMO) return null;
+  const { data, error } = await db().rpc("snapshot_odometer_at", { p_at: bounds });
   if (error) {
     console.warn("Odometer history unavailable:", error.message);
     return null;
   }
-  const odometer = (data?.[0] as { odometer: string | null } | undefined)?.odometer;
-  const miles = odometer == null ? NaN : Number(odometer);
-  return Number.isFinite(miles) ? miles * MILES_TO_KM : null;
+  const rows = data as { at: string | null; odometer: string | null; polled_at: string | null }[];
+  return toColumn(
+    bounds,
+    rows.map((row) => {
+      const miles = row.odometer == null ? NaN : Number(row.odometer);
+      return { at: row.at, value: Number.isFinite(miles) ? miles : null, readAt: row.polled_at };
+    }),
+  );
 }
 
-// Kilometres driven per month for the last 12 months (IST), from the odometer. It asks for one reading
-// per month boundary instead of pulling every poll, which would run into PostgREST's row cap.
+type OdometerReading = CounterValue | null | undefined;
+const newer = (a: OdometerReading, b: OdometerReading) => (!a ? b : !b ? a : b.at > a.at ? b : a);
+const older = (a: OdometerReading, b: OdometerReading) => (!a ? b : !b ? a : b.at < a.at ? b : a);
+
+// Kilometres driven per month for the last 12 months (IST), from the odometer: the streamed one or the
+// polled one, whichever was read last before each boundary. One reading per boundary instead of every
+// poll, which would run into PostgREST's row cap.
 export async function loadMonthlyDistance(): Promise<MonthlyDistance[]> {
   const firstIndex = monthIndex(Date.now()) - (MONTHS - 1);
+  const bounds = monthBounds(firstIndex);
+  const [streamed, polled] = await Promise.all([
+    loadPrimaryVin().then(async (vin) => (vin ? ((await loadCounters(vin, ["Odometer"], bounds))?.get("Odometer") ?? null) : null)),
+    loadPolledOdometers(bounds),
+  ]);
+  const km = (reading: OdometerReading) => (reading ? reading.value * MILES_TO_KM : null);
   // ends[k] is the last reading before window month k starts (so it closes the month before it);
   // ends[MONTHS] is the latest reading, which closes the current month.
-  const [first, ...ends] = await Promise.all([
-    reading(null, true),
-    ...Array.from({ length: MONTHS + 1 }, (_, k) => reading(k === MONTHS ? null : monthStart(firstIndex + k), false)),
-  ]);
+  const ends = bounds.map((_, k) => km(newer(streamed?.bounds[k], polled?.bounds[k])));
+  const first = km(older(streamed?.first, polled?.first));
   const result: MonthlyDistance[] = [];
   for (let k = 0; k < MONTHS; k++) {
     const end = ends[k + 1];
