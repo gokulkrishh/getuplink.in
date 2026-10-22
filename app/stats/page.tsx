@@ -299,6 +299,7 @@ function Updates({ rows, now, period }: { rows: UpdateRow[]; now: number; period
   if (!stats) return null;
   const cur = monthIndex(now);
   const count = rows.filter((r) => inPeriod(period, monthIndex(r.detected_at), cur)).length;
+  const imported = rows.filter((r) => r.source === "imported").length;
   const items = [
     stats.avgWaitSec !== null && { label: "Average wait, available to installed", value: formatDays(stats.avgWaitSec) },
     { label: `Updates ${ENERGY_LABELS[period]}`, value: String(count) },
@@ -316,6 +317,7 @@ function Updates({ rows, now, period }: { rows: UpdateRow[]; now: number; period
           </div>
         ))}
       </dl>
+      {imported > 0 && <p className="text-xs text-faint">Includes {imported} imported</p>}
     </section>
   );
 }

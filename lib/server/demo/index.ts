@@ -5,17 +5,29 @@ import type { DemoScenario } from "@/lib/demo";
 import type { Stream } from "@/lib/telemetry";
 import { num, type Reading, type UpdateRow } from "@/lib/telemetry-derive";
 import type { ChargingSession } from "../charging";
+import type { VersionChange } from "../dashboard";
 import type { StreamChargeSession } from "../stream-charging";
 import { type DemoData, generateDemo, PENDING_VERSION } from "./generate";
 
 // Everything the loaders return in demo mode comes from here. The data is rebuilt at most once a
 // minute, so "6 minutes ago" stays about right while one page's loaders all see the same car.
 let cached: DemoData | undefined;
+// Settings > Import past updates in demo mode: the imported rows, kept in memory until the server restarts.
+// Undefined until the first import or undo; until then the generated ones stand.
+let imported: VersionChange[] | undefined;
 
 export function demoData(): DemoData {
   const now = Date.now();
   if (!cached || now - cached.now > 60_000) cached = generateDemo(now);
-  return cached;
+  if (!imported) return cached;
+  const history = [...cached.history.filter((h) => h.source === "tracked"), ...imported].sort(
+    (a, b) => Date.parse(b.detected_at) - Date.parse(a.detected_at),
+  );
+  return { ...cached, history };
+}
+
+export function setDemoImported(rows: VersionChange[]): void {
+  imported = rows;
 }
 
 // ---- Fleet Telemetry ----
@@ -108,6 +120,6 @@ export function demoChargingSessions(): ChargingSession[] {
 export function demoUpdateRows(): UpdateRow[] {
   return demoData()
     .history.filter((h) => h.previous_version)
-    .map((h) => ({ detected_at: h.detected_at, available_at: h.available_at }))
+    .map((h) => ({ detected_at: h.detected_at, available_at: h.available_at, source: h.source }))
     .reverse();
 }

@@ -11,7 +11,7 @@ export async function loadUpdateRows(vehicleId: string | null): Promise<UpdateRo
   if (!vehicleId) return [];
   const { data, error } = await db()
     .from("version_history")
-    .select("detected_at, available_at")
+    .select("detected_at, available_at, source")
     .eq("vehicle_id", vehicleId)
     .not("previous_version", "is", null)
     .order("detected_at", { ascending: true })
