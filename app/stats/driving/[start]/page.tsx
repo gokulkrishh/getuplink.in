@@ -31,18 +31,21 @@ function Drive({ detail }: { detail: DriveDetail }) {
   const { trip, battery, speed, rangeUsedKm, topKmh, outsideC } = detail;
   const drivingMs = trip.legs.reduce((sum, d) => sum + (d.end - d.start), 0);
   const stoppedMs = trip.end - trip.start - drivingMs;
-  const rows: [string, string | null][] = [
-    ["Distance", formatKm(trip.km)],
-    [trip.stops ? "Time" : "Duration", trip.stops ? `${formatDuration((trip.end - trip.start) / 1000)} · ${formatDuration(drivingMs / 1000)} driving` : formatDuration(drivingMs / 1000)],
-    ["Stops", trip.stops ? `${trip.stops} · ${formatDuration(stoppedMs / 1000)}` : null],
-    ["Energy used", trip.kwh !== null ? formatKwh(trip.kwh) : null],
-    ["Battery", trip.startLevel !== null && trip.endLevel !== null ? `${Math.round(trip.startLevel)}% to ${Math.round(trip.endLevel)}%` : null],
-    ["Range used", rangeUsedKm !== null ? `${Math.round(rangeUsedKm)} km` : null],
-    ["Average speed", drivingMs > 0 ? `${Math.round(trip.km / (drivingMs / 3_600_000))} km/h` : null],
-    ["Top speed", topKmh !== null ? `${Math.round(topKmh)} km/h` : null],
-    ["Outside", outsideC !== null ? `${oneDecimal.format(outsideC)} °C` : null],
+  const tiles: { label: string; value: string; note?: string; level?: [number, number] }[] = [
+    ...(trip.kwh !== null ? [{ label: "Energy used", value: formatKwh(trip.kwh) }] : []),
+    ...(trip.startLevel !== null && trip.endLevel !== null
+      ? [{ label: "Battery", value: `${Math.round(trip.startLevel)}% → ${Math.round(trip.endLevel)}%`, level: [trip.startLevel, trip.endLevel] as [number, number] }]
+      : []),
+    ...(rangeUsedKm !== null ? [{ label: "Range used", value: `${Math.round(rangeUsedKm)} km` }] : []),
+    ...(drivingMs > 0 ? [{ label: "Average speed", value: `${Math.round(trip.km / (drivingMs / 3_600_000))} km/h`, note: trip.stops ? "while driving" : undefined }] : []),
+    ...(topKmh !== null ? [{ label: "Top speed", value: `${Math.round(topKmh)} km/h` }] : []),
+    ...(outsideC !== null ? [{ label: "Outside", value: `${oneDecimal.format(outsideC)} °C` }] : []),
   ];
-  const shown = rows.filter((r): r is [string, string] => r[1] !== null);
+  const summary = [
+    formatDuration((trip.end - trip.start) / 1000),
+    trip.stops ? `${formatDuration(drivingMs / 1000)} driving` : null,
+    trip.stops ? `${trip.stops} ${trip.stops === 1 ? "stop" : "stops"}, ${formatDuration(stoppedMs / 1000)}` : null,
+  ].filter(Boolean);
   const traceEnd = Math.max(trip.end, battery.at(-1)?.t ?? trip.end);
   return (
     <>
@@ -51,16 +54,29 @@ function Drive({ detail }: { detail: DriveDetail }) {
         {formatDate(trip.start)} · {formatClock(trip.start)} to {formatClock(trip.end)}
       </p>
       <div className="space-y-12">
-        <section className="space-y-4">
-          <h2 className="text-xs font-medium tracking-wide text-faint uppercase">{trip.stops ? "Trip" : "Drive"}</h2>
-          <dl className="divide-y border-t">
-            {shown.map(([label, value]) => (
-              <div key={label} className="flex items-baseline justify-between gap-4 py-3 text-sm">
-                <dt className="text-muted-foreground">{label}</dt>
-                <dd className="font-mono font-medium tabular-nums">{value}</dd>
-              </div>
-            ))}
-          </dl>
+        {/* The headline, then a few numbers as tiles: easier to take in than a long list. */}
+        <section className="space-y-6">
+          <div className="space-y-1">
+            <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatKm(trip.km)}</p>
+            <p className="text-sm text-muted-foreground tabular-nums">{summary.join(" · ")}</p>
+          </div>
+          {tiles.length > 0 && (
+            <dl className="grid grid-cols-2 gap-px border bg-border bg-clip-padding sm:grid-cols-4">
+              {tiles.map((t) => (
+                <div key={t.label} className="space-y-1.5 bg-background p-4">
+                  <dt className="text-xs tracking-wide text-faint uppercase">{t.label}</dt>
+                  <dd className="font-mono text-lg font-medium tabular-nums">{t.value}</dd>
+                  {t.level && (
+                    <div className="relative h-1 bg-muted" aria-hidden="true">
+                      <div className="absolute inset-y-0 left-0 bg-muted-foreground/40" style={{ width: `${t.level[0]}%` }} />
+                      <div className="absolute inset-y-0 left-0 bg-chart-accent" style={{ width: `${t.level[1]}%` }} />
+                    </div>
+                  )}
+                  {t.note && <p className="text-xs text-muted-foreground">{t.note}</p>}
+                </div>
+              ))}
+            </dl>
+          )}
         </section>
         {trip.stops > 0 && (
           <section className="space-y-4">
