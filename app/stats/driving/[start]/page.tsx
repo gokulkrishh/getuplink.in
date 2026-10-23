@@ -29,7 +29,7 @@ async function loadDetail(start: number, leg: boolean): Promise<DriveDetail | nu
 // the route on a map with its start, stops and end, a timeline of legs and stops, then the battery and
 // speed across the whole trip.
 function Drive({ detail }: { detail: DriveDetail }) {
-  const { trip, battery, speed, rangeUsedKm, topKmh, outsideC, route, pins } = detail;
+  const { trip, battery, speed, rangeUsedKm, topKmh, outsideC, route, pins, accel } = detail;
   const drivingMs = trip.legs.reduce((sum, d) => sum + (d.end - d.start), 0);
   const stoppedMs = trip.end - trip.start - drivingMs;
   const tiles: { label: string; value: string; note?: string; level?: [number, number] }[] = [
@@ -99,18 +99,36 @@ function Drive({ detail }: { detail: DriveDetail }) {
             <DriveTrace points={speed} from={trip.start} to={trip.end} unit="km/h" label="Speed" />
           </section>
         )}
+        {accel.length >= 2 && (
+          <section className="space-y-4">
+            <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Acceleration</h2>
+            <AccelSummary points={accel} />
+            <DriveTrace points={accel} from={trip.start} to={trip.end} unit="m/s²" label="Acceleration" signed />
+          </section>
+        )}
         {battery.length >= 2 && (
           <section className="space-y-4">
             <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Battery</h2>
             <DriveTrace points={battery} from={trip.start} to={traceEnd} unit="%" label="Battery level" max={100} />
           </section>
         )}
-        {(topKmh === null || outsideC === null) && (
-          <p className="text-xs text-faint">Speed and outside temperature show here once your car streams them.</p>
+        {(topKmh === null || outsideC === null || accel.length < 2) && (
+          <p className="text-xs text-faint">Speed, acceleration and outside temperature show here for drives after your car starts streaming them.</p>
         )}
       </div>
     </>
   );
+}
+
+// The strongest push and the hardest stop in the drive, with when they happened.
+function AccelSummary({ points }: { points: { t: number; v: number }[] }) {
+  const up = points.reduce((a, p) => (p.v > a.v ? p : a));
+  const down = points.reduce((a, p) => (p.v < a.v ? p : a));
+  const parts = [
+    up.v > 0 && `Strongest acceleration ${oneDecimal.format(up.v)} m/s² at ${formatClock(up.t)}`,
+    down.v < 0 && `hardest braking ${oneDecimal.format(-down.v)} m/s² at ${formatClock(down.t)}`,
+  ].filter(Boolean);
+  return parts.length ? <p className="text-sm text-muted-foreground tabular-nums">{parts.join("; ")}.</p> : null;
 }
 
 async function DriveLoader({ params, searchParams }: Pick<PageProps<"/stats/driving/[start]">, "params" | "searchParams">) {

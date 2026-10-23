@@ -22,6 +22,7 @@ export type DriveDetail = {
   rangeUsedKm: number | null;
   topKmh: number | null;
   outsideC: number | null; // median while driving
+  accel: TracePoint[]; // m/s², forward positive, braking negative, while moving
   route: MapPoint[]; // where the car was, while each leg was under way
   pins: MapPin[]; // the start, each stop and the end
 };
@@ -50,7 +51,7 @@ export async function loadDriveDetail(start: number, now: number, leg = false): 
   // A little either side, so the values in force at the start and end are there.
   const from = new Date(drive.start - 30 * MIN).toISOString();
   const to = new Date(drive.end + 10 * MIN).toISOString();
-  const byField = (await loadReadingsByField(vin, ["BatteryLevel", "RatedRange", "VehicleSpeed", "OutsideTemp", "Location"], from, to)) ?? {};
+  const byField = (await loadReadingsByField(vin, ["BatteryLevel", "RatedRange", "VehicleSpeed", "OutsideTemp", "Location", "LongitudinalAcceleration"], from, to)) ?? {};
   const read = (field: string) => [...(byField[field] ?? [])].sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
 
   const range = points(read("RatedRange"), drive.start - 30 * MIN, drive.end + 10 * MIN);
@@ -66,9 +67,12 @@ export async function loadDriveDetail(start: number, now: number, leg = false): 
   const battery = [...(startLevel === null ? [] : [{ t: drive.start, v: startLevel }]), ...allBattery.filter((p) => p.t > drive.start && p.t <= drive.end + 5 * MIN)];
 
   const { route, pins } = tripRoute(trip, read("Location"));
+  // LongitudinalAcceleration in m/s² as the car reports it: positive speeding up, negative braking.
+  const accel = points(read("LongitudinalAcceleration"), drive.start, drive.end).filter((p) => moving(p.t));
 
   return {
     trip,
+    accel,
     route,
     pins,
     battery,

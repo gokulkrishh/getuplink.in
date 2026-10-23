@@ -101,10 +101,13 @@ const set = (names, interval_seconds, extra = {}) => {
 set(ALL_FIELDS, 60);
 // Where the car is, every 10 s while it moves, for trip routes and stops.
 set(["Location", "GpsHeading", "GpsAccuracyMeters"], 10);
-// Speed every 10 s, only when it moves by 1.
-set(["VehicleSpeed"], 10, { minimum_delta: 1 });
-// Driving dynamics: drive units, pedals, acceleration, pack current and voltage. Every 30 s.
-set(ALL_FIELDS.filter((n) => /^Di(Torque|AxleSpeed|MotorCurrent|VBat|SlaveTorque)|Pedal|Acceleration|^Pack(Current|Voltage)$|^GradeEstimate/.test(n)), 30);
+// Driving dynamics: drive units, pack current and voltage. Every 30 s.
+set(ALL_FIELDS.filter((n) => /^Di(Torque|AxleSpeed|MotorCurrent|VBat|SlaveTorque)|^Pack(Current|Voltage)$|^GradeEstimate/.test(n)), 30);
+// Speed, acceleration and pedals every second while driving, for each drive's speed and acceleration
+// graphs. Nothing changes while parked, so this costs nothing then.
+set(["VehicleSpeed"], 1, { minimum_delta: 1 });
+set(["LongitudinalAcceleration", "LateralAcceleration"], 1);
+set(["PedalPosition", "BrakePedal", "BrakePedalPos"], 1);
 // Temperatures, every 5 min and only when they move by a degree.
 set(ALL_FIELDS.filter((n) => /Temp|Heatsink|^DiInverter/.test(n) && !/Request|Limit|Unit/.test(n)), 300, { minimum_delta: 1 });
 // Battery and range, every 5 min.

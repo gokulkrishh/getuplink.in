@@ -16,6 +16,7 @@ export function DriveTrace({
   unit,
   label,
   max: fixedMax,
+  signed = false,
 }: {
   points: { t: number; v: number }[];
   from: number;
@@ -23,12 +24,16 @@ export function DriveTrace({
   unit: string;
   label: string;
   max?: number;
+  // Values either side of zero (acceleration and braking): the axis is centred on a zero line.
+  signed?: boolean;
 }) {
   const [active, setActive] = useState<number | null>(null);
   if (points.length < 2 || to <= from) return null;
-  const max = fixedMax ?? Math.max(1, ...points.map((p) => p.v)) * 1.1;
+  const reach = Math.max(1, ...points.map((p) => Math.abs(p.v))) * 1.1;
+  const max = fixedMax ?? (signed ? reach : Math.max(1, ...points.map((p) => p.v)) * 1.1);
+  const min = signed ? -max : 0;
   const x = (t: number) => PAD.left + ((t - from) / (to - from)) * (W - PAD.left - PAD.right);
-  const y = (v: number) => PAD.top + (1 - v / max) * (H - PAD.top - PAD.bottom);
+  const y = (v: number) => PAD.top + ((max - v) / (max - min)) * (H - PAD.top - PAD.bottom);
   const path = points.map((p, k) => `${k ? "L" : "M"}${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
   const shown = active === null ? null : points[active];
   const pick = (clientX: number, rect: DOMRect) => {
@@ -37,7 +42,7 @@ export function DriveTrace({
     points.forEach((p, k) => Math.abs(p.t - t) < Math.abs(points[best].t - t) && (best = k));
     setActive(best);
   };
-  const ticks = [0, max / 2, max];
+  const ticks = signed ? [min, 0, max] : [0, max / 2, max];
   const fmt = (v: number) => (Math.round(v * 10) / 10).toString();
 
   return (
@@ -55,7 +60,7 @@ export function DriveTrace({
           <g key={v}>
             <line x1={PAD.left} x2={W - PAD.right} y1={y(v)} y2={y(v)} className="stroke-border" strokeDasharray="3 3" />
             <text x={PAD.left - 6} y={y(v) + 4} textAnchor="end" className="fill-faint font-mono text-[11px]">
-              {Math.round(v)}
+              {Math.abs(max) < 10 ? Math.round(v * 10) / 10 : Math.round(v)}
             </text>
           </g>
         ))}
