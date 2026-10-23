@@ -3,7 +3,7 @@ import { DEMO } from "@/lib/demo";
 import { isStateCode, mostCommonState, siteState, type StateCode } from "@/lib/india-states";
 import { demoFleet } from "./demo";
 import { db } from "./supabase";
-import { hasScope, LOCATION_REQUESTED, LOCATION_SCOPE } from "./tesla";
+import { hasScope, LOCATION_SCOPE } from "./tesla";
 
 const PAGE = 1000; // PostgREST's default row cap per request
 // Before the home_state migration (42703) or without the charging history table (42P01, PGRST205), a
@@ -66,5 +66,5 @@ export async function ownHomeState(): Promise<OwnHomeState> {
   if (latest.error) throw new Error(latest.error.message);
   const own = cars.find((c) => c.car === latest.data?.id);
   // Ask the owner to sign in again only once sign-in actually requests the scope.
-  return { state: own?.state ?? null, source: own?.source ?? null, locationAllowed, askLocation: LOCATION_REQUESTED && !locationAllowed };
+  return { state: own?.state ?? null, source: own?.source ?? null, locationAllowed, askLocation: !locationAllowed };
 }

@@ -10,19 +10,11 @@ import { db } from "./supabase";
 
 export const AUTHORIZE_URL = "https://auth.tesla.com/oauth2/v3/authorize";
 export const TOKEN_URL = "https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token";
-// vehicle_charging_cmds is for Supercharger history and vehicle_location for the car's home state; both must
-// be enabled in the Tesla developer app. A token from before a scope was added lacks it until the next sign-in.
-// Location is asked for only with TESLA_LOCATION_SCOPE=1, so deploying before the scope is enabled in the
-// developer app can't break sign-in.
+// A token from before a scope was added lacks it until the next sign-in.
+// The owner keeps everything Tesla shares, so sign-in asks for every read scope enabled in the developer
+// app: profile, vehicle data, location and charging. Commands and energy products stay off.
 export const LOCATION_SCOPE = "vehicle_location";
-export const LOCATION_REQUESTED = process.env.TESLA_LOCATION_SCOPE === "1";
-export const SCOPES = [
-  "openid",
-  "offline_access",
-  "vehicle_device_data",
-  "vehicle_charging_cmds",
-  ...(LOCATION_REQUESTED ? [LOCATION_SCOPE] : []),
-].join(" ");
+export const SCOPES = ["openid", "offline_access", "user_data", "vehicle_device_data", LOCATION_SCOPE, "vehicle_charging_cmds"].join(" ");
 
 // Refresh a little early so a token never expires mid-poll.
 const REFRESH_MARGIN_MS = 5 * 60 * 1000;
