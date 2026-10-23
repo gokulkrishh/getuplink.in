@@ -2,7 +2,7 @@
 // The server runs with the `logger` dispatcher, which prints one JSON log line per record to
 // stdout/stderr:
 //   {"msg":"record_payload","vin":"...","data":{"Vin":"...","CreatedAt":"2026-...Z","IsResend":false,"Soc":71.2,...}, ...}
-// We keep only record_payload lines, only allow-listed fields (never location), batch them and
+// We keep only record_payload lines, every field the car sends (location included), batch them and
 // POST to PostgREST. Logs carry counts only, VINs as last 4 characters.
 
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -19,42 +19,10 @@ const SHUTDOWN_CHILD_MS = 3_000;
 const SHUTDOWN_FLUSH_MS = 8_000;
 const HEARTBEAT_MS = 10 * 60_000;
 
-// Must match the fields pushed by scripts/telemetry-config.mjs. Anything else is dropped.
-const ALLOWED_FIELDS = new Set([
-  "DetailedChargeState",
-  "FastChargerPresent",
-  "FastChargerType",
-  "ACChargingPower",
-  "DCChargingPower",
-  "ACChargingEnergyIn",
-  "DCChargingEnergyIn",
-  "ChargeLimitSoc",
-  "Soc",
-  "BatteryLevel",
-  "RatedRange",
-  "EnergyRemaining",
-  "Odometer",
-  "Gear",
-  "SelfDrivingMilesSinceReset",
-  "Version",
-  "SoftwareUpdateVersion",
-  "SoftwareUpdateDownloadPercentComplete",
-  "SoftwareUpdateInstallationPercentComplete",
-  "SoftwareUpdateExpectedDurationMinutes",
-  "SoftwareUpdateScheduledStartTime",
-  "LifetimeEnergyUsed",
-  "LifetimeEnergyGainedRegen",
-  "TimeToFullCharge",
-  "EstimatedHoursToChargeTermination",
-  "ChargerVoltage",
-  "ChargeAmps",
-  "ChargerPhases",
-  "ChargingCableType",
-  "ModuleTempMax",
-  "ModuleTempMin",
-  "VehicleSpeed",
-  "OutsideTemp",
-]);
+// The car sends only the fields scripts/telemetry-config.mjs asked for, which is all of them (the owner
+// keeps everything, location included). These keys ride along on every record and aren't readings.
+const RECORD_KEYS = new Set(["Vin", "CreatedAt", "IsResend"]);
+const isField = (key: string) => !RECORD_KEYS.has(key) && !/^(Semitruck|Experimental_|Deprecated_)/.test(key);
 
 type Row = { vin: string; created_at: string; field: string; value: unknown };
 
@@ -150,7 +118,7 @@ function handleLine(line: string) {
   }
   vinsSeen.add(tail4(vin));
   for (const [field, value] of Object.entries(data)) {
-    if (!ALLOWED_FIELDS.has(field)) continue;
+    if (!isField(field)) continue;
     if (value === null || value === undefined || value === "<invalid>") continue;
     buffer.push({ vin, created_at: createdAt, field, value: clean(value) });
     acceptedRows++;

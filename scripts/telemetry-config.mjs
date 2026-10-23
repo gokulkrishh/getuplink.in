@@ -33,30 +33,87 @@ const PORT = 443;
 const FLEET_BASE = (process.env.TESLA_FLEET_API_BASE_URL || "https://fleet-api.prd.na.vn.cloud.tesla.com").replace(/\/$/, "");
 const PROXY = (process.env.TESLA_PROXY_URL || "https://localhost:4443").replace(/\/$/, "");
 
-// Field names verified against protos/vehicle_data.proto (teslamotors/fleet-telemetry). No location.
+// Every field in protos/vehicle_data.proto (teslamotors/fleet-telemetry) that a car can send: the owner
+// asked Uplink to keep all of it, location included. Left out: Semitruck*, Experimental_* and
+// Deprecated_* (not this car, or not real fields). A field the car doesn't have is never sent.
+const ALL_FIELDS = [
+  "DriveRail", "ChargeState", "BmsFullchargecomplete", "VehicleSpeed", "Odometer", "PackVoltage",
+  "PackCurrent", "Soc", "DCDCEnable", "Gear", "IsolationResistance", "PedalPosition", "BrakePedal",
+  "DiStateR", "DiHeatsinkTR", "DiAxleSpeedR", "DiTorquemotor", "DiStatorTempR", "DiVBatR",
+  "DiMotorCurrentR", "Location", "GpsState", "GpsHeading", "NumBrickVoltageMax", "BrickVoltageMax",
+  "NumBrickVoltageMin", "BrickVoltageMin", "NumModuleTempMax", "ModuleTempMax", "NumModuleTempMin",
+  "ModuleTempMin", "RatedRange", "Hvil", "DCChargingEnergyIn", "DCChargingPower", "ACChargingEnergyIn",
+  "ACChargingPower", "ChargeLimitSoc", "FastChargerPresent", "EstBatteryRange", "IdealBatteryRange",
+  "BatteryLevel", "TimeToFullCharge", "ScheduledChargingStartTime", "ScheduledChargingPending",
+  "ScheduledDepartureTime", "PreconditioningEnabled", "ScheduledChargingMode", "ChargeAmps",
+  "ChargeEnableRequest", "ChargerPhases", "ChargePortColdWeatherMode", "ChargeCurrentRequest",
+  "ChargeCurrentRequestMax", "BatteryHeaterOn", "NotEnoughPowerToHeat", "SuperchargerSessionTripPlanner",
+  "DoorState", "Locked", "FdWindow", "FpWindow", "RdWindow", "RpWindow", "VehicleName", "SentryMode",
+  "SpeedLimitMode", "CurrentLimitMph", "Version", "TpmsPressureFl", "TpmsPressureFr", "TpmsPressureRl",
+  "TpmsPressureRr", "TpmsLastSeenPressureTimeFl", "TpmsLastSeenPressureTimeFr",
+  "TpmsLastSeenPressureTimeRl", "TpmsLastSeenPressureTimeRr", "InsideTemp", "OutsideTemp", "SeatHeaterLeft",
+  "SeatHeaterRight", "SeatHeaterRearLeft", "SeatHeaterRearRight", "SeatHeaterRearCenter",
+  "AutoSeatClimateLeft", "AutoSeatClimateRight", "DriverSeatBelt", "PassengerSeatBelt",
+  "DriverSeatOccupied", "LateralAcceleration", "LongitudinalAcceleration", "CruiseSetSpeed",
+  "LifetimeEnergyUsed", "LifetimeEnergyUsedDrive", "BrakePedalPos", "RouteLastUpdated", "RouteLine",
+  "MilesToArrival", "MinutesToArrival", "OriginLocation", "DestinationLocation", "CarType", "Trim",
+  "ExteriorColor", "RoofColor", "ChargePort", "ChargePortLatch", "GuestModeEnabled", "PinToDriveEnabled",
+  "PairedPhoneKeyAndKeyFobQty", "CruiseFollowDistance", "AutomaticBlindSpotCamera",
+  "BlindSpotCollisionWarningChime", "SpeedLimitWarning", "ForwardCollisionWarning",
+  "LaneDepartureAvoidance", "EmergencyLaneDepartureAvoidance", "AutomaticEmergencyBrakingOff",
+  "LifetimeEnergyGainedRegen", "DiStateF", "DiStateREL", "DiStateRER", "DiHeatsinkTF", "DiHeatsinkTREL",
+  "DiHeatsinkTRER", "DiAxleSpeedF", "DiAxleSpeedREL", "DiAxleSpeedRER", "DiSlaveTorqueCmd",
+  "DiTorqueActualR", "DiTorqueActualF", "DiTorqueActualREL", "DiTorqueActualRER", "DiStatorTempF",
+  "DiStatorTempREL", "DiStatorTempRER", "DiVBatF", "DiVBatREL", "DiVBatRER", "DiMotorCurrentF",
+  "DiMotorCurrentREL", "DiMotorCurrentRER", "EnergyRemaining", "ServiceMode", "BMSState",
+  "GuestModeMobileAccessState", "DestinationName", "DiInverterTR", "DiInverterTF", "DiInverterTREL",
+  "DiInverterTRER", "DetailedChargeState", "CabinOverheatProtectionMode",
+  "CabinOverheatProtectionTemperatureLimit", "CenterDisplay", "ChargePortDoorOpen", "ChargerVoltage",
+  "ChargingCableType", "ClimateKeeperMode", "DefrostForPreconditioning", "DefrostMode", "EfficiencyPackage",
+  "EstimatedHoursToChargeTermination", "EuropeVehicle", "ExpectedEnergyPercentAtTripArrival",
+  "FastChargerType", "HomelinkDeviceCount", "HomelinkNearby", "HvacACEnabled", "HvacAutoMode",
+  "HvacFanSpeed", "HvacFanStatus", "HvacLeftTemperatureRequest", "HvacPower", "HvacRightTemperatureRequest",
+  "HvacSteeringWheelHeatAuto", "HvacSteeringWheelHeatLevel", "OffroadLightbarPresent",
+  "PowershareHoursLeft", "PowershareInstantaneousPowerKW", "PowershareStatus", "PowershareStopReason",
+  "PowershareType", "RearDisplayHvacEnabled", "RearSeatHeaters", "RemoteStartEnabled", "RightHandDrive",
+  "RouteTrafficMinutesDelay", "SoftwareUpdateDownloadPercentComplete",
+  "SoftwareUpdateExpectedDurationMinutes", "SoftwareUpdateInstallationPercentComplete",
+  "SoftwareUpdateScheduledStartTime", "SoftwareUpdateVersion", "TonneauOpenPercent", "TonneauPosition",
+  "TonneauTentMode", "TpmsHardWarnings", "TpmsSoftWarnings", "ValetModeEnabled", "WheelType",
+  "WiperHeatEnabled", "LocatedAtHome", "LocatedAtWork", "LocatedAtFavorite", "SettingDistanceUnit",
+  "SettingTemperatureUnit", "Setting24HourTime", "SettingTirePressureUnit", "SettingChargeUnit",
+  "ClimateSeatCoolingFrontLeft", "ClimateSeatCoolingFrontRight", "LightsHazardsActive", "LightsTurnSignal",
+  "LightsHighBeams", "MediaPlaybackStatus", "MediaPlaybackSource", "MediaAudioVolume",
+  "MediaNowPlayingDuration", "MediaNowPlayingElapsed", "MediaNowPlayingArtist", "MediaNowPlayingTitle",
+  "MediaNowPlayingAlbum", "MediaNowPlayingStation", "MediaAudioVolumeIncrement", "MediaAudioVolumeMax",
+  "SunroofInstalled", "SeatVentEnabled", "RearDefrostEnabled", "ChargeRateMilePerHour", "MilesSinceReset",
+  "SelfDrivingMilesSinceReset", "GpsAccuracyMeters", "LifetimeEnergyChargedKwh", "BrickSocMinPercent",
+  "NominalFullPackEnergyKwh", "GradeEstimatePercent", "MaxSpeedToReachDestinationMph",
+  "SoftwareUpdateAvailable", "SoftwareUpdateInProgress", "RemoteStartActive", "Cabin12vPortKeepOn",
+  "Cabin48vPortKeepOn"
+];
+
 const fields = {};
 const set = (names, interval_seconds, extra = {}) => {
   for (const n of names) fields[n] = { interval_seconds, ...extra };
 };
-set(["DetailedChargeState", "FastChargerPresent", "FastChargerType", "ACChargingPower", "DCChargingPower", "ACChargingEnergyIn", "DCChargingEnergyIn", "ChargeLimitSoc"], 60);
-set(["Soc", "BatteryLevel", "RatedRange", "EnergyRemaining"], 300);
-set(["Odometer", "Gear"], 300);
-// Tesla: SelfDrivingMilesSinceReset needs minimum_delta explicitly set to >= 1 (HW4, fw 2025.44.25.5+).
-set(["SelfDrivingMilesSinceReset"], 3600, { minimum_delta: 1 });
-// Energy use (Wh/km) and regen, from the car's lifetime counters.
-set(["LifetimeEnergyUsed", "LifetimeEnergyGainedRegen"], 300);
-// Time left to finish, the charger's voltage, current and phases, and the cable (Wall Connector check).
-set(["TimeToFullCharge", "EstimatedHoursToChargeTermination", "ChargerVoltage", "ChargeAmps", "ChargerPhases", "ChargingCableType"], 60);
-// Speed while driving (km/h, for top and average speed per drive) and the outside temperature (for
-// energy use against temperature). Speed every 10 s, only when it moves by 1; temperature by a degree.
+// Everything else: sent when it changes, at most once a minute (states, settings, media, navigation).
+set(ALL_FIELDS, 60);
+// Where the car is, every 10 s while it moves, for trip routes and stops.
+set(["Location", "GpsHeading", "GpsAccuracyMeters"], 10);
+// Speed every 10 s, only when it moves by 1.
 set(["VehicleSpeed"], 10, { minimum_delta: 1 });
-set(["OutsideTemp"], 300, { minimum_delta: 1 });
-// Battery temperature, only when it moves by a degree or more.
-set(["ModuleTempMax", "ModuleTempMin"], 300, { minimum_delta: 1 });
-set(
-  ["Version", "SoftwareUpdateVersion", "SoftwareUpdateDownloadPercentComplete", "SoftwareUpdateInstallationPercentComplete", "SoftwareUpdateExpectedDurationMinutes", "SoftwareUpdateScheduledStartTime"],
-  60,
-);
+// Driving dynamics: drive units, pedals, acceleration, pack current and voltage. Every 30 s.
+set(ALL_FIELDS.filter((n) => /^Di(Torque|AxleSpeed|MotorCurrent|VBat|SlaveTorque)|Pedal|Acceleration|^Pack(Current|Voltage)$|^GradeEstimate/.test(n)), 30);
+// Temperatures, every 5 min and only when they move by a degree.
+set(ALL_FIELDS.filter((n) => /Temp|Heatsink|^DiInverter/.test(n) && !/Request|Limit|Unit/.test(n)), 300, { minimum_delta: 1 });
+// Battery and range, every 5 min.
+set(["Soc", "BatteryLevel", "RatedRange", "EstBatteryRange", "IdealBatteryRange", "EnergyRemaining", "Odometer", "Gear"], 300);
+set(["LifetimeEnergyUsed", "LifetimeEnergyGainedRegen", "LifetimeEnergyUsedDrive", "LifetimeEnergyChargedKwh", "NominalFullPackEnergyKwh"], 300);
+// Tesla: SelfDrivingMilesSinceReset needs minimum_delta explicitly set to >= 1 (HW4, fw 2025.44.25.5+).
+set(["SelfDrivingMilesSinceReset", "MilesSinceReset"], 3600, { minimum_delta: 1 });
+// Brick voltages move constantly by tiny amounts: every 5 min.
+set(ALL_FIELDS.filter((n) => /Brick/.test(n)), 300);
 
 function die(msg) {
   console.error(msg);
