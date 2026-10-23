@@ -47,6 +47,10 @@ set(["SelfDrivingMilesSinceReset"], 3600, { minimum_delta: 1 });
 set(["LifetimeEnergyUsed", "LifetimeEnergyGainedRegen"], 300);
 // Time left to finish, the charger's voltage, current and phases, and the cable (Wall Connector check).
 set(["TimeToFullCharge", "EstimatedHoursToChargeTermination", "ChargerVoltage", "ChargeAmps", "ChargerPhases", "ChargingCableType"], 60);
+// Speed while driving (km/h, for top and average speed per drive) and the outside temperature (for
+// energy use against temperature). Speed every 10 s, only when it moves by 1; temperature by a degree.
+set(["VehicleSpeed"], 10, { minimum_delta: 1 });
+set(["OutsideTemp"], 300, { minimum_delta: 1 });
 // Battery temperature, only when it moves by a degree or more.
 set(["ModuleTempMax", "ModuleTempMin"], 300, { minimum_delta: 1 });
 set(

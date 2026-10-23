@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ShowMore } from "@/components/show-more";
 import type { Drive } from "@/lib/drives";
 import { formatClock, formatDayLabel, formatDuration, formatKm, formatKwh } from "@/lib/format";
@@ -19,12 +20,14 @@ export function DriveRow({ drive, serial, now }: { drive: Drive; serial: number;
   const levels =
     drive.startLevel !== null && drive.endLevel !== null ? `${Math.round(drive.startLevel)}% to ${Math.round(drive.endLevel)}%` : null;
   return (
-    <li className="grid grid-cols-session-wide items-start gap-x-4 py-4 text-sm">
+    <li className="relative grid grid-cols-session-wide items-start gap-x-4 py-4 text-sm">
       <p className="tabular-nums">{formatDayLabel(drive.start, now)}</p>
       <div className="min-w-0 space-y-1">
         <p className="truncate font-medium tabular-nums">
           <span className="mr-2 font-mono text-xs font-normal text-faint">#{serial}</span>
-          {formatClock(drive.start)} to {formatClock(drive.end)}
+          <Link href={`/stats/driving/${drive.start}`} className="after:absolute after:inset-0 hover:underline hover:underline-offset-4">
+            {formatClock(drive.start)} to {formatClock(drive.end)}
+          </Link>
         </p>
         <p className="truncate text-xs text-muted-foreground tabular-nums">
           {formatKm(drive.km)} · {formatDuration((drive.end - drive.start) / 1000)}

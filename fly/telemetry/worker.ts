@@ -52,6 +52,8 @@ const ALLOWED_FIELDS = new Set([
   "ChargingCableType",
   "ModuleTempMax",
   "ModuleTempMin",
+  "VehicleSpeed",
+  "OutsideTemp",
 ]);
 
 type Row = { vin: string; created_at: string; field: string; value: unknown };
