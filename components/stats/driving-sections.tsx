@@ -101,6 +101,7 @@ const oneDecimal = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 export function DriveStatsSection({ stats }: { stats: DriveStats | null }) {
   if (!stats) return null;
   const rows: [string, string][] = [
+    ["Trips", compactNumber.format(stats.trips)],
     ["Drives", compactNumber.format(stats.drives)],
     ["Distance", `${compactNumber.format(Math.round(stats.km))} km`],
     ["Typical drive", `${oneDecimal.format(stats.medianKm)} km`],

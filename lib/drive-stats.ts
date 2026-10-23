@@ -1,11 +1,12 @@
 import { DRIVE_DAYS, type Drive } from "@/lib/drives";
+import { groupTrips } from "@/lib/trips";
 import type { DrivingFigure, DrivingFigures } from "@/lib/driving-figures";
 import { inSpan, type Period, periodSpan, previousSpan, slotsFor, type Span } from "@/lib/periods";
 import { median } from "@/lib/telemetry-derive";
 
 // Drive stats after TeslaMate's dashboard, from the drives Uplink rebuilt (the last 90 days). Counts and
 // medians only: nothing is projected forward.
-export type DriveStats = { drives: number; km: number; medianKm: number; longestKm: number; hours: number; kmPerDay: number; days: number };
+export type DriveStats = { trips: number; drives: number; km: number; medianKm: number; longestKm: number; hours: number; kmPerDay: number; days: number };
 
 const DAY = 86_400_000;
 
@@ -15,6 +16,7 @@ export function driveStats(drives: Drive[], windowFrom: number, since: number | 
   const km = drives.reduce((sum, d) => sum + d.km, 0);
   const days = Math.max(1, (now - Math.max(windowFrom, since ?? windowFrom)) / DAY);
   return {
+    trips: groupTrips(drives).length,
     drives: drives.length,
     km,
     medianKm: median(drives.map((d) => d.km)),

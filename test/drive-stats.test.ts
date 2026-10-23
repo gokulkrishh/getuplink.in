@@ -18,6 +18,7 @@ describe("driveStats", () => {
   test("counts, median, longest, time and a day's distance since tracking began", () => {
     const stats = driveStats([drive(4, 15, 1), drive(12, 30, 3), drive(30, 45, 5)], now - 90 * DAY, now - 10 * DAY, now)!;
     expect(stats.drives).toBe(3);
+    expect(stats.trips).toBe(3);
     expect(stats.km).toBe(46);
     expect(stats.medianKm).toBe(12);
     expect(stats.longestKm).toBe(30);

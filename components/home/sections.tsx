@@ -3,10 +3,11 @@ import { hasCosts, hasStationNames, type Listed, OsmCredit, SessionHeader, Sessi
 import { Bars } from "@/components/stats/bars";
 import { ChargeLevelChart } from "@/components/stats/charge-level";
 import { kw } from "@/components/stats/parked-drain";
-import { DriveHeader, DriveRow } from "@/components/stats/drive-list";
+import { DriveHeader, TripRow } from "@/components/stats/drive-list";
 import type { View } from "@/components/stats/periods";
 import { eachPeriod } from "@/components/stats/stats-frame";
 import type { Drive, DrainSummary, ParkedNow } from "@/lib/drives";
+import { groupTrips } from "@/lib/trips";
 import { spendBySlot } from "@/lib/charging-figures";
 import type { ChargeLevel } from "@/lib/charge-level";
 import type { DrivingFigures } from "@/lib/driving-figures";
@@ -75,18 +76,19 @@ export function ChargingSection({ sessions, listed, now }: { sessions: ChargingS
 // Distance per bar, then the newest drives.
 export function DrivingSection({ figures, drives, now }: { figures: DrivingFigures; drives: Drive[]; now: number }) {
   if (!figures.periods.all.current.km && drives.length === 0) return null;
+  const trips = groupTrips(drives);
   const bars = (period: Period) =>
     slotsFor(period, now).map((slot, k) => {
       const value = figures.periods[period].bars[k].km ?? 0;
       return { key: String(slot.id), label: slot.label, value, display: number.format(value), isCurrent: slot.isCurrent };
     });
   return (
-    <Section title="Driving" view="driving" more="All drives">
+    <Section title="Driving" view="driving" more="All trips">
       {eachPeriod((p) => <Bars bars={bars(p)} ariaLabel={`Distance per ${SLOT_NAMES[p]} in km`} unit="km" />, { steady: true })}
       {drives.length > 0 && (
         <Rows header={<DriveHeader />}>
-          {drives.slice(0, ROWS).map((d, i) => (
-            <DriveRow key={d.start} drive={d} serial={drives.length - i} now={now} />
+          {trips.slice(0, ROWS).map((t, i) => (
+            <TripRow key={t.start} trip={t} serial={trips.length - i} now={now} />
           ))}
         </Rows>
       )}

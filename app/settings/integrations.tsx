@@ -66,10 +66,20 @@ export function McpConnector({ status, now }: { status: ConnectorTokenStatus; no
       control={<p className="text-sm text-muted-foreground">{tokenSummary(status, now)}</p>}
     >
       <div className="mt-4 space-y-4">
+        <ol className="list-decimal space-y-1.5 pl-5 text-sm text-muted-foreground">
+          <li>Create a token below. It&apos;s shown once, so keep this page open until it&apos;s saved in your AI.</li>
+          <li>In your AI, add a custom MCP connector (in Grok: Connectors → New connector → Custom) with the URL below.</li>
+          <li>
+            For its authentication, choose a header or API key, and enter the token as <code className="font-mono text-xs">Authorization: Bearer &lt;token&gt;</code>. If it asks
+            only for an API key, paste the token alone.
+          </li>
+        </ol>
         <Copyable label="Connector URL" value={CONNECTOR_URL} />
         {token && (
-          <div className="space-y-2">
-            <Copyable label="Token, sent as Authorization: Bearer. Shown once: copy it into your AI's connector settings now." value={token} />
+          <div className="space-y-3">
+            <Copyable label="Token: paste where it asks for an API key or bearer token" value={token} />
+            <Copyable label="Or the whole header, where it asks for one" value={`Authorization: Bearer ${token}`} />
+            <p className="text-sm text-muted-foreground">Shown once. Replace token makes a new one and stops the old one.</p>
           </div>
         )}
         {error && (
