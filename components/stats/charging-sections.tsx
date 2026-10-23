@@ -4,7 +4,7 @@ import { Bars } from "@/components/stats/bars";
 import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
 import { chargeEfficiency } from "@/lib/charge-sessions";
 import { type Bill, billsBySlot, billsIn } from "@/lib/charging-figures";
-import { formatKwh, formatMoney, formatMonth } from "@/lib/format";
+import { formatDuration, formatKwh, formatMoney, formatMonth } from "@/lib/format";
 import { LIST_PREVIEW } from "@/lib/list";
 import { inSpan, type Period, PERIOD_WORDS, periodSpan, SLOT_NAMES, slotsFor } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
@@ -109,6 +109,15 @@ export function EnergyAdded({
     return { key: String(slot.id), label: slot.label, total: sum, display: kwhCompact.format(sum), isCurrent: slot.isCurrent, segments: energy[k] };
   });
   const efficiency = chargeEfficiency(streamOnly.filter((s) => s.kind === "ac" && inSpan(Date.parse(s.started_at), span)));
+  // Time on the charger by kind, after TeslaMate's AC/DC duration: Superchargers from Tesla's times, the
+  // rest from the car's own sessions.
+  const charged = { ac: 0, dc: 0 };
+  for (const s of sessions) {
+    if (s.stopped_at && inSpan(Date.parse(s.started_at), span)) charged.dc += Date.parse(s.stopped_at) - Date.parse(s.started_at);
+  }
+  for (const s of streamOnly) {
+    if (s.ended_at && inSpan(Date.parse(s.started_at), span)) charged[s.kind] += Date.parse(s.ended_at) - Date.parse(s.started_at);
+  }
   return (
     <section className="space-y-8">
       <div className="space-y-2">
@@ -117,6 +126,12 @@ export function EnergyAdded({
         <p className="text-sm text-muted-foreground">{PERIOD_WORDS[period]}</p>
       </div>
       <StackedBars bars={bars} series={ENERGY_SERIES} ariaLabel={`Energy added per ${SLOT_NAMES[period]}`} />
+      {charged.ac + charged.dc > 0 && (
+        <p className="text-sm text-muted-foreground tabular-nums">
+          Time charging ·{" "}
+          {[charged.ac > 0 && `AC ${formatDuration(charged.ac / 1000)}`, charged.dc > 0 && `DC ${formatDuration(charged.dc / 1000)}`].filter(Boolean).join(" · ")}
+        </p>
+      )}
       {efficiency !== null && (
         <div className="space-y-1">
           <p className="text-sm">

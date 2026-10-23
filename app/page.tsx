@@ -15,6 +15,9 @@ import { UpdateBanner } from "@/components/updates/update-banner";
 import { matchSessions } from "@/lib/charge-sessions";
 import { firstStartedAt } from "@/lib/charging-figures";
 import { withDriveEfficiency } from "@/lib/drive-stats";
+import { DRIVE_DAYS } from "@/lib/drives";
+import { monthlyRows } from "@/lib/monthly";
+import { MonthlyTable } from "@/components/home/monthly-table";
 import { DEMO, type DemoScenario, parseScenario } from "@/lib/demo";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -60,6 +63,19 @@ function Totals({ home, now }: { home: Extract<Home, { kind: "ready" }>; now: nu
       <DrivingSection figures={figures} drives={window.driving.drives} now={now} />
       <ChargingSection sessions={home.sessions} listed={listSessions(pairs, streamOnly)} now={now} />
       <BatterySection level={window.level} drain={window.driving.drain} parkedNow={window.driving.parkedNow} now={now} />
+      <MonthlyTable
+        rows={monthlyRows(
+          window.driving.drives,
+          [
+            ...home.sessions.map((s) => ({ started_at: s.started_at, kwh: s.energy_kwh, cost: s.cost_total })),
+            ...streamOnly.flatMap((s) =>
+              s.ended_at === null ? [] : [{ started_at: s.started_at, kwh: s.energy_added_kwh, cost: home.invoices.get(s.id)?.amount ?? null }],
+            ),
+          ],
+          now - DRIVE_DAYS * 86_400_000,
+          now,
+        )}
+      />
     </div>
   );
 }

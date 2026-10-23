@@ -5,6 +5,7 @@ import { type ChargingSession, loadChargingSessions } from "./charging";
 import { type CarState, loadCarState, loadOwnerCars, type OwnerGate, type PollRun, type Vehicle } from "./dashboard";
 import { demoFirstWeekStart } from "./demo";
 import { loadDrivingFigures, loadWindowStats, type WindowStats } from "./driving";
+import { invoicesBySession } from "./receipts";
 import { loadStreamSessions, type StreamChargeSession } from "./stream-charging";
 
 export type HomeCar = CarState & { vehicle: Vehicle };
@@ -18,6 +19,8 @@ type HomeData = {
   streamSessions: StreamChargeSession[];
   // The primary car's last 90 days of streamed readings: drives, the battery trend, range and parked drain.
   window: WindowStats;
+  // Third-party invoices attached through the connector, by streamed session id.
+  invoices: Awaited<ReturnType<typeof invoicesBySession>>;
 };
 
 export type Home = OwnerGate | ({ kind: "ready" } & HomeData);
@@ -40,6 +43,7 @@ export async function loadHome(scenario: DemoScenario, now: number): Promise<Hom
       loadWindowStats(primary?.vin ?? null, now),
     ]);
     const after = (s: { started_at: string }) => demoSince === undefined || Date.parse(s.started_at) >= demoSince;
+    const invoices = await invoicesBySession(streamSessions.filter((s) => !s.supercharger).map((s) => s.id));
     return {
       kind: "ready",
       cars,
@@ -48,6 +52,7 @@ export async function loadHome(scenario: DemoScenario, now: number): Promise<Hom
       sessions: sessions.filter(after),
       streamSessions: streamSessions.filter(after),
       window: { ...window, driving: { ...window.driving, drives: window.driving.drives.filter((d) => demoSince === undefined || d.start >= demoSince) } },
+      invoices,
     };
   } catch (err) {
     if (DEMO) throw err;
