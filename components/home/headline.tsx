@@ -197,11 +197,15 @@ export function Headline({
           )}
         />
         <Cell
-          view="charging"
-          label="Spent"
-          value={money.format(spend.cost)}
-          {...delta(spend.cost, spendBefore, (n) => money.format(n), true)}
-          spark={spark("bars", spendBySlot(sessions, slots))}
+          view="driving"
+          label="Energy used"
+          value={current.kwh === null ? "—" : oneDecimalKwh.format(current.kwh)}
+          unit="kWh"
+          {...delta(current.kwh, previous?.kwh ?? null, (n) => `${oneDecimalKwh.format(n)} kWh`)}
+          spark={spark(
+            "bars",
+            bars.map((b) => b.kwh ?? 0),
+          )}
         />
         <Cell
           view="charging"
@@ -212,15 +216,11 @@ export function Headline({
           spark={spark("bars", energyBySlot(sessions, streamOnly, slots))}
         />
         <Cell
-          view="driving"
-          label="Energy used"
-          value={current.kwh === null ? "—" : oneDecimalKwh.format(current.kwh)}
-          unit="kWh"
-          {...delta(current.kwh, previous?.kwh ?? null, (n) => `${oneDecimalKwh.format(n)} kWh`)}
-          spark={spark(
-            "bars",
-            bars.map((b) => b.kwh ?? 0),
-          )}
+          view="charging"
+          label="Spent"
+          value={money.format(spend.cost)}
+          {...delta(spend.cost, spendBefore, (n) => money.format(n), true)}
+          spark={spark("bars", spendBySlot(sessions, slots))}
         />
       </div>
       {gapText && <p className="text-xs text-muted-foreground">Tracking since {gapText} · no earlier period to compare</p>}
