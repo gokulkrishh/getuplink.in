@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { type Invoice, invoiceProblem, matchInvoice, pickedSessionFits, type ReceiptSession } from "@/lib/charge-receipts";
 import { loadDrivingFigures } from "./driving";
 import { selectSessions, toStreamSession } from "./stream-charging";
+import { DEMO } from "@/lib/demo";
 import { db } from "./supabase";
 import { loadPrimaryVehicle } from "./telemetry";
 
@@ -258,6 +259,19 @@ export async function drivingSummary() {
     tracking_since: figures.since ? istIso(figures.since) : null,
     note: "week, month and year are the current calendar week, month and year in IST, so far.",
   };
+}
+
+// The invoice amount for each of these sessions that has one, for Charging stats. Never fails the page:
+// a read error (or a database without the table yet) shows as no invoices.
+export async function invoicesBySession(ids: number[]): Promise<Map<number, { amount: number; kwhBilled: number | null; network: string }>> {
+  if (DEMO || ids.length === 0) return new Map();
+  try {
+    const rows = await receiptsFor(ids);
+    return new Map([...rows].map(([id, r]) => [id, { amount: Number(r.amount_total), kwhBilled: r.kwh_billed == null ? null : Number(r.kwh_billed), network: r.network }]));
+  } catch (err) {
+    if (!/charge_receipts/.test(String(err))) console.warn("Invoices unavailable:", (err as Error).message);
+    return new Map();
+  }
 }
 
 export type SessionInvoice = { network: string; amountTotal: number; gst: number | null; kwhBilled: number | null; hasFile: boolean };

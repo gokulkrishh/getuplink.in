@@ -50,3 +50,30 @@ export function energyIn(sessions: Billed[], streamOnly: Streamed[], span: Span)
     streamOnly.filter(within(span)).reduce((sum, s) => sum + kwh(s.energy_added_kwh), 0)
   );
 }
+
+// One bill for a charge: Tesla's for a Supercharger, an attached invoice for anything else. kWh is what
+// was billed where known, else what the car added.
+export type Bill = { started_at: string; cost: number; kwh: number | null; kind: "ac" | "dc" };
+
+// Spend, energy billed and ₹/kWh by charger kind in a span, from real bills only.
+export function billsIn(bills: Bill[], span: Span) {
+  const inside = bills.filter(within(span));
+  const sum = (list: Bill[], f: (b: Bill) => number) => list.reduce((a, b) => a + f(b), 0);
+  const perKwh = (list: Bill[]) => {
+    const priced = list.filter((b) => b.kwh !== null && b.kwh > 0);
+    const kwh = sum(priced, (b) => b.kwh!);
+    return kwh > 0 ? sum(priced, (b) => b.cost) / kwh : null;
+  };
+  return {
+    cost: sum(inside, (b) => b.cost),
+    kwh: sum(inside, (b) => b.kwh ?? 0),
+    count: inside.length,
+    acPerKwh: perKwh(inside.filter((b) => b.kind === "ac")),
+    dcPerKwh: perKwh(inside.filter((b) => b.kind === "dc")),
+  };
+}
+
+// Spend per bar from real bills.
+export function billsBySlot(bills: Bill[], slots: Slot[]): number[] {
+  return sumBySlot(bills, slots, (b) => Date.parse(b.started_at), (b) => b.cost);
+}

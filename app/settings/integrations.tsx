@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { CopyButton } from "@/components/copy-button";
+import { GrokIcon } from "@/components/icons/grok";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { BOT_CHAT, BOT_NAME, BOT_ROUTINE, BOT_TEMPLATE_URL, CONNECTOR_URL } from "@/lib/bot-template";
 import { formatAgo, formatDate } from "@/lib/format";
@@ -15,7 +16,7 @@ function Copyable({ label, value }: { label: string; value: string }) {
     <div className="space-y-1.5">
       <p className="text-sm text-muted-foreground">{label}</p>
       <div className="flex items-center gap-2">
-        <code className="min-w-0 flex-1 truncate border bg-muted px-2 py-1.5 font-mono text-xs select-all">{value}</code>
+        <code className="min-w-0 flex-1 truncate border bg-muted px-2 py-1.5 font-mono text-sm select-all">{value}</code>
         <CopyButton text={value} />
       </div>
     </div>
@@ -91,31 +92,45 @@ export function McpConnector({ status, now }: { status: ConnectorTokenStatus; no
   );
 }
 
-// The Grok bot template: what to name it and the two instructions, using the connector above.
+// The Grok bot: one button that opens the shared template in Grok, then the connector token goes in as
+// its secret. The manual setup stays folded away as a fallback, and is all there is until the template
+// link is published.
 export function GrokBotTemplate() {
   return (
     <Row
-      title="Grok bot"
-      description="A Grok bot that attaches your charging invoices: from Gmail every 6 hours, and any you share with it in chat for networks that don't email them."
+      title={BOT_NAME}
+      description="A Grok bot that finds your charging invoices in Gmail every 6 hours, and takes ones you share with it in chat, and attaches them to your charges."
+      control={
+        BOT_TEMPLATE_URL ? (
+          <a href={BOT_TEMPLATE_URL} target="_blank" rel="noopener" className={buttonVariants({ variant: "outline", size: "lg" })}>
+            <GrokIcon className="size-4" />
+            Add to Grok
+          </a>
+        ) : (
+          <p className="text-sm text-muted-foreground">Template coming soon</p>
+        )
+      }
     >
-      <div className="mt-4 space-y-4">
-        {BOT_TEMPLATE_URL && (
-          <div className="flex flex-col items-end gap-1.5">
-            <a href={BOT_TEMPLATE_URL} target="_blank" rel="noopener" className={buttonVariants({ variant: "outline", size: "lg" })}>
-              Add {BOT_NAME} to Grok
-            </a>
-            <p className="text-sm text-muted-foreground">Then add the connector token as its secret. Or set it up by hand:</p>
+      <div className="mt-4 space-y-3">
+        {BOT_TEMPLATE_URL && <p className="text-sm text-muted-foreground">After adding it, paste the connector token above into the bot&apos;s Uplink connector.</p>}
+        <details className="group border">
+          <summary className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
+            Set up by hand
+            <span className="text-sm text-muted-foreground group-open:hidden">Show</span>
+            <span className="hidden text-sm text-muted-foreground group-open:inline">Hide</span>
+          </summary>
+          <div className="space-y-4 border-t px-3 py-3">
+            <ol className="list-decimal space-y-1.5 pl-5 text-sm text-muted-foreground">
+              <li>Create a Grok bot named {BOT_NAME} and connect your Gmail to it.</li>
+              <li>Add the MCP connector above to it: the URL, and the token as a secret.</li>
+              <li>Add a routine that runs every 6 hours with the first instruction below.</li>
+              <li>Give the bot the second instruction for invoices you send it in chat.</li>
+            </ol>
+            <Copyable label="Bot name" value={BOT_NAME} />
+            <Instruction title="Routine, every 6 hours" text={BOT_ROUTINE} />
+            <Instruction title="In chat" text={BOT_CHAT} />
           </div>
-        )}
-        <ol className="list-decimal space-y-1.5 pl-5 text-sm text-muted-foreground">
-          <li>Create a Grok bot named {BOT_NAME} and connect your Gmail to it.</li>
-          <li>Add the MCP connector above to it: the URL, and the token as a secret.</li>
-          <li>Add a routine that runs every 6 hours with the first instruction below.</li>
-          <li>Give the bot the second instruction for invoices you send it in chat.</li>
-        </ol>
-        <Copyable label="Bot name" value={BOT_NAME} />
-        <Instruction title="Routine, every 6 hours" text={BOT_ROUTINE} />
-        <Instruction title="In chat" text={BOT_CHAT} />
+        </details>
       </div>
     </Row>
   );

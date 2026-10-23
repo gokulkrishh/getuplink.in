@@ -1,9 +1,9 @@
-import { hasCosts, hasStationNames, type Listed, OsmCredit, rate, SessionHeader, SessionRow } from "@/components/session-row";
+import { hasCosts, hasStationNames, type Listed, OsmCredit, SessionHeader, SessionRow } from "@/components/session-row";
 import { ShowMore } from "@/components/show-more";
 import { Bars } from "@/components/stats/bars";
 import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
 import { chargeEfficiency } from "@/lib/charge-sessions";
-import { spendBySlot } from "@/lib/charging-figures";
+import { type Bill, billsBySlot, billsIn } from "@/lib/charging-figures";
 import { formatKwh, formatMoney, formatMonth } from "@/lib/format";
 import { LIST_PREVIEW } from "@/lib/list";
 import { inSpan, type Period, PERIOD_WORDS, periodSpan, SLOT_NAMES, slotsFor } from "@/lib/periods";
@@ -12,6 +12,7 @@ import type { StreamChargeSession } from "@/lib/server/stream-charging";
 
 // The Charging page's sections: spend, energy added by charger kind, and every session by month.
 
+// Tesla's billed total for a month of the session list.
 function totals(rows: ChargingSession[]) {
   return {
     cost: rows.reduce((sum, s) => sum + (s.cost_total ?? 0), 0),
@@ -21,27 +22,48 @@ function totals(rows: ChargingSession[]) {
   };
 }
 
-// Spend is Tesla's billed Supercharger amount, with the energy and sessions it covers.
-export function Summary({ sessions, now, period }: { sessions: ChargingSession[]; now: number; period: Period }) {
+// Spend from real bills only: Tesla's for Superchargers, attached invoices for other chargers. Then
+// ₹/kWh by charger kind, ₹ per 100 km driven in the same period, and how many charges had no bill, so a
+// cheap-looking month isn't mistaken for one.
+export function Summary({
+  bills,
+  unbilled,
+  km,
+  now,
+  period,
+}: {
+  bills: Bill[];
+  unbilled: { started_at: string }[];
+  km: number | null;
+  now: number;
+  period: Period;
+}) {
   const span = periodSpan(period, now);
-  const { cost, energy, count, currency } = totals(sessions.filter((s) => inSpan(Date.parse(s.started_at), span)));
-  const rateText = rate(cost, energy, currency);
+  const { cost, kwh, count, acPerKwh, dcPerKwh } = billsIn(bills, span);
+  const missing = unbilled.filter((s) => inSpan(Date.parse(s.started_at), span)).length;
   const slots = slotsFor(period, now);
-  const spend = spendBySlot(sessions, slots);
-  const compact = new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 });
+  const spend = billsBySlot(bills, slots);
+  const compact = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
   const bars = slots.map((slot, k) => ({ key: String(slot.id), label: slot.label, value: spend[k], display: compact.format(spend[k]), isCurrent: slot.isCurrent }));
+  const rates = [acPerKwh !== null && `AC ${formatMoney(acPerKwh, "INR")}/kWh`, dcPerKwh !== null && `DC ${formatMoney(dcPerKwh, "INR")}/kWh`].filter(Boolean);
   return (
     <section className="space-y-8">
       <div className="space-y-2">
         <p className="text-xs tracking-wide text-faint uppercase">Spent {PERIOD_WORDS[period]}</p>
-        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatMoney(cost, currency)}</p>
+        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatMoney(cost, "INR")}</p>
         <p className="text-sm text-muted-foreground tabular-nums">
-          {[formatKwh(energy), `${count} ${count === 1 ? "session" : "sessions"}`, rateText && `${rateText} avg`]
-            .filter(Boolean)
-            .join(" · ")}
+          {[formatKwh(kwh), `${count} ${count === 1 ? "bill" : "bills"}`, ...rates].join(" · ")}
         </p>
+        {km !== null && km >= 10 && cost > 0 && missing === 0 && (
+          <p className="text-sm text-muted-foreground tabular-nums">{formatMoney((cost / km) * 100, "INR")} per 100 km driven</p>
+        )}
+        {missing > 0 && (
+          <p className="text-xs text-faint">
+            {missing} {missing === 1 ? "charge has" : "charges have"} no bill yet (home charging, or no invoice attached), so {missing === 1 ? "it isn't" : "they aren't"} counted.
+          </p>
+        )}
       </div>
-      <Bars bars={bars} ariaLabel={`Spend per ${SLOT_NAMES[period]}`} prefix="₹" />
+      {cost > 0 && <Bars bars={bars} ariaLabel={`Spend per ${SLOT_NAMES[period]}`} prefix="₹" />}
     </section>
   );
 }
