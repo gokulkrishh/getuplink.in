@@ -8,6 +8,8 @@ const HOUR = 3_600_000;
 const SUMMARY_MS = 6 * HOUR;
 
 const oneDecimal = (value: number) => (Math.round(value * 10) / 10).toString();
+// Power in kW, like charging: parked draw is small, so three decimals ("0.017 kW").
+export const kw = (watts: number) => `${(watts / 1000).toFixed(watts < 1000 ? 3 : 1)} kW`;
 const dash = "–";
 
 type Row = ParkStats & { ongoing: boolean; atLeast: boolean };
@@ -20,7 +22,7 @@ function cells(r: Row) {
     lost: r.lostPercent !== null ? `${oneDecimal(r.lostPercent)}%` : dash,
     range: r.lostKm !== null ? `${Math.round(r.lostKm)} km` : dash,
     energy: r.kwh !== null ? `${oneDecimal(r.kwh)} kWh` : dash,
-    power: r.watts !== null ? `${Math.round(r.watts)} W` : dash,
+    power: r.watts !== null ? kw(r.watts) : dash,
     awake: formatDuration(r.awakeMs / 1000),
   };
 }
@@ -66,7 +68,7 @@ export function ParkedDrain({ drain, parked, parkedNow }: { drain: DrainSummary 
         {headline && (
           <>
             <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
-              {headline.watts !== null ? `${Math.round(headline.watts)} W` : `${oneDecimal(headline.perDay)}%`}
+              {headline.watts !== null ? kw(headline.watts) : `${oneDecimal(headline.perDay)}%`}
               <span className="ml-2 font-sans text-base font-normal tracking-normal text-muted-foreground">{headline.watts !== null ? "average while parked" : "a day"}</span>
             </p>
             <p className="text-sm text-muted-foreground tabular-nums">

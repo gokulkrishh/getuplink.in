@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { hasCosts, hasStationNames, type Listed, OsmCredit, SessionHeader, SessionRow } from "@/components/session-row";
 import { Bars } from "@/components/stats/bars";
 import { ChargeLevelChart } from "@/components/stats/charge-level";
+import { kw } from "@/components/stats/parked-drain";
 import { DriveRow } from "@/components/stats/drive-list";
 import type { View } from "@/components/stats/periods";
 import { eachPeriod } from "@/components/stats/stats-frame";
@@ -100,7 +101,7 @@ export function BatterySection({ level, drain, parkedNow, now }: { level: Charge
   if (!hasLevel && !parkedNow && !drain) return null;
   const parked = parkedNow && [
     `Parked ${parkedNow.fromFirstReading ? "at least " : ""}${formatDuration(parkedNow.hours * 3600)}`,
-    parkedNow.watts !== null && `${Math.round(parkedNow.watts)} W average`,
+    parkedNow.watts !== null && `${kw(parkedNow.watts)} average`,
     parkedNow.lostPercent !== null && `${oneDecimal.format(parkedNow.lostPercent)}% lost`,
   ].filter(Boolean).join(" · ");
   return (
