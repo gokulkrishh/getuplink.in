@@ -264,7 +264,12 @@ export async function drivingSummary() {
 // The invoice amount for each of these sessions that has one, for Charging stats. Never fails the page:
 // a read error (or a database without the table yet) shows as no invoices.
 export async function invoicesBySession(ids: number[]): Promise<Map<number, { amount: number; kwhBilled: number | null; network: string }>> {
-  if (DEMO || ids.length === 0) return new Map();
+  if (DEMO) {
+    const { demoInvoices } = await import("./demo");
+    const all = demoInvoices();
+    return new Map(ids.flatMap((id) => (all.has(id) ? [[id, all.get(id)!] as const] : [])));
+  }
+  if (ids.length === 0) return new Map();
   try {
     const rows = await receiptsFor(ids);
     return new Map([...rows].map(([id, r]) => [id, { amount: Number(r.amount_total), kwhBilled: r.kwh_billed == null ? null : Number(r.kwh_billed), network: r.network }]));
@@ -279,6 +284,11 @@ export type SessionInvoice = { network: string; amountTotal: number; gst: number
 // The invoice attached to one session, for its page. Never fails the page: a read error (or a
 // database without the table yet) shows as no invoice.
 export async function sessionInvoice(sessionId: number): Promise<SessionInvoice | null> {
+  if (DEMO) {
+    const { demoInvoices } = await import("./demo");
+    const i = demoInvoices().get(sessionId);
+    return i ? { network: i.network, amountTotal: i.amount, gst: i.gst, kwhBilled: i.kwhBilled, hasFile: false } : null;
+  }
   const { data, error } = await db().from("charge_receipts").select("network, amount_total, gst, kwh_billed, invoice_path").eq("session_id", sessionId).maybeSingle();
   if (error) {
     if (!["42P01", "PGRST205"].includes(error.code)) console.warn("Invoice unavailable:", error.message);

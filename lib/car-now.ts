@@ -32,6 +32,18 @@ export function words(value: unknown): string | null {
   return tail.replace(/([a-z])([A-Z])/g, "$1 $2");
 }
 
+// DoorState is an object of booleans, true when open: { DriverFront, DriverRear, PassengerFront,
+// PassengerRear, TrunkFront, TrunkRear }.
+const DOOR_NAMES: Record<string, string> = { TrunkFront: "front trunk", TrunkRear: "boot" };
+function doors(value: unknown): string | null {
+  if (typeof value !== "object" || value === null) return words(value);
+  const open = Object.entries(value as Record<string, unknown>).filter(([, v]) => v === true).map(([k]) => k);
+  if (open.length === 0) return "All closed";
+  const named = open.filter((k) => DOOR_NAMES[k]).map((k) => DOOR_NAMES[k]);
+  const doorsOpen = open.length - named.length;
+  return [doorsOpen && `${doorsOpen} ${doorsOpen === 1 ? "door" : "doors"} open`, ...named.map((n) => `${n} open`)].filter(Boolean).join(", ");
+}
+
 const temp = (v: unknown) => (typeof v === "number" ? `${Math.round(v * 10) / 10} °C` : null);
 const bar = (v: unknown) => (typeof v === "number" ? `${v.toFixed(1)} bar` : null);
 
@@ -46,7 +58,7 @@ export function carNow(stream: Stream): CarNow {
   const rows: [string, string | null][] = [
     ["Locked", typeof v("Locked") === "boolean" ? words(v("Locked")) : null],
     ["Sentry Mode", words(v("SentryMode"))],
-    ["Doors", words(v("DoorState"))],
+    ["Doors", doors(v("DoorState"))],
     ["Windows", ["FdWindow", "FpWindow", "RdWindow", "RpWindow"].some((f) => v(f) !== undefined) ? (windowsOpen ? `${windowsOpen} open` : "All closed") : null],
     ["Charge port door", typeof v("ChargePortDoorOpen") === "boolean" ? (v("ChargePortDoorOpen") ? "Open" : "Closed") : null],
     ["Inside", temp(v("InsideTemp"))],
@@ -63,7 +75,9 @@ export function carNow(stream: Stream): CarNow {
   ];
   const hard = v("TpmsHardWarnings");
   const soft = v("TpmsSoftWarnings");
-  const warned = (x: unknown) => (Array.isArray(x) ? x.length > 0 : x === true || (typeof x === "number" && x > 0));
+  // Warnings arrive as a TireLocation object, a boolean per tyre.
+  const warned = (x: unknown) =>
+    Array.isArray(x) ? x.length > 0 : typeof x === "object" && x !== null ? Object.values(x).some((w) => w === true) : x === true || (typeof x === "number" && x > 0);
   const times = Object.values(stream).map((r) => Date.parse(r.at));
   return {
     rows: rows.filter((r): r is [string, string] => r[1] !== null),

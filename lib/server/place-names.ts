@@ -21,7 +21,15 @@ async function lookUp(p: { lat: number; lng: number }): Promise<string | null> {
 
 export async function placeNames(points: { lat: number; lng: number }[]): Promise<Map<string, string>> {
   const names = new Map<string, string>();
-  if (DEMO || points.length === 0) return names;
+  if (points.length === 0) return names;
+  if (DEMO) {
+    const { DEMO_PLACES } = await import("./demo");
+    for (const p of points) {
+      const hit = DEMO_PLACES.find(([lat, lng]) => Math.abs(lat - p.lat) + Math.abs(lng - p.lng) < 0.01);
+      if (hit) names.set(key(p), hit[2]);
+    }
+    return names;
+  }
   const keys = [...new Set(points.map(key))];
   const { data, error } = await db().from("place_names").select("key, name").in("key", keys);
   if (error) return names;

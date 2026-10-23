@@ -16,14 +16,16 @@ describe("carNow", () => {
       SentryMode: { at, value: "SentryModeStateIdle" },
       FdWindow: { at, value: "WindowStateClosed" },
       RpWindow: { at, value: "WindowStatePartiallyOpen" },
+      DoorState: { at, value: { DriverFront: false, DriverRear: false, PassengerFront: false, PassengerRear: false, TrunkFront: false, TrunkRear: true } },
       InsideTemp: { at, value: 31.25 },
       TpmsPressureFl: { at, value: 2.85 },
       TpmsHardWarnings: { at, value: [] },
-      TpmsSoftWarnings: { at, value: true },
+      TpmsSoftWarnings: { at, value: { front_left: false, front_right: false, rear_left: true, rear_right: false } },
     });
     expect(now.rows).toEqual([
       ["Locked", "Yes"],
       ["Sentry Mode", "Idle"],
+      ["Doors", "boot open"],
       ["Windows", "1 open"],
       ["Inside", "31.3 °C"],
     ]);

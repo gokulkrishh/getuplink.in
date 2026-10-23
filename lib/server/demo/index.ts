@@ -145,6 +145,31 @@ export function demoStreamSessions(): StreamChargeSession[] {
     .reverse();
 }
 
+// Invoices for the demo's third-party DC charges, as the Grok bot would attach them: billed a little over
+// what the car added, at ₹21/kWh with 18% GST, every other one so some show "Cost not available".
+export function demoInvoices(): Map<number, { amount: number; kwhBilled: number | null; network: string; gst: number }> {
+  const out = new Map<number, { amount: number; kwhBilled: number | null; network: string; gst: number }>();
+  demoStreamSessions()
+    .filter((s) => s.kind === "dc" && !s.supercharger && s.ended_at !== null && s.energy_added_kwh)
+    .forEach((s, k) => {
+      if (k % 2 === 1) return;
+      const kwhBilled = Math.round(s.energy_added_kwh! * 1.04 * 100) / 100;
+      const amount = Math.round(kwhBilled * 21 * 1.18 * 100) / 100;
+      out.set(s.id, { amount, kwhBilled, network: s.station_name?.split(",")[0] ?? "Charging network", gst: Math.round((amount - amount / 1.18) * 100) / 100 });
+    });
+  return out;
+}
+
+// Area names for the demo's places, as Nominatim would give them.
+export const DEMO_PLACES: [lat: number, lng: number, name: string][] = [
+  [12.9352, 77.6245, "Koramangala, Bengaluru"],
+  [12.9698, 77.75, "Whitefield, Bengaluru"],
+  [12.9784, 77.6408, "Indiranagar, Bengaluru"],
+  [13.0358, 77.597, "Hebbal, Bengaluru"],
+  [12.9166, 77.6101, "BTM Layout, Bengaluru"],
+  [12.2958, 76.6394, "Mysuru"],
+];
+
 export function demoChargingSessions(): ChargingSession[] {
   return demoData().teslaSessions;
 }

@@ -7,7 +7,7 @@ export type Series = { name: string; className: string; points: { x: number; y: 
 
 const W = 600;
 const H = 180;
-const PAD = { top: 12, right: 8, bottom: 22, left: 40 };
+const PAD = { top: 12, right: 8, bottom: 22, left: 58 };
 
 // One or more lines over a shared x axis (time, battery %, odometer). Hover or tap anywhere for every
 // line's value at that x; the line under the chart says them, so touch gets the same as a mouse.

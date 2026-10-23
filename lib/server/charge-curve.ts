@@ -49,7 +49,7 @@ export async function loadChargeDetail(id: number, now: number): Promise<ChargeD
   const [byField, tesla, invoice] = await Promise.all([
     loadReadingsByField(session.vin, [powerField, "BatteryLevel", "ModuleTempMin", "ModuleTempMax"], from, to),
     loadChargingSessions(),
-    DEMO || session.supercharger ? null : sessionInvoice(session.id),
+    session.supercharger ? null : sessionInvoice(session.id),
   ]);
   const read = (field: string) => byField?.[field] ?? [];
   const twin = matchSessions(tesla, [session], now).pairs.find((p) => p.stream)?.tesla ?? null;

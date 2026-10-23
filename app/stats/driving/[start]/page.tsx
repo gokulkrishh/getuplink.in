@@ -62,7 +62,7 @@ function Drive({ detail }: { detail: DriveDetail }) {
             <p className="text-sm text-muted-foreground tabular-nums">{summary.join(" · ")}</p>
           </div>
           {tiles.length > 0 && (
-            <dl className="grid grid-cols-2 gap-px border bg-border bg-clip-padding sm:grid-cols-4">
+            <dl className={`grid grid-cols-2 gap-px border bg-border bg-clip-padding ${tiles.length % 3 === 0 ? "sm:grid-cols-3" : "sm:grid-cols-4"}`}>
               {tiles.map((t) => (
                 <div key={t.label} className="space-y-1.5 bg-background p-4">
                   <dt className="text-xs tracking-wide text-faint uppercase">{t.label}</dt>

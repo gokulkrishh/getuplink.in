@@ -5,6 +5,7 @@
 // and the Supercharger sync store. The loaders feed those into the same functions as the real path
 // (buildSessions, packEstimates, dailyDistance, ...), so the pages show what real data produces.
 import { MILES_TO_KM } from "@/lib/car";
+import { DEMO_ROUTES } from "./routes";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import { istDay as istDayName, type Status } from "@/lib/status";
 import { istDay, istDayStart, type Reading } from "@/lib/telemetry-derive";
@@ -271,6 +272,35 @@ export function generateDemo(now: number): DemoData {
   const noise = rngFor(10);
   const gauss = () => (noise() + noise() + noise() - 1.5) * 2;
 
+  // ---- The last 30 days in detail: where the car went, speed, acceleration, power and grade ----
+  // The car lives in Koramangala; drives go out to a few places and back along real roads (DEMO_ROUTES,
+  // from OpenStreetMap), long ones to Mysuru.
+  const richFrom = now - 30 * DAY;
+  const HOME = { lat: 12.9352, lng: 77.6245 };
+  const OUT = ["indiranagar", "hebbal", "btm", "whitefield"];
+  let away: string | null = null; // the route the car is at the far end of, or null at home
+  const end = (key: string) => {
+    const [lng, lat] = DEMO_ROUTES[key].path.at(-1)!;
+    return { lat, lng };
+  };
+  let here = { ...HOME };
+  // The point a fraction of the way along a path, by distance.
+  const along = (path: [number, number][], f: number) => {
+    const legs = path.slice(1).map((p, k) => Math.hypot(p[0] - path[k][0], p[1] - path[k][1]));
+    const total = legs.reduce((a, b) => a + b, 0);
+    let left = f * total;
+    for (let k = 0; k < legs.length; k++) {
+      if (left <= legs[k] || k === legs.length - 1) {
+        const r = legs[k] ? Math.min(1, left / legs[k]) : 0;
+        return { lng: path[k][0] + (path[k + 1][0] - path[k][0]) * r, lat: path[k][1] + (path[k + 1][1] - path[k][1]) * r };
+      }
+      left -= legs[k];
+    }
+    return { lng: path.at(-1)![0], lat: path.at(-1)![1] };
+  };
+  // Outside temperature in Bengaluru: about 22 °C before dawn to 32 °C mid-afternoon.
+  const outsideAt = (t: number) => 27 + 5 * Math.sin((2 * Math.PI * (((t - istDayStart(istDay(t))) / HOUR - 9) % 24)) / 24);
+
   let clock = at(first, 8);
   let energy = 0.75 * packKwh(now, clock); // kWh in the pack
   let odometer = START_KM / MILES_TO_KM; // miles
@@ -313,6 +343,73 @@ export function generateDemo(now: number): DemoData {
     parked(start);
     pack(start);
     push("Gear", start, "ShiftStateD");
+    if (start >= richFrom) {
+      // Where it goes: out from home (to work in Whitefield on weekday mornings), or back home the way it
+      // came; Mysuru on a long trip.
+      const rng = rngFor(20, start / MIN);
+      const morning = (start - istDayStart(istDay(start))) / HOUR < 11;
+      const goingOut = away === null;
+      const key = goingOut ? (km > 80 ? "mysuru" : morning && !weekend(istDay(start)) ? "whitefield" : OUT[Math.floor(rng() * OUT.length)]) : away!;
+      const path = goingOut ? DEMO_ROUTES[key].path : [...DEMO_ROUTES[key].path].reverse();
+      const dest = goingOut ? end(key) : HOME;
+      // Stop-and-go, like city traffic: pull away at 1.5 to 2.5 m/s², cruise near a target speed, brake at
+      // 2 to 3.5 m/s² for a signal, wait, go again. Highways cruise faster with fewer stops. Power comes
+      // from a 2,000 kg car's acceleration plus rolling and air drag; braking shows as regen (negative).
+      const highway = km > 80;
+      const total = Math.max(30, Math.round(minutes * 60)); // seconds, simulated one at a time
+      const RECORD_S = 5; // the car sends these about every few seconds while driving
+      let v = 0; // m/s
+      let phase: "go" | "cruise" | "brake" | "wait" = "go";
+      let target = (highway ? between(rng, 75, 100) : between(rng, 30, 50)) / 3.6;
+      let left = between(rng, 60, highway ? 900 : 180); // seconds until the next stop
+      let pull = between(rng, 1.5, 2.5);
+      let stop = between(rng, 2, 3.5);
+      let grade = 0;
+      push("OutsideTemp", start, round(outsideAt(start) + gauss() * 0.3, 1));
+      for (let sec = 0; sec <= total; sec++) {
+        // Bring it to a stop for the last part of the drive.
+        if (phase !== "wait" && total - sec <= 20) phase = "brake";
+        let accel = 0;
+        if (phase === "go") {
+          accel = Math.min(pull, target - v);
+          if (v + accel >= target) phase = "cruise";
+        } else if (phase === "cruise") {
+          accel = Math.max(-0.4, Math.min(0.4, (target - v) * 0.1 + (rng() - 0.5) * 0.3));
+          if (--left <= 0) phase = "brake";
+        } else if (phase === "brake") {
+          accel = -Math.min(stop, v);
+          if (v + accel <= 0) {
+            phase = "wait";
+            left = between(rng, 20, 60);
+          }
+        } else if (--left <= 0 && sec < total - 30) {
+          phase = "go";
+          target = (highway ? between(rng, 75, 100) : between(rng, 30, 50)) / 3.6;
+          left = between(rng, 60, highway ? 900 : 180);
+          pull = between(rng, 1.5, 2.5);
+          stop = between(rng, 2, 3.5);
+        }
+        v = Math.max(0, v + accel);
+        if (sec % RECORD_S !== 0) continue;
+        const t = start + sec * 1000;
+        if (sec % (RECORD_S * 2) === 0) {
+          const p = along(path, sec / total);
+          push("Location", t, { latitude: round(p.lat, 6), longitude: round(p.lng, 6) });
+        }
+        grade = Math.max(-6, Math.min(6, grade + (rng() - 0.5) * 0.6));
+        const kw = Math.max(-60, (2000 * accel * v + 0.012 * 2000 * 9.81 * v + 0.5 * 1.2 * 0.23 * 2.6 * v ** 3 + 2000 * 9.81 * (grade / 100) * v) / 1000 + 0.4);
+        push("VehicleSpeed", t, round((v * 3.6) / MILES_TO_KM, 1));
+        push("LongitudinalAcceleration", t, round(accel + gauss() * 0.05, 2));
+        push("GradeEstimatePercent", t, round(grade, 1));
+        // An LFP pack at about 355 V; the car reports discharge as negative current, as yours does.
+        push("PackVoltage", t, round(356 - kw * 0.15, 1));
+        push("PackCurrent", t, round(-(kw * 1000) / (356 - kw * 0.15), 1));
+      }
+      here = { ...dest };
+      away = goingOut ? key : null;
+      push("LocatedAtHome", start + minutes * MIN, !goingOut);
+      push("LocatedAtWork", start + minutes * MIN, goingOut && key === "whitefield");
+    }
     for (let i = 1; i <= steps; i++) {
       const t = start + (minutes * MIN * i) / steps;
       const step = km / steps;
@@ -337,6 +434,7 @@ export function generateDemo(now: number): DemoData {
     const rng = rngFor(11, start / MIN);
     if (!ac.final && !ac.force && level(start) >= ac.below) return;
     charging = true;
+    if (start >= richFrom) push("Location", start, { latitude: HOME.lat, longitude: HOME.lng });
     push("ChargingCableType", start, "CableTypeIEC");
     push("DetailedChargeState", start, "DetailedChargeStateStarting");
     pack(start);
@@ -374,6 +472,7 @@ export function generateDemo(now: number): DemoData {
     const rng = rngFor(12, arrive / MIN);
     parked(arrive);
     charging = true;
+    if (arrive >= richFrom) push("Location", arrive + 2 * MIN, { latitude: here.lat, longitude: here.lng });
     const peak = stop.supercharger ? between(rng, 165, 195) : between(rng, 50, 58);
     const targetLevel = Math.min(CHARGE_LIMIT, Math.max(aboutLevel, level(arrive) + 8));
     const tempStart = round(between(rng, 29, 35) + (stop.supercharger ? 3 : 0), 1);
@@ -451,8 +550,38 @@ export function generateDemo(now: number): DemoData {
   parked(now);
   const levelNow = level(now);
 
+  // The last week, hourly: temperatures and cell voltages for the battery page.
+  for (let t = now - 7 * DAY; t < now; t += HOUR) {
+    const out = outsideAt(t) + gauss() * 0.3;
+    push("OutsideTemp", t, round(out, 1));
+    push("InsideTemp", t, round(out + 4 + gauss() * 0.5, 1));
+    push("ModuleTempMax", t, round(out + 1.5 + gauss() * 0.3, 1));
+    // LFP cells sit near 3.3 V most of the range, with a gap of a few mV, like your car's 3.292 to 3.294.
+    const cell = 3.27 + (level(Math.min(t, clock)) / 100) * 0.07;
+    const spread = 0.002 + noise() * 0.004;
+    push("BrickVoltageMax", t, round(cell + spread / 2, 4));
+    push("BrickVoltageMin", t, round(cell - spread / 2, 4));
+  }
+
   // The car woke a few minutes ago and sent its state, which makes the dashboard show it as live.
   const woke = now - 3 * MIN;
+  // How it is now: locked and parked at home, Sentry idle, windows shut, climate off, tyres a touch low
+  // at the back.
+  push("Locked", woke, true);
+  push("SentryMode", woke, "SentryModeStateOff");
+  push("NominalFullPackEnergyKwh", woke, 62.12);
+  push("DoorState", woke, { DriverFront: false, DriverRear: false, PassengerFront: false, PassengerRear: false, TrunkFront: false, TrunkRear: false });
+  for (const w of ["FdWindow", "FpWindow", "RdWindow", "RpWindow"]) push(w, woke, "WindowStateClosed");
+  push("ChargePortDoorOpen", woke, false);
+  push("HvacPower", woke, "HvacPowerStateOff");
+  push("ClimateKeeperMode", woke, "ClimateKeeperModeStateOff");
+  push("CabinOverheatProtectionMode", woke, "CabinOverheatProtectionModeStateFanOnly");
+  push("TpmsPressureFl", woke, 2.9);
+  push("TpmsPressureFr", woke, 2.9);
+  push("TpmsPressureRl", woke, 2.8);
+  push("TpmsPressureRr", woke, 2.75);
+  push("TpmsSoftWarnings", woke, { front_left: false, front_right: false, rear_left: false, rear_right: false });
+  push("TpmsHardWarnings", woke, { front_left: false, front_right: false, rear_left: false, rear_right: false });
   pack(woke);
   push("DetailedChargeState", woke, "DetailedChargeStateDisconnected");
   push("ChargeLimitSoc", woke, CHARGE_LIMIT);
