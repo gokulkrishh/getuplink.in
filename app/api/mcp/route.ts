@@ -3,11 +3,12 @@ import { z } from "zod";
 import { DEMO } from "@/lib/demo";
 import { messageOf } from "@/lib/errors";
 import { verifyConnectorToken } from "@/lib/server/connector-token";
-import { attachInvoice, chargingSummary, drivingSummary, listChargingSessions } from "@/lib/server/receipts";
+import { batteryStatus, carNowStatus, chargingInsights, daySummary, drivingInsights, getTrip, listTrips, monthlySummary } from "@/lib/server/mcp-data";
+import { attachInvoice, chargingSummary, drivingSummary, listChargingSessions, parseInvoiceTime } from "@/lib/server/receipts";
 
 // The Uplink MCP connector, for any AI the owner connects (a Grok bot, Claude, ChatGPT). proxy.ts lets
 // it through without a session; the token from Settings → Integrations is checked here instead.
-// Read tools plus one narrow write: nothing deletes data or reaches the car.
+// Read tools for everything the app shows, plus one narrow write: nothing deletes data or reaches the car.
 
 const json = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }] });
 
@@ -86,6 +87,94 @@ const handler = createMcpHandler(
         annotations: { readOnlyHint: true },
       },
       () => run(() => drivingSummary()),
+    );
+
+    const ro = { readOnlyHint: true } as const;
+    const DAY = 86_400_000;
+    server.registerTool(
+      "list_trips",
+      {
+        title: "List trips",
+        description: "Trips in a date range (default the last 7 days), newest first. A trip is drives with stops under an hour between them; each has its legs. Use trip_id with get_trip.",
+        inputSchema: z.object({ from: time.optional(), to: time.optional() }),
+        annotations: ro,
+      },
+      ({ from, to }) =>
+        run(() => {
+          const end = to ? parseInvoiceTime(to) + DAY : Date.now() + DAY;
+          return listTrips(from ? parseInvoiceTime(from) : Date.now() - 7 * DAY, end);
+        }),
+    );
+    server.registerTool(
+      "get_trip",
+      {
+        title: "Get a trip",
+        description:
+          "One trip in detail: distance, driving and stopped time, energy, battery, range used, average and top speed, outside temperature, most power and regen, strongest acceleration and hardest braking, grade, each leg and the stops, and its start, stop and end places. Pass leg: true with a drive_id for one leg alone.",
+        inputSchema: z.object({ trip_id: z.number().int().positive(), leg: z.boolean().optional() }),
+        annotations: ro,
+      },
+      ({ trip_id, leg }) => run(() => getTrip(trip_id, leg ?? false)),
+    );
+    server.registerTool(
+      "get_day",
+      {
+        title: "Get a day",
+        description: "One day (IST): a timeline of driving, charging, parked and asleep, with that day's trips and charges.",
+        inputSchema: z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("YYYY-MM-DD, e.g. 2026-10-23") }),
+        annotations: ro,
+      },
+      ({ date }) => run(() => daySummary(date)),
+    );
+    server.registerTool(
+      "get_battery_status",
+      {
+        title: "Battery status",
+        description: "Charge level, usable capacity and range at 100% against the best week, AC and DC charging efficiency, parked now and parked drain (kW, % and km a day), battery, inside and outside temperature, and the cell voltage gap.",
+        inputSchema: z.object({}),
+        annotations: ro,
+      },
+      () => run(() => batteryStatus()),
+    );
+    server.registerTool(
+      "get_car_now",
+      {
+        title: "Car now",
+        description: "The car's state from its latest readings: locked, Sentry Mode, doors, windows, charge port, climate, cabin overheat protection, temperatures and tyre pressures with warnings.",
+        inputSchema: z.object({}),
+        annotations: ro,
+      },
+      () => run(() => carNowStatus()),
+    );
+    server.registerTool(
+      "get_monthly_summary",
+      {
+        title: "Monthly summary",
+        description: "Month by month: km driven, time driving, kWh used, charges, kWh added and spend from real bills, with how many charges had no bill.",
+        inputSchema: z.object({}),
+        annotations: ro,
+      },
+      () => run(() => monthlySummary()),
+    );
+    server.registerTool(
+      "get_charging_insights",
+      {
+        title: "Charging insights",
+        description: "Top stations by energy with spend, the typical start and end battery level, hours on AC and DC, and recent DC charges' peak and average power.",
+        inputSchema: z.object({}),
+        annotations: ro,
+      },
+      () => run(() => chargingInsights()),
+    );
+    server.registerTool(
+      "get_driving_insights",
+      {
+        title: "Driving insights",
+        description: "Last 30 days: share of time at each speed, km per kWh by outside temperature and by speed, and the places the car parks (Home, Work and named areas) with visits and hours parked.",
+        inputSchema: z.object({}),
+        annotations: ro,
+      },
+      () => run(() => drivingInsights()),
     );
   },
   { serverInfo: { name: "uplink", version: "1.0.0" } },
