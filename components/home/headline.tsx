@@ -10,6 +10,10 @@ import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { hasSparkData, SLOT_WIDTH, sparkBars, sparkLine } from "@/lib/sparkline";
 import { cn } from "@/lib/utils";
 
+// Efficiency in kWh per 100 km, like every other energy figure in kWh.
+const per100 = (whPerKm: number | null) => (whPerKm === null ? null : whPerKm / 10);
+const perHundred = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
+
 const number = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 const SPARK_HEIGHT = 24;
 const ARROWS: Record<Change["direction"], string> = { up: "↑", down: "↓", same: "—" };
@@ -211,12 +215,12 @@ export function Headline({
         <Cell
           view="driving"
           label="Efficiency"
-          value={current.whPerKm === null ? "—" : number.format(current.whPerKm)}
-          unit="Wh/km"
-          {...delta(current.whPerKm, previous?.whPerKm ?? null, "Wh/km", true)}
+          value={current.whPerKm === null ? "—" : perHundred.format(current.whPerKm / 10)}
+          unit="kWh/100 km"
+          {...delta(per100(current.whPerKm), per100(previous?.whPerKm ?? null), (n) => `${perHundred.format(n)} kWh/100 km`, true)}
           spark={spark(
             "line",
-            bars.map((b) => b.whPerKm),
+            bars.map((b) => per100(b.whPerKm)),
           )}
         />
       </div>

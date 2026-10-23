@@ -31,15 +31,15 @@ export function Distance({ figures, now, period }: { figures: DrivingFigures; no
   );
 }
 
-// Wh/km for the period and each bar, from the streamed lifetime energy counter and the odometer. It counts
+// kWh per 100 km for the period and each bar, from the streamed lifetime energy counter and the odometer. It counts
 // everything the car drew, parked time included, so short spans are left out (see drivingFigures).
 export function EnergyUse({ figures, now, period }: { figures: DrivingFigures; now: number; period: Period }) {
   const { current, bars: values } = figures.periods[period];
   if (current.whPerKm === null) return null;
   const slots = slotsFor(period, now);
   const bars = slots.map((slot, k) => {
-    const value = values[k].whPerKm ?? 0;
-    return { key: String(slot.id), label: slot.label, value, display: compactNumber.format(Math.round(value)), isCurrent: slot.isCurrent };
+    const value = (values[k].whPerKm ?? 0) / 10;
+    return { key: String(slot.id), label: slot.label, value, display: oneDecimal.format(value), isCurrent: slot.isCurrent };
   });
   const regenBars = slots.map((slot, k) => {
     const value = values[k].regenKwh ?? 0;
@@ -50,10 +50,10 @@ export function EnergyUse({ figures, now, period }: { figures: DrivingFigures; n
     <section className="space-y-8">
       <div className="space-y-2">
         <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Energy use</h2>
-        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{compactNumber.format(Math.round(current.whPerKm))} Wh/km</p>
+        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{oneDecimal.format(current.whPerKm / 10)} kWh/100 km</p>
         <p className="text-sm text-muted-foreground">{PERIOD_WORDS[period]}</p>
       </div>
-      <Bars bars={bars} ariaLabel={`Energy use per ${SLOT_NAMES[period]} in Wh per km`} unit="Wh/km" />
+      <Bars bars={bars} ariaLabel={`Energy use per ${SLOT_NAMES[period]} in kWh per 100 km`} unit="kWh/100 km" />
       {regenTotal > 0 && (
         <div className="space-y-4">
           <p className="text-sm">

@@ -250,7 +250,7 @@ export async function drivingSummary() {
   const periods = Object.fromEntries(
     Object.entries(figures.periods).map(([period, p]) => [
       period,
-      { km: p.current.km, wh_per_km: p.current.whPerKm, regen_kwh: p.current.regenKwh, previous_km: p.previous?.km ?? null },
+      { km: p.current.km, kwh_per_100km: p.current.whPerKm === null ? null : p.current.whPerKm / 10, regen_kwh: p.current.regenKwh, previous_km: p.previous?.km ?? null },
     ]),
   );
   return {

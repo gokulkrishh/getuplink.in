@@ -24,9 +24,9 @@ describe("statsRedirect", () => {
     expect(target("view=battery")).toBe("/stats/battery");
     expect(target("view=charging&period=all")).toBe("/stats/charging?period=all");
   });
-  test("no view, or one that doesn't exist, opens Charging", () => {
-    expect(target("")).toBe("/stats/charging");
-    expect(target("view=nonsense&period=year")).toBe("/stats/charging?period=year");
+  test("no view, or one that doesn't exist, opens Driving", () => {
+    expect(target("")).toBe("/stats/driving");
+    expect(target("view=nonsense&period=year")).toBe("/stats/driving?period=year");
   });
   test("Month and unknown periods stay out of the URL", () => {
     expect(target("view=driving&period=month")).toBe("/stats/driving");

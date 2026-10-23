@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { DriveList } from "@/components/stats/drive-list";
 import { DailyDriving, Distance, DriveStatsSection, EnergyUse } from "@/components/stats/driving-sections";
-import { driveStats } from "@/lib/drive-stats";
+import { driveStats, withDriveEfficiency } from "@/lib/drive-stats";
 import { DRIVE_DAYS } from "@/lib/drives";
 import { eachPeriod, NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/components/stats/stats-frame";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
@@ -25,8 +25,8 @@ async function loadDriving(): Promise<{ figures: DrivingFigures; window: WindowS
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
   const now = Date.now();
   const vin = (await loadPrimaryVehicle())?.vin ?? null;
-  const [figures, window] = await Promise.all([loadDrivingFigures(vin, now), loadWindowStats(vin, now)]);
-  return { figures, window, now };
+  const [counted, window] = await Promise.all([loadDrivingFigures(vin, now), loadWindowStats(vin, now)]);
+  return { figures: withDriveEfficiency(counted, window.driving.drives, now), window, now };
 }
 
 async function Driving() {

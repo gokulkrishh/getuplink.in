@@ -14,6 +14,7 @@ import { PERIODS } from "@/components/stats/periods";
 import { UpdateBanner } from "@/components/updates/update-banner";
 import { matchSessions } from "@/lib/charge-sessions";
 import { firstStartedAt } from "@/lib/charging-figures";
+import { withDriveEfficiency } from "@/lib/drive-stats";
 import { DEMO, type DemoScenario, parseScenario } from "@/lib/demo";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -40,6 +41,7 @@ async function loadOwnHome(demo: DemoScenario): Promise<{ home: Home; now: numbe
 function Totals({ home, now }: { home: Extract<Home, { kind: "ready" }>; now: number }) {
   const { pairs, streamOnly } = matchSessions(home.sessions, home.streamSessions, now);
   const { window } = home;
+  const figures = withDriveEfficiency(home.figures, window.driving.drives, now);
   const chargingSince = firstStartedAt(home.sessions, home.streamSessions);
   return (
     <div className="space-y-16">
@@ -50,13 +52,13 @@ function Totals({ home, now }: { home: Extract<Home, { kind: "ready" }>; now: nu
           panels={Object.fromEntries(
             PERIODS.map(({ value }) => [
               value,
-              <Headline key={value} period={value} now={now} figures={home.figures} sessions={home.sessions} streamOnly={streamOnly} chargingSince={chargingSince} />,
+              <Headline key={value} period={value} now={now} figures={figures} sessions={home.sessions} streamOnly={streamOnly} chargingSince={chargingSince} />,
             ]),
           )}
         />
       </section>
+      <DrivingSection figures={figures} drives={window.driving.drives} now={now} />
       <ChargingSection sessions={home.sessions} listed={listSessions(pairs, streamOnly)} now={now} />
-      <DrivingSection figures={home.figures} drives={window.driving.drives} now={now} />
       <BatterySection level={window.level} drain={window.driving.drain} parkedNow={window.driving.parkedNow} now={now} />
     </div>
   );

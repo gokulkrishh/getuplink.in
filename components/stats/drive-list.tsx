@@ -1,6 +1,6 @@
 import { ShowMore } from "@/components/show-more";
 import type { Drive } from "@/lib/drives";
-import { formatClock, formatDayLabel, formatDuration, formatKm } from "@/lib/format";
+import { formatClock, formatDayLabel, formatDuration, formatKm, formatKwh } from "@/lib/format";
 import { LIST_PREVIEW } from "@/lib/list";
 
 export function DriveRow({ drive, serial, now }: { drive: Drive; serial: number; now: number }) {
@@ -19,7 +19,7 @@ export function DriveRow({ drive, serial, now }: { drive: Drive; serial: number;
         </p>
       </div>
       <div className="space-y-1 text-right">
-        {drive.whPerKm !== null && <p className="font-mono font-medium tabular-nums">{Math.round(drive.whPerKm)} Wh/km</p>}
+        {drive.kwh !== null && <p className="font-mono font-medium tabular-nums">{formatKwh(drive.kwh)}</p>}
         {levels && <p className="text-xs text-muted-foreground tabular-nums">{levels}</p>}
       </div>
       <div />

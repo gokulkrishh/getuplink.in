@@ -21,8 +21,8 @@ export function parsePeriod(value: string | string[] | undefined, allowed?: Peri
 export type View = "charging" | "driving" | "battery";
 
 export const VIEWS: { value: View; label: string }[] = [
-  { value: "charging", label: "Charging" },
   { value: "driving", label: "Driving" },
+  { value: "charging", label: "Charging" },
   { value: "battery", label: "Battery" },
 ];
 
