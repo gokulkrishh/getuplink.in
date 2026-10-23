@@ -43,8 +43,8 @@ export function DriveRow({ drive, serial, now }: { drive: Drive; serial: number;
   );
 }
 
-// A trip of several legs with short stops between (see groupTrips): the trip's totals, then each leg,
-// which opens its own drive page.
+// A trip of several legs with short stops between (see groupTrips): the trip's totals, linking to the
+// whole trip's page, then each leg, which opens its own.
 export function TripRow({ trip, serial, now }: { trip: Trip; serial: number; now: number }) {
   if (trip.legs.length === 1) return <DriveRow drive={trip.legs[0]} serial={serial} now={now} />;
   const levels = trip.startLevel !== null && trip.endLevel !== null ? `${Math.round(trip.startLevel)}% to ${Math.round(trip.endLevel)}%` : null;
@@ -54,7 +54,9 @@ export function TripRow({ trip, serial, now }: { trip: Trip; serial: number; now
       <div className="min-w-0 space-y-1">
         <p className="truncate font-medium tabular-nums">
           <span className="mr-2 font-mono text-xs font-normal text-faint">#{serial}</span>
-          {formatClock(trip.start)} to {formatClock(trip.end)}
+          <Link href={`/stats/driving/${trip.start}`} className="hover:underline hover:underline-offset-4">
+            {formatClock(trip.start)} to {formatClock(trip.end)}
+          </Link>
         </p>
         <p className="truncate text-xs text-muted-foreground tabular-nums">
           {formatKm(trip.km)} · {formatDuration((trip.end - trip.start) / 1000)} · {trip.stops} {trip.stops === 1 ? "stop" : "stops"}
@@ -62,7 +64,7 @@ export function TripRow({ trip, serial, now }: { trip: Trip; serial: number; now
         <ul className="mt-2 space-y-1 border-l pl-3 text-xs text-muted-foreground tabular-nums">
           {trip.legs.map((d) => (
             <li key={d.start} className="flex justify-between gap-3">
-              <Link href={`/stats/driving/${d.start}`} className="hover:text-foreground hover:underline hover:underline-offset-4">
+              <Link href={`/stats/driving/${d.start}?leg`} className="hover:text-foreground hover:underline hover:underline-offset-4">
                 {formatClock(d.start)} to {formatClock(d.end)} · {formatKm(d.km)}
               </Link>
               {d.kwh !== null && <span className="font-mono">{formatKwh(d.kwh)}</span>}
