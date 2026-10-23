@@ -108,6 +108,8 @@ set(ALL_FIELDS.filter((n) => /^Di(Torque|AxleSpeed|MotorCurrent|VBat|SlaveTorque
 set(["VehicleSpeed"], 1, { minimum_delta: 1 });
 set(["LongitudinalAcceleration", "LateralAcceleration"], 1);
 set(["PedalPosition", "BrakePedal", "BrakePedalPos"], 1);
+// Pack voltage and current for each drive's power graph, and the road grade, every second while driving.
+set(["PackVoltage", "PackCurrent", "GradeEstimatePercent"], 1);
 // Temperatures, every 5 min and only when they move by a degree.
 set(ALL_FIELDS.filter((n) => /Temp|Heatsink|^DiInverter/.test(n) && !/Request|Limit|Unit/.test(n)), 300, { minimum_delta: 1 });
 // Battery and range, every 5 min.

@@ -29,7 +29,7 @@ async function loadDetail(start: number, leg: boolean): Promise<DriveDetail | nu
 // the route on a map with its start, stops and end, a timeline of legs and stops, then the battery and
 // speed across the whole trip.
 function Drive({ detail }: { detail: DriveDetail }) {
-  const { trip, battery, speed, rangeUsedKm, topKmh, outsideC, route, pins, accel } = detail;
+  const { trip, battery, speed, rangeUsedKm, topKmh, outsideC, route, pins, accel, power, grade } = detail;
   const drivingMs = trip.legs.reduce((sum, d) => sum + (d.end - d.start), 0);
   const stoppedMs = trip.end - trip.start - drivingMs;
   const tiles: { label: string; value: string; note?: string; level?: [number, number] }[] = [
@@ -99,11 +99,25 @@ function Drive({ detail }: { detail: DriveDetail }) {
             <DriveTrace points={speed} from={trip.start} to={trip.end} unit="km/h" label="Speed" />
           </section>
         )}
+        {power.length >= 2 && (
+          <section className="space-y-4">
+            <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Power</h2>
+            <PowerSummary points={power} />
+            <DriveTrace points={power} from={trip.start} to={trip.end} unit="kW" label="Power" signed />
+          </section>
+        )}
         {accel.length >= 2 && (
           <section className="space-y-4">
             <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Acceleration</h2>
             <AccelSummary points={accel} />
             <DriveTrace points={accel} from={trip.start} to={trip.end} unit="m/s²" label="Acceleration" signed />
+          </section>
+        )}
+        {grade.length >= 2 && (
+          <section className="space-y-4">
+            <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Road grade</h2>
+            <p className="text-sm text-muted-foreground">Uphill above the line, downhill below, as the car estimated it.</p>
+            <DriveTrace points={grade} from={trip.start} to={trip.end} unit="%" label="Road grade" signed />
           </section>
         )}
         {battery.length >= 2 && (
@@ -118,6 +132,17 @@ function Drive({ detail }: { detail: DriveDetail }) {
       </div>
     </>
   );
+}
+
+// The most power drawn and the most won back by regen, with when.
+function PowerSummary({ points }: { points: { t: number; v: number }[] }) {
+  const top = points.reduce((a, p) => (p.v > a.v ? p : a));
+  const regen = points.reduce((a, p) => (p.v < a.v ? p : a));
+  const parts = [
+    top.v > 0 && `Most power ${Math.round(top.v)} kW at ${formatClock(top.t)}`,
+    regen.v < 0 && `most regen ${Math.round(-regen.v)} kW at ${formatClock(regen.t)}`,
+  ].filter(Boolean);
+  return parts.length ? <p className="text-sm text-muted-foreground tabular-nums">{parts.join("; ")}.</p> : null;
 }
 
 // The strongest push and the hardest stop in the drive, with when they happened.

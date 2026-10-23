@@ -23,6 +23,8 @@ export type DriveDetail = {
   topKmh: number | null;
   outsideC: number | null; // median while driving
   accel: TracePoint[]; // m/s², forward positive, braking negative, while moving
+  power: TracePoint[]; // kW from the pack, regen negative, while moving
+  grade: TracePoint[]; // road grade %, uphill positive, while moving
   route: MapPoint[]; // where the car was, while each leg was under way
   pins: MapPin[]; // the start, each stop and the end
 };
@@ -51,7 +53,7 @@ export async function loadDriveDetail(start: number, now: number, leg = false): 
   // A little either side, so the values in force at the start and end are there.
   const from = new Date(drive.start - 30 * MIN).toISOString();
   const to = new Date(drive.end + 10 * MIN).toISOString();
-  const byField = (await loadReadingsByField(vin, ["BatteryLevel", "RatedRange", "VehicleSpeed", "OutsideTemp", "Location", "LongitudinalAcceleration"], from, to)) ?? {};
+  const byField = (await loadReadingsByField(vin, ["BatteryLevel", "RatedRange", "VehicleSpeed", "OutsideTemp", "Location", "LongitudinalAcceleration", "PackVoltage", "PackCurrent", "GradeEstimatePercent"], from, to)) ?? {};
   const read = (field: string) => [...(byField[field] ?? [])].sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
 
   const range = points(read("RatedRange"), drive.start - 30 * MIN, drive.end + 10 * MIN);
@@ -69,10 +71,26 @@ export async function loadDriveDetail(start: number, now: number, leg = false): 
   const { route, pins } = tripRoute(trip, read("Location"));
   // LongitudinalAcceleration in m/s² as the car reports it: positive speeding up, negative braking.
   const accel = points(read("LongitudinalAcceleration"), drive.start, drive.end).filter((p) => moving(p.t));
+  const grade = points(read("GradeEstimatePercent"), drive.start, drive.end).filter((p) => moving(p.t));
+  // Power is pack voltage times current, each current reading paired with the voltage in force. Tesla
+  // doesn't document the current's sign, so it's read from the drive: driving uses more than regen gives
+  // back, so the median must be positive; if it isn't, the sign is flipped.
+  const volts = points(read("PackVoltage"), drive.start - 30 * MIN, drive.end);
+  const raw = points(read("PackCurrent"), drive.start, drive.end)
+    .filter((p) => moving(p.t))
+    .flatMap((p) => {
+      const v = valueAt(volts, p.t);
+      return v === null ? [] : [{ t: p.t, v: (v * p.v) / 1000 }];
+    });
+  const sorted = raw.map((p) => p.v).sort((a, b) => a - b);
+  const flip = sorted.length > 0 && sorted[Math.floor(sorted.length / 2)] < 0 ? -1 : 1;
+  const power = raw.map((p) => ({ t: p.t, v: p.v * flip }));
 
   return {
     trip,
     accel,
+    power,
+    grade,
     route,
     pins,
     battery,
