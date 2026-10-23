@@ -1,18 +1,17 @@
 import type { ReactNode } from "react";
 import { hasCosts, hasStationNames, type Listed, OsmCredit, SessionHeader, SessionRow } from "@/components/session-row";
 import { Bars } from "@/components/stats/bars";
-import { BatteryTrend } from "@/components/stats/battery-trend";
+import { ChargeLevelChart } from "@/components/stats/charge-level";
 import { DriveRow } from "@/components/stats/drive-list";
 import type { View } from "@/components/stats/periods";
 import { eachPeriod } from "@/components/stats/stats-frame";
-import type { Drive, DrainSummary } from "@/lib/drives";
+import type { Drive, DrainSummary, ParkedNow } from "@/lib/drives";
 import { spendBySlot } from "@/lib/charging-figures";
-import type { WeeklyRange } from "@/lib/charge-level";
+import type { ChargeLevel } from "@/lib/charge-level";
 import type { DrivingFigures } from "@/lib/driving-figures";
-import { formatKm } from "@/lib/format";
+import { formatDuration } from "@/lib/format";
 import { type Period, SLOT_NAMES, slotsFor } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
-import type { WeeklyPack } from "@/lib/telemetry-derive";
 import { MoreLink } from "./more-link";
 
 // Each topic on the home page: its main chart for the period and its newest three rows. Everything else is
@@ -96,28 +95,23 @@ export function DrivingSection({ figures, drives, now }: { figures: DrivingFigur
 
 // The pack's latest weekly estimate with its 12-week line, what a full charge shows as range, and what it
 // loses while parked. They cover their own windows, so the period doesn't change them.
-export function BatterySection({ trend, range, drain }: { trend: WeeklyPack[]; range: WeeklyRange[]; drain: DrainSummary | null }) {
-  const latest = trend.at(-1);
-  const full = range.at(-1);
-  if (!latest && !full && !drain) return null;
-  const details = [full && `${formatKm(full.km)} at 100%`, drain && `${oneDecimal.format(drain.percentPerDay)}% a day parked`].filter(Boolean);
+export function BatterySection({ level, drain, parkedNow, now }: { level: ChargeLevel | null; drain: DrainSummary | null; parkedNow: ParkedNow | null; now: number }) {
+  const hasLevel = (level?.points.length ?? 0) >= 2;
+  if (!hasLevel && !parkedNow && !drain) return null;
+  const parked = parkedNow && [
+    `Parked ${parkedNow.fromFirstReading ? "at least " : ""}${formatDuration(parkedNow.hours * 3600)}`,
+    parkedNow.watts !== null && `${Math.round(parkedNow.watts)} W average`,
+    parkedNow.lostPercent !== null && `${oneDecimal.format(parkedNow.lostPercent)}% lost`,
+  ].filter(Boolean).join(" · ");
   return (
     <Section title="Battery" view="battery" more="More">
-      <div className="space-y-1">
-        {latest && (
-          <p className="font-mono text-2xl font-medium tracking-tight tabular-nums">
-            {latest.kwh.toFixed(1)}
-            <span className="ml-1 text-xs font-normal text-faint">kWh est. full pack</span>
-          </p>
-        )}
-        {details.length > 0 && <p className="text-sm text-muted-foreground tabular-nums">{details.join(" · ")}</p>}
-      </div>
-      {trend.length >= 2 && (
-        <div className="space-y-2">
-          <BatteryTrend points={trend} />
-          <p className="text-xs text-faint">12 weeks, weekly median</p>
+      {(parked || drain) && (
+        <div className="space-y-1 text-sm text-muted-foreground tabular-nums">
+          {parked && <p>{parked}</p>}
+          {drain && <p>Usually loses {oneDecimal.format(drain.percentPerDay)}% a day parked</p>}
         </div>
       )}
+      {hasLevel && <ChargeLevelChart level={level} now={now} />}
     </Section>
   );
 }

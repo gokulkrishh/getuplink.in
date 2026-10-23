@@ -15,7 +15,9 @@ export function levelPoints(readings: Reading[], slotMs: number): LevelPoint[] {
   for (const r of readings) {
     const level = num(r.value);
     const at = Date.parse(r.at);
-    if (level !== null) bySlot.set(Math.floor(at / slotMs), { at, level: Math.round(level * 10) / 10 });
+    // Kept raw and rounded once where shown: rounding to 0.1 first turned 60.49% into 61%, against
+    // the 60% Tesla reports.
+    if (level !== null) bySlot.set(Math.floor(at / slotMs), { at, level });
   }
   return [...bySlot.values()].sort((a, b) => a.at - b.at);
 }

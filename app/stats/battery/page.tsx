@@ -30,7 +30,7 @@ async function loadBattery(): Promise<{ window: WindowStats; now: number }> {
 async function Battery() {
   const { window, now } = await loadBattery();
   const { trend, range, level, driving } = window;
-  const enough = trend.length >= 2 || range.length > 0 || (level?.points.length ?? 0) >= 2 || driving.drain !== null;
+  const enough = trend.length >= 2 || range.length > 0 || (level?.points.length ?? 0) >= 2 || driving.parked.length > 0 || driving.parkedNow !== null;
 
   return (
     <StatsFrame view="battery" periodSwitch={false}>
@@ -39,7 +39,7 @@ async function Battery() {
           <BatteryPack trend={trend} />
           <ProjectedRange weeks={range} />
           <ChargeLevelChart level={level} now={now} />
-          <ParkedDrain drain={driving.drain} />
+          <ParkedDrain drain={driving.drain} parked={driving.parked} parkedNow={driving.parkedNow} />
         </div>
       ) : (
         <NotYet title="Not enough readings yet">The battery trend shows up after two weeks of readings.</NotYet>

@@ -58,7 +58,7 @@ export type WindowStats = { days: DayKm[]; driving: Driving; trend: WeeklyPack[]
 // covers all three windows. Each part keeps to its own window. Empty when the stream can't be read.
 // In demo mode the readings come from the generator, through the same functions.
 export async function loadWindowStats(vin: string | null, now: number): Promise<WindowStats> {
-  const empty: WindowStats = { days: [], driving: { drives: [], drain: null }, trend: [], level: null, range: [] };
+  const empty: WindowStats = { days: [], driving: { drives: [], drain: null, parked: [], parkedNow: null }, trend: [], level: null, range: [] };
   if (!vin) return empty;
   const dailyFrom = new Date(istDayStart(istDay(now) - DRIVING_DAYS + 1)).toISOString();
   const driveFrom = now - DRIVE_DAYS * 86_400_000;

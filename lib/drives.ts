@@ -30,17 +30,32 @@ export type Drive = {
   endLevel: number | null;
 };
 
-export type ParkedPeriod = {
+// One stretch parked, like TeslaMate's vampire drain table: what was lost and how hard the car worked.
+// kwh: EnergyRemaining at the start minus at the end; watts: that over the hours. awakeMs: time the car
+// was seen sending data (see awakeBetween), a lower bound since a single reading counts as no time.
+// A level or energy that rose (a charge never reported) has no loss.
+export type ParkStats = {
   start: number;
   end: number;
   hours: number;
-  percentPerDay: number;
-  kmPerDay: number | null;
+  lostPercent: number | null;
+  lostKm: number | null;
+  kwh: number | null;
+  watts: number | null;
+  awakeMs: number;
 };
+
+export type ParkedPeriod = ParkStats & { lostPercent: number; percentPerDay: number; kmPerDay: number | null };
+
+// Parked right now: since the last drive or charge ended, up to the latest reading.
+// fromFirstReading: no drive or charge in the readings, so it has been parked at least this long.
+export type ParkedNow = ParkStats & { fromFirstReading: boolean };
 
 export const MERGE_STOP_MS = 3 * MIN;
 export const MIN_DRIVE_KM = 0.3;
 export const MIN_PARKED_MS = 6 * HOUR;
+// The car sends data only while awake, every few minutes. A silence longer than this means it slept.
+export const WAKE_GAP_MS = 15 * MIN;
 export const DRAIN_DAYS = 30;
 export const DRIVE_DAYS = 90;
 // Odometer and energy counters can arrive a little after the gear; they don't change while parked.
@@ -187,6 +202,54 @@ export function chargeRanges(charge: Reading[]): [number, number][] {
   return ranges;
 }
 
+// Every time the car sent anything, sorted: it only sends while awake.
+function readingTimes(input: DriveInputs): number[] {
+  return Object.values(input)
+    .flatMap((readings: Reading[]) => readings.map((r) => Date.parse(r.at)))
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b);
+}
+
+// Time the car was seen awake from start to end: each run of readings no more than WAKE_GAP_MS apart
+// counts from its first reading to its last, and the run it parked in counts from the start.
+export function awakeBetween(times: number[], start: number, end: number): number {
+  let awake = 0;
+  let runStart = start;
+  let last = start;
+  for (const t of times) {
+    if (t <= start) continue;
+    if (t > end) break;
+    if (t - last > WAKE_GAP_MS) {
+      awake += last - runStart;
+      runStart = t;
+    }
+    last = t;
+  }
+  return awake + (last - runStart);
+}
+
+function parkStats(s: Series, times: number[], start: number, end: number): ParkStats {
+  const hours = (end - start) / HOUR;
+  const at = (points: Point[], t: number) => valueAt(points, t) ?? points.find((p) => p.t >= t)?.v ?? null;
+  const drop = (points: Point[]) => {
+    const a = at(points, start);
+    const b = valueAt(points, end);
+    return a !== null && b !== null && a - b >= 0 ? a - b : null;
+  };
+  const rangeMiles = drop(s.range);
+  const kwh = drop(s.energy);
+  return {
+    start,
+    end,
+    hours,
+    lostPercent: drop(s.battery),
+    lostKm: rangeMiles === null ? null : rangeMiles * MILES_TO_KM,
+    kwh,
+    watts: kwh !== null && hours > 0 ? (kwh * 1000) / hours : null,
+    awakeMs: awakeBetween(times, start, end),
+  };
+}
+
 // Parked periods run from the end of one drive to the start of the next, minus any time charging, and
 // count when at least MIN_PARKED_MS long. Drain is the battery level at the start minus the level at the
 // end, scaled to a day. A period where the level rose (a charge the car never reported) is dropped.
@@ -195,6 +258,7 @@ export function parkedDrain(input: DriveInputs, now: number): ParkedPeriod[] {
   const trips = findTrips(input.gear);
   const s = series(input);
   const charging = chargeRanges(input.charge);
+  const times = readingTimes(input);
   const periods: ParkedPeriod[] = [];
   for (let i = 0; i + 1 < trips.length; i++) {
     const from = trips[i].end;
@@ -211,21 +275,14 @@ export function parkedDrain(input: DriveInputs, now: number): ParkedPeriod[] {
     if (cursor < to) pieces.push([cursor, to]);
     for (const [start, end] of pieces) {
       if (end - start < MIN_PARKED_MS || end < now - DRAIN_DAYS * DAY) continue;
-      const levelStart = valueAt(s.battery, start);
-      const levelEnd = valueAt(s.battery, end);
-      if (levelStart === null || levelEnd === null) continue;
-      const drop = levelStart - levelEnd;
-      if (drop < 0) continue;
-      const hours = (end - start) / HOUR;
-      const rangeStart = valueAt(s.range, start);
-      const rangeEnd = valueAt(s.range, end);
-      const rangeDrop = rangeStart !== null && rangeEnd !== null ? rangeStart - rangeEnd : null;
+      if (valueAt(s.battery, start) === null) continue;
+      const stats = parkStats(s, times, start, end);
+      if (stats.lostPercent === null) continue;
       periods.push({
-        start,
-        end,
-        hours,
-        percentPerDay: (drop / hours) * 24,
-        kmPerDay: rangeDrop !== null && rangeDrop >= 0 ? ((rangeDrop * MILES_TO_KM) / hours) * 24 : null,
+        ...stats,
+        lostPercent: stats.lostPercent,
+        percentPerDay: (stats.lostPercent / stats.hours) * 24,
+        kmPerDay: stats.lostKm !== null ? (stats.lostKm / stats.hours) * 24 : null,
       });
     }
   }
@@ -245,8 +302,34 @@ export function drainSummary(periods: ParkedPeriod[]): DrainSummary | null {
   };
 }
 
-export type Driving = { drives: Drive[]; drain: DrainSummary | null };
+// The stretch the car is parked in now: from the end of the last drive, or of a charge after it, to the
+// latest battery reading. Null while driving or charging, or with no battery readings. Without a drive
+// in the window it runs from the first reading. A level that rose (a charge never reported) has no loss.
+export function parkedNow(input: DriveInputs): ParkedNow | null {
+  const s = series(input);
+  if (s.battery.length === 0) return null;
+  const latest = s.battery[s.battery.length - 1];
+  const trips = findTrips(input.gear);
+  const lastGear = [...input.gear].sort((a, b) => Date.parse(a.at) - Date.parse(b.at)).at(-1);
+  if (lastGear && gearName(lastGear.value) !== null && gearName(lastGear.value) !== "P") return null;
+  const charges = chargeRanges(input.charge);
+  if (charges.some(([, b]) => b === Infinity)) return null;
+  let start = trips.at(-1)?.end ?? s.battery[0].t;
+  let fromFirstReading = trips.length === 0;
+  for (const [, b] of charges) {
+    if (b > start && b <= latest.t) {
+      start = b;
+      fromFirstReading = false;
+    }
+  }
+  if (latest.t <= start) return null;
+  return { ...parkStats(s, readingTimes(input), start, latest.t), fromFirstReading };
+}
+
+// parked: every qualifying stretch, oldest first; drain: their median once there are two.
+export type Driving = { drives: Drive[]; drain: DrainSummary | null; parked: ParkedPeriod[]; parkedNow: ParkedNow | null };
 
 export function analyseDriving(input: DriveInputs, now: number): Driving {
-  return { drives: buildDrives(input), drain: drainSummary(parkedDrain(input, now)) };
+  const parked = parkedDrain(input, now);
+  return { drives: buildDrives(input), drain: drainSummary(parked), parked, parkedNow: parkedNow(input) };
 }

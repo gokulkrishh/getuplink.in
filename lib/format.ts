@@ -35,6 +35,11 @@ export function formatDuration(seconds: number): string {
   const minutes = Math.round(seconds / 60);
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);
+  // A day or more reads in days and hours ("1 day 14 h"); the minutes no longer matter.
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24);
+    return `${days} ${days === 1 ? "day" : "days"}${hours % 24 ? ` ${hours % 24} h` : ""}`;
+  }
   return minutes % 60 ? `${hours} h ${minutes % 60} min` : `${hours} h`;
 }
 
@@ -64,12 +69,14 @@ export function formatDayLabel(value: string | number | Date, now: number): stri
 
 const relative = new Intl.RelativeTimeFormat("en-IN", { numeric: "auto" });
 
-// "just now", "3 minutes ago", "2 hours ago"; older than a day falls back to formatSeen.
+// "just now", "3 minutes ago", "2 hours ago", "yesterday", "3 days ago"; older than a week falls back
+// to formatSeen.
 export function formatAgo(value: string | number | Date, now: number): string {
   const minutes = Math.round((now - new Date(value).getTime()) / 60_000);
   if (minutes < 1) return "just now";
   if (minutes < 60) return relative.format(-minutes, "minute");
   if (minutes < 24 * 60) return relative.format(-Math.round(minutes / 60), "hour");
+  if (minutes < 7 * 24 * 60) return relative.format(-Math.floor(minutes / (24 * 60)), "day");
   return formatSeen(value, now);
 }
 

@@ -57,7 +57,7 @@ function Totals({ home, now }: { home: Extract<Home, { kind: "ready" }>; now: nu
       </section>
       <ChargingSection sessions={home.sessions} listed={listSessions(pairs, streamOnly)} now={now} />
       <DrivingSection figures={home.figures} drives={window.driving.drives} now={now} />
-      <BatterySection trend={window.trend} range={window.range} drain={window.driving.drain} />
+      <BatterySection level={window.level} drain={window.driving.drain} parkedNow={window.driving.parkedNow} now={now} />
     </div>
   );
 }
