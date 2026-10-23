@@ -3,7 +3,9 @@ import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { DriveList } from "@/components/stats/drive-list";
-import { DailyDriving, Distance, EnergyUse } from "@/components/stats/driving-sections";
+import { DailyDriving, Distance, DriveStatsSection, EnergyUse } from "@/components/stats/driving-sections";
+import { driveStats } from "@/lib/drive-stats";
+import { DRIVE_DAYS } from "@/lib/drives";
 import { eachPeriod, NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/components/stats/stats-frame";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -40,6 +42,7 @@ async function Driving() {
           {eachPeriod((p) => <Distance figures={figures} now={now} period={p} />, { steady: true })}
           <DailyDriving days={days} />
           {eachPeriod((p) => <EnergyUse figures={figures} now={now} period={p} />, { steady: true })}
+          <DriveStatsSection stats={driveStats(driving.drives, now - DRIVE_DAYS * 86_400_000, figures.since, now)} />
           <DriveList drives={driving.drives} now={now} />
         </div>
       ) : (

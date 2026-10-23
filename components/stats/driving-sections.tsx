@@ -1,5 +1,6 @@
 import { Bars } from "@/components/stats/bars";
-import { formatKwh, formatShortDate } from "@/lib/format";
+import { type DriveStats } from "@/lib/drive-stats";
+import { formatDuration, formatKwh, formatShortDate } from "@/lib/format";
 import type { DrivingFigures } from "@/lib/driving-figures";
 import { type Period, PERIOD_WORDS, SLOT_NAMES, slotsFor } from "@/lib/periods";
 import type { DayKm } from "@/lib/telemetry-derive";
@@ -86,6 +87,40 @@ export function DailyDriving({ days }: { days: DayKm[] }) {
         <p className="text-sm text-muted-foreground tabular-nums">{compactNumber.format(total)} km in the last 30 days</p>
       </div>
       <Bars bars={bars} ariaLabel="Distance per day" labelEvery={7} visible={30} unit="km" />
+    </section>
+  );
+}
+
+const oneDecimal = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
+
+// Drive stats for the last 90 days (or since tracking began), after TeslaMate's: how many drives, how
+// long they usually are, the longest, time at the wheel and distance a day. Counted, never projected.
+export function DriveStatsSection({ stats }: { stats: DriveStats | null }) {
+  if (!stats) return null;
+  const rows: [string, string][] = [
+    ["Drives", compactNumber.format(stats.drives)],
+    ["Distance", `${compactNumber.format(Math.round(stats.km))} km`],
+    ["Typical drive", `${oneDecimal.format(stats.medianKm)} km`],
+    ["Longest drive", `${oneDecimal.format(stats.longestKm)} km`],
+    ["Time driving", formatDuration(stats.hours * 3600)],
+    ["Distance a day", `${oneDecimal.format(stats.kmPerDay)} km`],
+  ];
+  return (
+    <section className="space-y-4">
+      <div className="space-y-1">
+        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Drive stats</h2>
+        <p className="text-sm text-muted-foreground">
+          {stats.days >= 89 ? "Last 90 days" : `Since tracking began, ${Math.max(1, Math.round(stats.days))} ${Math.round(stats.days) === 1 ? "day" : "days"}`}. Typical drive is the median.
+        </p>
+      </div>
+      <dl className="divide-y border-t">
+        {rows.map(([label, value]) => (
+          <div key={label} className="flex items-baseline justify-between gap-4 py-3 text-sm">
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd className="font-mono font-medium tabular-nums">{value}</dd>
+          </div>
+        ))}
+      </dl>
     </section>
   );
 }
