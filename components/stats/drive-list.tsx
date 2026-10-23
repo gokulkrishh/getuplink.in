@@ -3,6 +3,18 @@ import type { Drive } from "@/lib/drives";
 import { formatClock, formatDayLabel, formatDuration, formatKm, formatKwh } from "@/lib/format";
 import { LIST_PREVIEW } from "@/lib/list";
 
+// Names the drive list's columns, on the same grid as its rows.
+export function DriveHeader() {
+  return (
+    <div className="grid grid-cols-session-wide gap-x-4 pb-2 text-xs text-faint" aria-hidden="true">
+      <span>Date</span>
+      <span>Drive</span>
+      <span className="text-right">Energy · battery</span>
+      <span />
+    </div>
+  );
+}
+
 export function DriveRow({ drive, serial, now }: { drive: Drive; serial: number; now: number }) {
   const levels =
     drive.startLevel !== null && drive.endLevel !== null ? `${Math.round(drive.startLevel)}% to ${Math.round(drive.endLevel)}%` : null;
@@ -45,6 +57,7 @@ export function DriveList({ drives, now }: { drives: Drive[]; now: number }) {
       {/* On phones the list keeps its columns and scrolls sideways. */}
       <div className="max-sm:-mx-1 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:px-1">
         <div className="max-sm:min-w-xl">
+          <DriveHeader />
           <ul className="divide-y border-t">{rows(drives.slice(0, LIST_PREVIEW), 0)}</ul>
           {drives.length > LIST_PREVIEW && (
             <ShowMore count={drives.length - LIST_PREVIEW}>

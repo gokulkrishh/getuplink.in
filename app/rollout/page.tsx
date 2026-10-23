@@ -118,6 +118,10 @@ async function Rollout() {
         <section className="space-y-2">
           <h2 className={heading}>Arriving now</h2>
           <ul className="divide-y border-t">
+            <li className="flex justify-between gap-4 py-2 text-xs text-faint" aria-hidden="true">
+              <span>Version</span>
+              <span>Offered · on it</span>
+            </li>
             {arriving.map((a) => (
               <ArrivingRow key={a.version} a={a} />
             ))}
@@ -131,6 +135,10 @@ async function Rollout() {
       <section className="space-y-2">
         <h2 className={heading}>Versions</h2>
         <ul className="divide-y border-t">
+          <li className="flex justify-between gap-4 py-2 text-xs text-faint" aria-hidden="true">
+            <span>Version</span>
+            <span>Cars on it</span>
+          </li>
           {versions.map((v) => (
             <VersionRow key={v.version} v={v} counted={counted} />
           ))}

@@ -3,7 +3,7 @@ import { hasCosts, hasStationNames, type Listed, OsmCredit, SessionHeader, Sessi
 import { Bars } from "@/components/stats/bars";
 import { ChargeLevelChart } from "@/components/stats/charge-level";
 import { kw } from "@/components/stats/parked-drain";
-import { DriveRow } from "@/components/stats/drive-list";
+import { DriveHeader, DriveRow } from "@/components/stats/drive-list";
 import type { View } from "@/components/stats/periods";
 import { eachPeriod } from "@/components/stats/stats-frame";
 import type { Drive, DrainSummary, ParkedNow } from "@/lib/drives";
@@ -84,7 +84,7 @@ export function DrivingSection({ figures, drives, now }: { figures: DrivingFigur
     <Section title="Driving" view="driving" more="All drives">
       {eachPeriod((p) => <Bars bars={bars(p)} ariaLabel={`Distance per ${SLOT_NAMES[p]} in km`} unit="km" />, { steady: true })}
       {drives.length > 0 && (
-        <Rows>
+        <Rows header={<DriveHeader />}>
           {drives.slice(0, ROWS).map((d, i) => (
             <DriveRow key={d.start} drive={d} serial={drives.length - i} now={now} />
           ))}
