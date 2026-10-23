@@ -4,6 +4,7 @@ export type { Period };
 
 // The period switch.
 export const PERIODS: { value: Period; label: string }[] = [
+  { value: "day", label: "Day" },
   { value: "week", label: "Week" },
   { value: "month", label: "Month" },
   { value: "year", label: "Year" },

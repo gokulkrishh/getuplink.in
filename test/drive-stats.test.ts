@@ -35,7 +35,7 @@ describe("withDriveEfficiency", () => {
     const { withDriveEfficiency } = await import("@/lib/drive-stats");
     const blank = { km: 46, whPerKm: null, kwh: null, regenKwh: null };
     const period = { current: blank, previous: null, bars: [] };
-    const figures = { periods: { week: period, month: period, year: period, all: period }, since: null, odometerKm: null };
+    const figures = { periods: { day: period, week: period, month: period, year: period, all: period }, since: null, odometerKm: null };
     const drives = [{ ...drive(34, 40, 0), kwh: 6.8 }, { ...drive(4, 5, 0), kwh: 0.9 }, { ...drive(2, 5, 0), kwh: 0.6 }];
     const month = withDriveEfficiency(figures, drives, now).periods.month.current;
     expect(month.whPerKm).toBeCloseTo(207.5);

@@ -4,9 +4,9 @@ import { istDay, istDayStart } from "@/lib/telemetry-derive";
 // Pure period maths for the home page and the Stats pages: which instants a period covers, the bars it
 // draws and the span it is compared with. Everything is in IST, never server-local date getters.
 
-export type Period = "week" | "month" | "year" | "all";
+export type Period = "day" | "week" | "month" | "year" | "all";
 
-export const PERIOD_ORDER: Period[] = ["week", "month", "year", "all"];
+export const PERIOD_ORDER: Period[] = ["day", "week", "month", "year", "all"];
 
 const DAY_MS = 86_400_000;
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
@@ -39,7 +39,7 @@ export const monthStart = (index: number) => Date.UTC(yearOf(index), index % 12,
 // Which months a period covers, given the current month index. For data kept per month; Week is the
 // current month, as close as monthly data gets.
 export function inPeriod(period: Period, index: number, cur: number): boolean {
-  if (period === "month" || period === "week") return index === cur;
+  if (period === "month" || period === "week" || period === "day") return index === cur;
   if (period === "year") return yearOf(index) === yearOf(cur);
   return true;
 }
@@ -52,9 +52,11 @@ export type Span = { from: number; to: number };
 
 export const inSpan = (at: number, span: Span) => at >= span.from && at < span.to;
 
-// The period so far: the last 7 IST days (today included), this month, this year, or everything.
+// The period so far: today (IST), the last 7 IST days (today included), this month, this year, or
+// everything.
 export function periodSpan(period: Period, now: number): Span {
   const cur = monthIndex(now);
+  if (period === "day") return { from: istDayStart(istDay(now)), to: Infinity };
   if (period === "week") return { from: istDayStart(istDay(now) - WEEK_DAYS + 1), to: Infinity };
   if (period === "month") return { from: monthStart(cur), to: Infinity };
   if (period === "year") return { from: monthStart(yearOf(cur) * 12), to: Infinity };
@@ -67,6 +69,8 @@ export function previousSpan(period: Period, now: number): Span | null {
   if (period === "all") return null;
   const { from } = periodSpan(period, now);
   if (period === "week") return { from: from - WEEK_DAYS * DAY_MS, to: from };
+  // Yesterday, all of it.
+  if (period === "day") return { from: from - DAY_MS, to: from };
   const cur = monthIndex(now);
   const start = monthStart(period === "month" ? cur - 1 : (yearOf(cur) - 1) * 12);
   return { from: start, to: Math.min(from, start + (now - from)) };
@@ -78,6 +82,7 @@ export function previousLabel(period: Period, now: number): string | null {
   const span = previousSpan(period, now);
   if (!span) return null;
   if (period === "week") return "the 7 days before";
+  if (period === "day") return "yesterday";
   // The span ends just before `to`; on the 1st it is that one day.
   const last = span.to - 1;
   if (istDay(last) === istDay(span.from)) return period === "month" ? formatShortDate(span.from) : formatDate(span.from);
@@ -102,6 +107,15 @@ export function slotsFor(period: Period, now: number): Slot[] {
     to: monthStart(index + 1),
     isCurrent: index === cur,
   });
+  if (period === "day") {
+    // Today in 3-hour slots: when you drove or charged.
+    const start = istDayStart(istDay(now));
+    const hour = (h: number) => (h === 0 ? "12a" : h < 12 ? `${h}a` : h === 12 ? "12p" : `${h - 12}p`);
+    return Array.from({ length: 8 }, (_, k) => {
+      const from = start + k * 3 * 3_600_000;
+      return { id: from, label: hour(k * 3), from, to: from + 3 * 3_600_000, isCurrent: now >= from && now < from + 3 * 3_600_000 };
+    });
+  }
   if (period === "week") {
     const today = istDay(now);
     return Array.from({ length: WEEK_DAYS }, (_, k) => {
@@ -134,6 +148,7 @@ export function sumBySlot<T>(items: T[], slots: Slot[], at: (item: T) => number,
 
 // "this month", for "Spent this month" and the headline figures' captions.
 export const PERIOD_WORDS: Record<Period, string> = {
+  day: "today",
   week: "in the last 7 days",
   month: "this month",
   year: "this year",
@@ -141,7 +156,7 @@ export const PERIOD_WORDS: Record<Period, string> = {
 };
 
 // What one bar of slotsFor covers, for screen readers: "Spend per day".
-export const SLOT_NAMES: Record<Period, string> = { week: "day", month: "month", year: "month", all: "year" };
+export const SLOT_NAMES: Record<Period, string> = { day: "3 hours", week: "day", month: "month", year: "month", all: "year" };
 
 // When some figure has nothing to compare with because its tracking began after the span before started
 // (`starts`: when each kind of tracking began, null for none), the earliest such start; else null. All has

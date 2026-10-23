@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import type { Day, DayKind } from "@/lib/day-timeline";
+import { type Day, type DayKind, dayParam } from "@/lib/day-timeline";
 import { formatClock, formatDayLabel, formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +19,7 @@ const style = Object.fromEntries(KINDS.map((k) => [k.kind, k])) as Record<DayKin
 
 // The last days as strips, after TeslaMate's timeline: when the car was driving, charging, parked or
 // seen asleep. Hover, focus or tap a stretch for its times; the line above says them.
-export function DayTimeline({ days: all7, now }: { days: Day[]; now: number }) {
+export function DayTimeline({ days: all7, now, title = "Your days" }: { days: Day[]; now: number; title?: string }) {
   const [active, setActive] = useState<string | null>(null);
   // Days from before tracking began say nothing, so the strips start at the first tracked one.
   const firstTracked = all7.findIndex((d) => d.segments.some((s) => s.kind !== "unknown"));
@@ -31,7 +32,7 @@ export function DayTimeline({ days: all7, now }: { days: Day[]; now: number }) {
   return (
     <section className="space-y-4">
       <div className="space-y-2">
-        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Your days</h2>
+        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">{title}</h2>
         <p className="text-sm text-muted-foreground tabular-nums" aria-live="polite">
           {shown ? describe(shown) : "Hover or tap a stretch for its times."}
         </p>
@@ -39,7 +40,9 @@ export function DayTimeline({ days: all7, now }: { days: Day[]; now: number }) {
       <ol className="space-y-1.5" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
         {[...days].reverse().map((d) => (
           <li key={d.day} className="flex items-center gap-3">
-            <span className="w-16 shrink-0 text-xs text-faint">{formatDayLabel(d.start, now)}</span>
+            <Link href={`/stats/day/${dayParam(d.day)}`} className="w-16 shrink-0 text-xs text-faint hover:text-foreground hover:underline hover:underline-offset-4">
+              {formatDayLabel(d.start, now)}
+            </Link>
             <div className="relative h-4 flex-1">
               {d.segments.map((s) => {
                 const key = `${d.day}-${s.start}`;

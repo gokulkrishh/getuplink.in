@@ -1,0 +1,66 @@
+import "server-only";
+import type { MapPin, MapPoint } from "@/components/stats/trip-map";
+import { type Day, dayStrips } from "@/lib/day-timeline";
+import { DRIVE_DAYS } from "@/lib/drives";
+import { istDay, istDayStart } from "@/lib/telemetry-derive";
+import { tripRoute } from "@/lib/trip-route";
+import { groupTrips, type Trip } from "@/lib/trips";
+import { loadPresence } from "./awake";
+import { loadDrivingFigures, loadWindowStats } from "./driving";
+import { invoicesBySession } from "./receipts";
+import { loadStreamSessions, type StreamChargeSession } from "./stream-charging";
+import { loadPrimaryVehicle } from "./telemetry";
+import { loadReadingsByField } from "./telemetry-window";
+
+const DAY = 86_400_000;
+
+export type DayDetail = {
+  day: number; // istDay
+  strip: Day;
+  trips: Trip[]; // newest first
+  charges: { session: StreamChargeSession; cost: number | null }[];
+  route: MapPoint[];
+  pins: MapPin[];
+  // The days either side that can be shown (within the 90 days of drives, not after today).
+  prev: number | null;
+  next: number | null;
+};
+
+// One IST day: its timeline, trips and charges, and where the car went. Null outside the 90 days Uplink
+// keeps drives for, or in the future.
+export async function loadDay(day: number, now: number): Promise<DayDetail | null> {
+  const today = istDay(now);
+  const first = istDay(now - DRIVE_DAYS * DAY) + 1;
+  if (day > today || day < first) return null;
+  const vehicle = await loadPrimaryVehicle();
+  const vin = vehicle?.vin ?? null;
+  const [window, presence, figures, sessions] = await Promise.all([loadWindowStats(vin, now), loadPresence(vehicle, now), loadDrivingFigures(vin, now), loadStreamSessions()]);
+  const start = istDayStart(day);
+  const end = istDayStart(day + 1);
+  const strip = dayStrips(
+    today - day + 1,
+    {
+      driving: window.driving.drives,
+      charging: sessions.map((s) => ({ start: Date.parse(s.started_at), end: s.ended_at ? Date.parse(s.ended_at) : now })),
+      asleep: presence.days.flatMap((d) => d.runs.filter((r) => r.state === "asleep")),
+    },
+    figures.since,
+    now,
+  )[0];
+  const trips = groupTrips(window.driving.drives).filter((t) => t.start >= start && t.start < end);
+  const dayCharges = sessions.filter((s) => Date.parse(s.started_at) >= start && Date.parse(s.started_at) < end);
+  const invoices = await invoicesBySession(dayCharges.filter((s) => !s.supercharger).map((s) => s.id));
+  // Where the car went: each trip's route and its start, stops and end, from one read of the day.
+  const located = vin ? ((await loadReadingsByField(vin, ["Location"], new Date(start - 30 * 60_000).toISOString(), new Date(Math.min(end + 30 * 60_000, now)).toISOString()))?.Location ?? []) : [];
+  const routes = [...trips].reverse().map((t) => tripRoute(t, located));
+  return {
+    day,
+    strip,
+    trips,
+    charges: dayCharges.map((session) => ({ session, cost: invoices.get(session.id)?.amount ?? null })),
+    route: routes.flatMap((r) => r.route),
+    pins: routes.flatMap((r) => r.pins),
+    prev: day - 1 >= first ? day - 1 : null,
+    next: day + 1 <= today ? day + 1 : null,
+  };
+}

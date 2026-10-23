@@ -200,3 +200,15 @@ describe("trackingGap", () => {
     expect(trackingGap(null, [ist("2026-01-09T10:00:00")])).toBeNull();
   });
 });
+
+describe("the Day period", () => {
+  const now = Date.parse("2026-10-23T14:00:00+05:30");
+  test("today from IST midnight, compared with all of yesterday, in 3-hour bars", () => {
+    expect(periodSpan("day", now).from).toBe(Date.parse("2026-10-23T00:00:00+05:30"));
+    expect(previousSpan("day", now)).toEqual({ from: Date.parse("2026-10-22T00:00:00+05:30"), to: Date.parse("2026-10-23T00:00:00+05:30") });
+    expect(previousLabel("day", now)).toBe("yesterday");
+    const slots = slotsFor("day", now);
+    expect(slots.map((s) => s.label)).toEqual(["12a", "3a", "6a", "9a", "12p", "3p", "6p", "9p"]);
+    expect(slots.find((s) => s.isCurrent)!.label).toBe("12p");
+  });
+});
