@@ -171,6 +171,13 @@
     @apply font-sans;
     color-scheme: light dark;
   }
+  /* Phones get everything a size up: sizes are in rem, so text, spacing, buttons and tap targets all
+     scale from this one value (19px, so a default button is 38px tall and the big one 52px). */
+  @media (width < 40rem) {
+    html {
+      font-size: 118.75%;
+    }
+  }
   html[data-theme="light"] {
     color-scheme: light;
   }
@@ -182,6 +189,20 @@
   [role="button"]:not([aria-disabled="true"]),
   summary {
     cursor: pointer;
+  }
+  /* Taps act at once (no double-tap-zoom wait), and the grey iOS tap flash is off: every control has
+     its own active, hover and focus states. */
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  summary,
+  label,
+  [role="button"],
+  [tabindex] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
   button[aria-busy="true"] {
     cursor: progress;

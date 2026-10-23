@@ -61,7 +61,8 @@ export function DisconnectTesla({ description }: { description: string }) {
               {error}
             </p>
           )}
-          <div className="flex gap-2 pt-1">
+          {/* Right-aligned with the action last; reversed so it stays first in tab order and gets focus on open. */}
+          <div className="flex flex-row-reverse gap-2 pt-1">
             <Submit ref={first} pendingLabel="Disconnecting…">Disconnect Tesla</Submit>
             <Button type="button" variant="ghost" size="lg" onClick={() => setAsking(false)}>
               Cancel
@@ -102,14 +103,15 @@ export function DeleteMyData() {
           </p>
           <label className="block space-y-1.5">
             <span className="block text-xs text-muted-foreground">Type delete to confirm</span>
-            <Input ref={input} name="confirm" autoComplete="off" placeholder="delete" className="h-9 max-w-48" aria-invalid={error ? true : undefined} aria-describedby={error ? "delete-error" : undefined} />
+            <Input ref={input} name="confirm" autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="delete" className="h-9 max-sm:h-10 max-w-48" aria-invalid={error ? true : undefined} aria-describedby={error ? "delete-error" : undefined} />
           </label>
           {error && (
             <p id="delete-error" role="alert" className="text-sm text-destructive">
               {error}
             </p>
           )}
-          <div className="flex gap-2 pt-1">
+          {/* Right-aligned with the action last; reversed so it stays first in tab order and gets focus on open. */}
+          <div className="flex flex-row-reverse gap-2 pt-1">
             <Submit pendingLabel="Deleting…">Delete my data</Submit>
             <Button type="button" variant="ghost" size="lg" onClick={() => setAsking(false)}>
               Cancel

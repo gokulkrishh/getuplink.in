@@ -18,7 +18,7 @@ export function NowStrip({ car, odometerKm, now }: { car: HomeCar; odometerKm: n
   return (
     <section aria-label="Your car now" className="space-y-4">
       {awake && <AutoRefresh />}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <h2 className="min-w-0 truncate text-sm text-muted-foreground">
           <Link href={`/car/${vehicle.id}`} prefetch={true} className="transition-colors duration-150 hover:text-foreground">
             {vehicle.display_name || "Tesla"}

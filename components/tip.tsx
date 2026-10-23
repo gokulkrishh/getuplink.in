@@ -22,14 +22,15 @@ export function Tip({ children }: { children: ReactNode }) {
 export function TipTrigger({ className, children }: { className?: string; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
-    <span
-      tabIndex={0}
+    <button
+      type="button"
       data-open={open}
       onClick={() => setOpen((v) => !v)}
       onBlur={() => setOpen(false)}
-      className={cn("group relative after:absolute after:-inset-y-1.5 after:inset-x-0", className)}
+      onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
+      className={cn("group relative text-left after:absolute after:-inset-y-1.5 after:inset-x-0 max-sm:after:-inset-y-2.5", className)}
     >
       {children}
-    </span>
+    </button>
   );
 }

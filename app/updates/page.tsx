@@ -50,7 +50,7 @@ function CarUpdates({ car, notes, label, now }: { car: UpdatesCar; notes: Releas
     <section className="space-y-12">
       {isAwake && <AutoRefresh />}
       <header className="space-y-1">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <h2 className="text-sm text-muted-foreground">{label}</h2>
           <p className="text-sm text-faint tabular-nums">
             <CarStatus

@@ -74,7 +74,7 @@ export function StackedBars({ bars: all, series, ariaLabel }: { bars: StackedBar
               aria-pressed={!hidden.has(s.i)}
               onClick={() => toggle(s.i)}
               className={cn(
-                "flex items-center gap-1.5 transition-colors duration-150",
+                "relative flex items-center gap-1.5 transition-colors duration-150 after:absolute after:-inset-y-1.5 after:inset-x-0 max-sm:after:-inset-y-2.5",
                 hidden.has(s.i) ? "text-faint line-through" : "text-muted-foreground hover:text-foreground",
               )}
             >

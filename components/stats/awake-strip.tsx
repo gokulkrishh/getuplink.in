@@ -35,12 +35,14 @@ export function AwakeStrip({ start, runs, classes }: { start: number; runs: Run[
   return (
     <div ref={strip} className="relative h-2.5 flex-1" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
       {runs.map((r, k) => (
-        <span
+        <button
+          type="button"
           key={r.start}
-          tabIndex={0}
-          role="img"
           aria-label={runLabel(r)}
-          className={cn("absolute inset-y-0 outline-offset-1 focus-visible:outline-2 focus-visible:outline-ring", classes[r.state])}
+          className={cn(
+            "absolute inset-y-0 outline-offset-1 after:absolute after:inset-x-0 after:-inset-y-1 focus-visible:outline-2 focus-visible:outline-ring max-sm:after:-inset-y-2",
+            classes[r.state],
+          )}
           style={{ left: `${((r.start - start) / DAY) * 100}%`, width: `${((r.end - r.start) / DAY) * 100}%` }}
           onPointerEnter={(e) => e.pointerType === "mouse" && setActive(k)}
           onClick={() => setActive(k)}

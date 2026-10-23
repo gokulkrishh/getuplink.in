@@ -71,7 +71,7 @@ export function Segmented<T extends string | number>({
               onClick={() => startTransition(() => onChange(option.value))}
               className={cn(
                 "relative isolate inline-flex items-center justify-center whitespace-nowrap outline-none select-none focus-visible:outline-2 focus-visible:-outline-offset-2",
-                size === "sm" ? "h-7 gap-1 px-2.5 text-[0.8rem]" : "gap-1.5 px-3 py-1.5 text-sm",
+                size === "sm" ? "h-7 gap-1 px-2.5 text-[0.8rem] max-sm:h-9 max-sm:px-3" : "gap-1.5 px-3 py-1.5 text-sm max-sm:py-2.5",
                 picked ? "font-medium text-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >
