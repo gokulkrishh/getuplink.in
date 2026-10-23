@@ -6,6 +6,10 @@ import { SyncChargingSessions } from "@/components/background-sync";
 import { listSessions } from "@/components/session-row";
 import { ChargeHabits } from "@/components/stats/charge-habits";
 import { ChargeRange } from "@/components/stats/charge-range";
+import { ChargingMap, DcCurves } from "@/components/stats/charging-extras";
+import { TopStations } from "@/components/stats/top-stations";
+import { topStations } from "@/lib/top-stations";
+import { loadChargingExtras } from "@/lib/server/charging-extra";
 import { EnergyAdded, SessionList, Summary } from "@/components/stats/charging-sections";
 import { eachPeriod, NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/components/stats/stats-frame";
 import { matchSessions } from "@/lib/charge-sessions";
@@ -30,6 +34,7 @@ async function loadCharging(): Promise<{
   streamSessions: StreamChargeSession[];
   invoices: Invoices;
   km: Record<Period, number | null>;
+  extras: Awaited<ReturnType<typeof loadChargingExtras>>;
   now: number;
 }> {
   "use cache: private";
@@ -42,11 +47,12 @@ async function loadCharging(): Promise<{
   const [sessions, streamSessions, figures] = await Promise.all([loadChargingSessions(), loadStreamSessions(), loadDrivingFigures(vin, now)]);
   const invoices = await invoicesBySession(streamSessions.filter((s) => !s.supercharger).map((s) => s.id));
   const km = Object.fromEntries(Object.entries(figures.periods).map(([p, f]) => [p, f.current.km])) as Record<Period, number | null>;
-  return { sessions, streamSessions, invoices, km, now };
+  const extras = await loadChargingExtras(vin, streamSessions);
+  return { sessions, streamSessions, invoices, km, extras, now };
 }
 
 async function Charging() {
-  const { sessions, streamSessions, invoices, km, now } = await loadCharging();
+  const { sessions, streamSessions, invoices, km, extras, now } = await loadCharging();
   const { pairs, streamOnly } = matchSessions(sessions, streamSessions, now);
   const listed = listSessions(pairs, streamOnly);
   // Real bills: Tesla's for Superchargers, attached invoices for the rest. A finished charge with
@@ -71,6 +77,14 @@ async function Charging() {
           {streamSessions.length > 0 && eachPeriod((p) => <EnergyAdded sessions={sessions} streamOnly={streamOnly} now={now} period={p} />, { steady: true })}
           <ChargeHabits starts={[...sessions.map((s) => Date.parse(s.started_at)), ...streamOnly.map((s) => Date.parse(s.started_at))]} />
           <ChargeRange sessions={streamSessions} />
+          <DcCurves curves={extras.curves} />
+          <TopStations
+            rows={topStations([
+              ...sessions.map((s) => ({ name: s.site_name, kwh: s.energy_kwh, cost: s.cost_total })),
+              ...streamOnly.filter((s) => s.ended_at !== null).map((s) => ({ name: s.station_name, kwh: s.energy_added_kwh, cost: invoices.get(s.id)?.amount ?? null })),
+            ])}
+          />
+          <ChargingMap pins={extras.pins} />
           <SessionList sessions={listed} />
         </div>
       )}
