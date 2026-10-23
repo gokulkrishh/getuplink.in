@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
 import { DriveTrace } from "@/components/stats/drive-trace";
+import { TripTimeline } from "@/components/stats/trip-timeline";
 import { formatClock, formatDate, formatDuration, formatKm, formatKwh } from "@/lib/format";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -65,30 +65,7 @@ function Drive({ detail }: { detail: DriveDetail }) {
         {trip.stops > 0 && (
           <section className="space-y-4">
             <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Timeline</h2>
-            <ol className="divide-y border-t text-sm">
-              {trip.legs.flatMap((d, k) => [
-                ...(k > 0
-                  ? [
-                      <li key={`stop-${d.start}`} className="flex justify-between gap-4 py-2.5 text-muted-foreground tabular-nums">
-                        <span>Stop</span>
-                        <span>{formatDuration((d.start - trip.legs[k - 1].end) / 1000)}</span>
-                      </li>,
-                    ]
-                  : []),
-                <li key={d.start} className="flex justify-between gap-4 py-2.5 tabular-nums">
-                  <span>
-                    <Link href={`/stats/driving/${d.start}?leg`} className="hover:underline hover:underline-offset-4">
-                      {formatClock(d.start)} to {formatClock(d.end)}
-                    </Link>{" "}
-                    <span className="text-muted-foreground">· {formatKm(d.km)} · {formatDuration((d.end - d.start) / 1000)}</span>
-                  </span>
-                  <span className="font-mono">
-                    {d.kwh !== null ? formatKwh(d.kwh) : ""}
-                    {d.startLevel !== null && d.endLevel !== null && <span className="ml-3 text-muted-foreground">{`${Math.round(d.startLevel)}→${Math.round(d.endLevel)}%`}</span>}
-                  </span>
-                </li>,
-              ])}
-            </ol>
+            <TripTimeline legs={trip.legs} />
           </section>
         )}
         {speed.length >= 2 && (
