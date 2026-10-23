@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
 import { DriveTrace } from "@/components/stats/drive-trace";
+import { TripMap } from "@/components/stats/trip-map";
 import { TripTimeline } from "@/components/stats/trip-timeline";
 import { formatClock, formatDate, formatDuration, formatKm, formatKwh } from "@/lib/format";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
@@ -25,10 +26,10 @@ async function loadDetail(start: number, leg: boolean): Promise<DriveDetail | nu
 }
 
 // One trip on one page: a single drive, or drives with short stops between (see groupTrips). Its totals,
-// a timeline of legs and stops, then the battery and (once streamed) speed across the whole trip. No
-// route: Uplink doesn't keep where the car goes.
+// the route on a map with its start, stops and end, a timeline of legs and stops, then the battery and
+// speed across the whole trip.
 function Drive({ detail }: { detail: DriveDetail }) {
-  const { trip, battery, speed, rangeUsedKm, topKmh, outsideC } = detail;
+  const { trip, battery, speed, rangeUsedKm, topKmh, outsideC, route, pins } = detail;
   const drivingMs = trip.legs.reduce((sum, d) => sum + (d.end - d.start), 0);
   const stoppedMs = trip.end - trip.start - drivingMs;
   const tiles: { label: string; value: string; note?: string; level?: [number, number] }[] = [
@@ -76,6 +77,14 @@ function Drive({ detail }: { detail: DriveDetail }) {
                 </div>
               ))}
             </dl>
+          )}
+        </section>
+        <section className="space-y-4">
+          <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Map</h2>
+          {route.length >= 2 ? (
+            <TripMap route={route} pins={pins} />
+          ) : (
+            <p className="text-sm text-muted-foreground">The map shows for trips after your car starts streaming its location.</p>
           )}
         </section>
         {trip.stops > 0 && (
