@@ -2,7 +2,8 @@
 // database (db() refuses to run). Locally: `bun run demo` (UPLINK_DEMO=1 bun dev; production builds ignore
 // that flag). The public demo site, demo.getuplink.in, is its own Vercel project built with
 // UPLINK_DEMO_SITE=1, so the real app can never switch into it by accident.
-export const DEMO = (process.env.NODE_ENV === "development" && process.env.UPLINK_DEMO === "1") || process.env.UPLINK_DEMO_SITE === "1";
+export const DEMO_SITE = process.env.UPLINK_DEMO_SITE === "1";
+export const DEMO = (process.env.NODE_ENV === "development" && process.env.UPLINK_DEMO === "1") || DEMO_SITE;
 
 // Where the public demo lives, for the links in Settings and on the home page.
 export const DEMO_URL = "https://demo.getuplink.in";
