@@ -28,8 +28,9 @@ describe("statsRedirect", () => {
     expect(target("")).toBe("/stats/driving");
     expect(target("view=nonsense&period=year")).toBe("/stats/driving?period=year");
   });
-  test("Month and unknown periods stay out of the URL", () => {
-    expect(target("view=driving&period=month")).toBe("/stats/driving");
+  test("Week, the default, and unknown periods stay out of the URL", () => {
+    expect(target("view=driving&period=week")).toBe("/stats/driving");
+    expect(target("view=driving&period=month")).toBe("/stats/driving?period=month");
     expect(target("view=driving&period=decade")).toBe("/stats/driving");
   });
 });

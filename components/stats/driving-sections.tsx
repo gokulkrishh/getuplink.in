@@ -31,14 +31,14 @@ export function Distance({ figures, now, period }: { figures: DrivingFigures; no
   );
 }
 
-// kWh per 100 km for the period and each bar, from the streamed lifetime energy counter and the odometer. It counts
-// everything the car drew, parked time included, so short spans are left out (see drivingFigures).
+// Energy used driving in the period and each bar, in kWh: from the streamed lifetime energy counter, or
+// from the drives where the counter has no reading from before the span (see withDriveEfficiency).
 export function EnergyUse({ figures, now, period }: { figures: DrivingFigures; now: number; period: Period }) {
   const { current, bars: values } = figures.periods[period];
-  if (current.whPerKm === null) return null;
+  if (current.kwh === null) return null;
   const slots = slotsFor(period, now);
   const bars = slots.map((slot, k) => {
-    const value = (values[k].whPerKm ?? 0) / 10;
+    const value = values[k].kwh ?? 0;
     return { key: String(slot.id), label: slot.label, value, display: oneDecimal.format(value), isCurrent: slot.isCurrent };
   });
   const regenBars = slots.map((slot, k) => {
@@ -50,10 +50,13 @@ export function EnergyUse({ figures, now, period }: { figures: DrivingFigures; n
     <section className="space-y-8">
       <div className="space-y-2">
         <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Energy use</h2>
-        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{oneDecimal.format(current.whPerKm / 10)} kWh/100 km</p>
-        <p className="text-sm text-muted-foreground">{PERIOD_WORDS[period]}</p>
+        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatKwh(current.kwh)}</p>
+        <p className="text-sm text-muted-foreground tabular-nums">
+          Used {PERIOD_WORDS[period]}
+          {current.km ? ` · ${compactNumber.format(current.km)} km` : ""}
+        </p>
       </div>
-      <Bars bars={bars} ariaLabel={`Energy use per ${SLOT_NAMES[period]} in kWh per 100 km`} unit="kWh/100 km" />
+      <Bars bars={bars} ariaLabel={`Energy used per ${SLOT_NAMES[period]} in kWh`} unit="kWh" />
       {regenTotal > 0 && (
         <div className="space-y-4">
           <p className="text-sm">

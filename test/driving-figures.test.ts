@@ -92,7 +92,7 @@ describe("drivingFigures", () => {
 
   test("no counters: every figure is empty", () => {
     const none = drivingFigures({ instants, odometer: null, used: null, regen: null, polledOdometer: null }, now);
-    expect(none.periods.month.current).toEqual({ km: null, whPerKm: null, regenKwh: null });
+    expect(none.periods.month.current).toEqual({ km: null, whPerKm: null, kwh: null, regenKwh: null });
     expect(none.since).toBeNull();
     expect(none.odometerKm).toBeNull();
   });

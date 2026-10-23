@@ -65,7 +65,9 @@ function rise(r: Readings | null, span: Span, now: number): number | null {
   return end === null || start === null ? null : Math.max(0, end - start);
 }
 
-export type DrivingFigure = { km: number | null; whPerKm: number | null; regenKwh: number | null };
+// kwh: energy used in the span by the lifetime counter, parked use included, under the same minimum
+// distance as whPerKm.
+export type DrivingFigure = { km: number | null; whPerKm: number | null; kwh: number | null; regenKwh: number | null };
 // `previous` is the span it is compared with (see previousSpan); a figure there is null unless its counter
 // was read before that span began. `bars` follow slotsFor.
 export type DrivingPeriod = { current: DrivingFigure; previous: DrivingFigure | null; bars: DrivingFigure[] };
@@ -100,6 +102,7 @@ export function drivingFigures(input: DrivingCounters, now: number): DrivingFigu
     return {
       km: miles === null ? null : Math.round(miles * MILES_TO_KM),
       whPerKm: kwh !== null && kwh > 0 && streamedKm >= minKm ? (kwh * 1000) / streamedKm : null,
+      kwh: kwh !== null && kwh > 0 && streamedKm >= minKm ? kwh : null,
       regenKwh: rise(counted(regen), span, now),
     };
   };

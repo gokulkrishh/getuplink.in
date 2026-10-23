@@ -3,12 +3,12 @@
 import { useSearchParams } from "next/navigation";
 import { createContext, useContext, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { type Period, parsePeriod } from "./periods";
+import { defaultPeriod, type Period, parsePeriod } from "./periods";
 import { PeriodSwitch } from "./period-switch";
 
 type Scope = { period: Period; options?: Period[]; select: (period: Period) => void };
 
-const PeriodContext = createContext<Scope>({ period: "month", select: () => {} });
+const PeriodContext = createContext<Scope>({ period: defaultPeriod(), select: () => {} });
 
 export const usePeriod = () => useContext(PeriodContext).period;
 
@@ -29,7 +29,7 @@ export function ByPeriod({ panels, steady = false }: { panels: Partial<Record<Pe
   );
 }
 
-// Holds a page's period, read from ?period= (Month, the default, stays out of it). Every period's panels
+// Holds a page's period, read from ?period= (the default, Week where offered, stays out of it). Every period's panels
 // arrive with the page, so switching only replaces the address (which Next's router follows) and needs no
 // server trip; a shared link, the logo's link to / and a refresh all show the URL's period. `options`
 // limits it, like Updates without Week. Other query parameters are kept.
@@ -37,7 +37,7 @@ export function PeriodScope({ options, children }: { options?: Period[]; childre
   const period = parsePeriod(useSearchParams().get("period") ?? undefined, options);
   const select = (next: Period) => {
     const url = new URL(window.location.href);
-    if (next === "month") url.searchParams.delete("period");
+    if (next === defaultPeriod(options)) url.searchParams.delete("period");
     else url.searchParams.set("period", next);
     window.history.replaceState(null, "", url);
   };
