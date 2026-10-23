@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { CopyButton } from "@/components/copy-button";
-import { Button } from "@/components/ui/button";
-import { BOT_CHAT, BOT_NAME, BOT_ROUTINE, CONNECTOR_URL } from "@/lib/bot-template";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { BOT_CHAT, BOT_NAME, BOT_ROUTINE, BOT_TEMPLATE_URL, CONNECTOR_URL } from "@/lib/bot-template";
 import { formatAgo, formatDate } from "@/lib/format";
 import type { ConnectorTokenStatus } from "@/lib/server/connector-token";
 import { newConnectorToken, removeConnectorToken } from "./actions";
@@ -99,6 +99,14 @@ export function GrokBotTemplate() {
       description="A Grok bot that attaches your charging invoices: from Gmail every 6 hours, and any you share with it in chat for networks that don't email them."
     >
       <div className="mt-4 space-y-4">
+        {BOT_TEMPLATE_URL && (
+          <div className="flex flex-col items-end gap-1.5">
+            <a href={BOT_TEMPLATE_URL} target="_blank" rel="noopener" className={buttonVariants({ variant: "outline", size: "lg" })}>
+              Add {BOT_NAME} to Grok
+            </a>
+            <p className="text-xs text-muted-foreground">Then add the connector token as its secret. Or set it up by hand:</p>
+          </div>
+        )}
         <ol className="list-decimal space-y-1.5 pl-5 text-xs text-muted-foreground">
           <li>Create a Grok bot named {BOT_NAME} and connect your Gmail to it.</li>
           <li>Add the MCP connector above to it: the URL, and the token as a secret.</li>

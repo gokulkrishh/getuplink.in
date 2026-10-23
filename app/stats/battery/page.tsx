@@ -2,21 +2,22 @@ import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { BatteryHealth } from "@/components/stats/battery-health";
 import { BatteryPack } from "@/components/stats/battery-pack";
 import { ChargeLevelChart } from "@/components/stats/charge-level";
 import { ParkedDrain } from "@/components/stats/parked-drain";
-import { ProjectedRange } from "@/components/stats/projected-range";
 import { NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/components/stats/stats-frame";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadWindowStats, type WindowStats } from "@/lib/server/driving";
+import { loadStreamSessions, type StreamChargeSession } from "@/lib/server/stream-charging";
 import { loadPrimaryVehicle } from "@/lib/server/telemetry";
 
 export const metadata: Metadata = { title: "Battery · Uplink" };
 
 // Session check plus data in one browser-only private cache, so links can prefetch it (see app/page.tsx).
 // Every section comes from the one read of the streamed readings.
-async function loadBattery(): Promise<{ window: WindowStats; now: number }> {
+async function loadBattery(): Promise<{ window: WindowStats; sessions: StreamChargeSession[]; now: number }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
@@ -24,11 +25,12 @@ async function loadBattery(): Promise<{ window: WindowStats; now: number }> {
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
   const now = Date.now();
   const vin = (await loadPrimaryVehicle())?.vin ?? null;
-  return { window: await loadWindowStats(vin, now), now };
+  const [window, sessions] = await Promise.all([loadWindowStats(vin, now), loadStreamSessions()]);
+  return { window, sessions, now };
 }
 
 async function Battery() {
-  const { window, now } = await loadBattery();
+  const { window, sessions, now } = await loadBattery();
   const { trend, range, level, driving } = window;
   const enough = trend.length >= 2 || range.length > 0 || (level?.points.length ?? 0) >= 2 || driving.parked.length > 0 || driving.parkedNow !== null;
 
@@ -36,8 +38,8 @@ async function Battery() {
     <StatsFrame view="battery" periodSwitch={false}>
       {enough ? (
         <div className="space-y-12">
+          <BatteryHealth trend={trend} range={range} sessions={sessions} />
           <BatteryPack trend={trend} />
-          <ProjectedRange weeks={range} />
           <ChargeLevelChart level={level} now={now} />
           <ParkedDrain drain={driving.drain} parked={driving.parked} parkedNow={driving.parkedNow} />
         </div>

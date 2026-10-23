@@ -5,6 +5,10 @@ export const CONNECTOR_URL = "https://app.getuplink.in/api/mcp";
 
 export const BOT_NAME = "Uplink Bot";
 
+// The bot's share link from Grok, so an owner can add it in one step. Null until one is published; the
+// manual steps below stay as the fallback.
+export const BOT_TEMPLATE_URL: string | null = null;
+
 export const BOT_ROUTINE = `Every 6 hours, search my Gmail for EV charging invoices from the last 7 days (Tata Power EZ Charge, Statiq, ChargeZone, Jio-bp pulse, Zeon, ChargeMOD or any other charging network). For each email with a per-session invoice:
 1. Read the network, station, start and end time (IST), kWh billed, total amount, GST and invoice number.
 2. Call attach_charge_invoice from the Uplink connector with those fields, the PDF as base64, and source_ref "gmail:<message id>".
