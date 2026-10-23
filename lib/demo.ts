@@ -1,7 +1,11 @@
-// Local demo mode: `bun run demo` (UPLINK_DEMO=1 bun dev) fills every page with generated data for one
-// car and signs you in without Tesla or the database. Only `next dev` sets NODE_ENV=development, so
-// production builds ignore the flag.
-export const DEMO = process.env.NODE_ENV === "development" && process.env.UPLINK_DEMO === "1";
+// Demo mode fills every page with generated data for one car and signs you in without Tesla or the
+// database (db() refuses to run). Locally: `bun run demo` (UPLINK_DEMO=1 bun dev; production builds ignore
+// that flag). The public demo site, demo.getuplink.in, is its own Vercel project built with
+// UPLINK_DEMO_SITE=1, so the real app can never switch into it by accident.
+export const DEMO = (process.env.NODE_ENV === "development" && process.env.UPLINK_DEMO === "1") || process.env.UPLINK_DEMO_SITE === "1";
+
+// Where the public demo lives, for the links in Settings and on the home page.
+export const DEMO_URL = "https://demo.getuplink.in";
 
 export const DEMO_SCENARIOS = {
   normal: "Parked",

@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
 import { ThemePicker } from "@/components/theme-picker";
-import { DEMO } from "@/lib/demo";
+import { buttonVariants } from "@/components/ui/button";
+import { DEMO, DEMO_URL } from "@/lib/demo";
 import { STATES } from "@/lib/india-states";
 import { formatAgo, formatDate, formatSeen } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -85,6 +86,20 @@ async function Settings() {
         />
         <HomeState home={home} />
       </Group>
+
+      {!DEMO && (
+        <Group title="Demo">
+          <Row
+            title="See the demo"
+            description="Every feature with a sample car, to see how your data will look as it builds up. Nothing from your account is shown there."
+            control={
+              <a href={DEMO_URL} target="_blank" rel="noopener" className={buttonVariants({ variant: "outline", size: "lg" })}>
+                View the demo
+              </a>
+            }
+          />
+        </Group>
+      )}
 
       <Group title="Integrations">
         <McpConnector status={connector} now={now} />

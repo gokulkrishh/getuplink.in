@@ -10,6 +10,7 @@ import { LoginError } from "@/components/login-error";
 import { Logo } from "@/components/logo";
 import { SignInButton } from "@/components/sign-in-button";
 import { buttonVariants } from "@/components/ui/button";
+import { DEMO_URL } from "@/lib/demo";
 
 export const metadata: Metadata = {
   title: "Uplink · Your Tesla's updates, charging and driving, in one place",
@@ -109,7 +110,10 @@ export default function HomePage() {
             <Suspense fallback={<SignInButton />}>
               <SessionCta />
             </Suspense>
-            <a href="#how" className={buttonVariants({ variant: "secondary", size: "xl" })}>
+            <a href={DEMO_URL} className={buttonVariants({ variant: "secondary", size: "xl" })}>
+              See the demo
+            </a>
+            <a href="#how" className={buttonVariants({ variant: "ghost", size: "xl" })}>
               How it works
             </a>
           </div>
