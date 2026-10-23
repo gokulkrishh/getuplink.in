@@ -132,18 +132,23 @@ type Series = { odometer: Point[]; battery: Point[]; energy: Point[]; lifetime: 
 function describe(trip: Trip, nextStart: number, s: Series): Drive | null {
   // Counters are read up to a few minutes after the gear shows P, but never into the next drive.
   const settled = Math.min(trip.end + LOOKAHEAD_MS, nextStart - 1);
-  const odoStart = valueAt(s.odometer, trip.start);
+  // Gear and odometer arrive every few minutes, so the car is often already moving when the first
+  // non-P gear is read. Counting from the last reading before it keeps that distance, and since the
+  // previous drive's counters stop just short of this one, consecutive drives add up to the odometer.
+  const before = trip.start - 1;
+  const from = (points: Point[]) => valueAt(points, before) ?? valueAt(points, trip.start);
+  const odoStart = from(s.odometer);
   const odoEnd = valueAt(s.odometer, settled);
   if (odoStart === null || odoEnd === null) return null;
   const km = (odoEnd - odoStart) * MILES_TO_KM;
   if (km < MIN_DRIVE_KM) return null;
-  const usedStart = valueAt(s.lifetime, trip.start);
+  const usedStart = from(s.lifetime);
   const usedEnd = valueAt(s.lifetime, settled);
   let kwh: number | null = null;
   if (usedStart !== null && usedEnd !== null && usedEnd >= usedStart) {
     kwh = usedEnd - usedStart;
   } else {
-    const leftStart = valueAt(s.energy, trip.start);
+    const leftStart = from(s.energy);
     const leftEnd = valueAt(s.energy, settled);
     if (leftStart !== null && leftEnd !== null && leftStart >= leftEnd) kwh = leftStart - leftEnd;
   }

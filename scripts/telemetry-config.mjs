@@ -108,7 +108,11 @@ set(ALL_FIELDS.filter((n) => /^Di(Torque|AxleSpeed|MotorCurrent|VBat|SlaveTorque
 // Temperatures, every 5 min and only when they move by a degree.
 set(ALL_FIELDS.filter((n) => /Temp|Heatsink|^DiInverter/.test(n) && !/Request|Limit|Unit/.test(n)), 300, { minimum_delta: 1 });
 // Battery and range, every 5 min.
-set(["Soc", "BatteryLevel", "RatedRange", "EstBatteryRange", "IdealBatteryRange", "EnergyRemaining", "Odometer", "Gear"], 300);
+set(["Soc", "BatteryLevel", "RatedRange", "EstBatteryRange", "IdealBatteryRange", "EnergyRemaining"], 300);
+// Drive starts and ends: the gear as soon as it changes, the odometer every 30 s. At 5 minutes, a drive's
+// first minutes and short moves between stops went unseen.
+set(["Gear"], 1);
+set(["Odometer"], 30);
 set(["LifetimeEnergyUsed", "LifetimeEnergyGainedRegen", "LifetimeEnergyUsedDrive", "LifetimeEnergyChargedKwh", "NominalFullPackEnergyKwh"], 300);
 // Tesla: SelfDrivingMilesSinceReset needs minimum_delta explicitly set to >= 1 (HW4, fw 2025.44.25.5+).
 set(["SelfDrivingMilesSinceReset", "MilesSinceReset"], 3600, { minimum_delta: 1 });
