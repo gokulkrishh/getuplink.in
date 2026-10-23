@@ -7,6 +7,8 @@ import { DailyDriving, Distance, DriveStatsSection, EnergyUse } from "@/componen
 import { driveStats, withDriveEfficiency } from "@/lib/drive-stats";
 import { type Day, dayStrips } from "@/lib/day-timeline";
 import { DayTimeline } from "@/components/stats/day-timeline";
+import { EfficiencyBands, Places, SpeedBands } from "@/components/stats/driving-extras";
+import { type DrivingExtras, loadDrivingExtras } from "@/lib/server/driving-extra";
 import { loadPresence } from "@/lib/server/awake";
 import { loadStreamSessions } from "@/lib/server/stream-charging";
 import { DRIVE_DAYS } from "@/lib/drives";
@@ -21,7 +23,7 @@ export const metadata: Metadata = { title: "Driving · Uplink" };
 
 // Session check plus data in one browser-only private cache, so links can prefetch it (see app/page.tsx).
 // The car is read once; the period counters and the 90-day window share its VIN.
-async function loadDriving(): Promise<{ figures: DrivingFigures; window: WindowStats; days: Day[]; now: number }> {
+async function loadDriving(): Promise<{ figures: DrivingFigures; window: WindowStats; days: Day[]; extras: DrivingExtras; now: number }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
@@ -42,11 +44,12 @@ async function loadDriving(): Promise<{ figures: DrivingFigures; window: WindowS
     figures.since,
     now,
   );
-  return { figures, window, days, now };
+  const extras = await loadDrivingExtras(vin, window.driving.drives, now);
+  return { figures, window, days, extras, now };
 }
 
 async function Driving() {
-  const { figures, window, days: dayStripsData, now } = await loadDriving();
+  const { figures, window, days: dayStripsData, extras, now } = await loadDriving();
   const { days, driving } = window;
   // Mirrors the sections' own "enough data" rules, so an empty page says so instead of showing nothing.
   const hasDriving = (figures.periods.all.current.km ?? 0) > 0 || days.filter((d) => d.km !== null).length >= 2 || driving.drives.length > 0;
@@ -59,6 +62,9 @@ async function Driving() {
           <DailyDriving days={days} />
           {eachPeriod((p) => <EnergyUse figures={figures} now={now} period={p} />, { steady: true })}
           <DayTimeline days={dayStripsData} now={now} />
+          <SpeedBands bins={extras.speed} />
+          <EfficiencyBands byTemp={extras.byTemp} bySpeed={extras.bySpeed} />
+          <Places places={extras.places} visited={extras.visited} />
           <DriveStatsSection stats={driveStats(driving.drives, now - DRIVE_DAYS * 86_400_000, figures.since, now)} />
           <DriveList drives={driving.drives} now={now} />
         </div>
