@@ -7,8 +7,8 @@ const W = 600;
 const H = 160;
 const PAD = { top: 12, right: 8, bottom: 22, left: 36 };
 
-// A value over the drive's time (battery %, speed), as a line. Hover or tap anywhere for the value at
-// that moment; the line under the chart says it, so touch gets the same as a mouse.
+// A value over the drive's time (battery %, speed), as a line. Hover or tap anywhere for a tooltip with
+// the value at that moment.
 export function DriveTrace({
   points,
   from,
@@ -46,7 +46,7 @@ export function DriveTrace({
   const fmt = (v: number) => (Math.round(v * 10) / 10).toString();
 
   return (
-    <div className="space-y-2">
+    <div className="relative">
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="w-full touch-none bg-muted"
@@ -78,9 +78,18 @@ export function DriveTrace({
           </>
         )}
       </svg>
-      <p className="text-xs text-muted-foreground tabular-nums" aria-live="polite">
-        {shown ? `${formatClock(shown.t)} · ${fmt(shown.v)} ${unit}` : `Hover or tap the chart for the ${label.toLowerCase()} at a moment.`}
-      </p>
+      {shown && (
+        <div
+          className="pointer-events-none absolute top-1 z-10 border bg-background px-2 py-1 text-xs whitespace-nowrap tabular-nums shadow-sm"
+          style={{ left: `${(x(shown.t) / W) * 100}%`, transform: `translateX(${x(shown.t) / W > 0.6 ? "calc(-100% - 8px)" : "8px"})` }}
+          aria-live="polite"
+        >
+          <span className="block text-muted-foreground">{formatClock(shown.t)}</span>
+          <span className="block font-mono">
+            {fmt(shown.v)} {unit}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
