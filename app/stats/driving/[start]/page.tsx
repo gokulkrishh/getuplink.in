@@ -34,7 +34,7 @@ function Drive({ detail }: { detail: DriveDetail }) {
   const tiles: { label: string; value: string; note?: string; level?: [number, number] }[] = [
     ...(trip.kwh !== null ? [{ label: "Energy used", value: formatKwh(trip.kwh) }] : []),
     ...(trip.startLevel !== null && trip.endLevel !== null
-      ? [{ label: "Battery", value: `${Math.round(trip.startLevel)}% → ${Math.round(trip.endLevel)}%`, level: [trip.startLevel, trip.endLevel] as [number, number] }]
+      ? [{ label: "Battery", value: `${Math.round(trip.startLevel)}% to ${Math.round(trip.endLevel)}%`, level: [trip.startLevel, trip.endLevel] as [number, number] }]
       : []),
     ...(rangeUsedKm !== null ? [{ label: "Range used", value: `${Math.round(rangeUsedKm)} km` }] : []),
     ...(drivingMs > 0 ? [{ label: "Average speed", value: `${Math.round(trip.km / (drivingMs / 3_600_000))} km/h`, note: trip.stops ? "while driving" : undefined }] : []),

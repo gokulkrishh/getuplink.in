@@ -10,7 +10,7 @@ const SUMMARY_MS = 6 * HOUR;
 const oneDecimal = (value: number) => (Math.round(value * 10) / 10).toString();
 // Power in kW, like charging: parked draw is small, so three decimals ("0.017 kW").
 export const kw = (watts: number) => `${(watts / 1000).toFixed(watts < 1000 ? 3 : 1)} kW`;
-const dash = "–";
+const dash = "Unknown";
 
 type Row = ParkStats & { ongoing: boolean; atLeast: boolean };
 

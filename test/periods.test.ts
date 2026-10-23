@@ -42,18 +42,18 @@ describe("previousSpan, to date", () => {
   test("month: as far into last month as now is into this one", () => {
     const now = ist("2026-10-22T14:00:00");
     expect(previousSpan("month", now)).toEqual({ from: ist("2026-09-01T00:00:00"), to: ist("2026-09-22T14:00:00") });
-    expect(previousLabel("month", now)).toBe(`1–${formatShortDate(ist("2026-09-22T12:00:00"))}`);
+    expect(previousLabel("month", now)).toBe(`1 to ${formatShortDate(ist("2026-09-22T12:00:00"))}`);
   });
   test("month: 31 Oct takes all of September, not into October", () => {
     const now = ist("2026-10-31T20:00:00");
     expect(previousSpan("month", now)).toEqual({ from: ist("2026-09-01T00:00:00"), to: ist("2026-10-01T00:00:00") });
-    expect(previousLabel("month", now)).toBe(`1–${formatShortDate(ist("2026-09-30T12:00:00"))}`);
+    expect(previousLabel("month", now)).toBe(`1 to ${formatShortDate(ist("2026-09-30T12:00:00"))}`);
   });
   test("month: 31 Mar takes all of a 28-day February", () => {
-    expect(previousLabel("month", ist("2027-03-31T09:00:00"))).toBe("1–28 Feb");
+    expect(previousLabel("month", ist("2027-03-31T09:00:00"))).toBe("1 to 28 Feb");
   });
   test("month: 30 Mar in a leap year takes all 29 days of February", () => {
-    expect(previousLabel("month", ist("2028-03-30T09:00:00"))).toBe("1–29 Feb");
+    expect(previousLabel("month", ist("2028-03-30T09:00:00"))).toBe("1 to 29 Feb");
   });
   test("month: on the 1st it is one day", () => {
     expect(previousLabel("month", ist("2026-11-01T08:00:00"))).toBe("1 Oct");
@@ -63,14 +63,14 @@ describe("previousSpan, to date", () => {
     const span = previousSpan("year", now)!;
     expect(span.from).toBe(ist("2027-01-01T00:00:00"));
     expect(span.to - span.from).toBe(now - ist("2028-01-01T00:00:00"));
-    expect(previousLabel("year", now)).toBe("1 Jan–1 Mar 2027");
+    expect(previousLabel("year", now)).toBe("1 Jan to 1 Mar 2027");
   });
   test("year: on 1 Jan it is one day of last year", () => {
     expect(previousSpan("year", ist("2027-01-01T05:00:00"))).toEqual({ from: ist("2026-01-01T00:00:00"), to: ist("2026-01-01T05:00:00") });
     expect(previousLabel("year", ist("2027-01-01T05:00:00"))).toBe("1 Jan 2026");
   });
   test("year: a year to date", () => {
-    expect(previousLabel("year", ist("2026-10-22T14:00:00"))).toBe("1 Jan–22 Oct 2025");
+    expect(previousLabel("year", ist("2026-10-22T14:00:00"))).toBe("1 Jan to 22 Oct 2025");
   });
   test("all has nothing to compare with", () => {
     expect(previousSpan("all", ist("2026-10-22T14:00:00"))).toBeNull();

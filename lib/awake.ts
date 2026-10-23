@@ -63,7 +63,7 @@ export const PRESENCE_LABEL: Record<Presence, string> = { online: "Online", asle
 // "7:12–7:40 PM", or "11:30 AM–6:05 PM" across AM and PM: the shared AM or PM is said once.
 function clockRange(start: number, end: number): string {
   const [from, to] = [formatClock(start), formatClock(end)];
-  return `${from.slice(-2) === to.slice(-2) ? from.slice(0, -3) : from}–${to}`;
+  return `${from.slice(-2) === to.slice(-2) ? from.slice(0, -3) : from} to ${to}`;
 }
 
 // Times seen close together (see STEADY_GAP_MS) as [first, last] spans.

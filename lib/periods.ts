@@ -82,8 +82,8 @@ export function previousLabel(period: Period, now: number): string | null {
   const last = span.to - 1;
   if (istDay(last) === istDay(span.from)) return period === "month" ? formatShortDate(span.from) : formatDate(span.from);
   const firstDay = formatShortDate(span.from).split(" ")[0];
-  if (period === "month") return `${firstDay}–${formatShortDate(last)}`;
-  return `${formatShortDate(span.from)}–${formatDate(last)}`;
+  if (period === "month") return `${firstDay} to ${formatShortDate(last)}`;
+  return `${formatShortDate(span.from)} to ${formatDate(last)}`;
 }
 
 // ---- Bars ----

@@ -24,5 +24,5 @@ export function chargeStarts(starts: number[]): number[][] {
 export function slotLabel(slot: number): string {
   const hour = (h: number) => `${h % 12 === 0 ? 12 : h % 12} ${h % 24 < 12 ? "AM" : "PM"}`;
   const [from, to] = [hour(slot * SLOT_HOURS), hour(slot * SLOT_HOURS + SLOT_HOURS)];
-  return from.slice(-2) === to.slice(-2) ? `${from.slice(0, -3)}–${to}` : `${from}–${to}`;
+  return from.slice(-2) === to.slice(-2) ? `${from.slice(0, -3)} to ${to}` : `${from} to ${to}`;
 }

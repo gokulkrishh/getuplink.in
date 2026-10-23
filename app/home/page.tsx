@@ -42,12 +42,12 @@ const CAN = [
   "Software version and update progress",
   "Battery, charging and odometer",
   "Supercharger sessions and invoices",
+  "Trips, with where the car went",
 ];
 
 const CANNOT = [
   "Wake your car",
   "Unlock, drive or send commands",
-  "Track where you drive",
 ];
 
 const FAQ = [

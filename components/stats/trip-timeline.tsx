@@ -21,14 +21,14 @@ export function TripTimeline({ legs }: { legs: Drive[] }) {
   ]);
   const pct = (t: number) => ((t - start) / (end - start)) * 100;
   const describe = (s: Segment) => {
-    const time = `${formatClock(s.start)}–${formatClock(s.end)}`;
+    const time = `${formatClock(s.start)} to ${formatClock(s.end)}`;
     if (s.kind === "stop") return `Stop · ${time} · ${formatDuration((s.end - s.start) / 1000)}`;
     const d = s.leg!;
     return [
-      `Leg ${s.n} · ${time}`,
+      `Drive ${s.n} · ${time}`,
       formatKm(d.km),
       d.kwh !== null && formatKwh(d.kwh),
-      d.startLevel !== null && d.endLevel !== null && `${Math.round(d.startLevel)} → ${Math.round(d.endLevel)}%`,
+      d.startLevel !== null && d.endLevel !== null && `battery ${Math.round(d.startLevel)}% to ${Math.round(d.endLevel)}%`,
     ]
       .filter(Boolean)
       .join(" · ");

@@ -13,16 +13,15 @@ const STORED = [
   "Software version and update status",
   "Battery level, range, charge limit, charging state and battery temperature",
   "Odometer at each update",
-  "Update progress, gear and energy counters your car streams while it's awake",
+  "Everything your car streams while it's awake: driving (speed, gear, pedals, acceleration), battery and charging, climate and cabin, tyres, doors and locks, Sentry Mode, navigation and media",
+  "Where the car is while it's awake, including trip routes, stops and navigation destinations",
   "Release notes",
   "Tesla Supercharger sessions (site, time, energy, cost) and their invoices",
-  "Each car's home state, such as Karnataka, for the India rollout map. Never the car's location itself",
-  "The name of the charging station each session happened at, such as Statiq, Koramangala. Never the car's location itself",
+  "Each car's home state, such as Karnataka, for the India rollout map",
+  "The name of the charging station each session happened at, such as Statiq, Koramangala",
 ];
 
 const NOT_DONE = [
-  "It doesn't keep your location or track where you drive. If you allow it, Uplink reads where the car is at its 6-hourly check, turns that into a state and discards the location.",
-  "While your car is charging, Uplink may read its location once to name the charging station, from OpenStreetMap. It keeps only the station name and discards the location.",
   "It doesn't send commands to your car, and it never wakes the car. The key you add to your car can't unlock or drive it.",
   "It doesn't sell or share your data.",
   "There are no ads and no tracking. One cookie keeps you signed in, a short-lived one protects the Tesla sign-in, and your theme choice is saved in your browser.",
@@ -95,9 +94,9 @@ export default function PrivacyPage() {
               </li>
               <li>
                 Once you add Uplink&apos;s key to your car, the car streams changes to Uplink while it&apos;s awake:
-                update progress, battery, charging, odometer, gear, energy counters and battery temperature.
+                every field Tesla&apos;s Fleet Telemetry offers for your car.
               </li>
-              <li>It never streams location.</li>
+              <li>That includes the car&apos;s location, so trips can show where you went. Delete my data in Settings removes it.</li>
             </ul>
           </section>
 

@@ -10,18 +10,18 @@ describe("runLabel", () => {
   });
   test("steady readings give a length, the shared AM or PM said once", () => {
     const seen = ["19:12", "19:17", "19:25", "19:33", "19:40"].map((t) => ist(`2026-10-20T${t}:00`));
-    expect(runLabel({ state: "online", start: ist("2026-10-20T19:00:00"), end: ist("2026-10-20T19:45:00"), seen })).toBe("Online · 7:12–7:40 PM · 28 min");
+    expect(runLabel({ state: "online", start: ist("2026-10-20T19:00:00"), end: ist("2026-10-20T19:45:00"), seen })).toBe("Online · 7:12 to 7:40 PM · 28 min");
   });
   test("a gap wider than 10 minutes splits the times and drops the length", () => {
     const seen = ["08:02", "08:06", "08:29"].map((t) => ist(`2026-10-20T${t}:00`));
-    expect(runLabel({ state: "online", start: ist("2026-10-20T08:00:00"), end: ist("2026-10-20T08:30:00"), seen })).toBe("Online · 8:02–8:06 AM, 8:29 AM");
+    expect(runLabel({ state: "online", start: ist("2026-10-20T08:00:00"), end: ist("2026-10-20T08:30:00"), seen })).toBe("Online · 8:02 to 8:06 AM, 8:29 AM");
   });
   test("a check is the time it ran", () => {
     expect(runLabel({ state: "asleep", start: ist("2026-10-20T02:00:00"), end: ist("2026-10-20T02:15:00"), seen: [ist("2026-10-20T02:00:40")] })).toBe("Asleep · 2:00 AM");
   });
   test("no data keeps its span, across AM and PM", () => {
-    expect(runLabel({ state: "unknown", start: ist("2026-10-20T00:00:00"), end: ist("2026-10-20T12:00:00"), seen: [] })).toBe("No data · 12:00 AM–12:00 PM");
-    expect(runLabel({ state: "unknown", start: ist("2026-10-20T11:30:00"), end: ist("2026-10-20T18:05:00"), seen: [] })).toBe("No data · 11:30 AM–6:05 PM");
+    expect(runLabel({ state: "unknown", start: ist("2026-10-20T00:00:00"), end: ist("2026-10-20T12:00:00"), seen: [] })).toBe("No data · 12:00 AM to 12:00 PM");
+    expect(runLabel({ state: "unknown", start: ist("2026-10-20T11:30:00"), end: ist("2026-10-20T18:05:00"), seen: [] })).toBe("No data · 11:30 AM to 6:05 PM");
   });
 });
 

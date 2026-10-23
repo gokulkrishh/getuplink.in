@@ -20,7 +20,7 @@ export function ChargeRange({ sessions }: { sessions: StreamChargeSession[] }) {
       <div className="space-y-2">
         <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Charge range</h2>
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
-          {from}% → {to}%
+          {from}% to {to}%
         </p>
         <p className="text-sm text-muted-foreground">
           Typical start and end, median of {finished.length} {finished.length === 1 ? "charge" : "charges"}
@@ -36,7 +36,7 @@ export function ChargeRange({ sessions }: { sessions: StreamChargeSession[] }) {
                   {formatShortDate(s.started_at)} · {kindLabel(s)}
                 </span>
                 <span className="font-mono">
-                  {a}% → {b}%
+                  {a}% to {b}%
                 </span>
               </p>
               <div className="relative h-2 bg-muted" aria-hidden="true">

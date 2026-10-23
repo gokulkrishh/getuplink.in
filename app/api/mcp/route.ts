@@ -96,7 +96,7 @@ async function guarded(request: Request): Promise<Response> {
   const bearer = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim() ?? null;
   if (!(await verifyConnectorToken(bearer))) {
     return Response.json(
-      { error: "Missing or wrong token. Create one in Uplink → Settings → Integrations." },
+      { error: "Missing or wrong token. Create one in Uplink, under Settings, Integrations." },
       { status: 401, headers: { "WWW-Authenticate": 'Bearer realm="uplink"' } },
     );
   }
