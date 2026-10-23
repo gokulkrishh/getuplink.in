@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { SyncChargingSessions } from "@/components/background-sync";
 import { listSessions } from "@/components/session-row";
+import { ChargeHabits } from "@/components/stats/charge-habits";
+import { ChargeRange } from "@/components/stats/charge-range";
 import { EnergyAdded, SessionList, Summary } from "@/components/stats/charging-sections";
 import { eachPeriod, NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/components/stats/stats-frame";
 import { matchSessions } from "@/lib/charge-sessions";
@@ -67,6 +69,8 @@ async function Charging() {
           {(bills.length > 0 || unbilled.length > 0) &&
             eachPeriod((p) => <Summary bills={bills} unbilled={unbilled} km={km[p]} now={now} period={p} />, { steady: true })}
           {streamSessions.length > 0 && eachPeriod((p) => <EnergyAdded sessions={sessions} streamOnly={streamOnly} now={now} period={p} />, { steady: true })}
+          <ChargeHabits starts={[...sessions.map((s) => Date.parse(s.started_at)), ...streamOnly.map((s) => Date.parse(s.started_at))]} />
+          <ChargeRange sessions={streamSessions} />
           <SessionList sessions={listed} />
         </div>
       )}
