@@ -102,7 +102,7 @@ export function DeleteMyData() {
             your Tesla account can sign in again. Then remove Uplink&apos;s key in your car&apos;s Locks settings.
           </p>
           <label className="block space-y-1.5">
-            <span className="block text-xs text-muted-foreground">Type delete to confirm</span>
+            <span className="block text-sm text-muted-foreground">Type delete to confirm</span>
             <Input ref={input} name="confirm" autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="delete" className="h-9 max-sm:h-10 max-w-48" aria-invalid={error ? true : undefined} aria-describedby={error ? "delete-error" : undefined} />
           </label>
           {error && (

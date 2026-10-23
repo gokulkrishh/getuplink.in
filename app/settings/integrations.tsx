@@ -13,7 +13,7 @@ import { Row } from "./row";
 function Copyable({ label, value }: { label: string; value: string }) {
   return (
     <div className="space-y-1.5">
-      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-sm text-muted-foreground">{label}</p>
       <div className="flex items-center gap-2">
         <code className="min-w-0 flex-1 truncate border bg-muted px-2 py-1.5 font-mono text-xs select-all">{value}</code>
         <CopyButton text={value} />
@@ -28,11 +28,11 @@ function Instruction({ title, text }: { title: string; text: string }) {
     <details className="group border">
       <summary className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
         {title}
-        <span className="text-xs text-muted-foreground group-open:hidden">Show</span>
-        <span className="hidden text-xs text-muted-foreground group-open:inline">Hide</span>
+        <span className="text-sm text-muted-foreground group-open:hidden">Show</span>
+        <span className="hidden text-sm text-muted-foreground group-open:inline">Hide</span>
       </summary>
       <div className="space-y-2 border-t px-3 py-3">
-        <pre className="text-xs leading-relaxed break-words whitespace-pre-wrap text-muted-foreground select-all">{text}</pre>
+        <pre className="text-sm leading-relaxed break-words whitespace-pre-wrap text-muted-foreground select-all">{text}</pre>
         <div className="flex justify-end">
           <CopyButton text={text} />
         </div>
@@ -62,7 +62,7 @@ export function McpConnector({ status, now }: { status: ConnectorTokenStatus; no
     <Row
       title="MCP connector"
       description="Lets an AI you use, like a Grok bot, Claude or ChatGPT, read your charging and driving and attach charging invoices. It can't delete anything or reach your car."
-      control={<p className="text-xs text-muted-foreground">{tokenSummary(status, now)}</p>}
+      control={<p className="text-sm text-muted-foreground">{tokenSummary(status, now)}</p>}
     >
       <div className="mt-4 space-y-4">
         <Copyable label="Connector URL" value={CONNECTOR_URL} />
@@ -104,10 +104,10 @@ export function GrokBotTemplate() {
             <a href={BOT_TEMPLATE_URL} target="_blank" rel="noopener" className={buttonVariants({ variant: "outline", size: "lg" })}>
               Add {BOT_NAME} to Grok
             </a>
-            <p className="text-xs text-muted-foreground">Then add the connector token as its secret. Or set it up by hand:</p>
+            <p className="text-sm text-muted-foreground">Then add the connector token as its secret. Or set it up by hand:</p>
           </div>
         )}
-        <ol className="list-decimal space-y-1.5 pl-5 text-xs text-muted-foreground">
+        <ol className="list-decimal space-y-1.5 pl-5 text-sm text-muted-foreground">
           <li>Create a Grok bot named {BOT_NAME} and connect your Gmail to it.</li>
           <li>Add the MCP connector above to it: the URL, and the token as a secret.</li>
           <li>Add a routine that runs every 6 hours with the first instruction below.</li>

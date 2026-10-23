@@ -152,10 +152,10 @@ function HomeState({ home }: { home: OwnHomeState }) {
         home.state ? (
           <p className="text-right text-sm">
             {STATES[home.state].name}
-            <span className="block text-xs text-muted-foreground">{from}</span>
+            <span className="block text-sm text-muted-foreground">{from}</span>
           </p>
         ) : (
-          <p className="text-xs text-muted-foreground">Not known yet</p>
+          <p className="text-sm text-muted-foreground">Not known yet</p>
         )
       }
     />
@@ -164,7 +164,7 @@ function HomeState({ home }: { home: OwnHomeState }) {
 
 // Within 10 minutes of a reading the car is awake and streaming; otherwise when it last sent anything.
 function LiveStatus({ lastReading, now }: { lastReading: string | null; now: number }) {
-  if (!lastReading) return <p className="text-xs text-muted-foreground">No readings yet</p>;
+  if (!lastReading) return <p className="text-sm text-muted-foreground">No readings yet</p>;
   const live = now - Date.parse(lastReading) < 10 * 60_000;
   return (
     <p className="inline-flex items-center gap-2 text-sm whitespace-nowrap">
