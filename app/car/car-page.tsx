@@ -5,11 +5,12 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { Header } from "@/components/header";
 import { Vin } from "@/components/vin";
-import { formatShortDate } from "@/lib/format";
+import { CAR_NOW_FIELDS, type CarNow, carNow } from "@/lib/car-now";
+import { formatClock, formatShortDate } from "@/lib/format";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type CarDetails, loadCarDetails } from "@/lib/server/car";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
-import { loadPrimaryVehicle } from "@/lib/server/telemetry";
+import { loadPrimaryVehicle, loadStream } from "@/lib/server/telemetry";
 
 // Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx).
 // A null id is the primary car (/car), so the header's Car link needs no data.
@@ -43,11 +44,21 @@ function Group({ title, rows }: { title: string; rows: [string, ReactNode][] }) 
   );
 }
 
+// The car's state now, from the latest streamed readings, in the same private cache as the page.
+async function loadNow(vin: string): Promise<CarNow> {
+  "use cache: private";
+  cacheTag(OWNER_DATA_TAG);
+  cacheLife({ stale: 60 });
+  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
+  return carNow(await loadStream(vin, CAR_NOW_FIELDS));
+}
+
 async function Car({ id }: { id: Promise<string | null> }) {
   const carId = await id;
   const car = await loadCar(carId);
   if (!car && carId === null) return <p className="text-sm text-muted-foreground">No car on your Tesla account yet.</p>;
   if (!car) notFound();
+  const now = car.vin ? await loadNow(car.vin) : null;
 
   return (
     <>
@@ -56,6 +67,18 @@ async function Car({ id }: { id: Promise<string | null> }) {
         {[car.year, car.model, car.generation && `(${car.generation})`].filter(Boolean).join(" ")}
       </p>
       <div className="flex flex-col gap-12">
+        {now && now.rows.length > 0 && (
+          <div className="space-y-3">
+            <Group title="Car now" rows={now.rows} />
+            {now.since && <p className="text-xs text-faint">Last update {formatShortDate(now.since)}, {formatClock(now.since)}</p>}
+          </div>
+        )}
+        {now && now.tyres.length > 0 && (
+          <div className="space-y-3">
+            <Group title="Tyres" rows={now.tyres} />
+            {now.tyreWarning && <p className="text-sm text-destructive">{now.tyreWarning}</p>}
+          </div>
+        )}
         <Group
           title="Car"
           rows={[
