@@ -162,17 +162,15 @@ function HomeState({ home }: { home: OwnHomeState }) {
   );
 }
 
-// Within 10 minutes of a reading the car is awake and streaming; otherwise when it last sent anything.
+// When the car last sent anything; the dot is green while it's streaming (a reading in the last 10
+// minutes). No "asleep": a quiet car might be asleep or just out of signal, and Uplink can't tell.
 function LiveStatus({ lastReading, now }: { lastReading: string | null; now: number }) {
   if (!lastReading) return <p className="text-sm text-muted-foreground">No readings yet</p>;
   const live = now - Date.parse(lastReading) < 10 * 60_000;
   return (
     <p className="inline-flex items-center gap-2 text-sm whitespace-nowrap">
       <span className={cn("size-1.5 rounded-full", live ? "bg-positive" : "bg-faint")} aria-hidden="true" />
-      <span>
-        {live ? "Live" : "Asleep"}
-        <span className="text-muted-foreground"> · {formatAgo(lastReading, now)}</span>
-      </span>
+      <span>Synced {formatAgo(lastReading, now)}</span>
     </p>
   );
 }
