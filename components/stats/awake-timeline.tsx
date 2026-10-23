@@ -1,6 +1,6 @@
 import { AwakeStrip } from "@/components/stats/awake-strip";
-import { type DayStrip, hasPresence, type Presence } from "@/lib/awake";
-import { formatDayLabel, formatDuration } from "@/lib/format";
+import { type DayStrip, hasPresence, type Presence, runLabel } from "@/lib/awake";
+import { formatDayLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const STATES: { state: Presence; label: string; className: string }[] = [
@@ -16,16 +16,17 @@ const classes = Object.fromEntries(STATES.map((s) => [s.state, s.className])) as
 // offline. Updates only download while it's awake, so this answers "why hasn't it arrived yet?".
 export function AwakeTimeline({ days, now }: { days: DayStrip[]; now: number }) {
   if (!hasPresence(days)) return null;
-  const onlineMs = days.flatMap((d) => d.runs).reduce((sum, r) => sum + (r.state === "online" ? r.end - r.start : 0), 0);
+  const onlineDays = days.filter((d) => d.runs.some((r) => r.state === "online")).length;
   return (
     <section className="space-y-8">
       <div className="space-y-2">
         <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Online and asleep</h2>
         <p className="text-sm text-muted-foreground tabular-nums">
-          About {formatDuration(onlineMs / days.length / 1000)} online a day, last 14 days
+          Online on {onlineDays} of the last {days.length} days
         </p>
         <p className="text-xs text-muted-foreground">
-          Updates download only while the car is awake. Asleep runs from a check that found it asleep until the car next sends data.
+          Updates download only while the car is awake. The car doesn&apos;t say when it wakes or sleeps, so each mark is a 15-minute
+          block where it sent data, or where a check (every 6 hours) found it asleep or offline.
         </p>
       </div>
       <div className="space-y-3 bg-muted px-3 pt-4 pb-3">
@@ -61,10 +62,8 @@ export function AwakeTimeline({ days, now }: { days: DayStrip[]; now: number }) 
   );
 }
 
-// "Online 2 h 15 min, asleep 18 h, no data 3 h 45 min", for screen readers.
+// What was seen that day, for screen readers: "Online · 8:12 AM. Asleep · 2:00 PM."
 function summary(d: DayStrip): string {
-  const totals = new Map<Presence, number>();
-  for (const r of d.runs) totals.set(r.state, (totals.get(r.state) ?? 0) + r.end - r.start);
-  const parts = STATES.filter((s) => totals.get(s.state)).map((s) => `${s.label.toLowerCase()} ${formatDuration(totals.get(s.state)! / 1000)}`);
-  return `${parts.join(", ")}.`;
+  const seen = d.runs.filter((r) => r.state !== "unknown");
+  return seen.length ? `${seen.map(runLabel).join(". ")}.` : "No data.";
 }
