@@ -16,7 +16,9 @@ import { demoData } from "@/lib/server/demo";
 import { db } from "@/lib/server/supabase";
 import { lastReadingAt } from "@/lib/server/telemetry";
 import { accountInfo, type AccountInfo } from "@/lib/server/tesla";
+import { connectorTokenStatus, type ConnectorTokenStatus } from "@/lib/server/connector-token";
 import { DeleteMyData, DisconnectTesla, SignOutEverywhere } from "./confirm-actions";
+import { GrokBotTemplate, McpConnector } from "./integrations";
 import { Row } from "./row";
 
 export const metadata: Metadata = { title: "Settings · Uplink" };
@@ -36,13 +38,14 @@ async function loadSettings(): Promise<{
   lastCheck: string | null;
   lastReading: string | null;
   home: OwnHomeState;
+  connector: ConnectorTokenStatus;
   now: number;
 }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
-  const [account, run, lastReading, home] = await Promise.all([
+  const [account, run, lastReading, home, connector] = await Promise.all([
     accountInfo(),
     DEMO
       ? { data: demoData().lastRun }
@@ -53,13 +56,15 @@ async function loadSettings(): Promise<{
       console.warn("Home state unavailable:", (err as Error).message);
       return { state: null, source: null, locationAllowed: false, askLocation: false };
     }),
+    // Never fails the page either: shown as not set up.
+    connectorTokenStatus().catch(() => null),
   ]);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
-  return { account, lastCheck: run.data?.started_at ?? null, lastReading, home, now: Date.now() };
+  return { account, lastCheck: run.data?.started_at ?? null, lastReading, home, connector, now: Date.now() };
 }
 
 async function Settings() {
-  const { account, lastCheck, lastReading, home, now } = await loadSettings();
+  const { account, lastCheck, lastReading, home, connector, now } = await loadSettings();
   const connectedDescription = account.connectedSince ? `Connected since ${formatDate(account.connectedSince)}` : "Connected";
 
   return (
@@ -79,6 +84,11 @@ async function Settings() {
           control={<LiveStatus lastReading={lastReading} now={now} />}
         />
         <HomeState home={home} />
+      </Group>
+
+      <Group title="Integrations">
+        <McpConnector status={connector} now={now} />
+        <GrokBotTemplate />
       </Group>
 
       <Group title="Account">

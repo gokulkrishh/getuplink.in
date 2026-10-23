@@ -11,6 +11,7 @@ const PUBLIC_PATHS = new Set([
   "/api/cron/poll", // checks CRON_SECRET itself
   "/api/cron/stations", // checks CRON_SECRET itself
   "/api/health/stream", // checks HEALTH_TOKEN itself
+  "/api/mcp", // the MCP connector: checks its own token from Settings → Integrations
   "/api/public-key",
   "/.well-known/appspecific/com.tesla.3p.public-key.pem",
   "/favicon.ico",
@@ -66,7 +67,14 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(marketing ? appOrigin(request.nextUrl) + "/" : new URL("/", request.url));
   }
   if (marketing) {
-    if (pathname === "/") return NextResponse.rewrite(new URL("/home", request.url));
+    if (pathname === "/") {
+      // Signed in: getuplink.in opens the dashboard (a temporary redirect, so signing out shows the home
+      // page again). The home page itself stays at /home. Any valid cookie counts; see sessionCookieValues.
+      for (const value of sessionCookieValues(request.headers.get("cookie"))) {
+        if (await isValidSession(value)) return NextResponse.redirect(appOrigin(request.nextUrl) + "/");
+      }
+      return NextResponse.rewrite(new URL("/home", request.url));
+    }
     if (!MARKETING_PATHS.has(pathname)) return NextResponse.redirect(appOrigin(request.nextUrl) + pathname + search, 308);
   }
 

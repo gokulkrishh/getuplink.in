@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { DEMO } from "@/lib/demo";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
+import { createConnectorToken, revokeConnectorToken } from "@/lib/server/connector-token";
 import { deleteMyData, disconnectTesla, revokeAllSessions } from "@/lib/server/tesla";
 import { messageOf } from "@/lib/errors";
 import { clearSession, requestHost } from "@/lib/session";
@@ -64,4 +65,33 @@ export async function deleteEverything(_: string | null, form: FormData): Promis
   }
   await endHere();
   return null;
+}
+
+export type TokenResult = { token: string | null; error: string | null };
+
+// A new connector token, shown once. Any old one stops working.
+export async function newConnectorToken(): Promise<TokenResult> {
+  await requireSession();
+  if (DEMO) return { token: null, error: "Tokens aren't available in demo mode." };
+  try {
+    const token = await createConnectorToken();
+    updateTag(OWNER_DATA_TAG);
+    return { token, error: null };
+  } catch (err) {
+    console.error("Creating the connector token failed:", messageOf(err));
+    return { token: null, error: "Couldn't create a token. Try again in a moment." };
+  }
+}
+
+export async function removeConnectorToken(): Promise<TokenResult> {
+  await requireSession();
+  if (DEMO) return { token: null, error: null };
+  try {
+    await revokeConnectorToken();
+    updateTag(OWNER_DATA_TAG);
+    return { token: null, error: null };
+  } catch (err) {
+    console.error("Revoking the connector token failed:", messageOf(err));
+    return { token: null, error: "Couldn't revoke the token. Try again in a moment." };
+  }
 }

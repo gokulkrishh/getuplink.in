@@ -25,8 +25,16 @@ async function loadDetail(id: number): Promise<ChargeDetail | null> {
   return loadChargeDetail(id, Date.now());
 }
 
+// Tesla's bill for a Supercharger, an attached invoice for anything else (₹/kWh on the kWh billed, as
+// charged). A finished session with neither says so instead of guessing.
+function cost(tesla: ChargeDetail["tesla"], invoice: ChargeDetail["invoice"], energy: number | null, currency: string, s: ChargeDetail["session"]): string | null {
+  if (tesla && tesla.cost_total !== null) return [formatMoney(tesla.cost_total, currency), energy && rate(tesla.cost_total, energy, currency)].filter(Boolean).join(" · ");
+  if (invoice) return [formatMoney(invoice.amountTotal, "INR"), rate(invoice.amountTotal, invoice.kwhBilled ?? energy ?? 0, "INR")].filter(Boolean).join(" · ");
+  return !s.supercharger && s.ended_at ? "Not available" : null;
+}
+
 function Charge({ detail }: { detail: ChargeDetail }) {
-  const { session: s, tesla, curve } = detail;
+  const { session: s, tesla, invoice, curve } = detail;
   const { place, city } = tesla ? splitSite(tesla.site_name) : { place: streamTitle(s), city: null };
   const stoppedAt = tesla?.stopped_at ?? s.ended_at;
   const span = stoppedAt
@@ -43,7 +51,9 @@ function Charge({ detail }: { detail: ChargeDetail }) {
     ["Average power", curve.avgKw ? `${kwFormat.format(curve.avgKw)} kW` : null],
     ["Battery", s.start_level !== null && s.end_level !== null ? `${Math.round(s.start_level)}% to ${Math.round(s.end_level)}%` : null],
     ["Energy added", energy !== null ? formatKwh(energy) : null],
-    ["Cost", tesla && tesla.cost_total !== null ? [formatMoney(tesla.cost_total, currency), energy && rate(tesla.cost_total, energy, currency)].filter(Boolean).join(" · ") : null],
+    ["Cost", cost(tesla, invoice, energy, currency, s)],
+    ["Energy billed", invoice?.kwhBilled ? formatKwh(invoice.kwhBilled) : null],
+    ["GST", invoice?.gst ? formatMoney(invoice.gst, "INR") : null],
     ["Battery temperature", tempLow !== null && tempHigh !== null ? `${Math.round(tempLow)} to ${Math.round(tempHigh)} °C` : null],
   ];
   const shown = rows.filter((r): r is [string, string] => r[1] !== null);
@@ -72,6 +82,11 @@ function Charge({ detail }: { detail: ChargeDetail }) {
           </section>
         )}
       </div>
+      {invoice?.hasFile && (
+        <a href={`/api/charging/receipt/${s.id}`} target="_blank" rel="noopener" className="mt-6 inline-block text-sm text-muted-foreground underline-offset-4 transition-colors duration-150 hover:text-foreground hover:underline">
+          {invoice.network} invoice
+        </a>
+      )}
       {!tesla && !s.supercharger && s.station_name && <OsmCredit className="mt-8" />}
     </>
   );

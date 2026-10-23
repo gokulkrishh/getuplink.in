@@ -1,4 +1,5 @@
 import "server-only";
+import { type SessionInvoice, sessionInvoice } from "./receipts";
 import { type ChargeCurve, chargeCurve } from "@/lib/charge-curve";
 import { matchSessions } from "@/lib/charge-sessions";
 import { DEMO } from "@/lib/demo";
@@ -13,7 +14,8 @@ const MIN = 60 * 1000;
 // A level or temperature sent this long before the start still describes the battery at the start.
 const LEAD_MS = 60 * MIN;
 
-export type ChargeDetail = { session: StreamChargeSession; tesla: ChargingSession | null; curve: ChargeCurve };
+// invoice: a third-party invoice attached through the MCP connector (lib/server/receipts.ts).
+export type ChargeDetail = { session: StreamChargeSession; tesla: ChargingSession | null; invoice: SessionInvoice | null; curve: ChargeCurve };
 
 async function loadStreamSession(id: number): Promise<StreamChargeSession | null> {
   if (DEMO) return demoStreamSessions().find((s) => s.id === id) ?? null;
@@ -44,9 +46,10 @@ export async function loadChargeDetail(id: number, now: number): Promise<ChargeD
   // The 0 kW reading that closes a session can land just after its end.
   const to = new Date(end + MIN).toISOString();
   const powerField = session.kind === "dc" ? "DCChargingPower" : "ACChargingPower";
-  const [byField, tesla] = await Promise.all([
+  const [byField, tesla, invoice] = await Promise.all([
     loadReadingsByField(session.vin, [powerField, "BatteryLevel", "ModuleTempMin", "ModuleTempMax"], from, to),
     loadChargingSessions(),
+    DEMO || session.supercharger ? null : sessionInvoice(session.id),
   ]);
   const read = (field: string) => byField?.[field] ?? [];
   const twin = matchSessions(tesla, [session], now).pairs.find((p) => p.stream)?.tesla ?? null;
@@ -57,5 +60,5 @@ export async function loadChargeDetail(id: number, now: number): Promise<ChargeD
     tempMax: fromStart(read("ModuleTempMax"), session.started_at, true),
     end,
   });
-  return { session, tesla: twin, curve };
+  return { session, tesla: twin, invoice, curve };
 }

@@ -4,6 +4,8 @@ import { DEMO } from "@/lib/demo";
 import { decrypt, encrypt } from "./crypto";
 import { demoData } from "./demo";
 import { env, fleetApiBase } from "./env";
+import { revokeConnectorToken } from "./connector-token";
+import { deleteAllInvoices } from "./receipts";
 import { db } from "./supabase";
 
 export const AUTHORIZE_URL = "https://auth.tesla.com/oauth2/v3/authorize";
@@ -369,6 +371,9 @@ export async function deleteMyData(): Promise<void> {
   if (DEMO) return;
   // Before the vehicles go: it needs their VINs. disconnectTesla below repeats it harmlessly.
   await stopStreaming();
+  // Invoices point at the charging sessions, which can't go while one does.
+  await deleteAllInvoices();
+  await revokeConnectorToken();
   for (const [table, column] of [
     ["vehicles", "id"],
     ["poll_runs", "id"],
