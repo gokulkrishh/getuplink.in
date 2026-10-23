@@ -17,7 +17,24 @@ export function sessionCookieDomain(host: string | null | undefined): string | u
   return SHARED_DOMAINS.find((d) => name === d || name?.endsWith(`.${d}`));
 }
 
-type CookieJar = { delete(options: { name: string; path?: string; domain?: string }): unknown };
+// Every session cookie value the browser sent. A host-only cookie from before the shared one can ride
+// along with it under the same name, and cookies.get() keeps whichever comes last, which in Safari can
+// be the stale one: the home page then shows Dashboard while the app sends you back to sign in.
+export function sessionCookieValues(cookieHeader: string | null): string[] {
+  const prefix = `${SESSION_COOKIE}=`;
+  return (cookieHeader ?? "")
+    .split(/; */)
+    .filter((pair) => pair.startsWith(prefix))
+    .map((pair) => pair.slice(prefix.length));
+}
+
+// Expires only a host-only session cookie (no Domain attribute), leaving the shared one alone. Appended
+// as a raw header because the cookies API keeps one entry per name.
+export const EXPIRE_HOST_ONLY_SESSION = `${SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${
+  process.env.NODE_ENV === "production" ? "; Secure" : ""
+}`;
+
+type CookieJar ={ delete(options: { name: string; path?: string; domain?: string }): unknown };
 
 // Clears both the shared cookie and any older host-only one.
 export function clearSession(jar: CookieJar, host: string | null | undefined) {

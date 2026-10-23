@@ -1,7 +1,7 @@
 import { after, NextResponse, type NextRequest } from "next/server";
 import { DEMO } from "@/lib/demo";
 import type { LoginErrorCode } from "@/lib/login-errors";
-import { createSession, isValidSession, safeEqual, SESSION_COOKIE, SESSION_MAX_AGE, requestHost, sessionCookieDomain, STATE_COOKIE } from "@/lib/session";
+import { createSession, EXPIRE_HOST_ONLY_SESSION, isValidSession, safeEqual, SESSION_COOKIE, SESSION_MAX_AGE, requestHost, sessionCookieDomain, STATE_COOKIE } from "@/lib/session";
 import { pollAll } from "@/lib/server/poll";
 import { signIn, type SignInResult } from "@/lib/server/tesla";
 
@@ -45,13 +45,17 @@ export async function GET(request: NextRequest) {
   if (result === "claimed") after(() => pollAll().catch((err) => console.error(err)));
 
   const res = done("/");
+  const domain = sessionCookieDomain(requestHost(request.headers));
   res.cookies.set(SESSION_COOKIE, await createSession(), {
-    domain: sessionCookieDomain(requestHost(request.headers)),
+    domain,
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_MAX_AGE,
   });
+  // An older host-only cookie would shadow the new shared one in some browsers (see sessionCookieValues).
+  // Appended last: the cookies API rewrites every set-cookie header when it changes.
+  if (domain) res.headers.append("set-cookie", EXPIRE_HOST_ONLY_SESSION);
   return res;
 }

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { DEMO } from "@/lib/demo";
-import { isValidSession, requestHost, SESSION_COOKIE } from "@/lib/session";
+import { EXPIRE_HOST_ONLY_SESSION, isValidSession, requestHost, SESSION_COOKIE, sessionCookieDomain, sessionCookieValues } from "@/lib/session";
 import { statsRedirect } from "@/lib/stats-redirect";
 
 // Exact paths reachable without a session. Anything not listed here needs one.
@@ -75,9 +75,20 @@ export async function proxy(request: NextRequest) {
 
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
 
-  const signedIn = DEMO || (await isValidSession(request.cookies.get(SESSION_COOKIE)?.value));
+  if (DEMO) return NextResponse.next();
+  const sent = sessionCookieValues(request.headers.get("cookie"));
+  let session: string | undefined;
+  for (const value of sent) if (await isValidSession(value)) session = value;
 
-  if (signedIn) return NextResponse.next();
+  if (session && sent.length > 1) {
+    // Pages read the cookie with cookies().get(), which may pick the stale duplicate: hand them only
+    // the valid one, and drop the host-only cookie so the next request carries just the shared one.
+    request.cookies.set(SESSION_COOKIE, session);
+    const res = NextResponse.next({ request: { headers: request.headers } });
+    if (sessionCookieDomain(host)) res.headers.append("set-cookie", EXPIRE_HOST_ONLY_SESSION);
+    return res;
+  }
+  if (session) return NextResponse.next();
   if (pathname.startsWith("/api/")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
