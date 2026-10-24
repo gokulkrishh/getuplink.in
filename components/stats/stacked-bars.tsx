@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BarTip, ChartFrame, leadingTrimmed, MIN_COLUMNS, MonthLabel, niceMax } from "@/components/stats/bars";
+import { BarTip, ChartFrame, EmptyChart, leadingTrimmed, MIN_COLUMNS, MonthLabel, niceMax } from "@/components/stats/bars";
 import { TapColumns } from "@/components/stats/tap-columns";
 import { cn } from "@/lib/utils";
 
@@ -12,9 +12,10 @@ const kwh = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 
 // Same look as Bars, with each column split into series (first series at the bottom). Tones tell the
 // series apart and a 2px gap separates them. The legend sits under the panel, so side-by-side panels
-// line up, and each entry turns its series on or off.
-export function StackedBars({ bars: all, series, ariaLabel }: { bars: StackedBar[]; series: StackedSeries[]; ariaLabel: string }) {
+// line up, and each entry turns its series on or off. With empty, a period with nothing says so instead.
+export function StackedBars({ bars: all, series, ariaLabel, empty }: { bars: StackedBar[]; series: StackedSeries[]; ariaLabel: string; empty?: string }) {
   const [hidden, setHidden] = useState<ReadonlySet<number>>(new Set());
+  if (empty && !all.some((b) => b.total > 0)) return <EmptyChart>{empty}</EmptyChart>;
   const dense = all.length > 6;
   const used = series.map((s, i) => ({ ...s, i })).filter(({ i }) => all.some((b) => b.segments[i] > 0));
   const shownTotal = (b: StackedBar) => b.segments.reduce((sum, v, i) => sum + (hidden.has(i) ? 0 : v), 0);

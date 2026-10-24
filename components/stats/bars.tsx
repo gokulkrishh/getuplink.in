@@ -8,6 +8,7 @@ export type Bar = { key: string; label: string; value: number; display: string; 
 // With labelEvery, any number of columns (one per day, say): only every labelEvery-th column from the
 // last one carries its label, and values live in the hover title and for screen readers.
 // With visible, only that many columns fit the panel and the rest scroll sideways, opening on the newest.
+// With empty, a period with nothing to show says so (EmptyChart) instead of drawing an empty frame.
 // `unit` titles the y axis and follows each value in the hover tip and for screen readers; `display` is
 // the bare number (money carries its own sign, with `prefix` on the axis).
 export function Bars({
@@ -17,6 +18,7 @@ export function Bars({
   visible,
   prefix,
   unit,
+  empty,
 }: {
   bars: Bar[];
   ariaLabel: string;
@@ -26,7 +28,10 @@ export function Bars({
   prefix?: string;
   // Like "km" or "% a day".
   unit?: string;
+  // Like "No driving today".
+  empty?: string;
 }) {
+  if (empty && !all.some((b) => b.value > 0)) return <EmptyChart>{empty}</EmptyChart>;
   const dense = all.length > 6;
   // Months before the history starts are dropped, so the bars begin at the left edge.
   const bars = labelEvery ? all : leadingTrimmed(all, (b) => b.value > 0);
@@ -76,6 +81,11 @@ export function Bars({
       {scrolls ? <ScrollEnd label={ariaLabel}>{list}</ScrollEnd> : list}
     </ChartFrame>
   );
+}
+
+// In place of a bar chart with nothing in it: the panel, about a chart's height, with a short note.
+export function EmptyChart({ children }: { children: React.ReactNode }) {
+  return <div className="flex h-40 items-center justify-center bg-muted px-4 text-center text-sm text-faint">{children}</div>;
 }
 
 // "12 km", "1.2% a day": a space before a unit, none before a percent sign.

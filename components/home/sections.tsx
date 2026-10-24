@@ -13,7 +13,7 @@ import { spendBySlot } from "@/lib/charging-figures";
 import type { ChargeLevel } from "@/lib/charge-level";
 import type { DrivingFigures } from "@/lib/driving-figures";
 import { formatDuration } from "@/lib/format";
-import { type Period, SLOT_NAMES, slotsFor } from "@/lib/periods";
+import { type Period, PERIOD_WORDS, SLOT_NAMES, slotsFor } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
 import { MoreLink } from "./more-link";
 
@@ -63,7 +63,7 @@ export function ChargingSection({ sessions, listed, now }: { sessions: ChargingS
   };
   return (
     <Section title="Charging" view="charging" more="All sessions">
-      {eachPeriod((p) => <Bars bars={bars(p)} ariaLabel={`Spend per ${SLOT_NAMES[p]}`} prefix="₹" />, { steady: true })}
+      {eachPeriod((p) => <Bars bars={bars(p)} ariaLabel={`Spend per ${SLOT_NAMES[p]}`} prefix="₹" empty={`No charging spend ${PERIOD_WORDS[p]}`} />, { steady: true })}
       <Rows header={<SessionHeader costs={costs} wide />}>
         {shown.map((item) => (
           <SessionRow key={item.key} item={item} now={now} costs={costs} />
@@ -85,7 +85,7 @@ export function DrivingSection({ figures, drives, now }: { figures: DrivingFigur
     });
   return (
     <Section title="Driving" view="driving" more="All trips">
-      {eachPeriod((p) => <Bars bars={bars(p)} ariaLabel={`Distance per ${SLOT_NAMES[p]} in km`} unit="km" />, { steady: true })}
+      {eachPeriod((p) => <Bars bars={bars(p)} ariaLabel={`Distance per ${SLOT_NAMES[p]} in km`} unit="km" empty={`No driving ${PERIOD_WORDS[p]}`} />, { steady: true })}
       {drives.length > 0 && (
         <Rows header={<DriveHeader />}>
           {trips.slice(0, ROWS).map((t, i) => (

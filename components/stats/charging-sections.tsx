@@ -68,7 +68,7 @@ export function Summary({
           </p>
         )}
       </div>
-      {cost > 0 && <Bars bars={bars} ariaLabel={`Spend per ${SLOT_NAMES[period]}`} prefix="₹" />}
+      <Bars bars={bars} ariaLabel={`Spend per ${SLOT_NAMES[period]}`} prefix="₹" empty={`No bills ${PERIOD_WORDS[period]}`} />
     </section>
   );
 }
@@ -130,7 +130,7 @@ export function EnergyAdded({
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatKwh(total)}</p>
         <p className="text-sm text-muted-foreground">{PERIOD_WORDS[period]}</p>
       </div>
-      <StackedBars bars={bars} series={ENERGY_SERIES} ariaLabel={`Energy added per ${SLOT_NAMES[period]}`} />
+      <StackedBars bars={bars} series={ENERGY_SERIES} ariaLabel={`Energy added per ${SLOT_NAMES[period]}`} empty={`No charging ${PERIOD_WORDS[period]}`} />
       {charged.ac + charged.dc > 0 && (
         <Figures
           figures={[
