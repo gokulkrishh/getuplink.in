@@ -13,7 +13,7 @@ export function SpeedBands({ bins }: { bins: DrivingExtras["speed"] }) {
   if (bins.length === 0) return null;
   const bars = bins.map((b, k) => ({
     key: String(b.from),
-    label: b.to === null ? `${b.from}+` : `${b.from} to ${b.to}`,
+    label: b.to === null ? `${b.from}+` : `${b.from}–${b.to}`,
     value: Math.round(b.share * 100),
     display: `${Math.round(b.share * 100)}`,
     isCurrent: b.share === Math.max(...bins.map((x) => x.share)) && k >= 0,
@@ -24,7 +24,7 @@ export function SpeedBands({ bins }: { bins: DrivingExtras["speed"] }) {
         <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Time at each speed</h2>
         <p className="text-sm text-muted-foreground">Share of driving time in each speed band, km/h, last 30 days.</p>
       </div>
-      <Bars bars={bars} ariaLabel="Share of driving time by speed in km/h" unit="%" />
+      <Bars bars={bars} ariaLabel="Share of driving time by speed in km/h" unit="%" scrollFrom="start" />
     </section>
   );
 }

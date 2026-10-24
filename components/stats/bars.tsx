@@ -8,6 +8,9 @@ export type Bar = { key: string; label: string; value: number; display: string; 
 // With labelEvery, any number of columns (one per day, say): only every labelEvery-th column from the
 // last one carries its label, and values live in the hover title and for screen readers.
 // With visible, only that many columns fit the panel and the rest scroll sideways, opening on the newest.
+// Otherwise each column is at least as wide as its label and value (see minListWidth), so on a phone a
+// chart with long labels scrolls sideways rather than running them together; `scrollFrom` says which end
+// it opens on.
 // With empty, a period with nothing to show says so (EmptyChart) instead of drawing an empty frame.
 // `unit` titles the y axis and follows each value in the hover tip and for screen readers; `display` is
 // the bare number (money carries its own sign, with `prefix` on the axis).
@@ -19,6 +22,7 @@ export function Bars({
   prefix,
   unit,
   empty,
+  scrollFrom = "end",
 }: {
   bars: Bar[];
   ariaLabel: string;
@@ -30,6 +34,8 @@ export function Bars({
   unit?: string;
   // Like "No driving today".
   empty?: string;
+  // "start" for categories (speed bands), "end" for time, opening on the newest.
+  scrollFrom?: "start" | "end";
 }) {
   if (empty && !all.some((b) => b.value > 0)) return <EmptyChart>{empty}</EmptyChart>;
   const dense = all.length > 6;
@@ -41,13 +47,16 @@ export function Bars({
   const hidden = (b: Bar, k: number) => b.blank ?? k < first;
   const labelled = (k: number) => (labelEvery ? (bars.length - 1 - k) % labelEvery === 0 : true);
 
-  const scrolls = visible !== undefined && bars.length > visible;
+  const columns = labelEvery ? bars.length : Math.max(bars.length, MIN_COLUMNS);
+  const minWidth = labelEvery ? 0 : minListWidth(bars, columns, dense);
+  const scrolls = (visible !== undefined && bars.length > visible) || minWidth > 0;
   const list = (
       <TapColumns
         className={cn("grid items-end", labelEvery ? "gap-0.5" : dense ? "gap-1" : "gap-3")}
         style={{
-          gridTemplateColumns: `repeat(${labelEvery ? bars.length : Math.max(bars.length, MIN_COLUMNS)}, minmax(0, 1fr))`,
-          width: scrolls ? `${(bars.length / visible) * 100}%` : undefined,
+          gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+          width: visible !== undefined && bars.length > visible ? `${(bars.length / visible) * 100}%` : undefined,
+          minWidth: minWidth || undefined,
         }}
         aria-label={ariaLabel}
       >
@@ -78,9 +87,26 @@ export function Bars({
   );
   return (
     <ChartFrame max={max} dense={dense} prefix={prefix} unit={unit}>
-      {scrolls ? <ScrollEnd label={ariaLabel}>{list}</ScrollEnd> : list}
+      {scrolls ? (
+        <ScrollEnd label={ariaLabel} from={scrollFrom}>
+          {list}
+        </ScrollEnd>
+      ) : (
+        list
+      )}
     </ChartFrame>
   );
+}
+
+// The narrowest the columns can be with each label and value still clear of its neighbours, in px, for a
+// list's min-width: text-xs runs about 6.5px a character in the sans and 7.5px in the mono, plus room
+// between. A dense chart shortens its labels and drops every other one on a phone (MonthLabel), so it
+// needs no floor. The gap matches the list's gap-3.
+export function minListWidth(bars: { label: string; display: string }[], columns: number, dense: boolean): number {
+  if (dense) return 0;
+  const longest = (texts: string[]) => Math.max(0, ...texts.map((t) => t.length));
+  const column = Math.max(longest(bars.map((b) => b.label)) * 6.5, longest(bars.map((b) => b.display)) * 7.5) + 6;
+  return Math.ceil(columns * column + (columns - 1) * 12);
 }
 
 // In place of a bar chart with nothing in it: the panel, about a chart's height, with a short note.
