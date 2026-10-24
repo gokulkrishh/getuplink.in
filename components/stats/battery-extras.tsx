@@ -40,8 +40,10 @@ export function CellBalance({ spread }: { spread: BatteryExtras["cellSpreadMv"] 
     <section className="space-y-6">
       <div className="space-y-2">
         <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Cell balance</h2>
-        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
-          {number.format(now)} <span className="font-sans text-base font-normal tracking-normal text-muted-foreground">mV between the highest and lowest cell</span>
+        {/* The label wraps as a whole under the figure on a phone, rather than splitting across the big line. */}
+        <p className="flex flex-wrap items-baseline gap-x-2">
+          <span className="font-mono text-4xl font-medium tracking-tight tabular-nums">{number.format(now)} mV</span>
+          <span className="text-base text-muted-foreground">between the highest and lowest cell</span>
         </p>
         <p className="text-sm text-muted-foreground">It widens while driving and charging hard, and settles back at rest. A gap that keeps growing over months is worth a service check.</p>
       </div>
