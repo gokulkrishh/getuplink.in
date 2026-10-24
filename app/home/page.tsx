@@ -113,9 +113,6 @@ export default function HomePage() {
             <a href={DEMO_URL} className={buttonVariants({ variant: "secondary", size: "xl" })}>
               See the demo
             </a>
-            <a href="#how" className={buttonVariants({ variant: "ghost", size: "xl" })}>
-              How it works
-            </a>
           </div>
           <p className="mt-4 text-xs text-faint">Read-only · Never wakes your car · Revoke access any time</p>
           {/* Renders nothing (and takes no space) unless sign-in failed, so the page doesn't shift. */}
