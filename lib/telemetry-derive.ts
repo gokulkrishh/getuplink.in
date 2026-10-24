@@ -91,14 +91,18 @@ export function dailyDistance(readings: Reading[], before: number | null, now: n
   return result;
 }
 
-export type UpdateSeries = { pending: Reading[]; download: Reading[]; install: Reading[]; installed: Reading[] };
+// `started` is SoftwareUpdateInProgress; it's optional because the car only began streaming it on 23 Oct 2026.
+export type UpdateSeries = { pending: Reading[]; download: Reading[]; install: Reading[]; installed: Reading[]; started?: Reading[] };
 export type UpdateTimeline = { downloadMin?: number; installMin?: number };
 
 const text = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 
 // How long one update took, from the readings around it. Only the parts the readings can prove are returned.
-// Download: first percent above 0 to first 100, while the version was pending. Install: first installation
-// percent above the idle placeholder (1), after the download (or while pending, if the download wasn't seen), to the Version reading that shows the new version.
+// Download: first percent above 0 to first 100, while the version was pending. Install: from the first
+// SoftwareUpdateInProgress true after the download (or while pending, if the download wasn't seen) to the
+// Version reading that shows the new version. The car prepares an update in the background long before it
+// installs (the installation percent climbed to 10% at midnight for an install started at 7:42 AM), so the
+// percent only stands in for the start when InProgress wasn't streamed: the first above the idle placeholder (1).
 export function updateTimeline(version: string, series: UpdateSeries): UpdateTimeline | null {
   const target = version.trim();
   // The pending version in force at an instant (readings in one record share a timestamp, so equal counts).
@@ -121,9 +125,9 @@ export function updateTimeline(version: string, series: UpdateSeries): UpdateTim
   const downloadStart = first(series.download, (p, ms) => p > 0 && pendingAt(ms) === target);
   const downloadEnd =
     downloadStart === null ? null : first(series.download, (p, ms) => p >= 100 && ms >= downloadStart && pendingAt(ms) === target);
-  const installStart = first(series.install, (p, ms) =>
-    p > 1 && (downloadEnd !== null ? ms >= downloadEnd : pendingAt(ms) === target),
-  );
+  const afterDownload = (ms: number) => (downloadEnd !== null ? ms >= downloadEnd : pendingAt(ms) === target);
+  const started = series.started?.find((r) => r.value === true && afterDownload(Date.parse(r.at)));
+  const installStart = started ? Date.parse(started.at) : first(series.install, (p, ms) => p > 1 && afterDownload(ms));
   let installEnd: number | null = null;
   if (installStart !== null) {
     for (const r of series.installed) {

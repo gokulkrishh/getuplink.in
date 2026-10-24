@@ -77,17 +77,23 @@ const SNAPSHOT_COLUMNS =
 
 const DAY_MS = 86_400_000;
 
-const TIMELINE_FIELDS = ["SoftwareUpdateVersion", "SoftwareUpdateDownloadPercentComplete", "SoftwareUpdateInstallationPercentComplete", "Version"];
+const TIMELINE_FIELDS = [
+  "SoftwareUpdateVersion",
+  "SoftwareUpdateDownloadPercentComplete",
+  "SoftwareUpdateInstallationPercentComplete",
+  "Version",
+  "SoftwareUpdateInProgress",
+];
 
 // Download and install durations for the versions in history, from the streamed update fields. These only
-// change during an update, so one read of the four fields from the oldest version on screen stays small.
+// change during an update, so one read of the five fields from the oldest version on screen stays small.
 // Anything that can't be read just leaves the rows without timings.
 export async function withTimelines(vin: string, history: VersionChange[]): Promise<VersionChange[]> {
   if (history.length === 0) return history;
   const from = new Date(Date.parse(history[history.length - 1].detected_at) - 14 * DAY_MS).toISOString();
   const readings = await loadReadingsByField(vin, TIMELINE_FIELDS, from, new Date().toISOString());
   if (!readings) return history;
-  const [pending, download, install, installed] = TIMELINE_FIELDS.map((field) => readings[field]);
+  const [pending, download, install, installed, started] = TIMELINE_FIELDS.map((field) => readings[field]);
   // The readings around one version: from two weeks before it was detected to a day after.
   const within = (readings: Reading[], start: number, end: number) => readings.filter((r) => Date.parse(r.at) >= start && Date.parse(r.at) <= end);
   return history.map((change) => {
@@ -98,6 +104,7 @@ export async function withTimelines(vin: string, history: VersionChange[]): Prom
       download: within(download, start, end),
       install: within(install, start, end),
       installed: within(installed, start, end),
+      started: within(started, start, end),
     });
     return timeline ? { ...change, timeline } : change;
   });
