@@ -13,6 +13,7 @@ import type { Arriving, YourCar } from "@/lib/rollout-arriving";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadRollout, type RolloutPage } from "@/lib/server/rollout";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "India rollout · Uplink" };
 
@@ -56,16 +57,19 @@ function ArrivingRow({ a }: { a: Arriving }) {
 }
 
 // One version: cars on it now with a bar against every counted car, and how its arrival compares with the world.
+// A version no car is on any more has no bar: an empty track reads as a chart still loading.
 function VersionRow({ v, counted }: { v: RolloutVersion; counted: number }) {
   return (
     <li className="space-y-2 py-4">
       <div className="flex items-baseline justify-between gap-4">
         <span className="font-mono text-sm font-medium tabular-nums">{v.version}</span>
-        <span className="text-sm tabular-nums">{cars(v.carsNow)}</span>
+        <span className={cn("text-sm tabular-nums", v.carsNow === 0 && "text-faint")}>{cars(v.carsNow)}</span>
       </div>
-      <div className="h-1.5 w-full bg-muted" aria-hidden>
-        <div className="h-full bg-foreground/70" style={{ width: `${counted ? (v.carsNow / counted) * 100 : 0}%` }} />
-      </div>
+      {v.carsNow > 0 && (
+        <div className="h-1.5 w-full bg-muted" aria-hidden>
+          <div className="h-full bg-foreground/70" style={{ width: `${counted ? (v.carsNow / counted) * 100 : 0}%` }} />
+        </div>
+      )}
       {/* Only what's known: a car already on the version when tracking began has no arrival date. */}
       {(v.firstInIndia || v.globalRelease) && (
         <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground tabular-nums">
