@@ -48,8 +48,9 @@ export async function loadChargingExtras(vin: string | null, sessions: StreamCha
           lat,
           lng,
           t,
-          kind: "place",
-          size: 5 + Math.sqrt(kwh) * 1.5,
+          kind: "charge",
+          // 24px for a top-up, up to 44px for a big charge (about 50 kWh).
+          size: Math.min(44, 24 + Math.sqrt(kwh) * 2.8),
           label: [s.station_name ?? "Charge", formatShortDate(s.started_at), `${Math.round(kwh * 10) / 10} kWh`].join(" · "),
         };
       }),

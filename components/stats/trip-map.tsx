@@ -1,6 +1,7 @@
 "use client";
 
 import { Map, MapControls, MapMarker, MapRoute, MarkerContent, MarkerPopup, MarkerTooltip } from "@/components/ui/map";
+import { Zap } from "lucide-react";
 import { Component, type ReactNode, useEffect, useState } from "react";
 import { formatClock } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -21,8 +22,9 @@ class MapBoundary extends Component<{ children: ReactNode }, { failed: boolean }
 }
 
 export type MapPoint = { lat: number; lng: number; t: number };
-// size: a diameter in px, for pins drawn to scale (a charge's kWh, a place's visits).
-export type MapPin = MapPoint & { kind: "start" | "stop" | "end" | "place"; label: string; size?: number };
+// size: a diameter in px, for pins drawn to scale (a charge's kWh, a place's visits). A charge is a
+// lightning-bolt badge, so it reads as a charger at a glance.
+export type MapPin = MapPoint & { kind: "start" | "stop" | "end" | "place" | "charge"; label: string; size?: number };
 
 // A route as a line (a trip, or everywhere visited), with pins: a trip's start, stops and end, or places
 // such as chargers. mapcn (MapLibre) with CARTO's free vector basemaps, light or dark with the page. Hover
@@ -66,16 +68,25 @@ export function TripMap({ route = [], pins, label }: { route?: MapPoint[]; pins:
             return (
               <MapMarker key={`${pin.kind}-${pin.t}-${pin.lat}`} longitude={pin.lng} latitude={pin.lat}>
                 <MarkerContent>
-                  <span
-                    className={cn(
-                      "block rounded-full border-2 shadow",
-                      pin.kind === "start" && "border-chart-accent bg-background",
-                      pin.kind === "end" && "border-background bg-chart-accent",
-                      pin.kind === "stop" && "border-background bg-muted-foreground",
-                      pin.kind === "place" && "border-background bg-chart-accent/70",
-                    )}
-                    style={{ width: size, height: size }}
-                  />
+                  {pin.kind === "charge" ? (
+                    <span
+                      className="flex items-center justify-center rounded-full border-2 border-background bg-chart-accent text-white shadow-md"
+                      style={{ width: size, height: size }}
+                    >
+                      <Zap className="fill-current" style={{ width: size * 0.5, height: size * 0.5 }} aria-hidden="true" />
+                    </span>
+                  ) : (
+                    <span
+                      className={cn(
+                        "block rounded-full border-2 shadow",
+                        pin.kind === "start" && "border-chart-accent bg-background",
+                        pin.kind === "end" && "border-background bg-chart-accent",
+                        pin.kind === "stop" && "border-background bg-muted-foreground",
+                        pin.kind === "place" && "border-background bg-chart-accent/70",
+                      )}
+                      style={{ width: size, height: size }}
+                    />
+                  )}
                 </MarkerContent>
                 <MarkerTooltip>
                   <span className="block border bg-background px-2 py-1 text-xs whitespace-nowrap text-foreground tabular-nums">{pin.label}</span>
