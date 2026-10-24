@@ -98,7 +98,7 @@ const axisNumber = new Intl.NumberFormat("en-IN", { notation: "compact", maximum
 export function ChartFrame({ max, dense, prefix = "", unit, children }: { max: number; dense: boolean; prefix?: string; unit?: string; children: React.ReactNode }) {
   const top = dense ? "top-0" : "top-6";
   return (
-    <div className={cn("relative flex gap-2 bg-muted pr-4 pb-3 pl-2", unit && dense ? "pt-8" : "pt-5")}>
+    <div className={cn("chart-touch relative flex gap-2 bg-muted pr-4 pb-3 pl-2", unit && dense ? "pt-8" : "pt-5")}>
       {unit && (
         <span className="absolute top-1 left-2 font-mono text-xs text-faint" aria-hidden="true">
           {unit}

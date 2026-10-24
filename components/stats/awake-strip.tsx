@@ -33,7 +33,7 @@ export function AwakeStrip({ start, runs, classes }: { start: number; runs: Run[
   }, [active]);
 
   return (
-    <div ref={strip} className="relative h-2.5 flex-1" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
+    <div ref={strip} className="chart-touch relative h-2.5 flex-1" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
       {runs.map((r, k) => (
         <button
           type="button"

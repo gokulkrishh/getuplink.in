@@ -46,7 +46,7 @@ export function DriveTrace({
   const fmt = (v: number) => (Math.round(v * 10) / 10).toString();
 
   return (
-    <div className="relative">
+    <div className="chart-touch relative">
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="w-full touch-none bg-muted"

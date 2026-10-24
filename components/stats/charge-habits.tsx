@@ -27,7 +27,7 @@ export function ChargeHabits({ starts }: { starts: number[] }) {
           {active ? describe(shown[0], shown[1], counts[shown[0]][shown[1]]) : `Most often ${describe(busiest[0], busiest[1], counts[busiest[0]][busiest[1]])}`}
         </p>
       </div>
-      <div className="space-y-1.5" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
+      <div className="chart-touch space-y-1.5" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
         {counts.map((row, d) => (
           <div key={WEEKDAYS[d]} className="grid grid-cols-[2.5rem_repeat(8,minmax(0,1fr))] items-center gap-1.5">
             <span className="text-xs text-faint">{WEEKDAYS[d]}</span>

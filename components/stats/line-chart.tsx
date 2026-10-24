@@ -55,7 +55,7 @@ export function LineChart({
 
   return (
     <div className="space-y-2">
-      <div className="relative">
+      <div className="chart-touch relative">
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="w-full touch-none bg-muted"
