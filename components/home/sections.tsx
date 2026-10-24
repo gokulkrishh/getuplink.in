@@ -4,6 +4,7 @@ import { Bars } from "@/components/stats/bars";
 import { ChargeLevelChart } from "@/components/stats/charge-level";
 import { kw } from "@/components/stats/parked-drain";
 import { DriveHeader, TripRow } from "@/components/stats/drive-list";
+import { Figures } from "@/components/stats/figures";
 import type { View } from "@/components/stats/periods";
 import { eachPeriod } from "@/components/stats/stats-frame";
 import type { Drive, DrainSummary, ParkedNow } from "@/lib/drives";
@@ -102,16 +103,16 @@ export function BatterySection({ level, drain, parkedNow, now }: { level: Charge
   const hasLevel = (level?.points.length ?? 0) >= 2;
   if (!hasLevel && !parkedNow && !drain) return null;
   const parked = parkedNow && [
-    `Parked ${parkedNow.fromFirstReading ? "at least " : ""}${formatDuration(parkedNow.hours * 3600)}`,
-    parkedNow.watts !== null && `${kw(parkedNow.watts)} average`,
-    parkedNow.lostPercent !== null && `${oneDecimal.format(parkedNow.lostPercent)}% lost`,
-  ].filter(Boolean).join(" · ");
+    { label: "Parked", value: `${parkedNow.fromFirstReading ? "≥ " : ""}${formatDuration(parkedNow.hours * 3600)}` },
+    parkedNow.watts !== null && { label: "Avg power", value: kw(parkedNow.watts) },
+    parkedNow.lostPercent !== null && { label: "Lost", value: `${oneDecimal.format(parkedNow.lostPercent)}%` },
+  ];
   return (
     <Section title="Battery" view="battery" more="More">
       {(parked || drain) && (
-        <div className="space-y-1 text-sm text-muted-foreground tabular-nums">
-          {parked && <p>{parked}</p>}
-          {drain && <p>Usually loses {oneDecimal.format(drain.percentPerDay)}% a day parked</p>}
+        <div className="space-y-3">
+          {parked && <Figures figures={parked} />}
+          {drain && <p className="text-sm text-muted-foreground tabular-nums">Usually loses {oneDecimal.format(drain.percentPerDay)}% a day parked</p>}
         </div>
       )}
       {hasLevel && <ChargeLevelChart level={level} now={now} />}

@@ -1,5 +1,6 @@
 "use client";
 
+import { Figures } from "@/components/stats/figures";
 import { LineChart } from "@/components/stats/line-chart";
 import { formatClock, formatShortDate } from "@/lib/format";
 import type { BatteryExtras } from "@/lib/server/battery-extra";
@@ -17,14 +18,17 @@ export function Temperatures({ temps }: { temps: BatteryExtras["temps"] }) {
     { name: "Outside", className: "stroke-muted-foreground", points: temps.outside },
   ];
   if (!series.some((s) => s.points.length >= 2)) return null;
-  const now = series.map((s) => [s.name, latest(s.points)] as const).filter(([, v]) => v !== null);
   return (
     <section className="space-y-6">
       <div className="space-y-2">
         <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Temperatures</h2>
-        <p className="text-sm text-muted-foreground tabular-nums">
-          Latest {now.map(([name, v]) => `${name.toLowerCase()} ${oneDecimal.format(v!)} °C`).join(" · ")}
-        </p>
+        {/* The latest of each, labelled like the chart's legend. */}
+        <Figures
+          figures={series.map((s) => {
+            const v = latest(s.points);
+            return v !== null && { label: s.name, value: `${oneDecimal.format(v)} °C` };
+          })}
+        />
       </div>
       <LineChart series={series} formatX={when} formatY={(y) => `${number.format(y)} °C`} label="Battery, inside and outside temperature over the last week" />
     </section>
