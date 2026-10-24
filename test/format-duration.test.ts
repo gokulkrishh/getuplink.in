@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { formatAgo, formatDuration } from "@/lib/format";
+import { formatAgo, formatDuration, formatInstallLeft } from "@/lib/format";
 
 describe("formatDuration", () => {
   test("minutes, then hours, then days", () => {
@@ -17,5 +17,15 @@ describe("formatAgo", () => {
     expect(formatAgo(now - 30 * 3600_000, now)).toBe("yesterday");
     expect(formatAgo(now - 3 * 86_400_000, now)).toBe("3 days ago");
     expect(formatAgo(now - 9 * 86_400_000, now)).toBe("14 Oct, 10:00 AM IST");
+  });
+});
+
+describe("formatInstallLeft", () => {
+  test("shows the share of Tesla's whole-install estimate still to go", () => {
+    // 2026.38.3.2 at 30% of a 40 min install: 28 min, shown as the Tesla app does.
+    expect(formatInstallLeft(40 * 60, 30)).toBe("About 30 min left");
+    expect(formatInstallLeft(40 * 60, 1)).toBe("About 40 min left");
+    expect(formatInstallLeft(40 * 60, 80)).toBe("About 8 min left");
+    expect(formatInstallLeft(40 * 60, 100)).toBe("Almost done");
   });
 });
