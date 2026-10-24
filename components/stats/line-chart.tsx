@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export type Series = { name: string; className: string; points: { x: number; y: number }[] };
@@ -11,7 +11,8 @@ const PAD = { top: 12, right: 8, bottom: 22, left: 58 };
 
 // One or more lines over a shared x axis (time, battery %, odometer). Hover or tap anywhere for a tooltip
 // with each line's value at that x, and a dot on each line. A line with no reading near that x is left
-// out of the tooltip rather than showing a far-off value.
+// out of the tooltip rather than showing a far-off value. On a touch screen a vertical swipe still scrolls
+// the page, and a tap elsewhere hides the tooltip.
 export function LineChart({
   series,
   formatX,
@@ -30,6 +31,16 @@ export function LineChart({
   signed?: boolean;
 }) {
   const [at, setAt] = useState<number | null>(null);
+  const box = useRef<HTMLDivElement>(null);
+  // A tap elsewhere hides the tooltip (touch has no pointer leaving).
+  useEffect(() => {
+    if (at === null) return;
+    const away = (e: PointerEvent) => {
+      if (!box.current?.contains(e.target as Node)) setAt(null);
+    };
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, [at]);
   const drawn = series.filter((s) => s.points.length >= 2);
   if (drawn.length === 0) return null;
   const xs = drawn.flatMap((s) => s.points.map((p) => p.x));
@@ -55,10 +66,10 @@ export function LineChart({
 
   return (
     <div className="space-y-2">
-      <div className="relative">
+      <div ref={box} className="chart-touch relative">
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        className="w-full touch-none bg-muted"
+        className="w-full touch-pan-y bg-muted"
         role="img"
         aria-label={label}
         onPointerMove={(e) => pick(e.clientX, e.currentTarget.getBoundingClientRect())}

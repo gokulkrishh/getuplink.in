@@ -13,8 +13,8 @@ const kwhCompact = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 // Distance for the period, with a bar per day (Week), month or year.
 export function Distance({ figures, now, period }: { figures: DrivingFigures; now: number; period: Period }) {
   const { current, bars: values } = figures.periods[period];
-  // A single reading gives no distance yet, so the section stays out of the way.
-  if (!values.some((v) => (v.km ?? 0) > 0) && !current.km) return null;
+  // A period without driving still shows, at 0 km with a note in place of the chart, so picking Day before
+  // the first drive of the day doesn't leave a blank gap.
   const bars = slotsFor(period, now).map((slot, k) => {
     const value = values[k].km ?? 0;
     return { key: String(slot.id), label: slot.label, value, display: compactNumber.format(value), isCurrent: slot.isCurrent };
@@ -26,7 +26,7 @@ export function Distance({ figures, now, period }: { figures: DrivingFigures; no
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{compactNumber.format(current.km ?? 0)} km</p>
         <p className="text-sm text-muted-foreground">{PERIOD_WORDS[period]}</p>
       </div>
-      <Bars bars={bars} ariaLabel={`Distance per ${SLOT_NAMES[period]}`} unit="km" />
+      <Bars bars={bars} ariaLabel={`Distance per ${SLOT_NAMES[period]}`} unit="km" empty={`No driving ${PERIOD_WORDS[period]}`} />
     </section>
   );
 }
@@ -35,7 +35,9 @@ export function Distance({ figures, now, period }: { figures: DrivingFigures; no
 // from the drives where the counter has no reading from before the span (see withDriveEfficiency).
 export function EnergyUse({ figures, now, period }: { figures: DrivingFigures; now: number; period: Period }) {
   const { current, bars: values } = figures.periods[period];
-  if (current.kwh === null) return null;
+  // No reading with no driving is nothing used; with driving it's unknown, so the section stays out of the way.
+  const used = current.kwh ?? (current.km ? null : 0);
+  if (used === null) return null;
   const slots = slotsFor(period, now);
   const bars = slots.map((slot, k) => {
     const value = values[k].kwh ?? 0;
@@ -50,13 +52,13 @@ export function EnergyUse({ figures, now, period }: { figures: DrivingFigures; n
     <section className="space-y-8">
       <div className="space-y-2">
         <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Energy use</h2>
-        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatKwh(current.kwh)}</p>
+        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatKwh(used)}</p>
         <p className="text-sm text-muted-foreground tabular-nums">
           Used {PERIOD_WORDS[period]}
           {current.km ? ` · ${compactNumber.format(current.km)} km` : ""}
         </p>
       </div>
-      <Bars bars={bars} ariaLabel={`Energy used per ${SLOT_NAMES[period]} in kWh`} unit="kWh" />
+      <Bars bars={bars} ariaLabel={`Energy used per ${SLOT_NAMES[period]} in kWh`} unit="kWh" empty={`No driving ${PERIOD_WORDS[period]}`} />
       {regenTotal > 0 && (
         <div className="space-y-4">
           <p className="text-sm">

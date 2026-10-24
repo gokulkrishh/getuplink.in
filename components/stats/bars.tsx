@@ -1,4 +1,5 @@
 import { ScrollEnd } from "@/components/stats/scroll-end";
+import { TapColumns } from "@/components/stats/tap-columns";
 import { cn } from "@/lib/utils";
 
 export type Bar = { key: string; label: string; value: number; display: string; isCurrent: boolean; blank?: boolean };
@@ -7,6 +8,7 @@ export type Bar = { key: string; label: string; value: number; display: string; 
 // With labelEvery, any number of columns (one per day, say): only every labelEvery-th column from the
 // last one carries its label, and values live in the hover title and for screen readers.
 // With visible, only that many columns fit the panel and the rest scroll sideways, opening on the newest.
+// With empty, a period with nothing to show says so (EmptyChart) instead of drawing an empty frame.
 // `unit` titles the y axis and follows each value in the hover tip and for screen readers; `display` is
 // the bare number (money carries its own sign, with `prefix` on the axis).
 export function Bars({
@@ -16,6 +18,7 @@ export function Bars({
   visible,
   prefix,
   unit,
+  empty,
 }: {
   bars: Bar[];
   ariaLabel: string;
@@ -25,7 +28,10 @@ export function Bars({
   prefix?: string;
   // Like "km" or "% a day".
   unit?: string;
+  // Like "No driving today".
+  empty?: string;
 }) {
+  if (empty && !all.some((b) => b.value > 0)) return <EmptyChart>{empty}</EmptyChart>;
   const dense = all.length > 6;
   // Months before the history starts are dropped, so the bars begin at the left edge.
   const bars = labelEvery ? all : leadingTrimmed(all, (b) => b.value > 0);
@@ -37,7 +43,7 @@ export function Bars({
 
   const scrolls = visible !== undefined && bars.length > visible;
   const list = (
-      <ol
+      <TapColumns
         className={cn("grid items-end", labelEvery ? "gap-0.5" : dense ? "gap-1" : "gap-3")}
         style={{
           gridTemplateColumns: `repeat(${labelEvery ? bars.length : Math.max(bars.length, MIN_COLUMNS)}, minmax(0, 1fr))`,
@@ -55,7 +61,7 @@ export function Bars({
               <div className="flex h-20 w-full items-end">
                 {b.value > 0 && (
                   <div
-                    className={cn("w-full", b.isCurrent ? "bg-chart-accent" : "bg-muted-foreground/40 group-hover:bg-muted-foreground/70")}
+                    className={cn("w-full", b.isCurrent ? "bg-chart-accent" : "bg-muted-foreground/40 group-hover:bg-muted-foreground/70 group-data-[tapped=true]:bg-muted-foreground/70")}
                     style={{ height: `${Math.max(4, (b.value / max) * 100)}%` }}
                   />
                 )}
@@ -68,13 +74,18 @@ export function Bars({
             </li>
           ),
         )}
-      </ol>
+      </TapColumns>
   );
   return (
     <ChartFrame max={max} dense={dense} prefix={prefix} unit={unit}>
       {scrolls ? <ScrollEnd label={ariaLabel}>{list}</ScrollEnd> : list}
     </ChartFrame>
   );
+}
+
+// In place of a bar chart with nothing in it: the panel, about a chart's height, with a short note.
+export function EmptyChart({ children }: { children: React.ReactNode }) {
+  return <div className="flex h-40 items-center justify-center bg-muted px-4 text-center text-sm text-faint">{children}</div>;
 }
 
 // "12 km", "1.2% a day": a space before a unit, none before a percent sign.
@@ -97,7 +108,7 @@ const axisNumber = new Intl.NumberFormat("en-IN", { notation: "compact", maximum
 export function ChartFrame({ max, dense, prefix = "", unit, children }: { max: number; dense: boolean; prefix?: string; unit?: string; children: React.ReactNode }) {
   const top = dense ? "top-0" : "top-6";
   return (
-    <div className={cn("relative flex gap-2 bg-muted pr-4 pb-3 pl-2", unit && dense ? "pt-8" : "pt-5")}>
+    <div className={cn("chart-touch relative flex gap-2 bg-muted pr-4 pb-3 pl-2", unit && dense ? "pt-8" : "pt-5")}>
       {unit && (
         <span className="absolute top-1 left-2 font-mono text-xs text-faint" aria-hidden="true">
           {unit}
@@ -132,7 +143,7 @@ export function MonthLabel({ label, dense, fromEnd }: { label: string; dense: bo
   return <span className={cn(fromEnd % 2 === 1 && "max-sm:invisible")}>{label.slice(0, 3)}</span>;
 }
 
-// The value of the column under the pointer, like the version chart's tooltip. It overlays the top of
+// The value of the column under the pointer or tapped (see TapColumns), like the version chart's tooltip. It overlays the top of
 // the column (so a scrolling strip can't clip it) and leans inwards at the edges. Screen readers get the
 // same values from each column's sr-only text.
 export function BarTip({ title, lines, at, of }: { title: string; lines: (string | null | false)[]; at: number; of: number }) {
@@ -141,7 +152,7 @@ export function BarTip({ title, lines, at, of }: { title: string; lines: (string
     <span
       aria-hidden="true"
       className={cn(
-        "pointer-events-none absolute top-0 z-10 border bg-background px-2 py-1 text-xs whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover:opacity-100",
+        "pointer-events-none absolute top-0 z-10 border bg-background px-2 py-1 text-xs whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-data-[tapped=true]:opacity-100",
         side,
       )}
     >

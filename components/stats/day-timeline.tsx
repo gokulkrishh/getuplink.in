@@ -37,7 +37,7 @@ export function DayTimeline({ days: all7, now, title = "Your days" }: { days: Da
           {shown ? describe(shown) : "Hover or tap a stretch for its times."}
         </p>
       </div>
-      <ol className="space-y-1.5" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
+      <ol className="chart-touch space-y-1.5" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
         {[...days].reverse().map((d) => (
           <li key={d.day} className="flex items-center gap-3">
             <Link href={`/stats/day/${dayParam(d.day)}`} className="w-16 shrink-0 text-xs text-faint hover:text-foreground hover:underline hover:underline-offset-4">

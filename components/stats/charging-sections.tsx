@@ -1,6 +1,7 @@
 import { hasCosts, hasStationNames, type Listed, OsmCredit, SessionHeader, SessionRow } from "@/components/session-row";
 import { ShowMore } from "@/components/show-more";
 import { Bars } from "@/components/stats/bars";
+import { Figures } from "@/components/stats/figures";
 import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
 import { chargeEfficiency } from "@/lib/charge-sessions";
 import { type Bill, billsBySlot, billsIn } from "@/lib/charging-figures";
@@ -45,15 +46,19 @@ export function Summary({
   const spend = billsBySlot(bills, slots);
   const compact = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
   const bars = slots.map((slot, k) => ({ key: String(slot.id), label: slot.label, value: spend[k], display: compact.format(spend[k]), isCurrent: slot.isCurrent }));
-  const rates = [acPerKwh !== null && `AC ${formatMoney(acPerKwh, "INR")}/kWh`, dcPerKwh !== null && `DC ${formatMoney(dcPerKwh, "INR")}/kWh`].filter(Boolean);
   return (
     <section className="space-y-8">
       <div className="space-y-2">
         <p className="text-xs tracking-wide text-faint uppercase">Spent {PERIOD_WORDS[period]}</p>
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatMoney(cost, "INR")}</p>
-        <p className="text-sm text-muted-foreground tabular-nums">
-          {[formatKwh(kwh), `${count} ${count === 1 ? "bill" : "bills"}`, ...rates].join(" · ")}
-        </p>
+        <Figures
+          figures={[
+            { label: "Energy billed", value: formatKwh(kwh) },
+            { label: "Bills", value: count },
+            acPerKwh !== null && { label: "AC rate", value: `${formatMoney(acPerKwh, "INR")}/kWh` },
+            dcPerKwh !== null && { label: "DC rate", value: `${formatMoney(dcPerKwh, "INR")}/kWh` },
+          ]}
+        />
         {km !== null && km >= 10 && cost > 0 && missing === 0 && (
           <p className="text-sm text-muted-foreground tabular-nums">{formatMoney((cost / km) * 100, "INR")} per 100 km driven</p>
         )}
@@ -63,7 +68,7 @@ export function Summary({
           </p>
         )}
       </div>
-      {cost > 0 && <Bars bars={bars} ariaLabel={`Spend per ${SLOT_NAMES[period]}`} prefix="₹" />}
+      <Bars bars={bars} ariaLabel={`Spend per ${SLOT_NAMES[period]}`} prefix="₹" empty={`No bills ${PERIOD_WORDS[period]}`} />
     </section>
   );
 }
@@ -125,12 +130,14 @@ export function EnergyAdded({
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatKwh(total)}</p>
         <p className="text-sm text-muted-foreground">{PERIOD_WORDS[period]}</p>
       </div>
-      <StackedBars bars={bars} series={ENERGY_SERIES} ariaLabel={`Energy added per ${SLOT_NAMES[period]}`} />
+      <StackedBars bars={bars} series={ENERGY_SERIES} ariaLabel={`Energy added per ${SLOT_NAMES[period]}`} empty={`No charging ${PERIOD_WORDS[period]}`} />
       {charged.ac + charged.dc > 0 && (
-        <p className="text-sm text-muted-foreground tabular-nums">
-          Time charging ·{" "}
-          {[charged.ac > 0 && `AC ${formatDuration(charged.ac / 1000)}`, charged.dc > 0 && `DC ${formatDuration(charged.dc / 1000)}`].filter(Boolean).join(" · ")}
-        </p>
+        <Figures
+          figures={[
+            charged.ac > 0 && { label: "Time on AC", value: formatDuration(charged.ac / 1000) },
+            charged.dc > 0 && { label: "Time on DC", value: formatDuration(charged.dc / 1000) },
+          ]}
+        />
       )}
       {efficiency !== null && (
         <div className="space-y-1">

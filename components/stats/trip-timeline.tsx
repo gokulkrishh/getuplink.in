@@ -36,7 +36,7 @@ export function TripTimeline({ legs }: { legs: Drive[] }) {
   const shown = active === null ? null : segments[active];
 
   return (
-    <div className="space-y-2" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
+    <div className="chart-touch space-y-2" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
       <div className="relative h-12">
         {segments.map((s, k) => {
           const width = pct(s.end) - pct(s.start);

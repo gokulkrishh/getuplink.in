@@ -13,6 +13,7 @@ export function CarStatus({
   seenAt,
   checkedAt,
   now,
+  tipClassName,
 }: {
   state?: string | null;
   // The car streamed a reading in the last few minutes.
@@ -20,6 +21,8 @@ export function CarStatus({
   seenAt: string | null;
   checkedAt: string | null;
   now: number;
+  // Where the tip sits; it opens toward the right by default, since the status usually leads a line.
+  tipClassName?: string;
 }) {
   const times = [seenAt, checkedAt].filter((t): t is string => t !== null);
   const last = times.length ? times.reduce((a, b) => (Date.parse(a) > Date.parse(b) ? a : b)) : null;
@@ -41,7 +44,7 @@ export function CarStatus({
       {dot}
       {label}
       <span className="sr-only">. {lines.join(". ")}</span>
-      <Tip>
+      <Tip align="start" className={tipClassName}>
         {lines.map((line) => (
           <span key={line} className="block">
             {line}

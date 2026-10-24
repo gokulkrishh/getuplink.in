@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatClock } from "@/lib/format";
 
 const W = 600;
@@ -8,7 +8,7 @@ const H = 160;
 const PAD = { top: 12, right: 8, bottom: 22, left: 36 };
 
 // A value over the drive's time (battery %, speed), as a line. Hover or tap anywhere for a tooltip with
-// the value at that moment.
+// the value at that moment. On a touch screen a vertical swipe still scrolls the page; a tap elsewhere hides it.
 export function DriveTrace({
   points,
   from,
@@ -28,6 +28,16 @@ export function DriveTrace({
   signed?: boolean;
 }) {
   const [active, setActive] = useState<number | null>(null);
+  const box = useRef<HTMLDivElement>(null);
+  // A tap elsewhere hides the tooltip (touch has no pointer leaving).
+  useEffect(() => {
+    if (active === null) return;
+    const away = (e: PointerEvent) => {
+      if (!box.current?.contains(e.target as Node)) setActive(null);
+    };
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, [active]);
   if (points.length < 2 || to <= from) return null;
   const reach = Math.max(1, ...points.map((p) => Math.abs(p.v))) * 1.1;
   const max = fixedMax ?? (signed ? reach : Math.max(1, ...points.map((p) => p.v)) * 1.1);
@@ -46,10 +56,10 @@ export function DriveTrace({
   const fmt = (v: number) => (Math.round(v * 10) / 10).toString();
 
   return (
-    <div className="relative">
+    <div ref={box} className="chart-touch relative">
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        className="w-full touch-none bg-muted"
+        className="w-full touch-pan-y bg-muted"
         role="img"
         aria-label={`${label} from ${formatClock(from)} to ${formatClock(to)}: between ${fmt(Math.min(...points.map((p) => p.v)))} and ${fmt(Math.max(...points.map((p) => p.v)))} ${unit}.`}
         onPointerMove={(e) => pick(e.clientX, e.currentTarget.getBoundingClientRect())}

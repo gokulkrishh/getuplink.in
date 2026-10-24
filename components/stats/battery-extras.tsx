@@ -1,5 +1,6 @@
 "use client";
 
+import { Figures } from "@/components/stats/figures";
 import { LineChart } from "@/components/stats/line-chart";
 import { formatClock, formatShortDate } from "@/lib/format";
 import type { BatteryExtras } from "@/lib/server/battery-extra";
@@ -17,14 +18,17 @@ export function Temperatures({ temps }: { temps: BatteryExtras["temps"] }) {
     { name: "Outside", className: "stroke-muted-foreground", points: temps.outside },
   ];
   if (!series.some((s) => s.points.length >= 2)) return null;
-  const now = series.map((s) => [s.name, latest(s.points)] as const).filter(([, v]) => v !== null);
   return (
     <section className="space-y-6">
       <div className="space-y-2">
         <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Temperatures</h2>
-        <p className="text-sm text-muted-foreground tabular-nums">
-          Latest {now.map(([name, v]) => `${name.toLowerCase()} ${oneDecimal.format(v!)} °C`).join(" · ")}
-        </p>
+        {/* The latest of each, labelled like the chart's legend. */}
+        <Figures
+          figures={series.map((s) => {
+            const v = latest(s.points);
+            return v !== null && { label: s.name, value: `${oneDecimal.format(v)} °C` };
+          })}
+        />
       </div>
       <LineChart series={series} formatX={when} formatY={(y) => `${number.format(y)} °C`} label="Battery, inside and outside temperature over the last week" />
     </section>
@@ -40,8 +44,10 @@ export function CellBalance({ spread }: { spread: BatteryExtras["cellSpreadMv"] 
     <section className="space-y-6">
       <div className="space-y-2">
         <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Cell balance</h2>
-        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
-          {number.format(now)} <span className="font-sans text-base font-normal tracking-normal text-muted-foreground">mV between the highest and lowest cell</span>
+        {/* The label wraps as a whole under the figure on a phone, rather than splitting across the big line. */}
+        <p className="flex flex-wrap items-baseline gap-x-2">
+          <span className="font-mono text-4xl font-medium tracking-tight tabular-nums">{number.format(now)} mV</span>
+          <span className="text-base text-muted-foreground">between the highest and lowest cell</span>
         </p>
         <p className="text-sm text-muted-foreground">It widens while driving and charging hard, and settles back at rest. A gap that keeps growing over months is worth a service check.</p>
       </div>

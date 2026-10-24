@@ -33,6 +33,8 @@ export function NowStrip({ car, odometerKm, now }: { car: HomeCar; odometerKm: n
             seenAt={streamAt && (!vehicle.last_seen_at || Date.parse(streamAt) > Date.parse(vehicle.last_seen_at)) ? streamAt : vehicle.last_seen_at}
             checkedAt={latest?.polled_at ?? null}
             now={now}
+            // Leads the line on phones, ends it from sm up.
+            tipClassName="sm:right-0 sm:left-auto"
           />
         </p>
       </div>

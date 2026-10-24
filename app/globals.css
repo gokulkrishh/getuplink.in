@@ -328,6 +328,15 @@
     grid-template-columns: 10rem 1fr;
   }
 }
+/* Charts on touch screens: a tap shows a tip, so a press shouldn't select the labels or open the
+   copy menu. Only where nothing can hover, so text in a chart stays selectable with a mouse. */
+@utility chart-touch {
+  @media (hover: none) {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+}
 /* Version history: version, received, installed, odometer. On phones the table scrolls sideways. */
 @utility history-cols {
   display: grid;

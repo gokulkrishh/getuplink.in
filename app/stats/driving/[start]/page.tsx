@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
 import { DriveTrace } from "@/components/stats/drive-trace";
+import { Figures } from "@/components/stats/figures";
 import { TripMap } from "@/components/stats/trip-map";
 import { TripTimeline } from "@/components/stats/trip-timeline";
 import { formatClock, formatDate, formatDuration, formatKm, formatKwh } from "@/lib/format";
@@ -43,10 +44,10 @@ function Drive({ detail }: { detail: DriveDetail }) {
     ...(outsideC !== null ? [{ label: "Outside", value: `${oneDecimal.format(outsideC)} °C` }] : []),
   ];
   const summary = [
-    formatDuration((trip.end - trip.start) / 1000),
-    trip.stops ? `${formatDuration(drivingMs / 1000)} driving` : null,
-    trip.stops ? `${trip.stops} ${trip.stops === 1 ? "stop" : "stops"}, ${formatDuration(stoppedMs / 1000)}` : null,
-  ].filter(Boolean);
+    { label: trip.stops ? "In all" : "Took", value: formatDuration((trip.end - trip.start) / 1000) },
+    trip.stops > 0 && { label: "Driving", value: formatDuration(drivingMs / 1000) },
+    trip.stops > 0 && { label: trip.stops === 1 ? "1 stop" : `${trip.stops} stops`, value: formatDuration(stoppedMs / 1000) },
+  ];
   const traceEnd = Math.max(trip.end, battery.at(-1)?.t ?? trip.end);
   return (
     <>
@@ -57,9 +58,9 @@ function Drive({ detail }: { detail: DriveDetail }) {
       <div className="space-y-12">
         {/* The headline, then a few numbers as tiles: easier to take in than a long list. */}
         <section className="space-y-6">
-          <div className="space-y-1">
+          <div className="space-y-3">
             <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatKm(trip.km)}</p>
-            <p className="text-sm text-muted-foreground tabular-nums">{summary.join(" · ")}</p>
+            <Figures figures={summary} />
           </div>
           {tiles.length > 0 && (
             <dl className={`grid grid-cols-2 gap-px border bg-border bg-clip-padding ${tiles.length % 3 === 0 ? "sm:grid-cols-3" : "sm:grid-cols-4"}`}>

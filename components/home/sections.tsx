@@ -4,6 +4,7 @@ import { Bars } from "@/components/stats/bars";
 import { ChargeLevelChart } from "@/components/stats/charge-level";
 import { kw } from "@/components/stats/parked-drain";
 import { DriveHeader, TripRow } from "@/components/stats/drive-list";
+import { Figures } from "@/components/stats/figures";
 import type { View } from "@/components/stats/periods";
 import { eachPeriod } from "@/components/stats/stats-frame";
 import type { Drive, DrainSummary, ParkedNow } from "@/lib/drives";
@@ -12,7 +13,7 @@ import { spendBySlot } from "@/lib/charging-figures";
 import type { ChargeLevel } from "@/lib/charge-level";
 import type { DrivingFigures } from "@/lib/driving-figures";
 import { formatDuration } from "@/lib/format";
-import { type Period, SLOT_NAMES, slotsFor } from "@/lib/periods";
+import { type Period, PERIOD_WORDS, SLOT_NAMES, slotsFor } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
 import { MoreLink } from "./more-link";
 
@@ -62,7 +63,7 @@ export function ChargingSection({ sessions, listed, now }: { sessions: ChargingS
   };
   return (
     <Section title="Charging" view="charging" more="All sessions">
-      {eachPeriod((p) => <Bars bars={bars(p)} ariaLabel={`Spend per ${SLOT_NAMES[p]}`} prefix="₹" />, { steady: true })}
+      {eachPeriod((p) => <Bars bars={bars(p)} ariaLabel={`Spend per ${SLOT_NAMES[p]}`} prefix="₹" empty={`No charging spend ${PERIOD_WORDS[p]}`} />, { steady: true })}
       <Rows header={<SessionHeader costs={costs} wide />}>
         {shown.map((item) => (
           <SessionRow key={item.key} item={item} now={now} costs={costs} />
@@ -84,7 +85,7 @@ export function DrivingSection({ figures, drives, now }: { figures: DrivingFigur
     });
   return (
     <Section title="Driving" view="driving" more="All trips">
-      {eachPeriod((p) => <Bars bars={bars(p)} ariaLabel={`Distance per ${SLOT_NAMES[p]} in km`} unit="km" />, { steady: true })}
+      {eachPeriod((p) => <Bars bars={bars(p)} ariaLabel={`Distance per ${SLOT_NAMES[p]} in km`} unit="km" empty={`No driving ${PERIOD_WORDS[p]}`} />, { steady: true })}
       {drives.length > 0 && (
         <Rows header={<DriveHeader />}>
           {trips.slice(0, ROWS).map((t, i) => (
@@ -102,16 +103,16 @@ export function BatterySection({ level, drain, parkedNow, now }: { level: Charge
   const hasLevel = (level?.points.length ?? 0) >= 2;
   if (!hasLevel && !parkedNow && !drain) return null;
   const parked = parkedNow && [
-    `Parked ${parkedNow.fromFirstReading ? "at least " : ""}${formatDuration(parkedNow.hours * 3600)}`,
-    parkedNow.watts !== null && `${kw(parkedNow.watts)} average`,
-    parkedNow.lostPercent !== null && `${oneDecimal.format(parkedNow.lostPercent)}% lost`,
-  ].filter(Boolean).join(" · ");
+    { label: "Parked", value: `${parkedNow.fromFirstReading ? "≥ " : ""}${formatDuration(parkedNow.hours * 3600)}` },
+    parkedNow.watts !== null && { label: "Avg power", value: kw(parkedNow.watts) },
+    parkedNow.lostPercent !== null && { label: "Lost", value: `${oneDecimal.format(parkedNow.lostPercent)}%` },
+  ];
   return (
     <Section title="Battery" view="battery" more="More">
       {(parked || drain) && (
-        <div className="space-y-1 text-sm text-muted-foreground tabular-nums">
-          {parked && <p>{parked}</p>}
-          {drain && <p>Usually loses {oneDecimal.format(drain.percentPerDay)}% a day parked</p>}
+        <div className="space-y-3">
+          {parked && <Figures figures={parked} />}
+          {drain && <p className="text-sm text-muted-foreground tabular-nums">Usually loses {oneDecimal.format(drain.percentPerDay)}% a day parked</p>}
         </div>
       )}
       {hasLevel && <ChargeLevelChart level={level} now={now} />}

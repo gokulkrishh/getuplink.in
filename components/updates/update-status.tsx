@@ -1,5 +1,5 @@
 import { AutoRefresh } from "@/components/auto-refresh";
-import { formatDuration, formatSeen } from "@/lib/format";
+import { formatDuration, formatInstallLeft, formatSeen } from "@/lib/format";
 import type { Snapshot } from "@/lib/server/dashboard";
 
 const STATUS: Record<string, string> = {
@@ -61,7 +61,9 @@ export function UpdateStatus({ snapshot, now }: { snapshot: Snapshot | null; now
         <p className="text-xs text-muted-foreground">
           {status === "scheduled" && snapshot.scheduled_time_ms
             ? `Starts ${formatSeen(snapshot.scheduled_time_ms, now)}`
-            : `Takes about ${formatDuration(snapshot.expected_duration_sec!)}`}
+            : status === "installing" && snapshot.install_perc != null
+              ? formatInstallLeft(snapshot.expected_duration_sec!, snapshot.install_perc)
+              : `Takes about ${formatDuration(snapshot.expected_duration_sec!)}`}
         </p>
       ) : null}
       {status === "downloading_wifi_wait" && (

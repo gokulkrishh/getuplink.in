@@ -67,9 +67,12 @@ export function ParkedDrain({ drain, parked, parkedNow }: { drain: DrainSummary 
         <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Parked drain</h2>
         {headline && (
           <>
-            <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
-              {headline.watts !== null ? kw(headline.watts) : `${oneDecimal(headline.perDay)}%`}
-              <span className="ml-2 font-sans text-base font-normal tracking-normal text-muted-foreground">{headline.watts !== null ? "average while parked" : "a day"}</span>
+            {/* The label wraps as a whole under the figure on a phone, rather than splitting across the big line. */}
+            <p className="flex flex-wrap items-baseline gap-x-2">
+              <span className="font-mono text-4xl font-medium tracking-tight tabular-nums">
+                {headline.watts !== null ? kw(headline.watts) : `${oneDecimal(headline.perDay)}%`}
+              </span>
+              <span className="text-base text-muted-foreground">{headline.watts !== null ? "average while parked" : "a day"}</span>
             </p>
             <p className="text-sm text-muted-foreground tabular-nums">
               {[
@@ -85,19 +88,30 @@ export function ParkedDrain({ drain, parked, parkedNow }: { drain: DrainSummary 
         <p className="text-xs text-muted-foreground">A sleeping car draws little. Sentry Mode, cabin overheat protection and apps checking in keep it awake and raise this.</p>
       </div>
 
-      {/* Phones: one block per stretch. */}
+      {/* Phones: one block per stretch, its figures labelled in two columns. */}
       <ul className="divide-y border-t sm:hidden">
         {rows.map((r) => {
           const c = cells(r);
+          const figures = [
+            ["Lost", r.lostKm !== null ? `${c.lost} · ${c.range}` : c.lost],
+            ["Energy", c.energy],
+            ["Avg power", c.power],
+            ["Seen awake", c.awake],
+          ];
           return (
-            <li key={r.start} className="space-y-1 py-3 text-sm">
-              <p className="flex justify-between gap-3">
+            <li key={r.start} className="space-y-3 py-4 text-sm">
+              <p className="flex flex-wrap items-baseline justify-between gap-x-3">
                 <span className="tabular-nums">{c.when}</span>
                 <span className="text-muted-foreground tabular-nums">{c.period}</span>
               </p>
-              <p className="font-mono text-xs text-muted-foreground tabular-nums">
-                {[c.lost, c.range, c.energy, c.power].join(" · ")} · awake {c.awake}
-              </p>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
+                {figures.map(([label, value]) => (
+                  <div key={label}>
+                    <dt className="text-xs text-faint">{label}</dt>
+                    <dd className="tabular-nums">{value}</dd>
+                  </div>
+                ))}
+              </dl>
             </li>
           );
         })}
