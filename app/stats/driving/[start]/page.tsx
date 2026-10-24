@@ -3,8 +3,8 @@ import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
-import { DriveTrace } from "@/components/stats/drive-trace";
-import { Figures } from "@/components/stats/figures";
+import { DriveLanes } from "@/components/stats/drive-lanes";
+import { type Figure, Figures } from "@/components/stats/figures";
 import { TripMap } from "@/components/stats/trip-map";
 import { TripTimeline } from "@/components/stats/trip-timeline";
 import { formatClock, formatDate, formatDuration, formatKm, formatKwh } from "@/lib/format";
@@ -94,37 +94,22 @@ function Drive({ detail }: { detail: DriveDetail }) {
             <TripTimeline legs={trip.legs} />
           </section>
         )}
-        {speed.length >= 2 && (
+        {[speed, power, accel, grade, battery].some((points) => points.length >= 2) && (
           <section className="space-y-4">
-            <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Speed</h2>
-            <DriveTrace points={speed} from={trip.start} to={trip.end} unit="km/h" label="Speed" />
-          </section>
-        )}
-        {power.length >= 2 && (
-          <section className="space-y-4">
-            <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Power</h2>
-            <PowerSummary points={power} />
-            <DriveTrace points={power} from={trip.start} to={trip.end} unit="kW" label="Power" signed />
-          </section>
-        )}
-        {accel.length >= 2 && (
-          <section className="space-y-4">
-            <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Acceleration</h2>
-            <AccelSummary points={accel} />
-            <DriveTrace points={accel} from={trip.start} to={trip.end} unit="m/s²" label="Acceleration" signed />
-          </section>
-        )}
-        {grade.length >= 2 && (
-          <section className="space-y-4">
-            <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Road grade</h2>
-            <p className="text-sm text-muted-foreground">Uphill above the line, downhill below, as the car estimated it.</p>
-            <DriveTrace points={grade} from={trip.start} to={trip.end} unit="%" label="Road grade" signed />
-          </section>
-        )}
-        {battery.length >= 2 && (
-          <section className="space-y-4">
-            <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Battery</h2>
-            <DriveTrace points={battery} from={trip.start} to={traceEnd} unit="%" label="Battery level" max={100} />
+            <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Over the drive</h2>
+            <Figures figures={highlights(power, accel)} />
+            <DriveLanes
+              from={trip.start}
+              to={traceEnd}
+              lanes={[
+                { name: "Speed", unit: "km/h", points: speed },
+                { name: "Power", unit: "kW", points: power, signed: true },
+                { name: "Acceleration", unit: "m/s²", points: accel, signed: true },
+                { name: "Road grade", unit: "%", points: grade, signed: true },
+                { name: "Battery", unit: "%", points: battery, max: 100 },
+              ]}
+            />
+            {grade.length >= 2 && <p className="text-xs text-faint">Power below zero is regen. Road grade is uphill above zero, as the car estimated it.</p>}
           </section>
         )}
         {(topKmh === null || outsideC === null || accel.length < 2) && (
@@ -135,26 +120,19 @@ function Drive({ detail }: { detail: DriveDetail }) {
   );
 }
 
-// The most power drawn and the most won back by regen, with when.
-function PowerSummary({ points }: { points: { t: number; v: number }[] }) {
-  const top = points.reduce((a, p) => (p.v > a.v ? p : a));
-  const regen = points.reduce((a, p) => (p.v < a.v ? p : a));
-  const parts = [
-    top.v > 0 && `Most power ${Math.round(top.v)} kW at ${formatClock(top.t)}`,
-    regen.v < 0 && `most regen ${Math.round(-regen.v)} kW at ${formatClock(regen.t)}`,
-  ].filter(Boolean);
-  return parts.length ? <p className="text-sm text-muted-foreground tabular-nums">{parts.join("; ")}.</p> : null;
-}
-
-// The strongest push and the hardest stop in the drive, with when they happened.
-function AccelSummary({ points }: { points: { t: number; v: number }[] }) {
-  const up = points.reduce((a, p) => (p.v > a.v ? p : a));
-  const down = points.reduce((a, p) => (p.v < a.v ? p : a));
-  const parts = [
-    up.v > 0 && `Strongest acceleration ${oneDecimal.format(up.v)} m/s² at ${formatClock(up.t)}`,
-    down.v < 0 && `hardest braking ${oneDecimal.format(-down.v)} m/s² at ${formatClock(down.t)}`,
-  ].filter(Boolean);
-  return parts.length ? <p className="text-sm text-muted-foreground tabular-nums">{parts.join("; ")}.</p> : null;
+// The peaks worth knowing, with when: the most power drawn and won back by regen, the strongest push and
+// the hardest stop.
+function highlights(power: { t: number; v: number }[], accel: { t: number; v: number }[]): Figure[] {
+  const peak = (points: { t: number; v: number }[], sign: 1 | -1) =>
+    points.length === 0 ? null : points.reduce((a, p) => (p.v * sign > a.v * sign ? p : a));
+  const figure = (label: string, p: { t: number; v: number } | null, sign: 1 | -1, value: (v: number) => string) =>
+    p && p.v * sign > 0 ? [{ label, value: `${value(p.v * sign)} · ${formatClock(p.t)}` }] : [];
+  return [
+    ...figure("Most power", peak(power, 1), 1, (v) => `${Math.round(v)} kW`),
+    ...figure("Most regen", peak(power, -1), -1, (v) => `${Math.round(v)} kW`),
+    ...figure("Hardest acceleration", peak(accel, 1), 1, (v) => `${oneDecimal.format(v)} m/s²`),
+    ...figure("Hardest braking", peak(accel, -1), -1, (v) => `${oneDecimal.format(v)} m/s²`),
+  ];
 }
 
 async function DriveLoader({ params, searchParams }: Pick<PageProps<"/stats/driving/[start]">, "params" | "searchParams">) {
