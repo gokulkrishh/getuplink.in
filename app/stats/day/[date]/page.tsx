@@ -6,7 +6,7 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
 import { DayTimeline } from "@/components/stats/day-timeline";
-import { DriveHeader, TripRow } from "@/components/stats/drive-list";
+import { TripTable } from "@/components/stats/drive-list";
 import { Figures } from "@/components/stats/figures";
 import { TripMap } from "@/components/stats/trip-map";
 import { buttonVariants } from "@/components/ui/button";
@@ -86,16 +86,7 @@ function DayView({ detail, now }: { detail: DayDetail; now: number }) {
         {detail.trips.length > 0 && (
           <section className="space-y-4">
             <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Trips</h2>
-            <div className="max-sm:-mx-1 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:px-1">
-              <div className="max-sm:min-w-xl">
-                <DriveHeader />
-                <ul className="divide-y border-t">
-                  {detail.trips.map((t, k) => (
-                    <TripRow key={t.start} trip={t} serial={detail.trips.length - k} now={now} />
-                  ))}
-                </ul>
-              </div>
-            </div>
+            <TripTable trips={detail.trips} serialOf={(t) => detail.trips.length - detail.trips.indexOf(t)} now={now} />
           </section>
         )}
         {detail.charges.length > 0 && (

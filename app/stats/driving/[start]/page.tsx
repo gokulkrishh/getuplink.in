@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
@@ -88,6 +89,7 @@ function Drive({ detail }: { detail: DriveDetail }) {
             <TripTimeline legs={trip.legs} />
           </section>
         )}
+        {trip.stops > 0 && <Legs legs={trip.legs} />}
         {[speed, power, accel, grade, battery].some((points) => points.length >= 2) && (
           <section className="space-y-4">
             <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Over the drive</h2>
@@ -111,6 +113,44 @@ function Drive({ detail }: { detail: DriveDetail }) {
         )}
       </div>
     </>
+  );
+}
+
+// Each leg of a trip as a row: when, how far, the energy and battery when known. Each opens its own page.
+function Legs({ legs }: { legs: DriveDetail["trip"]["legs"] }) {
+  return (
+    <section className="space-y-4">
+      <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Legs</h2>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-md text-sm tabular-nums">
+          <thead>
+            <tr className="border-b text-left text-xs text-faint">
+              <th scope="col" className="py-2 pr-4 font-normal">Leg</th>
+              <th scope="col" className="py-2 pr-4 text-right font-normal">Distance</th>
+              <th scope="col" className="py-2 pr-4 text-right font-normal">Energy</th>
+              <th scope="col" className="py-2 text-right font-normal">Battery</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {legs.map((d, k) => (
+              <tr key={d.start} className="relative cursor-pointer transition-colors duration-150 hover:bg-muted focus-within:bg-muted">
+                <th scope="row" className="py-3 pr-4 text-left font-normal whitespace-nowrap">
+                  <span className="mr-2 font-mono text-xs text-faint">{k + 1}</span>
+                  <Link href={`/stats/driving/${d.start}?leg`} className="outline-none after:absolute after:inset-0">
+                    {formatClock(d.start)} to {formatClock(d.end)}
+                  </Link>
+                </th>
+                <td className="py-3 pr-4 text-right font-mono whitespace-nowrap">{formatKm(d.km)}</td>
+                <td className="py-3 pr-4 text-right font-mono whitespace-nowrap">{d.kwh !== null ? formatKwh(d.kwh) : <span className="text-faint">—</span>}</td>
+                <td className="py-3 text-right whitespace-nowrap text-muted-foreground">
+                  {d.startLevel !== null && d.endLevel !== null ? `${Math.round(d.startLevel)}% to ${Math.round(d.endLevel)}%` : <span className="text-faint">—</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 

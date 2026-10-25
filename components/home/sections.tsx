@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { hasCosts, hasStationNames, type Listed, OsmCredit, SessionHeader, SessionRow } from "@/components/session-row";
 import { Bars } from "@/components/stats/bars";
 import { ChargeLevelChart } from "@/components/stats/charge-level";
-import { DriveHeader, TripRow } from "@/components/stats/drive-list";
+import { TripTable } from "@/components/stats/drive-list";
 import { Figures } from "@/components/stats/figures";
 import type { View } from "@/components/stats/periods";
 import { DRIVE_DAYS, type Drive, type DrainSummary, type ParkedNow } from "@/lib/drives";
@@ -103,11 +103,7 @@ export function DrivingSection({ frames, figures, drives, now }: { frames: HomeF
     return (
       <div className="space-y-3">
         {shown.length > 0 ? (
-          <Rows header={<DriveHeader />}>
-            {shown.map((t) => (
-              <TripRow key={t.start} trip={t} serial={trips.length - trips.indexOf(t)} now={now} />
-            ))}
-          </Rows>
+          <TripTable trips={shown} serialOf={(t) => trips.length - trips.indexOf(t)} now={now} />
         ) : (
           <p className="text-sm text-muted-foreground">No trips {frame.words}.</p>
         )}

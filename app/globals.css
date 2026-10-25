@@ -300,11 +300,6 @@
 @utility grid-cols-car-header {
   grid-template-columns: 1fr minmax(0, auto);
 }
-/* A trip: when, what, distance, energy. The same tracks as charge-wide-cost, so home's trip and charging
-   lists line up; fixed, so each row's own grid lines up with the header. */
-@utility grid-cols-drive {
-  grid-template-columns: 5rem minmax(0, 1fr) 5rem 7rem;
-}
 /* A charging session: when, what, energy, and cost when the list has any (see SessionRow). Fixed widths
    so each row's own grid lines up with the header and the rows around it. "-wide" fits "Yesterday". */
 @utility grid-cols-charge {
