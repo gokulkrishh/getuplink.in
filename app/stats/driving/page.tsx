@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { eachFrame } from "@/components/home/frames";
 import { DriveList } from "@/components/stats/drive-list";
+import { SeasonEfficiency } from "@/components/stats/season-efficiency";
 import { DailyDriving, Distance, DriveStatsSection, EnergyUse } from "@/components/stats/driving-sections";
 import { customScope } from "@/components/stats/periods";
 import { driveStats, withDriveEfficiency } from "@/lib/drive-stats";
@@ -20,7 +21,8 @@ import { byRange, NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/compone
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import type { DrivingFigures } from "@/lib/driving-figures";
-import { loadDrivingFigures, loadWindowStats, type WindowStats } from "@/lib/server/driving";
+import { loadDrivingFigures, loadSeasonEfficiency, loadWindowStats, type WindowStats } from "@/lib/server/driving";
+import type { SeasonEfficiency as Seasons } from "@/lib/seasons";
 import { loadRangeDriving } from "@/lib/server/home";
 import { loadPrimaryVehicle } from "@/lib/server/telemetry";
 import { istDay, istDayStart } from "@/lib/telemetry-derive";
@@ -43,6 +45,7 @@ async function loadDriving(query: CustomQuery | null): Promise<{
   days: Day[];
   extras: DrivingExtras;
   custom: CustomDriving | null;
+  seasons: Seasons;
   now: number;
 }> {
   "use cache: private";
@@ -70,9 +73,10 @@ async function loadDriving(query: CustomQuery | null): Promise<{
     asleep: presence.days.flatMap((d) => d.runs.filter((r) => r.state === "asleep")),
   };
   const days = dayStrips(7, layers, figures.since, now);
-  const [extras, rangeExtras] = await Promise.all([
+  const [extras, rangeExtras, seasons] = await Promise.all([
     loadDrivingExtras(vin, window.driving.drives, now),
     insights ? loadDrivingExtras(vin, window.driving.drives, now, insights) : null,
+    loadSeasonEfficiency(vin, window.driving.drives, now),
   ]);
   const custom =
     range && frame && insights && rangeExtras
@@ -85,11 +89,11 @@ async function loadDriving(query: CustomQuery | null): Promise<{
           days: stripsBetween(Math.max(range.from, istDay(now) - AWAKE_DAYS + 1), range.to, layers, figures.since, now),
         }
       : null;
-  return { figures, window, days, extras, custom, now };
+  return { figures, window, days, extras, custom, seasons, now };
 }
 
 async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "searchParams">) {
-  const { figures, window, days: dayStripsData, extras, custom, now } = await loadDriving(customQuery(await searchParams));
+  const { figures, window, days: dayStripsData, extras, custom, seasons, now } = await loadDriving(customQuery(await searchParams));
   const { days, driving } = window;
   // Mirrors the sections' own "enough data" rules, so an empty page says so instead of showing nothing.
   const hasDriving = (figures.periods.all.current.km ?? 0) > 0 || days.filter((d) => d.km !== null).length >= 2 || driving.drives.length > 0;
@@ -113,6 +117,7 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
             <DailyDriving days={days} frame={frame} partial={days.length > 0 && partial(days[0].start)} />
           ))}
           {eachFrame(frames, (f) => <EnergyUse {...f} />, { steady: true })}
+          <SeasonEfficiency {...seasons} />
           {byRange(range, <DayTimeline days={dayStripsData} now={now} />, ({ frame }) => (
             <DayTimeline
               days={custom?.days ?? []}

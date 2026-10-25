@@ -5,6 +5,8 @@ import { type DayKm, dailyDistance, istDay, istDayStart, num, type WeeklyPack } 
 import { DEMO } from "@/lib/demo";
 import { type DrivingCounters, type DrivingFigures, drivingFigures, type DrivingPeriod, drivingTimeframe, figureInstants, timeframeInstants } from "@/lib/driving-figures";
 import type { Timeframe } from "@/lib/periods";
+import { seasonEfficiency, type SeasonEfficiency, seasonTimeframe } from "@/lib/seasons";
+import type { Drive } from "@/lib/drives";
 import { batteryTrend, trendWindow } from "./battery";
 import { chargeLevel, fullRange } from "./charge-level";
 import { demoCounter, demoCounters } from "./demo";
@@ -89,4 +91,13 @@ export async function loadWindowStats(vin: string | null, now: number): Promise<
     level: chargeLevel(readings.BatteryLevel, readings.DetailedChargeState, now),
     range: fullRange(readings.RatedRange, readings.BatteryLevel, now),
   };
+}
+
+// Wh/km in each of the last four Indian seasons (see seasonEfficiency), in one request: the counters at
+// every month's edges. `drives` are all the drives the window read, so the months they cover agree with
+// the monthly bars.
+export async function loadSeasonEfficiency(vin: string | null, drives: Drive[], now: number): Promise<SeasonEfficiency> {
+  if (!vin) return { seasons: [], drivesFrom: null };
+  const frame = seasonTimeframe(now);
+  return seasonEfficiency(await loadFigureCounters(vin, timeframeInstants([frame], now)), frame, drives, now);
 }
