@@ -15,7 +15,8 @@ import { loadChargingSessions } from "./charging";
 import { loadChargingExtras } from "./charging-extra";
 import { loadDriveDetail } from "./drive-detail";
 import { loadDrivingExtras } from "./driving-extra";
-import { loadDrivingFigures, loadWindowStats } from "./driving";
+import { loadDrivingFigures, loadSeasonEfficiency, loadWindowStats } from "./driving";
+import { seasonMonths, seasonName } from "@/lib/seasons";
 import { invoicesBySession, istIso } from "./receipts";
 import { loadStreamSessions } from "./stream-charging";
 import { loadPrimaryVehicle, loadStream } from "./telemetry";
@@ -210,12 +211,16 @@ export async function drivingInsights() {
   const now = Date.now();
   const { vin } = await car();
   const window = await loadWindowStats(vin, now);
-  const x = await loadDrivingExtras(vin, window.driving.drives, now);
+  const [x, seasons] = await Promise.all([loadDrivingExtras(vin, window.driving.drives, now), loadSeasonEfficiency(vin, window.driving.drives, now)]);
   const TAG = { home: "Home", work: "Work", favorite: "Favourite" } as const;
   return {
     period: "last 30 days",
     time_at_speed: x.speed.map((b) => ({ kmh: b.to === null ? `${b.from}+` : `${b.from}-${b.to}`, share_pct: Math.round(b.share * 100) })),
     km_per_kwh_by_outside_temp: x.byTemp.map((b) => ({ band: b.label, drives: b.drives, km: Math.round(b.km), km_per_kwh: r1(b.kmPerKwh) })),
+    // The last four Indian seasons (IST months): Winter Dec-Feb, Summer Mar-May, Monsoon Jun-Sep, Post-monsoon Oct-Nov.
+    wh_per_km_by_season: seasons.seasons.map((s) => ({ season: seasonName(s.season), months: seasonMonths(s), wh_per_km: Math.round(s.whPerKm), kwh: r1(s.kwh) })),
+    wh_per_km_by_season_note:
+      seasons.drivesFrom === null ? null : `Months before ${istIso(monthStart(seasons.drivesFrom)).slice(0, 7)} also count energy used while parked, so older seasons can read higher.`,
     km_per_kwh_by_speed: x.bySpeed.map((b) => ({ band: b.label, drives: b.drives, km: Math.round(b.km), km_per_kwh: r1(b.kmPerKwh) })),
     places: x.places.slice(0, 15).map((p) => ({
       name: p.tag ? TAG[p.tag] : p.name,

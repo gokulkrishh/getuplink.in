@@ -10,6 +10,7 @@ import { DEMO_ROUTES } from "./routes";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import { istDay as istDayName, type Status } from "@/lib/status";
 import { istDay, istDayStart, type Reading } from "@/lib/telemetry-derive";
+import { type Season, seasonOf } from "@/lib/seasons";
 import type { ChargingSession } from "../charging";
 import type { PollRun, Snapshot, Vehicle, VersionChange } from "../dashboard";
 
@@ -30,6 +31,9 @@ const FULL_RANGE_KM = 434; // rated range at 100%
 const DRIVE_WH_PER_KM = 128; // drawn from the pack while driving; regen gives back REGEN_SHARE of it
 const REGEN_SHARE = 0.15;
 const PARKED_KWH_PER_DAY = 0.25;
+// How hard each season is on efficiency in Bengaluru: AC in summer, rain, wipers and demisting in the
+// monsoon. Only before the last two weeks, whose driving is fitted to the week comparison and the level now.
+const SEASON_ENERGY: Record<Season, number> = { winter: 0.97, summer: 1.03, monsoon: 1.18, postMonsoon: 1 };
 const AC_KW = 7.2; // 230 V x 32 A, single phase
 const AC_EFFICIENCY = 0.92; // wall to pack
 const DC_EFFICIENCY = 0.95;
@@ -345,6 +349,7 @@ export function generateDemo(now: number): DemoData {
   const drive = (start: number, km: number, mult: number): number => {
     const minutes = km * 1.9 + 6;
     const steps = Math.max(2, Math.round(km / 1.5));
+    const season = start < istDayStart(today - 13) ? SEASON_ENERGY[seasonOf(start)] : 1;
     parked(start);
     pack(start);
     push("Gear", start, "ShiftStateD");
@@ -419,7 +424,7 @@ export function generateDemo(now: number): DemoData {
       const t = start + (minutes * MIN * i) / steps;
       const step = km / steps;
       parked(t);
-      const gross = (step * DRIVE_WH_PER_KM * mult) / 1000;
+      const gross = (step * DRIVE_WH_PER_KM * mult * season) / 1000;
       energy -= gross * (1 - REGEN_SHARE);
       used += gross;
       regen += gross * REGEN_SHARE;
