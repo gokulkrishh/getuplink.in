@@ -125,6 +125,7 @@ export function DriveStatsSection({ stats, title, partial = false }: { stats: Dr
   if (!stats) return null;
   const covers = `${Math.max(1, Math.round(stats.days))} ${Math.round(stats.days) === 1 ? "day" : "days"}`;
   const figures = [
+    { label: "Distance", value: `${compactNumber.format(Math.round(stats.km))} km` },
     { label: "Trips", value: compactNumber.format(stats.trips), note: `${compactNumber.format(stats.drives)} ${stats.drives === 1 ? "drive" : "drives"}` },
     { label: "Typical drive", value: `${oneDecimal.format(stats.medianKm)} km`, note: "The median" },
     { label: "Longest drive", value: `${oneDecimal.format(stats.longestKm)} km` },
@@ -140,8 +141,7 @@ export function DriveStatsSection({ stats, title, partial = false }: { stats: Dr
         </p>
         {partial && <p className="text-xs text-faint">Drives cover only the last {DRIVE_DAYS} days.</p>}
       </div>
-      {/* The distance as the headline, then the rest as tiles: easier to take in than a long list. */}
-      <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{compactNumber.format(Math.round(stats.km))} km</p>
+      {/* Tiles: easier to take in than a long list. */}
       <Figures figures={figures} />
     </section>
   );
