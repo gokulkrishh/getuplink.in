@@ -1,10 +1,11 @@
 import "server-only";
 import { DEMO, type DemoScenario } from "@/lib/demo";
-import type { DrivingFigures } from "@/lib/driving-figures";
+import type { DrivingFigures, DrivingPeriod } from "@/lib/driving-figures";
+import type { Timeframe } from "@/lib/periods";
 import { type ChargingSession, loadChargingSessions } from "./charging";
 import { type CarState, loadCarState, loadOwnerCars, type OwnerGate, type PollRun, type Vehicle } from "./dashboard";
 import { demoFirstWeekStart } from "./demo";
-import { loadDrivingFigures, loadWindowStats, type WindowStats } from "./driving";
+import { loadDrivingFigures, loadTimeframeDriving, loadWindowStats, type WindowStats } from "./driving";
 import { invoicesBySession } from "./receipts";
 import { loadStreamSessions, type StreamChargeSession } from "./stream-charging";
 
@@ -58,5 +59,17 @@ export async function loadHome(scenario: DemoScenario, now: number): Promise<Hom
     if (DEMO) throw err;
     console.error(err);
     return { kind: "error", message: (err as Error).message };
+  }
+}
+
+// The primary car's driving figures for a range picked by date (see loadTimeframeDriving); null when the
+// counters can't be read.
+export async function loadRangeDriving(scenario: DemoScenario, vin: string | null, frame: Timeframe, now: number): Promise<DrivingPeriod | null> {
+  try {
+    return await loadTimeframeDriving(vin, frame, now, DEMO && scenario === "firstWeek" ? demoFirstWeekStart() : undefined);
+  } catch (err) {
+    if (DEMO) throw err;
+    console.error(err);
+    return null;
   }
 }

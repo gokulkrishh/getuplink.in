@@ -9,19 +9,23 @@ import { NowStrip } from "@/components/home/now-strip";
 import { BatterySection, ChargingSection, DrivingSection } from "@/components/home/sections";
 import { CheckedFooter, OwnerNotices } from "@/components/owner-notices";
 import { listSessions } from "@/components/session-row";
-import { ByPeriod, PeriodPicker, PeriodScope } from "@/components/stats/period-scope";
+import { eachFrame, type HomeFrame } from "@/components/home/frames";
+import { PeriodPicker, PeriodScope } from "@/components/stats/period-scope";
 import { PERIODS } from "@/components/stats/periods";
 import { UpdateBanner } from "@/components/updates/update-banner";
 import { matchSessions } from "@/lib/charge-sessions";
 import { firstStartedAt } from "@/lib/charging-figures";
-import { withDriveEfficiency } from "@/lib/drive-stats";
+import { timeframeEfficiency, withDriveEfficiency } from "@/lib/drive-stats";
+import type { DrivingPeriod } from "@/lib/driving-figures";
 import { DRIVE_DAYS } from "@/lib/drives";
 import { monthlyRows } from "@/lib/monthly";
+import { type DayRange, dayIso, defaultRange, inSpan, parseRange, periodTimeframe, rangeTimeframe, type Timeframe } from "@/lib/periods";
+import { istDay } from "@/lib/telemetry-derive";
 import { MonthlyTable } from "@/components/home/monthly-table";
 import { DEMO, DEMO_SITE, type DemoScenario, parseScenario } from "@/lib/demo";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
-import { type Home, loadHome } from "@/lib/server/home";
+import { type Home, loadHome, loadRangeDriving } from "@/lib/server/home";
 
 // The session check and the data share one private scope: the result lives only in this browser's
 // router cache (never a server cache), so a header link's prefetch can carry it. The check still runs
@@ -39,43 +43,68 @@ async function loadOwnHome(demo: DemoScenario): Promise<{ home: Home; now: numbe
   return { home: await loadHome(demo, now), now };
 }
 
-// The period switch, the four headline numbers, then charging, driving and battery: each in every
-// period, so the switch needs no server trip (see ByPeriod).
-function Totals({ home, now }: { home: Extract<Home, { kind: "ready" }>; now: number }) {
+// The primary car's driving figures for a range picked by date, read at that range's own instants. Kept in
+// the same private scope as loadOwnHome, one entry per range.
+async function loadOwnRange(demo: DemoScenario, vin: string | null, range: DayRange, now: number): Promise<DrivingPeriod | null> {
+  "use cache: private";
+  cacheTag(OWNER_DATA_TAG);
+  cacheLife({ stale: 60 });
+  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
+  return loadRangeDriving(demo, vin, rangeTimeframe(range, now), now);
+}
+
+// A range picked by date, what it covers and its driving figures.
+type Custom = { range: DayRange; frame: Timeframe; driving: DrivingPeriod | null };
+
+// The period switch, the four headline numbers, then driving, charging, battery and the months: each in
+// every period, so the switch needs no server trip (see ByPeriod), and in the range picked by date when
+// there is one.
+function Totals({ home, custom, now }: { home: Extract<Home, { kind: "ready" }>; custom: Custom | null; now: number }) {
   const { pairs, streamOnly } = matchSessions(home.sessions, home.streamSessions, now);
   const { window } = home;
   const figures = withDriveEfficiency(home.figures, window.driving.drives, now);
   const chargingSince = firstStartedAt(home.sessions, home.streamSessions);
+  const frames: HomeFrame[] = [
+    ...PERIODS.map(({ value }) => ({ key: value, frame: periodTimeframe(value, now), driving: figures.periods[value] })),
+    ...(custom
+      ? [{ key: "custom" as const, frame: custom.frame, driving: custom.driving && timeframeEfficiency(custom.driving, custom.frame, window.driving.drives, figures.since, now) }]
+      : []),
+  ];
+  const charges = [
+    ...home.sessions.map((s) => ({ started_at: s.started_at, kwh: s.energy_kwh, cost: s.cost_total })),
+    ...streamOnly.flatMap((s) =>
+      s.ended_at === null ? [] : [{ started_at: s.started_at, kwh: s.energy_added_kwh, cost: home.invoices.get(s.id)?.amount ?? null }],
+    ),
+  ];
+  // The months of a period, each counting only what falls inside the period, so the rows add up to the
+  // headline. A period inside one month has a single row that repeats the headline, so it shows none.
+  const monthsIn = ({ span }: Timeframe) => {
+    const rows = monthlyRows(
+      window.driving.drives.filter((d) => inSpan(d.start, span)),
+      charges.filter((c) => inSpan(Date.parse(c.started_at), span)),
+      Math.max(span.from, now - DRIVE_DAYS * 86_400_000),
+      Math.min(span.to - 1, now),
+    );
+    return rows.length > 1 ? rows : [];
+  };
   return (
     <div className="space-y-16">
       <section aria-label="Totals" className="space-y-6">
         <PeriodPicker />
-        <ByPeriod
-          steady
-          panels={Object.fromEntries(
-            PERIODS.map(({ value }) => [
-              value,
-              <Headline key={value} period={value} now={now} figures={figures} sessions={home.sessions} streamOnly={streamOnly} chargingSince={chargingSince} />,
-            ]),
-          )}
-        />
-      </section>
-      <DrivingSection figures={figures} drives={window.driving.drives} now={now} />
-      <ChargingSection sessions={home.sessions} listed={listSessions(pairs, streamOnly)} now={now} />
-      <BatterySection level={window.level} drain={window.driving.drain} parkedNow={window.driving.parkedNow} now={now} />
-      <MonthlyTable
-        rows={monthlyRows(
-          window.driving.drives,
-          [
-            ...home.sessions.map((s) => ({ started_at: s.started_at, kwh: s.energy_kwh, cost: s.cost_total })),
-            ...streamOnly.flatMap((s) =>
-              s.ended_at === null ? [] : [{ started_at: s.started_at, kwh: s.energy_added_kwh, cost: home.invoices.get(s.id)?.amount ?? null }],
-            ),
-          ],
-          now - DRIVE_DAYS * 86_400_000,
-          now,
+        {eachFrame(
+          frames,
+          ({ key, frame, driving }) => (
+            <Headline key={key} frame={frame} driving={driving} since={figures.since} now={now} sessions={home.sessions} streamOnly={streamOnly} chargingSince={chargingSince} />
+          ),
+          { steady: true },
         )}
-      />
+      </section>
+      <DrivingSection frames={frames} figures={figures} drives={window.driving.drives} now={now} />
+      <ChargingSection frames={frames} sessions={home.sessions} listed={listSessions(pairs, streamOnly)} now={now} />
+      <BatterySection frames={frames} level={window.level} drain={window.driving.drain} parkedNow={window.driving.parkedNow} now={now} />
+      {eachFrame(frames, ({ frame }) => (
+        <MonthlyTable rows={monthsIn(frame)} />
+      ))}
     </div>
   );
 }
@@ -89,6 +118,11 @@ async function HomeContent({ searchParams }: Pick<PageProps<"/">, "searchParams"
   const cars = home.kind === "ready" ? home.cars : [];
   // The primary car, as loadHome picks it: the first with a VIN. The odometer is its.
   const primaryId = cars.find((car) => car.vehicle.vin)?.vehicle.id;
+  // Custom's range is drawn by the server, so only a URL that asks for it pays for its counters. Without
+  // dates it opens on the last 30 days.
+  const range = home.kind === "ready" && params.period === "custom" ? (parseRange(params.from, params.to, now) ?? defaultRange(now)) : null;
+  const vin = cars.find((car) => car.vehicle.vin)?.vehicle.vin ?? null;
+  const custom: Custom | null = range && { range, frame: rangeTimeframe(range, now), driving: await loadOwnRange(demo, vin, range, now) };
 
   return (
     <>
@@ -103,8 +137,8 @@ async function HomeContent({ searchParams }: Pick<PageProps<"/">, "searchParams"
               <UpdateBanner snapshot={car.lastOnline} />
             </div>
           ))}
-          <PeriodScope>
-            <Totals home={home} now={now} />
+          <PeriodScope custom={{ range: custom && { from: dayIso(custom.range.from), to: dayIso(custom.range.to) }, today: dayIso(istDay(now)) }}>
+            <Totals home={home} custom={custom} now={now} />
           </PeriodScope>
           {cars.some((car) => car.latest?.error) && (
             <p className="text-xs text-muted-foreground">The car went to sleep during the last check. Uplink will try again.</p>

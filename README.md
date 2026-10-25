@@ -115,7 +115,7 @@ The stations come from [OpenStreetMap](https://www.openstreetmap.org/copyright),
 `vercel.json` schedules `/api/cron/poll` every 6 hours (`0 */6 * * *`) and `/api/cron/stations` every 15 minutes (`*/15 * * * *`). **Vercel Hobby only allows crons that run at most once a day, and a more frequent schedule fails the deployment.** On Hobby, drop the stations cron (sessions just stay unnamed) and either:
 
 - change the schedule to daily, e.g. `0 3 * * *` (8:30 AM IST), or
-- remove the `crons` block and use the bundled GitHub Actions fallback: add `CRON_SECRET` as a repository secret and copy [`docs/github-actions-poll.yml`](docs/github-actions-poll.yml) to `.github/workflows/poll.yml` with its `schedule` uncommented. An external scheduler such as cron-job.org calling the same URL with the same header works too.
+- remove the `crons` block and call `/api/cron/poll` from an external scheduler such as cron-job.org, sending `Authorization: Bearer <CRON_SECRET>`.
 
 Fleet API calls are billed per request. Each poll makes one `vehicles` call plus one `vehicle_data` call per online car, so 4 polls a day stays small.
 

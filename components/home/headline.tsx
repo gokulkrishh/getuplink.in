@@ -2,9 +2,9 @@ import { PeriodLink } from "@/components/home/more-link";
 import type { View } from "@/components/stats/periods";
 import { energyBySlot, energyIn, spendBySlot, spendIn } from "@/lib/charging-figures";
 import { type Change, changeToPrevious, compareToPrevious } from "@/lib/dashboard-summary";
-import type { DrivingFigures } from "@/lib/driving-figures";
+import type { DrivingPeriod } from "@/lib/driving-figures";
 import { formatDate, formatShortDate } from "@/lib/format";
-import { type Period, periodSpan, previousLabel, previousSpan, slotsFor, trackingGap } from "@/lib/periods";
+import { type Timeframe, trackingGap } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { hasSparkData, SLOT_WIDTH, sparkBars, sparkLine } from "@/lib/sparkline";
@@ -135,33 +135,37 @@ function Cell({
 // Every period is laid out on home at once (ByPeriod's steady), so the strip keeps one height on a switch.
 // Each sparkline is the period's bars (slotsFor), from the same figures the sections below chart.
 export function Headline({
-  period,
+  frame,
+  driving,
+  since,
   now,
-  figures,
   sessions,
   streamOnly,
   chargingSince,
 }: {
-  period: Period;
+  // A period or a range picked by date, and the primary car's driving figures for it (null when they
+  // couldn't be read); `since` is its first odometer reading.
+  frame: Timeframe;
+  driving: DrivingPeriod | null;
+  since: number | null;
   now: number;
-  figures: DrivingFigures;
   // Tesla's sessions, and the streamed ones Tesla didn't bill (see matchSessions).
   sessions: ChargingSession[];
   streamOnly: StreamChargeSession[];
   // The first charging session, billed or streamed (see firstStartedAt).
   chargingSince: number | null;
 }) {
-  const span = periodSpan(period, now);
-  const before = previousSpan(period, now);
-  const label = previousLabel(period, now) ?? "";
+  const { span, previous: before, slots } = frame;
+  const label = frame.previousLabel ?? "";
   // "vs 7 days before", "vs 1–22 Sept".
   const shortLabel = label.replace(/^the /, "");
   // The driving counters already leave out a span they don't cover (see drivingFigures); charging is checked here.
   const chargingTracked = before !== null && chargingSince !== null && chargingSince <= before.from;
-  const gap = trackingGap(before, [figures.since, chargingSince]);
+  const gap = trackingGap(before, [since, chargingSince]);
   // "18 Oct" this year, "30 Dec 2025" before it.
   const gapText = gap === null ? null : formatDate(gap).slice(-4) === formatDate(now).slice(-4) ? formatShortDate(gap) : formatDate(gap);
-  const { current, previous, bars } = figures.periods[period];
+  const none = { km: null, whPerKm: null, kwh: null, regenKwh: null };
+  const { current, previous, bars } = driving ?? { current: none, previous: null, bars: slots.map(() => none) };
 
   const spend = spendIn(sessions, span);
   const spendBefore = before && chargingTracked ? spendIn(sessions, before).cost : null;
@@ -169,16 +173,16 @@ export function Headline({
   const energyBefore = before && chargingTracked ? energyIn(sessions, streamOnly, before) : null;
   const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: spend.currency, maximumFractionDigits: 0 });
 
-  const slots = slotsFor(period, now);
   const currentSlot = slots.findIndex((slot) => slot.isCurrent);
   // Slots ahead of now (the rest of this year) are drawn empty, not as zero.
   const upToNow = (values: (number | null)[]): (number | null)[] => values.map((v, k) => (slots[k].from > now ? null : v));
   const spark = (kind: Spark["kind"], values: (number | null)[]): Spark => ({ kind, values: upToNow(values), current: currentSlot });
 
   // `lowerIsBetter` colours the delta and words the sentence better or worse: "₹171 worse than the 7 days before".
+  // Nothing yet this period (no figure, or zero) has nothing to compare, so the delta stays blank.
   const delta = (value: number | null, earlier: number | null, unit: string | ((n: number) => string), lowerIsBetter = false) => ({
-    change: value === null ? null : changeToPrevious(value, earlier, unit, { lowerIsBetter }),
-    sentence: value === null ? null : (compareToPrevious(value, earlier, unit, label, { lowerIsBetter })?.text ?? null),
+    change: !value ? null : changeToPrevious(value, earlier, unit, { lowerIsBetter }),
+    sentence: !value ? null : (compareToPrevious(value, earlier, unit, label, { lowerIsBetter })?.text ?? null),
     span: shortLabel,
   });
 

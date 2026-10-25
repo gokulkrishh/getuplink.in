@@ -1,3 +1,4 @@
+import { ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { ShowMore } from "@/components/show-more";
 import type { Drive } from "@/lib/drives";
@@ -44,7 +45,7 @@ export function DriveRow({ drive, serial, now }: { drive: Drive; serial: number;
 }
 
 // A trip of several legs with short stops between (see groupTrips): the trip's totals, linking to the
-// whole trip's page, then each leg, which opens its own.
+// whole trip's page, then each leg behind a toggle, which opens its own.
 export function TripRow({ trip, serial, now }: { trip: Trip; serial: number; now: number }) {
   if (trip.legs.length === 1) return <DriveRow drive={trip.legs[0]} serial={serial} now={now} />;
   const levels = trip.startLevel !== null && trip.endLevel !== null ? `${Math.round(trip.startLevel)}% to ${Math.round(trip.endLevel)}%` : null;
@@ -61,16 +62,22 @@ export function TripRow({ trip, serial, now }: { trip: Trip; serial: number; now
         <p className="truncate text-xs text-muted-foreground tabular-nums">
           {formatKm(trip.km)} · {formatDuration((trip.end - trip.start) / 1000)} · {trip.stops} {trip.stops === 1 ? "stop" : "stops"}
         </p>
-        <ul className="mt-2 space-y-1 border-l pl-3 text-xs text-muted-foreground tabular-nums">
-          {trip.legs.map((d) => (
-            <li key={d.start} className="flex justify-between gap-3">
-              <Link href={`/stats/driving/${d.start}?leg`} className="hover:text-foreground hover:underline hover:underline-offset-4">
-                {formatClock(d.start)} to {formatClock(d.end)} · {formatKm(d.km)}
-              </Link>
-              {d.kwh !== null && <span className="font-mono">{formatKwh(d.kwh)}</span>}
-            </li>
-          ))}
-        </ul>
+        <details className="group">
+          <summary className="flex w-fit cursor-pointer list-none items-center gap-1 text-xs text-faint hover:text-foreground [&::-webkit-details-marker]:hidden">
+            {trip.legs.length} legs
+            <ChevronDown aria-hidden="true" className="size-3 transition-transform group-open:rotate-180" />
+          </summary>
+          <ul className="mt-2 space-y-1 border-l pl-3 text-xs text-muted-foreground tabular-nums">
+            {trip.legs.map((d) => (
+              <li key={d.start} className="flex justify-between gap-3">
+                <Link href={`/stats/driving/${d.start}?leg`} className="hover:text-foreground hover:underline hover:underline-offset-4">
+                  {formatClock(d.start)} to {formatClock(d.end)} · {formatKm(d.km)}
+                </Link>
+                {d.kwh !== null && <span className="font-mono">{formatKwh(d.kwh)}</span>}
+              </li>
+            ))}
+          </ul>
+        </details>
       </div>
       <div className="space-y-1 text-right">
         {trip.kwh !== null && <p className="font-mono font-medium tabular-nums">{formatKwh(trip.kwh)}</p>}

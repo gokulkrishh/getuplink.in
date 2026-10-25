@@ -2,9 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { CopyButton } from "@/components/copy-button";
-import { GrokIcon } from "@/components/icons/grok";
+import { GrokBotIcon } from "@/components/icons/grok-bot";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { BOT_CHAT, BOT_NAME, BOT_ROUTINE, BOT_TEMPLATE_URL, CONNECTOR_URL } from "@/lib/bot-template";
+import { BOT_INSTRUCTIONS, BOT_NAME, BOT_TEMPLATE_URL, CONNECTOR_URL } from "@/lib/bot-template";
 import { formatAgo, formatDate } from "@/lib/format";
 import type { ConnectorTokenStatus } from "@/lib/server/connector-token";
 import { newConnectorToken, removeConnectorToken } from "./actions";
@@ -20,25 +20,6 @@ function Copyable({ label, value }: { label: string; value: string }) {
         <CopyButton text={value} />
       </div>
     </div>
-  );
-}
-
-// An instruction to paste into the bot, folded away until wanted.
-function Instruction({ title, text }: { title: string; text: string }) {
-  return (
-    <details className="group border">
-      <summary className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
-        {title}
-        <span className="text-sm text-muted-foreground group-open:hidden">Show</span>
-        <span className="hidden text-sm text-muted-foreground group-open:inline">Hide</span>
-      </summary>
-      <div className="space-y-2 border-t px-3 py-3">
-        <pre className="text-sm leading-relaxed break-words whitespace-pre-wrap text-muted-foreground select-all">{text}</pre>
-        <div className="flex justify-end">
-          <CopyButton text={text} />
-        </div>
-      </div>
-    </details>
   );
 }
 
@@ -62,7 +43,7 @@ export function McpConnector({ status, now }: { status: ConnectorTokenStatus; no
   return (
     <Row
       title="MCP connector"
-      description="Lets an AI you use, like a Grok bot, Claude or ChatGPT, read your charging and driving and attach charging invoices. It can't delete anything or reach your car."
+      description="Lets an AI you use, like Claude, ChatGPT, Grok or an always-on bot, read your charging and driving and attach charging invoices. It can't delete anything or reach your car."
       control={<p className="text-sm text-muted-foreground">{tokenSummary(status, now)}</p>}
     >
       <div className="mt-4 space-y-4">
@@ -102,18 +83,18 @@ export function McpConnector({ status, now }: { status: ConnectorTokenStatus; no
   );
 }
 
-// The Grok bot: one button that opens the shared template in Grok, then the connector token goes in as
-// its secret. The manual setup stays folded away as a fallback, and is all there is until the template
-// link is published.
-export function GrokBotTemplate() {
+// The AI bot: one set of instructions for any always-on bot. Grok Bot also gets a one-step button that
+// opens the shared template, then the connector token goes in as its secret; every other bot uses the
+// manual instructions.
+export function BotTemplate() {
   return (
     <Row
       title={BOT_NAME}
-      description="A Grok bot that finds your charging invoices in Gmail every 6 hours, and takes ones you share with it in chat, and attaches them to your charges."
+      description="An AI bot that finds your charging invoices in Gmail every 6 hours, and takes ones you share with it in chat, and attaches them to your charges. For always-on bots like Grok Bot, Claude Duet, Muse or a dot in ChatGPT."
       control={
         BOT_TEMPLATE_URL ? (
           <a href={BOT_TEMPLATE_URL} target="_blank" rel="noopener" className={buttonVariants({ variant: "outline", size: "lg" })}>
-            <GrokIcon className="size-4" />
+            <GrokBotIcon className="size-4" />
             Add to Grok
           </a>
         ) : (
@@ -122,23 +103,21 @@ export function GrokBotTemplate() {
       }
     >
       <div className="mt-4 space-y-3">
-        {BOT_TEMPLATE_URL && <p className="text-sm text-muted-foreground">After adding it, paste the connector token above into the bot&apos;s Uplink connector.</p>}
+        <p className="text-sm text-muted-foreground">
+          {BOT_TEMPLATE_URL && "In Grok Bot, choose Add to Grok, then paste the connector token above into the bot's Uplink connector. "}
+          For any other bot, paste the manual instructions into it.
+        </p>
         <details className="group border">
           <summary className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
-            Set up by hand
+            Manual instructions
             <span className="text-sm text-muted-foreground group-open:hidden">Show</span>
             <span className="hidden text-sm text-muted-foreground group-open:inline">Hide</span>
           </summary>
-          <div className="space-y-4 border-t px-3 py-3">
-            <ol className="list-decimal space-y-1.5 pl-5 text-sm text-muted-foreground">
-              <li>Create a Grok bot named {BOT_NAME} and connect your Gmail to it.</li>
-              <li>Add the MCP connector above to it: the URL, and the token as a secret.</li>
-              <li>Add a routine that runs every 6 hours with the first instruction below.</li>
-              <li>Give the bot the second instruction for invoices you send it in chat.</li>
-            </ol>
-            <Copyable label="Bot name" value={BOT_NAME} />
-            <Instruction title="Routine, every 6 hours" text={BOT_ROUTINE} />
-            <Instruction title="In chat" text={BOT_CHAT} />
+          <div className="space-y-2 border-t px-3 py-3">
+            <pre className="text-sm leading-relaxed break-words whitespace-pre-wrap text-muted-foreground select-all">{BOT_INSTRUCTIONS}</pre>
+            <div className="flex justify-end">
+              <CopyButton text={BOT_INSTRUCTIONS} />
+            </div>
           </div>
         </details>
       </div>

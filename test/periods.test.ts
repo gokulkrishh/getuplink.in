@@ -2,7 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { energyBySlot, energyIn, firstStartedAt, spendIn } from "@/lib/charging-figures";
 import { changeToPrevious, compareToPrevious } from "@/lib/dashboard-summary";
 import { formatShortDate } from "@/lib/format";
-import { inSpan, monthIndex, monthStart, periodSpan, previousLabel, previousSpan, slotsFor, sumBySlot, trackingGap } from "@/lib/periods";
+import { dayIso, defaultRange, inSpan, isoDay, monthIndex, monthStart, parseRange, periodSpan, previousLabel, previousSpan, rangeSlots, rangeSpan, rangeTimeframe, slotsFor, sumBySlot, trackingGap } from "@/lib/periods";
+import { istDayStart } from "@/lib/telemetry-derive";
 
 // An instant given as IST wall-clock time.
 const ist = (local: string) => Date.parse(`${local}+05:30`);
@@ -210,5 +211,47 @@ describe("the Day period", () => {
     const slots = slotsFor("day", now);
     expect(slots.map((s) => s.label)).toEqual(["12a", "3a", "6a", "9a", "12p", "3p", "6p", "9p"]);
     expect(slots.find((s) => s.isCurrent)!.label).toBe("12p");
+  });
+});
+
+describe("custom ranges", () => {
+  const now = ist("2026-10-25T14:00:00");
+  const day = (local: string) => isoDay(local)!;
+
+  test("a date input's day is the IST day it names", () => {
+    expect(istDayStart(day("2026-10-25"))).toBe(ist("2026-10-25T00:00:00"));
+    expect(dayIso(day("2026-10-25"))).toBe("2026-10-25");
+    expect(isoDay("2026-13-40")).toBeNull();
+    expect(isoDay("25/10/2026")).toBeNull();
+  });
+  test("parseRange keeps to today, puts the earlier day first and needs both", () => {
+    expect(parseRange("2026-10-30", "2026-10-01", now)).toEqual({ from: day("2026-10-01"), to: day("2026-10-25") });
+    expect(parseRange("2026-10-01", undefined, now)).toBeNull();
+    expect(defaultRange(now)).toEqual({ from: day("2026-09-26"), to: day("2026-10-25") });
+  });
+  test("a range reaching today runs on, like a period; a past one ends after its last day", () => {
+    expect(rangeSpan({ from: day("2026-10-20"), to: day("2026-10-25") }, now)).toEqual({ from: ist("2026-10-20T00:00:00"), to: Infinity });
+    expect(rangeSpan({ from: day("2026-09-01"), to: day("2026-09-30") }, now)).toEqual({ from: ist("2026-09-01T00:00:00"), to: ist("2026-10-01T00:00:00") });
+  });
+  test("it is compared with as many days right before", () => {
+    const sept = rangeTimeframe({ from: day("2026-09-01"), to: day("2026-09-30") }, now);
+    expect(sept.previous).toEqual({ from: ist("2026-08-02T00:00:00"), to: ist("2026-09-01T00:00:00") });
+    expect(sept.previousLabel).toBe(`${formatShortDate(ist("2026-08-02T12:00:00"))} to ${formatShortDate(ist("2026-08-31T12:00:00"))}`);
+    expect(sept.words).toBe(`from ${formatShortDate(ist("2026-09-01T12:00:00"))} to ${formatShortDate(ist("2026-09-30T12:00:00"))}`);
+  });
+  test("bars fit the range's length", () => {
+    const slots = (from: string, to: string) => rangeSlots({ from: day(from), to: day(to) }, now);
+    expect(slots("2026-10-24", "2026-10-25").slots).toHaveLength(16);
+    expect(slots("2026-10-24", "2026-10-25").slotName).toBe("3 hours");
+    const days = slots("2026-09-26", "2026-10-25");
+    expect(days.slots).toHaveLength(30);
+    expect(days.labelEvery).toBe(7);
+    expect(days.slots.at(-1)!.isCurrent).toBe(true);
+    const months = slots("2026-03-15", "2026-10-25");
+    expect(months.slotName).toBe("month");
+    expect(months.slots).toHaveLength(8);
+    // The first month counts only from the range's first day.
+    expect(months.slots[0].from).toBe(ist("2026-03-15T00:00:00"));
+    expect(slots("2020-01-01", "2026-10-25").slotName).toBe("year");
   });
 });
