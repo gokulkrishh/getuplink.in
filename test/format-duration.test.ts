@@ -1,5 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { formatAgo, formatDuration, formatInstallLeft } from "@/lib/format";
+import { formatAgo, formatDuration, formatInstallLeft, formatPower } from "@/lib/format";
+
+describe("formatPower", () => {
+  test("watts under 1 kW, kW from there", () => {
+    expect(formatPower(24.4)).toBe("24 W");
+    expect(formatPower(4.46)).toBe("4.5 W");
+    expect(formatPower(999.7)).toBe("1.0 kW");
+    expect(formatPower(1240)).toBe("1.2 kW");
+  });
+});
 
 describe("formatDuration", () => {
   test("minutes, then hours, then days", () => {

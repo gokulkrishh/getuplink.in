@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { Header } from "@/components/header";
 import { OsmCredit, rate, streamTitle } from "@/components/session-row";
 import { ChargeCurve } from "@/components/stats/charge-curve";
+import { Figures } from "@/components/stats/figures";
 import { splitSite } from "@/lib/charge-sessions";
 import { formatClock, formatDate, formatDuration, formatKwh, formatMoney } from "@/lib/format";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
@@ -71,14 +72,13 @@ function Charge({ detail }: { detail: ChargeDetail }) {
         {shown.length > 0 && (
           <section className="space-y-4">
             <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Session</h2>
-            <dl className="divide-y border-t">
-              {shown.map(([label, value]) => (
-                <div key={label} className="flex items-baseline justify-between gap-4 py-3 text-sm">
-                  <dt className="text-muted-foreground">{label}</dt>
-                  <dd className="font-mono font-medium tabular-nums">{value}</dd>
-                </div>
-              ))}
-            </dl>
+            {/* "₹450 · ₹18/kWh" shows the amount as the figure and the rate under it. */}
+            <Figures
+              figures={shown.map(([label, value]) => {
+                const [main, ...rest] = value.split(" · ");
+                return { label, value: main, note: rest.join(" · ") || undefined };
+              })}
+            />
           </section>
         )}
       </div>

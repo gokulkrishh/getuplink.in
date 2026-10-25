@@ -12,7 +12,7 @@ import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadWindowStats, type WindowStats } from "@/lib/server/driving";
 import { loadStreamSessions, type StreamChargeSession } from "@/lib/server/stream-charging";
-import { type BatteryExtras, loadBatteryExtras } from "@/lib/server/battery-extra";
+import { type BatteryExtras, loadBatteryExtras, TEMP_DAYS } from "@/lib/server/battery-extra";
 import { loadPrimaryVehicle } from "@/lib/server/telemetry";
 
 export const metadata: Metadata = { title: "Battery · Uplink" };
@@ -44,7 +44,7 @@ async function Battery() {
           <BatteryHealth trend={trend} range={range} sessions={sessions} />
           <BatteryPack trend={trend} />
           <CapacityByKm points={extras.capacityByKm} />
-          <CellBalance spread={extras.cellSpreadMv} />
+          <CellBalance spread={extras.cellSpreadMv} days={TEMP_DAYS} />
           <Temperatures temps={extras.temps} />
           <ChargeLevelChart level={level} now={now} />
           <ParkedDrain drain={driving.drain} parked={driving.parked} parkedNow={driving.parkedNow} />

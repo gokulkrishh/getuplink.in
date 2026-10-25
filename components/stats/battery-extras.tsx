@@ -35,23 +35,34 @@ export function Temperatures({ temps }: { temps: BatteryExtras["temps"] }) {
   );
 }
 
-// The gap between the highest and lowest cell voltage. A healthy pack keeps it small, a few mV, at rest;
-// a gap that grows over months is worth asking Tesla about.
-export function CellBalance({ spread }: { spread: BatteryExtras["cellSpreadMv"] }) {
+// The gap between the highest and lowest cell voltage, said plainly for an owner who doesn't know what a
+// cell or mV is. A healthy pack keeps it small at rest; a gap that grows over months is worth asking
+// Tesla about. `days` is the window the readings cover (see loadBatteryExtras).
+export function CellBalance({ spread, days }: { spread: BatteryExtras["cellSpreadMv"]; days: number }) {
   if (spread.length < 2) return null;
-  const now = latest(spread)!;
+  const now = spread.at(-1)!;
+  const widest = spread.reduce((a, p) => (p.y > a.y ? p : a));
+  const mv = (y: number) => `${number.format(y)} mV`;
   return (
     <section className="space-y-6">
-      <div className="space-y-2">
+      <div className="space-y-3">
         <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Cell balance</h2>
-        {/* The label wraps as a whole under the figure on a phone, rather than splitting across the big line. */}
-        <p className="flex flex-wrap items-baseline gap-x-2">
-          <span className="font-mono text-4xl font-medium tracking-tight tabular-nums">{number.format(now)} mV</span>
-          <span className="text-base text-muted-foreground">between the highest and lowest cell</span>
+        <p className="text-sm text-muted-foreground">
+          The battery is made of many cells. This is how far apart the highest and lowest cell voltage are, in millivolts (mV, thousandths of a volt). Smaller is
+          better: it means the cells are evenly balanced.
         </p>
+        <Figures
+          figures={[
+            { label: "Gap now", value: mv(now.y), note: when(now.x) },
+            { label: "Widest", value: mv(widest.y), note: `Last ${days} days · ${when(widest.x)}` },
+          ]}
+        />
         <p className="text-sm text-muted-foreground">It widens while driving and charging hard, and settles back at rest. A gap that keeps growing over months is worth a service check.</p>
       </div>
-      <LineChart series={[{ name: "Gap", className: "stroke-chart-accent", points: spread }]} formatX={when} formatY={(y) => `${number.format(y)} mV`} label="Cell voltage gap over the last week" yFrom={0} />
+      <div className="space-y-2">
+        <p className="text-xs text-faint">The gap at each reading over the last {days} days, in mV. Hover or tap the chart to see a reading.</p>
+        <LineChart series={[{ name: "Gap", className: "stroke-chart-accent", points: spread }]} formatX={when} formatY={mv} label={`Cell voltage gap at each reading over the last ${days} days, in millivolts`} yFrom={0} />
+      </div>
     </section>
   );
 }

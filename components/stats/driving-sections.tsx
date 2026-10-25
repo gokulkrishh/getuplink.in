@@ -1,4 +1,5 @@
 import { Bars } from "@/components/stats/bars";
+import { Figures } from "@/components/stats/figures";
 import { type DriveStats } from "@/lib/drive-stats";
 import { formatDuration, formatKwh, formatShortDate } from "@/lib/format";
 import type { DrivingFigures } from "@/lib/driving-figures";
@@ -119,14 +120,7 @@ export function DriveStatsSection({ stats }: { stats: DriveStats | null }) {
           {stats.days >= 89 ? "Last 90 days" : `Since tracking began, ${Math.max(1, Math.round(stats.days))} ${Math.round(stats.days) === 1 ? "day" : "days"}`}. Typical drive is the median.
         </p>
       </div>
-      <dl className="divide-y border-t">
-        {rows.map(([label, value]) => (
-          <div key={label} className="flex items-baseline justify-between gap-4 py-3 text-sm">
-            <dt className="text-muted-foreground">{label}</dt>
-            <dd className="font-mono font-medium tabular-nums">{value}</dd>
-          </div>
-        ))}
-      </dl>
+      <Figures figures={rows.map(([label, value]) => ({ label, value }))} />
     </section>
   );
 }

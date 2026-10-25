@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { hasCosts, hasStationNames, type Listed, OsmCredit, SessionHeader, SessionRow } from "@/components/session-row";
 import { Bars } from "@/components/stats/bars";
 import { ChargeLevelChart } from "@/components/stats/charge-level";
-import { kw } from "@/components/stats/parked-drain";
 import { DriveHeader, TripRow } from "@/components/stats/drive-list";
 import { Figures } from "@/components/stats/figures";
 import type { View } from "@/components/stats/periods";
@@ -11,7 +10,7 @@ import { groupTrips } from "@/lib/trips";
 import { spendBySlot } from "@/lib/charging-figures";
 import type { ChargeLevel } from "@/lib/charge-level";
 import type { DrivingFigures } from "@/lib/driving-figures";
-import { formatDuration } from "@/lib/format";
+import { formatDuration, formatPower } from "@/lib/format";
 import { inSpan } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
 import { eachFrame, type HomeFrame } from "./frames";
@@ -140,17 +139,30 @@ export function BatterySection({
 }) {
   const hasLevel = (level?.points.length ?? 0) >= 2;
   if (!hasLevel && !parkedNow && !drain) return null;
-  const parked = parkedNow && [
-    { label: "Parked", value: `${parkedNow.fromFirstReading ? "≥ " : ""}${formatDuration(parkedNow.hours * 3600)}` },
-    parkedNow.watts !== null && { label: "Avg power", value: kw(parkedNow.watts) },
-    parkedNow.lostPercent !== null && { label: "Lost", value: `${oneDecimal.format(parkedNow.lostPercent)}%` },
-  ];
+  // The usual loss a day is context for what this stretch has lost; with no loss to show it stands alone.
+  const usually = drain && `${oneDecimal.format(drain.percentPerDay)}% a day`;
+  const lost = parkedNow?.lostPercent ?? null;
   return (
     <Section title="Battery" view="battery" more="More">
-      {(parked || drain) && (
+      {(parkedNow || usually) && (
         <div className="space-y-3">
-          {parked && <Figures figures={parked} />}
-          {drain && <p className="text-sm text-muted-foreground tabular-nums">Usually loses {oneDecimal.format(drain.percentPerDay)}% a day parked</p>}
+          {parkedNow && (
+            <>
+              <h3 className="text-sm font-medium">Parked now</h3>
+              <Figures
+                figures={[
+                  {
+                    label: "Parked for",
+                    value: `${parkedNow.fromFirstReading ? "≥ " : ""}${formatDuration(parkedNow.hours * 3600)}`,
+                    note: parkedNow.fromFirstReading ? "Since Uplink's first reading" : undefined,
+                  },
+                  parkedNow.watts !== null && { label: "Avg power", value: formatPower(parkedNow.watts) },
+                  lost !== null && { label: "Lost", value: `${oneDecimal.format(lost)}%`, note: usually ? `Usually ${usually}` : undefined },
+                ]}
+              />
+            </>
+          )}
+          {usually && lost === null && <p className="text-sm text-muted-foreground tabular-nums">Usually loses {usually} parked</p>}
         </div>
       )}
       {hasLevel && eachFrame(frames, ({ frame }) => <ChargeLevelChart level={level} now={now} frame={frame} />)}

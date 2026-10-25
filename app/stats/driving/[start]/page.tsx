@@ -62,23 +62,17 @@ function Drive({ detail }: { detail: DriveDetail }) {
             <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatKm(trip.km)}</p>
             <Figures figures={summary} />
           </div>
-          {tiles.length > 0 && (
-            <dl className={`grid grid-cols-2 gap-px border bg-border bg-clip-padding ${tiles.length % 3 === 0 ? "sm:grid-cols-3" : "sm:grid-cols-4"}`}>
-              {tiles.map((t) => (
-                <div key={t.label} className="space-y-1.5 bg-background p-4">
-                  <dt className="text-xs tracking-wide text-faint uppercase">{t.label}</dt>
-                  <dd className="font-mono text-lg font-medium tabular-nums">{t.value}</dd>
-                  {t.level && (
-                    <div className="relative h-1 bg-muted" aria-hidden="true">
-                      <div className="absolute inset-y-0 left-0 bg-muted-foreground/40" style={{ width: `${t.level[0]}%` }} />
-                      <div className="absolute inset-y-0 left-0 bg-chart-accent" style={{ width: `${t.level[1]}%` }} />
-                    </div>
-                  )}
-                  {t.note && <p className="text-xs text-muted-foreground">{t.note}</p>}
+          <Figures
+            figures={tiles.map(({ level, ...t }) => ({
+              ...t,
+              extra: level && (
+                <div className="relative h-1 bg-muted" aria-hidden="true">
+                  <div className="absolute inset-y-0 left-0 bg-muted-foreground/40" style={{ width: `${level[0]}%` }} />
+                  <div className="absolute inset-y-0 left-0 bg-chart-accent" style={{ width: `${level[1]}%` }} />
                 </div>
-              ))}
-            </dl>
-          )}
+              ),
+            }))}
+          />
         </section>
         <section className="space-y-4">
           <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Map</h2>
@@ -126,7 +120,7 @@ function highlights(power: { t: number; v: number }[], accel: { t: number; v: nu
   const peak = (points: { t: number; v: number }[], sign: 1 | -1) =>
     points.length === 0 ? null : points.reduce((a, p) => (p.v * sign > a.v * sign ? p : a));
   const figure = (label: string, p: { t: number; v: number } | null, sign: 1 | -1, value: (v: number) => string) =>
-    p && p.v * sign > 0 ? [{ label, value: `${value(p.v * sign)} · ${formatClock(p.t)}` }] : [];
+    p && p.v * sign > 0 ? [{ label, value: value(p.v * sign), note: `At ${formatClock(p.t)}` }] : [];
   return [
     ...figure("Most power", peak(power, 1), 1, (v) => `${Math.round(v)} kW`),
     ...figure("Most regen", peak(power, -1), -1, (v) => `${Math.round(v)} kW`),

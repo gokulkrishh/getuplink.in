@@ -7,6 +7,7 @@ import { Suspense } from "react";
 import { Header } from "@/components/header";
 import { DayTimeline } from "@/components/stats/day-timeline";
 import { DriveHeader, TripRow } from "@/components/stats/drive-list";
+import { Figures } from "@/components/stats/figures";
 import { TripMap } from "@/components/stats/trip-map";
 import { buttonVariants } from "@/components/ui/button";
 import { formatClock, formatKwh, formatMoney } from "@/lib/format";
@@ -74,14 +75,7 @@ function DayView({ detail, now }: { detail: DayDetail; now: number }) {
         <DayNav detail={detail} />
       </div>
       <div className="mt-12 space-y-12">
-        <dl className="grid grid-cols-2 gap-px border bg-border bg-clip-padding sm:grid-cols-4">
-          {tiles.map(([label, value]) => (
-            <div key={label} className="space-y-1.5 bg-background p-4">
-              <dt className="text-xs tracking-wide text-faint uppercase">{label}</dt>
-              <dd className="font-mono text-lg font-medium tabular-nums">{value}</dd>
-            </div>
-          ))}
-        </dl>
+        <Figures figures={tiles.map(([label, value]) => ({ label, value }))} />
         <DayTimeline days={[detail.strip]} now={now} title="Timeline" />
         {detail.route.length >= 2 && (
           <section className="space-y-4">

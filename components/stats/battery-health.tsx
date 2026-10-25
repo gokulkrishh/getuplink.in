@@ -1,3 +1,4 @@
+import { type Figure, Figures } from "@/components/stats/figures";
 import { chargeEfficiency } from "@/lib/charge-sessions";
 import type { WeeklyRange } from "@/lib/charge-level";
 import { formatKm, formatKwh, formatShortDate } from "@/lib/format";
@@ -28,32 +29,22 @@ export function BatteryHealth({ trend, range, sessions }: { trend: WeeklyPack[];
   const ac = chargeEfficiency(finished.filter((s) => s.kind === "ac"));
   const dc = chargeEfficiency(finished.filter((s) => s.kind === "dc"));
 
-  const rows: [string, string, string | null][] = [];
-  if (capacity) rows.push(["Usable capacity", capacity.now, capacity.note]);
-  if (full) rows.push(["Range at 100%", `≈ ${full.now}`, full.note]);
+  const efficiency = "Charger's energy that reached the pack";
+  const figures: Figure[] = [];
+  if (capacity) figures.push({ label: "Usable capacity", value: capacity.now, note: capacity.note });
+  if (full) figures.push({ label: "Range at 100%", value: `≈ ${full.now}`, note: full.note });
   if (added > 0) {
-    rows.push(["Energy charged", formatKwh(added), `${finished.length} ${finished.length === 1 ? "charge" : "charges"} since ${formatShortDate(since)}`]);
-    if (latestKwh) rows.push(["Charge cycles", (added / latestKwh).toFixed(1), "Energy charged ÷ usable capacity"]);
+    figures.push({ label: "Energy charged", value: formatKwh(added), note: `${finished.length} ${finished.length === 1 ? "charge" : "charges"} since ${formatShortDate(since)}` });
+    if (latestKwh) figures.push({ label: "Charge cycles", value: (added / latestKwh).toFixed(1), note: "Energy charged ÷ usable capacity" });
   }
-  if (ac !== null || dc !== null) {
-    rows.push(["Charging efficiency", [ac !== null && `AC ${percent(ac)}`, dc !== null && `DC ${percent(dc)}`].filter(Boolean).join(" · "), "Share of the charger's energy that reached the pack"]);
-  }
-  if (rows.length === 0) return null;
+  if (ac !== null) figures.push({ label: "AC efficiency", value: percent(ac), note: efficiency });
+  if (dc !== null) figures.push({ label: "DC efficiency", value: percent(dc), note: efficiency });
+  if (figures.length === 0) return null;
 
   return (
     <section className="space-y-4">
       <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Battery health</h2>
-      <dl className="divide-y border-t">
-        {rows.map(([label, value, note]) => (
-          <div key={label} className="flex items-baseline justify-between gap-4 py-3 text-sm">
-            <dt className="min-w-0">
-              <span className="block">{label}</span>
-              {note && <span className="block text-xs text-muted-foreground tabular-nums">{note}</span>}
-            </dt>
-            <dd className="shrink-0 font-mono font-medium tabular-nums">{value}</dd>
-          </div>
-        ))}
-      </dl>
+      <Figures figures={figures} />
       <p className="text-xs text-faint">Compared with the best week Uplink has seen, not with a new pack: it only knows what the car has reported since you connected it.</p>
     </section>
   );

@@ -43,6 +43,13 @@ export function formatDuration(seconds: number): string {
   return minutes % 60 ? `${hours} h ${minutes % 60} min` : `${hours} h`;
 }
 
+// Power drawn while parked is small, so it reads in watts ("24 W", "4.5 W" under 10) and in kW only from
+// 1 kW ("1.2 kW").
+export function formatPower(watts: number): string {
+  if (Math.round(watts) >= 1000) return `${(watts / 1000).toFixed(1)} kW`;
+  return `${watts < 10 ? Math.round(watts * 10) / 10 : Math.round(watts)} W`;
+}
+
 // "Full in 1 h 5 min" while charging; under a minute left, "Almost full" (not "Full in 0 min").
 export function formatTimeToFull(hours: number): string {
   return hours < 1 / 60 ? "Almost full" : `Full in ${formatDuration(hours * 3600)}`;
