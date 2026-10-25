@@ -11,6 +11,10 @@ export const PERIODS: { value: Period; label: string }[] = [
   { value: "all", label: "All" },
 ];
 
+// Home also offers a range picked by date.
+export type HomePeriod = Period | "custom";
+export const HOME_PERIODS: { value: HomePeriod; label: string }[] = [...PERIODS, { value: "custom", label: "Custom" }];
+
 // Updates come too seldom for a week to say anything.
 export const UPDATE_PERIODS: Period[] = ["month", "year", "all"];
 

@@ -1,6 +1,6 @@
 import { MILES_TO_KM } from "@/lib/car";
 import { MIN_EFFICIENCY_KM } from "@/lib/dashboard-summary";
-import { type Period, PERIOD_ORDER, periodSpan, previousSpan, slotsFor, type Span } from "@/lib/periods";
+import { type Period, PERIOD_ORDER, periodTimeframe, type Span, type Timeframe } from "@/lib/periods";
 import { MIN_ENERGY_KM } from "@/lib/telemetry-derive";
 
 // Distance, energy use and regen for every period, its comparison span and its bars, from cumulative
@@ -15,18 +15,26 @@ export type CounterColumn = { first: CounterValue | null; bounds: (CounterValue 
 // Every instant the figures read the counters at: each bar's edges, each period's start and the span it is
 // compared with. Instants after now become Infinity, whose last reading is the latest.
 export function figureInstants(now: number): number[] {
+  return timeframeInstants(
+    PERIOD_ORDER.map((period) => periodTimeframe(period, now)),
+    now,
+  );
+}
+
+// The same for any timeframes, like a range picked by date.
+export function timeframeInstants(frames: Timeframe[], now: number): number[] {
   const instants = new Set<number>([Infinity]);
   const add = (t: number) => {
     if (Number.isFinite(t)) instants.add(t > now ? Infinity : t);
   };
-  for (const period of PERIOD_ORDER) {
-    add(periodSpan(period, now).from);
-    const previous = previousSpan(period, now);
-    if (previous) {
-      add(previous.from);
-      add(previous.to);
+  for (const frame of frames) {
+    add(frame.span.from);
+    add(frame.span.to);
+    if (frame.previous) {
+      add(frame.previous.from);
+      add(frame.previous.to);
     }
-    for (const slot of slotsFor(period, now)) {
+    for (const slot of frame.slots) {
       add(slot.from);
       add(slot.to);
     }
@@ -84,7 +92,8 @@ export type DrivingCounters = {
   polledOdometer: CounterColumn | null;
 };
 
-export function drivingFigures(input: DrivingCounters, now: number): DrivingFigures {
+// Each counter's readings by instant, and the figure for a span from them.
+function figureReader(input: DrivingCounters, now: number) {
   const at = (column: CounterColumn | null) => byInstant(input.instants, column);
   const streamed = at(input.odometer);
   const odometer = newest(streamed, at(input.polledOdometer));
@@ -106,20 +115,18 @@ export function drivingFigures(input: DrivingCounters, now: number): DrivingFigu
       regenKwh: rise(counted(regen), span, now),
     };
   };
+  const period = (frame: Timeframe, minKm: number): DrivingPeriod => ({
+    current: figure(frame.span, minKm),
+    previous: frame.previous && figure(frame.previous, minKm, true),
+    bars: frame.slots.map((slot) => figure(slot, minKm)),
+  });
+  return { odometer, period };
+}
 
+export function drivingFigures(input: DrivingCounters, now: number): DrivingFigures {
+  const { odometer, period } = figureReader(input, now);
   const periods = Object.fromEntries(
-    PERIOD_ORDER.map((period) => {
-      const minKm = period === "week" ? MIN_EFFICIENCY_KM : MIN_ENERGY_KM;
-      const previous = previousSpan(period, now);
-      return [
-        period,
-        {
-          current: figure(periodSpan(period, now), minKm),
-          previous: previous && figure(previous, minKm, true),
-          bars: slotsFor(period, now).map((slot) => figure(slot, minKm)),
-        },
-      ];
-    }),
+    PERIOD_ORDER.map((p) => [p, period(periodTimeframe(p, now), p === "week" ? MIN_EFFICIENCY_KM : MIN_ENERGY_KM)]),
   ) as Record<Period, DrivingPeriod>;
   const latest = odometer ? valueBefore(odometer, Infinity, now) : null;
   return {
@@ -127,4 +134,10 @@ export function drivingFigures(input: DrivingCounters, now: number): DrivingFigu
     since: odometer?.first?.at ?? null,
     odometerKm: latest === null ? null : Math.round(latest * MILES_TO_KM),
   };
+}
+
+// The figures for one timeframe, like a range picked by date; the counters are read at its own instants
+// (see timeframeInstants).
+export function drivingTimeframe(input: DrivingCounters, frame: Timeframe, now: number): DrivingPeriod {
+  return figureReader(input, now).period(frame, MIN_ENERGY_KM);
 }

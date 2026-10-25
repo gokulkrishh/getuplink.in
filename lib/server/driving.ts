@@ -3,7 +3,8 @@ import { type ChargeLevel, type WeeklyRange } from "@/lib/charge-level";
 import { analyseDriving, DRIVE_DAYS, type Driving } from "@/lib/drives";
 import { type DayKm, dailyDistance, istDay, istDayStart, num, type WeeklyPack } from "@/lib/telemetry-derive";
 import { DEMO } from "@/lib/demo";
-import { type DrivingFigures, drivingFigures, figureInstants } from "@/lib/driving-figures";
+import { type DrivingCounters, type DrivingFigures, drivingFigures, type DrivingPeriod, drivingTimeframe, figureInstants, timeframeInstants } from "@/lib/driving-figures";
+import type { Timeframe } from "@/lib/periods";
 import { batteryTrend, trendWindow } from "./battery";
 import { chargeLevel, fullRange } from "./charge-level";
 import { demoCounter, demoCounters } from "./demo";
@@ -36,14 +37,22 @@ const FIGURE_FIELDS = ["Odometer", "LifetimeEnergyUsed", "LifetimeEnergyGainedRe
 // counters and the polled odometer, each at every instant the figures need. `demoSince` is the demo's
 // First week cut (see demoFirstWeekStart); it does nothing outside demo mode.
 export async function loadDrivingFigures(vin: string | null, now: number, demoSince?: number): Promise<DrivingFigures> {
-  const instants = figureInstants(now);
+  return drivingFigures(await loadFigureCounters(vin, figureInstants(now), demoSince), now);
+}
+
+// The same figures for one timeframe, like a range picked by date, read at its own instants.
+export async function loadTimeframeDriving(vin: string | null, frame: Timeframe, now: number, demoSince?: number): Promise<DrivingPeriod> {
+  return drivingTimeframe(await loadFigureCounters(vin, timeframeInstants([frame], now), demoSince), frame, now);
+}
+
+async function loadFigureCounters(vin: string | null, instants: number[], demoSince?: number): Promise<DrivingCounters> {
   const bounds = instants.map((t) => (t === Infinity ? LATEST : new Date(t).toISOString()));
   const [counters, polledOdometer] = await Promise.all([
     !vin ? null : DEMO && demoSince !== undefined ? demoCounters(FIGURE_FIELDS, instants, demoSince) : loadCounters(vin, FIGURE_FIELDS, bounds),
     loadPolledOdometers(bounds),
   ]);
   const column = (field: string) => counters?.get(field) ?? null;
-  return drivingFigures({ instants, odometer: column("Odometer"), used: column("LifetimeEnergyUsed"), regen: column("LifetimeEnergyGainedRegen"), polledOdometer }, now);
+  return { instants, odometer: column("Odometer"), used: column("LifetimeEnergyUsed"), regen: column("LifetimeEnergyGainedRegen"), polledOdometer };
 }
 
 export const DRIVING_DAYS = 90;

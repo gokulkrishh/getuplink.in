@@ -1,7 +1,7 @@
 import { DRIVE_DAYS, type Drive } from "@/lib/drives";
 import { groupTrips } from "@/lib/trips";
-import type { DrivingFigure, DrivingFigures } from "@/lib/driving-figures";
-import { inSpan, type Period, periodSpan, previousSpan, slotsFor, type Span } from "@/lib/periods";
+import type { DrivingFigure, DrivingFigures, DrivingPeriod } from "@/lib/driving-figures";
+import { inSpan, type Period, periodTimeframe, type Span, type Timeframe } from "@/lib/periods";
 import { median } from "@/lib/telemetry-derive";
 
 // Drive stats after TeslaMate's dashboard, from the drives Uplink rebuilt (the last 90 days). Counts and
@@ -41,27 +41,25 @@ function driveEnergy(drives: Drive[]): { kwh: number | null; whPerKm: number | n
 // back DRIVE_DAYS, or to when tracking began), like TeslaMate: driving only, the same in every period.
 // Longer spans keep the lifetime counter's figure, which includes energy used while parked.
 export function withDriveEfficiency(figures: DrivingFigures, drives: Drive[], now: number): DrivingFigures {
+  const periods = Object.fromEntries(
+    Object.entries(figures.periods).map(([period, p]) => [period, timeframeEfficiency(p, periodTimeframe(period as Period, now), drives, figures.since, now)]),
+  ) as DrivingFigures["periods"];
+  return { ...figures, periods };
+}
+
+// The same for one timeframe's figures, like a range picked by date. `since` is when tracking began.
+export function timeframeEfficiency(p: DrivingPeriod, frame: Timeframe, drives: Drive[], since: number | null, now: number): DrivingPeriod {
   const windowFrom = now - DRIVE_DAYS * DAY;
-  const covered = (span: Span) => span.from >= windowFrom || (figures.since !== null && figures.since >= windowFrom);
+  const covered = (span: Span) => span.from >= windowFrom || (since !== null && since >= windowFrom);
   const fill = (f: DrivingFigure, span: Span): DrivingFigure => {
     const fromDrives = driveEnergy(drives.filter((d) => inSpan(d.start, span)));
     if (covered(span)) return { ...f, whPerKm: fromDrives.whPerKm, kwh: fromDrives.kwh };
     return { ...f, whPerKm: f.whPerKm ?? fromDrives.whPerKm, kwh: f.kwh ?? fromDrives.kwh };
   };
-  const periods = Object.fromEntries(
-    Object.entries(figures.periods).map(([period, p]) => {
-      const slots = slotsFor(period as Period, now);
-      const before = previousSpan(period as Period, now);
-      return [
-        period,
-        {
-          ...p,
-          current: fill(p.current, periodSpan(period as Period, now)),
-          previous: p.previous && before ? fill(p.previous, before) : p.previous,
-          bars: p.bars.map((b, k) => (slots[k] ? fill(b, slots[k]) : b)),
-        },
-      ];
-    }),
-  ) as DrivingFigures["periods"];
-  return { ...figures, periods };
+  return {
+    ...p,
+    current: fill(p.current, frame.span),
+    previous: p.previous && frame.previous ? fill(p.previous, frame.previous) : p.previous,
+    bars: p.bars.map((b, k) => (frame.slots[k] ? fill(b, frame.slots[k]) : b)),
+  };
 }
