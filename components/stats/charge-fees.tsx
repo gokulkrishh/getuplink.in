@@ -1,3 +1,4 @@
+import { Measure } from "@/components/measure";
 import type { FeeLines } from "@/lib/charge-fees";
 import { formatMoney } from "@/lib/format";
 
@@ -14,7 +15,7 @@ export function ChargeFees({ fees, currency }: { fees: FeeLines | null; currency
         <table className="w-full text-sm tabular-nums">
           <thead>
             <tr className="border-b text-left text-xs text-faint">
-              <th scope="col" className="w-8 py-2 pr-4 font-normal">
+              <th scope="col" className="w-10 py-2 pr-3 font-normal">
                 #
               </th>
               <th scope="col" className="py-2 pr-4 font-normal">
@@ -31,12 +32,14 @@ export function ChargeFees({ fees, currency }: { fees: FeeLines | null; currency
           <tbody className="divide-y">
             {fees.lines.map((line, k) => (
               <tr key={k}>
-                <td className="py-3 pr-4 font-mono text-faint">{k + 1}</td>
+                <td className="py-3 pr-3 font-mono text-xs text-faint">{k + 1}</td>
                 <th scope="row" className="py-3 pr-4 text-left font-normal">
                   {line.type}
                 </th>
-                <td className="py-3 pr-4 text-right font-mono">{line.quantity !== null && line.unit ? `${quantity.format(line.quantity)} ${line.unit}` : ""}</td>
-                <td className="py-3 text-right font-mono">{formatMoney(line.amount, line.currency ?? currency)}</td>
+                <td className="py-3 pr-4 text-right font-mono">{line.quantity !== null && line.unit && <Measure text={`${quantity.format(line.quantity)} ${line.unit}`} />}</td>
+                <td className="py-3 text-right font-mono">
+                  <Measure text={formatMoney(line.amount, line.currency ?? currency)} />
+                </td>
               </tr>
             ))}
           </tbody>
