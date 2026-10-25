@@ -243,32 +243,29 @@ async function pollOwner(owner: Owner, now: string, errors: string[]): Promise<n
   // Location is read only with the scope (granted at a sign-in since it was added), and only when the
   // car is already online for the check: never a wake.
   const located = await hasScope(owner, LOCATION_SCOPE).catch(() => false);
+  const vins = vehicles.map((v) => v.vin);
+  // Versions the stream saw first, before any car is read: a change the stream recorded keeps the time the
+  // car reported it and the odometer then. Recorded by this check instead, it would carry the check's time,
+  // and the stream sync after it reads only Version readings newer than that. The poll holds the lock, so
+  // the sync skips its own lock check; it logs its own failures.
+  await syncStreamVersionsSafely(owner, vins, { lockHeld: true });
   // Supercharger history is extra and can never fail the check; it touches its own table, so it
   // runs alongside the vehicles. Each car is polled on its own: one failing can't block another.
   // The check holds the lock, so it is where a car's one-time full history read happens.
   const [results] = await Promise.all([
     Promise.allSettled(vehicles.map((vehicle) => pollVehicle(owner, vehicle, now, located))),
-    syncChargingHistory(
-      owner,
-      vehicles.map((v) => v.vin),
-      { backfill: true },
-    ).catch((err) =>
+    syncChargingHistory(owner, vins, { backfill: true }).catch((err) =>
       console.warn("Charging history sync failed:", messageOf(err)),
     ),
     // Sessions rebuilt from Fleet Telemetry (AC and third-party charging); logs its own failures.
-    syncStreamSessionsSafely(owner, vehicles.map((v) => v.vin)),
+    syncStreamSessionsSafely(owner, vins),
   ]);
   results.forEach((result, i) => {
     if (result.status === "rejected") {
       errors.push(`${vehicles[i].display_name ?? vehicles[i].vin}: ${messageOf(result.reason)}`);
     }
   });
-  // Versions the stream saw while the car was asleep for the poll. The poll holds the lock, so the
-  // sync skips its own lock check; it logs its own failures.
-  await syncStreamVersionsSafely(
-    owner,
-    vehicles.map((v) => v.vin),
-    { lockHeld: true },
-  );
+  // Again for a car seen for the first time, which had no vehicles row for the first sync to start from.
+  await syncStreamVersionsSafely(owner, vins, { lockHeld: true });
   return vehicles.length;
 }

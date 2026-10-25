@@ -23,8 +23,9 @@ function bannerText(s: Snapshot): string {
 
 // One line on the home page while an update is pending, opening /updates for the details. Nothing otherwise:
 // a quietly installed update shows as the version changing.
-export function UpdateBanner({ snapshot }: { snapshot: Snapshot | null }) {
-  if (!snapshot || !isPending(snapshot)) return null;
+// `installed` is the version the car runs now (see isPending).
+export function UpdateBanner({ snapshot, installed }: { snapshot: Snapshot | null; installed: string | null }) {
+  if (!snapshot || !isPending(snapshot, installed)) return null;
   const moving = snapshot.update_status === "downloading" || snapshot.update_status === "installing";
   return (
     <Link

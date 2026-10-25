@@ -22,6 +22,13 @@ export function pendingUpdate(car: Omit<OfferedCar, "car">): string | null {
   return version && compareVersions(offered, version) <= 0 ? null : offered;
 }
 
+// The offers with the owner's car as its own pages show it (the last check with newer streamed update
+// fields laid over it) instead of its last check alone, so "Arriving now" and "Your car" agree. Other cars
+// keep their checks: their streams aren't read here. A car not in the list isn't added.
+export function withOwnOffer(offers: OfferedCar[], own: OfferedCar | null): OfferedCar[] {
+  return own ? offers.map((o) => (o.car === own.car ? own : o)) : offers;
+}
+
 // Each version with cars waiting on it, newest first. Empty when nothing is pending.
 export function buildArriving(cars: OfferedCar[]): Arriving[] {
   const latest = new Map(cars.map((c) => [c.car, c])); // one row per car, the last given

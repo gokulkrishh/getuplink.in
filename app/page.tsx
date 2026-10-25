@@ -127,7 +127,7 @@ async function HomeContent({ searchParams }: Pick<PageProps<"/">, "searchParams"
             <div key={car.vehicle.id} className="space-y-6">
               <CarNotices notices={car.notices} />
               <NowStrip car={car} odometerKm={car.vehicle.id === primaryId ? home.figures.odometerKm : null} now={now} />
-              <UpdateBanner snapshot={car.lastOnline} />
+              <UpdateBanner snapshot={car.lastOnline} installed={car.vehicle.current_version} />
             </div>
           ))}
           <PeriodScope custom={customScope(range, now)}>

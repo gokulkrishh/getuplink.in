@@ -3,7 +3,7 @@ import { DEMO } from "@/lib/demo";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import { buildRollout, GLOBAL_RELEASES, type Rollout, type RolloutChange } from "@/lib/rollout";
 import { type Adoption, type AdoptionGrain, buildAdoption } from "@/lib/rollout-adoption";
-import { type Arriving, buildArriving, type OfferedCar, yourCar, type YourCar } from "@/lib/rollout-arriving";
+import { type Arriving, buildArriving, type OfferedCar, withOwnOffer, yourCar, type YourCar } from "@/lib/rollout-arriving";
 import { buildStateRollout, type VersionStates } from "@/lib/rollout-states";
 import { UPDATE_FIELDS } from "@/lib/telemetry";
 import { loadCarState, loadReleaseNotes, type Vehicle } from "./dashboard";
@@ -27,7 +27,7 @@ export type RolloutPage =
     }
   | { kind: "error"; message: string };
 
-type OwnCar = Omit<OfferedCar, "car"> | null;
+type OwnCar = OfferedCar | null;
 
 // The version totals, for each version cars run now its states, what's on offer, the owner's line, how
 // each version spread day by day and week by week, and the notes. None of them carries a car key out.
@@ -43,7 +43,7 @@ async function build(
 ): Promise<RolloutPage> {
   const rollout = buildRollout(cars, changes, globalReleases);
   const versions = rollout.versions.flatMap((v) => (v.carsNow > 0 ? [v.version] : []));
-  const arriving = buildArriving(offers);
+  const arriving = buildArriving(withOwnOffer(offers, own));
   const shown = [...new Set([...rollout.versions.map((v) => v.version), ...arriving.map((a) => a.version)])];
   const notes = await loadReleaseNotes(shown);
   return {
@@ -74,7 +74,7 @@ async function ownCar(owner: Owner): Promise<OwnCar> {
   }
   if (!vehicle) return null;
   const { lastOnline } = await loadCarState(owner, vehicle, "normal", UPDATE_FIELDS);
-  return { version: vehicle.current_version, status: lastOnline?.update_status ?? null, offered: lastOnline?.update_version ?? null };
+  return { car: vehicle.id, version: vehicle.current_version, status: lastOnline?.update_status ?? null, offered: lastOnline?.update_version ?? null };
 }
 
 // /rollout's totals, pooled across every car in the database. Only the totals leave this function: vehicle

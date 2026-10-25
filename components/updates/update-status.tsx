@@ -1,7 +1,9 @@
 import { AutoRefresh } from "@/components/auto-refresh";
-import { formatDuration, formatInstallLeft, formatSeen } from "@/lib/format";
+import { formatDuration, formatSeen } from "@/lib/format";
 import type { Snapshot } from "@/lib/server/dashboard";
 import { Measure } from "@/components/measure";
+import { compareVersions } from "@/lib/rollout";
+import { normaliseVersion } from "@/lib/versions";
 
 const STATUS: Record<string, string> = {
   available: "Available",
@@ -11,9 +13,15 @@ const STATUS: Record<string, string> = {
   installing: "Installing",
 };
 
-// An update is available, scheduled, downloading, waiting for Wi-Fi or installing.
-export function isPending(snapshot: Snapshot | null): boolean {
-  return Boolean(snapshot?.update_status && STATUS[snapshot.update_status]);
+// An update is available, scheduled, downloading, waiting for Wi-Fi or installing. An offer no newer than
+// `installed` (the version the car runs now) is a stale check: the car installed it since, as the stream
+// can tell before the next online check does. The rollout's pendingUpdate applies the same rule.
+export function isPending(snapshot: Snapshot | null, installed: string | null = null): boolean {
+  const status = snapshot?.update_status;
+  if (!status || !STATUS[status]) return false;
+  const offered = normaliseVersion(snapshot.update_version);
+  const current = normaliseVersion(installed);
+  return !(offered && current && compareVersions(offered, current) <= 0);
 }
 
 // Order: status line, then its details (progress, timing).
@@ -60,11 +68,11 @@ export function UpdateStatus({ snapshot, now }: { snapshot: Snapshot | null; now
       )}
       {(status === "scheduled" && snapshot.scheduled_time_ms) || snapshot.expected_duration_sec ? (
         <p className="text-xs text-muted-foreground">
+          {/* Tesla's estimate for the install, as it gave it: the percent doesn't move evenly enough to
+              count down from (30% of a 40 min install was 14 min from done). */}
           {status === "scheduled" && snapshot.scheduled_time_ms
             ? `Starts ${formatSeen(snapshot.scheduled_time_ms, now)}`
-            : status === "installing" && snapshot.install_perc != null
-              ? formatInstallLeft(snapshot.expected_duration_sec!, snapshot.install_perc)
-              : `Takes about ${formatDuration(snapshot.expected_duration_sec!)}`}
+            : `Install takes about ${formatDuration(snapshot.expected_duration_sec!)}`}
         </p>
       ) : null}
       {status === "downloading_wifi_wait" && (

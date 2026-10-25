@@ -1,5 +1,6 @@
 import { MILES_TO_KM } from "@/lib/car";
 import type { Snapshot } from "@/lib/server/dashboard";
+import { normaliseVersion } from "@/lib/versions";
 
 export type StreamValue = { at: string; value: unknown };
 // Latest streamed reading per Fleet Telemetry field.
@@ -19,12 +20,15 @@ export function latestByField(rows: BoundReading[]): Stream {
   return stream;
 }
 
-// The fields a pending update is read from.
+// The fields a pending update is read from. SoftwareUpdateInProgress is what says the install is running:
+// the installation percent climbs in the background long before (10% overnight for an install the owner
+// started at 7:41 AM).
 export const UPDATE_FIELDS = [
   "SoftwareUpdateVersion",
   "SoftwareUpdateDownloadPercentComplete",
   "SoftwareUpdateInstallationPercentComplete",
   "SoftwareUpdateExpectedDurationMinutes",
+  "SoftwareUpdateInProgress",
 ];
 
 // Streamed values that are newer than the poll, laid over the poll's snapshot. polled_at is left
@@ -42,7 +46,7 @@ export function applyStream(snapshot: Snapshot | null, stream: Stream): Snapshot
   if (updateAt > polledAt) {
     // Telemetry rows only arrive on change, so unchanged fields fall back to the poll's values.
     const raw = stream.SoftwareUpdateVersion?.value;
-    const version = typeof raw === "string" ? raw.trim() : (snapshot.update_version ?? "");
+    const version = typeof raw === "string" ? normaliseVersion(raw) : snapshot.update_version;
     if (!version) {
       next.update_status = null;
       next.update_version = null;
@@ -60,15 +64,20 @@ export function applyStream(snapshot: Snapshot | null, stream: Stream): Snapshot
       const downloadPerc = download == null ? null : Math.round(download);
       const installPerc = install == null ? null : Math.round(install);
       const poll = snapshot.update_status;
+      const inProgress = stream.SoftwareUpdateInProgress?.value;
       next.update_version = version;
       next.download_perc = downloadPerc;
       next.install_perc = installPerc;
       if (typeof minutes === "number") next.expected_duration_sec = minutes * 60;
-      if (downloadPerc != null && downloadPerc < 100) {
-        next.update_status = poll === "downloading_wifi_wait" && downloadPerc === snapshot.download_perc ? poll : "downloading";
-      } else if (downloadPerc != null && installPerc != null && installPerc > 1) {
+      if (inProgress === true) {
         next.update_status = "installing";
+      } else if (downloadPerc != null && downloadPerc < 100) {
+        next.update_status = poll === "downloading_wifi_wait" && downloadPerc === snapshot.download_perc ? poll : "downloading";
+      } else if (inProgress === false) {
+        // Downloaded, not installing: the percent alone proves nothing (see UPDATE_FIELDS).
+        next.update_status = poll === "available" || poll === "scheduled" ? poll : "available";
       } else {
+        // A car that doesn't stream InProgress: installing only when a check saw it.
         next.update_status = poll === "available" || poll === "scheduled" || poll === "installing" ? poll : "available";
       }
     }
