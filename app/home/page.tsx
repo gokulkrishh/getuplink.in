@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { ChevronDown, CircleCheck, CircleX } from "lucide-react";
 import { DashboardPreview } from "@/components/dashboard-preview";
+import { AssistantMock } from "@/components/home/assistant-mock";
 import { CarGlanceMock } from "@/components/home/car-glance-mock";
 import { HistoryMock } from "@/components/home/history-mock";
 import { SessionCta } from "@/components/home/session-cta";
@@ -36,6 +37,17 @@ const SHOWCASE = [
     body: "Charge, battery health, distance and specs from your car.",
     points: ["Charge, range and limit", "Battery health and odometer", "Kilometres driven each month"],
     mock: <CarGlanceMock />,
+  },
+  {
+    title: "Ask your AI about your car",
+    body: "Connect Claude, ChatGPT, Grok or an always-on bot to Uplink over MCP.",
+    points: [
+      "Drives, trips and kilometres driven",
+      "Charging spend and battery health",
+      "An always-on bot that adds charging invoices from Gmail",
+      "Can't reach or control your car",
+    ],
+    mock: <AssistantMock />,
   },
 ];
 
