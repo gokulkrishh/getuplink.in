@@ -12,7 +12,7 @@ import { customScope } from "@/components/stats/periods";
 import { NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/components/stats/stats-frame";
 import { timeframes } from "@/lib/frames";
 import { customQuery, type CustomQuery, customRange, type DayRange, rangeTimeframe, type Timeframe } from "@/lib/periods";
-import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadWindowStats, type WindowStats } from "@/lib/server/driving";
 import { loadStreamSessions, type StreamChargeSession } from "@/lib/server/stream-charging";
@@ -35,13 +35,14 @@ async function loadBattery(query: CustomQuery | null): Promise<{
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
+  const owner = await currentOwner();
+  if (!owner) redirect(SIGNED_OUT_PATH);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
   const now = Date.now();
-  const vin = (await loadPrimaryVehicle())?.vin ?? null;
+  const vin = (await loadPrimaryVehicle(owner))?.vin ?? null;
   const range = query && customRange("custom", query.from ?? undefined, query.to ?? undefined, now);
-  const [window, sessions] = await Promise.all([loadWindowStats(vin, now), loadStreamSessions()]);
-  const extras = await loadBatteryExtras(vin, window.trend, now);
+  const [window, sessions] = await Promise.all([loadWindowStats(owner, vin, now), loadStreamSessions(owner)]);
+  const extras = await loadBatteryExtras(owner, vin, window.trend, now);
   return { window, sessions, extras, custom: range && { range, frame: rangeTimeframe(range, now) }, now };
 }
 

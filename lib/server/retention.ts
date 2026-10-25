@@ -1,7 +1,7 @@
 import "server-only";
 import { DEMO } from "@/lib/demo";
 import { retentionRules } from "@/lib/telemetry-retention";
-import { db } from "./supabase";
+import { pruneTelemetryBatch } from "./data/system";
 
 // Rows per call. Each call is its own short transaction (see the migration).
 const BATCH = 5000;
@@ -19,7 +19,7 @@ export async function pruneTelemetry(now = Date.now): Promise<RetentionResult> {
   let deleted = 0;
   let batches = 0;
   while (now() - started < BUDGET_MS) {
-    const { data, error } = await db().rpc("prune_telemetry_readings", {
+    const { data, error } = await pruneTelemetryBatch({
       p_fields: rules.fields,
       p_keep_days: rules.keepDays,
       p_default_days: rules.defaultDays,

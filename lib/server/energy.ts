@@ -3,7 +3,7 @@ import { num } from "@/lib/telemetry-derive";
 import type { CounterColumn, CounterValue } from "@/lib/driving-figures";
 import { DEMO } from "@/lib/demo";
 import { demoCounters } from "./demo";
-import { db } from "./supabase";
+import { type Owner, ownerDb } from "./data/owner";
 
 // Cumulative counters at chosen instants, from the streamed readings (see loadDrivingFigures).
 
@@ -34,9 +34,9 @@ export function toColumn(bounds: string[], rows: BoundRow[]): CounterColumn {
 
 // Counters at each boundary, per field, in one request. The counters only send a row when they change, so
 // the last reading before a boundary is the value there. Null when the query fails.
-export async function loadCounters(vin: string, fields: string[], bounds: string[]): Promise<Map<string, CounterColumn> | null> {
+export async function loadCounters(owner: Owner, vin: string, fields: string[], bounds: string[]): Promise<Map<string, CounterColumn> | null> {
   if (DEMO) return demoCounters(fields, bounds.map((bound) => (bound === LATEST ? Infinity : Date.parse(bound))));
-  const { data, error } = await db().rpc("counter_values_at", { p_vin: vin, p_fields: fields, p_at: bounds });
+  const { data, error } = await ownerDb(owner).rpc("counter_values_at", { p_vin: vin, p_fields: fields, p_at: bounds });
   if (error) {
     console.warn(`Telemetry ${fields.join(", ")} unavailable:`, error.message);
     return null;

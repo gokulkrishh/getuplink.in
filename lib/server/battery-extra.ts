@@ -1,4 +1,5 @@
 import "server-only";
+import type { Owner } from "./data/owner";
 import { MILES_TO_KM } from "@/lib/car";
 import { num, type Reading, type WeeklyPack } from "@/lib/telemetry-derive";
 import { type TeslaPack, teslaPack } from "@/lib/tesla-pack";
@@ -36,7 +37,7 @@ function pair(a: Point[], b: Point[], f: (x: number, y: number) => number): Poin
   });
 }
 
-export async function loadBatteryExtras(vin: string | null, trend: WeeklyPack[], now: number): Promise<BatteryExtras> {
+export async function loadBatteryExtras(owner: Owner, vin: string | null, trend: WeeklyPack[], now: number): Promise<BatteryExtras> {
   const empty: BatteryExtras = { temps: { battery: [], inside: [], outside: [] }, cellSpreadMv: [], capacityByKm: [], teslaPack: null };
   if (!vin) return empty;
   const from = new Date(now - TEMP_DAYS * DAY).toISOString();
@@ -44,10 +45,10 @@ export async function loadBatteryExtras(vin: string | null, trend: WeeklyPack[],
   const trendFrom = trend.length ? new Date(trend[0].weekStart).toISOString() : from;
   // Tesla only sends its figure when it changes, so the latest is read on its own, of any age.
   const [recent, odo, nominal, latest] = await Promise.all([
-    loadReadingsByField(vin, ["ModuleTempMax", "InsideTemp", "OutsideTemp", "BrickVoltageMax", "BrickVoltageMin"], from, to),
-    trend.length >= 2 ? loadReadingsByField(vin, ["Odometer"], trendFrom, to) : Promise.resolve(null),
-    loadReadingsByField(vin, [NOMINAL], trendFrom, to),
-    loadStream(vin, [NOMINAL]),
+    loadReadingsByField(owner, vin, ["ModuleTempMax", "InsideTemp", "OutsideTemp", "BrickVoltageMax", "BrickVoltageMin"], from, to),
+    trend.length >= 2 ? loadReadingsByField(owner, vin, ["Odometer"], trendFrom, to) : Promise.resolve(null),
+    loadReadingsByField(owner, vin, [NOMINAL], trendFrom, to),
+    loadStream(owner, vin, [NOMINAL]),
   ]);
   const pack = teslaPack(latest[NOMINAL], nominal?.[NOMINAL] ?? []);
   if (!recent) return { ...empty, teslaPack: pack };

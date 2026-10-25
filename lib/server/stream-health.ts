@@ -2,8 +2,7 @@ import "server-only";
 import tls from "node:tls";
 import { DEMO } from "@/lib/demo";
 import { demoData, demoLastReadingAt } from "./demo";
-import { db } from "./supabase";
-import { lastReadingAt } from "./telemetry";
+import { fleetLastReadingAt, fleetLastSeen, healthCheckCar, pingDatabase, recordHealthChecks } from "./data/system";
 import { fleetGet, NotConnectedError } from "./tesla";
 import { daysUntilExpiry, EXPIRY_WARN_DAYS, shortReason, streamFreshness } from "@/lib/stream-health";
 import { worstStatus, type Status } from "@/lib/status";
@@ -67,7 +66,7 @@ const ok: Part = { status: "operational", problems: [] };
 
 async function checkDatabase(): Promise<Part> {
   try {
-    const { error } = await withTimeout(db().from("vehicles").select("vin").limit(1), "Reading the database");
+    const { error } = await withTimeout(pingDatabase(), "Reading the database");
     if (error) throw new Error(error.message);
     return ok;
   } catch (err) {
@@ -102,8 +101,12 @@ async function checkStream(now: number): Promise<Stream> {
     try {
       const [last, seen] = await withTimeout(
         Promise.all([
-          lastReadingAt(),
-          db().from("vehicles").select("last_seen_at").not("last_seen_at", "is", null).order("last_seen_at", { ascending: false }).limit(1).maybeSingle(),
+          fleetLastReadingAt().catch((err) => {
+            // Telemetry is a bonus: a failed read counts as no readings, as it always has.
+            console.warn("Last reading unavailable:", (err as Error).message);
+            return null;
+          }),
+          fleetLastSeen(),
         ]),
         "Reading the database",
       );
@@ -119,17 +122,19 @@ async function checkStream(now: number): Promise<Stream> {
 
   const config = async () => {
     try {
-      const { data, error } = await withTimeout(db().from("vehicles").select("vin").not("vin", "is", null).limit(1).maybeSingle(), "Reading the database");
-      if (error) throw new Error(error.message);
-      const vin = data?.vin as string | undefined;
-      if (!vin) {
+      const car = await withTimeout(healthCheckCar(), "Reading the database");
+      if (!car) {
         flag("degraded", "Couldn't check the Tesla config: no vehicle found");
         return;
       }
+      const { vin } = car;
+      // No account to ask with reads as disconnected, like a missing token.
+      if (!car.owner) throw new NotConnectedError();
+      const owner = car.owner;
       const [cfg, errs] = await withTimeout(
         Promise.all([
-          fleetGet<TelemetryConfig>(`/api/1/vehicles/${vin}/fleet_telemetry_config`),
-          fleetGet<TelemetryErrors>(`/api/1/vehicles/${vin}/fleet_telemetry_errors`).catch((): TelemetryErrors => null),
+          fleetGet<TelemetryConfig>(owner, `/api/1/vehicles/${vin}/fleet_telemetry_config`),
+          fleetGet<TelemetryErrors>(owner, `/api/1/vehicles/${vin}/fleet_telemetry_errors`).catch((): TelemetryErrors => null),
         ]),
         "Asking Tesla",
       );
@@ -193,13 +198,13 @@ export async function runHealthChecks(): Promise<HealthChecks> {
 export async function recordResults(checks: HealthChecks): Promise<void> {
   if (DEMO) return;
   const checkedAt = new Date(checks.now).toISOString();
-  const { error } = await db()
-    .from("health_checks")
-    .insert(checks.components.map((c) => ({ checked_at: checkedAt, component: c.name, status: c.status })));
-  if (error) throw new Error(error.message);
-  // One delete per component so each uses the (component, checked_at) index.
   const cutoff = new Date(checks.now - RETENTION_DAYS * 86_400_000).toISOString();
-  await Promise.all(COMPONENTS.map((name) => db().from("health_checks").delete().eq("component", name).lt("checked_at", cutoff)));
+  await recordHealthChecks(
+    checkedAt,
+    checks.components.map((c) => ({ component: c.name, status: c.status })),
+    COMPONENTS,
+    cutoff,
+  );
 }
 
 // Runs the checks and records them.

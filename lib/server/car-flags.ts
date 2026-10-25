@@ -3,7 +3,7 @@ import { carNotices } from "@/lib/car-notices";
 import type { CheckedTyres, TyreFlags } from "@/lib/car-now";
 import { DEMO } from "@/lib/demo";
 import { demoData } from "./demo";
-import { db } from "./supabase";
+import { type Owner, ownerDb } from "./data/owner";
 
 // What the latest online check said beyond the car's state: Tesla's notices (an unpaid Supercharger
 // balance, the car in service) and which tyres it warned about. Only checks that found the car online keep
@@ -47,9 +47,9 @@ export function carFlagsFrom(row: Record<string, unknown> | null): CarFlagsNow {
 export const demoCarFlags = (): CarFlagsNow => ({ notices: carNotices(demoData().flags), tyres: null });
 
 // Nothing to say when the read fails: these are extras on pages that work without them.
-export async function loadCarFlags(vehicleId: string): Promise<CarFlagsNow> {
+export async function loadCarFlags(owner: Owner, vehicleId: string): Promise<CarFlagsNow> {
   if (DEMO) return demoCarFlags();
-  const { data, error } = await db()
+  const { data, error } = await ownerDb(owner)
     .from("snapshots")
     .select(`polled_at, ${FLAG_COLUMNS}`)
     .eq("vehicle_id", vehicleId)

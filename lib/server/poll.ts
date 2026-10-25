@@ -1,7 +1,8 @@
 import "server-only";
 import { DEMO } from "@/lib/demo";
-import { db } from "./supabase";
-import { fleetGet, hasScope, LOCATION_SCOPE, TeslaError } from "./tesla";
+import { type Owner, ownerDb } from "./data/owner";
+import { accountOwners, closeStaleRuns, finishRun, startRun } from "./data/system";
+import { fleetGet, hasScope, LOCATION_SCOPE, NotConnectedError, TeslaError } from "./tesla";
 import { syncChargingHistory } from "./charging";
 import { syncStreamSessionsSafely } from "./stream-charging";
 import { syncStreamVersionsSafely } from "./stream-versions";
@@ -62,20 +63,21 @@ function homeStateFrom(data: VehicleData): string | null {
 // Adds this check's state to the car's recent ones and moves home_state to the most common. Separate from
 // the vehicle upsert, so a database without the columns yet only loses the state. The message is fixed:
 // nothing about the car's location reaches the log.
-async function recordState(id: string, state: string) {
+async function recordState(owner: Owner, id: string, state: string) {
   try {
-    const row = await check(db().from("vehicles").select("recent_states").eq("id", id).maybeSingle());
+    const row = await check(ownerDb(owner).from("vehicles").select("recent_states").eq("id", id).maybeSingle());
     const recent = [...((row?.recent_states as string[] | null) ?? []), state].slice(-RECENT_STATES);
-    await check(db().from("vehicles").update({ recent_states: recent, home_state: mostCommonState(recent) }).eq("id", id));
+    await check(ownerDb(owner).from("vehicles").update({ recent_states: recent, home_state: mostCommonState(recent) }).eq("id", id));
   } catch {
     console.warn("Saving the home state failed");
   }
 }
 
-async function pollVehicle(vehicle: FleetVehicle, now: string, located: boolean) {
+async function pollVehicle(owner: Owner, vehicle: FleetVehicle, now: string, located: boolean) {
   const id = vehicle.id_s;
+  const scope = ownerDb(owner);
   const existing = await check(
-    db().from("vehicles").select("current_version").eq("id", id).maybeSingle(),
+    scope.from("vehicles").select("current_version").eq("id", id).maybeSingle(),
   );
   const base = {
     id,
@@ -88,8 +90,8 @@ async function pollVehicle(vehicle: FleetVehicle, now: string, located: boolean)
 
   // Never wake the car: vehicle_data is only requested when it is already online.
   if (vehicle.state !== "online") {
-    await check(db().from("vehicles").upsert(base));
-    await check(db().from("snapshots").insert({ vehicle_id: id, polled_at: now, state: vehicle.state }));
+    await check(scope.from("vehicles").upsert(base));
+    await check(scope.from("snapshots").insert({ vehicle_id: id, polled_at: now, state: vehicle.state }));
     return;
   }
 
@@ -99,7 +101,7 @@ async function pollVehicle(vehicle: FleetVehicle, now: string, located: boolean)
     // firmware sends drive_state's latitude and longitude only when location_data is asked for too, and
     // drive_state itself has to be in the list.
     const read = (sections: string) =>
-      fleetGet<VehicleData>(`/api/1/vehicles/${vehicle.vin}/vehicle_data?endpoints=${encodeURIComponent(sections)}`);
+      fleetGet<VehicleData>(owner, `/api/1/vehicles/${vehicle.vin}/vehicle_data?endpoints=${encodeURIComponent(sections)}`);
     const sections = "vehicle_state;charge_state;vehicle_config";
     try {
       data = (await read(located ? `${sections};drive_state;location_data` : sections)) ?? {};
@@ -111,9 +113,9 @@ async function pollVehicle(vehicle: FleetVehicle, now: string, located: boolean)
   } catch (err) {
     // 408: the car fell asleep between the list call and this one.
     if (err instanceof TeslaError && err.status === 408) {
-      await check(db().from("vehicles").upsert({ ...base, last_state: "asleep" }));
+      await check(scope.from("vehicles").upsert({ ...base, last_state: "asleep" }));
       await check(
-        db().from("snapshots").insert({
+        scope.from("snapshots").insert({
           vehicle_id: id,
           polled_at: now,
           state: "asleep",
@@ -141,22 +143,22 @@ async function pollVehicle(vehicle: FleetVehicle, now: string, located: boolean)
   // the next check still sees the change instead of losing it.
   if (version && version !== previous) {
     // A retry after a failed later write would see the same change again; don't record it twice.
-    if ((await latestRecordedVersion(id)) !== version) {
+    if ((await latestRecordedVersion(owner, id)) !== version) {
       // version_history references the vehicle, so a car seen for the first time needs its row first.
-      if (!existing) await check(db().from("vehicles").upsert(base));
-      await insertVersionChange({
+      if (!existing) await check(scope.from("vehicles").upsert(base));
+      await insertVersionChange(owner, {
         vehicleId: id,
         version,
         previous,
         detectedAt: now,
-        availableAt: previous ? await offeredAt(id, version) : null,
+        availableAt: previous ? await offeredAt(owner, id, version) : null,
         odometerKm: typeof state.odometer === "number" ? milesToKm(state.odometer) : null,
       });
     }
   }
 
   await check(
-    db()
+    scope
       .from("vehicles")
       .upsert({
         ...base,
@@ -168,7 +170,7 @@ async function pollVehicle(vehicle: FleetVehicle, now: string, located: boolean)
       }),
   );
   await check(
-    db().from("snapshots").insert({
+    scope.from("snapshots").insert({
       vehicle_id: id,
       polled_at: now,
       state: "online",
@@ -187,8 +189,8 @@ async function pollVehicle(vehicle: FleetVehicle, now: string, located: boolean)
       raw: storedRaw(data),
     }),
   );
-  if (homeState) await recordState(id, homeState);
-  await recordReleaseNotes(vehicle.vin, [
+  if (homeState) await recordState(owner, id, homeState);
+  await recordReleaseNotes(owner, vehicle.vin, [
     { version, staged: false },
     { version: normaliseVersion(update.version), staged: true },
   ]);
@@ -198,78 +200,75 @@ export type PollResult = { ok: boolean; vehicles: number; error?: string; skippe
 
 export async function pollAll(): Promise<PollResult> {
   if (DEMO) return { ok: true, vehicles: 0, skipped: true };
-  await check(
-    db()
-      .from("poll_runs")
-      .update({ finished_at: new Date().toISOString(), ok: false, error: "Did not finish" })
-      .is("finished_at", null)
-      .lt("started_at", new Date(Date.now() - STALE_RUN_MS).toISOString()),
-  );
+  await closeStaleRuns(new Date(Date.now() - STALE_RUN_MS).toISOString());
   // poll_runs allows one unfinished row (poll_runs_one_running_idx): inserting is taking the lock.
-  const { data: run, error: lockError } = await db().from("poll_runs").insert({}).select("id").single();
-  if (lockError?.code === UNIQUE_VIOLATION) return { ok: true, vehicles: 0, skipped: true };
-  if (lockError || !run) throw new Error(lockError?.message ?? "Could not start a check");
+  const run = await startRun(UNIQUE_VIOLATION);
+  if (run === null) return { ok: true, vehicles: 0, skipped: true };
   const now = new Date().toISOString();
   const errors: string[] = [];
-  let vehicles: FleetVehicle[] = [];
+  let vehicles = 0;
 
   try {
-    const listed = await fleetGet<FleetVehicle[]>("/api/1/vehicles");
-    vehicles = Array.isArray(listed) ? listed : [];
-    // Location is read only with the scope (granted at a sign-in since it was added), and only when the
-    // car is already online for the check: never a wake.
-    const located = await hasScope(LOCATION_SCOPE).catch(() => false);
-    // Supercharger history is extra and can never fail the check; it touches its own table, so it
-    // runs alongside the vehicles. Each car is polled on its own: one failing can't block another.
-    // The check holds the lock, so it is where a car's one-time full history read happens.
-    const [results] = await Promise.all([
-      Promise.allSettled(vehicles.map((vehicle) => pollVehicle(vehicle, now, located))),
-      syncChargingHistory(
-        vehicles.map((v) => v.vin),
-        { backfill: true },
-      ).catch((err) =>
-        console.warn("Charging history sync failed:", messageOf(err)),
-      ),
-      // Sessions rebuilt from Fleet Telemetry (AC and third-party charging); logs its own failures.
-      syncStreamSessionsSafely(vehicles.map((v) => v.vin)),
-    ]);
-    results.forEach((result, i) => {
-      if (result.status === "rejected") {
-        errors.push(`${vehicles[i].display_name ?? vehicles[i].vin}: ${messageOf(result.reason)}`);
+    const owners = await accountOwners();
+    // No account yet fails the check the way a missing token does.
+    if (owners.length === 0) throw new NotConnectedError();
+    // One account after another, each with its own token; one failing can't stop the next.
+    for (const owner of owners) {
+      try {
+        vehicles += await pollOwner(owner, now, errors);
+      } catch (err) {
+        errors.push(messageOf(err));
       }
-    });
-    // Versions the stream saw while the car was asleep for the poll. The poll holds the lock, so the
-    // sync skips its own lock check; it logs its own failures.
-    await syncStreamVersionsSafely(
-      vehicles.map((v) => v.vin),
-      { lockHeld: true },
-    );
+    }
   } catch (err) {
     errors.push(messageOf(err));
   }
 
-  const result: PollResult = { ok: errors.length === 0, vehicles: vehicles.length, error: errors.join("; ") || undefined };
+  const result: PollResult = { ok: errors.length === 0, vehicles, error: errors.join("; ") || undefined };
   // The row is the lock: whatever happens to the full update, release it so the next check can run.
   try {
-    await check(
-      db()
-        .from("poll_runs")
-        .update({
-          finished_at: new Date().toISOString(),
-          ok: result.ok,
-          vehicles_seen: result.vehicles,
-          error: result.error ?? null,
-        })
-        .eq("id", run.id)
-        .is("finished_at", null),
-    );
+    await finishRun(run, { ok: result.ok, vehicles_seen: result.vehicles, error: result.error ?? null });
   } catch (err) {
-    await db()
-      .from("poll_runs")
-      .update({ finished_at: new Date().toISOString(), ok: false, error: messageOf(err) })
-      .eq("id", run.id)
-      .is("finished_at", null);
+    await finishRun(run, { ok: false, error: messageOf(err) }).catch(() => {});
     throw err;
   }
   return result;
+}
+
+// One account's check: every car on its Tesla account. Errors per car go to `errors`; returns how many
+// cars Tesla listed.
+async function pollOwner(owner: Owner, now: string, errors: string[]): Promise<number> {
+  const listed = await fleetGet<FleetVehicle[]>(owner, "/api/1/vehicles");
+  const vehicles = Array.isArray(listed) ? listed : [];
+  // Location is read only with the scope (granted at a sign-in since it was added), and only when the
+  // car is already online for the check: never a wake.
+  const located = await hasScope(owner, LOCATION_SCOPE).catch(() => false);
+  // Supercharger history is extra and can never fail the check; it touches its own table, so it
+  // runs alongside the vehicles. Each car is polled on its own: one failing can't block another.
+  // The check holds the lock, so it is where a car's one-time full history read happens.
+  const [results] = await Promise.all([
+    Promise.allSettled(vehicles.map((vehicle) => pollVehicle(owner, vehicle, now, located))),
+    syncChargingHistory(
+      owner,
+      vehicles.map((v) => v.vin),
+      { backfill: true },
+    ).catch((err) =>
+      console.warn("Charging history sync failed:", messageOf(err)),
+    ),
+    // Sessions rebuilt from Fleet Telemetry (AC and third-party charging); logs its own failures.
+    syncStreamSessionsSafely(owner, vehicles.map((v) => v.vin)),
+  ]);
+  results.forEach((result, i) => {
+    if (result.status === "rejected") {
+      errors.push(`${vehicles[i].display_name ?? vehicles[i].vin}: ${messageOf(result.reason)}`);
+    }
+  });
+  // Versions the stream saw while the car was asleep for the poll. The poll holds the lock, so the
+  // sync skips its own lock check; it logs its own failures.
+  await syncStreamVersionsSafely(
+    owner,
+    vehicles.map((v) => v.vin),
+    { lockHeld: true },
+  );
+  return vehicles.length;
 }

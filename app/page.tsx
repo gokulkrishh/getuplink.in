@@ -24,7 +24,7 @@ import { customRange, type DayRange, inSpan, rangeTimeframe, type Timeframe } fr
 import { MonthlyTable } from "@/components/home/monthly-table";
 import { newestTime } from "@/lib/last-synced";
 import { DEMO, DEMO_SITE, type DemoScenario, parseScenario } from "@/lib/demo";
-import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type Home, loadHome, loadRangeDriving } from "@/lib/server/home";
 
@@ -38,10 +38,11 @@ async function loadOwnHome(demo: DemoScenario): Promise<{ home: Home; now: numbe
   cacheTag(OWNER_DATA_TAG);
   // 60s is enough for a per-link prefetch (30s minimum); the App Shell would need 5 minutes.
   cacheLife({ stale: 60 });
-  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
+  const owner = await currentOwner();
+  if (!owner) redirect(SIGNED_OUT_PATH);
   // The clock is read here, inside the cache, because reading it while rendering blocks prerendering.
   const now = Date.now();
-  return { home: await loadHome(demo, now), now };
+  return { home: await loadHome(owner, demo, now), now };
 }
 
 // The primary car's driving figures for a range picked by date, read at that range's own instants. Kept in
@@ -50,8 +51,9 @@ async function loadOwnRange(demo: DemoScenario, vin: string | null, range: DayRa
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
-  return loadRangeDriving(demo, vin, rangeTimeframe(range, now), now);
+  const owner = await currentOwner();
+  if (!owner) redirect(SIGNED_OUT_PATH);
+  return loadRangeDriving(owner, demo, vin, rangeTimeframe(range, now), now);
 }
 
 // The period switch, the four headline numbers, then driving, charging, battery and the months: each in

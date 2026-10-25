@@ -1,4 +1,5 @@
 import "server-only";
+import type { Owner } from "./data/owner";
 import type { DayStrip } from "@/lib/awake";
 import { DEMO, type DemoScenario } from "@/lib/demo";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
@@ -38,12 +39,12 @@ function updateRows(history: VersionChange[]): UpdateRow[] {
     .reverse();
 }
 
-async function updatesCar(vehicle: Vehicle, scenario: DemoScenario, now: number): Promise<UpdatesCar> {
+async function updatesCar(owner: Owner, vehicle: Vehicle, scenario: DemoScenario, now: number): Promise<UpdatesCar> {
   const [state, history, presence] = await Promise.all([
     // Only the update fields: the page shows no battery.
-    loadCarState(vehicle, scenario, UPDATE_FIELDS),
-    loadHistory(vehicle).then((rows) => (vehicle.vin ? withTimelines(vehicle.vin, rows) : rows)),
-    loadPresence(vehicle.vin ? { id: vehicle.id, vin: vehicle.vin } : null, now),
+    loadCarState(owner, vehicle, scenario, UPDATE_FIELDS),
+    loadHistory(owner, vehicle).then((rows) => (vehicle.vin ? withTimelines(owner, vehicle.vin, rows) : rows)),
+    loadPresence(owner, vehicle.vin ? { id: vehicle.id, vin: vehicle.vin } : null, now),
   ]);
   // The update fields rarely change; the presence fields stream every few minutes while the car is awake.
   const latest = Math.max(state.streamAt ? Date.parse(state.streamAt) : 0, presence.newest ? Date.parse(presence.newest) : 0);
@@ -61,12 +62,12 @@ async function updatesCar(vehicle: Vehicle, scenario: DemoScenario, now: number)
 
 // Everything /updates shows, for each car. It only reads (snapshots, history, streamed readings), so
 // nothing here wakes the car.
-export async function loadUpdatesPage(scenario: DemoScenario, now: number): Promise<UpdatesPage> {
+export async function loadUpdatesPage(owner: Owner, scenario: DemoScenario, now: number): Promise<UpdatesPage> {
   try {
-    const owner = await loadOwnerCars();
-    if (owner.kind !== "ready") return owner;
-    const cars = await Promise.all(owner.vehicles.map((v) => updatesCar(v, scenario, now)));
-    return { kind: "ready", cars, lastRun: owner.lastRun, releaseNotes: await loadReleaseNotes(versionsOnScreen(cars)) };
+    const account = await loadOwnerCars(owner);
+    if (account.kind !== "ready") return account;
+    const cars = await Promise.all(account.vehicles.map((v) => updatesCar(owner, v, scenario, now)));
+    return { kind: "ready", cars, lastRun: account.lastRun, releaseNotes: await loadReleaseNotes(versionsOnScreen(cars)) };
   } catch (err) {
     if (DEMO) throw err;
     console.error(err);

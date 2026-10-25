@@ -6,7 +6,8 @@ import { type Reading, type UpdateTimeline, updateTimeline } from "@/lib/telemet
 import { carFlagsFrom, type CarFlagsNow, demoCarFlags, FLAG_COLUMNS, FLAG_KEYS } from "./car-flags";
 import { demoData, demoStream } from "./demo";
 import { missingEnv } from "./env";
-import { db } from "./supabase";
+import { type Owner, ownerDb } from "./data/owner";
+import { releaseNotesFor } from "./data/system";
 import { applyStream, loadStream, STREAM_FIELDS } from "./telemetry";
 import { loadReadingsByField } from "./telemetry-window";
 import { withoutStaleTokenError } from "@/lib/run-error";
@@ -92,10 +93,10 @@ const TIMELINE_FIELDS = [
 // Download and install durations for the versions in history, from the streamed update fields. These only
 // change during an update, so one read of the five fields from the oldest version on screen stays small.
 // Anything that can't be read just leaves the rows without timings.
-export async function withTimelines(vin: string, history: VersionChange[]): Promise<VersionChange[]> {
+export async function withTimelines(owner: Owner, vin: string, history: VersionChange[]): Promise<VersionChange[]> {
   if (history.length === 0) return history;
   const from = new Date(Date.parse(history[history.length - 1].detected_at) - 14 * DAY_MS).toISOString();
-  const readings = await loadReadingsByField(vin, TIMELINE_FIELDS, from, new Date().toISOString());
+  const readings = await loadReadingsByField(owner, vin, TIMELINE_FIELDS, from, new Date().toISOString());
   if (!readings) return history;
   const [pending, download, install, installed, started] = TIMELINE_FIELDS.map((field) => readings[field]);
   // The readings around one version: from two weeks before it was detected to a day after.
@@ -121,7 +122,7 @@ function newestReading(stream: Stream): string | null {
 }
 
 // See CarState. `fields` are the stream fields to read; streamAt only covers those.
-export async function loadCarState(vehicle: Pick<Vehicle, "id" | "vin">, scenario: DemoScenario, fields: string[] = STREAM_FIELDS): Promise<CarState> {
+export async function loadCarState(owner: Owner, vehicle: Pick<Vehicle, "id" | "vin">, scenario: DemoScenario, fields: string[] = STREAM_FIELDS): Promise<CarState> {
   if (DEMO) {
     // The same steps as below, from the generated car instead of the database.
     const { snapshot } = demoData();
@@ -129,9 +130,9 @@ export async function loadCarState(vehicle: Pick<Vehicle, "id" | "vin">, scenari
     return { latest: snapshot, lastOnline: applyStream(snapshot, stream), streamAt: newestReading(stream), flags: demoCarFlags() };
   }
   const [latest, lastOnline, stream] = await Promise.all([
-    db().from("snapshots").select(SNAPSHOT_COLUMNS).eq("vehicle_id", vehicle.id).order("polled_at", { ascending: false }).limit(1).maybeSingle(),
+    ownerDb(owner).from("snapshots").select(SNAPSHOT_COLUMNS).eq("vehicle_id", vehicle.id).order("polled_at", { ascending: false }).limit(1).maybeSingle(),
     // The flags come from the same row: the poll keeps Tesla's response on every online check.
-    db()
+    ownerDb(owner)
       .from("snapshots")
       .select(`${SNAPSHOT_COLUMNS}, ${FLAG_COLUMNS}`)
       .eq("vehicle_id", vehicle.id)
@@ -139,7 +140,7 @@ export async function loadCarState(vehicle: Pick<Vehicle, "id" | "vin">, scenari
       .order("polled_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
-    vehicle.vin ? loadStream(vehicle.vin, fields) : {},
+    vehicle.vin ? loadStream(owner, vehicle.vin, fields) : {},
   ]);
   const error = latest.error ?? lastOnline.error;
   if (error) throw new Error(error.message);
@@ -150,9 +151,9 @@ export async function loadCarState(vehicle: Pick<Vehicle, "id" | "vin">, scenari
 }
 
 // The car's version history, newest first, without timings (see withTimelines).
-export async function loadHistory(vehicle: Vehicle): Promise<VersionChange[]> {
+export async function loadHistory(owner: Owner, vehicle: Vehicle): Promise<VersionChange[]> {
   if (DEMO) return demoData().history;
-  const { data, error } = await db()
+  const { data, error } = await ownerDb(owner)
     .from("version_history")
     .select("version, previous_version, detected_at, available_at, odometer_km")
     .eq("vehicle_id", vehicle.id)
@@ -176,7 +177,7 @@ export function versionsOnScreen(cars: { history: VersionChange[]; lastOnline: S
 export async function loadReleaseNotes(versions: string[]): Promise<ReleaseNotesByVersion> {
   if (versions.length === 0) return {};
   if (DEMO) return Object.fromEntries(Object.entries(demoData().notes).filter(([version]) => versions.includes(version)));
-  const { data, error } = await db().from("release_notes").select("version, notes, raw").in("version", versions);
+  const { data, error } = await releaseNotesFor(versions);
   if (error) {
     console.warn("Release notes unavailable:", error.message);
     return {};
@@ -188,7 +189,7 @@ export async function loadReleaseNotes(versions: string[]): Promise<ReleaseNotes
 }
 
 // The owner's cars and the latest poll run, or why there are none to show. Throws on a read error.
-export async function loadOwnerCars(): Promise<OwnerGate | { kind: "ready"; vehicles: Vehicle[]; lastRun: PollRun | null }> {
+export async function loadOwnerCars(owner: Owner): Promise<OwnerGate | { kind: "ready"; vehicles: Vehicle[]; lastRun: PollRun | null }> {
   if (DEMO) {
     const { vehicle, lastRun } = demoData();
     return { kind: "ready", vehicles: [vehicle], lastRun };
@@ -196,10 +197,10 @@ export async function loadOwnerCars(): Promise<OwnerGate | { kind: "ready"; vehi
   const missing = missingEnv();
   if (missing.length) return { kind: "misconfigured", missing };
   const [connected, savedAt, vehicles, runs] = await Promise.all([
-    isConnected(),
-    tokensSavedAt(),
-    db().from("vehicles").select("id:id::text, vin, display_name, last_state, current_version, last_seen_at, last_polled_at, model, exterior_color").order("created_at"),
-    db().from("poll_runs").select("started_at, finished_at, ok, error").order("started_at", { ascending: false }).limit(1).maybeSingle(),
+    isConnected(owner),
+    tokensSavedAt(owner),
+    ownerDb(owner).from("vehicles").select("id:id::text, vin, display_name, last_state, current_version, last_seen_at, last_polled_at, model, exterior_color").order("created_at"),
+    ownerDb(owner).from("poll_runs").select("started_at, finished_at, ok, error").order("started_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
   if (!connected) return { kind: "disconnected" };
   if (vehicles.error) throw new Error(vehicles.error.message);
@@ -207,4 +208,11 @@ export async function loadOwnerCars(): Promise<OwnerGate | { kind: "ready"; vehi
   // A sign-in since a run that failed on the tokens means its "sign in again" no longer applies.
   const run = runs.data as (PollRun & { finished_at: string | null }) | null;
   return { kind: "ready", vehicles: vehicles.data as Vehicle[], lastRun: run && withoutStaleTokenError(run, savedAt) };
+}
+
+// When the owner's latest check started, for Settings. Null before the first one.
+export async function lastCheckAt(owner: Owner): Promise<string | null> {
+  if (DEMO) return demoData().lastRun?.started_at ?? null;
+  const { data } = await ownerDb(owner).from("poll_runs").select("started_at").order("started_at", { ascending: false }).limit(1).maybeSingle();
+  return (data?.started_at as string | undefined) ?? null;
 }

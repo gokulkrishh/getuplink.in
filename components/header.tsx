@@ -13,7 +13,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { isAdmin } from "@/lib/server/admin";
-import { ownerSub } from "@/lib/server/tesla";
+import { currentOwner } from "@/lib/server/auth";
+import { DEMO } from "@/lib/demo";
 import { cn } from "@/lib/utils";
 
 export type Section = "updates" | "rollout" | "settings";
@@ -37,7 +38,8 @@ const FALLBACK_SEED = "uplink";
 async function accountSeed(): Promise<string> {
   "use cache: private";
   cacheLife({ stale: 300 });
-  return (await ownerSub()) ?? FALLBACK_SEED;
+  if (DEMO) return FALLBACK_SEED;
+  return (await currentOwner())?.sub ?? FALLBACK_SEED;
 }
 
 async function AccountAvatar() {

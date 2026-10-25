@@ -9,7 +9,7 @@ import { type Figure, Figures } from "@/components/stats/figures";
 import { TripMap } from "@/components/stats/trip-map";
 import { TripTimeline } from "@/components/stats/trip-timeline";
 import { formatClock, formatDate, formatDuration, formatKm, formatKwh } from "@/lib/format";
-import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type DriveDetail, loadDriveDetail } from "@/lib/server/drive-detail";
 import { Measure } from "@/components/measure";
@@ -23,9 +23,10 @@ async function loadDetail(start: number, leg: boolean): Promise<DriveDetail | nu
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
+  const owner = await currentOwner();
+  if (!owner) redirect(SIGNED_OUT_PATH);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
-  return loadDriveDetail(start, Date.now(), leg);
+  return loadDriveDetail(owner, start, Date.now(), leg);
 }
 
 // One trip on one page: a single drive, or drives with short stops between (see groupTrips). Its totals,

@@ -20,7 +20,7 @@ import type { DrivingFigures } from "@/lib/driving-figures";
 import { type CustomFrame, periodFrames } from "@/lib/frames";
 import { backTo, serials } from "@/lib/kept";
 import { customQuery, type CustomQuery, customRange, inSpan, rangeTimeframe, type Span } from "@/lib/periods";
-import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargingSession, loadChargingSessions } from "@/lib/server/charging";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadDrivingFigures } from "@/lib/server/driving";
@@ -51,22 +51,23 @@ async function loadCharging(query: CustomQuery | null): Promise<{
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
+  const owner = await currentOwner();
+  if (!owner) redirect(SIGNED_OUT_PATH);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
   const now = Date.now();
-  const vin = (await loadPrimaryVehicle())?.vin ?? null;
+  const vin = (await loadPrimaryVehicle(owner))?.vin ?? null;
   const range = query && customRange("custom", query.from ?? undefined, query.to ?? undefined, now);
   const frame = range && rangeTimeframe(range, now);
   const [sessions, streamSessions, figures, rangeDriving] = await Promise.all([
-    loadChargingSessions(),
-    loadStreamSessions(),
-    loadDrivingFigures(vin, now),
-    frame ? loadRangeDriving("normal", vin, frame, now) : null,
+    loadChargingSessions(owner),
+    loadStreamSessions(owner),
+    loadDrivingFigures(owner, vin, now),
+    frame ? loadRangeDriving(owner, "normal", vin, frame, now) : null,
   ]);
-  const invoices = await invoicesBySession(streamSessions.filter((s) => !s.supercharger).map((s) => s.id));
+  const invoices = await invoicesBySession(owner, streamSessions.filter((s) => !s.supercharger).map((s) => s.id));
   const [extras, rangeExtras] = await Promise.all([
-    loadChargingExtras(vin, streamSessions),
-    frame ? loadChargingExtras(vin, streamSessions.filter((s) => inSpan(Date.parse(s.started_at), frame.span))) : null,
+    loadChargingExtras(owner, vin, streamSessions),
+    frame ? loadChargingExtras(owner, vin, streamSessions.filter((s) => inSpan(Date.parse(s.started_at), frame.span))) : null,
   ]);
   const custom =
     range && frame && rangeExtras
