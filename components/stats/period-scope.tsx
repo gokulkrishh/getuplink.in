@@ -117,7 +117,7 @@ function RangePicker({ range, today, pending, onPick }: { range: DateRange; toda
     if (isoDay(next.from) !== null && isoDay(next.to) !== null && next.from <= next.to) onPick(next);
   };
   const field = (which: keyof DateRange, label: string, min: string, max: string) => (
-    <label className="inline-flex h-7 items-center border text-[0.8rem] max-sm:h-9 focus-within:outline-2 focus-within:-outline-offset-2">
+    <label className={cn("inline-flex h-7 items-center border text-[0.8rem] max-sm:h-9 focus-within:outline-2 focus-within:-outline-offset-2", pending && "bg-muted motion-safe:animate-pulse")}>
       <span className="pl-2.5 text-muted-foreground max-sm:pl-3">{label}</span>
       <input
         type="date"
@@ -134,11 +134,10 @@ function RangePicker({ range, today, pending, onPick }: { range: DateRange; toda
     <div className="flex flex-wrap items-center gap-2">
       {field("from", "From", EARLIEST, draft.to || today)}
       {field("to", "To", draft.from || EARLIEST, today)}
-      {pending && (
-        <span role="status" className="text-xs text-muted-foreground">
-          Loading…
-        </span>
-      )}
+      {/* While the range loads the boxes shimmer; the words are for screen readers only, so nothing moves. */}
+      <span role="status" className="sr-only">
+        {pending ? "Loading the range…" : ""}
+      </span>
     </div>
   );
 }
