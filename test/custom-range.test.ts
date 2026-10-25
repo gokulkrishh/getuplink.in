@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { customScope, periodQuery, statsHref, UPDATE_PERIODS, urlRange } from "@/components/stats/periods";
 import { periodFrames } from "@/lib/frames";
 import type { DrivingFigures, DrivingPeriod } from "@/lib/driving-figures";
-import { clipSpan, customQuery, customRange, isoDay, reachesBefore, rangeTimeframe } from "@/lib/periods";
+import { clipSpan, customQuery, customRange, isoDay, reachesBefore, rangeTimeframe, recentSpan } from "@/lib/periods";
 import { updatesIn } from "@/components/updates/update-stats";
 
 const ist = (local: string) => Date.parse(`${local}+05:30`);
@@ -53,6 +53,11 @@ describe("reachesBefore and clipSpan", () => {
   test("not when tracking began inside the window, or the span does", () => {
     expect(reachesBefore({ from: ist("2026-06-01T00:00:00"), to: Infinity }, windowFrom, ist("2026-08-01T00:00:00"))).toBe(false);
     expect(reachesBefore({ from: ist("2026-09-01T00:00:00"), to: Infinity }, windowFrom, null)).toBe(false);
+  });
+  test("recentSpan keeps the newest days only", () => {
+    expect(recentSpan({ from: ist("2026-06-01T00:00:00"), to: Infinity }, windowFrom, 30, now)).toEqual({ from: now - 30 * 86_400_000, to: now });
+    const sept = { from: ist("2026-09-01T00:00:00"), to: ist("2026-09-11T00:00:00") };
+    expect(recentSpan(sept, windowFrom, 30, now)).toEqual(sept);
   });
   test("clipSpan keeps to the window and to now", () => {
     expect(clipSpan({ from: ist("2026-06-01T00:00:00"), to: Infinity }, windowFrom, now)).toEqual({ from: windowFrom, to: now });

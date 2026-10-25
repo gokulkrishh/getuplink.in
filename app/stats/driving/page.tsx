@@ -10,12 +10,12 @@ import { driveStats, withDriveEfficiency } from "@/lib/drive-stats";
 import { type Day, dayStrips, stripsBetween } from "@/lib/day-timeline";
 import { DayTimeline } from "@/components/stats/day-timeline";
 import { EfficiencyBands, Places, SpeedBands } from "@/components/stats/driving-extras";
-import { type DrivingExtras, loadDrivingExtras } from "@/lib/server/driving-extra";
+import { type DrivingExtras, INSIGHT_DAYS, loadDrivingExtras } from "@/lib/server/driving-extra";
 import { AWAKE_DAYS, loadPresence } from "@/lib/server/awake";
 import { loadStreamSessions } from "@/lib/server/stream-charging";
 import { DRIVE_DAYS } from "@/lib/drives";
 import { type CustomFrame, periodFrames } from "@/lib/frames";
-import { clipSpan, customQuery, type CustomQuery, customRange, inSpan, reachesBefore, rangeTimeframe } from "@/lib/periods";
+import { clipSpan, customQuery, type CustomQuery, customRange, daysLabel, inSpan, reachesBefore, rangeTimeframe, recentSpan, type Span } from "@/lib/periods";
 import { byRange, NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/components/stats/stats-frame";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -29,9 +29,10 @@ export const metadata: Metadata = { title: "Driving · Uplink" };
 
 const DAY = 86_400_000;
 
-// A range picked by date: its driving figures, the insights over its days (cut to the drives kept), and
-// its days as strips (cut to the days the car's presence is kept).
-type CustomDriving = CustomFrame & { extras: DrivingExtras; days: Day[] };
+// A range picked by date: its driving figures, the insights over its newest days (`insights`: cut to the
+// drives kept, and to as many days as the presets read, so the read stays whole), and its days as strips
+// (cut to the days the car's presence is kept).
+type CustomDriving = CustomFrame & { extras: DrivingExtras; insights: Span; days: Day[] };
 
 // Session check plus data in one browser-only private cache, so links can prefetch it (see app/page.tsx).
 // The car is read once; the period counters and the 90-day window share its VIN. A range picked by date
@@ -54,6 +55,7 @@ async function loadDriving(query: CustomQuery | null): Promise<{
   const vin = vehicle?.vin ?? null;
   const range = query && customRange("custom", query.from ?? undefined, query.to ?? undefined, now);
   const frame = range && rangeTimeframe(range, now);
+  const insights = frame && recentSpan(frame.span, now - DRIVE_DAYS * DAY, INSIGHT_DAYS, now);
   const [counted, window, presence, sessions, rangeDriving] = await Promise.all([
     loadDrivingFigures(vin, now),
     loadWindowStats(vin, now),
@@ -70,15 +72,16 @@ async function loadDriving(query: CustomQuery | null): Promise<{
   const days = dayStrips(7, layers, figures.since, now);
   const [extras, rangeExtras] = await Promise.all([
     loadDrivingExtras(vin, window.driving.drives, now),
-    frame ? loadDrivingExtras(vin, window.driving.drives, now, clipSpan(frame.span, now - DRIVE_DAYS * DAY, now)) : null,
+    insights ? loadDrivingExtras(vin, window.driving.drives, now, insights) : null,
   ]);
   const custom =
-    range && frame && rangeExtras
+    range && frame && insights && rangeExtras
       ? {
           range,
           frame,
           driving: rangeDriving,
           extras: rangeExtras,
+          insights,
           days: stripsBetween(Math.max(range.from, istDay(now) - AWAKE_DAYS + 1), range.to, layers, figures.since, now),
         }
       : null;
@@ -96,7 +99,10 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
   const tripsFrom = now - DRIVE_DAYS * DAY;
   const partial = (windowFrom: number) => range !== undefined && reachesBefore(range.frame.span, windowFrom, figures.since);
   const inRange = range ? driving.drives.filter((d) => inSpan(d.start, range.frame.span)) : [];
-  const tripsNote = partial(tripsFrom) ? `Covers only the last ${DRIVE_DAYS} days.` : undefined;
+  // The insights read the range's newest days only; when that leaves some out, the note names the days read.
+  const read = custom?.insights;
+  const insightsNote =
+    read && read.from < read.to && partial(read.from) ? `Covers only ${daysLabel(istDay(read.from), istDay(read.to - 1), now)}.` : undefined;
 
   return (
     <StatsFrame view="driving" custom={customScope(custom?.range ?? null, now)} periodSwitch={hasDriving}>
@@ -115,13 +121,13 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
             />
           ))}
           {byRange(range, <SpeedBands bins={extras.speed} />, ({ frame }) => (
-            <SpeedBands bins={custom?.extras.speed ?? []} words={frame.words} note={tripsNote} />
+            <SpeedBands bins={custom?.extras.speed ?? []} words={frame.words} note={insightsNote} />
           ))}
           {byRange(range, <EfficiencyBands byTemp={extras.byTemp} bySpeed={extras.bySpeed} />, ({ frame }) => (
-            <EfficiencyBands byTemp={custom?.extras.byTemp ?? []} bySpeed={custom?.extras.bySpeed ?? []} words={frame.words} note={tripsNote} />
+            <EfficiencyBands byTemp={custom?.extras.byTemp ?? []} bySpeed={custom?.extras.bySpeed ?? []} words={frame.words} note={insightsNote} />
           ))}
           {byRange(range, <Places places={extras.places} visited={extras.visited} />, ({ frame }) => (
-            <Places places={custom?.extras.places ?? []} visited={custom?.extras.visited ?? []} words={frame.words} note={tripsNote} />
+            <Places places={custom?.extras.places ?? []} visited={custom?.extras.visited ?? []} words={frame.words} note={insightsNote} />
           ))}
           {byRange(range, <DriveStatsSection stats={driveStats(driving.drives, tripsFrom, figures.since, now)} />, ({ frame }) => {
             const kept = clipSpan(frame.span, tripsFrom, now);

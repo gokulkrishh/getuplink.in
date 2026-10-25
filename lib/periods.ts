@@ -331,3 +331,10 @@ export function reachesBefore(span: Span, windowFrom: number, since: number | nu
 export function clipSpan(span: Span, windowFrom: number, now: number): Span {
   return { from: Math.max(span.from, windowFrom), to: Math.min(span.to, now) };
 }
+
+// The same, and no longer than `days` (the newest of them), for reads that are only whole up to that
+// many days of readings.
+export function recentSpan(span: Span, windowFrom: number, days: number, now: number): Span {
+  const kept = clipSpan(span, windowFrom, now);
+  return { from: Math.max(kept.from, kept.to - days * DAY_MS), to: kept.to };
+}

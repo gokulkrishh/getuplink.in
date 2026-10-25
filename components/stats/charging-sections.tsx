@@ -153,10 +153,12 @@ export function EnergyAdded({
   );
 }
 
-export function SessionList({ sessions }: { sessions: Listed[] }) {
+// `all` is every session, when `sessions` is only some of them (a range picked by date), so each keeps
+// its number.
+export function SessionList({ sessions, all = sessions }: { sessions: Listed[]; all?: Listed[] }) {
   // Sessions arrive newest first, so each month's group is in order too. Numbers count from the first
   // charge, so the newest has the highest.
-  const serial = new Map(sessions.map((s, i) => [s.key, sessions.length - i]));
+  const serial = new Map(all.map((s, i) => [s.key, all.length - i]));
   const energyTotal = sessions.reduce((sum, s) => sum + ((s.tesla ? s.tesla.energy_kwh : s.stream?.energy_added_kwh) ?? 0), 0);
   const costs = hasCosts(sessions);
   const groups = new Map<string, Listed[]>();

@@ -123,7 +123,7 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
           ))}
           {byRange(range, <SessionList sessions={listed} />, ({ frame }) => {
             const shown = listed.filter(started);
-            return shown.length > 0 ? <SessionList sessions={shown} /> : <p className="text-sm text-muted-foreground">No charging sessions {frame.words}.</p>;
+            return shown.length > 0 ? <SessionList sessions={shown} all={listed} /> : <p className="text-sm text-muted-foreground">No charging sessions {frame.words}.</p>;
           })}
         </div>
       )}
