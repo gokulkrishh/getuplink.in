@@ -1,21 +1,23 @@
 import "server-only";
 import type { MapPin } from "@/components/stats/trip-map";
 import { formatShortDate } from "@/lib/format";
+import { cappedFrom } from "@/lib/kept";
 import { num, type Reading } from "@/lib/telemetry-derive";
 import type { StreamChargeSession } from "./stream-charging";
 import { loadReadingsByField } from "./telemetry-window";
 
 const MIN = 60_000;
-const CURVES = 8;
-const PINNED = 60;
+export const CURVES = 8;
+export const PINNED = 60;
 
-// One DC charge: power against battery level, and who ran the charger.
-export type Curve = { name: string; date: string; supercharger: boolean; points: { x: number; y: number }[] };
+// One DC charge: its stream session, power against battery level, and who ran the charger.
+export type Curve = { id: number; name: string; date: string; supercharger: boolean; points: { x: number; y: number }[] };
 
 const valueAt = (readings: Reading[], t: number) => num(readings.findLast((r) => Date.parse(r.at) <= t)?.value);
 
-// What the charging page adds from the stream: the last few DC charges as power against battery level
-// (TeslaMate's DC charging curve), and where each charge happened, for the map.
+// What the charging page adds from the stream: the latest CURVES DC charges as power against battery level
+// (TeslaMate's DC charging curve), and where each of the latest PINNED charges happened, for the map.
+// `sessions` come newest first; see heldFrom for where each list stops.
 export async function loadChargingExtras(vin: string | null, sessions: StreamChargeSession[]): Promise<{ curves: Curve[]; pins: MapPin[] }> {
   if (!vin) return { curves: [], pins: [] };
   const finished = sessions.filter((s) => s.ended_at !== null);
@@ -32,7 +34,7 @@ export async function loadChargingExtras(vin: string | null, sessions: StreamCha
           return kw === null || level === null || kw <= 0 ? [] : [{ x: level, y: kw }];
         });
         return points.length >= 2
-          ? { name: s.supercharger ? "Supercharger" : (s.station_name ?? "Other DC charger"), date: s.started_at, supercharger: s.supercharger, points }
+          ? { id: s.id, name: s.supercharger ? "Supercharger" : (s.station_name ?? "Other DC charger"), date: s.started_at, supercharger: s.supercharger, points }
           : null;
       }),
     ),
@@ -57,4 +59,12 @@ export async function loadChargingExtras(vin: string | null, sessions: StreamCha
     ),
   ]);
   return { curves: curves.filter((c): c is Curve => c !== null), pins: pins.filter((p): p is MapPin => p !== null) };
+}
+
+// Where the curves and the pins stop, for sessions newest first: the start of the oldest charge each could
+// hold when its cap cut older ones off, else null (every charge is in).
+export function heldFrom(sessions: StreamChargeSession[]): { curves: number | null; pins: number | null } {
+  const finished = sessions.filter((s) => s.ended_at !== null);
+  const at = (s: StreamChargeSession) => Date.parse(s.started_at);
+  return { curves: cappedFrom(finished.filter((s) => s.kind === "dc"), CURVES, at), pins: cappedFrom(finished, PINNED, at) };
 }

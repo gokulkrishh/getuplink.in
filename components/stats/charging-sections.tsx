@@ -1,7 +1,7 @@
 import { hasCosts, hasStationNames, type Listed, OsmCredit, SessionHeader, SessionRow } from "@/components/session-row";
 import { ShowMore } from "@/components/show-more";
 import { Bars } from "@/components/stats/bars";
-import { Figures } from "@/components/stats/figures";
+import { Figures, Value } from "@/components/stats/figures";
 import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
 import { chargeEfficiency } from "@/lib/charge-sessions";
 import { type Bill, billsBySlot, billsIn } from "@/lib/charging-figures";
@@ -48,7 +48,9 @@ export function Summary({
     <section className="space-y-8">
       <div className="space-y-2">
         <p className="text-xs tracking-wide text-faint uppercase">Spent {frame.words}</p>
-        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatMoney(cost, "INR")}</p>
+        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
+          <Value text={formatMoney(cost, "INR")} />
+        </p>
       </div>
       <Bars
         bars={bars}
@@ -130,7 +132,9 @@ export function EnergyAdded({
     <section className="space-y-8">
       <div className="space-y-2">
         <h2 className="text-lg font-medium tracking-heading">Energy added</h2>
-        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatKwh(total)}</p>
+        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
+          <Value text={formatKwh(total)} />
+        </p>
         <p className="text-sm text-muted-foreground">{frame.words}</p>
       </div>
       <StackedBars
@@ -196,7 +200,7 @@ export function SessionList({ sessions, all = sessions }: { sessions: Listed[]; 
           <section key={month} className="space-y-2">
             <h3 className="text-xs font-medium tracking-wide text-faint uppercase">{month}</h3>
             <div>
-              <SessionHeader costs={costs} />
+              <SessionHeader costs={costs} numbered />
               <ul className="divide-y border-t">
                 {rows.slice(0, LIST_PREVIEW).map((s) => (
                   <SessionRow key={s.key} item={s} serial={serial.get(s.key) ?? 0} costs={costs} />

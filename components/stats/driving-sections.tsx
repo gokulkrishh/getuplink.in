@@ -1,6 +1,6 @@
 import { Bars } from "@/components/stats/bars";
 import { barsCaption, unitNotes } from "@/components/stats/chart-caption";
-import { Figures } from "@/components/stats/figures";
+import { Figures, Value } from "@/components/stats/figures";
 import { type DriveStats } from "@/lib/drive-stats";
 import { DRIVE_DAYS } from "@/lib/drives";
 import { formatDuration, formatKwh, formatShortDate } from "@/lib/format";
@@ -28,7 +28,9 @@ export function Distance({ frame, driving }: Frame) {
     <section className="space-y-8">
       <div className="space-y-2">
         <h2 className="text-lg font-medium tracking-heading">Distance</h2>
-        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{compactNumber.format(current.km ?? 0)} km</p>
+        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
+          <Value text={`${compactNumber.format(current.km ?? 0)} km`} />
+        </p>
         <p className="text-sm text-muted-foreground">{frame.words}</p>
       </div>
       <Bars
@@ -74,7 +76,9 @@ export function EnergyUse({ frame, driving }: Frame) {
     <section className="space-y-8">
       <div className="space-y-2">
         <h2 className="text-lg font-medium tracking-heading">Energy use</h2>
-        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatKwh(used)}</p>
+        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
+          <Value text={formatKwh(used)} />
+        </p>
         <p className="text-sm text-muted-foreground tabular-nums">
           Used {frame.words}
           {current.km ? ` · ${compactNumber.format(current.km)} km` : ""}

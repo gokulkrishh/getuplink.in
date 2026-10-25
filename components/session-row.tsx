@@ -70,16 +70,19 @@ export function hasCosts(items: Listed[]): boolean {
   return items.some((item) => item.tesla);
 }
 
-// Static class names, so Tailwind sees them. Wide fits "Yesterday" in the first column (with `now`).
-function columns(wide: boolean, costs: boolean): string {
+// Static class names, so Tailwind sees them. Wide fits "Yesterday" in the first column (with `now`);
+// numbered puts a "#" column first.
+function columns(wide: boolean, costs: boolean, numbered = false): string {
+  if (numbered) return costs ? "grid-cols-charge-serial-cost" : "grid-cols-charge-serial";
   if (wide) return costs ? "grid-cols-charge-wide-cost" : "grid-cols-charge-wide";
   return costs ? "grid-cols-charge-cost" : "grid-cols-charge";
 }
 
-// The column names above a list of SessionRows, in the same grid.
-export function SessionHeader({ costs, wide = false }: { costs: boolean; wide?: boolean }) {
+// The column names above a list of SessionRows, in the same grid. `numbered` for rows given a serial.
+export function SessionHeader({ costs, wide = false, numbered = false }: { costs: boolean; wide?: boolean; numbered?: boolean }) {
   return (
-    <div className={cn(columns(wide, costs), "grid gap-x-4 pb-2 text-xs text-faint")} aria-hidden="true">
+    <div className={cn(columns(wide, costs, numbered), "grid gap-x-4 pb-2 text-xs text-faint")} aria-hidden="true">
+      {numbered && <span>#</span>}
       <span>Date</span>
       <span>Session</span>
       <span className="text-right">Energy</span>
@@ -108,14 +111,14 @@ export function SessionRow({ item, serial, now, costs }: { item: Listed; serial?
     ? [city, durationText, peakText, tempText]
     : [stream?.station_name && !stream.supercharger && stream.kind.toUpperCase(), stream && levels(stream), stoppedAt ? durationText : "In progress", peakText, tempText];
   return (
-    <li className={cn(columns(now !== undefined, costs), "grid items-start gap-x-4 py-4 text-sm", href && "relative")}>
+    <li className={cn(columns(now !== undefined, costs, serial !== undefined), "grid items-start gap-x-4 py-4 text-sm", href && "relative")}>
+      {serial !== undefined && <p className="pt-0.5 font-mono text-xs text-faint tabular-nums">{serial}</p>}
       <div className="space-y-1">
         <p className="tabular-nums">{now === undefined ? formatShortDate(item.started_at) : formatDayLabel(item.started_at, now)}</p>
         <p className="text-xs text-faint tabular-nums">{formatClock(item.started_at)}</p>
       </div>
       <div className="min-w-0 space-y-1">
         <p className="truncate font-medium">
-          {serial !== undefined && <span className="mr-2 font-mono text-xs font-normal text-faint tabular-nums">#{serial}</span>}
           {href ? (
             <Link href={href} className="after:absolute after:inset-0 hover:underline hover:underline-offset-4">
               {place}

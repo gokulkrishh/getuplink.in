@@ -314,6 +314,13 @@
 @utility grid-cols-charge-wide-cost {
   grid-template-columns: 5rem minmax(0, 1fr) 5rem 7rem;
 }
+/* The same with a narrow "#" column first, for the Stats list, which numbers each session. */
+@utility grid-cols-charge-serial {
+  grid-template-columns: 2.5rem 3.5rem minmax(0, 1fr) 5rem;
+}
+@utility grid-cols-charge-serial-cost {
+  grid-template-columns: 2.5rem 3.5rem minmax(0, 1fr) 5rem 7rem;
+}
 @utility grid-cols-split {
   @media (width >= 48rem) {
     grid-template-columns: minmax(0, 1fr) 2fr;

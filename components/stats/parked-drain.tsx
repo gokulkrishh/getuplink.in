@@ -1,4 +1,5 @@
 import { ShowMore } from "@/components/show-more";
+import { Value } from "@/components/stats/figures";
 import { formatClock, formatDuration, formatPower, formatShortDate } from "@/lib/format";
 import { type DrainSummary, drainSummary, type ParkedNow, type ParkedPeriod, type ParkStats } from "@/lib/drives";
 import { backTo, overlapping } from "@/lib/kept";
@@ -172,7 +173,7 @@ export function ParkedDrain({ parked, parkedNow, frame }: { parked: ParkedPeriod
             {/* The label wraps as a whole under the figure on a phone, rather than splitting across the big line. */}
             <p className="flex flex-wrap items-baseline gap-x-2">
               <span className="font-mono text-4xl font-medium tracking-tight tabular-nums">
-                {headline.watts !== null ? formatPower(headline.watts) : `${oneDecimal(headline.perDay)}%`}
+                <Value text={headline.watts !== null ? formatPower(headline.watts) : `${oneDecimal(headline.perDay)}%`} />
               </span>
               <span className="text-base text-muted-foreground">{headline.watts !== null ? "average while parked" : "a day"}</span>
             </p>

@@ -7,19 +7,26 @@ export type Figure = { label: string; value: ReactNode; note?: ReactNode; extra?
 
 // A value set like the home headline's: numbers in mono, the words and % after them ("h", "kWh", "mV",
 // "/kWh") small and faint. Signs before a number ("≈", "≥", "₹") stay full size.
-function Measure({ text }: { text: string }) {
+// The unit takes no literal space: a space in mono is a full character wide.
+function Measure({ text, unitClass = "text-xs" }: { text: string; unitClass?: string }) {
   return text
     .split(/(\d[\d.,]*)/)
     .filter((part) => part.trim())
     .map((part, k) =>
       /[\p{L}%]/u.test(part) ? (
-        <span key={k} className="mr-1.5 ml-1 text-xs font-normal tracking-normal text-faint last:mr-0">
+        <span key={k} className={cn("mr-1.5 ml-1 font-normal tracking-normal text-faint last:mr-0", unitClass)}>
           {part.trim()}
         </span>
       ) : (
         <Fragment key={k}>{part}</Fragment>
       ),
     );
+}
+
+// A big headline value ("24 W", "46 km", "₹1,240"), set the same way at headline size: the number in mono,
+// the unit after it smaller and faint. Put it inside the headline's mono text.
+export function Value({ text }: { text: string }) {
+  return <Measure text={text} unitClass="text-base sm:text-xl" />;
 }
 
 const SM_COLUMNS = ["", "sm:grid-cols-1", "sm:grid-cols-2", "sm:grid-cols-3", "sm:grid-cols-4"];

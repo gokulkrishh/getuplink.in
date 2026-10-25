@@ -10,14 +10,14 @@ const AXIS = ["12a", "3a", "6a", "9a", "12p", "3p", "6p", "9p"];
 const describe = (day: number, slot: number, count: number) => `${WEEKDAYS[day]}, ${slotLabel(slot)} · ${count} ${count === 1 ? "charge" : "charges"}`;
 
 // When charges start, by weekday and time of day (IST), after TeslaMate's charge heatmap. Hover, focus
-// or tap a cell for a tooltip with its count; the line above names the busiest slot.
-// `title` names a range picked by date.
-export function ChargeHabits({ starts, title }: { starts: number[]; title?: string }) {
+// or tap a cell for a tooltip with its count; the line above names the busiest slot. `title` names the
+// span the starts fall in, and `words` ends "No charges …" for a span without any; the grid stays, so the
+// page keeps its shape.
+export function ChargeHabits({ starts, title, words }: { starts: number[]; title: string; words: string }) {
   const counts = chargeStarts(starts);
   const max = Math.max(0, ...counts.flat());
   const grid = useRef<HTMLDivElement>(null);
   const [active, setActive] = useActiveMark<[number, number]>(grid);
-  if (max === 0) return null;
   let busiest: [number, number] = [0, 0];
   counts.forEach((row, d) => row.forEach((n, s) => n > counts[busiest[0]][busiest[1]] && (busiest = [d, s])));
   const isActive = (d: number, s: number) => active?.key[0] === d && active?.key[1] === s;
@@ -26,7 +26,9 @@ export function ChargeHabits({ starts, title }: { starts: number[]; title?: stri
     <section className="space-y-4">
       <div className="space-y-2">
         <h2 className="text-lg font-medium tracking-heading">When you charge</h2>
-        <p className="text-sm text-muted-foreground tabular-nums">{title && `${title}. `}Most often {describe(busiest[0], busiest[1], counts[busiest[0]][busiest[1]])}</p>
+        <p className="text-sm text-muted-foreground tabular-nums">
+          {title}. {max === 0 ? `No charges ${words}.` : `Most often ${describe(busiest[0], busiest[1], counts[busiest[0]][busiest[1]])}`}
+        </p>
       </div>
       <div ref={grid} className="chart-touch relative space-y-1.5" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
         {counts.map((row, d) => (

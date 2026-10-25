@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { ChartNote } from "@/components/stats/chart-note";
+import { Value } from "@/components/stats/figures";
 import { backTo } from "@/lib/kept";
 import type { ChargeLevel } from "@/lib/charge-level";
 import { formatClock, formatShortDate } from "@/lib/format";
@@ -61,7 +62,9 @@ export function ChargeLevelChart({
         <h2 className="text-lg font-medium tracking-heading">Charge level</h2>
         {/* The latest level, whatever span is picked; the chart below follows the span. */}
         <p className="flex flex-wrap items-baseline gap-x-2">
-          <span className="font-mono text-4xl font-medium tracking-tight tabular-nums">{Math.round(latest.level)}%</span>
+          <span className="font-mono text-4xl font-medium tracking-tight tabular-nums">
+            <Value text={`${Math.round(latest.level)}%`} />
+          </span>
           <span className="text-base text-muted-foreground">
             latest reading, {formatShortDate(latest.at)}, {formatClock(latest.at)}
           </span>
