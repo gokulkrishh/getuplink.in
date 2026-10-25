@@ -11,6 +11,7 @@ import { inSpan, type Timeframe } from "@/lib/periods";
 import { barsCaption, unitNotes } from "@/components/stats/chart-caption";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
+import { Measure } from "@/components/measure";
 
 // The Charging page's sections: spend, energy added by charger kind, and every session by month.
 
@@ -156,7 +157,7 @@ export function EnergyAdded({
       {efficiency !== null && (
         <div className="space-y-1">
           <p className="text-sm">
-            AC charging efficiency <span className="font-mono font-medium tabular-nums">{Math.round(efficiency * 100)}%</span>
+            AC charging efficiency <span className="font-mono font-medium tabular-nums"><Measure text={`${Math.round(efficiency * 100)}%`} /></span>
           </p>
           <p className="text-xs text-muted-foreground">
             How much of the energy from the charger ended up in the battery, estimated from the car&apos;s own readings.

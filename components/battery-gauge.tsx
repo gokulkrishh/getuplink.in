@@ -2,6 +2,7 @@ import { Zap } from "lucide-react";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { formatKm, formatTimeToFull } from "@/lib/format";
 import type { Snapshot } from "@/lib/server/dashboard";
+import { Measure } from "@/components/measure";
 
 const kw = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 
@@ -17,7 +18,9 @@ export function BatteryGauge({ snapshot }: { snapshot: Snapshot }) {
       {/* Streamed power and level move while charging, so the page keeps itself fresh. */}
       {charging && <AutoRefresh />}
       <p className="flex items-baseline gap-2">
-        <span className="font-mono text-2xl font-medium tracking-tight tabular-nums">{level}%</span>
+        <span className="font-mono text-2xl font-medium tracking-tight tabular-nums">
+          <Measure text={`${level}%`} size="tile" />
+        </span>
         {snapshot.battery_range_km != null && (
           <span className="text-sm text-muted-foreground tabular-nums">{formatKm(snapshot.battery_range_km)}</span>
         )}

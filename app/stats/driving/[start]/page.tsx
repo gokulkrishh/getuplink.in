@@ -12,6 +12,7 @@ import { formatClock, formatDate, formatDuration, formatKm, formatKwh } from "@/
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type DriveDetail, loadDriveDetail } from "@/lib/server/drive-detail";
+import { Measure } from "@/components/measure";
 
 export const metadata: Metadata = { title: "Trip · Uplink" };
 
@@ -137,8 +138,8 @@ function Legs({ legs }: { legs: DriveDetail["trip"]["legs"] }) {
                     {formatClock(d.start)} to {formatClock(d.end)}
                   </Link>
                 </th>
-                <td className="py-3 pr-4 text-right font-mono whitespace-nowrap">{formatKm(d.km)}</td>
-                <td className="py-3 pr-4 text-right font-mono whitespace-nowrap">{d.kwh !== null ? formatKwh(d.kwh) : <span className="text-faint">—</span>}</td>
+                <td className="py-3 pr-4 text-right font-mono whitespace-nowrap"><Measure text={formatKm(d.km)} /></td>
+                <td className="py-3 pr-4 text-right font-mono whitespace-nowrap">{d.kwh !== null ? <Measure text={formatKwh(d.kwh)} /> : <span className="text-faint">—</span>}</td>
                 <td className="py-3 text-right whitespace-nowrap text-muted-foreground">
                   {d.startLevel !== null && d.endLevel !== null ? `${Math.round(d.startLevel)}% to ${Math.round(d.endLevel)}%` : <span className="text-faint">—</span>}
                 </td>

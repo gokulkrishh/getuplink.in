@@ -1,4 +1,5 @@
 import type { StationRow } from "@/lib/top-stations";
+import { Measure } from "@/components/measure";
 
 const oneDecimal = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
@@ -44,7 +45,7 @@ export function TopStations({ rows, title, words }: { rows: StationRow[]; title:
                     {r.name}
                   </th>
                   <td className="py-3 pr-4 text-right font-mono">{r.charges}</td>
-                  <td className="py-3 pr-4 text-right font-mono">{oneDecimal.format(r.kwh)} kWh</td>
+                  <td className="py-3 pr-4 text-right font-mono"><Measure text={`${oneDecimal.format(r.kwh)} kWh`} /></td>
                   <td className="py-3 text-right">
                     <span className="font-mono">{r.billed ? money.format(r.spend) : "No bills"}</span>
                     {r.billed > 0 && r.billed < r.charges && <span className="block text-xs text-muted-foreground">{r.charges - r.billed} without a bill</span>}

@@ -3,6 +3,7 @@ import { TripMap } from "@/components/stats/trip-map";
 import { formatDuration, formatShortDate } from "@/lib/format";
 import type { Band } from "@/lib/driving-insights";
 import type { DrivingExtras, NamedPlace } from "@/lib/server/driving-extra";
+import { Measure } from "@/components/measure";
 
 const oneDecimal = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 const TAGS = { home: "Home", work: "Work", favorite: "Favourite" } as const;
@@ -74,7 +75,7 @@ function BandTable({ title, bands }: { title: string; bands: Band[] }) {
                 {b.label}
               </th>
               <td className="py-3 pr-4 text-right font-mono">{b.drives}</td>
-              <td className="py-3 pr-4 text-right font-mono">{Math.round(b.km)} km</td>
+              <td className="py-3 pr-4 text-right font-mono"><Measure text={`${Math.round(b.km)} km`} /></td>
               <td className="py-3 text-right font-mono">{b.kmPerKwh !== null ? oneDecimal.format(b.kmPerKwh) : "Unknown"}</td>
             </tr>
           ))}

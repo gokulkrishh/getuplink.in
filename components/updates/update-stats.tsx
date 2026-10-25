@@ -1,6 +1,7 @@
 import { formatDays } from "@/lib/format";
 import { inPeriod, inSpan, monthIndex, type Period, PERIOD_WORDS, type Timeframe } from "@/lib/periods";
 import { type UpdateRow, updateStats } from "@/lib/telemetry-derive";
+import { Measure } from "@/components/measure";
 
 // How many updates a period saw, by IST month as updates are counted (see inPeriod), or a range picked by
 // date, by the day each was seen.
@@ -29,7 +30,7 @@ export function UpdateStats({ rows, now, covers }: { rows: UpdateRow[]; now: num
         {items.map((item) => (
           <div key={item.label} className="flex items-baseline justify-between gap-4 py-3 text-sm">
             <dt className="text-muted-foreground">{item.label}</dt>
-            <dd className="font-mono font-medium tabular-nums">{item.value}</dd>
+            <dd className="font-mono font-medium tabular-nums"><Measure text={String(item.value)} /></dd>
           </div>
         ))}
       </dl>

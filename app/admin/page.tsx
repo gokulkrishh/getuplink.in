@@ -6,6 +6,7 @@ import { formatDateTime } from "@/lib/format";
 import { type AdminPage, isAdmin, loadAdmin, RECENT_DAYS, USAGE_DAYS } from "@/lib/server/admin";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
+import { Measure } from "@/components/measure";
 
 export const metadata: Metadata = { title: "Admin · Uplink" };
 
@@ -41,7 +42,7 @@ function Item({ label, value, muted }: { label: string; value: string; muted?: b
   return (
     <div className="flex items-baseline justify-between gap-4 py-3 text-sm">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className={muted ? "text-faint" : "font-mono font-medium tabular-nums"}>{value}</dd>
+      <dd className={muted ? "text-faint" : "font-mono font-medium tabular-nums"}>{muted ? value : <Measure text={value} />}</dd>
     </div>
   );
 }

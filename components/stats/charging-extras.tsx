@@ -6,6 +6,7 @@ import { type MapPin, TripMap } from "@/components/stats/trip-map";
 import { formatShortDate } from "@/lib/format";
 import type { Timeframe } from "@/lib/periods";
 import type { Curve } from "@/lib/server/charging-extra";
+import { Measure } from "@/components/measure";
 
 const BAND = 5; // battery % per point of the typical curve
 
@@ -77,8 +78,8 @@ export function DcCurves({ curves, frame, note }: { curves: (Curve & { serial?: 
                       <td className="py-3 pr-3 font-mono text-xs text-faint">{c.serial ?? ""}</td>
                       <td className="py-3 pr-3 whitespace-nowrap">{formatShortDate(c.date)}</td>
                       <td className="truncate py-3 pr-3">{c.name}</td>
-                      <td className="py-3 pr-3 text-right font-mono">{Math.round(Math.max(...ys))} kW</td>
-                      <td className="py-3 text-right font-mono">{Math.round(ys.reduce((a, b) => a + b, 0) / ys.length)} kW</td>
+                      <td className="py-3 pr-3 text-right font-mono"><Measure text={`${Math.round(Math.max(...ys))} kW`} /></td>
+                      <td className="py-3 text-right font-mono"><Measure text={`${Math.round(ys.reduce((a, b) => a + b, 0) / ys.length)} kW`} /></td>
                     </tr>
                   );
                 })}

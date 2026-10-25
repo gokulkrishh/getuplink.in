@@ -14,6 +14,7 @@ import { STATES, type StateCode } from "@/lib/india-states";
 import { compareVersions } from "@/lib/rollout";
 import type { VersionStates } from "@/lib/rollout-states";
 import { cn } from "@/lib/utils";
+import { Measure } from "@/components/measure";
 
 const cars = (n: number) => `${n} ${n === 1 ? "car" : "cars"}`;
 
@@ -101,7 +102,7 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
           <span className="text-muted-foreground">{STATES[hover.code].name}</span>
           {shown ? (
             <>
-              <span className="block font-mono tabular-nums">{cars(shown.cars)}</span>
+              <span className="block font-mono tabular-nums"><Measure text={cars(shown.cars)} /></span>
             </>
           ) : (
             <span className="block">No cars on this version</span>

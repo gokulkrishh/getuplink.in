@@ -1,6 +1,7 @@
 import { AutoRefresh } from "@/components/auto-refresh";
 import { formatDuration, formatInstallLeft, formatSeen } from "@/lib/format";
 import type { Snapshot } from "@/lib/server/dashboard";
+import { Measure } from "@/components/measure";
 
 const STATUS: Record<string, string> = {
   available: "Available",
@@ -54,7 +55,7 @@ export function UpdateStatus({ snapshot, now }: { snapshot: Snapshot | null; now
               <span className="absolute inset-y-0 -left-1/2 w-1/2 bg-linear-to-r from-transparent via-background/50 to-transparent motion-safe:animate-shimmer" />
             </div>
           </div>
-          <span className="w-10 text-left font-mono text-xs tabular-nums text-muted-foreground">{progress}%</span>
+          <span className="w-10 text-left font-mono text-xs tabular-nums text-muted-foreground"><Measure text={`${progress}%`} /></span>
         </div>
       )}
       {(status === "scheduled" && snapshot.scheduled_time_ms) || snapshot.expected_duration_sec ? (

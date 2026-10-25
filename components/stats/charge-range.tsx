@@ -3,6 +3,7 @@ import { formatShortDate } from "@/lib/format";
 import type { Timeframe } from "@/lib/periods";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { median } from "@/lib/telemetry-derive";
+import { Measure } from "@/components/measure";
 
 const LISTED = 10;
 
@@ -54,7 +55,7 @@ export function ChargeRange({ sessions, frame, serialOf }: { sessions: StreamCha
                       {formatShortDate(s.started_at)} · {kindLabel(s)}
                     </span>
                     <span className="font-mono">
-                      {a}% to {b}%
+                      <Measure text={`${a}% to ${b}%`} />
                     </span>
                   </p>
                   <div className="relative h-2 bg-muted" aria-hidden="true">

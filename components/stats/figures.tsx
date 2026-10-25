@@ -1,33 +1,12 @@
-import { Fragment, type ReactNode } from "react";
+import type { ReactNode } from "react";
+import { Measure } from "@/components/measure";
 import { cn } from "@/lib/utils";
+
+export { Value } from "@/components/measure";
 
 // `note` is a line of context under the value ("Usually 0.8% a day"), `extra` anything drawn below it
 // (a level bar). `key` is an optional swatch before the label, like a chart legend.
 export type Figure = { label: string; value: ReactNode; note?: ReactNode; extra?: ReactNode; key?: ReactNode };
-
-// A value set like the home headline's: numbers in mono, the words and % after them ("h", "kWh", "mV",
-// "/kWh") small and faint. Signs before a number ("≈", "≥", "₹") stay full size.
-// The unit takes no literal space: a space in mono is a full character wide.
-function Measure({ text, unitClass = "text-xs" }: { text: string; unitClass?: string }) {
-  return text
-    .split(/(\d[\d.,]*)/)
-    .filter((part) => part.trim())
-    .map((part, k) =>
-      /[\p{L}%]/u.test(part) ? (
-        <span key={k} className={cn("mr-1.5 ml-1 font-normal tracking-normal text-faint last:mr-0", unitClass)}>
-          {part.trim()}
-        </span>
-      ) : (
-        <Fragment key={k}>{part}</Fragment>
-      ),
-    );
-}
-
-// A big headline value ("24 W", "46 km", "₹1,240"), set the same way at headline size: the number in mono,
-// the unit after it smaller and faint. Put it inside the headline's mono text.
-export function Value({ text }: { text: string }) {
-  return <Measure text={text} unitClass="text-base sm:text-xl" />;
-}
 
 const SM_COLUMNS = ["", "sm:grid-cols-1", "sm:grid-cols-2", "sm:grid-cols-3", "sm:grid-cols-4"];
 const SM_SPAN = ["", "", "sm:col-span-2", "sm:col-span-3"];
@@ -58,7 +37,7 @@ export function Figures({ figures, className }: { figures: (Figure | null | fals
             {f.label}
           </dt>
           <dd className="font-mono text-[clamp(1rem,13cqi,1.75rem)] leading-none font-medium tracking-tight whitespace-nowrap tabular-nums">
-            {typeof f.value === "string" || typeof f.value === "number" ? <Measure text={String(f.value)} /> : f.value}
+            {typeof f.value === "string" || typeof f.value === "number" ? <Measure text={String(f.value)} size="tile" /> : f.value}
           </dd>
           {f.extra && <dd>{f.extra}</dd>}
           {f.note && <dd className="text-xs leading-5 text-muted-foreground tabular-nums">{f.note}</dd>}

@@ -16,6 +16,7 @@ import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type DayDetail, loadDay } from "@/lib/server/day";
 import { dayParam } from "@/lib/day-timeline";
 import { istDay, istDayStart } from "@/lib/telemetry-derive";
+import { Measure } from "@/components/measure";
 
 export const metadata: Metadata = { title: "Day · Uplink" };
 
@@ -103,7 +104,7 @@ function DayView({ detail, now }: { detail: DayDetail; now: number }) {
                     <span className="block text-xs text-muted-foreground">{[s.supercharger ? "Supercharger" : s.kind.toUpperCase(), s.station_name].filter(Boolean).join(" · ")}</span>
                   </span>
                   <span className="text-right font-mono">
-                    {s.energy_added_kwh !== null ? formatKwh(s.energy_added_kwh) : ""}
+                    {s.energy_added_kwh !== null && <Measure text={formatKwh(s.energy_added_kwh)} />}
                     {cost !== null && <span className="block text-xs text-muted-foreground">{formatMoney(cost, "INR")}</span>}
                   </span>
                 </li>

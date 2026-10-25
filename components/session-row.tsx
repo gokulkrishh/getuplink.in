@@ -7,6 +7,7 @@ import { formatClock, formatDayLabel, formatDuration, formatKwh, formatMoney, fo
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { cn } from "@/lib/utils";
+import { Measure } from "@/components/measure";
 
 const kwFormat = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 
@@ -129,7 +130,7 @@ export function SessionRow({ item, serial, now, costs }: { item: Listed; serial?
         </p>
         <p className="truncate text-xs text-muted-foreground">{detail.filter(Boolean).join(" · ")}</p>
       </div>
-      <p className="text-right font-mono font-medium whitespace-nowrap tabular-nums">{energy === null ? "—" : formatKwh(energy)}</p>
+      <p className="text-right font-mono font-medium whitespace-nowrap tabular-nums">{energy === null ? "—" : <Measure text={formatKwh(energy)} />}</p>
       {costs &&
         (s && s.cost_total !== null ? (
           <div className="space-y-1 text-right">

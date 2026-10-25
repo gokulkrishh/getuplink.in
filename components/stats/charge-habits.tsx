@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { FloatTip, useActiveMark } from "@/components/stats/float-tip";
 import { chargeStarts, SLOTS, slotLabel, WEEKDAYS } from "@/lib/charge-habits";
 import { cn } from "@/lib/utils";
+import { Measure } from "@/components/measure";
 
 const AXIS = ["12a", "3a", "6a", "9a", "12p", "3p", "6p", "9p"];
 
@@ -59,7 +60,7 @@ export function ChargeHabits({ starts, title, words }: { starts: number[]; title
               {WEEKDAYS[active.key[0]]}, {slotLabel(active.key[1])}
             </span>
             <span className="block font-mono">
-              {counts[active.key[0]][active.key[1]]} {counts[active.key[0]][active.key[1]] === 1 ? "charge" : "charges"}
+              <Measure text={`${counts[active.key[0]][active.key[1]]} ${counts[active.key[0]][active.key[1]] === 1 ? "charge" : "charges"}`} />
             </span>
           </FloatTip>
         )}

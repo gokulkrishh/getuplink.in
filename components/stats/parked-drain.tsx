@@ -6,6 +6,7 @@ import { backTo, overlapping } from "@/lib/kept";
 import { LIST_PREVIEW } from "@/lib/list";
 import type { Timeframe } from "@/lib/periods";
 import { median } from "@/lib/telemetry-derive";
+import { Measure } from "@/components/measure";
 
 const HOUR = 3_600_000;
 // A stretch this long says something per day; a shorter one in progress is shown but not summarised.
@@ -74,11 +75,11 @@ function Table({ rows, header = true }: { rows: Row[]; header?: boolean }) {
                 <Now row={r} />
               </td>
               <td className="py-2.5 pr-3 whitespace-nowrap text-muted-foreground">{c.period}</td>
-              <td className="py-2.5 pr-3 text-right font-mono">{c.lost}</td>
-              <td className="py-2.5 pr-3 text-right font-mono">{c.range}</td>
-              <td className="py-2.5 pr-3 text-right font-mono">{c.energy}</td>
-              <td className="py-2.5 pr-3 text-right font-mono">{c.power}</td>
-              <td className="py-2.5 text-right font-mono whitespace-nowrap">{c.awake}</td>
+              <td className="py-2.5 pr-3 text-right font-mono"><Measure text={c.lost} /></td>
+              <td className="py-2.5 pr-3 text-right font-mono"><Measure text={c.range} /></td>
+              <td className="py-2.5 pr-3 text-right font-mono"><Measure text={c.energy} /></td>
+              <td className="py-2.5 pr-3 text-right font-mono"><Measure text={c.power} /></td>
+              <td className="py-2.5 text-right font-mono whitespace-nowrap"><Measure text={c.awake} /></td>
             </tr>
           );
         })}

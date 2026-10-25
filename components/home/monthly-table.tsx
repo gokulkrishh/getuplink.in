@@ -1,6 +1,7 @@
 import type { MonthRow } from "@/lib/monthly";
 import { formatDuration, formatMonth } from "@/lib/format";
 import { monthStart } from "@/lib/periods";
+import { Measure } from "@/components/measure";
 
 const number = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 const oneDecimal = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
@@ -40,11 +41,11 @@ export function MonthlyTable({ rows, empty }: { rows: MonthRow[]; empty?: string
                   <th scope="row" className="py-3 pr-4 text-left font-normal whitespace-nowrap">
                     {formatMonth(monthStart(r.month))}
                   </th>
-                  <td className="py-3 pr-4 text-right font-mono">{number.format(r.km)} km</td>
+                  <td className="py-3 pr-4 text-right font-mono"><Measure text={`${number.format(r.km)} km`} /></td>
                   <td className="py-3 pr-4 text-right whitespace-nowrap">{r.drivingMs ? formatDuration(r.drivingMs / 1000) : "None"}</td>
-                  <td className="py-3 pr-4 text-right font-mono">{r.kwhUsed !== null ? `${oneDecimal.format(r.kwhUsed)} kWh` : "Unknown"}</td>
+                  <td className="py-3 pr-4 text-right font-mono">{r.kwhUsed !== null ? <Measure text={`${oneDecimal.format(r.kwhUsed)} kWh`} /> : "Unknown"}</td>
                   <td className="py-3 pr-4 text-right font-mono">{r.charges}</td>
-                  <td className="py-3 pr-4 text-right font-mono">{oneDecimal.format(r.kwhAdded)} kWh</td>
+                  <td className="py-3 pr-4 text-right font-mono"><Measure text={`${oneDecimal.format(r.kwhAdded)} kWh`} /></td>
                   <td className="py-3 text-right">
                     <span className="font-mono">{money.format(r.spend)}</span>
                     {r.unbilled > 0 && <span className="block text-xs text-muted-foreground">{r.unbilled} without a bill</span>}

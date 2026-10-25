@@ -4,6 +4,7 @@ import type { Drive } from "@/lib/drives";
 import { groupTrips, type Trip } from "@/lib/trips";
 import { formatClock, formatDayLabel, formatDuration, formatKm, formatKwh } from "@/lib/format";
 import { LIST_PREVIEW } from "@/lib/list";
+import { Measure } from "@/components/measure";
 
 // The trip table's columns. Fixed widths, so a second table (behind Show more) lines up with the first.
 const COLUMNS = [
@@ -37,14 +38,14 @@ function TripTableRow({ trip, serial, now }: { trip: Trip; serial: number; now: 
         </Link>
       </th>
       <td className="py-3 pr-3 text-right whitespace-nowrap">
-        <span className="block font-mono">{formatKm(trip.km)}</span>
+        <span className="block font-mono"><Measure text={formatKm(trip.km)} /></span>
         <span className="block text-xs text-muted-foreground">
           {formatDuration((trip.end - trip.start) / 1000)}
           {trip.stops > 0 && ` · ${trip.stops} ${trip.stops === 1 ? "stop" : "stops"}`}
         </span>
       </td>
       <td className="py-3 text-right whitespace-nowrap" title={battery?.levels}>
-        <span className="block font-mono">{trip.kwh === null ? faint : formatKwh(trip.kwh)}</span>
+        <span className="block font-mono">{trip.kwh === null ? faint : <Measure text={formatKwh(trip.kwh)} />}</span>
         {battery && <span className="block text-xs text-muted-foreground">{battery.used} of battery</span>}
       </td>
     </tr>

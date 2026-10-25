@@ -7,6 +7,7 @@ import { formatDuration, formatKwh, formatShortDate } from "@/lib/format";
 import type { Frame } from "@/lib/frames";
 import { inSpan, type Timeframe } from "@/lib/periods";
 import type { DayKm } from "@/lib/telemetry-derive";
+import { Measure } from "@/components/measure";
 
 // The Driving page's sections: distance per month and per day, and energy use with regen.
 
@@ -95,7 +96,7 @@ export function EnergyUse({ frame, driving }: Frame) {
       {regenTotal > 0 && (
         <div className="space-y-4">
           <p className="text-sm">
-            Regen won back <span className="font-mono font-medium tabular-nums">{formatKwh(regenTotal)}</span>{" "}
+            Regen won back <span className="font-mono font-medium tabular-nums"><Measure text={formatKwh(regenTotal)} /></span>{" "}
             <span className="text-muted-foreground">{frame.words}</span>
           </p>
           <Bars
