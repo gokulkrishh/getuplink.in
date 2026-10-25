@@ -90,6 +90,7 @@ function scenarioReadings(scenario: DemoScenario): Record<string, unknown> {
         SoftwareUpdateExpectedDurationMinutes: 45,
         SoftwareUpdateDownloadPercentComplete: 42,
         SoftwareUpdateInstallationPercentComplete: 1,
+        SoftwareUpdateInProgress: false,
       };
     case "installing":
       return {
@@ -97,6 +98,7 @@ function scenarioReadings(scenario: DemoScenario): Record<string, unknown> {
         SoftwareUpdateExpectedDurationMinutes: 45,
         SoftwareUpdateDownloadPercentComplete: 100,
         SoftwareUpdateInstallationPercentComplete: 63,
+        SoftwareUpdateInProgress: true,
       };
     default:
       return {};

@@ -19,7 +19,8 @@ export function parseReleaseNotes(response: unknown): ReleaseNote[] {
     const title = text(rawTitle);
     if (!title) return [];
     const from = text(customer_version);
-    if (release && from && !release.startsWith(from)) return [];
+    // Whole segments only: 2026.20.1 is not part of 2026.2.
+    if (release && from && release !== from && !release.startsWith(`${from}.`)) return [];
     const note = { title, subtitle: text(subtitle), description: text(description) };
     const key = JSON.stringify(note);
     if (seen.has(key)) return [];

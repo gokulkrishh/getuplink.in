@@ -1,7 +1,7 @@
 import "server-only";
 import { DEMO, type DemoScenario } from "@/lib/demo";
 import { parseReleaseNotes, type ReleaseNote, type ReleaseNotesByVersion } from "@/lib/release-notes";
-import type { Stream } from "@/lib/telemetry";
+import { type Stream, UPDATE_FIELDS } from "@/lib/telemetry";
 import { type Reading, type UpdateTimeline, updateTimeline } from "@/lib/telemetry-derive";
 import { carFlagsFrom, type CarFlagsNow, demoCarFlags, FLAG_COLUMNS, FLAG_KEYS } from "./car-flags";
 import { demoData, demoStream } from "./demo";
@@ -121,8 +121,10 @@ function newestReading(stream: Stream): string | null {
   return times.length > 0 ? new Date(Math.max(...times)).toISOString() : null;
 }
 
-// See CarState. `fields` are the stream fields to read; streamAt only covers those.
-export async function loadCarState(owner: Owner, vehicle: Pick<Vehicle, "id" | "vin">, scenario: DemoScenario, fields: string[] = STREAM_FIELDS): Promise<CarState> {
+// See CarState. `fields` are the stream fields to read; streamAt only covers those. The update fields are
+// always read too: the pending update laid over the check needs every one of them (see applyStream).
+export async function loadCarState(owner: Owner, vehicle: Pick<Vehicle, "id" | "vin">, scenario: DemoScenario, wanted: string[] = STREAM_FIELDS): Promise<CarState> {
+  const fields = [...new Set([...wanted, ...UPDATE_FIELDS])];
   if (DEMO) {
     // The same steps as below, from the generated car instead of the database.
     const { snapshot } = demoData();

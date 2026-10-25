@@ -55,16 +55,6 @@ export function formatTimeToFull(hours: number): string {
   return hours < 1 / 60 ? "Almost full" : `Full in ${formatDuration(hours * 3600)}`;
 }
 
-// "About 30 min left" while installing. Tesla's expected duration is for the whole install and doesn't count
-// down, so the time left is the share still to go, as the Tesla app shows it. The percentage moves in coarse
-// steps, so over 10 minutes it's rounded to 5 rather than claiming a precision it doesn't have.
-export function formatInstallLeft(expectedSeconds: number, percent: number): string {
-  const minutes = (expectedSeconds / 60) * (1 - Math.min(100, Math.max(0, percent)) / 100);
-  if (minutes < 1) return "Almost done";
-  const rounded = minutes >= 10 ? Math.round(minutes / 5) * 5 : Math.round(minutes);
-  return `About ${formatDuration(rounded * 60)} left`;
-}
-
 const km = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 
 // "12,340 km" (Indian digit grouping: "1,23,400 km")
