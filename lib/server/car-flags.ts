@@ -12,13 +12,16 @@ export type CarFlagsNow = { notices: string[]; tyres: CheckedTyres | null };
 
 const SIDES = ["fl", "fr", "rl", "rr"] as const;
 
-// Picked keys only: nothing else of the response is read.
-const COLUMNS = [
-  "polled_at",
+// Picked keys only: nothing else of the response is read. loadCarState adds them to its read of the same
+// check, so home and the car page get the flags without a query of their own.
+export const FLAG_COLUMNS = [
   "payment:raw->supercharger_payment_needed",
   "service:raw->in_service",
   ...SIDES.flatMap((s) => [`soft_${s}:raw->vehicle_state->tpms_soft_warning_${s}`, `hard_${s}:raw->vehicle_state->tpms_hard_warning_${s}`]),
 ].join(", ");
+
+// The keys FLAG_COLUMNS adds to a row, so a reader can take them back off.
+export const FLAG_KEYS = ["payment", "service", ...SIDES.flatMap((s) => [`soft_${s}`, `hard_${s}`])];
 
 function flags(row: Record<string, unknown>, kind: "soft" | "hard"): TyreFlags {
   const out: TyreFlags = {};
@@ -29,15 +32,26 @@ function flags(row: Record<string, unknown>, kind: "soft" | "hard"): TyreFlags {
   return out;
 }
 
+// The flags from a row read with polled_at and FLAG_COLUMNS; none without a row.
+export function carFlagsFrom(row: Record<string, unknown> | null): CarFlagsNow {
+  if (!row) return { notices: [], tyres: null };
+  const soft = flags(row, "soft");
+  const hard = flags(row, "hard");
+  return {
+    notices: carNotices({ supercharger_payment_needed: row.payment, in_service: row.service }),
+    tyres: Object.keys(soft).length || Object.keys(hard).length ? { at: row.polled_at as string, soft, hard } : null,
+  };
+}
+
+// The demo car's tyre warnings are streamed (see generate.ts), newer than its last check.
+export const demoCarFlags = (): CarFlagsNow => ({ notices: carNotices(demoData().flags), tyres: null });
+
 // Nothing to say when the read fails: these are extras on pages that work without them.
 export async function loadCarFlags(vehicleId: string): Promise<CarFlagsNow> {
-  if (DEMO) {
-    // The demo car's tyre warnings are streamed (see generate.ts), newer than its last check.
-    return { notices: carNotices(demoData().flags), tyres: null };
-  }
+  if (DEMO) return demoCarFlags();
   const { data, error } = await db()
     .from("snapshots")
-    .select(COLUMNS)
+    .select(`polled_at, ${FLAG_COLUMNS}`)
     .eq("vehicle_id", vehicleId)
     .eq("state", "online")
     .not("raw", "is", null)
@@ -49,12 +63,5 @@ export async function loadCarFlags(vehicleId: string): Promise<CarFlagsNow> {
     return { notices: [], tyres: null };
   }
   // A select built from a string has no row type.
-  const row = data as unknown as Record<string, unknown> | null;
-  if (!row) return { notices: [], tyres: null };
-  const soft = flags(row, "soft");
-  const hard = flags(row, "hard");
-  return {
-    notices: carNotices({ supercharger_payment_needed: row.payment, in_service: row.service }),
-    tyres: Object.keys(soft).length || Object.keys(hard).length ? { at: row.polled_at as string, soft, hard } : null,
-  };
+  return carFlagsFrom(data as unknown as Record<string, unknown> | null);
 }

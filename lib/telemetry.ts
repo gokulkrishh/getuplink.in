@@ -5,6 +5,20 @@ export type StreamValue = { at: string; value: unknown };
 // Latest streamed reading per Fleet Telemetry field.
 export type Stream = Record<string, StreamValue>;
 
+// A counter_values_at row: `at` is the boundary asked for, or null for the field's first reading ever.
+export type BoundReading = { field: string; at: string | null; value: unknown; created_at: string | null };
+
+// The latest reading per field from counter_values_at rows read at one boundary (see loadStream): the
+// boundary's row, never the first-ever one, and nothing for a field with no reading before it.
+export function latestByField(rows: BoundReading[]): Stream {
+  const stream: Stream = {};
+  for (const row of rows) {
+    if (row.at === null || row.created_at === null) continue;
+    stream[row.field] = { at: row.created_at, value: row.value };
+  }
+  return stream;
+}
+
 // The fields a pending update is read from.
 export const UPDATE_FIELDS = [
   "SoftwareUpdateVersion",

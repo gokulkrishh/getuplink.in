@@ -2,7 +2,6 @@ import "server-only";
 import { DEMO, type DemoScenario } from "@/lib/demo";
 import type { DrivingFigures, DrivingPeriod } from "@/lib/driving-figures";
 import type { Timeframe } from "@/lib/periods";
-import { loadCarFlags } from "./car-flags";
 import { type ChargingSession, loadChargingSessions } from "./charging";
 import { type CarState, loadCarState, loadOwnerCars, type OwnerGate, type PollRun, type Vehicle } from "./dashboard";
 import { demoFirstWeekStart } from "./demo";
@@ -11,7 +10,7 @@ import { invoicesBySession } from "./receipts";
 import { loadStreamSessions, type StreamChargeSession } from "./stream-charging";
 
 // notices: what Tesla flagged at the car's latest online check (see loadCarFlags).
-export type HomeCar = CarState & { vehicle: Vehicle; notices: string[] };
+export type HomeCar = Omit<CarState, "flags"> & { vehicle: Vehicle; notices: string[] };
 
 type HomeData = {
   cars: HomeCar[];
@@ -38,20 +37,21 @@ export async function loadHome(scenario: DemoScenario, now: number): Promise<Hom
     const primary = owner.vehicles.find((v) => v.vin) ?? null;
     // The demo's First week: a car connected four days ago, so nothing before then exists.
     const demoSince = DEMO && scenario === "firstWeek" ? demoFirstWeekStart() : undefined;
-    const [cars, figures, sessions, streamSessions, window] = await Promise.all([
+    const [cars, figures, sessions, [streamSessions, invoices], window] = await Promise.all([
       Promise.all(
         owner.vehicles.map(async (vehicle) => {
-          const [state, flags] = await Promise.all([loadCarState(vehicle, scenario), loadCarFlags(vehicle.id)]);
+          // The flags come with the state's read of the last online check.
+          const { flags, ...state } = await loadCarState(vehicle, scenario);
           return { vehicle, ...state, notices: flags.notices };
         }),
       ),
       loadDrivingFigures(primary?.vin ?? null, now, demoSince),
       loadChargingSessions(),
-      loadStreamSessions(),
+      // The invoices only need the session ids, so they load while the 90-day window still does.
+      loadStreamSessions().then(async (list) => [list, await invoicesBySession(list.filter((s) => !s.supercharger).map((s) => s.id))] as const),
       loadWindowStats(primary?.vin ?? null, now),
     ]);
     const after = (s: { started_at: string }) => demoSince === undefined || Date.parse(s.started_at) >= demoSince;
-    const invoices = await invoicesBySession(streamSessions.filter((s) => !s.supercharger).map((s) => s.id));
     return {
       kind: "ready",
       cars,

@@ -15,7 +15,6 @@ import { formatAgo, formatClock, formatKm, formatShortDate } from "@/lib/format"
 import { isStaleSync, lastSyncedText, newestTime } from "@/lib/last-synced";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type CarDetails, loadCarDetails } from "@/lib/server/car";
-import { loadCarFlags } from "@/lib/server/car-flags";
 import { type CarState, loadCarState, OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadPrimaryVehicle, loadStream } from "@/lib/server/telemetry";
 import type { Stream } from "@/lib/telemetry";
@@ -36,7 +35,7 @@ async function loadCar(id: string | null): Promise<CarDetails | null> {
 // The streamed fields the page reads beyond carNow's: the odometer and the version.
 const PAGE_FIELDS = [...CAR_NOW_FIELDS, "Odometer", "Version"];
 
-type Live = { state: CarState; stream: Stream; now: CarNow | null; notices: string[]; at: number };
+type Live = { state: Omit<CarState, "flags">; stream: Stream; now: CarNow | null; notices: string[]; at: number };
 
 // The car's state now, in the same private cache as the page: the latest check and newest streamed reading
 // the way home reads them (loadCarState, so "Last synced" matches home), the battery with newer streamed
@@ -48,7 +47,8 @@ async function loadLive(id: string, vin: string | null): Promise<Live> {
   cacheLife({ stale: 60 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
   const at = Date.now();
-  const [state, stream, flags] = await Promise.all([loadCarState({ id, vin }, "normal"), vin ? loadStream(vin, PAGE_FIELDS) : {}, loadCarFlags(id)]);
+  // The flags come with the state's read of the last online check.
+  const [{ flags, ...state }, stream] = await Promise.all([loadCarState({ id, vin }, "normal"), vin ? loadStream(vin, PAGE_FIELDS) : {}]);
   return { state, stream, now: vin ? carNow(stream, at, flags.tyres) : null, notices: flags.notices, at };
 }
 
@@ -130,7 +130,7 @@ const NOW_WORDS: Record<string, (value: string) => [string, string]> = {
 
 // The charge and range from the latest online check, newer streamed values laid over it, then carNow's
 // rows. Temperatures are measures; the rest are words.
-function nowFigures(state: CarState, now: CarNow | null): Figure[] {
+function nowFigures(state: Omit<CarState, "flags">, now: CarNow | null): Figure[] {
   const s = state.lastOnline;
   const figures: Figure[] = [];
   if (s?.battery_level != null) {

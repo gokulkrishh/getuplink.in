@@ -19,7 +19,7 @@ import {
   withTimelines,
 } from "./dashboard";
 
-export type UpdatesCar = CarState & {
+export type UpdatesCar = Omit<CarState, "flags"> & {
   vehicle: Vehicle;
   history: VersionChange[];
   // Real updates only, oldest first, for the stats.
@@ -49,7 +49,9 @@ async function updatesCar(vehicle: Vehicle, scenario: DemoScenario, now: number)
   const latest = Math.max(state.streamAt ? Date.parse(state.streamAt) : 0, presence.newest ? Date.parse(presence.newest) : 0);
   return {
     vehicle,
-    ...state,
+    // Not the flags read with the state: the page shows no notices.
+    latest: state.latest,
+    lastOnline: state.lastOnline,
     streamAt: latest > 0 ? new Date(latest).toISOString() : null,
     history,
     updates: updateRows(history),

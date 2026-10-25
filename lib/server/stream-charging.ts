@@ -3,6 +3,7 @@ import { buildSessions, CHARGE_FIELDS, type ChargeReading } from "@/lib/charge-s
 import { DEMO } from "@/lib/demo";
 import { demoStreamSessions } from "./demo";
 import { db } from "./supabase";
+import { readingsBefore } from "./telemetry";
 
 const DAY = 24 * 60 * 60 * 1000;
 const FIRST_SYNC_DAYS = 60;
@@ -87,24 +88,10 @@ async function readingsSince(vin: string, since: string): Promise<ChargeReading[
 }
 
 // The latest value of each baseline field before `before`, so a session that is resumed mid-way
-// keeps its start battery level.
+// keeps its start battery level. One request for all of them (see readingsBefore).
 async function baselineBefore(vin: string, before: string): Promise<ChargeReading[]> {
-  const rows = await Promise.all(
-    BASELINE_FIELDS.map(async (field) => {
-      const { data, error } = await db()
-        .from("telemetry_readings")
-        .select("created_at, value")
-        .eq("vin", vin)
-        .eq("field", field)
-        .lt("created_at", before)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw new Error(error.message);
-      return data ? { field, at: data.created_at as string, value: data.value as unknown } : null;
-    }),
-  );
-  return rows.filter((r) => r !== null);
+  const latest = await readingsBefore(vin, BASELINE_FIELDS, before);
+  return BASELINE_FIELDS.flatMap((field) => (latest[field] ? [{ field, at: latest[field].at, value: latest[field].value }] : []));
 }
 
 // Rebuilds the car's charging sessions from streamed readings and upserts them. Safe to run any

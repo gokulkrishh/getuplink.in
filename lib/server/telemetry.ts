@@ -2,8 +2,9 @@ import "server-only";
 import { DEMO } from "@/lib/demo";
 import { demoData, demoLastReadingAt, demoReadings, demoStream } from "./demo";
 import { db } from "./supabase";
-import type { Stream } from "@/lib/telemetry";
+import { type BoundReading, latestByField, type Stream } from "@/lib/telemetry";
 import type { Reading } from "@/lib/telemetry-derive";
+import { LATEST } from "./energy";
 
 export { applyStream } from "@/lib/telemetry";
 
@@ -21,11 +22,27 @@ export const STREAM_FIELDS = [
   "TimeToFullCharge",
 ];
 
+// Each field's last reading strictly before `before` (an ISO time, or LATEST for the newest of all), in one
+// request: counter_values_at steps back once per field on the (vin, field, created_at) unique index (it
+// also returns each first reading, which is dropped). Throws on a read error.
+export async function readingsBefore(vin: string, fields: string[], before: string): Promise<Stream> {
+  if (fields.length === 0) return {};
+  const { data, error } = await db().rpc("counter_values_at", { p_vin: vin, p_fields: fields, p_at: [before] });
+  if (error) throw new Error(error.message);
+  return latestByField(data as BoundReading[]);
+}
+
 // Latest Fleet Telemetry reading per field (STREAM_FIELDS unless given). Rows only arrive when a value
-// changes, so a field's latest row can be days old. One small query per field: the (vin, field, created_at)
-// index serves each. Telemetry is a bonus on top of the poll, so a failed query just means no stream.
+// changes, so a field's latest row can be days old. One request for every field (see readingsBefore); if
+// that fails, one small query per field. Telemetry is a bonus on top of the poll, so a failed query just
+// means no stream.
 export async function loadStream(vin: string, fields: string[] = STREAM_FIELDS): Promise<Stream> {
   if (DEMO) return demoStream(fields);
+  try {
+    return await readingsBefore(vin, fields, LATEST);
+  } catch (err) {
+    console.warn("Latest telemetry in one request unavailable, reading each field:", (err as Error).message);
+  }
   const results = await Promise.all(
     fields.map(async (field) => {
       const { data, error } = await db()

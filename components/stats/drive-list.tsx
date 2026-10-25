@@ -1,125 +1,33 @@
-import Link from "next/link";
 import { ShowMore } from "@/components/show-more";
+import { type TripRow, TripRows } from "@/components/stats/trip-rows";
 import type { Drive } from "@/lib/drives";
 import { groupTrips, type Trip } from "@/lib/trips";
 import { formatClock, formatDayLabel, formatDuration, formatKm, formatKwh } from "@/lib/format";
 import { LIST_PREVIEW } from "@/lib/list";
-import { Measure } from "@/components/measure";
 
-// The trip table's columns. Fixed widths, so a second table (behind Show more) lines up with the first.
-const COLUMNS = [
-  { label: "#", width: "w-10" },
-  { label: "Date", width: "w-24" },
-  { label: "Trip", width: "" },
-  { label: "Distance · time", width: "w-36", right: true },
-  { label: "Energy · battery", width: "w-36", right: true },
-];
-
-// How much of the battery a trip took: "9%", with the start and end levels as its title. Null when either
-// level is unknown.
-function batteryUsed(start: number | null, end: number | null): { used: string; levels: string } | null {
-  if (start === null || end === null) return null;
-  return { used: `${Math.max(0, Math.round(start) - Math.round(end))}%`, levels: `${Math.round(start)}% to ${Math.round(end)}%` };
-}
-
-const faint = <span className="text-faint">—</span>;
-
-// One trip (a single drive, or drives with short stops between; see groupTrips) as a row. The times link to
-// its page, which lists the legs; the link covers the row, which highlights on hover or focus.
-function TripTableRow({ trip, serial, now }: { trip: Trip; serial: number; now: number }) {
-  const battery = batteryUsed(trip.startLevel, trip.endLevel);
-  return (
-    <tr className="relative cursor-pointer transition-colors duration-150 hover:bg-muted focus-within:bg-muted">
-      <td className="py-3 pr-3 font-mono text-xs text-faint">{serial}</td>
-      <td className="py-3 pr-3 whitespace-nowrap">{formatDayLabel(trip.start, now)}</td>
-      <th scope="row" className="truncate py-3 pr-3 text-left font-medium">
-        <Link href={`/stats/driving/${trip.start}`} className="outline-none after:absolute after:inset-0">
-          {formatClock(trip.start)} to {formatClock(trip.end)}
-        </Link>
-      </th>
-      <td className="py-3 pr-3 text-right whitespace-nowrap">
-        <span className="block font-mono"><Measure text={formatKm(trip.km)} /></span>
-        <span className="block text-xs text-muted-foreground">
-          {formatDuration((trip.end - trip.start) / 1000)}
-          {trip.stops > 0 && ` · ${trip.stops} ${trip.stops === 1 ? "stop" : "stops"}`}
-        </span>
-      </td>
-      <td className="py-3 text-right whitespace-nowrap" title={battery?.levels}>
-        <span className="block font-mono">{trip.kwh === null ? faint : <Measure text={formatKwh(trip.kwh)} />}</span>
-        {battery && <span className="block text-xs text-muted-foreground">{battery.used} of battery</span>}
-      </td>
-    </tr>
-  );
-}
-
-// A trip on a phone, where five columns don't fit: two lines, the times and the distance on the first, the
-// rest on the second, nothing dropped. The whole row opens the trip, as in the table.
-function TripListRow({ trip, serial, now }: { trip: Trip; serial: number; now: number }) {
-  const battery = batteryUsed(trip.startLevel, trip.endLevel);
-  const second = [
-    formatDayLabel(trip.start, now),
-    formatDuration((trip.end - trip.start) / 1000),
-    trip.stops > 0 && `${trip.stops} ${trip.stops === 1 ? "stop" : "stops"}`,
-    trip.kwh !== null && formatKwh(trip.kwh),
-    battery && `${battery.used} of battery`,
-  ].filter(Boolean);
-  return (
-    <li className="relative py-3 text-sm tabular-nums transition-colors duration-150 active:bg-muted">
-      <p className="flex items-baseline justify-between gap-3">
-        <span className="min-w-0 truncate font-medium">
-          <span className="mr-2 font-mono text-xs font-normal text-faint">{serial}</span>
-          <Link href={`/stats/driving/${trip.start}`} className="outline-none after:absolute after:inset-0">
-            {formatClock(trip.start)} to {formatClock(trip.end)}
-          </Link>
-        </span>
-        <span className="shrink-0 font-mono">
-          <Measure text={formatKm(trip.km)} />
-        </span>
-      </p>
-      <p className="mt-1 truncate text-xs text-muted-foreground">{second.join(" · ")}</p>
-    </li>
-  );
+// A trip's texts for the table (see TripRows). How much of the battery it took is "9%", with the start and
+// end levels as its title; neither when a level is unknown.
+function tripRow(trip: Trip, serial: number, now: number): TripRow {
+  const levels = trip.startLevel !== null && trip.endLevel !== null ? [Math.round(trip.startLevel), Math.round(trip.endLevel)] : null;
+  return {
+    start: trip.start,
+    serial,
+    day: formatDayLabel(trip.start, now),
+    times: `${formatClock(trip.start)} to ${formatClock(trip.end)}`,
+    km: formatKm(trip.km),
+    duration: formatDuration((trip.end - trip.start) / 1000),
+    stops: trip.stops > 0 ? `${trip.stops} ${trip.stops === 1 ? "stop" : "stops"}` : null,
+    kwh: trip.kwh === null ? null : formatKwh(trip.kwh),
+    used: levels && `${Math.max(0, levels[0] - levels[1])}%`,
+    levels: levels && `${levels[0]}% to ${levels[1]}%`,
+  };
 }
 
 // Trips as a plain table: number, date, times, distance with the time it took, and energy with the battery
 // it used. On a phone, a list of two-line rows instead. `header` is off for a continuation behind Show more.
+// The browser draws the rows from their texts (see TripRows), so a long list costs the page little.
 export function TripTable({ trips, serialOf, now, header = true }: { trips: Trip[]; serialOf: (trip: Trip) => number; now: number; header?: boolean }) {
-  return (
-    <>
-      <ul className="divide-y border-t sm:hidden">
-        {trips.map((t) => (
-          <TripListRow key={t.start} trip={t} serial={serialOf(t)} now={now} />
-        ))}
-      </ul>
-      {/* The table sits 0.75rem wider than the column on each side and pads its outer cells by the same, so a
-          highlighted row has room around its text while the text still lines up with the page. */}
-      <div className="-mx-3 max-sm:hidden">
-        <table className="w-full table-fixed text-sm tabular-nums [&_td:first-child]:pl-3 [&_td:last-child]:pr-3 [&_th:first-child]:pl-3 [&_th:last-child]:pr-3">
-          <colgroup>
-            {COLUMNS.map((c) => (
-              <col key={c.label} className={c.width} />
-            ))}
-          </colgroup>
-          {header && (
-            <thead>
-              <tr className="border-b text-left text-xs text-faint">
-                {COLUMNS.map((c) => (
-                  <th key={c.label} scope="col" className={`pb-2 pr-3 font-normal ${c.right ? "text-right" : ""}`}>
-                    {c.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-          )}
-          <tbody className={`divide-y ${header ? "" : "border-t"}`}>
-            {trips.map((t) => (
-              <TripTableRow key={t.start} trip={t} serial={serialOf(t)} now={now} />
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
+  return <TripRows rows={trips.map((t) => tripRow(t, serialOf(t), now))} header={header} />;
 }
 
 // Trips from the last 90 days, newest first: drives with stops under an hour between them are one trip
