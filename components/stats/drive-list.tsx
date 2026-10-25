@@ -87,12 +87,14 @@ export function TripTable({ trips, serialOf, now, header = true }: { trips: Trip
 }
 
 // Trips from the last 90 days, newest first: drives with stops under an hour between them are one trip
-// (see groupTrips). The latest few, then the rest behind Show more. Numbers count from the oldest trip.
-export function DriveList({ drives, now }: { drives: Drive[]; now: number }) {
+// (see groupTrips). The latest few, then the rest behind Show more. Numbers count from the oldest trip in
+// `all`, so a list cut to a range keeps each trip's number.
+export function DriveList({ drives, all = drives, now }: { drives: Drive[]; all?: Drive[]; now: number }) {
   if (drives.length === 0) return null;
   const trips = groupTrips(drives);
+  const numbered = all === drives ? trips : groupTrips(all);
   const totalKm = drives.reduce((sum, d) => sum + d.km, 0);
-  const serialOf = (t: Trip) => trips.length - trips.indexOf(t);
+  const serialOf = (t: Trip) => numbered.length - numbered.findIndex((n) => n.start === t.start);
   return (
     <section className="space-y-6">
       <div className="space-y-1">

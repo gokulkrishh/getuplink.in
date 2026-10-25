@@ -135,7 +135,7 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
           })}
           {byRange(range, <DriveList drives={driving.drives} now={now} />, ({ frame }) => (
             <div className="space-y-3">
-              {inRange.length > 0 ? <DriveList drives={inRange} now={now} /> : <p className="text-sm text-muted-foreground">No trips {frame.words}.</p>}
+              {inRange.length > 0 ? <DriveList drives={inRange} all={driving.drives} now={now} /> : <p className="text-sm text-muted-foreground">No trips {frame.words}.</p>}
               {partial(tripsFrom) && <p className="text-xs text-faint">Trips cover only the last {DRIVE_DAYS} days.</p>}
             </div>
           ))}
