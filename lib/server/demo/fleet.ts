@@ -3,6 +3,7 @@
 // "now". It writes rows shaped like the vehicles and version_history tables, so the pages run them through
 // the same functions as real data.
 import type { StateCode } from "@/lib/india-states";
+import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import { istDay } from "@/lib/status";
 import { between, PENDING_VERSION, rngFor } from "./generate";
 
@@ -36,6 +37,14 @@ const OFFERS: [version: string, from: string, statuses: string[]][] = [
   ["2026.38.5.1", "2026.38.3.1", ["available", "available"]],
   [PENDING_VERSION, "2026.40.2", ["available"]],
 ];
+// Notes for the fleet's versions the demo car never ran; the rest come from the demo car's (generate.ts).
+// Plausible stand-ins, not Tesla's text.
+const FLEET_NOTES: ReleaseNotesByVersion = {
+  "2026.40.2": [
+    { title: "Trip Planner", description: "Plan a trip in the Tesla app and send it to the car, with charging stops added for you." },
+    { title: "Security Improvements", description: "This update includes important security fixes and improvements." },
+  ],
+};
 const SHIPPED = "2026.20.6.10"; // what every car ran before its first recorded update
 const SHARED_CARS = 3; // owners with two cars, so 40 cars have 37 owners
 
@@ -52,6 +61,7 @@ export type DemoFleet = {
   history: FleetChange[]; // oldest first
   offers: FleetOffer[];
   globalReleases: Record<string, string>; // simulated, IST days
+  notes: ReleaseNotesByVersion; // simulated
   runs: FleetRun[]; // the last 7 days of checks, newest first
   // Simulated: real Fleet API requests and spend aren't counted anywhere yet.
   api: { requests: number; costUsd: number };
@@ -106,6 +116,7 @@ export function generateFleet(now: number): DemoFleet {
     history,
     offers,
     globalReleases: Object.fromEntries(RELEASES.map(([version, globalDaysAgo]) => [version, istDay(now - globalDaysAgo * DAY)])),
+    notes: FLEET_NOTES,
     runs,
     api: { requests, costUsd: Math.round(requests * 0.0011 * 100) / 100 },
   };

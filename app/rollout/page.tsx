@@ -5,9 +5,12 @@ import { Globe } from "lucide-react";
 import { Suspense } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Header } from "@/components/header";
+import { ReleaseNotesToggle } from "@/components/release-notes";
+import { RolloutAdoption } from "@/components/rollout-adoption";
 import { RolloutMap } from "@/components/rollout-map";
 import { DEMO } from "@/lib/demo";
 import { formatShortDate } from "@/lib/format";
+import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import type { RolloutVersion } from "@/lib/rollout";
 import type { Arriving, YourCar } from "@/lib/rollout-arriving";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
@@ -25,7 +28,8 @@ async function loadOwnRollout(): Promise<RolloutPage> {
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
-  return loadRollout();
+  // The clock is read inside the cache; reading it while rendering blocks prerendering.
+  return loadRollout(Date.now());
 }
 
 const cars = (n: number) => `${n} ${n === 1 ? "car" : "cars"}`;
@@ -44,22 +48,27 @@ function yourCarWords(car: YourCar): string {
   return `You're ${car.versions} ${car.versions === 1 ? "version" : "versions"} behind: ${car.newest} is on ${cars(car.cars)}`;
 }
 
-// One version on offer: cars it's waiting on and cars already on it.
-function ArrivingRow({ a, n }: { a: Arriving; n: number }) {
+// One version on offer: cars it's waiting on and cars already on it, and its notes when Tesla sent any.
+function ArrivingRow({ a, n, notes }: { a: Arriving; n: number; notes: ReleaseNotesByVersion }) {
   return (
-    <li className="flex items-baseline gap-4 py-3 text-sm tabular-nums">
-      <span className="w-6 shrink-0 font-mono text-xs text-faint">{n}</span>
-      <span className="flex-1 font-mono font-medium">{a.version}</span>
-      <span className="text-right whitespace-nowrap text-muted-foreground">
-        Offered to {cars(a.offered)} · on {a.on}
-      </span>
+    <li className="flex gap-4 py-3">
+      <span className="w-6 shrink-0 pt-0.5 font-mono text-xs text-faint">{n}</span>
+      <div className="min-w-0 flex-1 space-y-2">
+        <div className="flex items-baseline gap-4 text-sm tabular-nums">
+          <span className="flex-1 font-mono font-medium">{a.version}</span>
+          <span className="text-right whitespace-nowrap text-muted-foreground">
+            Offered to {cars(a.offered)} · on {a.on}
+          </span>
+        </div>
+        <ReleaseNotesToggle version={a.version} notes={notes} stacked />
+      </div>
     </li>
   );
 }
 
 // One version: cars on it now with a bar against every counted car, and how its arrival compares with the world.
 // A version no car is on any more has no bar: an empty track reads as a chart still loading.
-function VersionRow({ v, counted, n }: { v: RolloutVersion; counted: number; n: number }) {
+function VersionRow({ v, counted, n, notes }: { v: RolloutVersion; counted: number; n: number; notes: ReleaseNotesByVersion }) {
   return (
     <li className="flex gap-4 py-4">
       <span className="w-6 shrink-0 pt-0.5 font-mono text-xs text-faint">{n}</span>
@@ -82,6 +91,7 @@ function VersionRow({ v, counted, n }: { v: RolloutVersion; counted: number; n: 
           {v.lagDays !== null && <span className="text-foreground">{lagWords(v.lagDays)}</span>}
         </p>
       )}
+      <ReleaseNotesToggle version={v.version} notes={notes} stacked />
       </div>
     </li>
   );
@@ -98,7 +108,8 @@ async function Rollout() {
     );
   }
   const { versions, counted, headline } = data.rollout;
-  const { states, arriving, yourCar } = data;
+  const { states, arriving, yourCar, adoption, releaseNotes } = data;
+  const hasAdoption = adoption.day.versions.length > 0 || adoption.week.versions.length > 0;
   if (versions.length === 0) {
     return (
       <EmptyState icon={<Globe className="size-7 text-faint" aria-hidden="true" />} title="No versions yet">
@@ -133,7 +144,7 @@ async function Rollout() {
               <span>Offered · on it</span>
             </li>
             {arriving.map((a, k) => (
-              <ArrivingRow key={a.version} a={a} n={k + 1} />
+              <ArrivingRow key={a.version} a={a} n={k + 1} notes={releaseNotes} />
             ))}
           </ul>
           <p className="text-xs text-faint">Updates Tesla has offered but cars haven&apos;t installed yet, and how many cars already run each.</p>
@@ -150,6 +161,16 @@ async function Rollout() {
         </section>
       )}
 
+      {hasAdoption && (
+        <section className="space-y-3">
+          <div className="space-y-1">
+            <h2 className={heading}>Adoption over time</h2>
+            <p className="text-sm text-muted-foreground">How a version spread across Indian cars, from the updates Uplink recorded.</p>
+          </div>
+          <RolloutAdoption adoption={adoption} />
+        </section>
+      )}
+
       <section className="space-y-2">
         <h2 className={heading}>Versions</h2>
         <ul className="divide-y border-t">
@@ -159,7 +180,7 @@ async function Rollout() {
             <span>Cars on it</span>
           </li>
           {versions.map((v, k) => (
-            <VersionRow key={v.version} v={v} counted={counted} n={k + 1} />
+            <VersionRow key={v.version} v={v} counted={counted} n={k + 1} notes={releaseNotes} />
           ))}
         </ul>
       </section>
@@ -172,7 +193,11 @@ async function Rollout() {
         <p>
           A car&apos;s state comes from its location or, until then, its Superchargers.
         </p>
-        <p>Global dates come from a hand-kept list of public first sightings. A version not on it shows the lag as unknown.</p>
+        <p>Global dates come from a hand-kept list of public first sightings. A version not on it shows no lag.</p>
+        <p>
+          Adoption counts a car from its first recorded version, never before. Release notes are Tesla&apos;s, fetched
+          once per version from a car that ran or was offered it.
+        </p>
         <p>
           State boundaries:{" "}
           <a href="https://github.com/datameet/maps" className="underline decoration-border decoration-dotted underline-offset-4 hover:text-foreground hover:decoration-foreground">

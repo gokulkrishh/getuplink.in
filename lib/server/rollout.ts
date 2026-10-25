@@ -1,10 +1,12 @@
 import "server-only";
 import { DEMO } from "@/lib/demo";
+import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import { buildRollout, GLOBAL_RELEASES, type Rollout, type RolloutChange } from "@/lib/rollout";
+import { type Adoption, type AdoptionGrain, buildAdoption } from "@/lib/rollout-adoption";
 import { type Arriving, buildArriving, type OfferedCar, yourCar, type YourCar } from "@/lib/rollout-arriving";
 import { buildStateRollout, type VersionStates } from "@/lib/rollout-states";
 import { UPDATE_FIELDS } from "@/lib/telemetry";
-import { loadCarState, type Vehicle } from "./dashboard";
+import { loadCarState, loadReleaseNotes, type Vehicle } from "./dashboard";
 import { demoData, demoFleet } from "./demo";
 import { missingEnv } from "./env";
 import { carStates } from "./home-state";
@@ -12,28 +14,45 @@ import { db } from "./supabase";
 
 // This goes to the browser (the page's "use cache: private"), so it holds totals and the owner's own line only.
 export type RolloutPage =
-  | { kind: "ready"; rollout: Rollout; states: VersionStates[]; arriving: Arriving[]; yourCar: YourCar | null }
+  | {
+      kind: "ready";
+      rollout: Rollout;
+      states: VersionStates[];
+      arriving: Arriving[];
+      yourCar: YourCar | null;
+      adoption: Record<AdoptionGrain, Adoption>;
+      // Tesla's notes for the versions on the page; the same for every car on a version.
+      releaseNotes: ReleaseNotesByVersion;
+    }
   | { kind: "error"; message: string };
 
 type OwnCar = Omit<OfferedCar, "car"> | null;
 
-// The version totals, for each version cars run now its states, what's on offer, and the owner's line.
-// None of them carries a car key out.
-function build(
+// The version totals, for each version cars run now its states, what's on offer, the owner's line, how
+// each version spread day by day and week by week, and the notes. None of them carries a car key out.
+// `extraNotes` are the demo fleet's, for versions the demo car never ran.
+async function build(
   cars: Awaited<ReturnType<typeof carStates>>,
   changes: RolloutChange[],
   globalReleases: Record<string, string>,
   offers: OfferedCar[],
   own: OwnCar,
-): RolloutPage {
+  now: number,
+  extraNotes: ReleaseNotesByVersion = {},
+): Promise<RolloutPage> {
   const rollout = buildRollout(cars, changes, globalReleases);
   const versions = rollout.versions.flatMap((v) => (v.carsNow > 0 ? [v.version] : []));
+  const arriving = buildArriving(offers);
+  const shown = [...new Set([...rollout.versions.map((v) => v.version), ...arriving.map((a) => a.version)])];
+  const notes = await loadReleaseNotes(shown);
   return {
     kind: "ready",
     rollout,
     states: buildStateRollout(cars, versions),
-    arriving: buildArriving(offers),
+    arriving,
     yourCar: own ? yourCar(own, rollout) : null,
+    adoption: { day: buildAdoption(cars, changes, now, "day"), week: buildAdoption(cars, changes, now, "week") },
+    releaseNotes: { ...Object.fromEntries(Object.entries(extraNotes).filter(([v]) => shown.includes(v))), ...notes },
   };
 }
 
@@ -97,7 +116,7 @@ async function ownCar(): Promise<OwnCar> {
 // /rollout's totals, pooled across every car in the database. Only the totals leave this function: vehicle
 // ids are opaque keys inside buildRollout and buildArriving, VINs only join tables inside carStates (and read
 // the owner's own stream), and only versions, counts and the owner's own line leave the server.
-export async function loadRollout(): Promise<RolloutPage> {
+export async function loadRollout(now: number): Promise<RolloutPage> {
   if (DEMO) {
     const fleet = demoFleet();
     const changes = fleet.history.map((h) => ({ car: h.vehicle_id, version: h.version, previous: h.previous_version, at: h.detected_at, source: h.source }));
@@ -105,7 +124,7 @@ export async function loadRollout(): Promise<RolloutPage> {
       const offer = fleet.offers.find((o) => o.vehicle_id === v.id);
       return { car: v.id, version: v.current_version, status: offer?.update_status ?? null, offered: offer?.update_version ?? null };
     });
-    return build(await carStates(), changes, fleet.globalReleases, offers, await ownCar());
+    return build(await carStates(), changes, fleet.globalReleases, offers, await ownCar(), now, fleet.notes);
   }
   try {
     const missing = missingEnv();
@@ -113,7 +132,7 @@ export async function loadRollout(): Promise<RolloutPage> {
     // Every owner's cars count by default. The opt-out (phase 6, with per-owner settings) goes here: drop the
     // cars and rows of owners who turned it off before they reach buildRollout.
     const [cars, changes, offers, own] = await Promise.all([carStates(), allChanges(), allOffers(), ownCar()]);
-    return build(cars, changes, GLOBAL_RELEASES, offers, own);
+    return await build(cars, changes, GLOBAL_RELEASES, offers, own, now);
   } catch (err) {
     console.error(err);
     return { kind: "error", message: (err as Error).message };
