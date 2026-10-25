@@ -8,13 +8,15 @@ export { Value } from "@/components/measure";
 // (a level bar). `key` is an optional swatch before the label, like a chart legend.
 export type Figure = { label: string; value: ReactNode; note?: ReactNode; extra?: ReactNode; key?: ReactNode };
 
-const SM_COLUMNS = ["", "sm:grid-cols-1", "sm:grid-cols-2", "sm:grid-cols-3", "sm:grid-cols-4"];
-const SM_SPAN = ["", "", "sm:col-span-2", "sm:col-span-3"];
+// Rows of three sit on a six-track grid, so a last row of one or two tiles can split it evenly.
+const SM_COLUMNS = ["", "sm:grid-cols-1", "sm:grid-cols-2", "sm:grid-cols-6", "sm:grid-cols-4"];
+// A tile's span in a row of three, and in a last row of one or two.
+const SM_SPAN_OF = { full: "sm:col-span-2", lastOne: "sm:col-span-6", lastTwo: "sm:col-span-3" };
 
 // A few related numbers as tiles, like the home headline strip: a bordered grid, an uppercase label, the
 // value large with its unit small, and a line of context under it. Two columns on a phone; wider, one row
 // of up to four, and rows of three past that. No cell is left empty: on a phone an odd first tile takes
-// the whole row, and wider the last tile fills out its row.
+// the whole row, and wider the tiles of a short last row share it equally.
 export function Figures({ figures, className }: { figures: (Figure | null | false)[]; className?: string }) {
   const shown = figures.filter((f): f is Figure => Boolean(f));
   if (shown.length === 0) return null;
@@ -28,7 +30,7 @@ export function Figures({ figures, className }: { figures: (Figure | null | fals
           className={cn(
             "@container flex min-w-0 flex-col gap-2 bg-background p-3 sm:p-4",
             k === 0 && shown.length % 2 === 1 && "max-sm:col-span-2",
-            k === shown.length - 1 && left > 0 && SM_SPAN[columns - left + 1],
+            columns === 3 && (k < shown.length - left ? SM_SPAN_OF.full : left === 1 ? SM_SPAN_OF.lastOne : SM_SPAN_OF.lastTwo),
           )}
         >
           {/* A long label ("Hardest acceleration") wraps rather than cutting off on a phone. */}
