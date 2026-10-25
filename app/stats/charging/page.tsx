@@ -127,9 +127,8 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
               const shown = curves.filter((c) => startedIn(frame.span)({ started_at: c.date })).map((c) => ({ ...c, serial: streamSerial.get(c.id) }));
               return <DcCurves curves={shown} frame={frame} note={backTo(frame.span, from.curves, `Curves are kept for the latest ${CURVES} DC charges, which`)} />;
             })}
-          {eachFrame(frames, ({ frame }) => (
-            <TopStations rows={stations(frame.span)} title={frame.title} words={frame.words} />
-          ))}
+          {stations({ from: -Infinity, to: Infinity }).length > 0 &&
+            eachFrame(frames, ({ frame }) => <TopStations rows={stations(frame.span)} title={frame.title} words={frame.words} />)}
           {(extras.pins.length > 0 || (custom?.extras.pins.length ?? 0) > 0) &&
             eachFrame(frames, ({ key, frame }) => {
               const { pins, held: from } = extrasFor(key);

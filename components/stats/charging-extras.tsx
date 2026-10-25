@@ -1,6 +1,7 @@
 "use client";
 
 import { unitNotes } from "@/components/stats/chart-caption";
+import { ChartNote } from "@/components/stats/chart-note";
 import { LineChart } from "@/components/stats/line-chart";
 import { type MapPin, TripMap } from "@/components/stats/trip-map";
 import { formatShortDate } from "@/lib/format";
@@ -39,9 +40,10 @@ export function DcCurves({ curves, frame, note }: { curves: (Curve & { serial?: 
           {frame.title}.{" "}
           {curves.length > 0
             ? `Typical power as the battery fills, from ${curves.length} DC ${curves.length === 1 ? "charge" : "charges"}. Power drops as the battery gets fuller.`
-            : `No DC charging curves ${frame.words}.`}
+            : "Power as the battery fills, for each DC charge."}
         </p>
       </div>
+      {curves.length === 0 && <ChartNote>No DC charging curves {frame.words}.</ChartNote>}
       {curves.length > 0 && (
         <>
           <LineChart
@@ -101,10 +103,17 @@ export function ChargingMap({ pins, frame, note }: { pins: MapPin[]; frame: Time
       <div className="space-y-2">
         <h2 className="text-lg font-medium tracking-heading">Charging map</h2>
         <p className="text-sm text-muted-foreground">
-          {frame.title}. {pins.length > 0 ? "Each charge where it happened; bigger pins added more energy." : `No charges with a location ${frame.words}.`}
+          {frame.title}. Each charge where it happened; bigger pins added more energy.
         </p>
       </div>
-      {pins.length > 0 && <TripMap pins={pins} label={`${pins.length} charges on a map`} />}
+      {pins.length > 0 ? (
+        <TripMap pins={pins} label={`${pins.length} charges on a map`} />
+      ) : (
+        // The map's box, so the page keeps its shape from one period to the next.
+        <p className="flex h-72 w-full items-center justify-center border bg-muted p-4 text-center text-sm text-muted-foreground sm:h-96">
+          No charges with a location {frame.words}.
+        </p>
+      )}
       {note && <p className="text-xs text-faint">{note}</p>}
     </section>
   );
