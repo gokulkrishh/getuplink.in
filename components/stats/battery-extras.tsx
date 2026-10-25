@@ -153,3 +153,43 @@ export function CapacityByKm({ points, frame }: { points: BatteryExtras["capacit
     </section>
   );
 }
+
+// Tesla's own full-pack figure by week (the middle value of the week's readings), in the weeks that overlap
+// the span, once it reported it in at least two weeks. It only comes when the figure changes, so a week
+// without a point had no new figure.
+export function TeslaPackByWeek({ pack, frame }: { pack: BatteryExtras["teslaPack"]; frame: Timeframe }) {
+  const weeks = pack?.weekly ?? [];
+  if (weeks.length < 2) return null;
+  const shown = weeksIn(weeks, frame.span);
+  return (
+    <section className="space-y-6">
+      <div className="space-y-2">
+        <h2 className="text-lg font-medium tracking-heading">Full pack by week, per Tesla</h2>
+        <p className="text-sm text-muted-foreground">The car&apos;s own figure for a full battery, in the weeks it sent one.</p>
+      </div>
+      <div className="space-y-3">
+        {shown.length >= 2 ? (
+          <LineChart
+            series={[{ name: "Full pack", className: "stroke-chart-accent", points: shown.map((w) => ({ x: w.weekStart, y: w.kwh })) }]}
+            formatX={(x) => `Week of ${formatShortDate(x)}`}
+            formatY={(y) => `${oneDecimal.format(y)} kWh`}
+            label={`Tesla's full-pack figure by week, ${frame.title}`}
+          />
+        ) : (
+          <ChartNote>
+            {shown.length === 1
+              ? `Week of ${formatShortDate(shown[0].weekStart)}: ${oneDecimal.format(shown[0].kwh)} kWh. A line needs two weeks.`
+              : `No new figure from Tesla ${frame.words}.`}
+          </ChartNote>
+        )}
+        <Caption
+          plotted={`How much energy a full battery holds, as Tesla reports it: the middle value of each week's readings. The car only sends it when it changes, so a week with no new figure has no point. ${unitNotes(["kWh"])}`}
+          frame={frame}
+          first={weeks[0].weekStart}
+          chart={shown.length >= 2}
+          what="Weekly readings"
+        />
+      </div>
+    </section>
+  );
+}

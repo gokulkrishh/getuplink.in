@@ -4,11 +4,13 @@ import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { Header } from "@/components/header";
+import { CarNotices } from "@/components/owner-notices";
 import { Vin } from "@/components/vin";
 import { CAR_NOW_FIELDS, type CarNow, carNow } from "@/lib/car-now";
-import { formatClock, formatShortDate } from "@/lib/format";
+import { formatAgo, formatClock, formatShortDate } from "@/lib/format";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type CarDetails, loadCarDetails } from "@/lib/server/car";
+import { loadCarFlags } from "@/lib/server/car-flags";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadPrimaryVehicle, loadStream } from "@/lib/server/telemetry";
 
@@ -44,13 +46,17 @@ function Group({ title, rows }: { title: string; rows: [string, ReactNode][] }) 
   );
 }
 
-// The car's state now, from the latest streamed readings, in the same private cache as the page.
-async function loadNow(vin: string): Promise<CarNow> {
+// The car's state now, from the latest streamed readings and what Tesla flagged at the latest online
+// check, in the same private cache as the page. The clock is read here: reading it while rendering blocks
+// prerendering.
+async function loadNow(id: string, vin: string | null): Promise<{ now: CarNow | null; notices: string[]; at: number }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
-  return carNow(await loadStream(vin, CAR_NOW_FIELDS));
+  const at = Date.now();
+  const [stream, flags] = await Promise.all([vin ? loadStream(vin, CAR_NOW_FIELDS) : null, loadCarFlags(id)]);
+  return { now: stream && carNow(stream, at, flags.tyres), notices: flags.notices, at };
 }
 
 async function Car({ id }: { id: Promise<string | null> }) {
@@ -58,7 +64,7 @@ async function Car({ id }: { id: Promise<string | null> }) {
   const car = await loadCar(carId);
   if (!car && carId === null) return <p className="text-sm text-muted-foreground">No car on your Tesla account yet.</p>;
   if (!car) notFound();
-  const now = car.vin ? await loadNow(car.vin) : null;
+  const { now, notices, at } = await loadNow(car.id, car.vin);
 
   return (
     <>
@@ -67,6 +73,7 @@ async function Car({ id }: { id: Promise<string | null> }) {
         {[car.year, car.model, car.generation && `(${car.generation})`].filter(Boolean).join(" ")}
       </p>
       <div className="flex flex-col gap-12">
+        <CarNotices notices={notices} />
         {now && now.rows.length > 0 && (
           <div className="space-y-3">
             <Group title="Car now" rows={now.rows} />
@@ -75,7 +82,16 @@ async function Car({ id }: { id: Promise<string | null> }) {
         )}
         {now && now.tyres.length > 0 && (
           <div className="space-y-3">
-            <Group title="Tyres" rows={now.tyres} />
+            <Group
+              title="Tyres"
+              rows={now.tyres.map((t) => [
+                t.name,
+                <>
+                  {t.pressure}
+                  {t.measuredAt && <span className="block text-xs text-muted-foreground">Measured {formatAgo(t.measuredAt, at)}</span>}
+                </>,
+              ])}
+            />
             {now.tyreWarning && <p className="text-sm text-destructive">{now.tyreWarning}</p>}
           </div>
         )}

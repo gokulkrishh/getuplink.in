@@ -7,7 +7,7 @@ import { Header } from "@/components/header";
 import { Headline } from "@/components/home/headline";
 import { NowStrip } from "@/components/home/now-strip";
 import { BatterySection, ChargingSection, DrivingSection } from "@/components/home/sections";
-import { CheckedFooter, OwnerNotices } from "@/components/owner-notices";
+import { CarNotices, CheckedFooter, OwnerNotices } from "@/components/owner-notices";
 import { listSessions } from "@/components/session-row";
 import { eachFrame } from "@/components/home/frames";
 import { PeriodPicker, PeriodScope } from "@/components/stats/period-scope";
@@ -125,6 +125,7 @@ async function HomeContent({ searchParams }: Pick<PageProps<"/">, "searchParams"
         <div className="space-y-12">
           {cars.map((car) => (
             <div key={car.vehicle.id} className="space-y-6">
+              <CarNotices notices={car.notices} />
               <NowStrip car={car} odometerKm={car.vehicle.id === primaryId ? home.figures.odometerKm : null} now={now} />
               <UpdateBanner snapshot={car.lastOnline} />
             </div>

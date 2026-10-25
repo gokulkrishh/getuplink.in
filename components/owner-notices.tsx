@@ -85,6 +85,18 @@ export function OwnerNotices({ data, count, failedRun }: { data: OwnerGate | { k
   );
 }
 
+// What Tesla flagged at the car's latest online check (see carNotices): nothing when it flagged nothing.
+export function CarNotices({ notices }: { notices: string[] }) {
+  if (notices.length === 0) return null;
+  return (
+    <div role="status" className="space-y-1 border px-4 py-3 text-sm">
+      {notices.map((n) => (
+        <p key={n}>{n}</p>
+      ))}
+    </div>
+  );
+}
+
 // "Last checked …" and, when the last poll failed, why. `children` go first, like a link to Settings.
 export function CheckedFooter({ lastRun, showError, children }: { lastRun: PollRun | null; showError: boolean; children?: ReactNode }) {
   if (!lastRun && !children) return null;

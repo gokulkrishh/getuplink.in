@@ -1,7 +1,11 @@
 import "server-only";
 import { MILES_TO_KM } from "@/lib/car";
 import { num, type Reading, type WeeklyPack } from "@/lib/telemetry-derive";
+import { type TeslaPack, teslaPack } from "@/lib/tesla-pack";
+import { loadStream } from "./telemetry";
 import { loadReadingsByField } from "./telemetry-window";
+
+const NOMINAL = "NominalFullPackEnergyKwh";
 
 const DAY = 86_400_000;
 export const TEMP_DAYS = 7;
@@ -14,6 +18,8 @@ export type BatteryExtras = {
   temps: { battery: Point[]; inside: Point[]; outside: Point[] };
   cellSpreadMv: Point[]; // highest minus lowest cell voltage, in mV
   capacityByKm: (Point & { weekStart: number })[]; // x: odometer km, y: estimated full pack kWh, for the week starting weekStart
+  // Tesla's own full-pack figure, as last reported, with its weekly median over the trend's weeks.
+  teslaPack: TeslaPack | null;
 };
 
 const series = (readings: Reading[] | undefined, scale = 1): Point[] =>
@@ -31,18 +37,23 @@ function pair(a: Point[], b: Point[], f: (x: number, y: number) => number): Poin
 }
 
 export async function loadBatteryExtras(vin: string | null, trend: WeeklyPack[], now: number): Promise<BatteryExtras> {
-  const empty: BatteryExtras = { temps: { battery: [], inside: [], outside: [] }, cellSpreadMv: [], capacityByKm: [] };
+  const empty: BatteryExtras = { temps: { battery: [], inside: [], outside: [] }, cellSpreadMv: [], capacityByKm: [], teslaPack: null };
   if (!vin) return empty;
   const from = new Date(now - TEMP_DAYS * DAY).toISOString();
   const to = new Date(now).toISOString();
   const trendFrom = trend.length ? new Date(trend[0].weekStart).toISOString() : from;
-  const [recent, odo] = await Promise.all([
+  // Tesla only sends its figure when it changes, so the latest is read on its own, of any age.
+  const [recent, odo, nominal, latest] = await Promise.all([
     loadReadingsByField(vin, ["ModuleTempMax", "InsideTemp", "OutsideTemp", "BrickVoltageMax", "BrickVoltageMin"], from, to),
     trend.length >= 2 ? loadReadingsByField(vin, ["Odometer"], trendFrom, to) : Promise.resolve(null),
+    loadReadingsByField(vin, [NOMINAL], trendFrom, to),
+    loadStream(vin, [NOMINAL]),
   ]);
-  if (!recent) return empty;
+  const pack = teslaPack(latest[NOMINAL], nominal?.[NOMINAL] ?? []);
+  if (!recent) return { ...empty, teslaPack: pack };
   const odometer = series(odo?.Odometer, MILES_TO_KM);
   return {
+    teslaPack: pack,
     temps: { battery: series(recent.ModuleTempMax), inside: series(recent.InsideTemp), outside: series(recent.OutsideTemp) },
     cellSpreadMv: pair(series(recent.BrickVoltageMax), series(recent.BrickVoltageMin), (hi, lo) => (hi - lo) * 1000),
     // Each week's estimate at the odometer reading nearest the middle of that week.

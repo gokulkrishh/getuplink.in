@@ -130,7 +130,7 @@ const handler = createMcpHandler(
       "get_battery_status",
       {
         title: "Battery status",
-        description: "Charge level, usable capacity and range at 100% against the best week, AC and DC charging efficiency, parked now and parked drain (kW, % and km a day), battery, inside and outside temperature, and the cell voltage gap.",
+        description: "Charge level, usable capacity and range at 100% against the best week, Tesla's own full-pack figure with when it was reported, AC and DC charging efficiency, parked now and parked drain (kW, % and km a day), battery, inside and outside temperature, and the cell voltage gap.",
         inputSchema: z.object({}),
         annotations: ro,
       },
@@ -140,7 +140,7 @@ const handler = createMcpHandler(
       "get_car_now",
       {
         title: "Car now",
-        description: "The car's state from its latest readings: locked, Sentry Mode, doors, windows, charge port, climate, cabin overheat protection, temperatures and tyre pressures with warnings.",
+        description: "The car's state from its latest readings: locked, Sentry Mode, doors, windows, charge port, climate, cabin overheat protection, temperatures, and each tyre's pressure with when it was measured and which tyre is low.",
         inputSchema: z.object({}),
         annotations: ro,
       },

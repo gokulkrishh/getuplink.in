@@ -11,12 +11,13 @@ const STORED = [
   "Your Tesla account's sign-in tokens, encrypted",
   "Each car's VIN, name, model, colour and configuration",
   "Software version and update status",
+  "Whether Tesla shows an unpaid Supercharger balance or the car at a service centre",
   "Battery level, range, charge limit, charging state and battery temperature",
   "Odometer at each update",
   "Everything your car streams while it's awake: driving (speed, gear, pedals, acceleration), battery and charging, climate and cabin, tyres, doors and locks, Sentry Mode and navigation. Not what's playing, and not your phone's name",
   "Where the car is while it's awake, including trip routes, stops and navigation destinations",
   "Release notes",
-  "Tesla Supercharger sessions (site, time, energy, cost) and their invoices",
+  "Tesla Supercharger sessions (site, time, energy, cost and each fee on the bill) and their invoices",
   "Each car's home state, such as Karnataka, for the India rollout map",
   "The name of the charging station each session happened at, such as Statiq, Koramangala",
 ];
@@ -41,7 +42,7 @@ export default function PrivacyPage() {
 
       <article className="py-16">
         <h1 className="text-2xl font-semibold tracking-tight text-balance">Privacy</h1>
-        <p className="mt-2 text-sm text-faint">Last updated 22 October 2026</p>
+        <p className="mt-2 text-sm text-faint">Last updated 25 October 2026</p>
 
         <div className="mt-10 grid gap-10">
           <section>

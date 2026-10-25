@@ -2,6 +2,7 @@ import "server-only";
 import { DEMO, type DemoScenario } from "@/lib/demo";
 import type { DrivingFigures, DrivingPeriod } from "@/lib/driving-figures";
 import type { Timeframe } from "@/lib/periods";
+import { loadCarFlags } from "./car-flags";
 import { type ChargingSession, loadChargingSessions } from "./charging";
 import { type CarState, loadCarState, loadOwnerCars, type OwnerGate, type PollRun, type Vehicle } from "./dashboard";
 import { demoFirstWeekStart } from "./demo";
@@ -9,7 +10,8 @@ import { loadDrivingFigures, loadTimeframeDriving, loadWindowStats, type WindowS
 import { invoicesBySession } from "./receipts";
 import { loadStreamSessions, type StreamChargeSession } from "./stream-charging";
 
-export type HomeCar = CarState & { vehicle: Vehicle };
+// notices: what Tesla flagged at the car's latest online check (see loadCarFlags).
+export type HomeCar = CarState & { vehicle: Vehicle; notices: string[] };
 
 type HomeData = {
   cars: HomeCar[];
@@ -37,7 +39,12 @@ export async function loadHome(scenario: DemoScenario, now: number): Promise<Hom
     // The demo's First week: a car connected four days ago, so nothing before then exists.
     const demoSince = DEMO && scenario === "firstWeek" ? demoFirstWeekStart() : undefined;
     const [cars, figures, sessions, streamSessions, window] = await Promise.all([
-      Promise.all(owner.vehicles.map(async (vehicle) => ({ vehicle, ...(await loadCarState(vehicle, scenario)) }))),
+      Promise.all(
+        owner.vehicles.map(async (vehicle) => {
+          const [state, flags] = await Promise.all([loadCarState(vehicle, scenario), loadCarFlags(vehicle.id)]);
+          return { vehicle, ...state, notices: flags.notices };
+        }),
+      ),
       loadDrivingFigures(primary?.vin ?? null, now, demoSince),
       loadChargingSessions(),
       loadStreamSessions(),

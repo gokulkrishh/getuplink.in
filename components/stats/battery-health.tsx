@@ -1,11 +1,12 @@
 import { type Figure, Figures } from "@/components/stats/figures";
 import { chargeEfficiency } from "@/lib/charge-sessions";
 import type { WeeklyRange } from "@/lib/charge-level";
-import { formatKm, formatKwh } from "@/lib/format";
+import { formatKm, formatKwh, formatShortDate } from "@/lib/format";
 import { within } from "@/lib/kept";
 import type { Timeframe } from "@/lib/periods";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import type { WeeklyPack } from "@/lib/telemetry-derive";
+import type { TeslaPack } from "@/lib/tesla-pack";
 
 const percent = (value: number) => `${Math.round(value * 100)}%`;
 
@@ -21,8 +22,21 @@ function vsBest<T>(weeks: T[], value: (w: T) => number, format: (n: number) => s
 
 // Battery health after TeslaMate's dashboard, from what the car streamed. Usable capacity and range at
 // 100% are the latest week's, against the best week seen, whatever span is picked; the energy charged, charge
-// cycles and charging efficiency are the span's.
-export function BatteryHealth({ trend, range, sessions, frame }: { trend: WeeklyPack[]; range: WeeklyRange[]; sessions: StreamChargeSession[]; frame: Timeframe }) {
+// cycles and charging efficiency are the span's. Tesla's own full-pack figure is its latest report, next to
+// the estimate as it is: the two may count the pack differently, so neither is measured against the other.
+export function BatteryHealth({
+  trend,
+  range,
+  sessions,
+  frame,
+  teslaPack,
+}: {
+  trend: WeeklyPack[];
+  range: WeeklyRange[];
+  sessions: StreamChargeSession[];
+  frame: Timeframe;
+  teslaPack: TeslaPack | null;
+}) {
   const capacity = vsBest(trend, (w) => w.kwh, formatKwh);
   const full = vsBest(range, (w) => w.km, formatKm);
   const finished = within(
@@ -38,6 +52,7 @@ export function BatteryHealth({ trend, range, sessions, frame }: { trend: Weekly
   const efficiency = `Charger's energy that reached the pack, ${frame.words}`;
   const figures: Figure[] = [];
   if (capacity) figures.push({ label: "Usable capacity now", value: capacity.now, note: capacity.note });
+  if (teslaPack) figures.push({ label: "Full pack now, per Tesla", value: formatKwh(teslaPack.kwh), note: `Last reported ${formatShortDate(teslaPack.at)}` });
   if (full) figures.push({ label: "Range at 100% now", value: `≈ ${full.now}`, note: full.note });
   if (added > 0) {
     figures.push({ label: "Energy charged", value: formatKwh(added), note: `${finished.length} ${finished.length === 1 ? "charge" : "charges"} ${frame.words}` });
@@ -52,7 +67,10 @@ export function BatteryHealth({ trend, range, sessions, frame }: { trend: Weekly
       <h2 className="text-lg font-medium tracking-heading">Battery health</h2>
       <Figures figures={figures} />
       {added === 0 && <p className="text-sm text-muted-foreground">No finished charges {frame.words}.</p>}
-      <p className="text-xs text-faint">Compared with the best week Uplink has seen, not with a new pack: it only knows what the car has reported since you connected it.</p>
+      <p className="text-xs text-faint">
+        Usable capacity and range are compared with the best week Uplink has seen, not with a new pack: it only knows what the car has reported since you connected it.
+        {teslaPack && " Full pack, per Tesla, is the car's own figure, as it last sent it; Tesla may count the pack differently from Uplink's estimate."}
+      </p>
     </section>
   );
 }

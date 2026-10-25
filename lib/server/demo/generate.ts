@@ -5,6 +5,7 @@
 // and the Supercharger sync store. The loaders feed those into the same functions as the real path
 // (buildSessions, packEstimates, dailyDistance, ...), so the pages show what real data produces.
 import { MILES_TO_KM } from "@/lib/car";
+import type { CarFlags } from "@/lib/car-notices";
 import { DEMO_ROUTES } from "./routes";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import { istDay as istDayName, type Status } from "@/lib/status";
@@ -119,7 +120,10 @@ const VEHICLE_STATE = {
   webcam_supported: true,
 };
 
-export type HealthRow = { component: string; status: Status; checked_at: string };
+// The top-level flags of the poll's response: no unpaid Supercharger balance, not in service.
+const FLAGS: CarFlags = { supercharger_payment_needed: false, in_service: false };
+
+export type HealthRow ={ component: string; status: Status; checked_at: string };
 export type HealthDaily = { component: string; day: string; status: Status; up: number; total: number };
 
 export type DemoData = {
@@ -129,6 +133,7 @@ export type DemoData = {
   snapshot: Snapshot;
   config: typeof CONFIG;
   vehicleState: typeof VEHICLE_STATE;
+  flags: CarFlags;
   superchargingEnabled: boolean;
   odometerMiles: number;
   history: VersionChange[]; // newest first
@@ -569,6 +574,8 @@ export function generateDemo(now: number): DemoData {
   // at the back.
   push("Locked", woke, true);
   push("SentryMode", woke, "SentryModeStateOff");
+  // Tesla's own full-pack figure, a little above the estimate and moving with it, a reading a week.
+  for (let t = windowStart; t < woke - 7 * DAY; t += 7 * DAY) push("NominalFullPackEnergyKwh", t, round(62.12 + packKwh(now, t) - packKwh(now, now), 2));
   push("NominalFullPackEnergyKwh", woke, 62.12);
   push("DoorState", woke, { DriverFront: false, DriverRear: false, PassengerFront: false, PassengerRear: false, TrunkFront: false, TrunkRear: false });
   for (const w of ["FdWindow", "FpWindow", "RdWindow", "RpWindow"]) push(w, woke, "WindowStateClosed");
@@ -580,6 +587,11 @@ export function generateDemo(now: number): DemoData {
   push("TpmsPressureFr", woke, 2.9);
   push("TpmsPressureRl", woke, 2.8);
   push("TpmsPressureRr", woke, 2.75);
+  // When each tyre was last measured, in Unix seconds: the fronts on waking, the rears two days ago.
+  push("TpmsLastSeenPressureTimeFl", woke, Math.floor(woke / 1000));
+  push("TpmsLastSeenPressureTimeFr", woke, Math.floor(woke / 1000));
+  push("TpmsLastSeenPressureTimeRl", woke, Math.floor((woke - 2 * DAY) / 1000));
+  push("TpmsLastSeenPressureTimeRr", woke, Math.floor((woke - 2 * DAY) / 1000));
   push("TpmsSoftWarnings", woke, { front_left: false, front_right: false, rear_left: false, rear_right: false });
   push("TpmsHardWarnings", woke, { front_left: false, front_right: false, rear_left: false, rear_right: false });
   pack(woke);
@@ -716,6 +728,7 @@ export function generateDemo(now: number): DemoData {
     snapshot,
     config: CONFIG,
     vehicleState: VEHICLE_STATE,
+    flags: FLAGS,
     superchargingEnabled: true,
     odometerMiles: odometer,
     history: history.reverse(),

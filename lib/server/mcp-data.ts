@@ -10,6 +10,7 @@ import { groupTrips } from "@/lib/trips";
 import { median, istDay, istDayStart } from "@/lib/telemetry-derive";
 import { loadPresence } from "./awake";
 import { loadBatteryExtras } from "./battery-extra";
+import { loadCarFlags } from "./car-flags";
 import { loadChargingSessions } from "./charging";
 import { loadChargingExtras } from "./charging-extra";
 import { loadDriveDetail } from "./drive-detail";
@@ -105,6 +106,7 @@ export async function batteryStatus() {
   return {
     charge_level_pct: r1(latest(window.level?.points ?? [])?.level ?? null),
     usable_capacity_kwh: { now: r1(latest(window.trend)?.kwh ?? null), best_week: r1(best(window.trend.map((w) => w.kwh))) },
+    full_pack_per_tesla_kwh: extras.teslaPack ? { value: r1(extras.teslaPack.kwh), reported_at: istIso(extras.teslaPack.at) } : null,
     range_at_100_km: { now: r1(latest(window.range)?.km ?? null), best_week: r1(best(window.range.map((w) => w.km))) },
     charging_efficiency: {
       ac: r1(((chargeEfficiency(finished.filter((s) => s.kind === "ac")) ?? NaN) * 100) || null),
@@ -123,10 +125,16 @@ export async function batteryStatus() {
 
 // Locked, Sentry, doors, windows, climate, temperatures and tyres, from the latest readings.
 export async function carNowStatus() {
-  const { vin } = await car();
-  if (!vin) return { error: "No car on this account." };
-  const now = carNow(await loadStream(vin, CAR_NOW_FIELDS));
-  return { last_update: now.since ? istIso(now.since) : null, state: Object.fromEntries(now.rows), tyres: Object.fromEntries(now.tyres), tyre_warning: now.tyreWarning };
+  const { vehicle, vin } = await car();
+  if (!vehicle || !vin) return { error: "No car on this account." };
+  const [stream, flags] = await Promise.all([loadStream(vin, CAR_NOW_FIELDS), loadCarFlags(vehicle.id)]);
+  const now = carNow(stream, Date.now(), flags.tyres);
+  return {
+    last_update: now.since ? istIso(now.since) : null,
+    state: Object.fromEntries(now.rows),
+    tyres: Object.fromEntries(now.tyres.map((t) => [t.name, { pressure: t.pressure, measured_at: t.measuredAt ? istIso(t.measuredAt) : null, warning: t.warning }])),
+    tyre_warning: now.tyreWarning,
+  };
 }
 
 // Charges and money: Tesla's and attached invoices, joined once.
