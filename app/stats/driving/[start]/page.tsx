@@ -4,7 +4,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
-import { DriveLanes } from "@/components/stats/drive-lanes";
+import { ChartCard } from "@/components/chart-card";
+import { DriveTrace } from "@/components/stats/drive-lanes";
 import { type Figure, Figures } from "@/components/stats/figures";
 import { TripMap } from "@/components/stats/trip-map";
 import { TripTimeline } from "@/components/stats/trip-timeline";
@@ -13,10 +14,18 @@ import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type DriveDetail, loadDriveDetail } from "@/lib/server/drive-detail";
 import { Measure } from "@/components/measure";
+import { unitNotes } from "@/lib/unit-words";
 
 export const metadata: Metadata = { title: "Trip · Uplink" };
 
 const oneDecimal = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
+
+// Acceleration as speed gained or lost each second, which reads better than the car's m/s²: 1 m/s² is
+// 3.6 km/h each second.
+const ACCEL_UNIT = "km/h per second";
+const MS2_TO_KMHS = 3.6;
+// The battery chart shows only when the level fell by at least this many points; otherwise its tile says it.
+const BATTERY_CHART_POINTS = 10;
 
 // Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx).
 async function loadDetail(start: number, leg: boolean): Promise<DriveDetail | null> {
@@ -51,7 +60,13 @@ function Drive({ detail }: { detail: DriveDetail }) {
     ...(topKmh !== null ? [{ label: "Top speed", value: `${Math.round(topKmh)} km/h` }] : []),
     ...(outsideC !== null ? [{ label: "Outside", value: `${oneDecimal.format(outsideC)} °C` }] : []),
   ];
-  const traceEnd = Math.max(trip.end, battery.at(-1)?.t ?? trip.end);
+  // Every chart spans the drive and nothing else, so their time axes match and none runs past the end.
+  const axis = { from: trip.start, to: trip.end, legs: trip.legs };
+  const accelKmhs = accel.map((p) => ({ t: p.t, v: p.v * MS2_TO_KMHS }));
+  const peaks = highlights(power, accelKmhs);
+  const inDrive = battery.filter((p) => p.t <= trip.end);
+  const levels = inDrive.map((p) => p.v);
+  const batteryShown = levels.length >= 2 && Math.max(...levels) - Math.min(...levels) >= BATTERY_CHART_POINTS ? inDrive : [];
   return (
     <>
       <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">{trip.stops ? "Trip" : "Drive"}</h1>
@@ -72,6 +87,7 @@ function Drive({ detail }: { detail: DriveDetail }) {
               ),
             }))}
           />
+          {trip.kwh !== null && <p className="mt-2 text-xs text-muted-foreground">{unitNotes(["kWh"])}</p>}
         </section>
         <section className="space-y-4">
           <h2 className="text-lg font-medium tracking-heading">Map</h2>
@@ -88,22 +104,59 @@ function Drive({ detail }: { detail: DriveDetail }) {
           </section>
         )}
         {trip.stops > 0 && <Legs legs={trip.legs} />}
-        {[speed, power, accel, grade, battery].some((points) => points.length >= 2) && (
-          <section className="space-y-4">
-            <h2 className="text-lg font-medium tracking-heading">Over the drive</h2>
-            <Figures figures={highlights(power, accel)} />
-            <DriveLanes
-              from={trip.start}
-              to={traceEnd}
-              lanes={[
-                { name: "Speed", unit: "km/h", points: speed },
-                { name: "Power", unit: "kW", points: power, signed: true },
-                { name: "Acceleration", unit: "m/s²", points: accel, signed: true },
-                { name: "Road grade", unit: "%", points: grade, signed: true },
-                { name: "Battery", unit: "%", points: battery, max: 100 },
-              ]}
-            />
-            {grade.length >= 2 && <p className="text-xs text-faint">Power below zero is regen. Road grade is uphill above zero, as the car estimated it.</p>}
+        {[speed, power, accel, grade].some((points) => points.length >= 2) && (
+          <section className="space-y-10">
+            <div className="space-y-1">
+              <h2 className="text-lg font-medium tracking-heading">Over the drive</h2>
+              <p className="text-sm text-muted-foreground">
+                What the car sent from {formatClock(trip.start)} to {formatClock(trip.end)}, one chart for each. Hover or tap a chart for the time and value.
+                {trip.stops > 0 && " Gaps in a line are stops."}
+              </p>
+            </div>
+            {speed.length >= 2 && (
+              <ChartCard as="h3" title="Speed" description="How fast the car went through the drive, in km/h.">
+                <DriveTrace label="Speed" points={speed} unit="km/h" {...axis} />
+              </ChartCard>
+            )}
+            {power.length >= 2 && (
+              <ChartCard
+                as="h3"
+                title="Power"
+                description="How hard the car drew on the battery. Below zero is regen: energy going back into the battery as the car slows."
+                unit="kW"
+                summary={<Figures figures={peaks.power} />}
+              >
+                <DriveTrace label="Power" points={power} unit="kW" signed {...axis} />
+              </ChartCard>
+            )}
+            {accel.length >= 2 && (
+              <ChartCard
+                as="h3"
+                title="Acceleration"
+                description="How quickly the car sped up or slowed down. Above zero is speeding up, below zero is braking."
+                unit={ACCEL_UNIT}
+                summary={<Figures figures={peaks.accel} />}
+              >
+                <DriveTrace label="Acceleration" points={accelKmhs} unit={ACCEL_UNIT} signed digits={1} {...axis} />
+              </ChartCard>
+            )}
+            {grade.length >= 2 && (
+              <ChartCard
+                as="h3"
+                title="Road grade"
+                description="How steep the road was, as the car estimated it. Above zero is uphill, below zero is downhill."
+                terms={["grade"]}
+              >
+                <DriveTrace label="Road grade" points={grade} unit="%" signed digits={1} {...axis} />
+              </ChartCard>
+            )}
+            {/* Battery barely moves on a short drive, and the Battery tile above already says "70% to 69%". A flat
+                line adds nothing, so the chart only shows when the level fell by BATTERY_CHART_POINTS or more. */}
+            {batteryShown.length >= 2 && (
+              <ChartCard as="h3" title="Battery level" description="How much charge was left as the drive went on, from 0 to 100%.">
+                <DriveTrace label="Battery level" points={batteryShown} unit="%" max={100} {...axis} />
+              </ChartCard>
+            )}
           </section>
         )}
         {(topKmh === null || outsideC === null || accel.length < 2) && (
@@ -153,19 +206,22 @@ function Legs({ legs }: { legs: DriveDetail["trip"]["legs"] }) {
   );
 }
 
-// The peaks worth knowing, with when: the most power drawn and won back by regen, the strongest push and
-// the hardest stop.
-function highlights(power: { t: number; v: number }[], accel: { t: number; v: number }[]): Figure[] {
+// The peaks worth knowing, with when, shown beside their charts: the most power drawn and won back by
+// regen, the strongest push and the hardest stop. Acceleration comes in km/h per second (see ACCEL_UNIT).
+function highlights(power: { t: number; v: number }[], accel: { t: number; v: number }[]): { power: Figure[]; accel: Figure[] } {
   const peak = (points: { t: number; v: number }[], sign: 1 | -1) =>
     points.length === 0 ? null : points.reduce((a, p) => (p.v * sign > a.v * sign ? p : a));
-  const figure = (label: string, p: { t: number; v: number } | null, sign: 1 | -1, value: (v: number) => string) =>
-    p && p.v * sign > 0 ? [{ label, value: value(p.v * sign), note: `At ${formatClock(p.t)}` }] : [];
-  return [
-    ...figure("Most power", peak(power, 1), 1, (v) => `${Math.round(v)} kW`),
-    ...figure("Most regen", peak(power, -1), -1, (v) => `${Math.round(v)} kW`),
-    ...figure("Hardest acceleration", peak(accel, 1), 1, (v) => `${oneDecimal.format(v)} m/s²`),
-    ...figure("Hardest braking", peak(accel, -1), -1, (v) => `${oneDecimal.format(v)} m/s²`),
-  ];
+  const figure = (label: string, p: { t: number; v: number } | null, sign: 1 | -1, value: (v: number) => string, note = "At") =>
+    p && p.v * sign > 0 ? [{ label, value: value(p.v * sign), note: `${note} ${formatClock(p.t)}` }] : [];
+  // Acceleration tiles say "8.8 km/h" with "Gained in one second" under it: the full unit doesn't fit a
+  // tile on a phone, and the note reads more plainly anyway.
+  return {
+    power: [...figure("Most power", peak(power, 1), 1, (v) => `${Math.round(v)} kW`), ...figure("Most regen", peak(power, -1), -1, (v) => `${Math.round(v)} kW`)],
+    accel: [
+      ...figure("Hardest acceleration", peak(accel, 1), 1, (v) => `${oneDecimal.format(v)} km/h`, "Gained in one second, at"),
+      ...figure("Hardest braking", peak(accel, -1), -1, (v) => `${oneDecimal.format(v)} km/h`, "Lost in one second, at"),
+    ],
+  };
 }
 
 async function DriveLoader({ params, searchParams }: Pick<PageProps<"/stats/driving/[start]">, "params" | "searchParams">) {

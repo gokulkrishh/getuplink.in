@@ -3,19 +3,9 @@ import type { Slot, Span } from "@/lib/periods";
 // Plain words under a chart: what it plots, over which bars, and what a unit means, for an owner who
 // doesn't read kWh or kW at a glance.
 
-// What a unit measures, said once under a chart that uses it.
-export const UNIT_WORDS: Record<string, string> = {
-  kWh: "kWh (kilowatt-hours) is energy, the same unit as on an electricity bill",
-  kW: "kW (kilowatts) is power, how fast energy flows",
-  "m/s²": "m/s² is how quickly the car sped up or slowed down",
-  "°C": "°C is degrees Celsius",
-};
-
-// "kWh (kilowatt-hours) is energy, …." for each unit given that has words, in order, once each.
-export function unitNotes(units: (string | undefined)[]): string {
-  const words = [...new Set(units)].flatMap((u) => (u && UNIT_WORDS[u] ? [`${UNIT_WORDS[u]}.`] : []));
-  return words.join(" ");
-}
+// What a unit measures, said once under a chart that uses it: the glossary lives in lib/unit-words.ts,
+// shared with tiles.
+export { UNIT_WORDS, unitNotes, unitWords } from "@/lib/unit-words";
 
 // The bars a chart draws and the span they stand for. `title` heads the span ("Last 7 days", "This year",
 // "1 Sept to 30 Sept"); `slotName` names one bar ("day", "month", "3 hours").
