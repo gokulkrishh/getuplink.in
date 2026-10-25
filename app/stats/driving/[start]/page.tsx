@@ -34,7 +34,12 @@ function Drive({ detail }: { detail: DriveDetail }) {
   const { trip, battery, speed, rangeUsedKm, topKmh, outsideC, route, pins, accel, power, grade } = detail;
   const drivingMs = trip.legs.reduce((sum, d) => sum + (d.end - d.start), 0);
   const stoppedMs = trip.end - trip.start - drivingMs;
+  // The time it took, with the driving and stopped parts under it when there were stops.
+  const took = formatDuration((trip.end - trip.start) / 1000);
+  const split = trip.stops > 0 ? `${formatDuration(drivingMs / 1000)} driving · ${trip.stops === 1 ? "1 stop" : `${trip.stops} stops`}, ${formatDuration(stoppedMs / 1000)}` : undefined;
   const tiles: { label: string; value: string; note?: string; level?: [number, number] }[] = [
+    { label: "Distance", value: formatKm(trip.km) },
+    { label: "Took", value: took, note: split },
     ...(trip.kwh !== null ? [{ label: "Energy used", value: formatKwh(trip.kwh) }] : []),
     ...(trip.startLevel !== null && trip.endLevel !== null
       ? [{ label: "Battery", value: `${Math.round(trip.startLevel)}% to ${Math.round(trip.endLevel)}%`, level: [trip.startLevel, trip.endLevel] as [number, number] }]
@@ -44,11 +49,6 @@ function Drive({ detail }: { detail: DriveDetail }) {
     ...(topKmh !== null ? [{ label: "Top speed", value: `${Math.round(topKmh)} km/h` }] : []),
     ...(outsideC !== null ? [{ label: "Outside", value: `${oneDecimal.format(outsideC)} °C` }] : []),
   ];
-  const summary = [
-    { label: trip.stops ? "In all" : "Took", value: formatDuration((trip.end - trip.start) / 1000) },
-    trip.stops > 0 && { label: "Driving", value: formatDuration(drivingMs / 1000) },
-    trip.stops > 0 && { label: trip.stops === 1 ? "1 stop" : `${trip.stops} stops`, value: formatDuration(stoppedMs / 1000) },
-  ];
   const traceEnd = Math.max(trip.end, battery.at(-1)?.t ?? trip.end);
   return (
     <>
@@ -57,12 +57,8 @@ function Drive({ detail }: { detail: DriveDetail }) {
         {formatDate(trip.start)} · {formatClock(trip.start)} to {formatClock(trip.end)}
       </p>
       <div className="space-y-12">
-        {/* The headline, then a few numbers as tiles: easier to take in than a long list. */}
-        <section className="space-y-6">
-          <div className="space-y-3">
-            <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatKm(trip.km)}</p>
-            <Figures figures={summary} />
-          </div>
+        {/* Every number in one set of tiles: easier to take in than a long list. */}
+        <section>
           <Figures
             figures={tiles.map(({ level, ...t }) => ({
               ...t,
