@@ -45,11 +45,12 @@ function yourCarWords(car: YourCar): string {
 }
 
 // One version on offer: cars it's waiting on and cars already on it.
-function ArrivingRow({ a }: { a: Arriving }) {
+function ArrivingRow({ a, n }: { a: Arriving; n: number }) {
   return (
-    <li className="flex items-baseline justify-between gap-4 py-3 text-sm tabular-nums">
-      <span className="font-mono font-medium">{a.version}</span>
-      <span className="text-muted-foreground">
+    <li className="flex items-baseline gap-4 py-3 text-sm tabular-nums">
+      <span className="w-6 shrink-0 font-mono text-xs text-faint">{n}</span>
+      <span className="flex-1 font-mono font-medium">{a.version}</span>
+      <span className="text-right whitespace-nowrap text-muted-foreground">
         Offered to {cars(a.offered)} · on {a.on}
       </span>
     </li>
@@ -58,16 +59,19 @@ function ArrivingRow({ a }: { a: Arriving }) {
 
 // One version: cars on it now with a bar against every counted car, and how its arrival compares with the world.
 // A version no car is on any more has no bar: an empty track reads as a chart still loading.
-function VersionRow({ v, counted }: { v: RolloutVersion; counted: number }) {
+function VersionRow({ v, counted, n }: { v: RolloutVersion; counted: number; n: number }) {
   return (
-    <li className="space-y-2 py-4">
+    <li className="flex gap-4 py-4">
+      <span className="w-6 shrink-0 pt-0.5 font-mono text-xs text-faint">{n}</span>
+      <div className="min-w-0 flex-1 space-y-2">
       <div className="flex items-baseline justify-between gap-4">
         <span className="font-mono text-sm font-medium tabular-nums">{v.version}</span>
         <span className={cn("text-sm tabular-nums", v.carsNow === 0 && "text-faint")}>{cars(v.carsNow)}</span>
       </div>
+      {/* The share of cars is the screen's data, so it carries the one chart hue. */}
       {v.carsNow > 0 && (
         <div className="h-1.5 w-full bg-muted" aria-hidden>
-          <div className="h-full bg-foreground/70" style={{ width: `${counted ? (v.carsNow / counted) * 100 : 0}%` }} />
+          <div className="h-full bg-chart-accent" style={{ width: `${counted ? (v.carsNow / counted) * 100 : 0}%` }} />
         </div>
       )}
       {/* Only what's known: a car already on the version when tracking began has no arrival date. */}
@@ -78,6 +82,7 @@ function VersionRow({ v, counted }: { v: RolloutVersion; counted: number }) {
           {v.lagDays !== null && <span className="text-foreground">{lagWords(v.lagDays)}</span>}
         </p>
       )}
+      </div>
     </li>
   );
 }
@@ -122,29 +127,39 @@ async function Rollout() {
         <section className="space-y-2">
           <h2 className={heading}>Arriving now</h2>
           <ul className="divide-y border-t">
-            <li className="flex justify-between gap-4 py-2 text-xs text-faint" aria-hidden="true">
-              <span>Version</span>
+            <li className="flex gap-4 py-2 text-xs text-faint" aria-hidden="true">
+              <span className="w-6 shrink-0">#</span>
+              <span className="flex-1">Version</span>
               <span>Offered · on it</span>
             </li>
-            {arriving.map((a) => (
-              <ArrivingRow key={a.version} a={a} />
+            {arriving.map((a, k) => (
+              <ArrivingRow key={a.version} a={a} n={k + 1} />
             ))}
           </ul>
           <p className="text-xs text-faint">Updates Tesla has offered but cars haven&apos;t installed yet, and how many cars already run each.</p>
         </section>
       )}
 
-      <RolloutMap versions={states} />
+      {states.length > 0 && (
+        <section className="space-y-3">
+          <div className="space-y-1">
+            <h2 className={heading}>Where it runs</h2>
+            <p className="text-sm text-muted-foreground">The states each version runs in, darker for more cars. Hover or tap a state for its count.</p>
+          </div>
+          <RolloutMap versions={states} />
+        </section>
+      )}
 
       <section className="space-y-2">
         <h2 className={heading}>Versions</h2>
         <ul className="divide-y border-t">
-          <li className="flex justify-between gap-4 py-2 text-xs text-faint" aria-hidden="true">
-            <span>Version</span>
+          <li className="flex gap-4 py-2 text-xs text-faint" aria-hidden="true">
+            <span className="w-6 shrink-0">#</span>
+            <span className="flex-1">Version</span>
             <span>Cars on it</span>
           </li>
-          {versions.map((v) => (
-            <VersionRow key={v.version} v={v} counted={counted} />
+          {versions.map((v, k) => (
+            <VersionRow key={v.version} v={v} counted={counted} n={k + 1} />
           ))}
         </ul>
       </section>
@@ -160,10 +175,10 @@ async function Rollout() {
         <p>Global dates come from a hand-kept list of public first sightings. A version not on it shows the lag as unknown.</p>
         <p>
           State boundaries:{" "}
-          <a href="https://github.com/datameet/maps" className="underline underline-offset-2 hover:text-foreground">
+          <a href="https://github.com/datameet/maps" className="underline decoration-border decoration-dotted underline-offset-4 hover:text-foreground hover:decoration-foreground">
             DataMeet India community
           </a>{" "}
-          (<a href="https://creativecommons.org/licenses/by/4.0/" className="underline underline-offset-2 hover:text-foreground">CC BY 4.0</a>),
+          (<a href="https://creativecommons.org/licenses/by/4.0/" className="underline decoration-border decoration-dotted underline-offset-4 hover:text-foreground hover:decoration-foreground">CC BY 4.0</a>),
           simplified. Map not to scale.
         </p>
         {DEMO && <p>Demo mode: a simulated fleet of Indian cars, with simulated global dates.</p>}
@@ -194,7 +209,7 @@ export default function Page() {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
       <Header current="rollout" />
-      <h1 className="sr-only">India rollout</h1>
+      <h1 className="mb-8 text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">India rollout</h1>
       <Suspense fallback={<RolloutSkeleton />}>
         <Rollout />
       </Suspense>

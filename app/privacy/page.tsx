@@ -1,6 +1,5 @@
-import Link from "next/link";
 import type { Metadata } from "next";
-import { Logo } from "@/components/logo";
+import { PLAIN_LIST, PlainPage, PlainSection } from "@/components/plain-page";
 
 export const metadata: Metadata = {
   title: "Privacy · Uplink",
@@ -28,146 +27,113 @@ const NOT_DONE = [
   "There are no ads and no tracking. One cookie keeps you signed in, a short-lived one protects the Tesla sign-in, and your theme choice is saved in your browser.",
 ];
 
-const LIST = "mt-2 list-disc space-y-1.5 pl-5 text-sm text-muted-foreground marker:text-faint";
 
 export default function PrivacyPage() {
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-5 py-8 sm:px-8">
-      <header className="text-sm font-medium">
-        <Link href="/" className="inline-flex items-center gap-2">
-          <Logo className="size-5" />
-          Uplink
-        </Link>
-      </header>
+    <PlainPage
+      title="Privacy"
+      intro="What Uplink stores about you and your car, and how to delete it."
+      meta="Last updated 25 October 2026"
+      current="privacy"
+    >
+      <PlainSection title="Who we are">
+        <p>
+          Uplink is an independent tool for Tesla owners in India to track software updates. It is not affiliated
+          with Tesla.
+        </p>
+      </PlainSection>
 
-      <article className="py-16">
-        <h1 className="text-2xl font-semibold tracking-tight text-balance">Privacy</h1>
-        <p className="mt-2 text-sm text-faint">Last updated 25 October 2026</p>
+      <PlainSection title="Signing in">
+        <p>
+          You sign in on Tesla&apos;s own page. Uplink never sees your Tesla password.
+        </p>
+      </PlainSection>
 
-        <div className="mt-10 grid gap-10">
-          <section>
-            <h2 className="text-base font-medium tracking-heading">Who we are</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Uplink is an independent tool for Tesla owners in India to track software updates. It is not affiliated
-              with Tesla.
-            </p>
-          </section>
+      <PlainSection title="What Uplink stores">
+        <ul className={PLAIN_LIST}>
+          {STORED.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </PlainSection>
 
-          <section>
-            <h2 className="text-base font-medium tracking-heading">Signing in</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              You sign in on Tesla&apos;s own page. Uplink never sees your Tesla password.
-            </p>
-          </section>
+      <PlainSection title="What Uplink doesn't do">
+        <ul className={PLAIN_LIST}>
+          {NOT_DONE.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </PlainSection>
 
-          <section>
-            <h2 className="text-base font-medium tracking-heading">What Uplink stores</h2>
-            <ul className={LIST}>
-              {STORED.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </section>
+      <PlainSection title="Why">
+        <p>
+          To show your versions, update status, history, charging and energy use, and which states each update has reached. Nothing else.
+        </p>
+      </PlainSection>
 
-          <section>
-            <h2 className="text-base font-medium tracking-heading">What Uplink doesn&apos;t do</h2>
-            <ul className={LIST}>
-              {NOT_DONE.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </section>
+      <PlainSection title="How data arrives">
+        <p>Two ways.</p>
+        <ul className={PLAIN_LIST}>
+          <li>
+            Uplink checks Tesla&apos;s Fleet API every 6 hours, and while a charge is in progress, once more to
+            name the station. It only reads a car that is already online.
+          </li>
+          <li>
+            Once you add Uplink&apos;s key to your car, the car streams changes to Uplink while it&apos;s awake:
+            every field Tesla&apos;s Fleet Telemetry offers for your car.
+          </li>
+          <li>That includes the car&apos;s location, so trips can show where you went. Delete my data in Settings removes it.</li>
+        </ul>
+      </PlainSection>
 
-          <section>
-            <h2 className="text-base font-medium tracking-heading">Why</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              To show your versions, update status, history, charging and energy use, and which states each update has reached. Nothing else.
-            </p>
-          </section>
+      <PlainSection title="Uplink's key">
+        <p>
+          The key lets your car send data to Uplink. It can&apos;t unlock or drive the car, and Uplink never sends
+          commands. Remove it any time in your car&apos;s Locks settings.
+        </p>
+      </PlainSection>
 
-          <section>
-            <h2 className="text-base font-medium tracking-heading">How data arrives</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Two ways.</p>
-            <ul className={LIST}>
-              <li>
-                Uplink checks Tesla&apos;s Fleet API every 6 hours, and while a charge is in progress, once more to
-                name the station. It only reads a car that is already online.
-              </li>
-              <li>
-                Once you add Uplink&apos;s key to your car, the car streams changes to Uplink while it&apos;s awake:
-                every field Tesla&apos;s Fleet Telemetry offers for your car.
-              </li>
-              <li>That includes the car&apos;s location, so trips can show where you went. Delete my data in Settings removes it.</li>
-            </ul>
-          </section>
+      <PlainSection title="Where it lives">
+        <ul className={PLAIN_LIST}>
+          <li>Streamed data goes to Uplink&apos;s receiver on Fly.io in Singapore.</li>
+          <li>The database is hosted by Supabase in Mumbai (ap-south-1).</li>
+          <li>The app is hosted on Vercel.</li>
+          <li>Data goes to Tesla only to fetch your car&apos;s data.</li>
+        </ul>
+      </PlainSection>
 
-          <section>
-            <h2 className="text-base font-medium tracking-heading">Uplink&apos;s key</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              The key lets your car send data to Uplink. It can&apos;t unlock or drive the car, and Uplink never sends
-              commands. Remove it any time in your car&apos;s Locks settings.
-            </p>
-          </section>
+      <PlainSection title="How long we keep it">
+        <p>Until you delete it, except streamed readings.</p>
+        <ul className={PLAIN_LIST}>
+          <li>
+            Streamed readings are kept as long as a page shows them: charging, charge level, odometer and software
+            updates for good; trip routes, speed and location for 120 days; the rest for 7 to 14 days. The
+            latest reading of each kind is always kept, so the car page can show it.
+          </li>
+          <li>Where the car was at the start of each charge is kept with that charge, for the charging map.</li>
+          <li>
+            Delete my data in Settings removes your cars, history, snapshots, streamed readings and charging
+            sessions. It also stops your car streaming to Uplink; then remove the key in your car&apos;s Locks
+            settings.
+          </li>
+          <li>Disconnect removes your Tesla tokens.</li>
+          <li>Sign out everywhere ends all sessions.</li>
+          <li>You can also revoke Uplink&apos;s access from your Tesla account.</li>
+        </ul>
+      </PlainSection>
 
-          <section>
-            <h2 className="text-base font-medium tracking-heading">Where it lives</h2>
-            <ul className={LIST}>
-              <li>Streamed data goes to Uplink&apos;s receiver on Fly.io in Singapore.</li>
-              <li>The database is hosted by Supabase in Mumbai (ap-south-1).</li>
-              <li>The app is hosted on Vercel.</li>
-              <li>Data goes to Tesla only to fetch your car&apos;s data.</li>
-            </ul>
-          </section>
+      <PlainSection title="Your rights">
+        <p>
+          Under India&apos;s Digital Personal Data Protection Act, 2023, you can access, correct or delete your
+          data. You can delete it any time with Delete my data in Settings.
+        </p>
+      </PlainSection>
 
-          <section>
-            <h2 className="text-base font-medium tracking-heading">How long we keep it</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Until you delete it, except streamed readings.</p>
-            <ul className={LIST}>
-              <li>
-                Streamed readings are kept as long as a page shows them: charging, charge level, odometer and software
-                updates for good; trip routes, speed and location for 120 days; the rest for 7 to 14 days. The
-                latest reading of each kind is always kept, so the car page can show it.
-              </li>
-              <li>Where the car was at the start of each charge is kept with that charge, for the charging map.</li>
-              <li>
-                Delete my data in Settings removes your cars, history, snapshots, streamed readings and charging
-                sessions. It also stops your car streaming to Uplink; then remove the key in your car&apos;s Locks
-                settings.
-              </li>
-              <li>Disconnect removes your Tesla tokens.</li>
-              <li>Sign out everywhere ends all sessions.</li>
-              <li>You can also revoke Uplink&apos;s access from your Tesla account.</li>
-            </ul>
-          </section>
-
-          <section>
-            <h2 className="text-base font-medium tracking-heading">Your rights</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Under India&apos;s Digital Personal Data Protection Act, 2023, you can access, correct or delete your
-              data. You can delete it any time with Delete my data in Settings.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-base font-medium tracking-heading">Changes</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              This page shows the date it was last updated.
-            </p>
-          </section>
-        </div>
-      </article>
-
-      <footer className="mt-auto flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 pt-6 text-xs text-faint">
-        <span>Uplink is not affiliated with Tesla, Inc.</span>
-        <nav aria-label="Legal" className="ml-auto flex gap-4">
-          <Link href="/terms" className="text-muted-foreground transition-colors duration-150 hover:text-foreground">
-            Terms
-          </Link>
-          <Link href="/status" className="text-muted-foreground transition-colors duration-150 hover:text-foreground">
-            Status
-          </Link>
-        </nav>
-      </footer>
-    </div>
+      <PlainSection title="Changes">
+        <p>
+          This page shows the date it was last updated.
+        </p>
+      </PlainSection>
+    </PlainPage>
   );
 }

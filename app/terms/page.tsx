@@ -1,6 +1,5 @@
-import Link from "next/link";
 import type { Metadata } from "next";
-import { Logo } from "@/components/logo";
+import { PlainPage, PlainSection } from "@/components/plain-page";
 
 export const metadata: Metadata = {
   title: "Terms · Uplink",
@@ -40,40 +39,12 @@ const SECTIONS = [
 
 export default function TermsPage() {
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-5 py-8 sm:px-8">
-      <header className="text-sm font-medium">
-        <Link href="/" className="inline-flex items-center gap-2">
-          <Logo className="size-5" />
-          Uplink
-        </Link>
-      </header>
-
-      <article className="py-16">
-        <h1 className="text-2xl font-semibold tracking-tight text-balance">Terms</h1>
-        <p className="mt-2 text-sm text-faint">Last updated 21 October 2026</p>
-
-        <div className="mt-10 grid gap-10">
-          {SECTIONS.map((section) => (
-            <section key={section.title}>
-              <h2 className="text-base font-medium tracking-heading">{section.title}</h2>
-              <p className="mt-2 text-sm text-muted-foreground">{section.body}</p>
-            </section>
-          ))}
-
-        </div>
-      </article>
-
-      <footer className="mt-auto flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 pt-6 text-xs text-faint">
-        <span>Uplink is not affiliated with Tesla, Inc.</span>
-        <nav aria-label="Legal" className="ml-auto flex gap-4">
-          <Link href="/privacy" className="text-muted-foreground transition-colors duration-150 hover:text-foreground">
-            Privacy
-          </Link>
-          <Link href="/status" className="text-muted-foreground transition-colors duration-150 hover:text-foreground">
-            Status
-          </Link>
-        </nav>
-      </footer>
-    </div>
+    <PlainPage title="Terms" intro="The short terms for using Uplink." meta="Last updated 21 October 2026" current="terms">
+      {SECTIONS.map((section) => (
+        <PlainSection key={section.title} title={section.title}>
+          <p>{section.body}</p>
+        </PlainSection>
+      ))}
+    </PlainPage>
   );
 }

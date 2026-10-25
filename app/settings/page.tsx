@@ -132,7 +132,7 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
       <Header current="settings" />
-      <h1 className="mb-8 text-base font-medium tracking-heading">Settings</h1>
+      <h1 className="mb-8 text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">Settings</h1>
       <Suspense fallback={<div role="status" aria-busy="true" className="h-64 bg-muted motion-safe:animate-pulse"><span className="sr-only">Loading…</span></div>}>
         <Settings />
       </Suspense>

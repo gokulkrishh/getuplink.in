@@ -1,9 +1,8 @@
-import Link from "next/link";
 import type { Metadata } from "next";
 import { io } from "next/cache";
 import { after } from "next/server";
 import { Suspense } from "react";
-import { Logo } from "@/components/logo";
+import { PlainPage } from "@/components/plain-page";
 import { formatDateTime, formatShortDate } from "@/lib/format";
 import { loadStatus, recordIfStale, type ComponentStatus } from "@/lib/server/status";
 import { overallHeadline, STATUS_WORD, type Status } from "@/lib/status";
@@ -31,7 +30,7 @@ function Component({ item }: { item: ComponentStatus }) {
   return (
     <section>
       <div className="flex items-baseline justify-between gap-4">
-        <h2 className="text-base font-medium tracking-heading">{item.name}</h2>
+        <h2 className="text-lg font-medium tracking-heading">{item.name}</h2>
         <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
           <span aria-hidden="true" className={`size-2 ${item.current ? DOT[item.current] : "bg-muted"}`} />
           {item.current ? STATUS_WORD[item.current] : "Not checked yet"}
@@ -56,16 +55,14 @@ async function Components() {
   const headline = overallHeadline(components.map((c) => c.current));
   return (
     <>
-      <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-        {headline && <span aria-hidden="true" className={`size-2 ${DOT[headline.status]}`} />}
+      <p className="flex items-center gap-2 text-base">
+        {headline && <span aria-hidden="true" className={`size-2.5 ${DOT[headline.status]}`} />}
         {headline ? headline.text : "No checks yet"}
       </p>
-      <div className="mt-10 grid gap-10">
-        {components.map((item) => (
-          <Component key={item.name} item={item} />
-        ))}
-      </div>
-      {checkedAt && <p className="mt-10 text-xs text-faint">Last checked {formatDateTime(checkedAt)}</p>}
+      {components.map((item) => (
+        <Component key={item.name} item={item} />
+      ))}
+      {checkedAt && <p className="text-sm text-muted-foreground">Last checked {formatDateTime(checkedAt)}</p>}
     </>
   );
 }
@@ -80,35 +77,19 @@ async function RecordHealth() {
 
 export default function StatusPage() {
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-5 py-8 sm:px-8">
-      <header className="text-sm font-medium">
-        <Link href="/home" className="inline-flex items-center gap-2">
-          <Logo className="size-5" />
-          Uplink
-        </Link>
-      </header>
-
-      <article className="py-16">
-        <h1 className="text-2xl font-semibold tracking-tight text-balance">Uplink status</h1>
-        <Suspense fallback={<p className="mt-2 text-sm text-muted-foreground">Checking…</p>}>
-          <Components />
-        </Suspense>
-      </article>
+    <PlainPage
+      title="Uplink status"
+      intro="Whether Uplink's website, database and live car data are working."
+      current="status"
+      home="/home"
+      wide
+    >
+      <Suspense fallback={<p className="text-base text-muted-foreground">Checking…</p>}>
+        <Components />
+      </Suspense>
       <Suspense>
         <RecordHealth />
       </Suspense>
-
-      <footer className="mt-auto flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 pt-6 text-xs text-faint">
-        <span>Uplink is not affiliated with Tesla, Inc.</span>
-        <nav aria-label="Legal" className="ml-auto flex gap-4">
-          <Link href="/privacy" className="text-muted-foreground transition-colors duration-150 hover:text-foreground">
-            Privacy
-          </Link>
-          <Link href="/terms" className="text-muted-foreground transition-colors duration-150 hover:text-foreground">
-            Terms
-          </Link>
-        </nav>
-      </footer>
-    </div>
+    </PlainPage>
   );
 }

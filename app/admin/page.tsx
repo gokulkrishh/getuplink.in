@@ -7,6 +7,7 @@ import { type AdminPage, isAdmin, loadAdmin, RECENT_DAYS, USAGE_DAYS } from "@/l
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { Measure } from "@/components/measure";
+import { Figures } from "@/components/stats/figures";
 
 export const metadata: Metadata = { title: "Admin · Uplink" };
 
@@ -55,17 +56,23 @@ export default async function Page() {
       <Header />
       <div className="space-y-12">
         <header className="space-y-1">
-          <h1 className="text-base font-medium tracking-heading">Admin</h1>
+          <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">Admin</h1>
           <p className="text-sm text-muted-foreground">
             Totals across every owner. {data.simulated ? "Demo mode: every figure here is simulated." : "No VINs or names."}
           </p>
         </header>
 
-        <Group title="Owners and cars">
-          <Item label="Owners" value={number.format(data.owners)} />
-          <Item label="Cars" value={number.format(data.cars)} />
-          <Item label={`Online at a check, last ${RECENT_DAYS} days`} value={number.format(data.onlineRecently)} />
-        </Group>
+        {/* The headline counts as tiles, like the figures on every other screen; the lists below stay lists. */}
+        <section className="space-y-3">
+          <h2 className={heading}>Owners and cars</h2>
+          <Figures
+            figures={[
+              { label: "Owners", value: number.format(data.owners) },
+              { label: "Cars", value: number.format(data.cars) },
+              { label: "Online at a check", value: number.format(data.onlineRecently), note: `Last ${RECENT_DAYS} days` },
+            ]}
+          />
+        </section>
 
         <Group title="Versions" note={data.noVersion > 0 ? `${data.noVersion} more not seen online yet, so no version.` : undefined}>
           {data.versions.length === 0 ? (
@@ -75,11 +82,15 @@ export default async function Page() {
           )}
         </Group>
 
-        <Group title={`Checks, last ${RECENT_DAYS} days`}>
-          <Item label="Checks run" value={number.format(runs.total)} />
-          <Item label="Failed" value={number.format(runs.failed)} />
-          {runs.lastFailedAt && <Item label="Last failure" value={formatDateTime(runs.lastFailedAt)} />}
-        </Group>
+        <section className="space-y-3">
+          <h2 className={heading}>{`Checks, last ${RECENT_DAYS} days`}</h2>
+          <Figures
+            figures={[
+              { label: "Checks run", value: number.format(runs.total) },
+              { label: "Failed", value: number.format(runs.failed), note: runs.lastFailedAt ? `Last at ${formatDateTime(runs.lastFailedAt)}` : "None" },
+            ]}
+          />
+        </section>
 
         <Group title={`Health checks, last ${RECENT_DAYS} days`} note="Checks that found the component down, of all checks.">
           {data.health.map((h) => (
@@ -99,7 +110,7 @@ export default async function Page() {
           >
             <Item label="Requests" value="Not tracked yet" muted />
             <Item label="Cost" value="Not tracked yet" muted />
-            <Item label="Checks run (proxy)" value={number.format(api.checks)} />
+            <Item label="Checks run, a lower bound" value={number.format(api.checks)} />
           </Group>
         )}
 

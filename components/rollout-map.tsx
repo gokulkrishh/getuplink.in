@@ -45,9 +45,13 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
   return (
     <div className="space-y-4">
       {current && versions.length > 1 && (
+        <div className="flex items-center gap-3">
+        <span id="map-version" className="text-sm text-muted-foreground">
+          Version
+        </span>
         <DropdownMenu>
           <DropdownMenuTrigger
-            aria-label="Version"
+            aria-labelledby="map-version"
             className="flex h-8 cursor-pointer items-center gap-2 border bg-background px-3 font-mono text-sm tabular-nums hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none data-popup-open:bg-muted"
           >
             {current.version}
@@ -63,6 +67,7 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       )}
       <div ref={frame} className="relative mx-auto w-full max-w-md" onPointerLeave={() => setHover(null)}>
       <svg
@@ -80,7 +85,7 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
               onPointerMove={point(code)}
               onPointerDown={point(code)}
               className={cn(
-                shade ? "fill-foreground stroke-background" : "fill-muted stroke-border",
+                shade ? "fill-chart-accent stroke-background" : "fill-muted stroke-border",
                 hover?.code === code && "stroke-foreground",
               )}
               style={shade ? { fillOpacity: shade } : undefined}
@@ -113,11 +118,13 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
       {groups.length > 0 && (
         <ul className="divide-y border-t text-sm">
           <li className="flex gap-4 py-2 text-xs text-faint">
+            <span className="w-6 shrink-0">#</span>
             <span className="flex-1">State</span>
             <span className="w-14 text-right">Cars</span>
           </li>
-          {groups.map((g) => (
+          {groups.map((g, k) => (
             <li key={g.code} className="flex gap-4 py-3 tabular-nums">
+              <span className="w-6 shrink-0 font-mono text-xs text-faint">{k + 1}</span>
               <span className="min-w-0 flex-1">{g.name}</span>
               <span className="w-14 text-right">{g.cars}</span>
             </li>
