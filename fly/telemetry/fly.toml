@@ -1,4 +1,5 @@
-# Fleet Telemetry receiver. Deploy from this directory: cd fly/telemetry && fly deploy
+# Fleet Telemetry receiver. Deploys itself on a push to main that changes this folder
+# (.github/workflows/deploy-telemetry.yml); by hand: cd fly/telemetry && fly deploy
 # Secrets (never in this file): TLS_SERVER_CERT, TLS_SERVER_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 app = "uplink-telemetry"
 primary_region = "sin"
@@ -20,6 +21,13 @@ kill_timeout = 15
 
   [[services.ports]]
     port = 443
+
+  # A plain TCP connect, so a deploy whose receiver never starts listening fails instead of passing.
+  # It opens and closes the socket without TLS, which fleet-telemetry may log as a handshake EOF.
+  [[services.tcp_checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "20s"
 
 [[vm]]
   size = "shared-cpu-1x"
