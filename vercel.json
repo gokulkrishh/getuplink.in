@@ -3,6 +3,7 @@
   "regions": ["bom1"],
   "crons": [
     { "path": "/api/cron/poll", "schedule": "0 */6 * * *" },
-    { "path": "/api/cron/stations", "schedule": "*/15 * * * *" }
+    { "path": "/api/cron/stations", "schedule": "*/15 * * * *" },
+    { "path": "/api/cron/retention", "schedule": "30 21 * * *" }
   ]
 }

@@ -13,7 +13,7 @@ const STORED = [
   "Software version and update status",
   "Battery level, range, charge limit, charging state and battery temperature",
   "Odometer at each update",
-  "Everything your car streams while it's awake: driving (speed, gear, pedals, acceleration), battery and charging, climate and cabin, tyres, doors and locks, Sentry Mode, navigation and media",
+  "Everything your car streams while it's awake: driving (speed, gear, pedals, acceleration), battery and charging, climate and cabin, tyres, doors and locks, Sentry Mode and navigation. Not what's playing, and not your phone's name",
   "Where the car is while it's awake, including trip routes, stops and navigation destinations",
   "Release notes",
   "Tesla Supercharger sessions (site, time, energy, cost) and their invoices",
@@ -120,8 +120,14 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-base font-medium tracking-heading">How long we keep it</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Until you delete it.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Until you delete it, except streamed readings.</p>
             <ul className={LIST}>
+              <li>
+                Streamed readings are kept as long as a page shows them: charging, battery, odometer and software
+                updates for good; trip routes, speed and location for 120 days; the rest for 7 to 14 days. The
+                latest reading of each kind is always kept, so the car page can show it.
+              </li>
+              <li>Where the car was at the start of each charge is kept with that charge, for the charging map.</li>
               <li>
                 Delete my data in Settings removes your cars, history, snapshots, streamed readings and charging
                 sessions. It also stops your car streaming to Uplink; then remove the key in your car&apos;s Locks
