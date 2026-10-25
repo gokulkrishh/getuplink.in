@@ -3,7 +3,8 @@
 import { useRef, useState } from "react";
 import { ChartFrame, EmptyChart, niceMax } from "@/components/stats/bars";
 import { useAxisLabels } from "@/components/stats/axis-labels";
-import { AxisLabel, BAR_MAX, BarTip, MIN_COLUMNS } from "@/components/stats/bar-parts";
+import { AxisLabel, BAR_MAX, BarTip, MIN_COLUMN_PX, MIN_COLUMNS } from "@/components/stats/bar-parts";
+import { ScrollEnd } from "@/components/stats/scroll-end";
 import { TapColumns } from "@/components/stats/tap-columns";
 import { cn } from "@/lib/utils";
 
@@ -54,7 +55,7 @@ export function StackedBars({
       return next;
     });
 
-  // As in Bars: columns no narrower than their labels and values, scrolling sideways on a phone if need be.
+  // As in Bars: columns no narrower than MIN_COLUMN_PX, scrolling sideways from the newest end if need be.
   const columns = labelEvery ? bars.length : Math.max(bars.length, MIN_COLUMNS);
   const list = (
     <TapColumns
@@ -100,7 +101,12 @@ export function StackedBars({
   return (
     <div className="space-y-3">
       <ChartFrame max={max} unit="kWh">
-        <div ref={box}>{list}</div>
+        {/* As in BarColumns: too many columns to fit, it scrolls sideways from its newest end. */}
+        <ScrollEnd label={ariaLabel}>
+          <div ref={box} style={{ minWidth: columns * MIN_COLUMN_PX }}>
+            {list}
+          </div>
+        </ScrollEnd>
       </ChartFrame>
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs" aria-label="Show or hide a charger type">
         {used.map((s) => (

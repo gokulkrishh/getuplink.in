@@ -10,6 +10,11 @@ export type Bar = { key: string; label: string; value: number; display: string; 
 // The widest a bar gets, so one bar in a wide column (or 6 on a desktop) isn't a block. Bars sit centred in their columns.
 export const BAR_MAX = "max-w-12";
 
+// The narrowest a column (bar and gap) gets, in px. A chart with more columns than fit at this width,
+// like 90 days on a phone, scrolls sideways (ScrollEnd) from its newest end instead of squeezing its bars
+// to slivers; 6 or 12 columns always fit.
+export const MIN_COLUMN_PX = 12;
+
 // Below this many columns the bars keep their width and the right side stays empty.
 export const MIN_COLUMNS = 6;
 

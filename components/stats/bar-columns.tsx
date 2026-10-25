@@ -2,7 +2,8 @@
 
 import { useRef } from "react";
 import { useAxisLabels } from "@/components/stats/axis-labels";
-import { AxisLabel, type Bar, BAR_MAX, BarTip, MIN_COLUMNS, withUnit } from "@/components/stats/bar-parts";
+import { AxisLabel, type Bar, BAR_MAX, BarTip, MIN_COLUMN_PX, MIN_COLUMNS, withUnit } from "@/components/stats/bar-parts";
+import { ScrollEnd } from "@/components/stats/scroll-end";
 import { TapColumns } from "@/components/stats/tap-columns";
 import { cn } from "@/lib/utils";
 
@@ -21,8 +22,10 @@ export function BarColumns({ bars, max, ariaLabel, labelEvery, unit }: { bars: B
   const columns = labelEvery ? bars.length : Math.max(bars.length, MIN_COLUMNS);
   // A label only shortens to a month's three letters on a 12-month chart, not on a chart of days.
   const short = dense && !labelEvery;
+  // Too many columns to fit at MIN_COLUMN_PX each, the chart scrolls sideways from its newest end.
   return (
-    <div ref={box}>
+    <ScrollEnd label={ariaLabel}>
+    <div ref={box} style={{ minWidth: columns * MIN_COLUMN_PX }}>
     <TapColumns
       className={cn("grid items-end", labelEvery ? "gap-0.5" : dense ? "gap-1" : "gap-3")}
       style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
@@ -55,5 +58,6 @@ export function BarColumns({ bars, max, ariaLabel, labelEvery, unit }: { bars: B
       )}
     </TapColumns>
     </div>
+    </ScrollEnd>
   );
 }
