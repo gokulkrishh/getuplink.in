@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "India rollout · Uplink" };
 
-const heading = "text-xs font-medium tracking-wide text-faint uppercase";
+const heading = "text-lg font-medium tracking-heading";
 
 // Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx).
 async function loadOwnRollout(): Promise<RolloutPage> {

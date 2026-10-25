@@ -64,7 +64,7 @@ export function DriveLanes({ lanes: all, from, to }: { lanes: Lane[]; from: numb
     <div ref={box} className="chart-touch relative">
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        className="w-full touch-pan-y bg-muted"
+        className="w-full touch-pan-y bg-muted dark:bg-card"
         role="img"
         aria-label={`${lanes.map((l) => l.name).join(", ")} from ${formatClock(from)} to ${formatClock(to)}`}
         onPointerMove={(e) => pick(e.clientX, e.currentTarget.getBoundingClientRect())}
@@ -79,7 +79,7 @@ export function DriveLanes({ lanes: all, from, to }: { lanes: Lane[]; from: numb
             {(lane.signed ? [hi, 0, lo] : [hi, lo]).map((v) => (
               <g key={v}>
                 <line x1={PAD.left} x2={W - PAD.right} y1={y(v)} y2={y(v)} className="stroke-border" strokeDasharray={v === lo && !lane.signed ? undefined : "3 3"} />
-                <text x={PAD.left - 4} y={y(v) + 3.5} textAnchor="end" className="fill-faint font-mono text-[9px]">
+                <text x={PAD.left - 4} y={y(v) + 3.5} textAnchor="end" className="fill-faint font-mono text-[11px]">
                   {fmt(v)}
                 </text>
               </g>
@@ -92,10 +92,10 @@ export function DriveLanes({ lanes: all, from, to }: { lanes: Lane[]; from: numb
             />
           </g>
         ))}
-        <text x={PAD.left} y={H - 5} className="fill-faint text-[10px]">
+        <text x={PAD.left} y={H - 5} className="fill-faint text-[11px]">
           {formatClock(from)}
         </text>
-        <text x={W - PAD.right} y={H - 5} textAnchor="end" className="fill-faint text-[10px]">
+        <text x={W - PAD.right} y={H - 5} textAnchor="end" className="fill-faint text-[11px]">
           {formatClock(to)}
         </text>
         {at !== null && (

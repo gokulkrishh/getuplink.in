@@ -48,7 +48,7 @@ export function Summary({
   return (
     <section className="space-y-8">
       <div className="space-y-2">
-        <p className="text-xs tracking-wide text-faint uppercase">Spent {frame.words}</p>
+        <p className="text-[0.8125rem] text-muted-foreground">Spent {frame.words}</p>
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
           <Value text={formatMoney(cost, "INR")} />
         </p>
@@ -199,7 +199,7 @@ export function SessionList({ sessions, all = sessions }: { sessions: Listed[]; 
         const billed = totals(rows.flatMap((r) => (r.tesla ? [r.tesla] : [])));
         return (
           <section key={month} className="space-y-2">
-            <h3 className="text-xs font-medium tracking-wide text-faint uppercase">{month}</h3>
+            <h3 className="text-sm font-medium text-muted-foreground">{month}</h3>
             <div>
               <SessionHeader costs={costs} numbered />
               <ul className="divide-y border-t">

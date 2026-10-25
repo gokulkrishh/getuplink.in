@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Admin · Uplink" };
 // the not-found page in it. That means the page waits for the check instead of showing a skeleton first.
 export const instant = false;
 
-const heading = "text-xs font-medium tracking-wide text-faint uppercase";
+const heading = "text-lg font-medium tracking-heading";
 const number = new Intl.NumberFormat("en-IN");
 
 async function loadAdminPage(): Promise<{ data: AdminPage; now: number }> {

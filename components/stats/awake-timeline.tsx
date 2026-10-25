@@ -29,7 +29,7 @@ export function AwakeTimeline({ days, now }: { days: DayStrip[]; now: number }) 
           block where it sent data, or where a check (every 6 hours) found it asleep or offline.
         </p>
       </div>
-      <div className="space-y-3 bg-muted px-3 pt-4 pb-3">
+      <div className="space-y-3 bg-muted dark:bg-card px-3 pt-4 pb-3">
         <ol className="space-y-1.5">
           {[...days].reverse().map((d) => (
             <li key={d.day} className="flex items-center gap-3">

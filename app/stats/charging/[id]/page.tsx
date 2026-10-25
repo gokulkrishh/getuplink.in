@@ -62,7 +62,7 @@ function Charge({ detail }: { detail: ChargeDetail }) {
   const shown = rows.filter((r): r is [string, string] => r[1] !== null);
   return (
     <>
-      <h1 className="text-2xl font-medium tracking-heading">{place}</h1>
+      <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">{place}</h1>
       <p className="mt-2 mb-12 text-sm text-muted-foreground tabular-nums">{[city, formatDate(s.started_at), span].filter(Boolean).join(" · ")}</p>
       <div className="space-y-12">
         {curve.points.length > 0 && (

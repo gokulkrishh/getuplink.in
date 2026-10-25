@@ -35,7 +35,7 @@ export default function BatteryTrendPlot({ points }: { points: TrendPoint[] }) {
   const last = points[points.length - 1];
 
   return (
-    <div className="relative bg-muted px-3 pt-6 pb-2">
+    <div className="relative bg-muted dark:bg-card px-3 pt-6 pb-2">
       <span className="absolute top-1.5 left-3 font-mono text-xs text-faint" aria-hidden="true">
         kWh
       </span>

@@ -27,7 +27,7 @@ import { currentVersion } from "@/lib/versions";
 
 export const metadata: Metadata = { title: "Updates · Uplink" };
 
-const heading = "text-xs font-medium tracking-wide text-faint uppercase";
+const heading = "text-lg font-medium tracking-heading";
 
 // Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx). The
 // demo scenario is an argument, so each one gets its own entry; the period is not, since it switches in the browser.

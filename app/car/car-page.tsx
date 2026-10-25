@@ -1,4 +1,4 @@
-import { Check, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
@@ -87,14 +87,14 @@ function CarHeader({ car, odometer, version, syncedAt, at }: { car: CarDetails; 
   return (
     <header className="space-y-5 border p-4 sm:p-6">
       <div className="min-w-0 space-y-1">
-        <h1 className="text-2xl font-medium tracking-heading text-balance break-words">{car.name}</h1>
+        <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem] text-balance break-words">{car.name}</h1>
         {subtitle && <p className="text-sm text-muted-foreground text-pretty">{subtitle}</p>}
       </div>
       {(odometer !== null || version) && (
         <dl className="flex flex-wrap gap-x-10 gap-y-3">
           {odometer !== null && (
             <div className="space-y-1">
-              <dt className="text-xs font-medium tracking-wide text-faint uppercase">Odometer</dt>
+              <dt className="text-[0.8125rem] text-muted-foreground">Odometer</dt>
               <dd className="font-mono text-lg leading-none font-medium tabular-nums">
                 <Measure text={formatKm(odometer)} size="tile" />
               </dd>
@@ -102,7 +102,7 @@ function CarHeader({ car, odometer, version, syncedAt, at }: { car: CarDetails; 
           )}
           {version && (
             <div className="space-y-1">
-              <dt className="text-xs font-medium tracking-wide text-faint uppercase">Software</dt>
+              <dt className="text-[0.8125rem] text-muted-foreground">Software</dt>
               <dd className="text-lg leading-none">
                 <Link
                   href="/updates"
@@ -167,12 +167,7 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
     ["Battery", car.pack],
     [
       "Chemistry",
-      car.likelyLfp && (
-        <>
-          LFP
-          <span className="block text-xs text-muted-foreground">Tesla doesn&apos;t report it; inferred from where the car was built and its charging defaults.</span>
-        </>
-      ),
+      car.likelyLfp && "LFP",
     ],
     [
       "Motor",
@@ -200,14 +195,6 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
     ["VIN", car.vin && <Vin vin={car.vin} label={false} />],
   ]);
 
-  // Only what the car says it has; a feature it lacks, or didn't say, isn't listed.
-  const features = [
-    car.seatCooling && "Ventilated front seats",
-    car.rearSeatHeaters && "Heated rear seats",
-    car.airSuspension && "Air suspension",
-    ...car.supported,
-  ].filter((f): f is string => typeof f === "string");
-
   const ac = car.lastAcCharge;
 
   return (
@@ -216,6 +203,21 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
         <CarHeader car={car} odometer={odometer} version={version} syncedAt={syncedAt} at={at} />
         <CarNotices notices={notices} />
       </div>
+
+      {car.battery && (
+        <Section title="Battery" action={<MoreLink href="/stats/battery">Battery trend</MoreLink>}>
+          {/* The latest week's estimate, as on /stats/battery; shown once, here. */}
+          <Figures
+            figures={[
+              {
+                label: "Estimated full pack",
+                value: `${Math.round(car.battery.kwh)} kWh`,
+                note: `From ${car.battery.readings === 1 ? "1 reading" : `${car.battery.readings} readings`} in the week of ${formatShortDate(car.battery.weekStart)}`,
+              },
+            ]}
+          />
+        </Section>
+      )}
 
       {figures.length > 0 && (
         <Section title="Car now">
@@ -258,34 +260,6 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
               </div>
             ))}
           </dl>
-        </Section>
-      )}
-
-      {features.length > 0 && (
-        <Section title="Features">
-          <ul className="flex flex-wrap gap-2">
-            {features.map((name) => (
-              <li key={name} className="inline-flex items-center gap-1.5 border px-2.5 py-1 text-sm">
-                <Check className="size-3.5 text-positive" aria-hidden="true" />
-                {name}
-              </li>
-            ))}
-          </ul>
-        </Section>
-      )}
-
-      {car.battery && (
-        <Section title="Battery" action={<MoreLink href="/stats/battery">Battery trend</MoreLink>}>
-          {/* The latest week's estimate, as on /stats/battery; shown once, here. */}
-          <Figures
-            figures={[
-              {
-                label: "Estimated full pack",
-                value: `${Math.round(car.battery.kwh)} kWh`,
-                note: `From ${car.battery.readings === 1 ? "1 reading" : `${car.battery.readings} readings`} in the week of ${formatShortDate(car.battery.weekStart)}`,
-              },
-            ]}
-          />
         </Section>
       )}
 
@@ -332,9 +306,9 @@ function CarSkeleton() {
         <div className={`h-9 w-48 ${block}`} />
         <div className={`h-3 w-44 ${block}`} />
       </div>
-      <div className="grid grid-cols-2 gap-px border bg-border bg-clip-padding sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-px border bg-border bg-clip-padding dark:border-transparent dark:bg-background sm:grid-cols-3">
         {[0, 1, 2, 3, 4, 5].map((k) => (
-          <div key={k} className="space-y-2 bg-background p-3 sm:p-4">
+          <div key={k} className="space-y-2 bg-background p-3 sm:p-4 dark:bg-card">
             <div className={`h-3 w-16 ${block}`} />
             <div className={`h-6 w-20 ${block}`} />
           </div>

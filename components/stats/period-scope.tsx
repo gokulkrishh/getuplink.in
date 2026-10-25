@@ -36,9 +36,11 @@ export function ByPeriod({ panels, steady = false }: { panels: Partial<Record<Ho
   // Only a scope with Custom ever loads, so only its sections get the wrapper that fades.
   if (!steady) return custom ? <div className={cn(pending && "opacity-50 transition-opacity")}>{panels[period] ?? null}</div> : (panels[period] ?? null);
   return (
-    <div className={cn("grid", pending && "opacity-50 transition-opacity")}>
+    // One shrinkable track: a panel that scrolls sideways on a phone (a wide table) must not widen the cell
+    // for every other panel, or the whole section runs off the screen.
+    <div className={cn("grid grid-cols-[minmax(0,1fr)]", pending && "opacity-50 transition-opacity")}>
       {Object.entries(panels).map(([key, panel]) => (
-        <div key={key} data-period={key} inert={key !== period} className={cn("[grid-area:1/1]", key !== period && "invisible")}>
+        <div key={key} data-period={key} inert={key !== period} className={cn("min-w-0 [grid-area:1/1]", key !== period && "invisible")}>
           {panel}
         </div>
       ))}

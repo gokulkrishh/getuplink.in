@@ -28,7 +28,7 @@ export default function ChargeLevelPlot({ points, charging, from, to }: { points
   const high = Math.round(Math.max(...levels));
 
   return (
-    <div className="relative bg-muted px-3 pt-6 pb-2">
+    <div className="relative bg-muted dark:bg-card px-3 pt-6 pb-2">
       <span className="absolute top-1.5 left-3 font-mono text-xs text-faint" aria-hidden="true">
         %
       </span>

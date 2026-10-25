@@ -53,7 +53,7 @@ function Drive({ detail }: { detail: DriveDetail }) {
   const traceEnd = Math.max(trip.end, battery.at(-1)?.t ?? trip.end);
   return (
     <>
-      <h1 className="text-2xl font-medium tracking-heading">{trip.stops ? "Trip" : "Drive"}</h1>
+      <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">{trip.stops ? "Trip" : "Drive"}</h1>
       <p className="mt-2 mb-12 text-sm text-muted-foreground tabular-nums">
         {formatDate(trip.start)} · {formatClock(trip.start)} to {formatClock(trip.end)}
       </p>

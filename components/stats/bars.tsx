@@ -85,7 +85,7 @@ export function Bars({
               <div className="flex h-20 w-full items-end justify-center">
                 {b.value > 0 && (
                   <div
-                    className={cn("w-full", BAR_MAX, b.isCurrent ? "bg-chart-accent" : "bg-muted-foreground/40 group-hover:bg-muted-foreground/70 group-data-[tapped=true]:bg-muted-foreground/70")}
+                    className={cn("w-full", BAR_MAX, b.isCurrent ? "bg-chart-accent" : "bg-chart-accent/40 group-hover:bg-chart-accent/70 group-data-[tapped=true]:bg-chart-accent/70")}
                     style={{ height: `${Math.max(4, (b.value / max) * 100)}%` }}
                   />
                 )}
@@ -145,7 +145,7 @@ export function minListWidth(bars: { label: string; display: string }[], columns
 export function EmptyChart({ caption, children }: { caption?: string; children: React.ReactNode }) {
   return (
     <Captioned caption={caption}>
-      <div className="flex h-40 items-center justify-center bg-muted px-4 text-center text-sm text-faint">{children}</div>
+      <div className="flex h-40 items-center justify-center bg-muted dark:bg-card px-4 text-center text-sm text-faint">{children}</div>
     </Captioned>
   );
 }
@@ -170,7 +170,7 @@ const axisNumber = new Intl.NumberFormat("en-IN", { notation: "compact", maximum
 // columns, or none, keep the same box. The y-axis gutter is a fixed w-8.
 export function ChartFrame({ max, prefix = "", unit, children }: { max: number; prefix?: string; unit?: string; children: React.ReactNode }) {
   return (
-    <div className="chart-touch relative flex gap-2 bg-muted pt-5 pr-4 pb-3 pl-2">
+    <div className="chart-touch relative flex gap-2 bg-muted dark:bg-card pt-5 pr-4 pb-3 pl-2">
       {unit && (
         <span className="absolute top-1 left-2 font-mono text-xs text-faint" aria-hidden="true">
           {unit}

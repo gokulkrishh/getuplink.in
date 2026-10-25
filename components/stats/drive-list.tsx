@@ -52,38 +52,73 @@ function TripTableRow({ trip, serial, now }: { trip: Trip; serial: number; now: 
   );
 }
 
+// A trip on a phone, where five columns don't fit: two lines, the times and the distance on the first, the
+// rest on the second, nothing dropped. The whole row opens the trip, as in the table.
+function TripListRow({ trip, serial, now }: { trip: Trip; serial: number; now: number }) {
+  const battery = batteryUsed(trip.startLevel, trip.endLevel);
+  const second = [
+    formatDayLabel(trip.start, now),
+    formatDuration((trip.end - trip.start) / 1000),
+    trip.stops > 0 && `${trip.stops} ${trip.stops === 1 ? "stop" : "stops"}`,
+    trip.kwh !== null && formatKwh(trip.kwh),
+    battery && `${battery.used} of battery`,
+  ].filter(Boolean);
+  return (
+    <li className="relative py-3 text-sm tabular-nums transition-colors duration-150 active:bg-muted">
+      <p className="flex items-baseline justify-between gap-3">
+        <span className="min-w-0 truncate font-medium">
+          <span className="mr-2 font-mono text-xs font-normal text-faint">{serial}</span>
+          <Link href={`/stats/driving/${trip.start}`} className="outline-none after:absolute after:inset-0">
+            {formatClock(trip.start)} to {formatClock(trip.end)}
+          </Link>
+        </span>
+        <span className="shrink-0 font-mono">
+          <Measure text={formatKm(trip.km)} />
+        </span>
+      </p>
+      <p className="mt-1 truncate text-xs text-muted-foreground">{second.join(" · ")}</p>
+    </li>
+  );
+}
+
 // Trips as a plain table: number, date, times, distance with the time it took, and energy with the battery
-// it used. On a phone it
-// keeps its columns and scrolls sideways. `header` is off for a continuation behind Show more.
+// it used. On a phone, a list of two-line rows instead. `header` is off for a continuation behind Show more.
 export function TripTable({ trips, serialOf, now, header = true }: { trips: Trip[]; serialOf: (trip: Trip) => number; now: number; header?: boolean }) {
   return (
-    // The table sits 0.75rem wider than the column on each side and pads its outer cells by the same, so a
-    // highlighted row has room around its text while the text still lines up with the page.
-    <div className="-mx-3 max-sm:overflow-x-auto max-sm:overflow-y-hidden">
-      <table className="w-full table-fixed text-sm tabular-nums max-sm:min-w-xl [&_td:first-child]:pl-3 [&_td:last-child]:pr-3 [&_th:first-child]:pl-3 [&_th:last-child]:pr-3">
-        <colgroup>
-          {COLUMNS.map((c) => (
-            <col key={c.label} className={c.width} />
-          ))}
-        </colgroup>
-        {header && (
-          <thead>
-            <tr className="border-b text-left text-xs text-faint">
-              {COLUMNS.map((c) => (
-                <th key={c.label} scope="col" className={`pb-2 pr-3 font-normal ${c.right ? "text-right" : ""}`}>
-                  {c.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-        )}
-        <tbody className={`divide-y ${header ? "" : "border-t"}`}>
-          {trips.map((t) => (
-            <TripTableRow key={t.start} trip={t} serial={serialOf(t)} now={now} />
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <>
+      <ul className="divide-y border-t sm:hidden">
+        {trips.map((t) => (
+          <TripListRow key={t.start} trip={t} serial={serialOf(t)} now={now} />
+        ))}
+      </ul>
+      {/* The table sits 0.75rem wider than the column on each side and pads its outer cells by the same, so a
+          highlighted row has room around its text while the text still lines up with the page. */}
+      <div className="-mx-3 max-sm:hidden">
+        <table className="w-full table-fixed text-sm tabular-nums [&_td:first-child]:pl-3 [&_td:last-child]:pr-3 [&_th:first-child]:pl-3 [&_th:last-child]:pr-3">
+          <colgroup>
+            {COLUMNS.map((c) => (
+              <col key={c.label} className={c.width} />
+            ))}
+          </colgroup>
+          {header && (
+            <thead>
+              <tr className="border-b text-left text-xs text-faint">
+                {COLUMNS.map((c) => (
+                  <th key={c.label} scope="col" className={`pb-2 pr-3 font-normal ${c.right ? "text-right" : ""}`}>
+                    {c.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+          )}
+          <tbody className={`divide-y ${header ? "" : "border-t"}`}>
+            {trips.map((t) => (
+              <TripTableRow key={t.start} trip={t} serial={serialOf(t)} now={now} />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 

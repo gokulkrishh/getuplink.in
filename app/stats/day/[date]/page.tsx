@@ -68,7 +68,7 @@ function DayView({ detail, now }: { detail: DayDetail; now: number }) {
     <>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-medium tracking-heading">{long.format(istDayStart(detail.day) + 12 * 3_600_000)}</h1>
+          <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">{long.format(istDayStart(detail.day) + 12 * 3_600_000)}</h1>
           <p className="mt-2 text-sm text-muted-foreground tabular-nums">
             {detail.trips.length} {detail.trips.length === 1 ? "trip" : "trips"} · {detail.charges.length} {detail.charges.length === 1 ? "charge" : "charges"}
           </p>
@@ -95,7 +95,7 @@ function DayView({ detail, now }: { detail: DayDetail; now: number }) {
             <h2 className="text-lg font-medium tracking-heading">Charges</h2>
             <ul className="divide-y border-t text-sm tabular-nums">
               {detail.charges.map(({ session: s, cost }) => (
-                <li key={s.id} className="relative -mx-3 flex cursor-pointer items-baseline justify-between gap-4 px-3 py-3 transition-colors duration-150 hover:bg-muted focus-within:bg-muted">
+                <li key={s.id} className="relative flex cursor-pointer items-baseline justify-between gap-4 py-3 sm:-mx-3 sm:px-3 transition-colors duration-150 hover:bg-muted focus-within:bg-muted">
                   <span>
                     <Link href={`/stats/charging/${s.id}`} className="outline-none after:absolute after:inset-0">
                       {formatClock(s.started_at)}

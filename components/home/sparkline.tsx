@@ -66,7 +66,7 @@ export function Sparkline({ kind, values, current, tips }: Spark) {
               height={bar.height}
               className={cn(
                 "transition-colors duration-150",
-                bar.k === current ? "fill-chart-accent" : bar.k === active ? "fill-muted-foreground/80" : "fill-muted-foreground/40 group-hover:fill-muted-foreground/60",
+                bar.k === current ? "fill-chart-accent" : bar.k === active ? "fill-chart-accent/80" : "fill-chart-accent/40 group-hover:fill-chart-accent/60",
               )}
             />
           ))

@@ -99,7 +99,7 @@
 :root[data-theme="dark"] {
   --background: #040404;
   --foreground: #f8f8f8;
-  --card: #0a0a0a;
+  --card: #111111;
   --card-foreground: #f3f3f3;
   --popover: #0e0e0e;
   --popover-foreground: #f3f3f3;
@@ -108,14 +108,14 @@
   --secondary: #1e1e1e;
   --secondary-foreground: #f3f3f3;
   --muted: #171717;
-  --muted-foreground: #8a8a8a;
-  --faint: #8a8a8a;
+  --muted-foreground: #b4b4b4;
+  --faint: #949494;
   --accent: #181818;
   --accent-foreground: #f3f3f3;
   --destructive: #ff6362;
   --positive: #4ade80;
-  --border: #ffffff1a;
-  --input: #ffffff1f;
+  --border: #1f1f1f;
+  --input: #2a2a2a;
   --ring: #8a8a8a;
   --chart-1: #e2677e;
   --chart-2: #b0900f;
@@ -131,7 +131,7 @@
   :root:not([data-theme="light"]) {
     --background: #040404;
     --foreground: #f8f8f8;
-    --card: #0a0a0a;
+    --card: #111111;
     --card-foreground: #f3f3f3;
     --popover: #0e0e0e;
     --popover-foreground: #f3f3f3;
@@ -140,14 +140,14 @@
     --secondary: #1e1e1e;
     --secondary-foreground: #f3f3f3;
     --muted: #171717;
-    --muted-foreground: #8a8a8a;
-    --faint: #8a8a8a;
+    --muted-foreground: #b4b4b4;
+    --faint: #949494;
     --accent: #181818;
     --accent-foreground: #f3f3f3;
     --destructive: #ff6362;
     --positive: #4ade80;
-    --border: #ffffff1a;
-    --input: #ffffff1f;
+    --border: #1f1f1f;
+    --input: #2a2a2a;
     --ring: #8a8a8a;
     --chart-1: #e2677e;
     --chart-2: #b0900f;
@@ -253,6 +253,12 @@
   .maplibregl-ctrl-attrib-button {
     @apply bg-transparent! dark:invert;
   }
+}
+
+/* MapLibre's stylesheet sets Helvetica and loads after this file, so the selector carries an extra element
+   to win: the map's labels and controls use the app's face. */
+html .maplibregl-map {
+  font-family: inherit;
 }
 
 /* View transitions: only a tab strip's highlight moves (see components/segmented.tsx). The page itself

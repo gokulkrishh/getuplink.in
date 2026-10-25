@@ -14,7 +14,7 @@ class MapBoundary extends Component<{ children: ReactNode }, { failed: boolean }
   }
   render() {
     return this.state.failed ? (
-      <p className="flex h-full items-center justify-center bg-muted p-4 text-center text-sm text-muted-foreground">This browser can&apos;t show the map.</p>
+      <p className="flex h-full items-center justify-center bg-muted dark:bg-card p-4 text-center text-sm text-muted-foreground">This browser can&apos;t show the map.</p>
     ) : (
       this.props.children
     );

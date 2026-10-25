@@ -36,7 +36,7 @@ export function StatsPage({ description, children }: { description: string; chil
   return (
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
       <Header />
-      <h1 className="text-2xl font-medium tracking-heading">Stats</h1>
+      <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">Stats</h1>
       <p className="mt-2 mb-12 text-sm text-muted-foreground">{description}</p>
       {children}
     </div>

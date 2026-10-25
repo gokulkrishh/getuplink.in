@@ -38,7 +38,7 @@ export default function VersionChartPlot({
 
   return (
     // A soft panel behind the chart; the inner box is measured so the chart draws at its real width.
-    <div className="bg-muted px-3 pt-4 pb-2">
+    <div className="bg-muted dark:bg-card px-3 pt-4 pb-2">
     <div ref={box} className="h-20 w-full">
       {width === 0 ? (
         <div className="h-full w-full bg-background/60 motion-safe:animate-pulse" aria-busy="true" aria-label="Loading chart" />

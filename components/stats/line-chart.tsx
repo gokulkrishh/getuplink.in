@@ -73,7 +73,7 @@ export function LineChart({
       <div ref={box} className="chart-touch relative">
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        className="w-full touch-pan-y bg-muted"
+        className="w-full touch-pan-y bg-muted dark:bg-card"
         role="img"
         aria-label={label}
         onPointerMove={(e) => pick(e.clientX, e.currentTarget.getBoundingClientRect())}

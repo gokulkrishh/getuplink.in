@@ -58,7 +58,7 @@ export function Segmented<T extends string | number>({
   // without it the highlight, drawn over the page, would hide each label it passes.
   return (
     <ViewTransition update="tab-labels" default="none">
-      <div role={role === "radio" ? "radiogroup" : "group"} aria-label={label} className="inline-flex border">
+      <div role={role === "radio" ? "radiogroup" : "group"} aria-label={label} className="inline-flex max-w-full overflow-x-auto border [scrollbar-width:none]">
         {options.map((option) => {
           const picked = option.value === value;
           return (
@@ -71,7 +71,7 @@ export function Segmented<T extends string | number>({
               onClick={() => startTransition(() => onChange(option.value))}
               className={cn(
                 "relative isolate inline-flex items-center justify-center whitespace-nowrap outline-none select-none focus-visible:outline-2 focus-visible:-outline-offset-2",
-                size === "sm" ? "h-7 gap-1 px-2.5 text-[0.8rem] max-sm:h-9 max-sm:px-3" : "gap-1.5 px-3 py-1.5 text-sm max-sm:py-2.5",
+                size === "sm" ? "h-7 gap-1 px-2.5 text-[0.8rem] max-sm:h-9 max-sm:px-2" : "gap-1.5 px-3 py-1.5 text-sm max-sm:py-2.5",
                 picked ? "font-medium text-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >

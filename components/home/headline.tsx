@@ -15,9 +15,9 @@ import { type Spark, Sparkline } from "./sparkline";
 const oneDecimalKwh = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 
 const number = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
-const ARROWS: Record<Change["direction"], string> = { up: "↑", down: "↓", same: "—" };
-// The arrow and amount are coloured by meaning, not direction; a change that is neither (more driving,
-// more charging, or the same) stays muted. Screen readers hear better or worse in the sentence instead.
+// The change carries its sign in the text ("+22 km", "−3 kWh"), never an arrow. It is coloured by meaning,
+// not direction; a change that is neither (more driving, more charging, or the same) stays muted. Screen
+// readers hear better or worse in the sentence instead.
 const TONES: Record<Change["tone"], string> = { better: "text-chart-better", worse: "text-chart-worse", neutral: "text-muted-foreground" };
 
 // Every cell has the same rows, the delta's two lines kept (blank) when there's no comparison, so the
@@ -46,10 +46,10 @@ function Cell({
   return (
     <PeriodLink
       view={view}
-      className="group @container flex min-w-0 flex-col gap-2 bg-background p-3 transition-colors duration-150 hover:bg-muted focus-visible:z-10 focus-visible:outline-offset-[-2px] sm:p-4"
+      className="group @container flex min-w-0 flex-col gap-2 bg-background p-3 transition-colors dark:bg-card duration-150 hover:bg-muted focus-visible:z-10 focus-visible:outline-offset-[-2px] sm:p-4"
     >
       {/* The arrow says the tile opens its Stats page; plain figure tiles elsewhere have none. */}
-      <p className="flex items-center justify-between gap-2 text-xs font-medium tracking-wide text-faint uppercase">
+      <p className="flex items-center justify-between gap-2 text-[0.8125rem] text-muted-foreground">
         <span className="truncate">{label}</span>
         <ChevronRight aria-hidden="true" className="size-3.5 shrink-0 transition-[color,translate] duration-150 group-hover:translate-x-0.5 group-hover:text-foreground" />
       </p>
@@ -62,7 +62,7 @@ function Cell({
           <>
             <p aria-hidden="true" className="truncate tabular-nums">
               <span className={TONES[change.tone]}>
-                {ARROWS[change.direction]} {change.direction === "same" ? "Same" : change.amount}
+                {change.direction === "same" ? "Same" : `${change.direction === "up" ? "+" : "−"}${change.amount}`}
               </span>
             </p>
             <p aria-hidden="true" title={`vs ${span}`} className="truncate text-faint">
@@ -152,7 +152,7 @@ export function Headline({
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-px border bg-border bg-clip-padding sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-px border bg-border bg-clip-padding dark:border-transparent dark:bg-background sm:grid-cols-4">
         <Cell
           view="driving"
           label="Driven"
