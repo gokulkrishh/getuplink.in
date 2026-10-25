@@ -19,7 +19,7 @@ import { lastReadingAt } from "@/lib/server/telemetry";
 import { accountInfo, type AccountInfo } from "@/lib/server/tesla";
 import { connectorTokenStatus, type ConnectorTokenStatus } from "@/lib/server/connector-token";
 import { DeleteMyData, DisconnectTesla, SignOutEverywhere } from "./confirm-actions";
-import { GrokBotTemplate, McpConnector } from "./integrations";
+import { BotTemplate, McpConnector } from "./integrations";
 import { Row } from "./row";
 
 export const metadata: Metadata = { title: "Settings · Uplink" };
@@ -103,7 +103,7 @@ async function Settings() {
 
       <Group title="Integrations">
         <McpConnector status={connector} now={now} />
-        <GrokBotTemplate />
+        <BotTemplate />
       </Group>
 
       <Group title="Account">
