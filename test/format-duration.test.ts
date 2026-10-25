@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { formatAgo, formatDuration, formatInstallLeft, formatPower } from "@/lib/format";
+import { formatAgo, formatDuration, formatHour, formatInstallLeft, formatPower } from "@/lib/format";
 
 describe("formatPower", () => {
   test("watts under 1 kW, kW from there", () => {
@@ -36,5 +36,11 @@ describe("formatInstallLeft", () => {
     expect(formatInstallLeft(40 * 60, 1)).toBe("About 40 min left");
     expect(formatInstallLeft(40 * 60, 80)).toBe("About 8 min left");
     expect(formatInstallLeft(40 * 60, 100)).toBe("Almost done");
+  });
+});
+
+describe("formatHour", () => {
+  test("an hour as the app writes times, never 6a", () => {
+    expect([0, 3, 6, 11, 12, 15, 21, 24].map(formatHour)).toEqual(["12 AM", "3 AM", "6 AM", "11 AM", "12 PM", "3 PM", "9 PM", "12 AM"]);
   });
 });

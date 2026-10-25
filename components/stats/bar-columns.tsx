@@ -20,8 +20,6 @@ export function BarColumns({ bars, max, ariaLabel, labelEvery, unit }: { bars: B
   const box = useRef<HTMLDivElement>(null);
   useAxisLabels(box, labelEvery);
   const columns = labelEvery ? bars.length : Math.max(bars.length, MIN_COLUMNS);
-  // A label only shortens to a month's three letters on a 12-month chart, not on a chart of days.
-  const short = dense && !labelEvery;
   // Too many columns to fit at MIN_COLUMN_PX each, the chart scrolls sideways from its newest end.
   return (
     <ScrollEnd label={ariaLabel}>
@@ -36,7 +34,7 @@ export function BarColumns({ bars, max, ariaLabel, labelEvery, unit }: { bars: B
           <li key={b.key} aria-hidden="true" className="flex flex-col items-center gap-2">
             <span className="h-4" />
             <div className="h-20" />
-            <AxisLabel label={b.axis ?? b.label} dense={short} />
+            <AxisLabel label={b.axis ?? b.label} />
           </li>
         ) : (
           <li key={b.key} className="group relative flex flex-col items-center gap-2">
@@ -51,7 +49,7 @@ export function BarColumns({ bars, max, ariaLabel, labelEvery, unit }: { bars: B
               )}
             </div>
             {/* The label is as wide as its text and may spill over the neighbouring columns. */}
-            <AxisLabel label={b.axis ?? b.label} dense={short} current={b.isCurrent} />
+            <AxisLabel label={b.axis ?? b.label} current={b.isCurrent} />
             {(dense || b.tip) && <span className="sr-only">{[dense && withUnit(b.display, unit), b.tip].filter(Boolean).join(", ")}</span>}
           </li>
         ),

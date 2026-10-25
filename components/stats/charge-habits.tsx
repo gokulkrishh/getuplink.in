@@ -3,10 +3,13 @@
 import { useRef } from "react";
 import { FloatTip, useActiveMark } from "@/components/stats/float-tip";
 import { chargeStarts, SLOTS, slotLabel, WEEKDAYS } from "@/lib/charge-habits";
+import { formatHour } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Measure } from "@/components/measure";
 
-const AXIS = ["12a", "3a", "6a", "9a", "12p", "3p", "6p", "9p"];
+// The start of each 3-hour slot, as the app writes times ("12 AM", "3 AM" ...). On a phone every other one
+// shows (12 AM, 6 AM, 12 PM, 6 PM), since "12 AM" is wider than a column there.
+const AXIS = Array.from({ length: 8 }, (_, k) => formatHour(k * 3));
 
 const describe = (day: number, slot: number, count: number) => `${WEEKDAYS[day]}, ${slotLabel(slot)} · ${count} ${count === 1 ? "charge" : "charges"}`;
 
@@ -66,8 +69,10 @@ export function ChargeHabits({ starts, title, words }: { starts: number[]; title
         )}
         <div className="grid grid-cols-[2.5rem_repeat(8,minmax(0,1fr))] gap-1.5 text-xs text-faint" aria-hidden="true">
           <span />
-          {AXIS.slice(0, SLOTS).map((label) => (
-            <span key={label}>{label}</span>
+          {AXIS.slice(0, SLOTS).map((label, k) => (
+            <span key={label} className={cn("whitespace-nowrap", k % 2 === 1 && "max-sm:invisible")}>
+              {label}
+            </span>
           ))}
         </div>
       </div>

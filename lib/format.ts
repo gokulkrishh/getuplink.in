@@ -6,6 +6,13 @@ const time = new Intl.DateTimeFormat("en-US", { timeZone: IST, hour: "numeric", 
 const date = new Intl.DateTimeFormat("en-GB", { timeZone: IST, day: "numeric", month: "short", year: "numeric" });
 const shortDate = new Intl.DateTimeFormat("en-GB", { timeZone: IST, day: "numeric", month: "short" });
 
+// An hour of the day as the app writes times: "12 AM", "6 AM", "12 PM", "9 PM". For chart axes and slots,
+// in place of shortcuts like "6a".
+export function formatHour(hour: number): string {
+  const h = ((hour % 24) + 24) % 24;
+  return `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? "AM" : "PM"}`;
+}
+
 // "9:15 AM IST"
 export function formatTime(value: string | number | Date): string {
   return `${time.format(new Date(value))} IST`;

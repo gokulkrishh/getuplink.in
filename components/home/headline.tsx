@@ -4,7 +4,7 @@ import type { View } from "@/components/stats/periods";
 import { type Bill, billsBySlot, billsIn, energyBySlot, energyIn } from "@/lib/charging-figures";
 import { type Change, changeToPrevious, compareToPrevious } from "@/lib/dashboard-summary";
 import type { DrivingPeriod } from "@/lib/driving-figures";
-import { formatDate, formatShortDate } from "@/lib/format";
+import { formatDate, formatHour, formatShortDate } from "@/lib/format";
 import { type Slot, type Timeframe, trackingGap } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
@@ -139,7 +139,7 @@ export function Headline({
   // Each slot's tip: a day by its date ("23 Oct", where a week's bars are labelled by weekday), 3 hours by
   // when they start and end, a month or year by its label; nothing for a slot with nothing known.
   const slotTitle = (slot: Slot, k: number) =>
-    frame.slotName === "day" ? formatShortDate(slot.from + 12 * 3_600_000) : frame.slotName === "3 hours" ? `${slot.label} to ${slots[k + 1]?.label ?? "12a"}` : slot.label;
+    frame.slotName === "day" ? formatShortDate(slot.from + 12 * 3_600_000) : frame.slotName === "3 hours" ? `${slot.label} to ${slots[k + 1]?.label ?? formatHour(0)}` : slot.label;
   const spark = (kind: Spark["kind"], values: (number | null)[], format: (n: number) => string): Spark => {
     const shown = upToNow(values);
     return { kind, values: shown, current: currentSlot, tips: shown.map((v, k) => (v === null ? null : { title: slotTitle(slots[k], k), value: format(v) })) };

@@ -1,4 +1,4 @@
-import { formatDate, formatShortDate } from "@/lib/format";
+import { formatDate, formatHour, formatShortDate } from "@/lib/format";
 import { istDay, istDayStart } from "@/lib/telemetry-derive";
 
 // Pure period maths for the home page and the Stats pages: which instants a period covers, the bars it
@@ -110,10 +110,9 @@ export function slotsFor(period: Period, now: number): Slot[] {
   if (period === "day") {
     // Today in 3-hour slots: when you drove or charged.
     const start = istDayStart(istDay(now));
-    const hour = (h: number) => (h === 0 ? "12a" : h < 12 ? `${h}a` : h === 12 ? "12p" : `${h - 12}p`);
     return Array.from({ length: 8 }, (_, k) => {
       const from = start + k * 3 * 3_600_000;
-      return { id: from, label: hour(k * 3), from, to: from + 3 * 3_600_000, isCurrent: now >= from && now < from + 3 * 3_600_000 };
+      return { id: from, label: formatHour(k * 3), from, to: from + 3 * 3_600_000, isCurrent: now >= from && now < from + 3 * 3_600_000 };
     });
   }
   if (period === "week") {
@@ -259,11 +258,10 @@ export function rangeSlots(range: DayRange, now: number): { slots: Slot[]; slotN
   const days = rangeDays(range);
   const slot = (from: number, to: number, label: string): Slot => ({ id: from, label, from, to, isCurrent: now >= from && now < to });
   if (days <= 2) {
-    const hour = (h: number) => (h === 0 ? "12a" : h < 12 ? `${h}a` : h === 12 ? "12p" : `${h - 12}p`);
     const slots = Array.from({ length: days * 8 }, (_, k) => {
       const from = span.from + k * 3 * 3_600_000;
       // With two days, each day's first bar is named for its day.
-      const label = days === 2 && k % 8 === 0 ? weekday.format(from + DAY_MS / 2) : hour((k % 8) * 3);
+      const label = days === 2 && k % 8 === 0 ? weekday.format(from + DAY_MS / 2) : formatHour((k % 8) * 3);
       return slot(from, from + 3 * 3_600_000, label);
     });
     return { slots, slotName: "3 hours" };

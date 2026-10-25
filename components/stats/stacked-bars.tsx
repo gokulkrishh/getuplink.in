@@ -70,7 +70,7 @@ export function StackedBars({
             <li key={b.key} aria-hidden="true" className="flex flex-col items-center gap-2">
               <span className="h-4" />
               <div className="h-20" />
-              <AxisLabel label={b.label} dense={dense && !labelEvery} />
+              <AxisLabel label={b.label} />
             </li>
           );
         return (
@@ -88,7 +88,7 @@ export function StackedBars({
                 </div>
               )}
             </div>
-            <AxisLabel label={b.label} dense={dense && !labelEvery} current={b.isCurrent} />
+            <AxisLabel label={b.label} current={b.isCurrent} />
             <span className="sr-only">
               {dense && `${kwh.format(total)} kWh. `}
               {breakdown(b).join(", ")}
