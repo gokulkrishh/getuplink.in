@@ -33,7 +33,9 @@ export function useAxisLabels(box: RefObject<HTMLElement | null>, minStride = 1)
       }
       marks.forEach((m, k) => {
         const show = (n - 1 - k) % stride === 0;
-        m.label.style.visibility = show ? "visible" : "hidden";
+        // Only the label's own `invisible` is lifted, never visibility: visible, which would show it through a
+        // hidden parent (the periods not picked, laid out underneath the one shown).
+        m.label.classList.toggle("invisible", !show);
         m.label.style.transform = show && m.shift ? `translateX(${m.shift}px)` : "";
       });
     };
