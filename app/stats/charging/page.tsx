@@ -15,7 +15,7 @@ import { eachFrame } from "@/components/home/frames";
 import { customScope } from "@/components/stats/periods";
 import { NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/components/stats/stats-frame";
 import { matchSessions } from "@/lib/charge-sessions";
-import type { Bill } from "@/lib/charging-figures";
+import { chargingBills } from "@/lib/charging-figures";
 import type { DrivingFigures } from "@/lib/driving-figures";
 import { type CustomFrame, periodFrames } from "@/lib/frames";
 import { backTo, serials } from "@/lib/kept";
@@ -79,16 +79,10 @@ async function loadCharging(query: CustomQuery | null): Promise<{
 async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "searchParams">) {
   const { sessions, streamSessions, invoices, figures, extras, held, custom, now } = await loadCharging(customQuery(await searchParams));
   const { pairs, streamOnly } = matchSessions(sessions, streamSessions, now);
-  const listed = listSessions(pairs, streamOnly);
+  const listed = listSessions(pairs, streamOnly, invoices);
   // Real bills: Tesla's for Superchargers, attached invoices for the rest. A finished charge with
   // neither is counted as unbilled, never priced.
-  const bills: Bill[] = [
-    ...sessions.flatMap((s) => (s.cost_total === null ? [] : [{ started_at: s.started_at, cost: s.cost_total, kwh: s.energy_kwh, kind: "dc" as const }])),
-    ...streamOnly.flatMap((s) => {
-      const invoice = invoices.get(s.id);
-      return invoice ? [{ started_at: s.started_at, cost: invoice.amount, kwh: invoice.kwhBilled ?? s.energy_added_kwh, kind: s.kind }] : [];
-    }),
-  ];
+  const bills = chargingBills(sessions, streamOnly, invoices);
   const unbilled = streamOnly.filter((s) => s.ended_at !== null && !invoices.has(s.id));
   // Each period, and the range picked by date; only the distance driven in each is read here.
   const frames = periodFrames(figures, custom, [], now);

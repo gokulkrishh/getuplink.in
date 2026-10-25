@@ -1,7 +1,7 @@
 import { ChevronRight } from "lucide-react";
 import { PeriodLink } from "@/components/home/more-link";
 import type { View } from "@/components/stats/periods";
-import { energyBySlot, energyIn, spendBySlot, spendIn } from "@/lib/charging-figures";
+import { type Bill, billsBySlot, billsIn, energyBySlot, energyIn } from "@/lib/charging-figures";
 import { type Change, changeToPrevious, compareToPrevious } from "@/lib/dashboard-summary";
 import type { DrivingPeriod } from "@/lib/driving-figures";
 import { formatDate, formatShortDate } from "@/lib/format";
@@ -98,6 +98,7 @@ export function Headline({
   now,
   sessions,
   streamOnly,
+  bills,
   chargingSince,
 }: {
   // A period or a range picked by date, and the primary car's driving figures for it (null when they
@@ -109,6 +110,8 @@ export function Headline({
   // Tesla's sessions, and the streamed ones Tesla didn't bill (see matchSessions).
   sessions: ChargingSession[];
   streamOnly: StreamChargeSession[];
+  // Every real bill: Tesla's and the invoices attached (see chargingBills), as Charging counts spend.
+  bills: Bill[];
   // The first charging session, billed or streamed (see firstStartedAt).
   chargingSince: number | null;
 }) {
@@ -124,11 +127,11 @@ export function Headline({
   const none = { km: null, whPerKm: null, kwh: null, regenKwh: null };
   const { current, previous, bars } = driving ?? { current: none, previous: null, bars: slots.map(() => none) };
 
-  const spend = spendIn(sessions, span);
-  const spendBefore = before && chargingTracked ? spendIn(sessions, before).cost : null;
+  const spend = billsIn(bills, span).cost;
+  const spendBefore = before && chargingTracked ? billsIn(bills, before).cost : null;
   const energy = energyIn(sessions, streamOnly, span);
   const energyBefore = before && chargingTracked ? energyIn(sessions, streamOnly, before) : null;
-  const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: spend.currency, maximumFractionDigits: 0 });
+  const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: sessions.find((s) => s.currency)?.currency ?? "INR", maximumFractionDigits: 0 });
 
   const currentSlot = slots.findIndex((slot) => slot.isCurrent);
   // Slots ahead of now (the rest of this year) are drawn empty, not as zero.
@@ -188,9 +191,9 @@ export function Headline({
         <Cell
           view="charging"
           label="Spent"
-          value={money.format(spend.cost)}
-          {...delta(spend.cost, spendBefore, (n) => money.format(n), true)}
-          spark={spark("bars", spendBySlot(sessions, slots), (n) => money.format(n))}
+          value={money.format(spend)}
+          {...delta(spend, spendBefore, (n) => money.format(n), true)}
+          spark={spark("bars", billsBySlot(bills, slots), (n) => money.format(n))}
         />
       </div>
       {/* One line in every period, so the strip keeps its height (see ByPeriod's steady). */}

@@ -11,16 +11,24 @@ export function rate(cost: number, energy: number, currency: string): string | n
   return energy > 0 ? `${formatMoney(cost / energy, currency)}/kWh` : null;
 }
 
+// An invoice attached to a session the car reported (see invoicesBySession). hasFile: its file is stored.
+export type RowInvoice = { amount: number; kwhBilled: number | null; hasFile: boolean };
+
 // One row of the list: a Tesla Supercharger session (with cost and invoice), or one the car reported
-// itself. A Tesla session that the car also reported keeps its own row and gains the peak power.
-export type Listed = { key: string; started_at: string; tesla: ChargingSession | null; stream: StreamChargeSession | null };
+// itself, with the invoice attached to it when there is one. A Tesla session that the car also reported
+// keeps its own row and gains the peak power.
+export type Listed = { key: string; started_at: string; tesla: ChargingSession | null; stream: StreamChargeSession | null; invoice: RowInvoice | null };
 
 // Tesla's sessions (with the car's own record of each, when it has one) and the ones only the car
-// reported, newest first (see matchSessions).
-export function listSessions(pairs: { tesla: ChargingSession; stream: StreamChargeSession | null }[], streamOnly: StreamChargeSession[]): Listed[] {
+// reported, with their attached invoices, newest first (see matchSessions).
+export function listSessions(
+  pairs: { tesla: ChargingSession; stream: StreamChargeSession | null }[],
+  streamOnly: StreamChargeSession[],
+  invoices: ReadonlyMap<number, RowInvoice>,
+): Listed[] {
   return [
-    ...pairs.map((p) => ({ key: p.tesla.session_id, started_at: p.tesla.started_at, tesla: p.tesla, stream: p.stream })),
-    ...streamOnly.map((s) => ({ key: `stream-${s.id}`, started_at: s.started_at, tesla: null, stream: s })),
+    ...pairs.map((p) => ({ key: p.tesla.session_id, started_at: p.tesla.started_at, tesla: p.tesla, stream: p.stream, invoice: null })),
+    ...streamOnly.map((s) => ({ key: `stream-${s.id}`, started_at: s.started_at, tesla: null, stream: s, invoice: invoices.get(s.id) ?? null })),
   ].sort((a, b) => Date.parse(b.started_at) - Date.parse(a.started_at));
 }
 
@@ -61,10 +69,11 @@ function batteryTemp(s: StreamChargeSession): string | null {
     : null;
 }
 
-// Whether a list needs the Cost column: only Tesla bills a session. Decided per list, so mixed rows keep
-// one set of columns; a row without a cost shows a faint dash there.
+// Whether a list needs the Cost column: a row Tesla billed, or one with an attached invoice. Decided per
+// list, so mixed rows keep one set of columns; a row without a bill shows a faint dash there, never an
+// estimate.
 export function hasCosts(items: Listed[]): boolean {
-  return items.some((item) => item.tesla);
+  return items.some((item) => item.tesla || item.invoice);
 }
 
 // Static class names, so Tailwind sees them. Wide fits "Yesterday" in the first column (with `now`);
@@ -91,7 +100,7 @@ export function SessionHeader({ costs, wide = false, numbered = false }: { costs
 // `costs` comes from hasCosts over the whole list. The invoice download sits before the cost, so a row
 // without one leaves no gap and the last column stays flush right.
 export function SessionRow({ item, serial, now, costs }: { item: Listed; serial?: number; now?: number; costs: boolean }) {
-  const { tesla: s, stream } = item;
+  const { tesla: s, stream, invoice: attached } = item;
   const invoice = s?.invoices.find((i) => i.contentId);
   const { place, city } = s ? splitSite(s.site_name) : { place: stream ? streamTitle(stream) : "", city: null };
   const stoppedAt = s ? s.stopped_at : (stream?.ended_at ?? null);
@@ -130,7 +139,14 @@ export function SessionRow({ item, serial, now, costs }: { item: Listed; serial?
               ? { href: `/api/charging/invoice/${encodeURIComponent(invoice.contentId)}`, label: `Download invoice for ${formatShortDate(item.started_at)}` }
               : null,
           }
-        : null,
+        : attached && stream
+          ? {
+              // ₹/kWh on the kWh billed, as charged, like the session's own page.
+              money: formatMoney(attached.amount, "INR"),
+              rate: rate(attached.amount, attached.kwhBilled ?? stream.energy_added_kwh ?? 0, "INR"),
+              invoice: attached.hasFile ? { href: `/api/charging/receipt/${stream.id}`, label: `Download invoice for ${formatShortDate(item.started_at)}` } : null,
+            }
+          : null,
   };
   // The browser draws the row from these texts (see SessionLine), so a long list costs the page little.
   return <SessionLine view={view} />;

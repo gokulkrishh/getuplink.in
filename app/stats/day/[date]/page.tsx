@@ -58,12 +58,11 @@ function DayView({ detail, now }: { detail: DayDetail; now: number }) {
   const km = detail.trips.reduce((s, t) => s + t.km, 0);
   const used = detail.trips.every((t) => t.kwh !== null) ? detail.trips.reduce((s, t) => s + (t.kwh ?? 0), 0) : null;
   const added = detail.charges.reduce((s, c) => s + (c.session.energy_added_kwh ?? 0), 0);
-  const spent = detail.charges.reduce((s, c) => s + (c.cost ?? 0), 0);
   const tiles: [string, string][] = [
     ["Driven", `${oneDecimal.format(km)} km`],
     ["Energy used", used !== null ? formatKwh(used) : "Unknown"],
     ["Charged", formatKwh(added)],
-    ["Spent", formatMoney(spent, "INR")],
+    ["Spent", formatMoney(detail.spent, "INR")],
   ];
   return (
     <>

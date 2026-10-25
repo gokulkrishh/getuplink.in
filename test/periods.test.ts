@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { energyBySlot, energyIn, firstStartedAt, spendIn } from "@/lib/charging-figures";
+import { energyBySlot, energyIn, firstStartedAt } from "@/lib/charging-figures";
 import { changeToPrevious, compareToPrevious } from "@/lib/dashboard-summary";
 import { formatShortDate } from "@/lib/format";
 import { dayIso, defaultRange, inSpan, isoDay, monthIndex, monthStart, parseRange, periodSpan, previousLabel, previousSpan, rangeSlots, rangeSpan, rangeTimeframe, slotsFor, sumBySlot, trackingGap } from "@/lib/periods";
@@ -165,7 +165,7 @@ describe("compareToPrevious", () => {
   });
 });
 
-describe("spendIn and energyIn", () => {
+describe("energyIn", () => {
   const span = { from: ist("2026-10-01T00:00:00"), to: Infinity };
   const tesla = [
     { started_at: "2026-10-10T05:00:00Z", cost_total: 1012, energy_kwh: 42, currency: "INR" },
@@ -175,9 +175,6 @@ describe("spendIn and energyIn", () => {
     { started_at: "2026-10-12T05:00:00Z", energy_added_kwh: 30.1 },
     { started_at: "2026-10-15T05:00:00Z", energy_added_kwh: null },
   ];
-  test("Tesla's bill, in the span only", () => {
-    expect(spendIn(tesla, span)).toEqual({ cost: 1012, currency: "INR" });
-  });
   test("energy from Tesla's sessions and the car's own", () => {
     expect(energyIn(tesla, streamOnly, span)).toBeCloseTo(72.1, 6);
   });

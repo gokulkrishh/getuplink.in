@@ -2,6 +2,7 @@ import "server-only";
 import type { Owner } from "./data/owner";
 import { carNow, CAR_NOW_FIELDS } from "@/lib/car-now";
 import { chargeEfficiency, matchSessions } from "@/lib/charge-sessions";
+import { billedCharges } from "@/lib/charging-figures";
 import { dayStrips } from "@/lib/day-timeline";
 import { monthlyRows } from "@/lib/monthly";
 import { DRIVE_DAYS } from "@/lib/drives";
@@ -157,15 +158,7 @@ export async function monthlySummary(owner: Owner) {
   const { vin } = await car(owner);
   const { now, teslaSessions, streamOnly, invoices } = await charges(owner);
   const window = await loadWindowStats(owner, vin, now);
-  const rows = monthlyRows(
-    window.driving.drives,
-    [
-      ...teslaSessions.map((s) => ({ started_at: s.started_at, kwh: s.energy_kwh, cost: s.cost_total })),
-      ...streamOnly.flatMap((s) => (s.ended_at === null ? [] : [{ started_at: s.started_at, kwh: s.energy_added_kwh, cost: invoices.get(s.id)?.amount ?? null }])),
-    ],
-    now - DRIVE_DAYS * DAY,
-    now,
-  );
+  const rows = monthlyRows(window.driving.drives, billedCharges(teslaSessions, streamOnly, invoices), now - DRIVE_DAYS * DAY, now);
   return {
     months: rows.map((r) => ({
       month: istIso(monthStart(r.month)).slice(0, 7),
