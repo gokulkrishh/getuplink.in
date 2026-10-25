@@ -20,7 +20,7 @@ export function PeriodLink({ view, className, children }: { view: View; classNam
 // A home section's way to its Stats page.
 export function MoreLink({ view, children }: { view: View; children: string }) {
   return (
-    <PeriodLink view={view} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+    <PeriodLink view={view} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
       {children}
       <ChevronRight className="size-3" aria-hidden="true" />
     </PeriodLink>

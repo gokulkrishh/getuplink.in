@@ -27,7 +27,7 @@ function Section({ title, view, more, children }: { title: string; view: View; m
   return (
     <section className="space-y-6">
       <div className="flex items-baseline justify-between gap-4">
-        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">{title}</h2>
+        <h2 className="text-lg font-medium tracking-heading">{title}</h2>
         <MoreLink view={view}>{more}</MoreLink>
       </div>
       {children}
@@ -139,7 +139,7 @@ export function BatterySection({
   const usually = drain && `${oneDecimal.format(drain.percentPerDay)}% a day`;
   const lost = parkedNow?.lostPercent ?? null;
   return (
-    <Section title="Battery" view="battery" more="More">
+    <Section title="Battery" view="battery" more="Battery details">
       {(parkedNow || usually) && (
         <div className="space-y-3">
           {parkedNow && (

@@ -15,7 +15,7 @@ export function MonthlyTable({ rows, empty }: { rows: MonthRow[]; empty?: string
   if (rows.length === 0 && !empty) return null;
   return (
     <section className="space-y-4">
-      <h2 className="text-xs font-medium tracking-wide text-faint uppercase">By month</h2>
+      <h2 className="text-lg font-medium tracking-heading">By month</h2>
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">{empty}</p>
       ) : (
