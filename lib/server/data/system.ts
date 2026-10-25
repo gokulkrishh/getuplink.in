@@ -184,7 +184,9 @@ export type FleetOffer = { car: string; version: string | null; status: string |
 export async function fleetOffers(): Promise<FleetOffer[]> {
   const { data, error } = await db()
     .from("vehicles")
-    .select("car:id::text, version:current_version, snapshots(status:update_status, offered:update_version)")
+    // Named key: once the users migration adds (user_id, vehicle_id), PostgREST sees two links between the
+    // tables and refuses an embed that doesn't say which one.
+    .select("car:id::text, version:current_version, snapshots!snapshots_vehicle_id_fkey(status:update_status, offered:update_version)")
     .eq("snapshots.state", "online")
     .order("polled_at", { referencedTable: "snapshots", ascending: false })
     .limit(1, { referencedTable: "snapshots" });

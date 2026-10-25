@@ -42,7 +42,8 @@ Apply step 2 only after step 1 is deployed. Take a backup first.
 6. **"Delete account"** (new, Settings → Your data): Delete my data, then delete the user's storage files, then `delete from users where id = …`, which cascades. The old restrict key `charge_receipts.session_id` still refuses a cascade through sessions with invoices, so delete the invoices first, as `eraseOwnerRows` does.
 7. **Rollout and admin** stay fleet-wide, but dedupe by VIN once two users can share a car, so the same car isn't counted twice (`fleetCars`, `fleetVersionChanges`, `fleetOffers`).
 8. **Reads with no VIN** (`lastReadingAt`, `lastCheckAt`) filter by `user_id`. `lastReadingAt` should take the owner's VINs, so the `(vin, field, created_at)` index serves it.
-9. **Per-instance throttles become per user:** `charging.ts` `lastAttempt` becomes a `Map` keyed by user id.
+9. **Embeds name their key.** Once the migration is applied, snapshots/vehicles, version_history/vehicles and charge_receipts/stream_charge_sessions each have two foreign keys, and PostgREST refuses an unhinted embed between them (PGRST201). Hint the key (`snapshots!snapshots_vehicle_id_fkey(…)`, as `fleetOffers` does), or read in two steps (as `ownedRows` does). Step 4 drops the old keys, so the hints change then too.
+10. **Per-instance throttles become per user:** `charging.ts` `lastAttempt` becomes a `Map` keyed by user id.
 
 ## Step 4: remove the single-owner table and keys
 
