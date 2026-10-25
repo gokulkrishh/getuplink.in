@@ -252,7 +252,7 @@ async function storedTokens(): Promise<StoredTokens> {
 const readOwnerRow = cache(async () => {
   const { data, error } = await db()
     .from("oauth_tokens")
-    .select("access_token_enc, created_at, sessions_valid_after, owner_sub")
+    .select("access_token_enc, created_at, updated_at, sessions_valid_after, owner_sub")
     .eq("provider", "tesla")
     .maybeSingle();
   if (error) throw new Error(`Reading account failed: ${error.message}`);
@@ -262,6 +262,13 @@ const readOwnerRow = cache(async () => {
 export async function isConnected(): Promise<boolean> {
   if (DEMO) return true;
   return Boolean((await readOwnerRow())?.access_token_enc);
+}
+
+// When the tokens were last saved (a sign-in or a refresh), or null when not connected.
+export async function tokensSavedAt(): Promise<string | null> {
+  if (DEMO) return null;
+  const data = await readOwnerRow();
+  return data?.access_token_enc ? data.updated_at : null;
 }
 
 export type AccountInfo = { connected: boolean; connectedSince: string | null };

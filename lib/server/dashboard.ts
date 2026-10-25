@@ -8,7 +8,8 @@ import { missingEnv } from "./env";
 import { db } from "./supabase";
 import { applyStream, loadStream, STREAM_FIELDS } from "./telemetry";
 import { loadReadingsByField } from "./telemetry-window";
-import { isConnected } from "./tesla";
+import { withoutStaleTokenError } from "@/lib/run-error";
+import { isConnected, tokensSavedAt } from "./tesla";
 
 // Tags every page's "use cache: private" loader, so actions that change the owner's data or session
 // can drop those cached copies with one updateTag.
@@ -187,13 +188,16 @@ export async function loadOwnerCars(): Promise<OwnerGate | { kind: "ready"; vehi
   }
   const missing = missingEnv();
   if (missing.length) return { kind: "misconfigured", missing };
-  const [connected, vehicles, runs] = await Promise.all([
+  const [connected, savedAt, vehicles, runs] = await Promise.all([
     isConnected(),
+    tokensSavedAt(),
     db().from("vehicles").select("id:id::text, vin, display_name, last_state, current_version, last_seen_at, last_polled_at, model, exterior_color").order("created_at"),
-    db().from("poll_runs").select("started_at, ok, error").order("started_at", { ascending: false }).limit(1).maybeSingle(),
+    db().from("poll_runs").select("started_at, finished_at, ok, error").order("started_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
   if (!connected) return { kind: "disconnected" };
   if (vehicles.error) throw new Error(vehicles.error.message);
   if (runs.error) throw new Error(runs.error.message);
-  return { kind: "ready", vehicles: vehicles.data as Vehicle[], lastRun: runs.data as PollRun | null };
+  // A sign-in since a run that failed on the tokens means its "sign in again" no longer applies.
+  const run = runs.data as (PollRun & { finished_at: string | null }) | null;
+  return { kind: "ready", vehicles: vehicles.data as Vehicle[], lastRun: run && withoutStaleTokenError(run, savedAt) };
 }

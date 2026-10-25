@@ -5,6 +5,9 @@ import { createSession, EXPIRE_HOST_ONLY_SESSION, isValidSession, safeEqual, SES
 import { pollAll } from "@/lib/server/poll";
 import { signIn, type SignInResult } from "@/lib/server/tesla";
 
+// Room for the check that runs after the redirect, like the cron's.
+export const maxDuration = 60;
+
 export async function GET(request: NextRequest) {
   if (DEMO) return NextResponse.redirect(new URL("/", request.url));
   const params = request.nextUrl.searchParams;
@@ -40,9 +43,10 @@ export async function GET(request: NextRequest) {
   }
   if (result === "not-owner") return done("/home", "not-owner");
 
-  // First sign-in: record a snapshot right away rather than waiting for the cron.
-  // Runs after the redirect is sent, so sign-in isn't held up by it.
-  if (result === "claimed") after(() => pollAll().catch((err) => console.error(err)));
+  // Check with the new tokens right away rather than waiting for the cron: on a first sign-in this records
+  // the first snapshot, and after a sign-in that replaced refused tokens it clears the failed run's
+  // "sign in again". Runs after the redirect is sent, so sign-in isn't held up or failed by it.
+  after(() => pollAll().catch((err) => console.error(err)));
 
   const res = done("/");
   const domain = sessionCookieDomain(requestHost(request.headers));
