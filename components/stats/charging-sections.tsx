@@ -15,13 +15,13 @@ import { Measure } from "@/components/measure";
 
 // The Charging page's sections: spend, energy added by charger kind, and every session by month.
 
-// Tesla's billed total for a month of the session list.
-function totals(rows: ChargingSession[]) {
+// What a month of the session list was billed: Tesla's bills and the invoices attached, as in Summary.
+function totals(rows: Listed[]) {
+  const costs = rows.flatMap((r) => (r.tesla ? (r.tesla.cost_total === null ? [] : [r.tesla.cost_total]) : r.invoice ? [r.invoice.amount] : []));
   return {
-    cost: rows.reduce((sum, s) => sum + (s.cost_total ?? 0), 0),
-    energy: rows.reduce((sum, s) => sum + (s.energy_kwh ?? 0), 0),
-    count: rows.length,
-    currency: rows.find((s) => s.currency)?.currency ?? "INR",
+    cost: costs.reduce((sum, n) => sum + n, 0),
+    count: costs.length,
+    currency: rows.find((r) => r.tesla?.currency)?.tesla?.currency ?? "INR",
   };
 }
 
@@ -196,7 +196,7 @@ export function SessionList({ sessions, all = sessions }: { sessions: Listed[]; 
     <div className="max-sm:-mx-1 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:px-1">
     <div className="max-sm:min-w-xl space-y-10">
       {[...groups].map(([month, rows]) => {
-        const billed = totals(rows.flatMap((r) => (r.tesla ? [r.tesla] : [])));
+        const billed = totals(rows);
         return (
           <section key={month} className="space-y-2">
             <h3 className="text-sm font-medium text-muted-foreground">{month}</h3>
@@ -219,7 +219,8 @@ export function SessionList({ sessions, all = sessions }: { sessions: Listed[]; 
             </div>
             <p className="pt-1 text-right text-xs text-faint tabular-nums">
               {rows.length} {rows.length === 1 ? "session" : "sessions"}
-              {billed.count > 0 && `, ${formatMoney(billed.cost, billed.currency)} at Superchargers`}            </p>
+              {billed.count > 0 && `, ${formatMoney(billed.cost, billed.currency)} billed`}
+            </p>
           </section>
         );
       })}

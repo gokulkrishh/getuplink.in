@@ -14,7 +14,7 @@ import { PeriodPicker, PeriodScope } from "@/components/stats/period-scope";
 import { customScope } from "@/components/stats/periods";
 import { UpdateBanner } from "@/components/updates/update-banner";
 import { matchSessions } from "@/lib/charge-sessions";
-import { firstStartedAt } from "@/lib/charging-figures";
+import { billedCharges, chargingBills, firstStartedAt } from "@/lib/charging-figures";
 import { withDriveEfficiency } from "@/lib/drive-stats";
 import type { DrivingPeriod } from "@/lib/driving-figures";
 import { DRIVE_DAYS } from "@/lib/drives";
@@ -65,12 +65,9 @@ function Totals({ home, custom, now }: { home: Extract<Home, { kind: "ready" }>;
   const figures = withDriveEfficiency(home.figures, window.driving.drives, now);
   const chargingSince = firstStartedAt(home.sessions, home.streamSessions);
   const frames = periodFrames(figures, custom, window.driving.drives, now);
-  const charges = [
-    ...home.sessions.map((s) => ({ started_at: s.started_at, kwh: s.energy_kwh, cost: s.cost_total })),
-    ...streamOnly.flatMap((s) =>
-      s.ended_at === null ? [] : [{ started_at: s.started_at, kwh: s.energy_added_kwh, cost: home.invoices.get(s.id)?.amount ?? null }],
-    ),
-  ];
+  // Real bills, counted as Charging counts them: Tesla's for Superchargers, attached invoices for the rest.
+  const bills = chargingBills(home.sessions, streamOnly, home.invoices);
+  const charges = billedCharges(home.sessions, streamOnly, home.invoices);
   // The months of a period, each counting only what falls inside the period, so the rows add up to the
   // headline. A period inside one month has a single row that repeats the headline, so it shows none.
   const monthsIn = ({ span }: Timeframe) => {
@@ -89,13 +86,13 @@ function Totals({ home, custom, now }: { home: Extract<Home, { kind: "ready" }>;
         {eachFrame(
           frames,
           ({ key, frame, driving }) => (
-            <Headline key={key} frame={frame} driving={driving} since={figures.since} now={now} sessions={home.sessions} streamOnly={streamOnly} chargingSince={chargingSince} />
+            <Headline key={key} frame={frame} driving={driving} since={figures.since} now={now} sessions={home.sessions} streamOnly={streamOnly} bills={bills} chargingSince={chargingSince} />
           ),
           { steady: true },
         )}
       </section>
       <DrivingSection frames={frames} figures={figures} drives={window.driving.drives} now={now} />
-      <ChargingSection frames={frames} sessions={home.sessions} listed={listSessions(pairs, streamOnly)} now={now} />
+      <ChargingSection frames={frames} bills={bills} listed={listSessions(pairs, streamOnly, home.invoices)} now={now} />
       <BatterySection frames={frames} level={window.level} drain={window.driving.drain} parkedNow={window.driving.parkedNow} now={now} />
       {eachFrame(frames, ({ frame }) => (
         <MonthlyTable rows={monthsIn(frame)} />

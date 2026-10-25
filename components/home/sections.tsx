@@ -8,12 +8,11 @@ import { Figures } from "@/components/stats/figures";
 import type { View } from "@/components/stats/periods";
 import { DRIVE_DAYS, type Drive, type DrainSummary, type ParkedNow } from "@/lib/drives";
 import { groupTrips } from "@/lib/trips";
-import { spendBySlot } from "@/lib/charging-figures";
+import { type Bill, billsBySlot } from "@/lib/charging-figures";
 import type { ChargeLevel } from "@/lib/charge-level";
 import type { DrivingFigures } from "@/lib/driving-figures";
 import { formatDuration, formatPower } from "@/lib/format";
 import { inSpan } from "@/lib/periods";
-import type { ChargingSession } from "@/lib/server/charging";
 import { eachFrame, type HomeFrame } from "./frames";
 import { MoreLink } from "./more-link";
 
@@ -49,13 +48,14 @@ function Rows({ header, children }: { header?: ReactNode; children: ReactNode })
   );
 }
 
-// Spend per bar (Tesla's Supercharger bill, as in Spent), then the newest sessions in the period.
-export function ChargingSection({ frames, sessions, listed, now }: { frames: HomeFrame[]; sessions: ChargingSession[]; listed: Listed[]; now: number }) {
+// Spend per bar from real bills (Tesla's and the invoices attached, as in Spent and on Charging), then the
+// newest sessions in the period.
+export function ChargingSection({ frames, bills, listed, now }: { frames: HomeFrame[]; bills: Bill[]; listed: Listed[]; now: number }) {
   if (listed.length === 0) return null;
-  const currency = sessions.find((s) => s.currency)?.currency ?? "INR";
+  const currency = listed.find((item) => item.tesla?.currency)?.tesla?.currency ?? "INR";
   const compact = new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 });
   const chart = ({ frame }: HomeFrame) => {
-    const spend = spendBySlot(sessions, frame.slots);
+    const spend = billsBySlot(bills, frame.slots);
     const bars = frame.slots.map((slot, k) => ({ key: String(slot.id), label: slot.label, value: spend[k], display: compact.format(spend[k]), isCurrent: slot.isCurrent }));
     return (
       <Bars
@@ -63,8 +63,8 @@ export function ChargingSection({ frames, sessions, listed, now }: { frames: Hom
         ariaLabel={`Spend per ${frame.slotName}`}
         prefix="₹"
         labelEvery={frame.labelEvery}
-        empty={`No charging spend ${frame.words}`}
-        caption={barsCaption("Spent on Supercharger bills", frame)}
+        empty={`No bills ${frame.words}`}
+        caption={`${barsCaption("Charging bills", frame)}: Tesla's Supercharger bills and the invoices you attached.`}
       />
     );
   };
