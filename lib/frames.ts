@@ -21,3 +21,12 @@ export function periodFrames(figures: DrivingFigures, custom: CustomFrame | null
     return [{ key: value, frame: custom.frame, driving: custom.driving && timeframeEfficiency(custom.driving, custom.frame, drives, figures.since, now) }];
   });
 }
+
+// Every choice of the switch for a page that reads no driving figures (Battery): each period, then the
+// range picked by date when there is one.
+export function timeframes(custom: Timeframe | null, now: number): Frame[] {
+  return HOME_PERIODS.flatMap(({ value }): Frame[] => {
+    if (value !== "custom") return [{ key: value, frame: periodTimeframe(value, now), driving: null }];
+    return custom ? [{ key: value, frame: custom, driving: null }] : [];
+  });
+}

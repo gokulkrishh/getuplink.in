@@ -24,6 +24,11 @@ describe("statsRedirect", () => {
     expect(target("view=battery")).toBe("/stats/battery");
     expect(target("view=charging&period=all")).toBe("/stats/charging?period=all");
   });
+  test("Battery keeps the period, Custom with its dates", () => {
+    expect(target("view=battery&period=month")).toBe("/stats/battery?period=month");
+    expect(target("view=battery&period=week")).toBe("/stats/battery");
+    expect(target("view=battery&period=custom&from=2026-09-01&to=2026-09-30")).toBe("/stats/battery?period=custom&from=2026-09-01&to=2026-09-30");
+  });
   test("no view, or one that doesn't exist, opens Driving", () => {
     expect(target("")).toBe("/stats/driving");
     expect(target("view=nonsense&period=year")).toBe("/stats/driving?period=year");

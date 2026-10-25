@@ -1,23 +1,40 @@
 import { BatteryTrend } from "@/components/stats/battery-trend";
 import { unitNotes } from "@/components/stats/chart-caption";
-import { formatKwh } from "@/lib/format";
+import { ChartNote } from "@/components/stats/chart-note";
+import { formatKwh, formatShortDate } from "@/lib/format";
+import { backTo, weeksIn } from "@/lib/kept";
+import type { Timeframe } from "@/lib/periods";
 import type { WeeklyPack } from "@/lib/telemetry-derive";
 
-// The estimated full pack by week, from the streamed energy remaining and battery level.
-export function BatteryPack({ trend }: { trend: WeeklyPack[] }) {
+// The estimated full pack by week, from the streamed energy remaining and battery level: the weeks that
+// overlap the span, as far back as the estimates go (12 weeks). The page keeps its id outside, since each
+// period draws its own copy.
+export function BatteryPack({ trend, frame }: { trend: WeeklyPack[]; frame: Timeframe }) {
   if (trend.length < 2) return null;
+  const weeks = weeksIn(trend, frame.span);
   const latest = trend[trend.length - 1];
+  const cut = backTo(frame.span, trend[0].weekStart, "Weekly estimates");
   return (
-    <section id="battery" className="space-y-8">
+    <section className="space-y-6">
       <div className="space-y-2">
         <h2 className="text-lg font-medium tracking-heading">Usable capacity by week</h2>
-        <p className="text-sm text-muted-foreground">Estimated full pack, weekly median. Now {formatKwh(latest.kwh)}.</p>
+        <p className="text-sm text-muted-foreground">
+          Estimated full pack, weekly median. Latest week {formatKwh(latest.kwh)}.
+        </p>
       </div>
       <figure className="space-y-3">
-        <BatteryTrend points={trend} />
+        {weeks.length >= 2 ? (
+          <BatteryTrend points={weeks} />
+        ) : (
+          <ChartNote>
+            {weeks.length === 1
+              ? `Week of ${formatShortDate(weeks[0].weekStart)}: ${formatKwh(weeks[0].kwh)}. A line needs two weeks.`
+              : `No weekly estimate ${frame.words}.`}
+          </ChartNote>
+        )}
         <figcaption className="text-xs text-muted-foreground">
           How much energy a full battery holds, as the car estimates it: the middle value of each week&apos;s estimates. The scale starts near the
-          readings, not at zero, so small changes show. {unitNotes(["kWh"])}
+          readings, not at zero, so small changes show. {unitNotes(["kWh"])} {frame.title}.{cut && ` ${cut}`}
         </figcaption>
       </figure>
     </section>

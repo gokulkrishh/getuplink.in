@@ -13,7 +13,7 @@ export type Point = { x: number; y: number };
 export type BatteryExtras = {
   temps: { battery: Point[]; inside: Point[]; outside: Point[] };
   cellSpreadMv: Point[]; // highest minus lowest cell voltage, in mV
-  capacityByKm: Point[]; // x: odometer km, y: estimated full pack kWh
+  capacityByKm: (Point & { weekStart: number })[]; // x: odometer km, y: estimated full pack kWh, for the week starting weekStart
 };
 
 const series = (readings: Reading[] | undefined, scale = 1): Point[] =>
@@ -49,7 +49,7 @@ export async function loadBatteryExtras(vin: string | null, trend: WeeklyPack[],
     capacityByKm: trend.flatMap((w) => {
       const mid = w.weekStart + 3.5 * DAY;
       const near = odometer.reduce<Point | null>((a, p) => (!a || Math.abs(p.x - mid) < Math.abs(a.x - mid) ? p : a), null);
-      return near && Math.abs(near.x - mid) < 7 * DAY ? [{ x: near.y, y: w.kwh }] : [];
+      return near && Math.abs(near.x - mid) < 7 * DAY ? [{ x: near.y, y: w.kwh, weekStart: w.weekStart }] : [];
     }),
   };
 }

@@ -1,10 +1,10 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
-import { Segmented } from "@/components/segmented";
+import { ChartNote } from "@/components/stats/chart-note";
+import { backTo } from "@/lib/kept";
 import type { ChargeLevel } from "@/lib/charge-level";
-import { formatShortDate } from "@/lib/format";
+import { formatClock, formatShortDate } from "@/lib/format";
 import type { Timeframe } from "@/lib/periods";
 
 // Same box as the loaded chart (panel + h-40), so nothing shifts when recharts arrives after hydration.
@@ -21,57 +21,55 @@ function Placeholder() {
 // recharts loads lazily, client-only.
 const Plot = dynamic(() => import("./charge-level-plot"), { ssr: false, loading: Placeholder });
 
-const DAY = 86_400_000;
-const RANGES = [
-  { value: 7, label: "7 days" },
-  { value: 30, label: "30 days" },
-];
-
-// Battery level over the last 7 or 30 days, with charging shaded. The switch is local: all 30 days
-// arrive with the page. With `frame` (home, where one switch drives every section) it shows that span
-// instead, as far back as the readings go, and has no switch of its own.
-export function ChargeLevelChart({ level, now, frame }: { level: ChargeLevel | null; now: number; frame?: Pick<Timeframe, "span" | "title" | "words"> }) {
-  const [days, setDays] = useState(7);
+// Battery level over the span of `frame`, as far back as the readings go, with charging shaded. One switch
+// drives every section, so it has none of its own. On home the chart stands alone with one line saying what
+// it is; with `heading` (the Battery page) it is a section with its title and the level now.
+export function ChargeLevelChart({
+  level,
+  now,
+  frame,
+  heading = false,
+}: {
+  level: ChargeLevel | null;
+  now: number;
+  frame: Pick<Timeframe, "span" | "title" | "words">;
+  heading?: boolean;
+}) {
   if (!level || level.points.length < 2) return null;
-  // On home the line starts at the first reading in the span, so a long period doesn't squeeze it to one side.
-  const from = frame ? Math.max(level.points.find((p) => p.at >= frame.span.from)?.at ?? level.from, frame.span.from) : Math.max(level.from, now - days * DAY);
-  const to = frame ? Math.min(now, frame.span.to) : now;
+  // The line starts at the first reading in the span, so a long period doesn't squeeze it to one side.
+  const from = Math.max(level.points.find((p) => p.at >= frame.span.from)?.at ?? level.from, frame.span.from);
+  const to = Math.min(now, frame.span.to);
   const points = level.points.filter((p) => p.at >= from && p.at < to);
   const charging = level.charging.filter((c) => c.end > from && c.start < to).map((c) => ({ start: Math.max(c.start, from), end: Math.min(c.end, to) }));
   const latest = level.points[level.points.length - 1];
-  // The readings kept start after the span does: "This year. Readings go back to 25 Sept."
-  const cut = frame && frame.span.from < level.from ? ` Readings go back to ${formatShortDate(level.from)}.` : "";
-  const caption = frame ? `${frame.title}.${cut}${charging.length > 0 ? " Shaded while charging." : ""}` : charging.length > 0 ? `Last ${days} days, shaded while charging` : `Last ${days} days`;
-  // On home the car strip already shows the charge now, so the chart stands alone with one line saying what it is.
-  if (frame) {
+  // The readings kept start after the span does: "This year. Readings go back to 25 Sept." Home names the
+  // window's start, as it always has; the Battery page names the first reading seen.
+  const cut = heading ? backTo(frame.span, level.points[0].at, "Readings") : frame.span.from < level.from ? `Readings go back to ${formatShortDate(level.from)}.` : null;
+  const caption = `${frame.title}.${cut ? ` ${cut}` : ""}${charging.length > 0 ? " Shaded while charging." : ""}`;
+  if (!heading) {
     return (
       <div className="space-y-3">
-        {/* With no readings, the note sits in the chart's own box (see charge-level-plot), so a switch doesn't move what follows. */}
-        {points.length >= 2 ? (
-          <Plot points={points} charging={charging} from={from} to={to} />
-        ) : (
-          <div className="bg-muted px-3 pt-6 pb-2">
-            <p className="flex h-40 items-center justify-center text-center text-sm text-faint">No readings {frame.words}</p>
-          </div>
-        )}
+        {/* With no readings, the note sits in the chart's own box, so a switch doesn't move what follows. */}
+        {points.length >= 2 ? <Plot points={points} charging={charging} from={from} to={to} /> : <ChartNote>No readings {frame.words}.</ChartNote>}
         <p className="text-xs text-faint">Charge level over time, 0 to 100%. {caption}</p>
       </div>
     );
   }
   return (
-    <section className="space-y-8">
+    <section className="space-y-6">
       <div className="space-y-2">
         <h2 className="text-lg font-medium tracking-heading">Charge level</h2>
-        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{Math.round(latest.level)}%</p>
-        <p className="text-sm text-muted-foreground">{caption}</p>
+        {/* The latest level, whatever span is picked; the chart below follows the span. */}
+        <p className="flex flex-wrap items-baseline gap-x-2">
+          <span className="font-mono text-4xl font-medium tracking-tight tabular-nums">{Math.round(latest.level)}%</span>
+          <span className="text-base text-muted-foreground">
+            latest reading, {formatShortDate(latest.at)}, {formatClock(latest.at)}
+          </span>
+        </p>
       </div>
-      <div className="space-y-4">
-        <Segmented label="Range" options={RANGES} value={days} onChange={setDays} />
-        {points.length >= 2 ? (
-          <Plot points={points} charging={charging} from={from} to={to} />
-        ) : (
-          <p className="text-sm text-muted-foreground">No readings in the last {days} days.</p>
-        )}
+      <div className="space-y-3">
+        {points.length >= 2 ? <Plot points={points} charging={charging} from={from} to={to} /> : <ChartNote>No readings {frame.words}.</ChartNote>}
+        <p className="text-xs text-faint">Charge level over time, 0 to 100%. {caption}</p>
       </div>
     </section>
   );
