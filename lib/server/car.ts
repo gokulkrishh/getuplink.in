@@ -225,8 +225,8 @@ export async function loadCarDetails(id: string): Promise<CarDetails | null> {
         [
           "polled_at, car_version, config:raw->vehicle_config, supercharging:raw->supercharging_enabled",
           "tpms_front:raw->vehicle_state->tpms_rcp_front_value, tpms_rear:raw->vehicle_state->tpms_rcp_rear_value",
-          "sentry:raw->vehicle_state->sentry_mode_available, dashcam:raw->vehicle_state->dashcam_clip_save_supported",
-          "webcam:raw->vehicle_state->webcam_supported",
+          "sentry:raw->vehicle_state->sentry_mode_available, dashcam:raw->vehicle_config->dashcam_clip_save_supported",
+          "webcam:raw->vehicle_config->webcam_supported",
         ].join(", "),
       )
       .eq("vehicle_id", id)
