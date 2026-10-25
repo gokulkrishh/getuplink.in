@@ -10,11 +10,9 @@ import { DEMO, DEMO_URL } from "@/lib/demo";
 import { STATES } from "@/lib/india-states";
 import { formatAgo, formatDate, formatSeen } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
-import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
+import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { lastCheckAt, OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { ownHomeState, type OwnHomeState } from "@/lib/server/home-state";
-import { demoData } from "@/lib/server/demo";
-import { db } from "@/lib/server/supabase";
 import { lastReadingAt } from "@/lib/server/telemetry";
 import { accountInfo, type AccountInfo } from "@/lib/server/tesla";
 import { connectorTokenStatus, type ConnectorTokenStatus } from "@/lib/server/connector-token";
@@ -45,23 +43,22 @@ async function loadSettings(): Promise<{
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
-  const [account, run, lastReading, home, connector] = await Promise.all([
-    accountInfo(),
-    DEMO
-      ? { data: demoData().lastRun }
-      : db().from("poll_runs").select("started_at").order("started_at", { ascending: false }).limit(1).maybeSingle(),
-    lastReadingAt(),
+  const owner = await currentOwner();
+  if (!owner) redirect(SIGNED_OUT_PATH);
+  const [account, lastCheck, lastReading, home, connector] = await Promise.all([
+    accountInfo(owner),
+    lastCheckAt(owner),
+    lastReadingAt(owner),
     // Never fails the page: an unknown home state just says so.
-    ownHomeState().catch((err): OwnHomeState => {
+    ownHomeState(owner).catch((err): OwnHomeState => {
       console.warn("Home state unavailable:", (err as Error).message);
       return { state: null, source: null, locationAllowed: false, askLocation: false };
     }),
     // Never fails the page either: shown as not set up.
-    connectorTokenStatus().catch(() => null),
+    connectorTokenStatus(owner).catch(() => null),
   ]);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
-  return { account, lastCheck: run.data?.started_at ?? null, lastReading, home, connector, now: Date.now() };
+  return { account, lastCheck, lastReading, home, connector, now: Date.now() };
 }
 
 async function Settings() {

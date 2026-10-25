@@ -13,7 +13,7 @@ import { formatShortDate } from "@/lib/format";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import type { RolloutVersion } from "@/lib/rollout";
 import type { Arriving, YourCar } from "@/lib/rollout-arriving";
-import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadRollout, type RolloutPage } from "@/lib/server/rollout";
 import { cn } from "@/lib/utils";
@@ -27,9 +27,10 @@ async function loadOwnRollout(): Promise<RolloutPage> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
+  const owner = await currentOwner();
+  if (!owner) redirect(SIGNED_OUT_PATH);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
-  return loadRollout(Date.now());
+  return loadRollout(owner, Date.now());
 }
 
 const cars = (n: number) => `${n} ${n === 1 ? "car" : "cars"}`;

@@ -19,7 +19,7 @@ import { DEMO, type DemoScenario, parseScenario } from "@/lib/demo";
 import { newestTime } from "@/lib/last-synced";
 import { customRange, rangeTimeframe, type Timeframe } from "@/lib/periods";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
-import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadUpdatesPage, type UpdatesCar, type UpdatesPage } from "@/lib/server/updates-page";
 import { updateStats } from "@/lib/telemetry-derive";
@@ -35,10 +35,11 @@ async function loadOwnUpdates(demo: DemoScenario): Promise<{ data: UpdatesPage; 
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
+  const owner = await currentOwner();
+  if (!owner) redirect(SIGNED_OUT_PATH);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
   const now = Date.now();
-  return { data: await loadUpdatesPage(demo, now), now };
+  return { data: await loadUpdatesPage(owner, demo, now), now };
 }
 
 // One car: the installed version and its status, the pending update, the history, how updates usually go,

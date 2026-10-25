@@ -1,24 +1,27 @@
 import { connection, NextResponse } from "next/server";
 import { DEMO } from "@/lib/demo";
-import { hasCurrentSession } from "@/lib/server/auth";
-import { db } from "@/lib/server/supabase";
+import { currentOwner } from "@/lib/server/auth";
+import { ownerDb } from "@/lib/server/data/owner";
+import { recentReleaseNotes } from "@/lib/server/data/system";
 
-// Owner-only (proxy.ts requires a session for /api/*): the raw data Uplink has stored from Tesla,
-// for checking what the Fleet API actually returns. Tokens are never included.
+// Owner-only (proxy.ts requires a session for /api/*): the raw data Uplink has stored from the owner's
+// Tesla, for checking what the Fleet API actually returns. Tokens are never included.
 export async function GET() {
   await connection();
-  if (!(await hasCurrentSession())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const owner = await currentOwner();
+  if (!owner) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (DEMO) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const scope = ownerDb(owner);
   const [vehicles, snapshots, notes, runs] = await Promise.all([
-    db().from("vehicles").select("id, display_name, last_state, current_version, last_seen_at, last_polled_at"),
-    db()
+    scope.from("vehicles").select("id, display_name, last_state, current_version, last_seen_at, last_polled_at"),
+    scope
       .from("snapshots")
       .select("vehicle_id, polled_at, state, car_version, update_status, update_version, error, raw")
       .not("raw", "is", null)
       .order("polled_at", { ascending: false })
       .limit(5),
-    db().from("release_notes").select("version, fetched_at, notes, raw").order("fetched_at", { ascending: false }).limit(10),
-    db().from("poll_runs").select("started_at, finished_at, ok, vehicles_seen, error").order("started_at", { ascending: false }).limit(10),
+    recentReleaseNotes(10),
+    scope.from("poll_runs").select("started_at, finished_at, ok, vehicles_seen, error").order("started_at", { ascending: false }).limit(10),
   ]);
 
   const body = {

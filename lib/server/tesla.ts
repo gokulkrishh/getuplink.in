@@ -4,9 +4,9 @@ import { DEMO } from "@/lib/demo";
 import { decrypt, encrypt } from "./crypto";
 import { demoData } from "./demo";
 import { env, fleetApiBase } from "./env";
-import { revokeConnectorToken } from "./connector-token";
-import { deleteAllInvoices } from "./receipts";
-import { db } from "./supabase";
+import { eraseOwnerRows } from "./data/erase";
+import { type Owner, ownerDb } from "./data/owner";
+import { claimAccount, legacyAccount } from "./data/system";
 
 export const AUTHORIZE_URL = "https://auth.tesla.com/oauth2/v3/authorize";
 export const TOKEN_URL = "https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token";
@@ -107,36 +107,13 @@ export async function signIn(code: string): Promise<SignInResult> {
     audience: fleetApiBase(),
     redirect_uri: env("TESLA_REDIRECT_URI"),
   });
-  const sub = idTokenSubject(tokens.id_token);
-  // Make sure the row exists without touching an existing one, then claim it with a single
-  // conditional update: of two first sign-ins racing, only one can match "no owner or me".
-  const { error: insertError } = await db()
-    .from("oauth_tokens")
-    .upsert({ provider: "tesla" }, { onConflict: "provider", ignoreDuplicates: true });
-  if (insertError) throw new Error(`Saving tokens failed: ${insertError.message}`);
-  const { data: before, error: readError } = await db()
-    .from("oauth_tokens")
-    .select("owner_sub")
-    .eq("provider", "tesla")
-    .maybeSingle();
-  if (readError) throw new Error(`Reading owner failed: ${readError.message}`);
-  const quoted = `"${sub.replace(/[\\"]/g, "\\$&")}"`;
-  const { data: updated, error } = await db()
-    .from("oauth_tokens")
-    .update({
-      owner_sub: sub,
-      access_token_enc: encrypt(tokens.access_token),
-      refresh_token_enc: encrypt(tokens.refresh_token),
-      expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
-      scope: tokens.scope ?? null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("provider", "tesla")
-    .or(`owner_sub.is.null,owner_sub.eq.${quoted}`)
-    .select("provider");
-  if (error) throw new Error(`Saving tokens failed: ${error.message}`);
-  if (!updated?.length) return "not-owner";
-  return before?.owner_sub ? "owner" : "claimed";
+  return claimAccount(idTokenSubject(tokens.id_token), {
+    access_token_enc: encrypt(tokens.access_token),
+    refresh_token_enc: encrypt(tokens.refresh_token),
+    expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+    scope: tokens.scope ?? null,
+    updated_at: new Date().toISOString(),
+  });
 }
 
 // Refresh tokens are single use, and Tesla can revoke the whole chain (the pair just stored included)
@@ -148,22 +125,22 @@ const LEASE_MS = 30_000;
 const WAIT_STEP_MS = 500;
 let inflight: { refreshTokenEnc: string; promise: Promise<string> } | null = null;
 
-function refresh(stored: StoredTokens): Promise<string> {
+function refresh(owner: Owner, stored: StoredTokens): Promise<string> {
   const current = inflight;
   if (current && current.refreshTokenEnc === stored.refreshTokenEnc) return current.promise;
-  const promise = refreshOnce(stored).finally(() => {
+  const promise = refreshOnce(owner, stored).finally(() => {
     if (inflight?.promise === promise) inflight = null;
   });
   inflight = { refreshTokenEnc: stored.refreshTokenEnc, promise };
   return promise;
 }
 
-async function refreshOnce(stored: StoredTokens): Promise<string> {
+async function refreshOnce(owner: Owner, stored: StoredTokens): Promise<string> {
   const deadline = Date.now() + LEASE_MS;
-  while (!(await claimLease(stored))) {
+  while (!(await claimLease(owner, stored))) {
     // Another instance is refreshing: wait for the tokens it stores rather than spend the same one.
     await new Promise((resolve) => setTimeout(resolve, WAIT_STEP_MS));
-    const current = await readTokens();
+    const current = await readTokens(owner);
     if (!current) throw new NotConnectedError();
     if (current.refreshTokenEnc !== stored.refreshTokenEnc) return current.accessToken;
     if (Date.now() > deadline) throw new Error("Waited too long for another token refresh");
@@ -176,14 +153,14 @@ async function refreshOnce(stored: StoredTokens): Promise<string> {
       refresh_token: stored.refreshToken,
     });
   } catch (err) {
-    await releaseLease(stored);
+    await releaseLease(owner, stored);
     // A disconnect or a sign-in may have replaced the tokens meanwhile; if so, use those.
-    const current = await readTokens();
+    const current = await readTokens(owner);
     if (!current) throw new NotConnectedError();
     if (current.refreshTokenEnc !== stored.refreshTokenEnc) return current.accessToken;
     throw err;
   }
-  const { data, error } = await db()
+  const { data, error } = await ownerDb(owner)
     .from("oauth_tokens")
     .update({
       access_token_enc: encrypt(tokens.access_token),
@@ -193,24 +170,22 @@ async function refreshOnce(stored: StoredTokens): Promise<string> {
       refreshing_until: null,
       updated_at: new Date().toISOString(),
     })
-    .eq("provider", "tesla")
     .eq("refresh_token_enc", stored.refreshTokenEnc)
     .select("provider");
   if (error) throw new Error(`Saving tokens failed: ${error.message}`);
   if (data?.length === 1) return tokens.access_token;
   // Nothing matched: the owner disconnected (don't write tokens back) or signed in again meanwhile.
-  const current = await readTokens();
+  const current = await readTokens(owner);
   if (!current) throw new NotConnectedError();
   return current.accessToken;
 }
 
 // Claims the refresh for this refresh token, unless another request holds an unexpired lease on it.
-async function claimLease(stored: StoredTokens): Promise<boolean> {
+async function claimLease(owner: Owner, stored: StoredTokens): Promise<boolean> {
   const now = new Date();
-  const { data, error } = await db()
+  const { data, error } = await ownerDb(owner)
     .from("oauth_tokens")
     .update({ refreshing_until: new Date(now.getTime() + LEASE_MS).toISOString() })
-    .eq("provider", "tesla")
     .eq("refresh_token_enc", stored.refreshTokenEnc)
     .or(`refreshing_until.is.null,refreshing_until.lt.${now.toISOString()}`)
     .select("provider");
@@ -218,19 +193,15 @@ async function claimLease(stored: StoredTokens): Promise<boolean> {
   return data?.length === 1;
 }
 
-async function releaseLease(stored: StoredTokens): Promise<void> {
-  await db().from("oauth_tokens").update({ refreshing_until: null }).eq("provider", "tesla").eq("refresh_token_enc", stored.refreshTokenEnc);
+async function releaseLease(owner: Owner, stored: StoredTokens): Promise<void> {
+  await ownerDb(owner).from("oauth_tokens").update({ refreshing_until: null }).eq("refresh_token_enc", stored.refreshTokenEnc);
 }
 
 type StoredTokens = NonNullable<Awaited<ReturnType<typeof readTokens>>>;
 
 // Null when the owner row is missing or disconnected.
-async function readTokens() {
-  const { data, error } = await db()
-    .from("oauth_tokens")
-    .select("access_token_enc, refresh_token_enc, expires_at")
-    .eq("provider", "tesla")
-    .maybeSingle();
+async function readTokens(owner: Owner) {
+  const { data, error } = await ownerDb(owner).from("oauth_tokens").select("access_token_enc, refresh_token_enc, expires_at").maybeSingle();
   if (error) throw new Error(`Reading tokens failed: ${error.message}`);
   if (!data?.access_token_enc || !data.refresh_token_enc || !data.expires_at) return null;
   return {
@@ -241,56 +212,47 @@ async function readTokens() {
   };
 }
 
-async function storedTokens(): Promise<StoredTokens> {
-  const tokens = await readTokens();
+async function storedTokens(owner: Owner): Promise<StoredTokens> {
+  const tokens = await readTokens(owner);
   if (!tokens) throw new NotConnectedError();
   return tokens;
 }
 
-// The owner row, read once per request however many of the functions below ask for it. Never used
-// for refreshing (readTokens above): that needs a fresh read.
-const readOwnerRow = cache(async () => {
-  const { data, error } = await db()
-    .from("oauth_tokens")
-    .select("access_token_enc, created_at, updated_at, sessions_valid_after, owner_sub")
-    .eq("provider", "tesla")
-    .maybeSingle();
-  if (error) throw new Error(`Reading account failed: ${error.message}`);
-  return data;
-});
+// The account row (see legacyAccount), read once per request however many of the functions below and
+// currentOwner ask for it. Never used for refreshing (readTokens above): that needs a fresh read.
+export const accountRow = cache(legacyAccount);
 
-export async function isConnected(): Promise<boolean> {
+// The owner's own account row, or null when it isn't theirs.
+async function ownRow(owner: Owner) {
+  const data = await accountRow();
+  return data?.owner_sub === owner.sub ? data : null;
+}
+
+export async function isConnected(owner: Owner): Promise<boolean> {
   if (DEMO) return true;
-  return Boolean((await readOwnerRow())?.access_token_enc);
+  return Boolean((await ownRow(owner))?.access_token_enc);
 }
 
 // When the tokens were last saved (a sign-in or a refresh), or null when not connected.
-export async function tokensSavedAt(): Promise<string | null> {
+export async function tokensSavedAt(owner: Owner): Promise<string | null> {
   if (DEMO) return null;
-  const data = await readOwnerRow();
+  const data = await ownRow(owner);
   return data?.access_token_enc ? data.updated_at : null;
 }
 
 export type AccountInfo = { connected: boolean; connectedSince: string | null };
 
-export async function accountInfo(): Promise<AccountInfo> {
+export async function accountInfo(owner: Owner): Promise<AccountInfo> {
   if (DEMO) return { connected: true, connectedSince: demoData().history.at(-1)?.detected_at ?? null };
-  const data = await readOwnerRow();
+  const data = await ownRow(owner);
   return { connected: Boolean(data?.access_token_enc), connectedSince: data?.created_at ?? null };
-}
-
-// The Tesla account (id_token `sub`) that owns the dashboard, or null before the first sign-in. The
-// session cookie carries no identity: with one owner, a current session is that account's.
-export async function ownerSub(): Promise<string | null> {
-  if (DEMO) return null;
-  return ((await readOwnerRow())?.owner_sub as string | null | undefined) ?? null;
 }
 
 // Whether the stored token was granted a scope. Tesla's token answer lists them in `scope`, saved at
 // sign-in and each refresh; when that's missing, the access token's own `scp` claim says. Unknown is no.
-export async function hasScope(scope: string): Promise<boolean> {
+export async function hasScope(owner: Owner, scope: string): Promise<boolean> {
   if (DEMO) return true;
-  const { data, error } = await db().from("oauth_tokens").select("scope, access_token_enc").eq("provider", "tesla").maybeSingle();
+  const { data, error } = await ownerDb(owner).from("oauth_tokens").select("scope, access_token_enc").maybeSingle();
   if (error) throw new Error(`Reading account failed: ${error.message}`);
   if (typeof data?.scope === "string" && data.scope) return data.scope.split(" ").includes(scope);
   if (!data?.access_token_enc) return false;
@@ -303,32 +265,20 @@ export async function hasScope(scope: string): Promise<boolean> {
   }
 }
 
-// Sessions issued before this time (ms) are revoked. -infinity (never revoked) reads as 0.
-// With no owner row (fresh install or deleted account) no existing session is valid.
-export async function sessionsValidAfter(): Promise<number> {
-  if (DEMO) return 0;
-  const data = await readOwnerRow();
-  if (!data) return Number.POSITIVE_INFINITY;
-  const t = new Date(data.sessions_valid_after).getTime();
-  return Number.isFinite(t) ? t : 0;
-}
-
-export async function revokeAllSessions(): Promise<void> {
+// "Sign out everywhere": the owner's sessions issued before now stop working (see currentOwner).
+export async function revokeAllSessions(owner: Owner): Promise<void> {
   if (DEMO) return;
-  const { error } = await db()
-    .from("oauth_tokens")
-    .update({ sessions_valid_after: new Date().toISOString() })
-    .eq("provider", "tesla");
+  const { error } = await ownerDb(owner).from("oauth_tokens").update({ sessions_valid_after: new Date().toISOString() });
   if (error) throw new Error(`Signing out everywhere failed: ${error.message}`);
 }
 
 // Tell Tesla to stop the car streaming to Uplink, for each of the owner's cars. Best effort: a
 // failure is logged and never blocks disconnecting or deleting. Must run before the tokens go.
-async function stopStreaming(): Promise<void> {
+async function stopStreaming(owner: Owner): Promise<void> {
   try {
-    const { data, error } = await db().from("vehicles").select("vin").not("vin", "is", null);
+    const { data, error } = await ownerDb(owner).from("vehicles").select("vin").not("vin", "is", null);
     if (error) throw new Error(error.message);
-    const token = await accessToken();
+    const token = await accessToken(owner);
     await Promise.all(
       (data ?? []).map(async ({ vin }) => {
         try {
@@ -348,43 +298,40 @@ async function stopStreaming(): Promise<void> {
   }
 }
 
-// Forget the Tesla tokens but keep owner_sub, so only the same Tesla account can sign in again.
-export async function disconnectTesla(): Promise<void> {
+// Forget the owner's Tesla tokens but keep owner_sub, so only the same Tesla account can sign in again.
+export async function disconnectTesla(owner: Owner): Promise<void> {
   if (DEMO) return;
-  await stopStreaming();
-  const { error } = await db()
-    .from("oauth_tokens")
-    .update({
-      access_token_enc: null,
-      refresh_token_enc: null,
-      expires_at: null,
-      sessions_valid_after: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("provider", "tesla");
+  await stopStreaming(owner);
+  const { error } = await ownerDb(owner).from("oauth_tokens").update({
+    access_token_enc: null,
+    refresh_token_enc: null,
+    expires_at: null,
+    sessions_valid_after: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
   if (error) throw new Error(`Disconnecting failed: ${error.message}`);
 }
 
-async function accessToken(forceRefresh = false): Promise<string> {
+async function accessToken(owner: Owner, forceRefresh = false): Promise<string> {
   if (DEMO) throw new Error("Tesla is off in demo mode");
-  const tokens = await storedTokens();
+  const tokens = await storedTokens(owner);
   if (forceRefresh || tokens.expiresAt - Date.now() < REFRESH_MARGIN_MS) {
-    return refresh(tokens);
+    return refresh(owner, tokens);
   }
   return tokens.accessToken;
 }
 
 // GET against the Fleet API with the owner's token; retries once after a 401. Returns the raw
 // Response, so the caller must check `ok`.
-async function fleetFetch(path: string): Promise<Response> {
-  let token = await accessToken();
+async function fleetFetch(owner: Owner, path: string): Promise<Response> {
+  let token = await accessToken(owner);
   for (let attempt = 0; ; attempt++) {
     const res = await fetch(`${fleetApiBase()}${path}`, {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
     });
     if (res.status === 401 && attempt === 0) {
-      token = await accessToken(true);
+      token = await accessToken(owner, true);
       continue;
     }
     return res;
@@ -392,8 +339,8 @@ async function fleetFetch(path: string): Promise<Response> {
 }
 
 // Tesla can answer 200 with `response: null`; callers decide what that means.
-export async function fleetGet<T>(path: string): Promise<T | null> {
-  const res = await fleetFetch(path);
+export async function fleetGet<T>(owner: Owner, path: string): Promise<T | null> {
+  const res = await fleetFetch(owner, path);
   if (!res.ok) {
     throw new TeslaError(`GET ${path} failed (${res.status}): ${await res.text()}`, res.status);
   }
@@ -402,34 +349,18 @@ export async function fleetGet<T>(path: string): Promise<T | null> {
 }
 
 // For binary responses such as invoice PDFs: the body is not JSON, so the caller reads it.
-export function fleetGetRaw(path: string): Promise<Response> {
-  return fleetFetch(path);
+export function fleetGetRaw(owner: Owner, path: string): Promise<Response> {
+  return fleetFetch(owner, path);
 }
 
-// "Delete my data": remove the car's data and the Tesla tokens, and sign out everywhere. Vehicles
-// cascade to snapshots and version_history. owner_sub stays, so the dashboard can't be claimed by
-// another Tesla account. Release notes are Tesla's public text per version, not the owner's data.
-// Charging sessions are the owner's too. Their table may not exist if its migration was never run
-// (Postgres 42P01, PostgREST PGRST205), which is fine: there is nothing to delete.
-export async function deleteMyData(): Promise<void> {
+// "Delete my data": remove the owner's cars and everything recorded from them (see eraseOwnerRows),
+// the Tesla tokens, and sign out everywhere. owner_sub stays, so the dashboard can't be claimed by
+// another Tesla account. Every delete goes by the owner's own keys, never "every row", so another
+// account's data can't go with it. Release notes and place names are shared, not the owner's.
+export async function deleteMyData(owner: Owner): Promise<void> {
   if (DEMO) return;
   // Before the vehicles go: it needs their VINs. disconnectTesla below repeats it harmlessly.
-  await stopStreaming();
-  // Invoices point at the charging sessions, which can't go while one does.
-  await deleteAllInvoices();
-  await revokeConnectorToken();
-  for (const [table, column] of [
-    ["vehicles", "id"],
-    ["poll_runs", "id"],
-    ["charging_sessions", "session_id"],
-    ["stream_charge_sessions", "vin"],
-    ["telemetry_readings", "vin"],
-  ] as const) {
-    const { error } = await db().from(table).delete().not(column, "is", null);
-    const optional = table === "charging_sessions" || table === "stream_charge_sessions";
-    if (error && !(optional && ["42P01", "PGRST205"].includes(error.code))) {
-      throw new Error(`Deleting ${table} failed: ${error.message}`);
-    }
-  }
-  await disconnectTesla();
+  await stopStreaming(owner);
+  await eraseOwnerRows(owner);
+  await disconnectTesla(owner);
 }

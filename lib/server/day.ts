@@ -1,4 +1,5 @@
 import "server-only";
+import type { Owner } from "./data/owner";
 import type { MapPin, MapPoint } from "@/components/stats/trip-map";
 import { type Day, dayStrips } from "@/lib/day-timeline";
 import { DRIVE_DAYS } from "@/lib/drives";
@@ -28,13 +29,13 @@ export type DayDetail = {
 
 // One IST day: its timeline, trips and charges, and where the car went. Null outside the 90 days Uplink
 // keeps drives for, or in the future.
-export async function loadDay(day: number, now: number): Promise<DayDetail | null> {
+export async function loadDay(owner: Owner, day: number, now: number): Promise<DayDetail | null> {
   const today = istDay(now);
   const first = istDay(now - DRIVE_DAYS * DAY) + 1;
   if (day > today || day < first) return null;
-  const vehicle = await loadPrimaryVehicle();
+  const vehicle = await loadPrimaryVehicle(owner);
   const vin = vehicle?.vin ?? null;
-  const [window, presence, figures, sessions] = await Promise.all([loadWindowStats(vin, now), loadPresence(vehicle, now), loadDrivingFigures(vin, now), loadStreamSessions()]);
+  const [window, presence, figures, sessions] = await Promise.all([loadWindowStats(owner, vin, now), loadPresence(owner, vehicle, now), loadDrivingFigures(owner, vin, now), loadStreamSessions(owner)]);
   const start = istDayStart(day);
   const end = istDayStart(day + 1);
   const strip = dayStrips(
@@ -49,9 +50,9 @@ export async function loadDay(day: number, now: number): Promise<DayDetail | nul
   )[0];
   const trips = groupTrips(window.driving.drives).filter((t) => t.start >= start && t.start < end);
   const dayCharges = sessions.filter((s) => Date.parse(s.started_at) >= start && Date.parse(s.started_at) < end);
-  const invoices = await invoicesBySession(dayCharges.filter((s) => !s.supercharger).map((s) => s.id));
+  const invoices = await invoicesBySession(owner, dayCharges.filter((s) => !s.supercharger).map((s) => s.id));
   // Where the car went: each trip's route and its start, stops and end, from one read of the day.
-  const located = vin ? ((await loadReadingsByField(vin, ["Location"], new Date(start - 30 * 60_000).toISOString(), new Date(Math.min(end + 30 * 60_000, now)).toISOString()))?.Location ?? []) : [];
+  const located = vin ? ((await loadReadingsByField(owner, vin, ["Location"], new Date(start - 30 * 60_000).toISOString(), new Date(Math.min(end + 30 * 60_000, now)).toISOString()))?.Location ?? []) : [];
   const routes = [...trips].reverse().map((t) => tripRoute(t, located));
   return {
     day,

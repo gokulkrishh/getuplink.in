@@ -3,6 +3,7 @@ import { DEMO, type DemoScenario } from "@/lib/demo";
 import type { DrivingFigures, DrivingPeriod } from "@/lib/driving-figures";
 import type { Timeframe } from "@/lib/periods";
 import { type ChargingSession, loadChargingSessions } from "./charging";
+import type { Owner } from "./data/owner";
 import { type CarState, loadCarState, loadOwnerCars, type OwnerGate, type PollRun, type Vehicle } from "./dashboard";
 import { demoFirstWeekStart } from "./demo";
 import { loadDrivingFigures, loadTimeframeDriving, loadWindowStats, type WindowStats } from "./driving";
@@ -29,33 +30,33 @@ export type Home = OwnerGate | ({ kind: "ready" } & HomeData);
 
 // Everything the home page shows: each car's state now, and the period figures. It only reads, so nothing
 // here wakes the car.
-export async function loadHome(scenario: DemoScenario, now: number): Promise<Home> {
+export async function loadHome(owner: Owner, scenario: DemoScenario, now: number): Promise<Home> {
   try {
-    const owner = await loadOwnerCars();
-    if (owner.kind !== "ready") return owner;
+    const account = await loadOwnerCars(owner);
+    if (account.kind !== "ready") return account;
     // The primary car, as loadPrimaryVehicle picks it: the first with a VIN.
-    const primary = owner.vehicles.find((v) => v.vin) ?? null;
+    const primary = account.vehicles.find((v) => v.vin) ?? null;
     // The demo's First week: a car connected four days ago, so nothing before then exists.
     const demoSince = DEMO && scenario === "firstWeek" ? demoFirstWeekStart() : undefined;
     const [cars, figures, sessions, [streamSessions, invoices], window] = await Promise.all([
       Promise.all(
-        owner.vehicles.map(async (vehicle) => {
+        account.vehicles.map(async (vehicle) => {
           // The flags come with the state's read of the last online check.
-          const { flags, ...state } = await loadCarState(vehicle, scenario);
+          const { flags, ...state } = await loadCarState(owner, vehicle, scenario);
           return { vehicle, ...state, notices: flags.notices };
         }),
       ),
-      loadDrivingFigures(primary?.vin ?? null, now, demoSince),
-      loadChargingSessions(),
+      loadDrivingFigures(owner, primary?.vin ?? null, now, demoSince),
+      loadChargingSessions(owner),
       // The invoices only need the session ids, so they load while the 90-day window still does.
-      loadStreamSessions().then(async (list) => [list, await invoicesBySession(list.filter((s) => !s.supercharger).map((s) => s.id))] as const),
-      loadWindowStats(primary?.vin ?? null, now),
+      loadStreamSessions(owner).then(async (list) => [list, await invoicesBySession(owner, list.filter((s) => !s.supercharger).map((s) => s.id))] as const),
+      loadWindowStats(owner, primary?.vin ?? null, now),
     ]);
     const after = (s: { started_at: string }) => demoSince === undefined || Date.parse(s.started_at) >= demoSince;
     return {
       kind: "ready",
       cars,
-      lastRun: owner.lastRun,
+      lastRun: account.lastRun,
       figures,
       sessions: sessions.filter(after),
       streamSessions: streamSessions.filter(after),
@@ -71,9 +72,9 @@ export async function loadHome(scenario: DemoScenario, now: number): Promise<Hom
 
 // The primary car's driving figures for a range picked by date (see loadTimeframeDriving); null when the
 // counters can't be read.
-export async function loadRangeDriving(scenario: DemoScenario, vin: string | null, frame: Timeframe, now: number): Promise<DrivingPeriod | null> {
+export async function loadRangeDriving(owner: Owner, scenario: DemoScenario, vin: string | null, frame: Timeframe, now: number): Promise<DrivingPeriod | null> {
   try {
-    return await loadTimeframeDriving(vin, frame, now, DEMO && scenario === "firstWeek" ? demoFirstWeekStart() : undefined);
+    return await loadTimeframeDriving(owner, vin, frame, now, DEMO && scenario === "firstWeek" ? demoFirstWeekStart() : undefined);
   } catch (err) {
     if (DEMO) throw err;
     console.error(err);

@@ -5,7 +5,7 @@ import { loadDrivingFigures } from "./driving";
 import { selectSessions, toStreamSession } from "./stream-charging";
 import { DEMO } from "@/lib/demo";
 import { readAllRows } from "@/lib/paging";
-import { db } from "./supabase";
+import { type Owner, ownerDb } from "./data/owner";
 import { loadPrimaryVehicle } from "./telemetry";
 
 // What the MCP connector (app/api/mcp) reads and writes. Each function returns plain data the tools
@@ -13,7 +13,6 @@ import { loadPrimaryVehicle } from "./telemetry";
 
 const DAY = 86_400_000;
 const IST_MS = 5.5 * 60 * 60 * 1000;
-export const INVOICE_BUCKET = "charge-invoices";
 const MAX_FILE_BYTES = 3 * 1024 * 1024;
 
 // "2026-10-21T19:10:00+05:30": IST, the way invoices print times.
@@ -40,10 +39,10 @@ type ReceiptRow = {
 // The ids go in the URL, so a long list is read in chunks.
 const IDS_PER_READ = 200;
 
-async function receiptsFor(ids: number[]): Promise<Map<number, ReceiptRow>> {
+async function receiptsFor(owner: Owner, ids: number[]): Promise<Map<number, ReceiptRow>> {
   const out = new Map<number, ReceiptRow>();
   for (let i = 0; i < ids.length; i += IDS_PER_READ) {
-    const { data, error } = await db()
+    const { data, error } = await ownerDb(owner)
       .from("charge_receipts")
       .select("session_id, network, amount_total, gst, kwh_billed, invoice_number, invoice_path")
       .in("session_id", ids.slice(i, i + IDS_PER_READ));
@@ -54,9 +53,9 @@ async function receiptsFor(ids: number[]): Promise<Map<number, ReceiptRow>> {
 }
 
 // Newest first: the latest 200 for listing and matching, or with `all` every one, for the summary.
-async function sessionsBetween(from: number, to: number, { all = false }: { all?: boolean } = {}): Promise<ReceiptSession[]> {
+async function sessionsBetween(owner: Owner, from: number, to: number, { all = false }: { all?: boolean } = {}): Promise<ReceiptSession[]> {
   const query = (columns: string) =>
-    db()
+    ownerDb(owner)
       .from("stream_charge_sessions")
       .select(columns)
       .gte("started_at", new Date(from).toISOString())
@@ -85,12 +84,12 @@ function describe(s: ReceiptSession, receipt: ReceiptRow | undefined) {
   };
 }
 
-export async function listChargingSessions({ from, to, withoutInvoice }: { from?: string; to?: string; withoutInvoice?: boolean }) {
+export async function listChargingSessions(owner: Owner, { from, to, withoutInvoice }: { from?: string; to?: string; withoutInvoice?: boolean }) {
   const end = to ? parseInvoiceTime(to) : Date.now();
   const start = from ? parseInvoiceTime(from) : end - 30 * DAY;
   if (!Number.isFinite(start) || !Number.isFinite(end)) return { error: "from and to must be dates like 2026-10-21 or 2026-10-21T19:10." };
-  const sessions = await sessionsBetween(start, end + DAY);
-  const receipts = await receiptsFor(sessions.map((s) => s.id));
+  const sessions = await sessionsBetween(owner, start, end + DAY);
+  const receipts = await receiptsFor(owner, sessions.map((s) => s.id));
   const listed = sessions
     .filter((s) => !withoutInvoice || (!s.supercharger && s.ended_at != null && !receipts.has(s.id)))
     .map((s) => describe(s, receipts.get(s.id)));
@@ -121,7 +120,7 @@ function sniff(bytes: Buffer): { type: string; ext: string } | null {
   return null;
 }
 
-export async function attachInvoice(input: AttachInput) {
+export async function attachInvoice(owner: Owner, input: AttachInput) {
   const now = Date.now();
   const startedAt = parseInvoiceTime(input.started_at);
   const endedAt = input.ended_at ? parseInvoiceTime(input.ended_at) : null;
@@ -140,9 +139,9 @@ export async function attachInvoice(input: AttachInput) {
 
   // Seen before: the scheduled run sees the same emails every 6 hours.
   const seen = input.source_ref
-    ? await db().from("charge_receipts").select("session_id").eq("source_ref", input.source_ref).maybeSingle()
+    ? await ownerDb(owner).from("charge_receipts").select("session_id").eq("source_ref", input.source_ref).maybeSingle()
     : input.invoice_number
-      ? await db().from("charge_receipts").select("session_id").ilike("network", invoice.network).eq("invoice_number", input.invoice_number).maybeSingle()
+      ? await ownerDb(owner).from("charge_receipts").select("session_id").ilike("network", invoice.network).eq("invoice_number", input.invoice_number).maybeSingle()
       : { data: null, error: null };
   if (seen.error) throw new Error(`Reading invoices failed: ${seen.error.message}`);
   if (seen.data) return { status: "already_attached", session_id: Number(seen.data.session_id) };
@@ -156,7 +155,7 @@ export async function attachInvoice(input: AttachInput) {
     file = { bytes, ...kind };
   }
 
-  const nearby = await sessionsBetween(startedAt - DAY, startedAt + DAY);
+  const nearby = await sessionsBetween(owner, startedAt - DAY, startedAt + DAY);
   let session: ReceiptSession;
   if (input.session_id != null) {
     const picked = nearby.find((s) => s.id === input.session_id);
@@ -170,13 +169,13 @@ export async function attachInvoice(input: AttachInput) {
       return { status: "no_session", reason: "No finished session matches yet. If the charge just ended, try again on the next run." };
     }
     if (result.kind === "ambiguous") {
-      const receipts = await receiptsFor(result.candidates.map((s) => s.id));
+      const receipts = await receiptsFor(owner, result.candidates.map((s) => s.id));
       return { status: "candidates", reason: "More than one session fits. Ask the owner which one, then call again with session_id.", candidates: result.candidates.map((s) => describe(s, receipts.get(s.id))) };
     }
     session = result.session;
   }
 
-  const existing = (await receiptsFor([session.id])).get(session.id);
+  const existing = (await receiptsFor(owner, [session.id])).get(session.id);
   if (existing && !input.replace) {
     return { status: "session_has_invoice", reason: "This session already has an invoice. Call again with replace: true only if the owner says so.", session: describe(session, existing) };
   }
@@ -185,7 +184,7 @@ export async function attachInvoice(input: AttachInput) {
   if (file) {
     const digest = createHash("sha256").update(file.bytes).digest("hex").slice(0, 16);
     invoicePath = `${session.id}/${digest}.${file.ext}`;
-    const { error } = await db().storage.from(INVOICE_BUCKET).upload(invoicePath, file.bytes, { contentType: file.type, upsert: true });
+    const { error } = await ownerDb(owner).invoices().upload(invoicePath, file.bytes, { contentType: file.type, upsert: true });
     if (error) throw new Error(`Saving the invoice file failed: ${error.message}`);
   }
 
@@ -205,14 +204,14 @@ export async function attachInvoice(input: AttachInput) {
     source: input.source_ref?.startsWith("gmail:") ? "gmail" : "chat",
     added_at: new Date(now).toISOString(),
   };
-  const { error } = await db().from("charge_receipts").upsert(row, { onConflict: "session_id" });
+  const { error } = await ownerDb(owner).from("charge_receipts").upsert(row, { onConflict: "session_id" });
   if (error) {
     // Unique source_ref or invoice number: another call saved it a moment ago.
     if (error.code === "23505") return { status: "already_attached", session_id: session.id };
     throw new Error(`Saving the invoice failed: ${error.message}`);
   }
   if (existing?.invoice_path && existing.invoice_path !== invoicePath) {
-    await db().storage.from(INVOICE_BUCKET).remove([existing.invoice_path]);
+    await ownerDb(owner).invoices().remove([existing.invoice_path]);
   }
   return { status: "attached", session: describe(session, { ...row, gst: row.gst ?? null, kwh_billed: row.kwh_billed ?? null }) };
 }
@@ -220,12 +219,12 @@ export async function attachInvoice(input: AttachInput) {
 const monthOf = (iso: string) => istIso(iso).slice(0, 7);
 
 // Spend and energy per IST month, from real bills only: Tesla's for Superchargers, invoices for the rest.
-export async function chargingSummary(months: number) {
+export async function chargingSummary(owner: Owner, months: number) {
   const now = new Date(Date.now() + IST_MS);
   const since = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1) - IST_MS;
   const [tesla, sessions] = await Promise.all([
     readAllRows((from, to) =>
-      db()
+      ownerDb(owner)
         .from("charging_sessions")
         .select("started_at, energy_kwh, cost_total")
         .gte("started_at", new Date(since).toISOString())
@@ -233,11 +232,11 @@ export async function chargingSummary(months: number) {
         .order("session_id")
         .range(from, to),
     ),
-    sessionsBetween(since, Date.now() + DAY, { all: true }),
+    sessionsBetween(owner, since, Date.now() + DAY, { all: true }),
   ]);
   if (tesla.error && !["42P01", "PGRST205"].includes(tesla.error.code)) throw new Error(`Reading Supercharger sessions failed: ${tesla.error.message}`);
   const others = sessions.filter((s) => !s.supercharger && s.ended_at != null);
-  const receipts = await receiptsFor(others.map((s) => s.id));
+  const receipts = await receiptsFor(owner, others.map((s) => s.id));
 
   type Month = {
     supercharger: { sessions: number; kwh: number; spend_inr: number };
@@ -271,9 +270,9 @@ export async function chargingSummary(months: number) {
   };
 }
 
-export async function drivingSummary() {
-  const vin = (await loadPrimaryVehicle())?.vin ?? null;
-  const figures = await loadDrivingFigures(vin, Date.now());
+export async function drivingSummary(owner: Owner) {
+  const vin = (await loadPrimaryVehicle(owner))?.vin ?? null;
+  const figures = await loadDrivingFigures(owner, vin, Date.now());
   const periods = Object.fromEntries(
     Object.entries(figures.periods).map(([period, p]) => [
       period,
@@ -290,7 +289,7 @@ export async function drivingSummary() {
 
 // The invoice amount for each of these sessions that has one, for Charging stats. Never fails the page:
 // a read error (or a database without the table yet) shows as no invoices.
-export async function invoicesBySession(ids: number[]): Promise<Map<number, { amount: number; kwhBilled: number | null; network: string }>> {
+export async function invoicesBySession(owner: Owner, ids: number[]): Promise<Map<number, { amount: number; kwhBilled: number | null; network: string }>> {
   if (DEMO) {
     const { demoInvoices } = await import("./demo");
     const all = demoInvoices();
@@ -298,7 +297,7 @@ export async function invoicesBySession(ids: number[]): Promise<Map<number, { am
   }
   if (ids.length === 0) return new Map();
   try {
-    const rows = await receiptsFor(ids);
+    const rows = await receiptsFor(owner, ids);
     return new Map([...rows].map(([id, r]) => [id, { amount: Number(r.amount_total), kwhBilled: r.kwh_billed == null ? null : Number(r.kwh_billed), network: r.network }]));
   } catch (err) {
     if (!/charge_receipts/.test(String(err))) console.warn("Invoices unavailable:", (err as Error).message);
@@ -310,13 +309,13 @@ export type SessionInvoice = { network: string; amountTotal: number; gst: number
 
 // The invoice attached to one session, for its page. Never fails the page: a read error (or a
 // database without the table yet) shows as no invoice.
-export async function sessionInvoice(sessionId: number): Promise<SessionInvoice | null> {
+export async function sessionInvoice(owner: Owner, sessionId: number): Promise<SessionInvoice | null> {
   if (DEMO) {
     const { demoInvoices } = await import("./demo");
     const i = demoInvoices().get(sessionId);
     return i ? { network: i.network, amountTotal: i.amount, gst: i.gst, kwhBilled: i.kwhBilled, hasFile: false } : null;
   }
-  const { data, error } = await db().from("charge_receipts").select("network, amount_total, gst, kwh_billed, invoice_path").eq("session_id", sessionId).maybeSingle();
+  const { data, error } = await ownerDb(owner).from("charge_receipts").select("network, amount_total, gst, kwh_billed, invoice_path").eq("session_id", sessionId).maybeSingle();
   if (error) {
     if (!["42P01", "PGRST205"].includes(error.code)) console.warn("Invoice unavailable:", error.message);
     return null;
@@ -331,24 +330,11 @@ export async function sessionInvoice(sessionId: number): Promise<SessionInvoice 
   };
 }
 
-// For the owner-only invoice route: the stored file of one session's invoice.
-export async function invoiceFile(sessionId: number): Promise<{ body: Blob; type: string } | null> {
-  const { data, error } = await db().from("charge_receipts").select("invoice_path").eq("session_id", sessionId).maybeSingle();
+// For the owner-only invoice route: the stored file of one of the owner's invoices.
+export async function invoiceFile(owner: Owner, sessionId: number): Promise<{ body: Blob; type: string } | null> {
+  const { data, error } = await ownerDb(owner).from("charge_receipts").select("invoice_path").eq("session_id", sessionId).maybeSingle();
   if (error || !data?.invoice_path) return null;
-  const file = await db().storage.from(INVOICE_BUCKET).download(data.invoice_path as string);
+  const file = await ownerDb(owner).invoices().download(data.invoice_path as string);
   if (file.error || !file.data) return null;
   return { body: file.data, type: file.data.type || "application/octet-stream" };
-}
-
-// Delete my data: the invoices and their files, before the sessions they point at.
-export async function deleteAllInvoices(): Promise<void> {
-  const { data, error } = await db().from("charge_receipts").select("invoice_path");
-  if (error) {
-    if (["42P01", "PGRST205"].includes(error.code)) return;
-    throw new Error(`Reading invoices failed: ${error.message}`);
-  }
-  const paths = (data as { invoice_path: string | null }[]).map((r) => r.invoice_path).filter((p): p is string => Boolean(p));
-  if (paths.length) await db().storage.from(INVOICE_BUCKET).remove(paths);
-  const { error: deleteError } = await db().from("charge_receipts").delete().not("session_id", "is", null);
-  if (deleteError) throw new Error(`Deleting invoices failed: ${deleteError.message}`);
 }

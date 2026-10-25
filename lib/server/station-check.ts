@@ -2,7 +2,8 @@ import "server-only";
 import { DEMO } from "@/lib/demo";
 import { stationAt } from "@/lib/stations";
 import { syncStreamSessionsSafely } from "./stream-charging";
-import { db } from "./supabase";
+import { type Owner, ownerDb } from "./data/owner";
+import { accountOwners } from "./data/system";
 import { fleetGet, hasScope, LOCATION_SCOPE, TeslaError } from "./tesla";
 
 const MIN = 60 * 1000;
@@ -24,14 +25,14 @@ export type StationCheckResult = { sessions: number; labelled: number; skipped?:
 
 // Rebuilds sessions only for cars that streamed charging readings lately: the poll runs every 6 hours,
 // so without this a charge in progress wouldn't be in the table yet. Database only, no Tesla call.
-async function syncChargingCars(): Promise<void> {
-  const { data, error } = await db().from("vehicles").select("vin");
+async function syncChargingCars(owner: Owner): Promise<void> {
+  const { data, error } = await ownerDb(owner).from("vehicles").select("vin");
   if (error) return;
   const since = new Date(Date.now() - RECENT_MS).toISOString();
   const charging: string[] = [];
   for (const { vin } of data ?? []) {
     if (!vin) continue;
-    const recent = await db()
+    const recent = await ownerDb(owner)
       .from("telemetry_readings")
       .select("id")
       .eq("vin", vin)
@@ -41,13 +42,13 @@ async function syncChargingCars(): Promise<void> {
       .maybeSingle();
     if (recent.data) charging.push(vin as string);
   }
-  await syncStreamSessionsSafely(charging);
+  await syncStreamSessionsSafely(owner, charging);
 }
 
 // Unlabelled, unchecked sessions in progress or just ended. Superchargers are left out: Tesla names those.
-async function pending(): Promise<{ id: number; vin: string; ended_at: string | null }[] | null> {
+async function pending(owner: Owner): Promise<{ id: number; vin: string; ended_at: string | null }[] | null> {
   const now = Date.now();
-  const { data, error } = await db()
+  const { data, error } = await ownerDb(owner)
     .from("stream_charge_sessions")
     .select("id, vin, ended_at")
     .is("station_checked_at", null)
@@ -64,8 +65,8 @@ async function pending(): Promise<{ id: number; vin: string; ended_at: string | 
 
 // Marks sessions as tried, only those no other run has claimed, so a double-fired cron can't read the
 // car twice. Returns the ids this run now owns.
-async function claim(ids: number[], at: string): Promise<number[]> {
-  const { data, error } = await db()
+async function claim(owner: Owner, ids: number[], at: string): Promise<number[]> {
+  const { data, error } = await ownerDb(owner)
     .from("stream_charge_sessions")
     .update({ station_checked_at: at })
     .in("id", ids)
@@ -77,11 +78,11 @@ async function claim(ids: number[], at: string): Promise<number[]> {
 
 // Reads the car's location once, names the station it's at, and drops the location. The coordinates
 // never leave this function: not stored, logged or returned.
-async function stationNow(vin: string): Promise<{ label: string | null; atCharger: boolean } | null> {
+async function stationNow(owner: Owner, vin: string): Promise<{ label: string | null; atCharger: boolean } | null> {
   let data: VehicleData;
   try {
     data =
-      (await fleetGet<VehicleData>(`/api/1/vehicles/${vin}/vehicle_data?endpoints=${encodeURIComponent("charge_state;drive_state;location_data")}`)) ?? {};
+      (await fleetGet<VehicleData>(owner, `/api/1/vehicles/${vin}/vehicle_data?endpoints=${encodeURIComponent("charge_state;drive_state;location_data")}`)) ?? {};
   } catch (err) {
     // 408: asleep after all; 403: the location scope was withdrawn. Either way, no second try.
     if (err instanceof TeslaError && (err.status === 408 || err.status === 403)) return null;
@@ -97,16 +98,29 @@ async function stationNow(vin: string): Promise<{ label: string | null; atCharge
   return { label, atCharger: Boolean(state) && state !== "Disconnected" };
 }
 
-// Every 15 minutes (app/api/cron/stations). Costs nothing at Tesla unless a session needs a name, and
-// then at most one vehicle_data call per car for its unlabelled sessions, each session tried once.
+// Every 15 minutes (app/api/cron/stations), for each account in turn. Costs nothing at Tesla unless a
+// session needs a name, and then at most one vehicle_data call per car for its unlabelled sessions, each
+// session tried once.
 export async function checkStations(): Promise<StationCheckResult> {
   if (DEMO) return { sessions: 0, labelled: 0, skipped: "demo" };
-  await syncChargingCars();
-  const rows = await pending();
-  if (!rows || rows.length === 0) return { sessions: 0, labelled: 0 };
-  if (!(await hasScope(LOCATION_SCOPE).catch(() => false))) return { sessions: rows.length, labelled: 0, skipped: "no location scope" };
+  const total: StationCheckResult = { sessions: 0, labelled: 0 };
+  const skipped = new Set<string>();
+  for (const owner of await accountOwners()) {
+    const result = await checkOwnerStations(owner);
+    total.sessions += result.sessions;
+    total.labelled += result.labelled;
+    if (result.skipped) skipped.add(result.skipped);
+  }
+  return skipped.size ? { ...total, skipped: [...skipped].join(", ") } : total;
+}
 
-  const listed = await fleetGet<FleetVehicle[]>("/api/1/vehicles");
+async function checkOwnerStations(owner: Owner): Promise<StationCheckResult> {
+  await syncChargingCars(owner);
+  const rows = await pending(owner);
+  if (!rows || rows.length === 0) return { sessions: 0, labelled: 0 };
+  if (!(await hasScope(owner, LOCATION_SCOPE).catch(() => false))) return { sessions: rows.length, labelled: 0, skipped: "no location scope" };
+
+  const listed = await fleetGet<FleetVehicle[]>(owner, "/api/1/vehicles");
   const online = new Set((Array.isArray(listed) ? listed : []).filter((v) => v.state === "online").map((v) => v.vin));
   const now = new Date().toISOString();
   let labelled = 0;
@@ -115,21 +129,22 @@ export async function checkStations(): Promise<StationCheckResult> {
     // Never wake the car. An open session waits for a later run; an ended one is given up on.
     if (!online.has(vin)) {
       const ended = mine.filter((r) => r.ended_at).map((r) => r.id);
-      if (ended.length > 0) await claim(ended, now);
+      if (ended.length > 0) await claim(owner, ended, now);
       continue;
     }
     const ids = await claim(
+      owner,
       mine.map((r) => r.id),
       now,
     );
     if (ids.length === 0) continue;
-    const found = await stationNow(vin);
+    const found = await stationNow(owner, vin);
     // An ended session only takes the name while the car is still plugged in.
     const named = found?.label ? ids.filter((id) => found.atCharger || !mine.find((r) => r.id === id)?.ended_at) : [];
     // Yes/no only: never the location or the station.
     console.info(`Station check: location ${found ? "read" : "not read"}, station ${found?.label ? "found" : "not found"}`);
     if (named.length > 0) {
-      const { error } = await db().from("stream_charge_sessions").update({ station_name: found!.label }).in("id", named);
+      const { error } = await ownerDb(owner).from("stream_charge_sessions").update({ station_name: found!.label }).in("id", named);
       if (error) throw new Error(error.message);
       labelled += named.length;
     }

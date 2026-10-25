@@ -2,7 +2,8 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { DEMO } from "@/lib/demo";
 import { safeEqual } from "@/lib/session";
-import { db } from "./supabase";
+import { type Owner, ownerDb } from "./data/owner";
+import { connectorTokenAccount } from "./data/system";
 
 // The MCP connector's token (Settings → Integrations), shared by whichever AI uses it: a Grok bot,
 // Claude, ChatGPT. Shown once when created; only its hash is stored, so a database leak can't be
@@ -18,8 +19,8 @@ const hash = (token: string) => createHash("sha256").update(token).digest("hex")
 
 export type ConnectorTokenStatus = { createdAt: string; usedAt: string | null } | null;
 
-async function readToken(): Promise<{ token_hash: string; created_at: string; used_at: string | null } | null> {
-  const { data, error } = await db().from("connector_token").select("token_hash, created_at, used_at").eq("owner", "tesla").maybeSingle();
+async function readToken(owner: Owner): Promise<{ token_hash: string; created_at: string; used_at: string | null } | null> {
+  const { data, error } = await ownerDb(owner).from("connector_token").select("token_hash, created_at, used_at").maybeSingle();
   if (error) {
     if (!MISSING.includes(error.code)) console.warn("Connector token unavailable:", error.message);
     return null;
@@ -27,35 +28,36 @@ async function readToken(): Promise<{ token_hash: string; created_at: string; us
   return data;
 }
 
-export async function connectorTokenStatus(): Promise<ConnectorTokenStatus> {
+export async function connectorTokenStatus(owner: Owner): Promise<ConnectorTokenStatus> {
   if (DEMO) return null;
-  const row = await readToken();
+  const row = await readToken(owner);
   return row ? { createdAt: row.created_at, usedAt: row.used_at } : null;
 }
 
 // A new token replaces any old one, so the old one stops working at once.
-export async function createConnectorToken(): Promise<string> {
+export async function createConnectorToken(owner: Owner): Promise<string> {
   const token = `upl_${randomBytes(32).toString("base64url")}`;
-  const { error } = await db()
+  const { error } = await ownerDb(owner)
     .from("connector_token")
-    .upsert({ owner: "tesla", token_hash: hash(token), created_at: new Date().toISOString(), used_at: null }, { onConflict: "owner" });
+    .upsert({ token_hash: hash(token), created_at: new Date().toISOString(), used_at: null }, { onConflict: "owner" });
   if (error) throw new Error(`Creating the connector token failed: ${error.message}`);
   return token;
 }
 
-export async function revokeConnectorToken(): Promise<void> {
-  const { error } = await db().from("connector_token").delete().eq("owner", "tesla");
+export async function revokeConnectorToken(owner: Owner): Promise<void> {
+  const { error } = await ownerDb(owner).from("connector_token").delete();
   if (error && !MISSING.includes(error.code)) throw new Error(`Revoking the connector token failed: ${error.message}`);
 }
 
-// Whether a Bearer token is the current one. Compares hashes in constant time.
-export async function verifyConnectorToken(token: string | null): Promise<boolean> {
-  if (DEMO || !token) return false;
-  const row = await readToken();
-  if (!row || !safeEqual(hash(token), row.token_hash)) return false;
-  if (Date.now() - (row.used_at ? Date.parse(row.used_at) : 0) > USED_EVERY_MS) {
-    const { error } = await db().from("connector_token").update({ used_at: new Date().toISOString() }).eq("owner", "tesla");
+// The account a Bearer token belongs to, when it is the current one; null otherwise. Compares hashes in
+// constant time. Every MCP tool then reads and writes as that account.
+export async function verifyConnectorToken(token: string | null): Promise<Owner | null> {
+  if (DEMO || !token) return null;
+  const row = await connectorTokenAccount();
+  if (!row || !safeEqual(hash(token), row.tokenHash)) return null;
+  if (Date.now() - (row.usedAt ? Date.parse(row.usedAt) : 0) > USED_EVERY_MS) {
+    const { error } = await ownerDb(row.owner).from("connector_token").update({ used_at: new Date().toISOString() });
     if (error) console.warn("Recording connector token use failed:", error.message);
   }
-  return true;
+  return row.owner;
 }

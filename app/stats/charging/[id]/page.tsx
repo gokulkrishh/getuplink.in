@@ -10,7 +10,7 @@ import { ChargeSupply } from "@/components/stats/charge-supply";
 import { Figures } from "@/components/stats/figures";
 import { splitSite } from "@/lib/charge-sessions";
 import { formatClock, formatDate, formatDuration, formatKwh, formatMoney } from "@/lib/format";
-import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargeDetail, loadChargeDetail } from "@/lib/server/charge-curve";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 
@@ -23,9 +23,10 @@ async function loadDetail(id: number): Promise<ChargeDetail | null> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
+  const owner = await currentOwner();
+  if (!owner) redirect(SIGNED_OUT_PATH);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
-  return loadChargeDetail(id, Date.now());
+  return loadChargeDetail(owner, id, Date.now());
 }
 
 // Tesla's bill for a Supercharger, an attached invoice for anything else (₹/kWh on the kWh billed, as

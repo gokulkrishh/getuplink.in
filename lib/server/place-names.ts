@@ -1,6 +1,6 @@
 import "server-only";
 import { DEMO } from "@/lib/demo";
-import { db } from "./supabase";
+import { placeNamesFor, savePlaceName } from "./data/system";
 
 // Names for parking spots, from OpenStreetMap's Nominatim, cached in place_names so each spot is looked
 // up once. Nominatim's policy asks for at most one request a second and a real User-Agent, so a page asks
@@ -31,7 +31,7 @@ export async function placeNames(points: { lat: number; lng: number }[]): Promis
     return names;
   }
   const keys = [...new Set(points.map(key))];
-  const { data, error } = await db().from("place_names").select("key, name").in("key", keys);
+  const { data, error } = await placeNamesFor(keys);
   if (error) return names;
   for (const r of data as { key: string; name: string | null }[]) if (r.name) names.set(r.key, r.name);
   const known = new Set((data as { key: string }[]).map((r) => r.key));
@@ -39,7 +39,7 @@ export async function placeNames(points: { lat: number; lng: number }[]): Promis
   for (const [k, p] of missing.entries()) {
     if (k > 0) await new Promise((r) => setTimeout(r, 1100));
     const name = await lookUp(p).catch(() => null);
-    await db().from("place_names").upsert({ key: key(p), name, looked_up_at: new Date().toISOString() }, { onConflict: "key" });
+    await savePlaceName(key(p), name);
     if (name) names.set(key(p), name);
   }
   return names;

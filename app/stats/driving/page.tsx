@@ -18,7 +18,7 @@ import { DRIVE_DAYS } from "@/lib/drives";
 import { type CustomFrame, periodFrames } from "@/lib/frames";
 import { clipSpan, customQuery, type CustomQuery, customRange, daysLabel, inSpan, reachesBefore, rangeTimeframe, recentSpan, type Span } from "@/lib/periods";
 import { byRange, NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/components/stats/stats-frame";
-import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import type { DrivingFigures } from "@/lib/driving-figures";
 import { loadDrivingFigures, loadSeasonEfficiency, loadWindowStats, type WindowStats } from "@/lib/server/driving";
@@ -51,20 +51,21 @@ async function loadDriving(query: CustomQuery | null): Promise<{
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
+  const owner = await currentOwner();
+  if (!owner) redirect(SIGNED_OUT_PATH);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
   const now = Date.now();
-  const vehicle = await loadPrimaryVehicle();
+  const vehicle = await loadPrimaryVehicle(owner);
   const vin = vehicle?.vin ?? null;
   const range = query && customRange("custom", query.from ?? undefined, query.to ?? undefined, now);
   const frame = range && rangeTimeframe(range, now);
   const insights = frame && recentSpan(frame.span, now - DRIVE_DAYS * DAY, INSIGHT_DAYS, now);
   const [counted, window, presence, sessions, rangeDriving] = await Promise.all([
-    loadDrivingFigures(vin, now),
-    loadWindowStats(vin, now),
-    loadPresence(vehicle, now),
-    loadStreamSessions(),
-    frame ? loadRangeDriving("normal", vin, frame, now) : null,
+    loadDrivingFigures(owner, vin, now),
+    loadWindowStats(owner, vin, now),
+    loadPresence(owner, vehicle, now),
+    loadStreamSessions(owner),
+    frame ? loadRangeDriving(owner, "normal", vin, frame, now) : null,
   ]);
   const figures = withDriveEfficiency(counted, window.driving.drives, now);
   const layers = {
@@ -74,9 +75,9 @@ async function loadDriving(query: CustomQuery | null): Promise<{
   };
   const days = dayStrips(7, layers, figures.since, now);
   const [extras, rangeExtras, seasons] = await Promise.all([
-    loadDrivingExtras(vin, window.driving.drives, now),
-    insights ? loadDrivingExtras(vin, window.driving.drives, now, insights) : null,
-    loadSeasonEfficiency(vin, window.driving.drives, now),
+    loadDrivingExtras(owner, vin, window.driving.drives, now),
+    insights ? loadDrivingExtras(owner, vin, window.driving.drives, now, insights) : null,
+    loadSeasonEfficiency(owner, vin, window.driving.drives, now),
   ]);
   const custom =
     range && frame && insights && rangeExtras

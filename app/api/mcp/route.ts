@@ -2,6 +2,7 @@ import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { DEMO } from "@/lib/demo";
 import { messageOf } from "@/lib/errors";
+import type { Owner } from "@/lib/server/auth";
 import { verifyConnectorToken } from "@/lib/server/connector-token";
 import { batteryStatus, carNowStatus, chargingInsights, daySummary, drivingInsights, getTrip, listTrips, monthlySummary } from "@/lib/server/mcp-data";
 import { attachInvoice, chargingSummary, drivingSummary, listChargingSessions, parseInvoiceTime } from "@/lib/server/receipts";
@@ -24,7 +25,10 @@ async function run(work: () => Promise<unknown>) {
 
 const time = z.string().describe("ISO date or time. Without an offset it's read as IST, e.g. 2026-10-21T19:10");
 
-const handler = createMcpHandler(
+// The tools, bound to the account the token belongs to: every read and write is that account's. The
+// handler builds a new server per request anyway (stateless), so binding per request costs nothing.
+const handlerFor = (owner: Owner) =>
+  createMcpHandler(
   (server) => {
     server.registerTool(
       "list_charging_sessions",
@@ -39,7 +43,7 @@ const handler = createMcpHandler(
         }),
         annotations: { readOnlyHint: true },
       },
-      ({ from, to, without_invoice }) => run(() => listChargingSessions({ from, to, withoutInvoice: without_invoice })),
+      ({ from, to, without_invoice }) => run(() => listChargingSessions(owner, { from, to, withoutInvoice: without_invoice })),
     );
 
     server.registerTool(
@@ -64,7 +68,7 @@ const handler = createMcpHandler(
           file_base64: z.string().max(4_300_000).optional().describe("The invoice PDF, PNG or JPEG, base64, up to 3 MB"),
         }),
       },
-      (input) => run(() => attachInvoice(input)),
+      (input) => run(() => attachInvoice(owner, input)),
     );
 
     server.registerTool(
@@ -75,7 +79,7 @@ const handler = createMcpHandler(
         inputSchema: z.object({ months: z.number().int().min(1).max(24).optional().describe("How many months back, this one included. Default 3") }),
         annotations: { readOnlyHint: true },
       },
-      ({ months }) => run(() => chargingSummary(months ?? 3)),
+      ({ months }) => run(() => chargingSummary(owner, months ?? 3)),
     );
 
     server.registerTool(
@@ -86,7 +90,7 @@ const handler = createMcpHandler(
         inputSchema: z.object({}),
         annotations: { readOnlyHint: true },
       },
-      () => run(() => drivingSummary()),
+      () => run(() => drivingSummary(owner)),
     );
 
     const ro = { readOnlyHint: true } as const;
@@ -102,7 +106,7 @@ const handler = createMcpHandler(
       ({ from, to }) =>
         run(() => {
           const end = to ? parseInvoiceTime(to) + DAY : Date.now() + DAY;
-          return listTrips(from ? parseInvoiceTime(from) : Date.now() - 7 * DAY, end);
+          return listTrips(owner, from ? parseInvoiceTime(from) : Date.now() - 7 * DAY, end);
         }),
     );
     server.registerTool(
@@ -114,7 +118,7 @@ const handler = createMcpHandler(
         inputSchema: z.object({ trip_id: z.number().int().positive(), leg: z.boolean().optional() }),
         annotations: ro,
       },
-      ({ trip_id, leg }) => run(() => getTrip(trip_id, leg ?? false)),
+      ({ trip_id, leg }) => run(() => getTrip(owner, trip_id, leg ?? false)),
     );
     server.registerTool(
       "get_day",
@@ -124,7 +128,7 @@ const handler = createMcpHandler(
         inputSchema: z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("YYYY-MM-DD, e.g. 2026-10-23") }),
         annotations: ro,
       },
-      ({ date }) => run(() => daySummary(date)),
+      ({ date }) => run(() => daySummary(owner, date)),
     );
     server.registerTool(
       "get_battery_status",
@@ -134,7 +138,7 @@ const handler = createMcpHandler(
         inputSchema: z.object({}),
         annotations: ro,
       },
-      () => run(() => batteryStatus()),
+      () => run(() => batteryStatus(owner)),
     );
     server.registerTool(
       "get_car_now",
@@ -144,7 +148,7 @@ const handler = createMcpHandler(
         inputSchema: z.object({}),
         annotations: ro,
       },
-      () => run(() => carNowStatus()),
+      () => run(() => carNowStatus(owner)),
     );
     server.registerTool(
       "get_monthly_summary",
@@ -154,7 +158,7 @@ const handler = createMcpHandler(
         inputSchema: z.object({}),
         annotations: ro,
       },
-      () => run(() => monthlySummary()),
+      () => run(() => monthlySummary(owner)),
     );
     server.registerTool(
       "get_charging_insights",
@@ -164,7 +168,7 @@ const handler = createMcpHandler(
         inputSchema: z.object({}),
         annotations: ro,
       },
-      () => run(() => chargingInsights()),
+      () => run(() => chargingInsights(owner)),
     );
     server.registerTool(
       "get_driving_insights",
@@ -174,7 +178,7 @@ const handler = createMcpHandler(
         inputSchema: z.object({}),
         annotations: ro,
       },
-      () => run(() => drivingInsights()),
+      () => run(() => drivingInsights(owner)),
     );
   },
   { serverInfo: { name: "uplink", version: "1.0.0" } },
@@ -183,13 +187,14 @@ const handler = createMcpHandler(
 async function guarded(request: Request): Promise<Response> {
   if (DEMO) return Response.json({ error: "Not available in demo mode" }, { status: 404 });
   const bearer = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim() ?? null;
-  if (!(await verifyConnectorToken(bearer))) {
+  const owner = await verifyConnectorToken(bearer);
+  if (!owner) {
     return Response.json(
       { error: "Missing or wrong token. Create one in Uplink, under Settings, Integrations." },
       { status: 401, headers: { "WWW-Authenticate": 'Bearer realm="uplink"' } },
     );
   }
-  return handler(request);
+  return handlerFor(owner)(request);
 }
 
 export { guarded as DELETE, guarded as GET, guarded as POST };

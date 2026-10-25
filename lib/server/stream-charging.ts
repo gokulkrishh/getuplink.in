@@ -2,7 +2,7 @@ import "server-only";
 import { buildSessions, CHARGE_FIELDS, type ChargeReading } from "@/lib/charge-sessions";
 import { DEMO } from "@/lib/demo";
 import { demoStreamSessions } from "./demo";
-import { db } from "./supabase";
+import { type Owner, ownerDb } from "./data/owner";
 import { readingsBefore } from "./telemetry";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -44,8 +44,8 @@ function num(value: unknown): number | null {
   return typeof n === "number" && Number.isFinite(n) ? n : null;
 }
 
-async function watermark(vin: string): Promise<{ at: string; openStartedAt: string | null }> {
-  const open = await db()
+async function watermark(owner: Owner, vin: string): Promise<{ at: string; openStartedAt: string | null }> {
+  const open = await ownerDb(owner)
     .from("stream_charge_sessions")
     .select("started_at")
     .eq("vin", vin)
@@ -55,7 +55,7 @@ async function watermark(vin: string): Promise<{ at: string; openStartedAt: stri
     .maybeSingle();
   if (open.error) throw new Error(open.error.message);
   if (open.data) return { at: open.data.started_at as string, openStartedAt: open.data.started_at as string };
-  const ended = await db()
+  const ended = await ownerDb(owner)
     .from("stream_charge_sessions")
     .select("ended_at")
     .eq("vin", vin)
@@ -68,10 +68,10 @@ async function watermark(vin: string): Promise<{ at: string; openStartedAt: stri
   return { at: new Date(Date.now() - FIRST_SYNC_DAYS * DAY).toISOString(), openStartedAt: null };
 }
 
-async function readingsSince(vin: string, since: string): Promise<ChargeReading[]> {
+async function readingsSince(owner: Owner, vin: string, since: string): Promise<ChargeReading[]> {
   const out: ChargeReading[] = [];
   for (let page = 0; page < MAX_PAGES; page++) {
-    const { data, error } = await db()
+    const { data, error } = await ownerDb(owner)
       .from("telemetry_readings")
       .select("field, created_at, value")
       .eq("vin", vin)
@@ -89,21 +89,21 @@ async function readingsSince(vin: string, since: string): Promise<ChargeReading[
 
 // The latest value of each baseline field before `before`, so a session that is resumed mid-way
 // keeps its start battery level. One request for all of them (see readingsBefore).
-async function baselineBefore(vin: string, before: string): Promise<ChargeReading[]> {
-  const latest = await readingsBefore(vin, BASELINE_FIELDS, before);
+async function baselineBefore(owner: Owner, vin: string, before: string): Promise<ChargeReading[]> {
+  const latest = await readingsBefore(owner, vin, BASELINE_FIELDS, before);
   return BASELINE_FIELDS.flatMap((field) => (latest[field] ? [{ field, at: latest[field].at, value: latest[field].value }] : []));
 }
 
 // Rebuilds the car's charging sessions from streamed readings and upserts them. Safe to run any
 // number of times: it starts from the last open (or last finished) session and rewrites from there.
-export async function syncStreamSessions(vin: string): Promise<void> {
+export async function syncStreamSessions(owner: Owner, vin: string): Promise<void> {
   if (DEMO) return;
-  const mark = await watermark(vin);
-  const [baseline, readings] = await Promise.all([baselineBefore(vin, mark.at), readingsSince(vin, mark.at)]);
+  const mark = await watermark(owner, vin);
+  const [baseline, readings] = await Promise.all([baselineBefore(owner, vin, mark.at), readingsSince(owner, vin, mark.at)]);
   const sessions = buildSessions([...baseline, ...readings]);
   const now = new Date().toISOString();
   if (sessions.length > 0) {
-    const { error } = await db()
+    const { error } = await ownerDb(owner)
       .from("stream_charge_sessions")
       .upsert(
         sessions.map((s) => ({ ...s, vin, updated_at: now })),
@@ -114,30 +114,31 @@ export async function syncStreamSessions(vin: string): Promise<void> {
   // An open session the rebuild no longer produces (it turned out to be a blip) would hold the
   // watermark back forever, so it goes.
   if (mark.openStartedAt && !sessions.some((s) => Date.parse(s.started_at) === Date.parse(mark.openStartedAt!))) {
-    const { error } = await db().from("stream_charge_sessions").delete().eq("vin", vin).eq("started_at", mark.openStartedAt).is("ended_at", null);
+    const { error } = await ownerDb(owner).from("stream_charge_sessions").delete().eq("vin", vin).eq("started_at", mark.openStartedAt).is("ended_at", null);
     if (error) throw new Error(error.message);
   }
 }
 
 // Best effort for callers that must never fail on it (the poll, the stats page).
-export async function syncStreamSessionsSafely(vins: (string | null | undefined)[]): Promise<void> {
+export async function syncStreamSessionsSafely(owner: Owner, vins: (string | null | undefined)[]): Promise<void> {
   for (const vin of new Set(vins.filter((v): v is string => Boolean(v)))) {
     try {
-      await syncStreamSessions(vin);
+      await syncStreamSessions(owner, vin);
     } catch (err) {
       console.warn(`Streamed charging sessions unavailable for ${vin}:`, (err as Error).message);
     }
   }
 }
 
-export async function syncStreamSessionsForAllCars(): Promise<void> {
+// Every one of the owner's cars.
+export async function syncStreamSessionsForAllCars(owner: Owner): Promise<void> {
   if (DEMO) return;
-  const { data, error } = await db().from("vehicles").select("vin");
+  const { data, error } = await ownerDb(owner).from("vehicles").select("vin");
   if (error) {
     console.warn("Streamed charging sessions unavailable:", error.message);
     return;
   }
-  await syncStreamSessionsSafely((data ?? []).map((v) => v.vin as string | null));
+  await syncStreamSessionsSafely(owner, (data ?? []).map((v) => v.vin as string | null));
 }
 
 // The columns the loaders read, and how a row becomes a session.
@@ -178,11 +179,11 @@ export function toStreamSession(row: Record<string, unknown>): StreamChargeSessi
   };
 }
 
-// Newest first. A missing table or a read error shows as an empty list, with a log line.
-export async function loadStreamSessions(limit = LIST_LIMIT): Promise<StreamChargeSession[]> {
+// The owner's sessions, newest first. A missing table or a read error shows as an empty list, with a log line.
+export async function loadStreamSessions(owner: Owner, limit = LIST_LIMIT): Promise<StreamChargeSession[]> {
   if (DEMO) return demoStreamSessions().slice(0, limit);
   const { data, error } = await selectSessions((columns) =>
-    db().from("stream_charge_sessions").select(columns).order("started_at", { ascending: false }).limit(limit),
+    ownerDb(owner).from("stream_charge_sessions").select(columns).order("started_at", { ascending: false }).limit(limit),
   );
   if (error) {
     console.warn("Streamed charging sessions unavailable:", error.message);

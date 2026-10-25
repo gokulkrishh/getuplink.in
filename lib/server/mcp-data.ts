@@ -1,4 +1,5 @@
 import "server-only";
+import type { Owner } from "./data/owner";
 import { carNow, CAR_NOW_FIELDS } from "@/lib/car-now";
 import { chargeEfficiency, matchSessions } from "@/lib/charge-sessions";
 import { dayStrips } from "@/lib/day-timeline";
@@ -28,15 +29,15 @@ import { loadPrimaryVehicle, loadStream } from "./telemetry";
 const DAY = 86_400_000;
 const r1 = (n: number | null) => (n === null ? null : Math.round(n * 10) / 10);
 
-async function car() {
-  const vehicle = await loadPrimaryVehicle();
+async function car(owner: Owner) {
+  const vehicle = await loadPrimaryVehicle(owner);
   return { vehicle, vin: vehicle?.vin ?? null };
 }
 
 // Trips (drives with stops under an hour between them) in a range, newest first, each with its legs.
-export async function listTrips(from: number, to: number) {
-  const { vin } = await car();
-  const window = await loadWindowStats(vin, Date.now());
+export async function listTrips(owner: Owner, from: number, to: number) {
+  const { vin } = await car(owner);
+  const window = await loadWindowStats(owner, vin, Date.now());
   return groupTrips(window.driving.drives)
     .filter((t) => t.start >= from && t.start < to)
     .map((t) => ({
@@ -53,8 +54,8 @@ export async function listTrips(from: number, to: number) {
 }
 
 // One trip or drive in detail: totals, speeds, power, acceleration, grade, temperature and where it went.
-export async function getTrip(id: number, leg: boolean) {
-  const d = await loadDriveDetail(id, Date.now(), leg);
+export async function getTrip(owner: Owner, id: number, leg: boolean) {
+  const d = await loadDriveDetail(owner, id, Date.now(), leg);
   if (!d) return { error: "No trip or drive starts at that time. Use list_trips for the ids." };
   const { trip } = d;
   const drivingMs = trip.legs.reduce((s, l) => s + (l.end - l.start), 0);
@@ -95,11 +96,11 @@ export async function getTrip(id: number, leg: boolean) {
 }
 
 // The battery now and over time: level, health against the best week, parked drain, temperatures and cells.
-export async function batteryStatus() {
+export async function batteryStatus(owner: Owner) {
   const now = Date.now();
-  const { vin } = await car();
-  const [window, sessions] = await Promise.all([loadWindowStats(vin, now), loadStreamSessions()]);
-  const extras = await loadBatteryExtras(vin, window.trend, now);
+  const { vin } = await car(owner);
+  const [window, sessions] = await Promise.all([loadWindowStats(owner, vin, now), loadStreamSessions(owner)]);
+  const extras = await loadBatteryExtras(owner, vin, window.trend, now);
   const best = (xs: number[]) => (xs.length ? Math.max(...xs) : null);
   const latest = <T,>(xs: T[]) => xs.at(-1) ?? null;
   const finished = sessions.filter((s) => s.ended_at !== null);
@@ -125,10 +126,10 @@ export async function batteryStatus() {
 }
 
 // Locked, Sentry, doors, windows, climate, temperatures and tyres, from the latest readings.
-export async function carNowStatus() {
-  const { vehicle, vin } = await car();
+export async function carNowStatus(owner: Owner) {
+  const { vehicle, vin } = await car(owner);
   if (!vehicle || !vin) return { error: "No car on this account." };
-  const [stream, flags] = await Promise.all([loadStream(vin, CAR_NOW_FIELDS), loadCarFlags(vehicle.id)]);
+  const [stream, flags] = await Promise.all([loadStream(owner, vin, CAR_NOW_FIELDS), loadCarFlags(owner, vehicle.id)]);
   const now = carNow(stream, Date.now(), flags.tyres);
   return {
     last_update: now.since ? istIso(now.since) : null,
@@ -143,19 +144,19 @@ export async function carNowStatus() {
 }
 
 // Charges and money: Tesla's and attached invoices, joined once.
-async function charges() {
+async function charges(owner: Owner) {
   const now = Date.now();
-  const [teslaSessions, streamSessions] = await Promise.all([loadChargingSessions(), loadStreamSessions()]);
+  const [teslaSessions, streamSessions] = await Promise.all([loadChargingSessions(owner), loadStreamSessions(owner)]);
   const { streamOnly } = matchSessions(teslaSessions, streamSessions, now);
-  const invoices = await invoicesBySession(streamSessions.filter((s) => !s.supercharger).map((s) => s.id));
+  const invoices = await invoicesBySession(owner, streamSessions.filter((s) => !s.supercharger).map((s) => s.id));
   return { now, teslaSessions, streamSessions, streamOnly, invoices };
 }
 
 // Month by month: driven, time driving, energy used, charges, energy added and spend (real bills only).
-export async function monthlySummary() {
-  const { vin } = await car();
-  const { now, teslaSessions, streamOnly, invoices } = await charges();
-  const window = await loadWindowStats(vin, now);
+export async function monthlySummary(owner: Owner) {
+  const { vin } = await car(owner);
+  const { now, teslaSessions, streamOnly, invoices } = await charges(owner);
+  const window = await loadWindowStats(owner, vin, now);
   const rows = monthlyRows(
     window.driving.drives,
     [
@@ -181,10 +182,10 @@ export async function monthlySummary() {
 }
 
 // Where you charge, typical start and end level, AC and DC time, and recent DC charges' power.
-export async function chargingInsights() {
-  const { vin } = await car();
-  const { teslaSessions, streamSessions, streamOnly, invoices } = await charges();
-  const extras = await loadChargingExtras(vin, streamSessions);
+export async function chargingInsights(owner: Owner) {
+  const { vin } = await car(owner);
+  const { teslaSessions, streamSessions, streamOnly, invoices } = await charges(owner);
+  const extras = await loadChargingExtras(owner, vin, streamSessions);
   const finished = streamSessions.filter((s) => s.ended_at !== null && s.start_level !== null && s.end_level !== null);
   const hours = (kind: "ac" | "dc") =>
     r1(streamSessions.filter((s) => s.kind === kind && s.ended_at).reduce((a, s) => a + Date.parse(s.ended_at!) - Date.parse(s.started_at), 0) / 3_600_000);
@@ -207,11 +208,11 @@ export async function chargingInsights() {
 }
 
 // Places the car parks and how driving goes: time at each speed and km per kWh by temperature and speed.
-export async function drivingInsights() {
+export async function drivingInsights(owner: Owner) {
   const now = Date.now();
-  const { vin } = await car();
-  const window = await loadWindowStats(vin, now);
-  const [x, seasons] = await Promise.all([loadDrivingExtras(vin, window.driving.drives, now), loadSeasonEfficiency(vin, window.driving.drives, now)]);
+  const { vin } = await car(owner);
+  const window = await loadWindowStats(owner, vin, now);
+  const [x, seasons] = await Promise.all([loadDrivingExtras(owner, vin, window.driving.drives, now), loadSeasonEfficiency(owner, vin, window.driving.drives, now)]);
   const TAG = { home: "Home", work: "Work", favorite: "Favourite" } as const;
   return {
     period: "last 30 days",
@@ -234,12 +235,12 @@ export async function drivingInsights() {
 }
 
 // One IST day: when the car drove, charged, parked or was seen asleep, its trips and its charges.
-export async function daySummary(date: string) {
+export async function daySummary(owner: Owner, date: string) {
   const now = Date.now();
   const start = Date.parse(`${date}T00:00:00+05:30`);
   if (!Number.isFinite(start)) return { error: "date must look like 2026-10-23" };
-  const { vehicle, vin } = await car();
-  const [window, presence, figures, sessions] = await Promise.all([loadWindowStats(vin, now), loadPresence(vehicle, now), loadDrivingFigures(vin, now), loadStreamSessions()]);
+  const { vehicle, vin } = await car(owner);
+  const [window, presence, figures, sessions] = await Promise.all([loadWindowStats(owner, vin, now), loadPresence(owner, vehicle, now), loadDrivingFigures(owner, vin, now), loadStreamSessions(owner)]);
   const days = Math.max(1, istDay(now) - istDay(start) + 1);
   const day = dayStrips(
     days,
@@ -252,7 +253,7 @@ export async function daySummary(date: string) {
     now,
   )[0];
   const end = istDayStart(istDay(start) + 1);
-  const trips = await listTrips(start, end);
+  const trips = await listTrips(owner, start, end);
   return {
     date,
     timeline: day.segments.map((s) => ({ kind: s.kind, from: istIso(s.start), to: istIso(s.end), minutes: Math.round((s.end - s.start) / 60_000) })),

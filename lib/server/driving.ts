@@ -10,15 +10,15 @@ import type { Drive } from "@/lib/drives";
 import { batteryTrend, trendWindow } from "./battery";
 import { chargeLevel, fullRange } from "./charge-level";
 import { demoCounter, demoCounters } from "./demo";
-import { db } from "./supabase";
+import { type Owner, ownerDb } from "./data/owner";
 import { type CounterColumn, LATEST, loadCounters, toColumn } from "./energy";
 import { loadReadingsByField } from "./telemetry-window";
 
 // The online polls' odometer (miles) at each boundary, in one request. The poll ran before the stream
 // began, so earlier months only have these. In demo mode the counters cover it. Null when the query fails.
-async function loadPolledOdometers(bounds: string[]): Promise<CounterColumn | null> {
+async function loadPolledOdometers(owner: Owner, bounds: string[]): Promise<CounterColumn | null> {
   if (DEMO) return null;
-  const { data, error } = await db().rpc("snapshot_odometer_at", { p_at: bounds });
+  const { data, error } = await ownerDb(owner).rpc("snapshot_odometer_at", { p_at: bounds });
   if (error) {
     console.warn("Odometer history unavailable:", error.message);
     return null;
@@ -38,20 +38,20 @@ const FIGURE_FIELDS = ["Odometer", "LifetimeEnergyUsed", "LifetimeEnergyGainedRe
 // Distance, energy use and regen for every period (see drivingFigures), in two requests: the streamed
 // counters and the polled odometer, each at every instant the figures need. `demoSince` is the demo's
 // First week cut (see demoFirstWeekStart); it does nothing outside demo mode.
-export async function loadDrivingFigures(vin: string | null, now: number, demoSince?: number): Promise<DrivingFigures> {
-  return drivingFigures(await loadFigureCounters(vin, figureInstants(now), demoSince), now);
+export async function loadDrivingFigures(owner: Owner, vin: string | null, now: number, demoSince?: number): Promise<DrivingFigures> {
+  return drivingFigures(await loadFigureCounters(owner, vin, figureInstants(now), demoSince), now);
 }
 
 // The same figures for one timeframe, like a range picked by date, read at its own instants.
-export async function loadTimeframeDriving(vin: string | null, frame: Timeframe, now: number, demoSince?: number): Promise<DrivingPeriod> {
-  return drivingTimeframe(await loadFigureCounters(vin, timeframeInstants([frame], now), demoSince), frame, now);
+export async function loadTimeframeDriving(owner: Owner, vin: string | null, frame: Timeframe, now: number, demoSince?: number): Promise<DrivingPeriod> {
+  return drivingTimeframe(await loadFigureCounters(owner, vin, timeframeInstants([frame], now), demoSince), frame, now);
 }
 
-async function loadFigureCounters(vin: string | null, instants: number[], demoSince?: number): Promise<DrivingCounters> {
+async function loadFigureCounters(owner: Owner, vin: string | null, instants: number[], demoSince?: number): Promise<DrivingCounters> {
   const bounds = instants.map((t) => (t === Infinity ? LATEST : new Date(t).toISOString()));
   const [counters, polledOdometer] = await Promise.all([
-    !vin ? null : DEMO && demoSince !== undefined ? demoCounters(FIGURE_FIELDS, instants, demoSince) : loadCounters(vin, FIGURE_FIELDS, bounds),
-    loadPolledOdometers(bounds),
+    !vin ? null : DEMO && demoSince !== undefined ? demoCounters(FIGURE_FIELDS, instants, demoSince) : loadCounters(owner, vin, FIGURE_FIELDS, bounds),
+    loadPolledOdometers(owner, bounds),
   ]);
   const column = (field: string) => counters?.get(field) ?? null;
   return { instants, odometer: column("Odometer"), used: column("LifetimeEnergyUsed"), regen: column("LifetimeEnergyGainedRegen"), polledOdometer };
@@ -68,18 +68,18 @@ export type WindowStats = { days: DayKm[]; driving: Driving; trend: WeeklyPack[]
 // 90 days (see lib/drives.ts) and the 12-week battery trend, from one read of the streamed readings that
 // covers all three windows. Each part keeps to its own window. Empty when the stream can't be read.
 // In demo mode the readings come from the generator, through the same functions.
-export async function loadWindowStats(vin: string | null, now: number): Promise<WindowStats> {
+export async function loadWindowStats(owner: Owner, vin: string | null, now: number): Promise<WindowStats> {
   const empty: WindowStats = { days: [], driving: { drives: [], drain: null, parked: [], parkedNow: null }, trend: [], level: null, range: [] };
   if (!vin) return empty;
   const dailyFrom = new Date(istDayStart(istDay(now) - DRIVING_DAYS + 1)).toISOString();
   const driveFrom = now - DRIVE_DAYS * 86_400_000;
   const from = new Date(Math.min(Date.parse(dailyFrom), driveFrom, trendWindow(now).from)).toISOString();
   const [readings, before] = await Promise.all([
-    loadReadingsByField(vin, WINDOW_FIELDS, from, new Date(now).toISOString()),
+    loadReadingsByField(owner, vin, WINDOW_FIELDS, from, new Date(now).toISOString()),
     // The last odometer reading before the daily window, so the first day has something to count from.
     DEMO
       ? { data: { value: demoCounter("Odometer", dailyFrom) }, error: null }
-      : db().from("telemetry_readings").select("value").eq("vin", vin).eq("field", "Odometer").lt("created_at", dailyFrom).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      : ownerDb(owner).from("telemetry_readings").select("value").eq("vin", vin).eq("field", "Odometer").lt("created_at", dailyFrom).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
   if (!readings) return empty;
   const since = (field: string, ms: number) => readings[field].filter((r) => Date.parse(r.at) >= ms);
@@ -96,8 +96,8 @@ export async function loadWindowStats(vin: string | null, now: number): Promise<
 // Wh/km in each of the last four Indian seasons (see seasonEfficiency), in one request: the counters at
 // every month's edges. `drives` are all the drives the window read, so the months they cover agree with
 // the monthly bars.
-export async function loadSeasonEfficiency(vin: string | null, drives: Drive[], now: number): Promise<SeasonEfficiency> {
+export async function loadSeasonEfficiency(owner: Owner, vin: string | null, drives: Drive[], now: number): Promise<SeasonEfficiency> {
   if (!vin) return { seasons: [], drivesFrom: null };
   const frame = seasonTimeframe(now);
-  return seasonEfficiency(await loadFigureCounters(vin, timeframeInstants([frame], now)), frame, drives, now);
+  return seasonEfficiency(await loadFigureCounters(owner, vin, timeframeInstants([frame], now)), frame, drives, now);
 }

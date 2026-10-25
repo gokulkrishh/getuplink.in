@@ -1,4 +1,5 @@
 import "server-only";
+import type { Owner } from "./data/owner";
 import type { MapPin } from "@/components/stats/trip-map";
 import { formatShortDate } from "@/lib/format";
 import { cappedFrom } from "@/lib/kept";
@@ -18,7 +19,7 @@ const valueAt = (readings: Reading[], t: number) => num(readings.findLast((r) =>
 // What the charging page adds from the stream: the latest CURVES DC charges as power against battery level
 // (TeslaMate's DC charging curve), and where each of the latest PINNED charges happened, for the map.
 // `sessions` come newest first; see heldFrom for where each list stops.
-export async function loadChargingExtras(vin: string | null, sessions: StreamChargeSession[]): Promise<{ curves: Curve[]; pins: MapPin[] }> {
+export async function loadChargingExtras(owner: Owner, vin: string | null, sessions: StreamChargeSession[]): Promise<{ curves: Curve[]; pins: MapPin[] }> {
   if (!vin) return { curves: [], pins: [] };
   const finished = sessions.filter((s) => s.ended_at !== null);
   const dc = finished.filter((s) => s.kind === "dc").slice(0, CURVES);
@@ -26,7 +27,7 @@ export async function loadChargingExtras(vin: string | null, sessions: StreamCha
     Promise.all(
       dc.map(async (s): Promise<Curve | null> => {
         const from = new Date(Date.parse(s.started_at) - 10 * MIN).toISOString();
-        const r = await loadReadingsByField(vin, ["DCChargingPower", "BatteryLevel"], from, s.ended_at!);
+        const r = await loadReadingsByField(owner, vin, ["DCChargingPower", "BatteryLevel"], from, s.ended_at!);
         if (!r) return null;
         const points = r.DCChargingPower.flatMap((p) => {
           const kw = num(p.value);
@@ -41,7 +42,7 @@ export async function loadChargingExtras(vin: string | null, sessions: StreamCha
     Promise.all(
       finished.slice(0, PINNED).map(async (s): Promise<MapPin | null> => {
         const t = Date.parse(s.started_at);
-        const r = await loadReadingsByField(vin, ["Location"], new Date(t - 10 * MIN).toISOString(), new Date(t + 10 * MIN).toISOString());
+        const r = await loadReadingsByField(owner, vin, ["Location"], new Date(t - 10 * MIN).toISOString(), new Date(t + 10 * MIN).toISOString());
         const v = r?.Location.at(-1)?.value as { latitude?: number; longitude?: number } | undefined;
         const [lat, lng] = [num(v?.latitude), num(v?.longitude)];
         if (lat === null || lng === null) return null;

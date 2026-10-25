@@ -2,7 +2,7 @@ import "server-only";
 import { cacheLife } from "next/cache";
 import { DEMO } from "@/lib/demo";
 import { demoData } from "./demo";
-import { db } from "./supabase";
+import { type DailyCheck, healthHistory, lastHealthCheckAt, type LatestCheck } from "./data/system";
 import { COMPONENTS, recordHealth, type ComponentName } from "./stream-health";
 import { dailyBars, isStatus, uptimePercent, type DayBar, type DailyRow, type Status } from "@/lib/status";
 
@@ -35,17 +35,9 @@ export async function loadStatus(): Promise<StatusPage> {
 async function readStatus(): Promise<StatusPage> {
   const now = Date.now();
   const since = new Date(now - (WINDOW_DAYS + 1) * 86_400_000).toISOString();
-  const [daily, latest] = await Promise.all([
-    db().rpc("health_daily", { since }),
-    db().from("health_checks").select("component, status, checked_at").order("checked_at", { ascending: false }).limit(40),
-  ]);
-  if (daily.error) throw new Error(daily.error.message);
-  if (latest.error) throw new Error(latest.error.message);
-  return buildStatus(daily.data as DailyCheck[], latest.data as LatestCheck[], now);
+  const { daily, latest } = await healthHistory(since, 40);
+  return buildStatus(daily, latest, now);
 }
-
-type DailyCheck = { component: string; day: string; status: string; up: number; total: number };
-type LatestCheck = { component: string; status: string; checked_at: string };
 
 // The page from the daily summaries and the newest checks (newest first).
 function buildStatus(daily: DailyCheck[], latest: LatestCheck[], now: number): StatusPage {
@@ -77,9 +69,8 @@ function buildStatus(daily: DailyCheck[], latest: LatestCheck[], now: number): S
 export async function recordIfStale(): Promise<void> {
   if (DEMO) return;
   try {
-    const { data, error } = await db().from("health_checks").select("checked_at").order("checked_at", { ascending: false }).limit(1).maybeSingle();
-    if (error) throw new Error(error.message);
-    const last = data?.checked_at ? Date.parse(data.checked_at as string) : 0;
+    const at = await lastHealthCheckAt();
+    const last = at ? Date.parse(at) : 0;
     if (Date.now() - last < RECORD_EVERY_MS) return;
     await recordHealth();
   } catch (err) {

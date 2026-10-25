@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import type { Owner } from "@/lib/server/data/owner";
 
 // Tesla's token endpoint as the outage on 25 Oct 2026 suggests it behaves: a refresh token works once,
 // and presenting a spent one revokes everything issued from it, the pair just stored included.
@@ -89,6 +90,7 @@ globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
 }) as typeof fetch;
 
 const { fleetGet } = await import("@/lib/server/tesla");
+const OWNER = { sub: "owner" } as Owner;
 
 beforeEach(() => {
   Object.assign(tesla, { requests: 0, valid: new Set(), spent: new Set(), access: new Set(), next: 0 });
@@ -96,6 +98,7 @@ beforeEach(() => {
   // The access token runs out within the refresh margin, so the next call refreshes.
   row = {
     provider: "tesla",
+    owner_sub: "owner",
     access_token_enc: `enc:${first.access_token}`,
     refresh_token_enc: `enc:${first.refresh_token}`,
     expires_at: new Date(Date.now() + 60_000).toISOString(),
@@ -105,7 +108,7 @@ beforeEach(() => {
 
 describe("Tesla token refresh", () => {
   test("concurrent calls in one instance share a single refresh", async () => {
-    const results = await Promise.all(Array.from({ length: 5 }, () => fleetGet<string>("/api/1/vehicles")));
+    const results = await Promise.all(Array.from({ length: 5 }, () => fleetGet<string>(OWNER, "/api/1/vehicles")));
     expect(results).toEqual(["ok", "ok", "ok", "ok", "ok"]);
     expect(tesla.requests).toBe(1);
     expect(row.refresh_token_enc).toBe("enc:r2");
@@ -122,14 +125,14 @@ describe("Tesla token refresh", () => {
       tesla.spent.add("r1");
       row = { ...row, access_token_enc: `enc:${next.access_token}`, refresh_token_enc: `enc:${next.refresh_token}`, refreshing_until: null };
     }, 700);
-    expect(await fleetGet<string>("/api/1/vehicles")).toBe("ok");
+    expect(await fleetGet<string>(OWNER, "/api/1/vehicles")).toBe("ok");
     expect(tesla.requests).toBe(0);
     expect(tesla.valid.has("r2")).toBe(true);
   });
 
   test("takes over a lease left by a request that died", async () => {
     row.refreshing_until = new Date(Date.now() - 1_000).toISOString();
-    expect(await fleetGet<string>("/api/1/vehicles")).toBe("ok");
+    expect(await fleetGet<string>(OWNER, "/api/1/vehicles")).toBe("ok");
     expect(tesla.requests).toBe(1);
     expect(row.refresh_token_enc).toBe("enc:r2");
   });

@@ -1,6 +1,6 @@
 import "server-only";
 import { DEMO } from "@/lib/demo";
-import { db } from "./supabase";
+import { type Owner, ownerDb } from "./data/owner";
 import { loadReadings, loadStream } from "./telemetry";
 import { check, insertVersionChange, latestRecordedVersion, offeredAt, pollInProgress, recordReleaseNotes } from "./version-history";
 import { firstOffered, milesToKm, nearestNumber, versionChanges } from "@/lib/versions";
@@ -16,18 +16,18 @@ const AWAKE_MS = 10 * 60 * 1000;
 // and (vehicle, detected_at) is unique, so two syncs can't record the same streamed change twice.
 // A running poll is left to finish (it syncs the stream itself at the end), unless `lockHeld` says the
 // caller is that poll.
-export async function syncStreamVersions(vin: string, { lockHeld = false }: { lockHeld?: boolean } = {}): Promise<void> {
+export async function syncStreamVersions(owner: Owner, vin: string, { lockHeld = false }: { lockHeld?: boolean } = {}): Promise<void> {
   if (DEMO) return;
   if (!lockHeld && (await pollInProgress())) return;
-  const vehicle = await check(db().from("vehicles").select("id:id::text, current_version").eq("vin", vin).maybeSingle());
+  const vehicle = await check(ownerDb(owner).from("vehicles").select("id:id::text, current_version").eq("vin", vin).maybeSingle());
   if (!vehicle) return;
   const id = vehicle.id as string;
 
   const latest = await check(
-    db().from("version_history").select("detected_at").eq("vehicle_id", id).order("detected_at", { ascending: false }).limit(1).maybeSingle(),
+    ownerDb(owner).from("version_history").select("detected_at").eq("vehicle_id", id).order("detected_at", { ascending: false }).limit(1).maybeSingle(),
   );
   const since = (latest?.detected_at as string | undefined) ?? new Date(0).toISOString();
-  const readings = await loadReadings(vin, "Version", since);
+  const readings = await loadReadings(owner, vin, "Version", since);
   if (!readings) return;
   const steps = versionChanges(readings, (vehicle.current_version as string | null) ?? null);
   if (steps.length === 0) return;
@@ -35,15 +35,15 @@ export async function syncStreamVersions(vin: string, { lockHeld = false }: { lo
   let recorded = false;
   for (const step of steps) {
     // A retry after a failed later write would see the same change again; don't record it twice.
-    if ((await latestRecordedVersion(id)) === step.version) continue;
+    if ((await latestRecordedVersion(owner, id)) === step.version) continue;
     const [pending, odometer] = await Promise.all([
       // The offer comes before the install; look back two weeks, like the dashboard's update timings.
-      loadReadings(vin, "SoftwareUpdateVersion", new Date(Date.parse(step.at) - 14 * DAY).toISOString(), step.at),
-      loadReadings(vin, "Odometer", new Date(Date.parse(step.at) - DAY).toISOString(), new Date(Date.parse(step.at) + DAY).toISOString()),
+      loadReadings(owner, vin, "SoftwareUpdateVersion", new Date(Date.parse(step.at) - 14 * DAY).toISOString(), step.at),
+      loadReadings(owner, vin, "Odometer", new Date(Date.parse(step.at) - DAY).toISOString(), new Date(Date.parse(step.at) + DAY).toISOString()),
     ]);
-    const offered = (pending ? firstOffered(pending, step.version, step.at) : null) ?? (step.previous ? await offeredAt(id, step.version) : null);
+    const offered = (pending ? firstOffered(pending, step.version, step.at) : null) ?? (step.previous ? await offeredAt(owner, id, step.version) : null);
     const miles = odometer ? nearestNumber(odometer, step.at, DAY) : null;
-    const inserted = await insertVersionChange({
+    const inserted = await insertVersionChange(owner, {
       vehicleId: id,
       version: step.version,
       previous: step.previous,
@@ -56,34 +56,35 @@ export async function syncStreamVersions(vin: string, { lockHeld = false }: { lo
 
   // The history row goes in before the vehicle's version moves, so a failed write here is retried.
   const newest = steps[steps.length - 1].version;
-  await check(db().from("vehicles").update({ current_version: newest, updated_at: new Date().toISOString() }).eq("id", id));
+  await check(ownerDb(owner).from("vehicles").update({ current_version: newest, updated_at: new Date().toISOString() }).eq("id", id));
 
-  if (recorded && (await isAwake(vin))) await recordReleaseNotes(vin, [{ version: newest, staged: false }]);
+  if (recorded && (await isAwake(owner, vin))) await recordReleaseNotes(owner, vin, [{ version: newest, staged: false }]);
 }
 
-async function isAwake(vin: string): Promise<boolean> {
-  const stream = await loadStream(vin);
+async function isAwake(owner: Owner, vin: string): Promise<boolean> {
+  const stream = await loadStream(owner, vin);
   const newest = Math.max(0, ...Object.values(stream).map((r) => Date.parse(r.at)));
   return Date.now() - newest < AWAKE_MS;
 }
 
 // Best effort for callers that must never fail on it (the poll, the dashboard).
-export async function syncStreamVersionsSafely(vins: (string | null | undefined)[], options?: { lockHeld?: boolean }): Promise<void> {
+export async function syncStreamVersionsSafely(owner: Owner, vins: (string | null | undefined)[], options?: { lockHeld?: boolean }): Promise<void> {
   for (const vin of new Set(vins.filter((v): v is string => Boolean(v)))) {
     try {
-      await syncStreamVersions(vin, options);
+      await syncStreamVersions(owner, vin, options);
     } catch (err) {
       console.warn(`Streamed versions unavailable for ${vin}:`, messageOf(err));
     }
   }
 }
 
-export async function syncStreamVersionsForAllCars(): Promise<void> {
+// Every one of the owner's cars.
+export async function syncStreamVersionsForAllCars(owner: Owner): Promise<void> {
   if (DEMO) return;
-  const { data, error } = await db().from("vehicles").select("vin");
+  const { data, error } = await ownerDb(owner).from("vehicles").select("vin");
   if (error) {
     console.warn("Streamed versions unavailable:", error.message);
     return;
   }
-  await syncStreamVersionsSafely((data ?? []).map((v) => v.vin as string | null));
+  await syncStreamVersionsSafely(owner, (data ?? []).map((v) => v.vin as string | null));
 }

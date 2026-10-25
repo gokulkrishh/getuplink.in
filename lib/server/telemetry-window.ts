@@ -2,7 +2,7 @@ import "server-only";
 import { DEMO } from "@/lib/demo";
 import type { Reading } from "@/lib/telemetry-derive";
 import { demoReadings } from "./demo";
-import { db } from "./supabase";
+import { type Owner, ownerDb } from "./data/owner";
 import { MAX_PAGES, PAGE } from "./telemetry";
 
 // Several fields' readings in one window [from, to), by field, oldest first: one query instead of one
@@ -10,10 +10,10 @@ import { MAX_PAGES, PAGE } from "./telemetry";
 // the fixed upper bound keeps the offsets still while pages load. The first page brings the row count,
 // so the rest are fetched together. The page cap is the per-field one pooled (MAX_PAGES per field), so
 // past it the fields last in name order lose rows first. Null when the query fails (telemetry is a bonus).
-export async function loadReadingsByField(vin: string, fields: string[], from: string, to: string): Promise<Record<string, Reading[]> | null> {
+export async function loadReadingsByField(owner: Owner, vin: string, fields: string[], from: string, to: string): Promise<Record<string, Reading[]> | null> {
   if (DEMO) return Object.fromEntries(fields.map((field) => [field, demoReadings(field, from, to)]));
   const page = (k: number, count?: "exact") =>
-    db()
+    ownerDb(owner)
       .from("telemetry_readings")
       .select("field, created_at, value", { count })
       .eq("vin", vin)

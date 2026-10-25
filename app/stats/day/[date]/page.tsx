@@ -11,7 +11,7 @@ import { Figures } from "@/components/stats/figures";
 import { TripMap } from "@/components/stats/trip-map";
 import { buttonVariants } from "@/components/ui/button";
 import { formatClock, formatKwh, formatMoney } from "@/lib/format";
-import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type DayDetail, loadDay } from "@/lib/server/day";
 import { dayParam } from "@/lib/day-timeline";
@@ -28,9 +28,10 @@ async function loadDetail(day: number): Promise<{ detail: DayDetail | null; now:
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
+  const owner = await currentOwner();
+  if (!owner) redirect(SIGNED_OUT_PATH);
   const now = Date.now();
-  return { detail: await loadDay(day, now), now };
+  return { detail: await loadDay(owner, day, now), now };
 }
 
 function DayNav({ detail }: { detail: DayDetail }) {

@@ -1,4 +1,5 @@
 import "server-only";
+import type { Owner } from "./data/owner";
 import { MILES_TO_KM } from "@/lib/car";
 import type { MapPin, MapPoint } from "@/components/stats/trip-map";
 import { num, type Reading } from "@/lib/telemetry-derive";
@@ -41,10 +42,10 @@ const valueAt = (list: TracePoint[], t: number) => list.findLast((p) => p.t <= t
 
 // The trip that starts at `start` (ms), or with `leg`, just the drive that does (a leg of a longer trip;
 // the first leg starts when its trip does).
-export async function loadDriveDetail(start: number, now: number, leg = false): Promise<DriveDetail | null> {
-  const vin = (await loadPrimaryVehicle())?.vin ?? null;
+export async function loadDriveDetail(owner: Owner, start: number, now: number, leg = false): Promise<DriveDetail | null> {
+  const vin = (await loadPrimaryVehicle(owner))?.vin ?? null;
   if (!vin) return null;
-  const drives = (await loadWindowStats(vin, now)).driving.drives;
+  const drives = (await loadWindowStats(owner, vin, now)).driving.drives;
   const drive0 = drives.find((d) => d.start === start);
   if (!drive0) return null;
   const trip = (!leg && groupTrips(drives).find((t) => t.start === start && t.legs.length > 1)) || groupTrips([drive0])[0];
@@ -53,7 +54,7 @@ export async function loadDriveDetail(start: number, now: number, leg = false): 
   // A little either side, so the values in force at the start and end are there.
   const from = new Date(drive.start - 30 * MIN).toISOString();
   const to = new Date(drive.end + 10 * MIN).toISOString();
-  const byField = (await loadReadingsByField(vin, ["BatteryLevel", "RatedRange", "VehicleSpeed", "OutsideTemp", "Location", "LongitudinalAcceleration", "PackVoltage", "PackCurrent", "GradeEstimatePercent"], from, to)) ?? {};
+  const byField = (await loadReadingsByField(owner, vin, ["BatteryLevel", "RatedRange", "VehicleSpeed", "OutsideTemp", "Location", "LongitudinalAcceleration", "PackVoltage", "PackCurrent", "GradeEstimatePercent"], from, to)) ?? {};
   const read = (field: string) => [...(byField[field] ?? [])].sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
 
   const range = points(read("RatedRange"), drive.start - 30 * MIN, drive.end + 10 * MIN);

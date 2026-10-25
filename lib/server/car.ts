@@ -19,7 +19,7 @@ import {
 import { DEMO } from "@/lib/demo";
 import { istWeek, istWeekStart, num, packEstimates, typicalChargeKw, type WeeklyPack, weeklyPack } from "@/lib/telemetry-derive";
 import { demoData, demoStreamSessions } from "./demo";
-import { db } from "./supabase";
+import { type Owner, ownerDb } from "./data/owner";
 import { loadReadingsByField } from "./telemetry-window";
 
 // What the car details page shows: the car's VIN and the vehicle_config section of the latest check that
@@ -165,12 +165,12 @@ type AcChargeRow = {
 };
 
 // The newest finished AC session, wherever it was.
-async function loadLastAcCharge(vin: string): Promise<LastAcCharge | null> {
+async function loadLastAcCharge(owner: Owner, vin: string): Promise<LastAcCharge | null> {
   let data: AcChargeRow | null;
   if (DEMO) {
     data = demoStreamSessions().find((s) => s.kind === "ac" && s.ended_at) ?? null;
   } else {
-    const result = await db()
+    const result = await ownerDb(owner)
       .from("stream_charge_sessions")
       .select("id, started_at, ended_at, peak_power_kw, ac_voltage, ac_amps, ac_phases, cable_type")
       .eq("vin", vin)
@@ -184,7 +184,7 @@ async function loadLastAcCharge(vin: string): Promise<LastAcCharge | null> {
   }
   if (!data?.ended_at) return null;
   // The typical draw over the session's window; the peak when there are too few readings.
-  const readings = await loadReadingsByField(vin, ["ACChargingPower"], data.started_at, data.ended_at);
+  const readings = await loadReadingsByField(owner, vin, ["ACChargingPower"], data.started_at, data.ended_at);
   const kw = typicalChargeKw(readings?.ACChargingPower ?? []) ?? num(data.peak_power_kw);
   const supply = acSupply(data);
   const power = kw !== null && kw > 0 ? Math.round(kw * 10) / 10 : null;
@@ -193,15 +193,15 @@ async function loadLastAcCharge(vin: string): Promise<LastAcCharge | null> {
 
 // The newest IST week's median full-pack estimate (see weeklyPack), from this week's and last week's readings:
 // the battery trend's latest point whenever the car streamed in the last two weeks.
-async function loadLatestWeekPack(vin: string, now: number): Promise<WeeklyPack | null> {
+async function loadLatestWeekPack(owner: Owner, vin: string, now: number): Promise<WeeklyPack | null> {
   const from = new Date(istWeekStart(istWeek(now) - 1)).toISOString();
-  const readings = await loadReadingsByField(vin, ["EnergyRemaining", "BatteryLevel"], from, new Date(now).toISOString());
+  const readings = await loadReadingsByField(owner, vin, ["EnergyRemaining", "BatteryLevel"], from, new Date(now).toISOString());
   // Battery health is extra; without it the page still shows everything else.
   return readings ? (weeklyPack(packEstimates(readings.EnergyRemaining, readings.BatteryLevel)).at(-1) ?? null) : null;
 }
 
-// Null when there's no such car.
-export async function loadCarDetails(id: string): Promise<CarDetails | null> {
+// Null when the owner has no such car.
+export async function loadCarDetails(owner: Owner, id: string): Promise<CarDetails | null> {
   if (!/^\d+$/.test(id)) return null;
   if (DEMO) {
     const { vehicle, snapshot, config, vehicleState, superchargingEnabled } = demoData();
@@ -213,12 +213,12 @@ export async function loadCarDetails(id: string): Promise<CarDetails | null> {
       state: vehicleState,
       supercharging: superchargingEnabled,
     });
-    const [battery, lastAcCharge] = await Promise.all([loadLatestWeekPack(vehicle.vin, Date.now()), loadLastAcCharge(vehicle.vin)]);
+    const [battery, lastAcCharge] = await Promise.all([loadLatestWeekPack(owner, vehicle.vin, Date.now()), loadLastAcCharge(owner, vehicle.vin)]);
     return { ...car, battery, lastAcCharge };
   }
   const [vehicle, snapshot] = await Promise.all([
-    db().from("vehicles").select("id:id::text, vin, display_name, current_version").eq("id", id).maybeSingle(),
-    db()
+    ownerDb(owner).from("vehicles").select("id:id::text, vin, display_name, current_version").eq("id", id).maybeSingle(),
+    ownerDb(owner)
       .from("snapshots")
       // Picked keys only: vehicle_state carries more than the page needs, and nothing location-related is read.
       .select(
@@ -274,6 +274,6 @@ export async function loadCarDetails(id: string): Promise<CarDetails | null> {
     },
   );
   if (!v.vin) return car;
-  const [battery, lastAcCharge] = await Promise.all([loadLatestWeekPack(v.vin, Date.now()), loadLastAcCharge(v.vin)]);
+  const [battery, lastAcCharge] = await Promise.all([loadLatestWeekPack(owner, v.vin, Date.now()), loadLastAcCharge(owner, v.vin)]);
   return { ...car, battery, lastAcCharge };
 }

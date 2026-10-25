@@ -4,26 +4,23 @@ import { DEMO } from "@/lib/demo";
 import { compareVersions } from "@/lib/rollout";
 import { istDay } from "@/lib/status";
 import { normaliseVersion } from "@/lib/versions";
-import { hasCurrentSession } from "./auth";
+import { currentOwner } from "./auth";
 import { demoData, demoFleet } from "./demo";
 import { adminAccounts, missingEnv } from "./env";
-import { db } from "./supabase";
+import { adminTotals } from "./data/system";
 import { COMPONENTS } from "./stream-health";
-import { ownerSub } from "./tesla";
 
 const DAY = 86_400_000;
 export const RECENT_DAYS = 7;
 export const USAGE_DAYS = 30;
 
-// /admin is for the accounts in ADMIN_ACCOUNTS. The session cookie names no account, but there is one owner
-// (oauth_tokens.owner_sub) and only that account can sign in, so a current session is the owner's: admin
-// means a current session and the owner listed. In demo mode the demo owner is an admin.
+// /admin is for the accounts in ADMIN_ACCOUNTS: admin means a current session whose account is listed (see
+// currentOwner). In demo mode the demo owner is an admin.
 export async function isAdmin(): Promise<boolean> {
   if (DEMO) return true;
   const allowed = adminAccounts();
   if (!allowed.size || missingEnv().length) return false;
-  if (!(await hasCurrentSession())) return false;
-  return isAdminAccount(await ownerSub(), allowed);
+  return isAdminAccount((await currentOwner())?.sub, allowed);
 }
 
 export type AdminPage = {
@@ -67,11 +64,6 @@ function healthTotals(rows: DailyCheck[], since: string): AdminPage["health"] {
   });
 }
 
-function count(result: { count: number | null; error: { message: string } | null }): number {
-  if (result.error) throw new Error(result.error.message);
-  return result.count ?? 0;
-}
-
 // Totals only: no VINs, names or error text (a poll error can quote a VIN).
 export async function loadAdmin(now: number): Promise<AdminPage> {
   const recent = now - RECENT_DAYS * DAY;
@@ -92,27 +84,16 @@ export async function loadAdmin(now: number): Promise<AdminPage> {
     };
   }
   const since = new Date(recent).toISOString();
-  const [owners, vehicles, runs, failed, lastFailed, health, checks] = await Promise.all([
-    db().from("oauth_tokens").select("provider", { count: "exact", head: true }).not("owner_sub", "is", null),
-    db().from("vehicles").select("current_version, last_seen_at"),
-    db().from("poll_runs").select("id", { count: "exact", head: true }).gte("started_at", since),
-    db().from("poll_runs").select("id", { count: "exact", head: true }).gte("started_at", since).eq("ok", false),
-    db().from("poll_runs").select("started_at").eq("ok", false).gte("started_at", since).order("started_at", { ascending: false }).limit(1).maybeSingle(),
-    db().rpc("health_daily", { since: new Date(now - RECENT_DAYS * DAY).toISOString() }),
-    db().from("poll_runs").select("id", { count: "exact", head: true }).gte("started_at", new Date(now - USAGE_DAYS * DAY).toISOString()),
-  ]);
-  if (vehicles.error) throw new Error(vehicles.error.message);
-  if (lastFailed.error) throw new Error(lastFailed.error.message);
-  if (health.error) throw new Error(health.error.message);
-  const cars = vehicles.data as { current_version: string | null; last_seen_at: string | null }[];
+  const totals = await adminTotals(since, new Date(now - USAGE_DAYS * DAY).toISOString(), new Date(now - RECENT_DAYS * DAY).toISOString());
+  const cars = totals.cars;
   return {
     simulated: false,
-    owners: count(owners),
+    owners: totals.owners,
     cars: cars.length,
     onlineRecently: cars.filter((v) => v.last_seen_at && Date.parse(v.last_seen_at) >= recent).length,
     ...spread(cars.map((v) => v.current_version)),
-    runs: { total: count(runs), failed: count(failed), lastFailedAt: (lastFailed.data?.started_at as string | undefined) ?? null },
-    health: healthTotals(health.data as DailyCheck[], sinceDay),
-    api: { kind: "checks", checks: count(checks) },
+    runs: { total: totals.runs, failed: totals.failed, lastFailedAt: totals.lastFailedAt },
+    health: healthTotals(totals.health as DailyCheck[], sinceDay),
+    api: { kind: "checks", checks: totals.checks },
   };
 }

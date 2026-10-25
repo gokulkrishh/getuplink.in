@@ -13,7 +13,7 @@ import { odometerKm } from "@/lib/car";
 import { CAR_NOW_FIELDS, type CarNow, carNow } from "@/lib/car-now";
 import { formatAgo, formatClock, formatKm, formatShortDate } from "@/lib/format";
 import { isStaleSync, lastSyncedText, newestTime } from "@/lib/last-synced";
-import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type CarDetails, loadCarDetails } from "@/lib/server/car";
 import { type CarState, loadCarState, OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadPrimaryVehicle, loadStream } from "@/lib/server/telemetry";
@@ -27,9 +27,10 @@ async function loadCar(id: string | null): Promise<CarDetails | null> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
-  const carId = id ?? (await loadPrimaryVehicle())?.id ?? null;
-  return carId ? loadCarDetails(carId) : null;
+  const owner = await currentOwner();
+  if (!owner) redirect(SIGNED_OUT_PATH);
+  const carId = id ?? (await loadPrimaryVehicle(owner))?.id ?? null;
+  return carId ? loadCarDetails(owner, carId) : null;
 }
 
 // The streamed fields the page reads beyond carNow's: the odometer and the version.
@@ -45,10 +46,11 @@ async function loadLive(id: string, vin: string | null): Promise<Live> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
+  const owner = await currentOwner();
+  if (!owner) redirect(SIGNED_OUT_PATH);
   const at = Date.now();
   // The flags come with the state's read of the last online check.
-  const [{ flags, ...state }, stream] = await Promise.all([loadCarState({ id, vin }, "normal"), vin ? loadStream(vin, PAGE_FIELDS) : {}]);
+  const [{ flags, ...state }, stream] = await Promise.all([loadCarState(owner, { id, vin }, "normal"), vin ? loadStream(owner, vin, PAGE_FIELDS) : {}]);
   return { state, stream, now: vin ? carNow(stream, at, flags.tyres) : null, notices: flags.notices, at };
 }
 

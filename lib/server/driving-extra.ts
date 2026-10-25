@@ -1,4 +1,5 @@
 import "server-only";
+import type { Owner } from "./data/owner";
 import { MILES_TO_KM } from "@/lib/car";
 import type { Drive } from "@/lib/drives";
 import type { Span } from "@/lib/periods";
@@ -37,13 +38,14 @@ const located = (readings: Reading[] | undefined): LatLng[] =>
 // The Driving page's insights for the last INSIGHT_DAYS, or for `window` (a range picked by date, cut to the
 // drives kept): speed bands, efficiency by temperature and speed, where the car parks, and everywhere it
 // went. Each is empty until the car streams its fields.
-export async function loadDrivingExtras(vin: string | null, allDrives: Drive[], now: number, window?: Span): Promise<DrivingExtras> {
+export async function loadDrivingExtras(owner: Owner, vin: string | null, allDrives: Drive[], now: number, window?: Span): Promise<DrivingExtras> {
   const empty: DrivingExtras = { speed: [], byTemp: [], bySpeed: [], places: [], visited: [] };
   if (!vin) return empty;
   const { from, to } = window ?? { from: now - INSIGHT_DAYS * DAY, to: now };
   if (from >= to) return empty;
   const drives = allDrives.filter((d) => d.start >= from && d.start < to);
   const r = await loadReadingsByField(
+    owner,
     vin,
     ["VehicleSpeed", "OutsideTemp", "Location", "LocatedAtHome", "LocatedAtWork", "LocatedAtFavorite"],
     new Date(from).toISOString(),
