@@ -53,7 +53,7 @@ export function BatteryHealth({
   const figures: Figure[] = [];
   if (capacity) figures.push({ label: "Usable capacity now", value: capacity.now, note: capacity.note });
   if (teslaPack) figures.push({ label: "Full pack now, per Tesla", value: formatKwh(teslaPack.kwh), note: `Last reported ${formatShortDate(teslaPack.at)}` });
-  if (full) figures.push({ label: "Range at 100% now", value: `≈ ${full.now}`, note: full.note });
+  if (full) figures.push({ label: "Range at 100% now", value: `≈ ${full.now}`, note: <>Estimated from rated range and charge level<span className="block">{full.note}</span></> });
   if (added > 0) {
     figures.push({ label: "Energy charged", value: formatKwh(added), note: `${finished.length} ${finished.length === 1 ? "charge" : "charges"} ${frame.words}` });
     if (latestKwh) figures.push({ label: "Charge cycles", value: (added / latestKwh).toFixed(1), note: `Energy charged ÷ usable capacity, ${frame.words}` });

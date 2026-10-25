@@ -5,6 +5,7 @@ import { BatteryGauge } from "@/components/battery-gauge";
 import { AWAKE_MS, CarStatus } from "@/components/car-status";
 import { formatKm } from "@/lib/format";
 import type { HomeCar } from "@/lib/server/home";
+import { currentVersion } from "@/lib/versions";
 
 // The car right now, in about a header's height: name and status, the battery, the version and the
 // odometer. The version's details live on /updates. `odometerKm` is known for the primary car only.
@@ -16,6 +17,7 @@ export function NowStrip({ car, odometerKm, now }: { car: HomeCar; odometerKm: n
   const carLabel = [vehicle.model !== vehicle.display_name && vehicle.model, vehicle.exterior_color].filter(Boolean).join(", ");
   // Battery is only known from a poll taken while the car was online.
   const battery = lastOnline?.battery_level != null ? lastOnline : null;
+  const version = currentVersion(vehicle.current_version, lastOnline && { version: lastOnline.car_version, at: lastOnline.polled_at });
   return (
     <section aria-label="Your car now" className="space-y-4">
       {awake && <AutoRefresh />}
@@ -44,10 +46,10 @@ export function NowStrip({ car, odometerKm, now }: { car: HomeCar; odometerKm: n
         </p>
       </div>
       {battery && <BatteryGauge snapshot={battery} />}
-      {vehicle.current_version ? (
+      {version ? (
         <p className="text-sm text-muted-foreground tabular-nums">
           <Link href="/updates" prefetch={true} className="font-mono underline decoration-border decoration-dotted underline-offset-4 transition-colors duration-150 hover:text-foreground hover:decoration-foreground">
-            {vehicle.current_version}
+            {version}
           </Link>
           {odometerKm !== null && <span> · {formatKm(odometerKm)}</span>}
         </p>

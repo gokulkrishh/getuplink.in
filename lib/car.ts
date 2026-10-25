@@ -87,6 +87,15 @@ export function motorLayout(rear: string | null | undefined, front: string | nul
   return rear ? "Single rear motor" : null;
 }
 
+// The odometer now in km: the newer of the latest online check's (vehicle_state.odometer) and the streamed
+// Odometer reading, both in miles. Null when neither is a number.
+export function odometerKm(...readings: ({ miles: unknown; at: string } | null | undefined)[]): number | null {
+  const newest = readings
+    .filter((r): r is { miles: number; at: string } => typeof r?.miles === "number" && r.miles > 0 && Number.isFinite(Date.parse(r.at)))
+    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0];
+  return newest ? Math.round(newest.miles * MILES_TO_KM) : null;
+}
+
 const PSI_PER_BAR = 14.5038;
 // Tesla sends tyre pressures in bar (the streamed TpmsPressure* fields and vehicle_state's recommended
 // tpms_rcp_*_value); Uplink shows them in whole psi: 2.9 bar -> "42 psi".

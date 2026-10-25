@@ -1,5 +1,6 @@
 import { Tip, TipTrigger } from "@/components/tip";
 import { formatAgo, formatSeen } from "@/lib/format";
+import { newestTime } from "@/lib/last-synced";
 import { cn } from "@/lib/utils";
 
 // A car that streamed in the last 10 minutes is awake.
@@ -24,8 +25,7 @@ export function CarStatus({
   // Where the tip sits; it opens toward the right by default, since the status usually leads a line.
   tipClassName?: string;
 }) {
-  const times = [seenAt, checkedAt].filter((t): t is string => t !== null);
-  const last = times.length ? times.reduce((a, b) => (Date.parse(a) > Date.parse(b) ? a : b)) : null;
+  const last = newestTime([seenAt, checkedAt]);
   const label = last ? `Synced ${formatAgo(last, now)}` : "Not synced yet";
   const dot = <span className={cn("size-1.5 rounded-full", streaming ? "bg-positive" : "bg-faint")} aria-hidden="true" />;
   const lines = [seenAt && `Last data from the car ${formatSeen(seenAt, now)}`, checkedAt && `Last check ${formatSeen(checkedAt, now)}`].filter(

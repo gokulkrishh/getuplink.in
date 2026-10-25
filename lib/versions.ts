@@ -7,6 +7,20 @@ export function normaliseVersion(version: string | null | undefined): string | n
   return v && v !== "0.0.0" ? v : null;
 }
 
+// The software the car runs now, as every page shows it: the vehicle row's current_version, which the poll
+// and the streamed Version readings both move forward (see syncStreamVersions). Until it's set, the newest
+// of what was seen: the streamed Version reading or the latest check's car_version. A snapshot's version
+// alone can be days behind, since checks don't see an update the car streamed since.
+export function currentVersion(current: string | null | undefined, ...seen: ({ version: unknown; at: string } | null | undefined)[]): string | null {
+  const fromRow = normaliseVersion(current);
+  if (fromRow) return fromRow;
+  const known = seen
+    .map((s) => s && { version: normaliseVersion(typeof s.version === "string" ? s.version : null), at: Date.parse(s.at) })
+    .filter((s): s is { version: string; at: number } => Boolean(s?.version) && Number.isFinite(s!.at))
+    .sort((a, b) => b.at - a.at);
+  return known[0]?.version ?? null;
+}
+
 // Tesla reports the odometer in miles.
 export function milesToKm(miles: number): number {
   return Math.round(miles * MILES_TO_KM * 10) / 10;

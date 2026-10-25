@@ -2,7 +2,7 @@ import { CarFront, Settings2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { SignInButton } from "@/components/sign-in-button";
-import { formatDateTime } from "@/lib/format";
+import { lastSyncedText } from "@/lib/last-synced";
 import { describeRunError } from "@/lib/run-error";
 import type { OwnerGate, PollRun } from "@/lib/server/dashboard";
 
@@ -97,13 +97,26 @@ export function CarNotices({ notices }: { notices: string[] }) {
   );
 }
 
-// "Last checked …" and, when the last poll failed, why. `children` go first, like a link to Settings.
-export function CheckedFooter({ lastRun, showError, children }: { lastRun: PollRun | null; showError: boolean; children?: ReactNode }) {
-  if (!lastRun && !children) return null;
+// "Last synced …" (see lastSyncedText), from the same times as the car page's header: the newest of each
+// car's latest check and newest streamed reading. When the last poll failed, why. `children` go first.
+export function CheckedFooter({
+  syncedAt,
+  now,
+  lastRun,
+  showError,
+  children,
+}: {
+  syncedAt: string | null;
+  now: number;
+  lastRun: PollRun | null;
+  showError: boolean;
+  children?: ReactNode;
+}) {
+  if (!syncedAt && !lastRun && !children) return null;
   return (
     <footer className="mt-24 space-y-2 text-xs text-faint">
       {children}
-      {lastRun && <p>Last checked {formatDateTime(lastRun.started_at)}</p>}
+      {syncedAt && <p>{lastSyncedText(syncedAt, now)}</p>}
       {showError && lastRun?.ok === false && lastRun.error && (
         <div className="text-muted-foreground">
           <RunError error={lastRun.error} />

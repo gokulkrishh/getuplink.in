@@ -16,12 +16,14 @@ import { VersionHistory } from "@/components/updates/history";
 import { UpdateStats } from "@/components/updates/update-stats";
 import { isPending, UpdateStatus } from "@/components/updates/update-status";
 import { DEMO, type DemoScenario, parseScenario } from "@/lib/demo";
+import { newestTime } from "@/lib/last-synced";
 import { customRange, rangeTimeframe, type Timeframe } from "@/lib/periods";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadUpdatesPage, type UpdatesCar, type UpdatesPage } from "@/lib/server/updates-page";
 import { updateStats } from "@/lib/telemetry-derive";
+import { currentVersion } from "@/lib/versions";
 
 export const metadata: Metadata = { title: "Updates · Uplink" };
 
@@ -47,6 +49,7 @@ function CarUpdates({ car, notes, label, range, now }: { car: UpdatesCar; notes:
   // A car that streamed in the last few minutes is awake: keep the page fresh so new data shows up on its own.
   const isAwake = streamAt !== null && now - Date.parse(streamAt) < AWAKE_MS;
   const pending = isPending(lastOnline);
+  const version = currentVersion(vehicle.current_version, lastOnline && { version: lastOnline.car_version, at: lastOnline.polled_at });
   const hasStats = updateStats(updates, now) !== null;
   return (
     <section className="space-y-12">
@@ -64,10 +67,10 @@ function CarUpdates({ car, notes, label, range, now }: { car: UpdatesCar; notes:
             />
           </p>
         </div>
-        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{vehicle.current_version ?? "—"}</p>
-        {vehicle.current_version ? (
+        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{version ?? "—"}</p>
+        {version ? (
           <div className="pt-2">
-            <ReleaseNotesToggle version={vehicle.current_version} notes={notes} />
+            <ReleaseNotesToggle version={version} notes={notes} />
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
@@ -151,7 +154,7 @@ async function Updates({ searchParams }: Pick<PageProps<"/updates">, "searchPara
         </PeriodScope>
       )}
       {data.kind === "ready" && (
-        <CheckedFooter lastRun={data.lastRun} showError={cars.length > 0} />
+        <CheckedFooter syncedAt={newestTime(cars.flatMap((car) => [car.latest?.polled_at, car.streamAt]))} now={now} lastRun={data.lastRun} showError={cars.length > 0} />
       )}
     </>
   );

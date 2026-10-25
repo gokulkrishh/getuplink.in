@@ -1,5 +1,5 @@
 import "server-only";
-import { acSupply, cableLabel, phasesLabel } from "@/lib/ac-charge";
+import { type AcSupply, acSupply } from "@/lib/ac-charge";
 import {
   colorName,
   driveLabel,
@@ -50,8 +50,11 @@ export type CarDetails = {
   motor: string | null;
   rearDriveUnit: string | null;
   tyrePressure: string | null;
-  // The software the latest online check saw.
-  version: string | null;
+  // The vehicle row's current_version and the latest online check's car_version: the page picks the
+  // version now from these and the streamed Version (see currentVersion). The odometer at that check (miles).
+  rowVersion: string | null;
+  checkedVersion: { version: string; at: string } | null;
+  polledOdometer: { miles: number; at: string } | null;
   // The features the car says it has, readable; empty when it said none.
   supported: string[];
   // The latest check that saw the car online; the details need one.
@@ -61,8 +64,9 @@ export type CarDetails = {
   lastAcCharge: LastAcCharge | null;
 };
 
-// From the most recent finished AC session the car streamed. Only the parts the car reported.
-export type LastAcCharge = { charger: string | null; cable: string | null };
+// From the most recent finished AC session the car streamed: its id (for /stats/charging/[id]), when it
+// ended, the typical power and how it was supplied. Only the parts the car reported.
+export type LastAcCharge = { id: number; endedAt: string; kw: number | null; supply: AcSupply | null };
 
 type Config = Partial<{
   car_type: string;
@@ -91,18 +95,20 @@ type Config = Partial<{
 type VehicleState = Partial<{
   tpms_rcp_front_value: number;
   tpms_rcp_rear_value: number;
+  odometer: number;
   sentry_mode_available: boolean;
   dashcam_clip_save_supported: boolean;
   webcam_supported: boolean;
 }>;
 
-type Check = { polledAt: string; version: string | null; config: Config; state: VehicleState; supercharging: boolean | null };
+type Check = { polledAt: string; config: Config; state: VehicleState; supercharging: boolean | null };
 
 function details(
   id: string,
   name: string | null,
   vin: string | null,
-  check: Check | null,
+  rowVersion: string | null,
+  check: (Check & { version: string | null }) | null,
 ): CarDetails {
   const config = check?.config ?? {};
   const state = check?.state ?? {};
@@ -132,7 +138,9 @@ function details(
     motor: motorLayout(config.rear_drive_unit, config.front_drive_unit),
     rearDriveUnit: config.rear_drive_unit ?? null,
     tyrePressure: tyrePressureLabel(state.tpms_rcp_front_value, state.tpms_rcp_rear_value),
-    version: check?.version ?? null,
+    rowVersion,
+    checkedVersion: check?.version ? { version: check.version, at: check.polledAt } : null,
+    polledOdometer: check && typeof state.odometer === "number" && state.odometer > 0 ? { miles: state.odometer, at: check.polledAt } : null,
     supported: [
       state.sentry_mode_available && "Sentry mode",
       state.dashcam_clip_save_supported && "Dashcam",
@@ -146,6 +154,7 @@ function details(
 }
 
 type AcChargeRow = {
+  id: number;
   started_at: string;
   ended_at: string | null;
   peak_power_kw: unknown;
@@ -163,7 +172,7 @@ async function loadLastAcCharge(vin: string): Promise<LastAcCharge | null> {
   } else {
     const result = await db()
       .from("stream_charge_sessions")
-      .select("started_at, ended_at, peak_power_kw, ac_voltage, ac_amps, ac_phases, cable_type")
+      .select("id, started_at, ended_at, peak_power_kw, ac_voltage, ac_amps, ac_phases, cable_type")
       .eq("vin", vin)
       .eq("kind", "ac")
       .not("ended_at", "is", null)
@@ -178,14 +187,8 @@ async function loadLastAcCharge(vin: string): Promise<LastAcCharge | null> {
   const readings = await loadReadingsByField(vin, ["ACChargingPower"], data.started_at, data.ended_at);
   const kw = typicalChargeKw(readings?.ACChargingPower ?? []) ?? num(data.peak_power_kw);
   const supply = acSupply(data);
-  const charger = [
-    kw !== null && kw > 0 && `${kw.toFixed(1)} kW`,
-    supply?.volts && `${supply.volts} V`,
-    supply?.amps && `${supply.amps} A`,
-    phasesLabel(supply?.phases)?.toLowerCase(),
-  ].filter(Boolean);
-  const cable = cableLabel(data.cable_type);
-  return charger.length > 0 || cable ? { charger: charger.length > 0 ? charger.join(" · ") : null, cable } : null;
+  const power = kw !== null && kw > 0 ? Math.round(kw * 10) / 10 : null;
+  return power !== null || supply ? { id: data.id, endedAt: data.ended_at, kw: power, supply } : null;
 }
 
 // The newest IST week's median full-pack estimate (see weeklyPack), from this week's and last week's readings:
@@ -203,7 +206,7 @@ export async function loadCarDetails(id: string): Promise<CarDetails | null> {
   if (DEMO) {
     const { vehicle, snapshot, config, vehicleState, superchargingEnabled } = demoData();
     if (id !== vehicle.id || !vehicle.vin) return null;
-    const car = details(vehicle.id, vehicle.display_name, vehicle.vin, {
+    const car = details(vehicle.id, vehicle.display_name, vehicle.vin, vehicle.current_version, {
       polledAt: snapshot.polled_at,
       version: snapshot.car_version,
       config,
@@ -214,14 +217,14 @@ export async function loadCarDetails(id: string): Promise<CarDetails | null> {
     return { ...car, battery, lastAcCharge };
   }
   const [vehicle, snapshot] = await Promise.all([
-    db().from("vehicles").select("id:id::text, vin, display_name").eq("id", id).maybeSingle(),
+    db().from("vehicles").select("id:id::text, vin, display_name, current_version").eq("id", id).maybeSingle(),
     db()
       .from("snapshots")
       // Picked keys only: vehicle_state carries more than the page needs, and nothing location-related is read.
       .select(
         [
           "polled_at, car_version, config:raw->vehicle_config, supercharging:raw->supercharging_enabled",
-          "tpms_front:raw->vehicle_state->tpms_rcp_front_value, tpms_rear:raw->vehicle_state->tpms_rcp_rear_value",
+          "tpms_front:raw->vehicle_state->tpms_rcp_front_value, tpms_rear:raw->vehicle_state->tpms_rcp_rear_value, odometer:raw->vehicle_state->odometer",
           "sentry:raw->vehicle_state->sentry_mode_available, dashcam:raw->vehicle_config->dashcam_clip_save_supported",
           "webcam:raw->vehicle_config->webcam_supported",
         ].join(", "),
@@ -236,7 +239,7 @@ export async function loadCarDetails(id: string): Promise<CarDetails | null> {
   if (vehicle.error) throw new Error(`Reading the car failed: ${vehicle.error.message}`);
   if (snapshot.error) throw new Error(`Reading the car's last check failed: ${snapshot.error.message}`);
   if (!vehicle.data) return null;
-  const v = vehicle.data as { id: string; vin: string | null; display_name: string | null };
+  const v = vehicle.data as { id: string; vin: string | null; display_name: string | null; current_version: string | null };
   const s = snapshot.data as {
     polled_at: string;
     car_version: string | null;
@@ -244,6 +247,7 @@ export async function loadCarDetails(id: string): Promise<CarDetails | null> {
     supercharging: unknown;
     tpms_front: unknown;
     tpms_rear: unknown;
+    odometer: unknown;
     sentry: unknown;
     dashcam: unknown;
     webcam: unknown;
@@ -253,6 +257,7 @@ export async function loadCarDetails(id: string): Promise<CarDetails | null> {
     v.id,
     v.display_name,
     v.vin,
+    v.current_version,
     s && {
       polledAt: s.polled_at,
       version: s.car_version,
@@ -260,6 +265,7 @@ export async function loadCarDetails(id: string): Promise<CarDetails | null> {
       state: {
         tpms_rcp_front_value: num(s.tpms_front) ?? undefined,
         tpms_rcp_rear_value: num(s.tpms_rear) ?? undefined,
+        odometer: num(s.odometer) ?? undefined,
         sentry_mode_available: flag(s.sentry),
         dashcam_clip_save_supported: flag(s.dashcam),
         webcam_supported: flag(s.webcam),

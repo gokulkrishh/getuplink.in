@@ -118,7 +118,7 @@ function newestReading(stream: Stream): string | null {
 }
 
 // See CarState. `fields` are the stream fields to read; streamAt only covers those.
-export async function loadCarState(vehicle: Vehicle, scenario: DemoScenario, fields: string[] = STREAM_FIELDS): Promise<CarState> {
+export async function loadCarState(vehicle: Pick<Vehicle, "id" | "vin">, scenario: DemoScenario, fields: string[] = STREAM_FIELDS): Promise<CarState> {
   if (DEMO) {
     // The same steps as below, from the generated car instead of the database.
     const { snapshot } = demoData();

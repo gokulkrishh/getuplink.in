@@ -22,6 +22,7 @@ import { monthlyRows } from "@/lib/monthly";
 import { type CustomFrame, periodFrames } from "@/lib/frames";
 import { customRange, type DayRange, inSpan, rangeTimeframe, type Timeframe } from "@/lib/periods";
 import { MonthlyTable } from "@/components/home/monthly-table";
+import { newestTime } from "@/lib/last-synced";
 import { DEMO, DEMO_SITE, type DemoScenario, parseScenario } from "@/lib/demo";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -138,7 +139,9 @@ async function HomeContent({ searchParams }: Pick<PageProps<"/">, "searchParams"
           )}
         </div>
       )}
-      {home.kind === "ready" && <CheckedFooter lastRun={home.lastRun} showError={cars.length > 0} />}
+      {home.kind === "ready" && (
+        <CheckedFooter syncedAt={newestTime(cars.flatMap((car) => [car.latest?.polled_at, car.streamAt]))} now={now} lastRun={home.lastRun} showError={cars.length > 0} />
+      )}
     </>
   );
 }

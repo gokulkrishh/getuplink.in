@@ -14,7 +14,7 @@ export const UPDATE_FIELDS = [
 ];
 
 // Streamed values that are newer than the poll, laid over the poll's snapshot. polled_at is left
-// alone so "Last checked" keeps describing the poll.
+// alone so it keeps describing the poll (lastSyncedText weighs it against the streamed times).
 export function applyStream(snapshot: Snapshot | null, stream: Stream): Snapshot | null {
   if (!snapshot) return null;
   const polledAt = Date.parse(snapshot.polled_at);
