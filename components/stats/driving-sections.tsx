@@ -1,4 +1,5 @@
 import { Bars } from "@/components/stats/bars";
+import { Figures } from "@/components/stats/figures";
 import { type DriveStats } from "@/lib/drive-stats";
 import { DRIVE_DAYS } from "@/lib/drives";
 import { formatDuration, formatKwh, formatShortDate } from "@/lib/format";
@@ -123,32 +124,25 @@ const oneDecimal = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 export function DriveStatsSection({ stats, title, partial = false }: { stats: DriveStats | null; title?: string; partial?: boolean }) {
   if (!stats) return null;
   const covers = `${Math.max(1, Math.round(stats.days))} ${Math.round(stats.days) === 1 ? "day" : "days"}`;
-  const rows: [string, string][] = [
-    ["Trips", compactNumber.format(stats.trips)],
-    ["Drives", compactNumber.format(stats.drives)],
-    ["Distance", `${compactNumber.format(Math.round(stats.km))} km`],
-    ["Typical drive", `${oneDecimal.format(stats.medianKm)} km`],
-    ["Longest drive", `${oneDecimal.format(stats.longestKm)} km`],
-    ["Time driving", formatDuration(stats.hours * 3600)],
-    ["Distance a day", `${oneDecimal.format(stats.kmPerDay)} km`],
+  const figures = [
+    { label: "Trips", value: compactNumber.format(stats.trips), note: `${compactNumber.format(stats.drives)} ${stats.drives === 1 ? "drive" : "drives"}` },
+    { label: "Typical drive", value: `${oneDecimal.format(stats.medianKm)} km`, note: "The median" },
+    { label: "Longest drive", value: `${oneDecimal.format(stats.longestKm)} km` },
+    { label: "Time driving", value: formatDuration(stats.hours * 3600) },
+    { label: "Per day", value: `${oneDecimal.format(stats.kmPerDay)} km`, note: "On average" },
   ];
   return (
     <section className="space-y-4">
       <div className="space-y-1">
         <h2 className="text-lg font-medium tracking-heading">Drive stats</h2>
         <p className="text-sm text-muted-foreground">
-          {title ? `${title}, ${covers}` : stats.days >= 89 ? "Last 90 days" : `Since tracking began, ${covers}`}. Typical drive is the median.
+          {title ? `${title}, ${covers}` : stats.days >= 89 ? "Last 90 days" : `Since tracking began, ${covers}`}.
         </p>
         {partial && <p className="text-xs text-faint">Drives cover only the last {DRIVE_DAYS} days.</p>}
       </div>
-      <dl className="divide-y border-t">
-        {rows.map(([label, value]) => (
-          <div key={label} className="flex items-baseline justify-between gap-4 py-3 text-sm">
-            <dt className="text-muted-foreground">{label}</dt>
-            <dd className="font-mono font-medium tabular-nums">{value}</dd>
-          </div>
-        ))}
-      </dl>
+      {/* The distance as the headline, then the rest as tiles: easier to take in than a long list. */}
+      <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{compactNumber.format(Math.round(stats.km))} km</p>
+      <Figures figures={figures} />
     </section>
   );
 }
