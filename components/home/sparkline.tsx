@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { hasSparkData, SLOT_WIDTH, sparkBars, sparkLine } from "@/lib/sparkline";
 import { cn } from "@/lib/utils";
+import { Measure } from "@/components/measure";
 
 const SPARK_HEIGHT = 24;
 
@@ -90,7 +91,9 @@ export function Sparkline({ kind, values, current, tips }: Spark) {
             transform: `translateX(${active < values.length / 3 ? "-10%" : active > (values.length * 2) / 3 ? "-90%" : "-50%"})`,
           }}
         >
-          <span className="text-muted-foreground">{tip.title}</span> <span className="font-mono tabular-nums">{tip.value}</span>
+          <span className="text-muted-foreground">{tip.title}</span> <span className="font-mono tabular-nums">
+            <Measure text={tip.value} />
+          </span>
         </span>
       )}
     </div>

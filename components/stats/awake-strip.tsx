@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { type Presence, type Run, runLabel } from "@/lib/awake";
 import { cn } from "@/lib/utils";
+import { Measure } from "@/components/measure";
 
 const DAY = 86_400_000;
 
@@ -58,7 +59,7 @@ export function AwakeStrip({ start, runs, classes }: { start: number; runs: Run[
           className="pointer-events-none absolute bottom-full z-10 mb-1.5 border bg-background px-2 py-1 font-mono text-xs whitespace-nowrap tabular-nums"
           style={{ left }}
         >
-          {runLabel(run)}
+          <Measure text={runLabel(run)} />
         </span>
       )}
     </div>

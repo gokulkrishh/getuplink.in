@@ -5,6 +5,7 @@ import { Line, LineChart, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import type { CurvePoint } from "@/lib/charge-curve";
 import { formatClock } from "@/lib/format";
+import { Measure } from "@/components/measure";
 
 const config = {
   kw: { label: "Power", color: "var(--chart-accent)" },
@@ -82,8 +83,16 @@ export default function ChargeCurvePlot({ points }: { points: CurvePoint[] }) {
                   if (!point) return null;
                   return (
                     <div className="border bg-background px-2 py-1 text-xs">
-                      {point.kw !== null && <span className="font-mono tabular-nums">{kwFormat.format(point.kw)} kW</span>}
-                      {point.level !== null && <span className="ml-2 font-mono tabular-nums">{Math.round(point.level)}%</span>}
+                      {point.kw !== null && (
+                        <span className="font-mono tabular-nums">
+                          <Measure text={`${kwFormat.format(point.kw)} kW`} />
+                        </span>
+                      )}
+                      {point.level !== null && (
+                        <span className="ml-2 font-mono tabular-nums">
+                          <Measure text={`${Math.round(point.level)}%`} />
+                        </span>
+                      )}
                       <span className="ml-2 text-muted-foreground">{formatClock(point.t)}</span>
                     </div>
                   );

@@ -1,6 +1,7 @@
 import { ScrollEnd } from "@/components/stats/scroll-end";
 import { TapColumns } from "@/components/stats/tap-columns";
 import { cn } from "@/lib/utils";
+import { Measure } from "@/components/measure";
 
 export type Bar = { key: string; label: string; value: number; display: string; isCurrent: boolean; blank?: boolean };
 
@@ -220,7 +221,7 @@ export function BarTip({ title, lines, at, of }: { title: string; lines: (string
       <span className="text-muted-foreground">{title}</span>
       {lines.filter(Boolean).map((line) => (
         <span key={line as string} className="block font-mono tabular-nums">
-          {line}
+          <Measure text={line as string} />
         </span>
       ))}
     </span>

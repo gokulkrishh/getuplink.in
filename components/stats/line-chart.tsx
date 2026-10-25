@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { Measure } from "@/components/measure";
 
 export type Series = { name: string; className: string; points: { x: number; y: number }[] };
 
@@ -125,7 +126,9 @@ export function LineChart({
                   </svg>
                 )}
                 {drawn.length > 1 && <span className="font-sans text-muted-foreground">{s.name}</span>}
-                {formatY(p.y)}
+                <span>
+                  <Measure text={formatY(p.y)} />
+                </span>
               </span>
             ))
           )}

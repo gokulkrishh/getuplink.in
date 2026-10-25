@@ -4,6 +4,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Line, LineChart, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import { formatShortDate } from "@/lib/format";
+import { Measure } from "@/components/measure";
 
 const config = { kwh: { label: "Estimated full pack", color: "var(--chart-accent)" } } satisfies ChartConfig;
 
@@ -76,7 +77,9 @@ export default function BatteryTrendPlot({ points }: { points: TrendPoint[] }) {
                   if (!point) return null;
                   return (
                     <div className="border bg-background px-2 py-1 text-xs">
-                      <span className="font-mono tabular-nums">{point.kwh.toFixed(1)} kWh</span>
+                      <span className="font-mono tabular-nums">
+                        <Measure text={`${point.kwh.toFixed(1)} kWh`} />
+                      </span>
                       <span className="ml-2 text-muted-foreground">Week of {formatShortDate(point.weekStart)}</span>
                     </div>
                   );

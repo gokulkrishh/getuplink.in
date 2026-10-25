@@ -5,6 +5,7 @@ import { Line, LineChart, ReferenceArea, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import type { ChargeStretch, LevelPoint } from "@/lib/charge-level";
 import { formatClock, formatShortDate } from "@/lib/format";
+import { Measure } from "@/components/measure";
 
 const config = { level: { label: "Battery level", color: "var(--chart-accent)" } } satisfies ChartConfig;
 
@@ -71,7 +72,9 @@ export default function ChargeLevelPlot({ points, charging, from, to }: { points
                   if (!point) return null;
                   return (
                     <div className="border bg-background px-2 py-1 text-xs">
-                      <span className="font-mono tabular-nums">{Math.round(point.level)}%</span>
+                      <span className="font-mono tabular-nums">
+                        <Measure text={`${Math.round(point.level)}%`} />
+                      </span>
                       <span className="ml-2 text-muted-foreground">
                         {formatShortDate(point.at)}, {formatClock(point.at)}
                       </span>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { formatClock } from "@/lib/format";
 import { unitNotes } from "./chart-caption";
+import { Measure } from "@/components/measure";
 
 export type Lane = {
   name: string;
@@ -114,7 +115,7 @@ export function DriveLanes({ lanes: all, from, to }: { lanes: Lane[]; from: numb
           {drawn.map(({ lane, hit }) => (
             <span key={lane.name} className="flex justify-between gap-3">
               <span className="text-muted-foreground">{lane.name}</span>
-              <span className="font-mono">{hit ? `${fmt(hit.v)} ${lane.unit}` : "No reading"}</span>
+              <span className="font-mono">{hit ? <Measure text={`${fmt(hit.v)} ${lane.unit}`} /> : "No reading"}</span>
             </span>
           ))}
         </div>
