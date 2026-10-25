@@ -1,5 +1,6 @@
 "use client";
 
+import { unitNotes } from "@/components/stats/chart-caption";
 import { LineChart } from "@/components/stats/line-chart";
 import { type MapPin, TripMap } from "@/components/stats/trip-map";
 import { formatShortDate } from "@/lib/format";
@@ -36,7 +37,14 @@ export function DcCurves({ curves, title }: { curves: Curve[]; title?: string })
           {title && `${title}. `}Typical power as the battery fills, from your last {curves.length} DC charges. Power drops as the battery gets fuller.
         </p>
       </div>
-      <LineChart series={series} formatX={(x) => `${Math.round(x)}%`} formatY={(y) => `${Math.round(y)} kW`} label="Typical DC charging power against battery level" yFrom={0} />
+      <LineChart
+        series={series}
+        formatX={(x) => `${Math.round(x)}%`}
+        formatY={(y) => `${Math.round(y)} kW`}
+        label="Typical DC charging power against battery level"
+        yFrom={0}
+        caption={`Charging power, up the side, against battery level from 0 to 100%, along the bottom: the middle value in each ${BAND}% step. DC is fast charging. ${unitNotes(["kW"])}`}
+      />
       <div className="overflow-x-auto">
         <table className="w-full min-w-md text-sm tabular-nums">
           <thead>

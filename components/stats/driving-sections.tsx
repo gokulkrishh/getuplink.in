@@ -1,4 +1,5 @@
 import { Bars } from "@/components/stats/bars";
+import { barsCaption, unitNotes } from "@/components/stats/chart-caption";
 import { Figures } from "@/components/stats/figures";
 import { type DriveStats } from "@/lib/drive-stats";
 import { DRIVE_DAYS } from "@/lib/drives";
@@ -30,7 +31,14 @@ export function Distance({ frame, driving }: Frame) {
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{compactNumber.format(current.km ?? 0)} km</p>
         <p className="text-sm text-muted-foreground">{frame.words}</p>
       </div>
-      <Bars bars={bars} ariaLabel={`Distance per ${frame.slotName}`} unit="km" labelEvery={frame.labelEvery} empty={`No driving ${frame.words}`} />
+      <Bars
+        bars={bars}
+        ariaLabel={`Distance per ${frame.slotName}`}
+        unit="km"
+        labelEvery={frame.labelEvery}
+        empty={`No driving ${frame.words}`}
+        caption={barsCaption("Kilometres driven", frame)}
+      />
     </section>
   );
 }
@@ -72,14 +80,27 @@ export function EnergyUse({ frame, driving }: Frame) {
           {current.km ? ` · ${compactNumber.format(current.km)} km` : ""}
         </p>
       </div>
-      <Bars bars={bars} ariaLabel={`Energy used per ${frame.slotName} in kWh`} unit="kWh" labelEvery={frame.labelEvery} empty={`No driving ${frame.words}`} />
+      <Bars
+        bars={bars}
+        ariaLabel={`Energy used per ${frame.slotName} in kWh`}
+        unit="kWh"
+        labelEvery={frame.labelEvery}
+        empty={`No driving ${frame.words}`}
+        caption={`${barsCaption("Energy the car used driving", frame)}. ${unitNotes(["kWh"])}`}
+      />
       {regenTotal > 0 && (
         <div className="space-y-4">
           <p className="text-sm">
             Regen won back <span className="font-mono font-medium tabular-nums">{formatKwh(regenTotal)}</span>{" "}
             <span className="text-muted-foreground">{frame.words}</span>
           </p>
-          <Bars bars={regenBars} ariaLabel={`Energy won back by regen per ${frame.slotName} in kWh`} unit="kWh" labelEvery={frame.labelEvery} />
+          <Bars
+            bars={regenBars}
+            ariaLabel={`Energy won back by regen per ${frame.slotName} in kWh`}
+            unit="kWh"
+            labelEvery={frame.labelEvery}
+            caption={`${barsCaption("Energy won back by regen", frame)}, in kWh. Regen is the motor charging the battery as the car slows.`}
+          />
         </div>
       )}
     </section>
@@ -110,7 +131,14 @@ export function DailyDriving({ days: all, frame, partial = false }: { days: DayK
         </p>
         {partial && <p className="text-xs text-faint">Days cover only the last {all.length} days.</p>}
       </div>
-      <Bars bars={bars} ariaLabel="Distance per day" labelEvery={7} visible={30} unit="km" />
+      <Bars
+        bars={bars}
+        ariaLabel="Distance per day"
+        labelEvery={7}
+        visible={30}
+        unit="km"
+        caption={`Kilometres driven each day, last ${days.length} days.${days.length > 30 ? " Scroll sideways for days before the latest 30." : ""} Days without an odometer reading are left blank.`}
+      />
     </section>
   );
 }

@@ -68,6 +68,10 @@ export function ChargeHabits({ starts, title }: { starts: number[]; title?: stri
           ))}
         </div>
       </div>
+      <p className="text-xs text-muted-foreground">
+        Each square is a weekday and a 3-hour block of the day, India time, from the charges listed on this page. The darker it is, the more charges
+        started then. Hover or tap a square for its count.
+      </p>
     </section>
   );
 }

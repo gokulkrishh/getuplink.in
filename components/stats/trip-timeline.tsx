@@ -81,6 +81,9 @@ export function TripTimeline({ legs }: { legs: Drive[] }) {
           Stopped
         </span>
       </div>
+      <p className="text-xs text-muted-foreground">
+        The trip from start to finish. Each block is a drive and each striped gap a stop, as wide as the time it took. Hover or tap one for its details.
+      </p>
     </div>
   );
 }

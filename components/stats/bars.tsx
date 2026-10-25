@@ -12,7 +12,7 @@ export type Bar = { key: string; label: string; value: number; display: string; 
 // chart with long labels scrolls sideways rather than running them together; `scrollFrom` says which end
 // it opens on.
 // With empty, a period with nothing to show says so (EmptyChart) in the same box instead of drawing an empty frame.
-// `caption` says in plain words what is plotted and over which bars (see barsCaption); it sits under the
+// `caption` says in plain words what is plotted and over which bars (see chart-caption.ts); it sits under the
 // panel so a caption that wraps differently in another period never moves the chart.
 // Every period draws the same box: the value row is kept (blank when dense), so a switch between 6 and 12
 // columns, or to an empty period, doesn't change the chart's height. Each slot keeps its column, those
@@ -126,18 +126,6 @@ export function Captioned({ caption, children }: { caption?: string; children: R
       <figcaption className="text-xs text-muted-foreground">{caption}</figcaption>
     </figure>
   );
-}
-
-// "Kilometres driven each day, Mon to Sun": what a bar chart plots and over which bars, from the bars
-// drawn, so the window is always the chart's (Month draws the last 6 months, not this month). `slotName`
-// is one bar ("day", "month", "3 hours"); `where` overrides the first-to-last labels, like "today" for a
-// day in 3-hour bars, whose labels are clock times.
-export function barsCaption(what: string, slotName: string, slots: { label: string }[], where?: string): string {
-  const each = slotName === "3 hours" ? "every 3 hours" : `each ${slotName}`;
-  const first = slots[0]?.label;
-  const last = slots.at(-1)?.label;
-  const span = where ?? (first === undefined ? "" : first === last ? first : `${first} to ${last}`);
-  return span ? `${what} ${each}, ${span}` : `${what} ${each}`;
 }
 
 // The narrowest the columns can be with each label and value still clear of its neighbours, in px, for a

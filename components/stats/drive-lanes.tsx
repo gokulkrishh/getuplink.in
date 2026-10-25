@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { formatClock } from "@/lib/format";
+import { unitNotes } from "./chart-caption";
 
 export type Lane = {
   name: string;
@@ -58,6 +59,7 @@ export function DriveLanes({ lanes: all, from, to }: { lanes: Lane[]; from: numb
   const fmt = (v: number) => (Math.abs(v) < 10 ? (Math.round(v * 10) / 10).toString() : Math.round(v).toString());
 
   return (
+    <figure className="space-y-2">
     <div ref={box} className="chart-touch relative">
       <svg
         viewBox={`0 0 ${W} ${H}`}
@@ -112,11 +114,16 @@ export function DriveLanes({ lanes: all, from, to }: { lanes: Lane[]; from: numb
           {drawn.map(({ lane, hit }) => (
             <span key={lane.name} className="flex justify-between gap-3">
               <span className="text-muted-foreground">{lane.name}</span>
-              <span className="font-mono">{hit ? `${fmt(hit.v)} ${lane.unit}` : "–"}</span>
+              <span className="font-mono">{hit ? `${fmt(hit.v)} ${lane.unit}` : "No reading"}</span>
             </span>
           ))}
         </div>
       )}
     </div>
+      <figcaption className="text-xs text-muted-foreground">
+        Over the drive, from {formatClock(from)} to {formatClock(to)}: {lanes.map((l) => `${l.name.toLowerCase()} in ${l.unit}`).join(", ")}. Each lane has its own
+        scale. Hover or tap for every value at one moment. {unitNotes(lanes.map((l) => l.unit))}
+      </figcaption>
+    </figure>
   );
 }

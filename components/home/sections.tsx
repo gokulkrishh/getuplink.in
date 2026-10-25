@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { hasCosts, hasStationNames, type Listed, OsmCredit, SessionHeader, SessionRow } from "@/components/session-row";
 import { Bars } from "@/components/stats/bars";
+import { barsCaption } from "@/components/stats/chart-caption";
 import { ChargeLevelChart } from "@/components/stats/charge-level";
 import { TripTable } from "@/components/stats/drive-list";
 import { Figures } from "@/components/stats/figures";
@@ -56,7 +57,16 @@ export function ChargingSection({ frames, sessions, listed, now }: { frames: Hom
   const chart = ({ frame }: HomeFrame) => {
     const spend = spendBySlot(sessions, frame.slots);
     const bars = frame.slots.map((slot, k) => ({ key: String(slot.id), label: slot.label, value: spend[k], display: compact.format(spend[k]), isCurrent: slot.isCurrent }));
-    return <Bars bars={bars} ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} empty={`No charging spend ${frame.words}`} />;
+    return (
+      <Bars
+        bars={bars}
+        ariaLabel={`Spend per ${frame.slotName}`}
+        prefix="₹"
+        labelEvery={frame.labelEvery}
+        empty={`No charging spend ${frame.words}`}
+        caption={barsCaption("Spent on Supercharger bills", frame)}
+      />
+    );
   };
   const rows = ({ frame }: HomeFrame) => {
     const shown = listed.filter((item) => inSpan(Date.parse(item.started_at), frame.span)).slice(0, ROWS);
@@ -93,7 +103,16 @@ export function DrivingSection({ frames, figures, drives, now }: { frames: HomeF
       return { key: String(slot.id), label: slot.label, value, display: number.format(value), isCurrent: slot.isCurrent };
     });
     const empty = driving ? `No driving ${frame.words}` : "Couldn't read the distance for these dates";
-    return <Bars bars={bars} ariaLabel={`Distance per ${frame.slotName} in km`} unit="km" labelEvery={frame.labelEvery} empty={empty} />;
+    return (
+      <Bars
+        bars={bars}
+        ariaLabel={`Distance per ${frame.slotName} in km`}
+        unit="km"
+        labelEvery={frame.labelEvery}
+        empty={empty}
+        caption={barsCaption("Kilometres driven", frame)}
+      />
+    );
   };
   const rows = ({ frame }: HomeFrame) => {
     if (drives.length === 0) return null;

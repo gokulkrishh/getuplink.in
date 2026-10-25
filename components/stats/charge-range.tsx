@@ -47,6 +47,10 @@ export function ChargeRange({ sessions, title }: { sessions: StreamChargeSession
           );
         })}
       </ul>
+      <p className="text-xs text-muted-foreground">
+        Your latest {latest.length} {latest.length === 1 ? "charge" : "charges"}, newest first. Each bar spans 0 to 100% battery and is filled from the
+        level the charge started at to where it stopped.
+      </p>
     </section>
   );
 }

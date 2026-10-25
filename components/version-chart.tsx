@@ -25,5 +25,12 @@ export function VersionChart({
   until: string | null;
 }) {
   if (changes.length === 0) return null;
-  return <Plot changes={changes} until={until} />;
+  return (
+    <figure className="space-y-2">
+      <Plot changes={changes} until={until} />
+      <figcaption className="text-xs text-muted-foreground">
+        The car&apos;s software version over time, first to latest. Each step up is a new version arriving. Hover or tap for the version and date.
+      </figcaption>
+    </figure>
+  );
 }

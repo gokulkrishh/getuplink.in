@@ -1,5 +1,6 @@
 "use client";
 
+import { unitNotes } from "@/components/stats/chart-caption";
 import { Figures } from "@/components/stats/figures";
 import { LineChart } from "@/components/stats/line-chart";
 import { formatClock, formatShortDate } from "@/lib/format";
@@ -30,7 +31,13 @@ export function Temperatures({ temps }: { temps: BatteryExtras["temps"] }) {
           })}
         />
       </div>
-      <LineChart series={series} formatX={when} formatY={(y) => `${number.format(y)} °C`} label="Battery, inside and outside temperature over the last week" />
+      <LineChart
+        series={series}
+        formatX={when}
+        formatY={(y) => `${number.format(y)} °C`}
+        label="Battery, inside and outside temperature over the last week"
+        caption="Temperature of the battery, the cabin and the air outside, in °C (degrees Celsius), over the last week."
+      />
     </section>
   );
 }
@@ -81,6 +88,7 @@ export function CapacityByKm({ points }: { points: BatteryExtras["capacityByKm"]
         formatX={(x) => `${number.format(x)} km`}
         formatY={(y) => `${oneDecimal.format(y)} kWh`}
         label="Estimated full pack against the odometer"
+        caption={`How much energy a full battery holds, as the car estimates it, one point a week, set against the odometer: the km the car had driven by then. ${unitNotes(["kWh"])}`}
       />
     </section>
   );

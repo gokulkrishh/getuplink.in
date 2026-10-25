@@ -4,68 +4,20 @@ import { energyBySlot, energyIn, spendBySlot, spendIn } from "@/lib/charging-fig
 import { type Change, changeToPrevious, compareToPrevious } from "@/lib/dashboard-summary";
 import type { DrivingPeriod } from "@/lib/driving-figures";
 import { formatDate, formatShortDate } from "@/lib/format";
-import { type Timeframe, trackingGap } from "@/lib/periods";
+import { type Slot, type Timeframe, trackingGap } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
-import { hasSparkData, SLOT_WIDTH, sparkBars, sparkLine } from "@/lib/sparkline";
-import { cn } from "@/lib/utils";
+import { barsCaption } from "@/components/stats/chart-caption";
+import { type Spark, Sparkline } from "./sparkline";
 
 // Energy used driving, in kWh like every other energy figure.
 const oneDecimalKwh = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 
 const number = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
-const SPARK_HEIGHT = 24;
 const ARROWS: Record<Change["direction"], string> = { up: "↑", down: "↓", same: "—" };
 // The arrow and amount are coloured by meaning, not direction; a change that is neither (more driving,
 // more charging, or the same) stays muted. Screen readers hear better or worse in the sentence instead.
 const TONES: Record<Change["tone"], string> = { better: "text-chart-better", worse: "text-chart-worse", neutral: "text-muted-foreground" };
-
-// One value per slot, null where there's nothing to draw. `current` is the slot holding now.
-type Spark = { kind: "bars" | "line"; values: (number | null)[]; current: number };
-
-// The period's shape behind the number: bars for totals, a line for a rate. Decorative; the number and
-// the delta carry the meaning. With nothing to draw it says so in the same height, not a bare baseline.
-function Sparkline({ kind, values, current }: Spark) {
-  if (!hasSparkData(kind, values)) {
-    return <p className="flex h-6 items-center text-xs text-faint">No data yet</p>;
-  }
-  const width = values.length * SLOT_WIDTH;
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox={`0 0 ${width} ${SPARK_HEIGHT}`}
-      preserveAspectRatio="none"
-      className="block h-6 w-full overflow-visible"
-    >
-      <line x1={0} x2={width} y1={SPARK_HEIGHT} y2={SPARK_HEIGHT} className="stroke-border" vectorEffect="non-scaling-stroke" />
-      {kind === "bars" ? (
-        sparkBars(values, SPARK_HEIGHT).map((bar) => (
-          <rect
-            key={bar.k}
-            x={bar.x}
-            y={bar.y}
-            width={bar.width}
-            height={bar.height}
-            className={cn(
-              "transition-colors duration-150",
-              bar.k === current ? "fill-chart-accent" : "fill-muted-foreground/40 group-hover:fill-muted-foreground/60",
-            )}
-          />
-        ))
-      ) : (
-        <path
-          d={sparkLine(values, SPARK_HEIGHT)}
-          fill="none"
-          strokeWidth={1.25}
-          strokeLinejoin="round"
-          strokeLinecap="round"
-          className="stroke-muted-foreground"
-          vectorEffect="non-scaling-stroke"
-        />
-      )}
-    </svg>
-  );
-}
 
 // Every cell has the same rows, the delta's two lines kept (blank) when there's no comparison, so the
 // strip is one height in every period. The delta lines are for the eye; screen readers get the sentence.
@@ -176,7 +128,14 @@ export function Headline({
   const currentSlot = slots.findIndex((slot) => slot.isCurrent);
   // Slots ahead of now (the rest of this year) are drawn empty, not as zero.
   const upToNow = (values: (number | null)[]): (number | null)[] => values.map((v, k) => (slots[k].from > now ? null : v));
-  const spark = (kind: Spark["kind"], values: (number | null)[]): Spark => ({ kind, values: upToNow(values), current: currentSlot });
+  // Each slot's tip: a day by its date ("23 Oct", where a week's bars are labelled by weekday), 3 hours by
+  // when they start and end, a month or year by its label; nothing for a slot with nothing known.
+  const slotTitle = (slot: Slot, k: number) =>
+    frame.slotName === "day" ? formatShortDate(slot.from + 12 * 3_600_000) : frame.slotName === "3 hours" ? `${slot.label} to ${slots[k + 1]?.label ?? "12a"}` : slot.label;
+  const spark = (kind: Spark["kind"], values: (number | null)[], format: (n: number) => string): Spark => {
+    const shown = upToNow(values);
+    return { kind, values: shown, current: currentSlot, tips: shown.map((v, k) => (v === null ? null : { title: slotTitle(slots[k], k), value: format(v) })) };
+  };
 
   // `lowerIsBetter` colours the delta and words the sentence better or worse: "₹171 worse than the 7 days before".
   // Nothing yet this period (no figure, or zero) has nothing to compare, so the delta stays blank.
@@ -198,6 +157,7 @@ export function Headline({
           spark={spark(
             "bars",
             bars.map((b) => b.km),
+            (n) => `${number.format(n)} km`,
           )}
         />
         <Cell
@@ -209,6 +169,7 @@ export function Headline({
           spark={spark(
             "bars",
             bars.map((b) => b.kwh ?? 0),
+            (n) => `${oneDecimalKwh.format(n)} kWh`,
           )}
         />
         <Cell
@@ -217,16 +178,18 @@ export function Headline({
           value={number.format(energy)}
           unit="kWh"
           {...delta(energy, energyBefore, "kWh")}
-          spark={spark("bars", energyBySlot(sessions, streamOnly, slots))}
+          spark={spark("bars", energyBySlot(sessions, streamOnly, slots), (n) => `${number.format(n)} kWh`)}
         />
         <Cell
           view="charging"
           label="Spent"
           value={money.format(spend.cost)}
           {...delta(spend.cost, spendBefore, (n) => money.format(n), true)}
-          spark={spark("bars", spendBySlot(sessions, slots))}
+          spark={spark("bars", spendBySlot(sessions, slots), (n) => money.format(n))}
         />
       </div>
+      {/* One line in every period, so the strip keeps its height (see ByPeriod's steady). */}
+      <p className="text-xs text-muted-foreground">{barsCaption("Small bars: the amount", frame)}. Hover or tap one for its value.</p>
       {gapText && <p className="text-xs text-muted-foreground">Tracking since {gapText} · no earlier period to compare</p>}
     </div>
   );

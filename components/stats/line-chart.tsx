@@ -20,11 +20,14 @@ export function LineChart({
   label,
   yFrom,
   signed = false,
+  caption,
 }: {
   series: Series[];
   formatX: (x: number) => string;
   formatY: (y: number) => string;
   label: string;
+  // Plain words under the chart (and its legend): what is plotted, over what, and what a unit means.
+  caption?: string;
   // Start the y axis here instead of at the data's lowest value (0 for most).
   yFrom?: number;
   // Centre the y axis on zero (power, grade).
@@ -141,6 +144,7 @@ export function LineChart({
           ))}
         </ul>
       )}
+      {caption && <p className="text-xs text-muted-foreground">{caption}</p>}
     </div>
   );
 }

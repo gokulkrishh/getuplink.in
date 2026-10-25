@@ -19,7 +19,7 @@ export function SpeedBands({ bins, words = "last 30 days", note }: { bins: Drivi
   if (bins.length === 0) return null;
   const bars = bins.map((b, k) => ({
     key: String(b.from),
-    label: b.to === null ? `${b.from}+` : `${b.from}–${b.to}`,
+    label: b.to === null ? `${b.from}+` : `${b.from} to ${b.to}`,
     value: Math.round(b.share * 100),
     display: `${Math.round(b.share * 100)}`,
     isCurrent: b.share === Math.max(...bins.map((x) => x.share)) && k >= 0,
@@ -31,7 +31,13 @@ export function SpeedBands({ bins, words = "last 30 days", note }: { bins: Drivi
         <p className="text-sm text-muted-foreground">Share of driving time in each speed band, km/h, {words}.</p>
         <Note note={note} />
       </div>
-      <Bars bars={bars} ariaLabel="Share of driving time by speed in km/h" unit="%" scrollFrom="start" />
+      <Bars
+        bars={bars}
+        ariaLabel="Share of driving time by speed in km/h"
+        unit="%"
+        scrollFrom="start"
+        caption="Each bar is a speed band in km/h, and its height the percent of driving time spent in it. The band you drive in most is highlighted."
+      />
     </section>
   );
 }

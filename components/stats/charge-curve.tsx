@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import type { CurvePoint } from "@/lib/charge-curve";
+import { unitNotes } from "./chart-caption";
 
 // Same box as the loaded chart (panel + h-40), so nothing shifts when recharts arrives after hydration.
 function Placeholder() {
@@ -35,6 +36,9 @@ export function ChargeCurve({ points }: { points: CurvePoint[] }) {
           </li>
         ))}
       </ul>
+      <p className="text-xs text-muted-foreground">
+        Through this charge, by time of day: charging power in kW on the left scale, and battery level from 0 to 100% on the right. {unitNotes(["kW"])}
+      </p>
     </div>
   );
 }

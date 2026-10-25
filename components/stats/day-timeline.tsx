@@ -98,6 +98,9 @@ export function DayTimeline({ days: all7, now, title = "Your days", caption }: {
           </li>
         ))}
       </ul>
+      <p className="text-xs text-muted-foreground">
+        {days.length === 1 ? "The day" : "Each row is a day"}, midnight to midnight, India time, coloured by what the car was doing. Hover or tap a stretch for its times.
+      </p>
     </section>
   );
 }
