@@ -17,8 +17,12 @@ export type MonthRow = {
 
 type Charge = { started_at: string; kwh: number | null; cost: number | null };
 
-// Months from the earliest one with a drive or a charge to now, newest first, never before `from`.
-export function monthlyRows(drives: Drive[], charges: Charge[], from: number, now: number): MonthRow[] {
+// Months from the earliest one with a drive or a charge to now, newest first, never before `from`. Nothing
+// before `from` counts, so the oldest month, cut by it, counts drives and charges over the same days
+// (not drives from the 90-day edge against the whole month's charges).
+export function monthlyRows(allDrives: Drive[], allCharges: Charge[], from: number, now: number): MonthRow[] {
+  const drives = allDrives.filter((d) => d.start >= from);
+  const charges = allCharges.filter((c) => Date.parse(c.started_at) >= from);
   const first = Math.max(
     monthIndex(from),
     Math.min(monthIndex(now), ...drives.map((d) => monthIndex(d.start)), ...charges.map((c) => monthIndex(c.started_at))),
