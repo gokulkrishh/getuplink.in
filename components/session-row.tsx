@@ -1,13 +1,9 @@
-import { Download } from "lucide-react";
-import Link from "next/link";
-import { Tip } from "@/components/tip";
-import { buttonVariants } from "@/components/ui/button";
+import { SessionLine, type SessionView } from "@/components/session-line";
 import { splitSite } from "@/lib/charge-sessions";
 import { formatClock, formatDayLabel, formatDuration, formatKwh, formatMoney, formatShortDate } from "@/lib/format";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { cn } from "@/lib/utils";
-import { Measure } from "@/components/measure";
 
 const kwFormat = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 
@@ -111,47 +107,31 @@ export function SessionRow({ item, serial, now, costs }: { item: Listed; serial?
   const detail = s
     ? [city, durationText, peakText, tempText]
     : [stream?.station_name && !stream.supercharger && stream.kind.toUpperCase(), stream && levels(stream), stoppedAt ? durationText : "In progress", peakText, tempText];
-  return (
-    <li className={cn(columns(now !== undefined, costs, serial !== undefined), "grid items-start gap-x-4 py-4 text-sm", href && "relative cursor-pointer transition-colors sm:-mx-3 sm:px-3 duration-150 hover:bg-muted focus-within:bg-muted")}>
-      {serial !== undefined && <p className="pt-0.5 font-mono text-xs text-faint tabular-nums">{serial}</p>}
-      <div className="space-y-1">
-        <p className="tabular-nums">{now === undefined ? formatShortDate(item.started_at) : formatDayLabel(item.started_at, now)}</p>
-        <p className="text-xs text-faint tabular-nums">{formatClock(item.started_at)}</p>
-      </div>
-      <div className="min-w-0 space-y-1">
-        <p className="truncate font-medium">
-          {href ? (
-            <Link href={href} className="outline-none after:absolute after:inset-0">
-              {place}
-            </Link>
-          ) : (
-            place
-          )}
-        </p>
-        <p className="truncate text-xs text-muted-foreground">{detail.filter(Boolean).join(" · ")}</p>
-      </div>
-      <p className="text-right font-mono font-medium whitespace-nowrap tabular-nums">{energy === null ? "—" : <Measure text={formatKwh(energy)} />}</p>
-      {costs &&
-        (s && s.cost_total !== null ? (
-          <div className="space-y-1 text-right">
-            <p className="flex items-center justify-end gap-1 font-mono font-medium whitespace-nowrap tabular-nums">
-              {invoice?.contentId && (
-                <a
-                  href={`/api/charging/invoice/${encodeURIComponent(invoice.contentId)}`}
-                  aria-label={`Download invoice for ${formatShortDate(item.started_at)}`}
-                  className={buttonVariants({ variant: "ghost", size: "icon-xs", className: "group relative z-10 -my-0.5" })}
-                >
-                  <Download className="size-3.5" aria-hidden="true" />
-                  <Tip>Download invoice</Tip>
-                </a>
-              )}
-              {formatMoney(s.cost_total, currency)}
-            </p>
-            {rateText && <p className="text-xs whitespace-nowrap text-muted-foreground tabular-nums">{rateText}</p>}
-          </div>
-        ) : (
-          <p className="text-right text-faint">—</p>
-        ))}
-    </li>
-  );
+  const view: SessionView = {
+    className: cn(
+      columns(now !== undefined, costs, serial !== undefined),
+      "grid items-start gap-x-4 py-4 text-sm",
+      href && "relative cursor-pointer transition-colors sm:-mx-3 sm:px-3 duration-150 hover:bg-muted focus-within:bg-muted",
+    ),
+    serial,
+    date: now === undefined ? formatShortDate(item.started_at) : formatDayLabel(item.started_at, now),
+    clock: formatClock(item.started_at),
+    href,
+    place,
+    detail: detail.filter(Boolean).join(" · "),
+    energy: energy === null ? null : formatKwh(energy),
+    cost: !costs
+      ? undefined
+      : s && s.cost_total !== null
+        ? {
+            money: formatMoney(s.cost_total, currency),
+            rate: rateText,
+            invoice: invoice?.contentId
+              ? { href: `/api/charging/invoice/${encodeURIComponent(invoice.contentId)}`, label: `Download invoice for ${formatShortDate(item.started_at)}` }
+              : null,
+          }
+        : null,
+  };
+  // The browser draws the row from these texts (see SessionLine), so a long list costs the page little.
+  return <SessionLine view={view} />;
 }

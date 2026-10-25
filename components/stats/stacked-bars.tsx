@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { BAR_MAX, BarTip, ChartFrame, EmptyChart, MIN_COLUMNS, MonthLabel, niceMax } from "@/components/stats/bars";
+import { ChartFrame, EmptyChart, niceMax } from "@/components/stats/bars";
+import { BAR_MAX, BarTip, MIN_COLUMNS, MonthLabel } from "@/components/stats/bar-parts";
 import { TapColumns } from "@/components/stats/tap-columns";
 import { cn } from "@/lib/utils";
 

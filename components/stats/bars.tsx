@@ -1,9 +1,8 @@
-import { TapColumns } from "@/components/stats/tap-columns";
+import { BarColumns } from "@/components/stats/bar-columns";
+import { type Bar } from "@/components/stats/bar-parts";
 import { cn } from "@/lib/utils";
-import { Measure } from "@/components/measure";
 
-// `tip` is an extra line under the value in the hover tip, like "16 of 40 cars".
-export type Bar = { key: string; label: string; value: number; display: string; isCurrent: boolean; blank?: boolean; tip?: string };
+export { type Bar, BAR_MAX, BarTip, MIN_COLUMNS, MonthLabel, withUnit } from "@/components/stats/bar-parts";
 
 // 6 or 12 columns. Value labels are dropped at 12 so they don't collide on a phone.
 // With labelEvery, any number of columns (one per day, say): only every labelEvery-th column from the
@@ -18,8 +17,9 @@ export type Bar = { key: string; label: string; value: number; display: string; 
 // before the history starts drawn blank, and a bar is never wider than BAR_MAX.
 // `unit` titles the y axis and follows each value in the hover tip and for screen readers; `display` is
 // the bare number (money carries its own sign, with `prefix` on the axis).
+// The columns are drawn by BarColumns in the browser, from the bars, so the page carries data, not markup.
 export function Bars({
-  bars: all,
+  bars,
   ariaLabel,
   labelEvery,
   prefix,
@@ -40,65 +40,16 @@ export function Bars({
   caption?: string;
   // "start" for categories (speed bands), "end" for time, opening on the newest.
 }) {
-  if (empty && !all.some((b) => b.value > 0)) return <EmptyChart caption={caption}>{empty}</EmptyChart>;
-  const dense = all.length > 6;
-  const bars = all;
+  if (empty && !bars.some((b) => b.value > 0)) return <EmptyChart caption={caption}>{empty}</EmptyChart>;
   const max = niceMax(Math.max(1, ...bars.map((b) => b.value)));
-  // Slots before the first value (before the history starts) keep their column and label but draw nothing,
-  // not even a tip: nothing is known about them.
-  const first = bars.findIndex((b) => b.value > 0);
-  const hidden = (b: Bar, k: number) => b.blank ?? k < first;
-  const labelled = (k: number) => (labelEvery ? (bars.length - 1 - k) % labelEvery === 0 : true);
-
-  const columns = labelEvery ? bars.length : Math.max(bars.length, MIN_COLUMNS);
-  const list = (
-      <TapColumns
-        className={cn("grid items-end", labelEvery ? "gap-0.5" : dense ? "gap-1" : "gap-3")}
-        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
-        aria-label={ariaLabel}
-      >
-        {bars.map((b, k) =>
-          hidden(b, k) ? (
-            <li key={b.key} aria-hidden="true" className="flex flex-col items-center gap-2">
-              <span className="h-4" />
-              <div className="h-20" />
-              <span className="h-4 text-xs whitespace-nowrap text-faint">
-                {labelEvery ? (labelled(k) ? b.label : "") : <MonthLabel label={b.label} dense={dense} fromEnd={bars.length - 1 - k} />}
-              </span>
-            </li>
-          ) : (
-            <li key={b.key} className="group relative flex flex-col items-center gap-2">
-              <BarTip at={k} of={bars.length} lines={[withUnit(b.display, unit), b.tip ?? null]} title={b.label} />
-              <span className="h-4 font-mono text-xs text-muted-foreground tabular-nums">{dense ? "" : b.display}</span>
-              <div className="flex h-20 w-full items-end justify-center">
-                {b.value > 0 && (
-                  <div
-                    className={cn("w-full", BAR_MAX, b.isCurrent ? "bg-chart-accent" : "bg-chart-accent/40 group-hover:bg-chart-accent/70 group-data-[tapped=true]:bg-chart-accent/70")}
-                    style={{ height: `${Math.max(4, (b.value / max) * 100)}%` }}
-                  />
-                )}
-              </div>
-              {/* The label is as wide as its text and may spill over the neighbouring columns. */}
-              <span className={cn("h-4 text-xs whitespace-nowrap", b.isCurrent ? "text-foreground" : "text-faint")}>
-                {labelEvery ? (labelled(k) ? b.label : "") : <MonthLabel label={b.label} dense={dense} fromEnd={bars.length - 1 - k} />}
-              </span>
-              {(dense || b.tip) && <span className="sr-only">{[dense && withUnit(b.display, unit), b.tip].filter(Boolean).join(", ")}</span>}
-            </li>
-          ),
-        )}
-      </TapColumns>
-  );
   return (
     <Captioned caption={caption}>
       <ChartFrame max={max} prefix={prefix} unit={unit}>
-        {list}
+        <BarColumns bars={bars} max={max} ariaLabel={ariaLabel} labelEvery={labelEvery} unit={unit} />
       </ChartFrame>
     </Captioned>
   );
 }
-
-// The widest a bar gets, so one bar in a wide column (or 6 on a desktop) isn't a block. Bars sit centred in their columns.
-export const BAR_MAX = "max-w-12";
 
 // A chart with its caption underneath, or just the chart.
 export function Captioned({ caption, children }: { caption?: string; children: React.ReactNode }) {
@@ -120,11 +71,6 @@ export function EmptyChart({ caption, children }: { caption?: string; children: 
       <div className="flex h-40 items-center justify-center bg-muted dark:bg-card px-4 text-center text-sm text-faint">{children}</div>
     </Captioned>
   );
-}
-
-// "12 km", "1.2% a day": a space before a unit, none before a percent sign.
-export function withUnit(value: string, unit?: string): string {
-  return unit ? `${value}${unit.startsWith("%") ? "" : " "}${unit}` : value;
 }
 
 // The y-axis top: the data's maximum rounded up to 1, 2, 2.5 or 5 times a power of ten.
@@ -169,36 +115,3 @@ export function ChartFrame({ max, prefix = "", unit, children }: { max: number; 
     </div>
   );
 }
-
-// 12 columns: "Jan" rather than "J", and on a phone only every other month (counted from the newest) so
-// the names don't collide.
-export function MonthLabel({ label, dense, fromEnd }: { label: string; dense: boolean; fromEnd: number }) {
-  if (!dense) return label;
-  return <span className={cn(fromEnd % 2 === 1 && "max-sm:invisible")}>{label.slice(0, 3)}</span>;
-}
-
-// The value of the column under the pointer or tapped (see TapColumns), like the version chart's tooltip. It overlays the top of
-// the column (so a scrolling strip can't clip it) and leans inwards at the edges. Screen readers get the
-// same values from each column's sr-only text.
-export function BarTip({ title, lines, at, of }: { title: string; lines: (string | null | false)[]; at: number; of: number }) {
-  const side = at < of / 4 ? "left-0" : at > (of * 3) / 4 ? "right-0" : "left-1/2 -translate-x-1/2";
-  return (
-    <span
-      aria-hidden="true"
-      className={cn(
-        "pointer-events-none absolute top-0 z-10 border bg-background px-2 py-1 text-xs whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-data-[tapped=true]:opacity-100",
-        side,
-      )}
-    >
-      <span className="text-muted-foreground">{title}</span>
-      {lines.filter(Boolean).map((line) => (
-        <span key={line as string} className="block font-mono tabular-nums">
-          <Measure text={line as string} />
-        </span>
-      ))}
-    </span>
-  );
-}
-
-// Below this many columns the bars keep their width and the right side stays empty.
-export const MIN_COLUMNS = 6;

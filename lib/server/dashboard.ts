@@ -3,6 +3,7 @@ import { DEMO, type DemoScenario } from "@/lib/demo";
 import { parseReleaseNotes, type ReleaseNote, type ReleaseNotesByVersion } from "@/lib/release-notes";
 import type { Stream } from "@/lib/telemetry";
 import { type Reading, type UpdateTimeline, updateTimeline } from "@/lib/telemetry-derive";
+import { carFlagsFrom, type CarFlagsNow, demoCarFlags, FLAG_COLUMNS, FLAG_KEYS } from "./car-flags";
 import { demoData, demoStream } from "./demo";
 import { missingEnv } from "./env";
 import { db } from "./supabase";
@@ -71,6 +72,8 @@ export type CarState = {
   lastOnline: Snapshot | null;
   // When the car last streamed anything (any of the fields we read), or null when it never has.
   streamAt: string | null;
+  // What Tesla flagged at that last online check (see loadCarFlags), read with it.
+  flags: CarFlagsNow;
 };
 
 const SNAPSHOT_COLUMNS =
@@ -123,13 +126,14 @@ export async function loadCarState(vehicle: Pick<Vehicle, "id" | "vin">, scenari
     // The same steps as below, from the generated car instead of the database.
     const { snapshot } = demoData();
     const stream = demoStream(fields, scenario);
-    return { latest: snapshot, lastOnline: applyStream(snapshot, stream), streamAt: newestReading(stream) };
+    return { latest: snapshot, lastOnline: applyStream(snapshot, stream), streamAt: newestReading(stream), flags: demoCarFlags() };
   }
   const [latest, lastOnline, stream] = await Promise.all([
     db().from("snapshots").select(SNAPSHOT_COLUMNS).eq("vehicle_id", vehicle.id).order("polled_at", { ascending: false }).limit(1).maybeSingle(),
+    // The flags come from the same row: the poll keeps Tesla's response on every online check.
     db()
       .from("snapshots")
-      .select(SNAPSHOT_COLUMNS)
+      .select(`${SNAPSHOT_COLUMNS}, ${FLAG_COLUMNS}`)
       .eq("vehicle_id", vehicle.id)
       .eq("state", "online")
       .order("polled_at", { ascending: false })
@@ -139,7 +143,10 @@ export async function loadCarState(vehicle: Pick<Vehicle, "id" | "vin">, scenari
   ]);
   const error = latest.error ?? lastOnline.error;
   if (error) throw new Error(error.message);
-  return { latest: latest.data as Snapshot | null, lastOnline: applyStream(lastOnline.data as Snapshot | null, stream), streamAt: newestReading(stream) };
+  // A select built from a string has no row type.
+  const online = lastOnline.data as unknown as Record<string, unknown> | null;
+  const snapshot = online && (Object.fromEntries(Object.entries(online).filter(([key]) => !FLAG_KEYS.includes(key))) as Snapshot);
+  return { latest: latest.data as Snapshot | null, lastOnline: applyStream(snapshot, stream), streamAt: newestReading(stream), flags: carFlagsFrom(online) };
 }
 
 // The car's version history, newest first, without timings (see withTimelines).
