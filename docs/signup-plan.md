@@ -5,14 +5,14 @@ The owner's decisions are final: sign-ups go through a waitlist the owner approv
 ## Done
 
 **Step 1: one data layer** (`lib/server/data/`). No database access exists outside it, and `test/data-layer-guard.test.ts` fails on any import of `lib/server/supabase.ts` or `@supabase/supabase-js`, any `db()` call and any `createClient(` elsewhere.
-- `owner.ts`: the `Owner` type and `ownerDb(owner)`, the only way to touch a per-user table (`OWNER_TABLES`), the per-car RPCs and the invoice bucket. `ownerKeys()` is the single place that says which rows are the owner's. Today that is `oauth_tokens` by `provider` + `owner_sub`, `owner_settings`/`connector_token` by `owner = 'tesla'`, and nothing for the car tables, since there is one account.
+- `owner.ts`: the `Owner` type and `ownerDb(owner)`, the only way to touch a per-user table (`OWNER_TABLES`), the per-car RPCs and the invoice bucket. `ownerKeys()` is the single place that says which rows are the owner's. Today that is `oauth_tokens` by `provider` + `owner_sub`, `connector_token` by `owner = 'tesla'`, and nothing for the car tables, since there is one account.
 - `system.ts`: named fleet-wide functions for accounts before an owner is known (sign-in, the session check, the connector token), the check lock (`poll_runs`), rollout, admin, the status page and health checks, telemetry retention, and the shared caches (`release_notes`, `place_names`).
 - `owned.ts` / `erase.ts`: Delete my data deletes by the owner's car ids, VINs and invoice ids. It deletes rows that name no owner yet (`poll_runs`, readings for a VIN with no car row) only while `accountCount() <= 1`.
 - `lib/server/auth.ts` `currentOwner()` returns the account for a current session. Pages, actions, routes and background syncs pass it down. The MCP route binds its tools to the token's account. The poll and station crons loop over `accountOwners()`. `fleetGet`/`fleetGetRaw` take the owner.
 
 **Step 2: migration, written and not applied**: `supabase/migrations/20261030120000_users.sql`.
 - `users` (`tesla_sub` unique, `email` unique case-insensitively, `status` waitlist | approved | declined | suspended, `sessions_valid_after`) and `user_tokens`, which is left empty.
-- A `user_id` column on vehicles, snapshots, version_history, charging_sessions, stream_charge_sessions, charge_receipts, owner_settings, connector_token, poll_runs (nullable) and telemetry_readings (nullable, unchecked). Each defaults to `legacy_owner_id()`, so the deployed code works unchanged.
+- A `user_id` column on vehicles, snapshots, version_history, charging_sessions, stream_charge_sessions, charge_receipts, connector_token, poll_runs (nullable) and telemetry_readings (nullable, unchecked). Each defaults to `legacy_owner_id()`, so the deployed code works unchanged.
 - Composite FKs `(user_id, vehicle_id)` and `(user_id, session_id)`, plus the `check_vin_user` trigger on the two session tables. Together they refuse a row that points at another user's car.
 - User-aware overloads `counter_values_at(p_user_id, …)` and `snapshot_odometer_at(p_user_id, …)`.
 - A trigger on `oauth_tokens` creates the owner's `users` row on a fresh database.
@@ -53,7 +53,7 @@ Until this step, two users can't track the same car: the old global keys refuse 
    - `vehicles`: PK → `(user_id, id)`, and `vin` unique → `(user_id, vin)`. Drop the old `snapshots.vehicle_id` / `version_history.vehicle_id` FKs first.
    - `charging_sessions`: PK → `(user_id, session_id)`.
    - `stream_charge_sessions`: unique → `(user_id, vin, started_at)`.
-   - `owner_settings` / `connector_token`: PK → `user_id`, and drop `owner` and the `= 'tesla'` checks.
+   - `connector_token`: PK → `user_id`, and drop `owner` and the `= 'tesla'` checks.
    - Drop the restrict key `charge_receipts.session_id`.
 
    Update every `onConflict` in the code to match.
@@ -89,6 +89,5 @@ Until this step, two users can't track the same car: the old global keys refuse 
 2. An email provider for waitlist and approval notices.
 3. At step 3, should existing (v3) sessions be signed out once, or kept as the legacy owner's until they expire?
 4. Should waitlisted accounts keep Tesla tokens? The recommendation is no: they sign in again when approved, which keeps the API budget and stored data to approved users only.
-5. Should Delete my data also clear `owner_settings` (the charging rates)? Today it keeps them, as before.
-6. Should a car tracked by two users count once in rollout totals? The recommendation is yes.
-7. When to apply the step 2 migration. It must come after step 1 is deployed, during a quiet hour, with a backup.
+5. Should a car tracked by two users count once in rollout totals? The recommendation is yes.
+6. When to apply the step 2 migration. It must come after step 1 is deployed, during a quiet hour, with a backup.

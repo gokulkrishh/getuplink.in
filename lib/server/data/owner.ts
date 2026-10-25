@@ -21,7 +21,6 @@ export const DEMO_OWNER = asOwner("demo");
 // Every table that holds one account's rows.
 export const OWNER_TABLES = [
   "oauth_tokens",
-  "owner_settings",
   "connector_token",
   "vehicles",
   "snapshots",
@@ -42,7 +41,6 @@ export function ownerKeys(table: OwnerTable, owner: Owner): Record<string, strin
   switch (table) {
     case "oauth_tokens":
       return { provider: "tesla", owner_sub: owner.sub };
-    case "owner_settings":
     case "connector_token":
       return { owner: "tesla" };
     default:

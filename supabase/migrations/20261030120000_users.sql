@@ -134,15 +134,13 @@ alter table public.version_history        add column user_id bigint not null def
 alter table public.charging_sessions      add column user_id bigint not null default public.legacy_owner_id();
 alter table public.stream_charge_sessions add column user_id bigint not null default public.legacy_owner_id();
 alter table public.charge_receipts        add column user_id bigint not null default public.legacy_owner_id();
-alter table public.owner_settings         add column user_id bigint not null default public.legacy_owner_id();
 alter table public.connector_token        add column user_id bigint not null default public.legacy_owner_id();
 -- Nullable: today's check lock is one run for every account (step 5 makes it per user).
 alter table public.poll_runs              add column user_id bigint default public.legacy_owner_id();
 -- Nullable and unchecked for now (see top): the receiver doesn't send it.
 alter table public.telemetry_readings     add column user_id bigint default public.legacy_owner_id();
 
--- One settings row and one connector token per user (the single 'tesla' row each holds today).
-create unique index owner_settings_user_key on public.owner_settings (user_id);
+-- One connector token per user (the single 'tesla' row it holds today).
 create unique index connector_token_user_key on public.connector_token (user_id);
 
 -- 6. Keys that let a row name its user's car, and nobody else's. The tables are small apart from
@@ -169,7 +167,7 @@ declare
   t text;
 begin
   foreach t in array array['vehicles', 'snapshots', 'version_history', 'charging_sessions', 'stream_charge_sessions',
-                           'charge_receipts', 'owner_settings', 'connector_token', 'poll_runs']
+                           'charge_receipts', 'connector_token', 'poll_runs']
   loop
     execute format(
       'alter table public.%1$I add constraint %1$s_user_id_fkey foreign key (user_id) references public.users (id) on delete cascade not valid',
@@ -307,7 +305,7 @@ grant execute on function public.snapshot_odometer_at(bigint, timestamptz[]) to 
 --   alter table public.version_history drop constraint if exists version_history_user_vehicle_fkey;
 --   alter table public.snapshots drop constraint if exists snapshots_user_vehicle_fkey;
 --   (for each of vehicles, snapshots, version_history, charging_sessions, stream_charge_sessions,
---    charge_receipts, owner_settings, connector_token, poll_runs, telemetry_readings:)
+--    charge_receipts, connector_token, poll_runs, telemetry_readings:)
 --     alter table public.<table> drop column if exists user_id;   -- drops its indexes and keys with it
 --   drop trigger if exists oauth_tokens_legacy_owner_user on public.oauth_tokens;
 --   drop function if exists public.legacy_owner_user();
