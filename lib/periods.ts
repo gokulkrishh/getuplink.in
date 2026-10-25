@@ -305,3 +305,20 @@ export function rangeTimeframe(range: DayRange, now: number): Timeframe {
     words: range.from === range.to ? `on ${label}` : `from ${label}`,
   };
 }
+
+// The range a page draws for ?period=custom&from=…&to=…: the URL's (see parseRange), or the last 30 days
+// when its dates are missing or not dates. Null for any other period.
+export function customRange(period: string | string[] | undefined, from: string | string[] | undefined, to: string | string[] | undefined, now: number): DayRange | null {
+  return period === "custom" ? (parseRange(from, to, now) ?? defaultRange(now)) : null;
+}
+
+// Whether a span reaches back before a window of kept data (`windowFrom`) that tracking predates, so what
+// is drawn from that window covers only part of the span. `since` is when tracking began, null if unknown.
+export function reachesBefore(span: Span, windowFrom: number, since: number | null): boolean {
+  return span.from < windowFrom && (since === null || since < windowFrom);
+}
+
+// A span cut to a window of kept data and to now, for what is read only within it.
+export function clipSpan(span: Span, windowFrom: number, now: number): Span {
+  return { from: Math.max(span.from, windowFrom), to: Math.min(span.to, now) };
+}

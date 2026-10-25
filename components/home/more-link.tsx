@@ -7,12 +7,12 @@ import { usePeriod } from "@/components/stats/period-scope";
 import { statsHref, type View } from "@/components/stats/periods";
 import { buttonVariants } from "@/components/ui/button";
 
-// A link to a Stats page with the period picked here rather than the one the page opened with. Every copy
+// A link to a Stats page with the period picked here (Custom with its dates) rather than the one the page opened with. Every copy
 // of a steady panel (see ByPeriod) then points at the same page, so only that one is prefetched.
 export function PeriodLink({ view, className, children }: { view: View; className?: string; children: ReactNode }) {
-  const period = usePeriod();
+  const { period, range } = usePeriod();
   return (
-    <Link href={statsHref(view, period)} prefetch={true} className={className}>
+    <Link href={statsHref(view, period, range)} prefetch={true} className={className}>
       {children}
     </Link>
   );

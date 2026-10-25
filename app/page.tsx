@@ -9,18 +9,18 @@ import { NowStrip } from "@/components/home/now-strip";
 import { BatterySection, ChargingSection, DrivingSection } from "@/components/home/sections";
 import { CheckedFooter, OwnerNotices } from "@/components/owner-notices";
 import { listSessions } from "@/components/session-row";
-import { eachFrame, type HomeFrame } from "@/components/home/frames";
+import { eachFrame } from "@/components/home/frames";
 import { PeriodPicker, PeriodScope } from "@/components/stats/period-scope";
-import { PERIODS } from "@/components/stats/periods";
+import { customScope } from "@/components/stats/periods";
 import { UpdateBanner } from "@/components/updates/update-banner";
 import { matchSessions } from "@/lib/charge-sessions";
 import { firstStartedAt } from "@/lib/charging-figures";
-import { timeframeEfficiency, withDriveEfficiency } from "@/lib/drive-stats";
+import { withDriveEfficiency } from "@/lib/drive-stats";
 import type { DrivingPeriod } from "@/lib/driving-figures";
 import { DRIVE_DAYS } from "@/lib/drives";
 import { monthlyRows } from "@/lib/monthly";
-import { type DayRange, dayIso, defaultRange, inSpan, parseRange, periodTimeframe, rangeTimeframe, type Timeframe } from "@/lib/periods";
-import { istDay } from "@/lib/telemetry-derive";
+import { type CustomFrame, periodFrames } from "@/lib/frames";
+import { customRange, type DayRange, inSpan, rangeTimeframe, type Timeframe } from "@/lib/periods";
 import { MonthlyTable } from "@/components/home/monthly-table";
 import { DEMO, DEMO_SITE, type DemoScenario, parseScenario } from "@/lib/demo";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
@@ -53,23 +53,15 @@ async function loadOwnRange(demo: DemoScenario, vin: string | null, range: DayRa
   return loadRangeDriving(demo, vin, rangeTimeframe(range, now), now);
 }
 
-// A range picked by date, what it covers and its driving figures.
-type Custom = { range: DayRange; frame: Timeframe; driving: DrivingPeriod | null };
-
 // The period switch, the four headline numbers, then driving, charging, battery and the months: each in
 // every period, so the switch needs no server trip (see ByPeriod), and in the range picked by date when
 // there is one.
-function Totals({ home, custom, now }: { home: Extract<Home, { kind: "ready" }>; custom: Custom | null; now: number }) {
+function Totals({ home, custom, now }: { home: Extract<Home, { kind: "ready" }>; custom: CustomFrame | null; now: number }) {
   const { pairs, streamOnly } = matchSessions(home.sessions, home.streamSessions, now);
   const { window } = home;
   const figures = withDriveEfficiency(home.figures, window.driving.drives, now);
   const chargingSince = firstStartedAt(home.sessions, home.streamSessions);
-  const frames: HomeFrame[] = [
-    ...PERIODS.map(({ value }) => ({ key: value, frame: periodTimeframe(value, now), driving: figures.periods[value] })),
-    ...(custom
-      ? [{ key: "custom" as const, frame: custom.frame, driving: custom.driving && timeframeEfficiency(custom.driving, custom.frame, window.driving.drives, figures.since, now) }]
-      : []),
-  ];
+  const frames = periodFrames(figures, custom, window.driving.drives, now);
   const charges = [
     ...home.sessions.map((s) => ({ started_at: s.started_at, kwh: s.energy_kwh, cost: s.cost_total })),
     ...streamOnly.flatMap((s) =>
@@ -120,9 +112,9 @@ async function HomeContent({ searchParams }: Pick<PageProps<"/">, "searchParams"
   const primaryId = cars.find((car) => car.vehicle.vin)?.vehicle.id;
   // Custom's range is drawn by the server, so only a URL that asks for it pays for its counters. Without
   // dates it opens on the last 30 days.
-  const range = home.kind === "ready" && params.period === "custom" ? (parseRange(params.from, params.to, now) ?? defaultRange(now)) : null;
+  const range = home.kind === "ready" ? customRange(params.period, params.from, params.to, now) : null;
   const vin = cars.find((car) => car.vehicle.vin)?.vehicle.vin ?? null;
-  const custom: Custom | null = range && { range, frame: rangeTimeframe(range, now), driving: await loadOwnRange(demo, vin, range, now) };
+  const custom: CustomFrame | null = range && { range, frame: rangeTimeframe(range, now), driving: await loadOwnRange(demo, vin, range, now) };
 
   return (
     <>
@@ -137,7 +129,7 @@ async function HomeContent({ searchParams }: Pick<PageProps<"/">, "searchParams"
               <UpdateBanner snapshot={car.lastOnline} />
             </div>
           ))}
-          <PeriodScope custom={{ range: custom && { from: dayIso(custom.range.from), to: dayIso(custom.range.to) }, today: dayIso(istDay(now)) }}>
+          <PeriodScope custom={customScope(range, now)}>
             <Totals home={home} custom={custom} now={now} />
           </PeriodScope>
           {cars.some((car) => car.latest?.error) && (

@@ -1,4 +1,5 @@
-import type { Period } from "@/lib/periods";
+import { type DayRange, dayIso, isoDay, type Period } from "@/lib/periods";
+import { istDay } from "@/lib/telemetry-derive";
 
 export type { Period };
 
@@ -11,7 +12,7 @@ export const PERIODS: { value: Period; label: string }[] = [
   { value: "all", label: "All" },
 ];
 
-// Home also offers a range picked by date.
+// Every page with the switch also offers a range picked by date.
 export type HomePeriod = Period | "custom";
 export const HOME_PERIODS: { value: HomePeriod; label: string }[] = [...PERIODS, { value: "custom", label: "Custom" }];
 
@@ -36,7 +37,30 @@ export const VIEWS: { value: View; label: string }[] = [
   { value: "battery", label: "Battery" },
 ];
 
-// A Stats page's URL with a period; the default stays out of it.
-export function statsHref(view: View, period: Period): string {
-  return period === defaultPeriod() ? `/stats/${view}` : `/stats/${view}?period=${period}`;
+// A range picked by date, as the URL and a date input hold it: "2026-10-25", both days included.
+export type DateRange = { from: string; to: string };
+// Custom on a scope: the range whose panels came with the page (null when none did) and today, as the
+// server saw it, for the picker's latest day.
+export type CustomScope = { range: DateRange | null; today: string };
+
+// What a page's PeriodScope needs for Custom, from the range the server drew (null when it drew none).
+export function customScope(range: DayRange | null, now: number): CustomScope {
+  return { range: range && { from: dayIso(range.from), to: dayIso(range.to) }, today: dayIso(istDay(now)) };
+}
+
+// A URL's from and to when both are dates; otherwise null.
+export function urlRange(from: string | null | undefined, to: string | null | undefined): DateRange | null {
+  return from && to && isoDay(from) !== null && isoDay(to) !== null ? { from, to } : null;
+}
+
+// A page's query for a period: none for the page's default (`allowed` as in parsePeriod), and for Custom
+// its dates, or none, which opens on the last 30 days.
+export function periodQuery(period: HomePeriod, range: DateRange | null = null, allowed?: Period[]): string {
+  if (period === "custom") return range ? `?period=custom&from=${range.from}&to=${range.to}` : "?period=custom";
+  return period === defaultPeriod(allowed) ? "" : `?period=${period}`;
+}
+
+// A Stats page's URL with a period, and for Custom its dates; the default stays out of it.
+export function statsHref(view: View, period: HomePeriod, range: DateRange | null = null): string {
+  return `/stats/${view}${periodQuery(period, range)}`;
 }

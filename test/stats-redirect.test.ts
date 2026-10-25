@@ -33,4 +33,13 @@ describe("statsRedirect", () => {
     expect(target("view=driving&period=month")).toBe("/stats/driving?period=month");
     expect(target("view=driving&period=decade")).toBe("/stats/driving");
   });
+  test("Custom carries its dates to the page", () => {
+    expect(target("view=charging&period=custom&from=2026-09-01&to=2026-09-30")).toBe("/stats/charging?period=custom&from=2026-09-01&to=2026-09-30");
+    expect(target("view=updates&period=custom&from=2026-01-01&to=2026-06-30")).toBe("/updates?period=custom&from=2026-01-01&to=2026-06-30");
+  });
+  test("without valid dates Custom stays, and the page opens on the last 30 days", () => {
+    expect(target("view=driving&period=custom")).toBe("/stats/driving?period=custom");
+    expect(target("view=battery&period=custom&from=2026-09-01&to=soon")).toBe("/stats/battery?period=custom");
+    expect(target("view=updates&period=custom")).toBe("/updates?period=custom");
+  });
 });

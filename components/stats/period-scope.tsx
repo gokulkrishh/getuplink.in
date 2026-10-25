@@ -4,14 +4,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createContext, useContext, useState, useTransition, type ReactNode } from "react";
 import { dayIso, isoDay } from "@/lib/periods";
 import { cn } from "@/lib/utils";
-import { defaultPeriod, type HomePeriod, type Period, parsePeriod } from "./periods";
+import { type CustomScope, type DateRange, defaultPeriod, type HomePeriod, type Period, parsePeriod, urlRange } from "./periods";
 import { PeriodSwitch } from "./period-switch";
 
-// A range picked by date, as the URL and a date input hold it: "2026-10-25", both days included.
-export type DateRange = { from: string; to: string };
-// Custom on a scope: the range whose panels came with the page (null when none did) and today, as the
-// server saw it, for the picker's latest day.
-export type CustomScope = { range: DateRange | null; today: string };
+export type { CustomScope, DateRange };
 
 type Scope = {
   period: HomePeriod;
@@ -25,10 +21,10 @@ type Scope = {
 
 const PeriodContext = createContext<Scope>({ period: defaultPeriod(), range: null, pending: false, select: () => {}, pick: () => {} });
 
-// The period for links to the Stats pages, which have no Custom: a range picked by date opens them on the default.
-export const usePeriod = (): Period => {
-  const { period } = useContext(PeriodContext);
-  return period === "custom" ? defaultPeriod() : period;
+// The period picked here and, for Custom, its dates: what links to other pages carry (see statsHref).
+export const usePeriod = (): { period: HomePeriod; range: DateRange | null } => {
+  const { period, range } = useContext(PeriodContext);
+  return { period, range };
 };
 
 // A section that depends on the period, rendered by the server for each one; shows the one picked. With
@@ -50,18 +46,11 @@ export function ByPeriod({ panels, steady = false }: { panels: Partial<Record<Ho
   );
 }
 
-// A valid range from the URL, or null.
-function urlRange(params: URLSearchParams): DateRange | null {
-  const from = params.get("from") ?? undefined;
-  const to = params.get("to") ?? undefined;
-  return from && to && isoDay(from) !== null && isoDay(to) !== null ? { from, to } : null;
-}
-
 // Holds a page's period, read from ?period= (the default, Week where offered, stays out of it). Every period's panels
 // arrive with the page, so switching only replaces the address (which Next's router follows) and needs no
 // server trip; a shared link, the logo's link to / and a refresh all show the URL's period. `options`
 // limits it, like Updates without Week. Other query parameters are kept.
-// With `custom` (home only), Custom picks a range by date: ?period=custom&from=…&to=…. A range's panels are
+// With `custom`, Custom picks a range by date: ?period=custom&from=…&to=…. A range's panels are
 // the server's to draw, so picking a new one navigates; going back to the range already drawn doesn't.
 export function PeriodScope({ options, custom, children }: { options?: Period[]; custom?: CustomScope; children: ReactNode }) {
   const params = useSearchParams();
@@ -69,7 +58,7 @@ export function PeriodScope({ options, custom, children }: { options?: Period[];
   const [pending, startTransition] = useTransition();
   const raw = params.get("period");
   const period: HomePeriod = custom && raw === "custom" ? "custom" : parsePeriod(raw ?? undefined, options);
-  const range = custom ? (urlRange(params) ?? custom.range) : null;
+  const range = custom ? (urlRange(params.get("from"), params.get("to")) ?? custom.range) : null;
 
   const withRange = (url: URL, next: DateRange) => {
     url.searchParams.set("period", "custom");
