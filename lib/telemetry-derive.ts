@@ -18,11 +18,30 @@ export function median(values: number[]): number {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-// Typical AC power over a session: the median of readings while drawing power (ramp-up and closing
-// zeros skipped). Null with fewer than 3 such readings.
-export function typicalChargeKw(readings: Reading[]): number | null {
-  const kws = readings.map((r) => num(r.value)).filter((kw): kw is number => kw !== null && kw > 0.5);
-  return kws.length >= 3 ? median(kws) : null;
+// Typical AC power over a session: the power it drew for the middle of its charging time (a median by
+// time, ramp-up and closing zeros skipped). The car sends power only when it changes, so each reading holds
+// until the next one or `end`; counting readings instead let a few minutes of taper outvote hours of steady
+// draw. Null when no reading drew power for any time.
+export function typicalChargeKw(readings: Reading[], end: number): number | null {
+  const sorted = readings
+    .map((r) => ({ t: Date.parse(r.at), kw: num(r.value) }))
+    .filter((s) => Number.isFinite(s.t))
+    .sort((a, b) => a.t - b.t);
+  const held: { kw: number; ms: number }[] = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const { kw, t } = sorted[i];
+    const ms = Math.min(i + 1 < sorted.length ? sorted[i + 1].t : end, end) - t;
+    if (kw !== null && kw > 0.5 && ms > 0) held.push({ kw, ms });
+  }
+  if (held.length === 0) return null;
+  held.sort((a, b) => a.kw - b.kw);
+  const half = held.reduce((sum, h) => sum + h.ms, 0) / 2;
+  let sum = 0;
+  for (const h of held) {
+    sum += h.ms;
+    if (sum >= half) return h.kw;
+  }
+  return held[held.length - 1].kw;
 }
 
 // Below this the estimate swings with small rounding in the reported level, so those readings are skipped.

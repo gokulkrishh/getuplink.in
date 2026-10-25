@@ -1,6 +1,6 @@
 import { SessionLine, type SessionView } from "@/components/session-line";
 import { splitSite } from "@/lib/charge-sessions";
-import { formatClock, formatDayLabel, formatDuration, formatKwh, formatMoney, formatShortDate } from "@/lib/format";
+import { formatClock, formatDayLabel, formatDuration, formatKwh, formatMoney, formatShortDate, formatTempRange } from "@/lib/format";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { cn } from "@/lib/utils";
@@ -57,7 +57,7 @@ function levels(s: StreamChargeSession): string | null {
 // The battery's warm-up on a fast charger, which explains a slow session. AC charger details live on the car page.
 function batteryTemp(s: StreamChargeSession): string | null {
   return s.kind === "dc" && s.temp_start_c !== null && s.temp_max_c !== null
-    ? `battery ${Math.round(s.temp_start_c)} to ${Math.round(s.temp_max_c)} °C`
+    ? `battery ${formatTempRange(s.temp_start_c, s.temp_max_c)}`
     : null;
 }
 

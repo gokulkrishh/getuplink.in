@@ -46,6 +46,21 @@ const END_STATES = new Set(["Complete", "Stopped", "Disconnected", "NoPower"]);
 // Below this the voltage is idle noise from an unplugged charger.
 const MIN_AC_VOLTS = 50;
 const MIN_SESSION_MS = 2 * 60 * 1000;
+// The energy counter is sent at most once a minute, so its last count can land after the session ends:
+// 14.56 kWh at 21:55:41, Complete at 21:55:54, 14.64 kWh at 21:56:41 (the car's own total, too).
+export const COUNTER_TAIL_MS = 3 * 60 * 1000;
+// Battery level and energy remaining are sent every 5 minutes, so the last reading before the end can be
+// minutes old while the level was still rising. One interval after the end (with a little slack) decides.
+export const SETTLE_MS = 5.5 * 60 * 1000;
+
+// The reading that best describes the battery at `end`: the last one at or before it, or the first one
+// after it (within SETTLE_MS) when that one is nearer. Charging has stopped by then, so a reading just
+// after the end is the finished level, where one taken minutes before still misses the last minutes.
+export function nearestToEnd<T extends { t: number }>(before: T | null, after: T | null, end: number): T | null {
+  if (!after || after.t <= end || after.t - end > SETTLE_MS) return before;
+  if (!before) return after;
+  return after.t - end < end - before.t ? after : before;
+}
 
 function num(value: unknown): number | null {
   const n = typeof value === "string" ? Number(value) : value;
@@ -85,8 +100,13 @@ export function chargeStateName(value: unknown): string | null {
   return typeof value === "string" ? value.replace(/^DetailedChargeState/, "") : null;
 }
 
+type Timed = { t: number; v: number };
+
 type Open = {
   startedAt: number;
+  // The counters' values when the session opened, on the same plug-in (see acClose in buildSessions).
+  acBase: number;
+  dcBase: number;
   startLevel: number | null;
   startEnergy: number | null;
   fastPresent: boolean;
@@ -113,9 +133,13 @@ export function buildSessions(readings: ChargeReading[]): StreamSession[] {
     .sort((a, b) => a.t - b.t);
 
   const sessions: StreamSession[] = [];
-  // Latest known value of the state-like fields.
-  let level: number | null = null;
-  let energy: number | null = null;
+  // Latest known value of the state-like fields, with when it was sent.
+  let level: Timed | null = null;
+  let energy: Timed | null = null;
+  // Each counter's value when the last session on this plug-in closed, or 0 after an unplug: a car that
+  // stops and starts again without unplugging may keep counting from there.
+  let acClose = 0;
+  let dcClose = 0;
   let fastPresent = false;
   let fastType = "";
   let open: Open | null = null;
@@ -127,24 +151,44 @@ export function buildSessions(readings: ChargeReading[]): StreamSession[] {
   let cable: string | null = null;
   let temp: number | null = null;
 
+  // A session that just ended, still taking the readings that arrive after its end (see COUNTER_TAIL_MS
+  // and SETTLE_MS). Dropped at the next start, or once both windows have passed.
+  let tail: {
+    session: StreamSession;
+    end: number;
+    counterField: string;
+    counter: number | null; // the counter's latest value, before taking off the base
+    base: number;
+    counterDone: boolean;
+    level: Timed | null;
+    levelDone: boolean;
+    energy: Timed | null;
+    energyDone: boolean;
+  } | null = null;
+
   const finish = (end: number | null) => {
     if (!open) return;
     // Power seen during the session decides; FastChargerPresent can carry over from an earlier DC session.
     const dc = (open.dcPower ?? 0) > 0 || (!((open.acPower ?? 0) > 0) && open.fastPresent);
-    const added = dc ? open.dcEnergy : open.acEnergy;
-    const rounded = round(added, 2);
+    const counter = dc ? open.dcEnergy : open.acEnergy;
+    const base = dc ? open.dcBase : open.acBase;
+    const rounded = round(counter === null ? null : counter - base, 2);
     const tooShort = end !== null && end - open.startedAt < MIN_SESSION_MS && !(rounded && rounded > 0);
+    if (counter !== null) {
+      if (dc) dcClose = counter;
+      else acClose = counter;
+    }
     if (!tooShort) {
-      sessions.push({
+      const session: StreamSession = {
         started_at: new Date(open.startedAt).toISOString(),
         ended_at: end === null ? null : new Date(end).toISOString(),
         kind: dc ? "dc" : "ac",
         supercharger: dc && open.supercharger,
         energy_added_kwh: rounded,
         start_level: round(open.startLevel, 2),
-        end_level: round(level, 2),
+        end_level: round(level?.v ?? null, 2),
         start_energy_kwh: round(open.startEnergy, 2),
-        end_energy_kwh: round(energy, 2),
+        end_energy_kwh: round(energy?.v ?? null, 2),
         peak_power_kw: round(dc ? open.dcPower : open.acPower, 1),
         ac_voltage: dc ? null : round(median(open.volts), 1),
         ac_amps: dc || open.amps.length === 0 ? null : round(Math.max(...open.amps), 1),
@@ -152,9 +196,45 @@ export function buildSessions(readings: ChargeReading[]): StreamSession[] {
         cable_type: dc ? null : open.cable,
         temp_max_c: round(open.maxTemp, 1),
         temp_start_c: round(open.startTemp, 1),
-      });
+      };
+      sessions.push(session);
+      if (end !== null) {
+        const counterField = dc ? "DCChargingEnergyIn" : "ACChargingEnergyIn";
+        tail = { session, end, counterField, counter, base, counterDone: false, level, levelDone: false, energy, energyDone: false };
+      }
     }
     open = null;
+  };
+
+  // Readings that arrive after the tail's session ended: the counter's last count, and the level and energy
+  // remaining when the first reading after the end is nearer to it than the last one before.
+  const settle = (t: number, batch: ChargeReading[]) => {
+    if (!tail) return;
+    const since = t - tail.end;
+    if (since > COUNTER_TAIL_MS) tail.counterDone = true;
+    if (since > SETTLE_MS) tail.levelDone = tail.energyDone = true;
+    for (const r of batch) {
+      const n = num(r.value);
+      if (n === null) continue;
+      if (r.field === tail.counterField && !tail.counterDone) {
+        // A lower count is a reset: a new plug-in, not this session.
+        if (tail.counter !== null && n < tail.counter) {
+          tail.counterDone = true;
+          continue;
+        }
+        tail.counter = n;
+        tail.session.energy_added_kwh = round(n - tail.base, 2);
+        if (tail.counterField === "DCChargingEnergyIn") dcClose = n;
+        else acClose = n;
+      } else if (r.field === "BatteryLevel" && !tail.levelDone) {
+        tail.levelDone = true;
+        tail.session.end_level = round(nearestToEnd(tail.level, { t, v: n }, tail.end)?.v ?? null, 2);
+      } else if (r.field === "EnergyRemaining" && !tail.energyDone) {
+        tail.energyDone = true;
+        tail.session.end_energy_kwh = round(nearestToEnd(tail.energy, { t, v: n }, tail.end)?.v ?? null, 2);
+      }
+    }
+    if (tail.counterDone && tail.levelDone && tail.energyDone) tail = null;
   };
 
   for (let i = 0; i < sorted.length; ) {
@@ -168,9 +248,13 @@ export function buildSessions(readings: ChargeReading[]): StreamSession[] {
     const state = stateReading ? chargeStateName(stateReading.value) : null;
     if (state !== null) chargeState = state;
     const starting = state !== null && START_STATES.has(state) && !open;
+    if (starting) tail = null;
+    else settle(t, batch);
     if (starting) {
       open = {
         startedAt: t,
+        acBase: acClose,
+        dcBase: dcClose,
         startLevel: null,
         startEnergy: null,
         fastPresent,
@@ -192,10 +276,10 @@ export function buildSessions(readings: ChargeReading[]): StreamSession[] {
       const n = num(r.value);
       switch (r.field) {
         case "BatteryLevel":
-          if (n !== null) level = n;
+          if (n !== null) level = { t, v: n };
           break;
         case "EnergyRemaining":
-          if (n !== null) energy = n;
+          if (n !== null) energy = { t, v: n };
           break;
         case "FastChargerPresent":
           fastPresent = r.value === true || r.value === "true";
@@ -233,11 +317,18 @@ export function buildSessions(readings: ChargeReading[]): StreamSession[] {
             if (open) open.maxTemp = Math.max(open.maxTemp ?? n, n);
           }
           break;
+        // A count below the base means the counter was reset for this session: it counts from 0.
         case "ACChargingEnergyIn":
-          if (open && n !== null) open.acEnergy = Math.max(open.acEnergy ?? n, n);
+          if (open && n !== null) {
+            if (n < open.acBase) open.acBase = 0;
+            open.acEnergy = Math.max(open.acEnergy ?? n, n);
+          }
           break;
         case "DCChargingEnergyIn":
-          if (open && n !== null) open.dcEnergy = Math.max(open.dcEnergy ?? n, n);
+          if (open && n !== null) {
+            if (n < open.dcBase) open.dcBase = 0;
+            open.dcEnergy = Math.max(open.dcEnergy ?? n, n);
+          }
           break;
       }
     }
@@ -245,8 +336,8 @@ export function buildSessions(readings: ChargeReading[]): StreamSession[] {
       // Sticky: the charger type may only be reported after the session began.
       if (open.fastPresent && fastType.includes("supercharger")) open.supercharger = true;
       if (starting) {
-        open.startLevel = level;
-        open.startEnergy = energy;
+        open.startLevel = level?.v ?? null;
+        open.startEnergy = energy?.v ?? null;
       }
       // While charging: the values that arrived now, and on entering Charging the ones carried over.
       if (chargeState === "Charging") {
@@ -260,6 +351,8 @@ export function buildSessions(readings: ChargeReading[]): StreamSession[] {
 
     if (state !== null) {
       if (END_STATES.has(state)) finish(t);
+      // Unplugged: the next plug-in's counters start again from 0.
+      if (state === "Disconnected") acClose = dcClose = 0;
     }
   }
   // Still going: ended_at stays null. The latest level is as of the last reading.
