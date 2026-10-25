@@ -1,5 +1,6 @@
 import "server-only";
 import { DEMO } from "@/lib/demo";
+import { readAllRows, readPages } from "@/lib/paging";
 import { demoChargingFees, demoChargingSessions } from "./demo";
 import { db } from "./supabase";
 import { fleetGet, TeslaError } from "./tesla";
@@ -8,8 +9,12 @@ const DAY = 24 * 60 * 60 * 1000;
 const LOOKBACK_DAYS = 120;
 const PAGE_SIZE = 50;
 const MAX_PAGES = 10; // at most 500 sessions per car per check
-// Enough for the "All time" view; the stats page works out each period from this list.
-const LIST_LIMIT = 1000;
+// The one-time read of everything Tesla keeps: from before the first Supercharger opened (Sept 2012), up
+// to 2,000 sessions, with a short pause between pages to stay well inside Tesla's rate limits.
+const BACKFILL_FROM = "2012-01-01T00:00:00.000Z";
+const BACKFILL_MAX_PAGES = 40;
+const BACKFILL_PAUSE_MS = 250;
+const UPSERT_CHUNK = 50; // rows carry Tesla's raw item, so they go in batches
 
 // Tesla documents the charging history loosely, so every field is optional and read defensively.
 type Fee = {
@@ -97,41 +102,93 @@ function toRow(vin: string, item: HistoryItem, fetchedAt: string): ChargingRow |
   };
 }
 
-// Pages through the last 120 days for one car. Keyed by session so a session that moves between
+// Pages through one car's history from startTime. Keyed by session so a session that moves between
 // pages is only written once (a single upsert cannot contain the same key twice). No sortBy: Tesla
 // rejects "StartDateTime" with a 400, and the order doesn't matter since every page is read.
-async function fetchVinHistory(vin: string, startTime: string): Promise<ChargingRow[]> {
+async function fetchVinHistory(
+  vin: string,
+  startTime: string,
+  limits: { maxPages: number; pauseMs?: number },
+): Promise<{ rows: ChargingRow[]; complete: boolean }> {
   const fetchedAt = new Date().toISOString();
+  const { items, complete } = await readPages(
+    async (pageNo) => {
+      const query = new URLSearchParams({ vin, startTime, pageNo: String(pageNo), pageSize: String(PAGE_SIZE) });
+      const page = await fleetGet<HistoryPage>(`/api/1/dx/charging/history?${query}`);
+      return Array.isArray(page) ? page : Array.isArray(page?.data) ? page.data : [];
+    },
+    { pageSize: PAGE_SIZE, ...limits },
+  );
   const rows = new Map<string, ChargingRow>();
-  for (let pageNo = 1; pageNo <= MAX_PAGES; pageNo++) {
-    const query = new URLSearchParams({
-      vin,
-      startTime,
-      pageNo: String(pageNo),
-      pageSize: String(PAGE_SIZE),
-    });
-    const page = await fleetGet<HistoryPage>(`/api/1/dx/charging/history?${query}`);
-    const items = Array.isArray(page) ? page : Array.isArray(page?.data) ? page.data : [];
-    for (const item of items) {
-      const row = toRow(vin, item, fetchedAt);
-      if (row) rows.set(row.session_id, row);
-    }
-    if (items.length < PAGE_SIZE) break;
+  for (const item of items) {
+    const row = toRow(vin, item, fetchedAt);
+    if (row) rows.set(row.session_id, row);
   }
-  return [...rows.values()];
+  return { rows: [...rows.values()], complete };
+}
+
+// Whether this car's full history is stored already, read from the rows themselves (no flag to keep). A
+// top-up only writes sessions that started within 120 days of the time it wrote them (fetched_at), and only
+// rewrites rows still inside its window; the full read writes old sessions with today's fetched_at, and
+// saves nothing unless it reached the last page. So the oldest row having been fetched more than 120 days
+// (plus a margin for clock skew) after it started means the full read has run. Before that, a car whose
+// history is all recent reads it in full each time, which costs what the top-up would. Delete my data
+// empties the table, so a reconnect reads it all again.
+const FULL_HISTORY_GAP_MS = (LOOKBACK_DAYS + 2) * DAY;
+
+async function hasFullHistory(vin: string): Promise<boolean> {
+  const { data, error } = await db()
+    .from("charging_sessions")
+    .select("started_at, fetched_at")
+    .eq("vehicle_vin", vin)
+    .order("started_at")
+    .limit(1);
+  if (error) throw new Error(error.message);
+  const oldest = data?.[0];
+  return Boolean(oldest && Date.parse(oldest.fetched_at as string) - Date.parse(oldest.started_at as string) > FULL_HISTORY_GAP_MS);
+}
+
+// The full read for one car. Saves only when it reached the last page and returns whether it did; a page
+// cap or a Tesla error other than auth or a rate limit leaves the car to the top-up for this check.
+async function backfillVin(vin: string): Promise<boolean> {
+  try {
+    const { rows, complete } = await fetchVinHistory(vin, BACKFILL_FROM, { maxPages: BACKFILL_MAX_PAGES, pauseMs: BACKFILL_PAUSE_MS });
+    if (!complete) {
+      console.warn(`Charging history for ${vin} runs past ${BACKFILL_MAX_PAGES} pages; reading the last ${LOOKBACK_DAYS} days instead.`);
+      return false;
+    }
+    await saveRows(rows);
+    return true;
+  } catch (err) {
+    // No scope or rate limited: a second request now won't do better, so the check skips this car.
+    if (err instanceof TeslaError && [401, 403, 429].includes(err.status)) throw err;
+    console.warn(`Full charging history read failed for ${vin}; reading the last ${LOOKBACK_DAYS} days instead:`, (err as Error).message);
+    return false;
+  }
+}
+
+async function saveRows(rows: ChargingRow[]): Promise<void> {
+  for (let i = 0; i < rows.length; i += UPSERT_CHUNK) {
+    const { error } = await db()
+      .from("charging_sessions")
+      .upsert(rows.slice(i, i + UPSERT_CHUNK), { onConflict: "session_id" });
+    if (error) throw new Error(error.message);
+  }
 }
 
 // Best effort: called from the poll, so it never throws. A 401/403 means the owner has not granted
 // the charging scope yet, which is expected until they sign in again, so it is skipped quietly.
-export async function syncChargingHistory(vins: string[]): Promise<void> {
+// With backfill (the poll, which holds the check lock), a car whose full history isn't stored yet gets all
+// of it, saved only once the last page is read: anything halfway saves nothing, and the next check tries
+// again. Every other run, and a full read that didn't finish, reads the last 120 days.
+export async function syncChargingHistory(vins: string[], { backfill = false }: { backfill?: boolean } = {}): Promise<void> {
   if (DEMO) return;
-  const startTime = new Date(Date.now() - LOOKBACK_DAYS * DAY).toISOString();
+  const windowStart = new Date(Date.now() - LOOKBACK_DAYS * DAY).toISOString();
   for (const vin of vins) {
     try {
-      const rows = await fetchVinHistory(vin, startTime);
-      if (rows.length === 0) continue;
-      const { error } = await db().from("charging_sessions").upsert(rows, { onConflict: "session_id" });
-      if (error) throw new Error(error.message);
+      if (backfill && !(await hasFullHistory(vin)) && (await backfillVin(vin))) continue;
+      const { rows } = await fetchVinHistory(vin, windowStart, { maxPages: MAX_PAGES });
+      await saveRows(rows);
     } catch (err) {
       if (err instanceof TeslaError && (err.status === 401 || err.status === 403)) continue;
       console.warn(`Charging history unavailable for ${vin}:`, (err as Error).message);
@@ -174,19 +231,23 @@ export async function loadChargingFees(sessionId: string): Promise<unknown> {
   return data?.fees ?? null;
 }
 
-// Newest first. A missing table or a read error shows as an empty list, with a log line.
-export async function loadChargingSessions(limit = LIST_LIMIT): Promise<ChargingSession[]> {
-  if (DEMO) return demoChargingSessions().slice(0, limit);
-  const { data, error } = await db()
-    .from("charging_sessions")
-    .select("session_id, vehicle_vin, site_name, started_at, stopped_at, energy_kwh, cost_total, currency, invoices")
-    .order("started_at", { ascending: false })
-    .limit(limit);
+// Every session, newest first: All time and each period are worked out from this list. A missing table
+// or a read error shows as an empty list, with a log line.
+export async function loadChargingSessions(): Promise<ChargingSession[]> {
+  if (DEMO) return demoChargingSessions();
+  const { data, error } = await readAllRows((from, to) =>
+    db()
+      .from("charging_sessions")
+      .select("session_id, vehicle_vin, site_name, started_at, stopped_at, energy_kwh, cost_total, currency, invoices")
+      .order("started_at", { ascending: false })
+      .order("session_id", { ascending: false })
+      .range(from, to),
+  );
   if (error) {
     console.warn("Charging history unavailable:", error.message);
     return [];
   }
-  return (data ?? []).map((row) => ({
+  return data.map((row) => ({
     session_id: row.session_id as string,
     vehicle_vin: row.vehicle_vin as string,
     site_name: (row.site_name as string | null) ?? null,

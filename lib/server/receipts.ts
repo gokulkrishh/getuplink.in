@@ -4,6 +4,7 @@ import { type Invoice, invoiceProblem, matchInvoice, pickedSessionFits, type Rec
 import { loadDrivingFigures } from "./driving";
 import { selectSessions, toStreamSession } from "./stream-charging";
 import { DEMO } from "@/lib/demo";
+import { readAllRows } from "@/lib/paging";
 import { db } from "./supabase";
 import { loadPrimaryVehicle } from "./telemetry";
 
@@ -36,17 +37,35 @@ type ReceiptRow = {
   invoice_path: string | null;
 };
 
+// The ids go in the URL, so a long list is read in chunks.
+const IDS_PER_READ = 200;
+
 async function receiptsFor(ids: number[]): Promise<Map<number, ReceiptRow>> {
-  if (ids.length === 0) return new Map();
-  const { data, error } = await db().from("charge_receipts").select("session_id, network, amount_total, gst, kwh_billed, invoice_number, invoice_path").in("session_id", ids);
-  if (error) throw new Error(`Reading invoices failed: ${error.message}`);
-  return new Map((data as ReceiptRow[]).map((r) => [Number(r.session_id), r]));
+  const out = new Map<number, ReceiptRow>();
+  for (let i = 0; i < ids.length; i += IDS_PER_READ) {
+    const { data, error } = await db()
+      .from("charge_receipts")
+      .select("session_id, network, amount_total, gst, kwh_billed, invoice_number, invoice_path")
+      .in("session_id", ids.slice(i, i + IDS_PER_READ));
+    if (error) throw new Error(`Reading invoices failed: ${error.message}`);
+    for (const r of data as ReceiptRow[]) out.set(Number(r.session_id), r);
+  }
+  return out;
 }
 
-async function sessionsBetween(from: number, to: number): Promise<ReceiptSession[]> {
-  const { data, error } = await selectSessions((columns) =>
-    db().from("stream_charge_sessions").select(columns).gte("started_at", new Date(from).toISOString()).lt("started_at", new Date(to).toISOString()).order("started_at", { ascending: false }).limit(200),
-  );
+// Newest first: the latest 200 for listing and matching, or with `all` every one, for the summary.
+async function sessionsBetween(from: number, to: number, { all = false }: { all?: boolean } = {}): Promise<ReceiptSession[]> {
+  const query = (columns: string) =>
+    db()
+      .from("stream_charge_sessions")
+      .select(columns)
+      .gte("started_at", new Date(from).toISOString())
+      .lt("started_at", new Date(to).toISOString())
+      .order("started_at", { ascending: false })
+      .order("id", { ascending: false });
+  const { data, error } = all
+    ? await readAllRows((a, b) => selectSessions((columns) => query(columns).range(a, b)))
+    : await selectSessions((columns) => query(columns).limit(200));
   if (error) throw new Error(`Reading sessions failed: ${error.message}`);
   return ((data ?? []) as unknown as Record<string, unknown>[]).map(toStreamSession);
 }
@@ -205,8 +224,16 @@ export async function chargingSummary(months: number) {
   const now = new Date(Date.now() + IST_MS);
   const since = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1) - IST_MS;
   const [tesla, sessions] = await Promise.all([
-    db().from("charging_sessions").select("started_at, energy_kwh, cost_total").gte("started_at", new Date(since).toISOString()),
-    sessionsBetween(since, Date.now() + DAY),
+    readAllRows((from, to) =>
+      db()
+        .from("charging_sessions")
+        .select("started_at, energy_kwh, cost_total")
+        .gte("started_at", new Date(since).toISOString())
+        .order("started_at")
+        .order("session_id")
+        .range(from, to),
+    ),
+    sessionsBetween(since, Date.now() + DAY, { all: true }),
   ]);
   if (tesla.error && !["42P01", "PGRST205"].includes(tesla.error.code)) throw new Error(`Reading Supercharger sessions failed: ${tesla.error.message}`);
   const others = sessions.filter((s) => !s.supercharger && s.ended_at != null);

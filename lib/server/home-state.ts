@@ -21,6 +21,7 @@ async function siteStates(): Promise<Map<string, (StateCode | null)[]>> {
       .from("charging_sessions")
       .select("vehicle_vin, site_name")
       .order("started_at")
+      .order("session_id")
       .range(from, from + PAGE - 1);
     if (error) {
       if (MISSING.includes(error.code)) return byVin;

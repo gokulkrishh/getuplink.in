@@ -221,9 +221,13 @@ export async function pollAll(): Promise<PollResult> {
     const located = await hasScope(LOCATION_SCOPE).catch(() => false);
     // Supercharger history is extra and can never fail the check; it touches its own table, so it
     // runs alongside the vehicles. Each car is polled on its own: one failing can't block another.
+    // The check holds the lock, so it is where a car's one-time full history read happens.
     const [results] = await Promise.all([
       Promise.allSettled(vehicles.map((vehicle) => pollVehicle(vehicle, now, located))),
-      syncChargingHistory(vehicles.map((v) => v.vin)).catch((err) =>
+      syncChargingHistory(
+        vehicles.map((v) => v.vin),
+        { backfill: true },
+      ).catch((err) =>
         console.warn("Charging history sync failed:", messageOf(err)),
       ),
       // Sessions rebuilt from Fleet Telemetry (AC and third-party charging); logs its own failures.
