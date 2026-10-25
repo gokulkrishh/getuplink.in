@@ -2,7 +2,8 @@ import { TapColumns } from "@/components/stats/tap-columns";
 import { cn } from "@/lib/utils";
 import { Measure } from "@/components/measure";
 
-export type Bar = { key: string; label: string; value: number; display: string; isCurrent: boolean; blank?: boolean };
+// `tip` is an extra line under the value in the hover tip, like "16 of 40 cars".
+export type Bar = { key: string; label: string; value: number; display: string; isCurrent: boolean; blank?: boolean; tip?: string };
 
 // 6 or 12 columns. Value labels are dropped at 12 so they don't collide on a phone.
 // With labelEvery, any number of columns (one per day, say): only every labelEvery-th column from the
@@ -67,7 +68,7 @@ export function Bars({
             </li>
           ) : (
             <li key={b.key} className="group relative flex flex-col items-center gap-2">
-              <BarTip at={k} of={bars.length} lines={[withUnit(b.display, unit)]} title={b.label} />
+              <BarTip at={k} of={bars.length} lines={[withUnit(b.display, unit), b.tip ?? null]} title={b.label} />
               <span className="h-4 font-mono text-xs text-muted-foreground tabular-nums">{dense ? "" : b.display}</span>
               <div className="flex h-20 w-full items-end justify-center">
                 {b.value > 0 && (
@@ -81,7 +82,7 @@ export function Bars({
               <span className={cn("h-4 text-xs whitespace-nowrap", b.isCurrent ? "text-foreground" : "text-faint")}>
                 {labelEvery ? (labelled(k) ? b.label : "") : <MonthLabel label={b.label} dense={dense} fromEnd={bars.length - 1 - k} />}
               </span>
-              {dense && <span className="sr-only">{withUnit(b.display, unit)}</span>}
+              {(dense || b.tip) && <span className="sr-only">{[dense && withUnit(b.display, unit), b.tip].filter(Boolean).join(", ")}</span>}
             </li>
           ),
         )}
