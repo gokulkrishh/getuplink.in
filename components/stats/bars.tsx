@@ -53,7 +53,7 @@ export function Bars({
 }
 
 // A chart with its caption underneath, or just the chart.
-export function Captioned({ caption, children }: { caption?: string; children: React.ReactNode }) {
+export function Captioned({ caption, children }: { caption?: React.ReactNode; children: React.ReactNode }) {
   if (!caption) return children;
   return (
     <figure className="space-y-2">
