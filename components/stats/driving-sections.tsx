@@ -140,9 +140,8 @@ export function DailyDriving({ days: all, frame, partial = false }: { days: DayK
         bars={bars}
         ariaLabel="Distance per day"
         labelEvery={7}
-        visible={30}
         unit="km"
-        caption={`Kilometres driven each day, last ${days.length} days.${days.length > 30 ? " Scroll sideways for days before the latest 30." : ""} Days without an odometer reading are left blank.`}
+        caption={`Kilometres driven each day, last ${days.length} days.Days without an odometer reading are left blank.`}
       />
     </section>
   );

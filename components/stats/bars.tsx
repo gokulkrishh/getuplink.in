@@ -1,4 +1,3 @@
-import { ScrollEnd } from "@/components/stats/scroll-end";
 import { TapColumns } from "@/components/stats/tap-columns";
 import { cn } from "@/lib/utils";
 import { Measure } from "@/components/measure";
@@ -8,10 +7,8 @@ export type Bar = { key: string; label: string; value: number; display: string; 
 // 6 or 12 columns. Value labels are dropped at 12 so they don't collide on a phone.
 // With labelEvery, any number of columns (one per day, say): only every labelEvery-th column from the
 // last one carries its label, and values live in the hover title and for screen readers.
-// With visible, only that many columns fit the panel and the rest scroll sideways, opening on the newest.
-// Otherwise each column is at least as wide as its label and value (see minListWidth), so on a phone a
-// chart with long labels scrolls sideways rather than running them together; `scrollFrom` says which end
-// it opens on.
+// A chart never scrolls sideways: every column fits the panel, labels thin out (labelEvery, MonthLabel)
+// rather than the chart growing past it.
 // With empty, a period with nothing to show says so (EmptyChart) in the same box instead of drawing an empty frame.
 // `caption` says in plain words what is plotted and over which bars (see chart-caption.ts); it sits under the
 // panel so a caption that wraps differently in another period never moves the chart.
@@ -24,17 +21,14 @@ export function Bars({
   bars: all,
   ariaLabel,
   labelEvery,
-  visible,
   prefix,
   unit,
   empty,
   caption,
-  scrollFrom = "end",
 }: {
   bars: Bar[];
   ariaLabel: string;
   labelEvery?: number;
-  visible?: number;
   // Put before the y-axis numbers, like "₹".
   prefix?: string;
   // Like "km" or "% a day".
@@ -44,7 +38,6 @@ export function Bars({
   // Like "Kilometres driven each month, May to Oct".
   caption?: string;
   // "start" for categories (speed bands), "end" for time, opening on the newest.
-  scrollFrom?: "start" | "end";
 }) {
   if (empty && !all.some((b) => b.value > 0)) return <EmptyChart caption={caption}>{empty}</EmptyChart>;
   const dense = all.length > 6;
@@ -57,16 +50,10 @@ export function Bars({
   const labelled = (k: number) => (labelEvery ? (bars.length - 1 - k) % labelEvery === 0 : true);
 
   const columns = labelEvery ? bars.length : Math.max(bars.length, MIN_COLUMNS);
-  const minWidth = labelEvery ? 0 : minListWidth(bars, columns, dense);
-  const scrolls = (visible !== undefined && bars.length > visible) || minWidth > 0;
   const list = (
       <TapColumns
         className={cn("grid items-end", labelEvery ? "gap-0.5" : dense ? "gap-1" : "gap-3")}
-        style={{
-          gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-          width: visible !== undefined && bars.length > visible ? `${(bars.length / visible) * 100}%` : undefined,
-          minWidth: minWidth || undefined,
-        }}
+        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
         aria-label={ariaLabel}
       >
         {bars.map((b, k) =>
@@ -103,13 +90,7 @@ export function Bars({
   return (
     <Captioned caption={caption}>
       <ChartFrame max={max} prefix={prefix} unit={unit}>
-        {scrolls ? (
-          <ScrollEnd label={ariaLabel} from={scrollFrom}>
-            {list}
-          </ScrollEnd>
-        ) : (
-          list
-        )}
+        {list}
       </ChartFrame>
     </Captioned>
   );
@@ -129,16 +110,6 @@ export function Captioned({ caption, children }: { caption?: string; children: R
   );
 }
 
-// The narrowest the columns can be with each label and value still clear of its neighbours, in px, for a
-// list's min-width: text-xs runs about 6.5px a character in the sans and 7.5px in the mono, plus room
-// between. A dense chart shortens its labels and drops every other one on a phone (MonthLabel), so it
-// needs no floor. The gap matches the list's gap-3.
-export function minListWidth(bars: { label: string; display: string }[], columns: number, dense: boolean): number {
-  if (dense) return 0;
-  const longest = (texts: string[]) => Math.max(0, ...texts.map((t) => t.length));
-  const column = Math.max(longest(bars.map((b) => b.label)) * 6.5, longest(bars.map((b) => b.display)) * 7.5) + 6;
-  return Math.ceil(columns * column + (columns - 1) * 12);
-}
 
 // In place of a bar chart with nothing in it: the panel, exactly a chart's height (h-40, see ChartFrame), with a short
 // note, and the chart's caption under it like a drawn chart's.

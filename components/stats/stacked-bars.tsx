@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BAR_MAX, BarTip, ChartFrame, EmptyChart, MIN_COLUMNS, minListWidth, MonthLabel, niceMax } from "@/components/stats/bars";
-import { ScrollEnd } from "@/components/stats/scroll-end";
+import { BAR_MAX, BarTip, ChartFrame, EmptyChart, MIN_COLUMNS, MonthLabel, niceMax } from "@/components/stats/bars";
 import { TapColumns } from "@/components/stats/tap-columns";
 import { cn } from "@/lib/utils";
 
@@ -53,11 +52,10 @@ export function StackedBars({
 
   // As in Bars: columns no narrower than their labels and values, scrolling sideways on a phone if need be.
   const columns = labelEvery ? bars.length : Math.max(bars.length, MIN_COLUMNS);
-  const minWidth = labelEvery ? 0 : minListWidth(bars.map((b) => ({ label: b.label, display: kwh.format(shownTotal(b)) })), columns, dense);
   const list = (
     <TapColumns
       className={cn("grid items-end", labelEvery ? "gap-0.5" : dense ? "gap-1" : "gap-3")}
-      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, minWidth: minWidth || undefined }}
+      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
       aria-label={ariaLabel}
     >
       {bars.map((b, k) => {
@@ -102,8 +100,7 @@ export function StackedBars({
   return (
     <div className="space-y-3">
       <ChartFrame max={max} unit="kWh">
-        {/* Only wrapped when it needs the room: its tips are laid out (hidden) and would add a sliver of scroll. */}
-        {minWidth > 0 ? <ScrollEnd label={ariaLabel}>{list}</ScrollEnd> : list}
+        {list}
       </ChartFrame>
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs" aria-label="Show or hide a charger type">
         {used.map((s) => (

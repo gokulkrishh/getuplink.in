@@ -36,7 +36,6 @@ export function SpeedBands({ bins, words = "last 30 days", note }: { bins: Drivi
         bars={bars}
         ariaLabel="Share of driving time by speed in km/h"
         unit="%"
-        scrollFrom="start"
         caption="Each bar is a speed band in km/h, and its height the percent of driving time spent in it. The band you drive in most is highlighted."
       />
     </section>
