@@ -10,10 +10,8 @@ const COLUMNS = [
   { label: "#", width: "w-10" },
   { label: "Date", width: "w-24" },
   { label: "Trip", width: "" },
-  { label: "Duration", width: "w-28" },
-  { label: "Distance", width: "w-20", right: true },
-  { label: "Energy", width: "w-24", right: true },
-  { label: "Battery used", width: "w-28", right: true },
+  { label: "Distance · time", width: "w-36", right: true },
+  { label: "Energy · battery", width: "w-36", right: true },
 ];
 
 // How much of the battery a trip took: "9%", with the start and end levels as its title. Null when either
@@ -38,29 +36,28 @@ function TripTableRow({ trip, serial, now }: { trip: Trip; serial: number; now: 
           {formatClock(trip.start)} to {formatClock(trip.end)}
         </Link>
       </th>
-      <td className="py-3 pr-3 whitespace-nowrap">
-        {formatDuration((trip.end - trip.start) / 1000)}
-        {trip.stops > 0 && (
-          <span className="block text-xs text-muted-foreground">
-            {trip.stops} {trip.stops === 1 ? "stop" : "stops"}
-          </span>
-        )}
+      <td className="py-3 pr-3 text-right whitespace-nowrap">
+        <span className="block font-mono">{formatKm(trip.km)}</span>
+        <span className="block text-xs text-muted-foreground">
+          {formatDuration((trip.end - trip.start) / 1000)}
+          {trip.stops > 0 && ` · ${trip.stops} ${trip.stops === 1 ? "stop" : "stops"}`}
+        </span>
       </td>
-      <td className="py-3 pr-3 text-right font-mono whitespace-nowrap">{formatKm(trip.km)}</td>
-      <td className="py-3 pr-3 text-right font-mono whitespace-nowrap">{trip.kwh === null ? faint : formatKwh(trip.kwh)}</td>
-      <td className="py-3 text-right font-mono whitespace-nowrap" title={battery?.levels}>
-        {battery ? battery.used : faint}
+      <td className="py-3 text-right whitespace-nowrap" title={battery?.levels}>
+        <span className="block font-mono">{trip.kwh === null ? faint : formatKwh(trip.kwh)}</span>
+        {battery && <span className="block text-xs text-muted-foreground">{battery.used} of battery</span>}
       </td>
     </tr>
   );
 }
 
-// Trips as a plain table: number, date, times, duration, distance, energy and battery used. On a phone it
+// Trips as a plain table: number, date, times, distance with the time it took, and energy with the battery
+// it used. On a phone it
 // keeps its columns and scrolls sideways. `header` is off for a continuation behind Show more.
 export function TripTable({ trips, serialOf, now, header = true }: { trips: Trip[]; serialOf: (trip: Trip) => number; now: number; header?: boolean }) {
   return (
     <div className="max-sm:-mx-1 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:px-1">
-      <table className="w-full table-fixed text-sm tabular-nums max-sm:min-w-2xl">
+      <table className="w-full table-fixed text-sm tabular-nums max-sm:min-w-xl">
         <colgroup>
           {COLUMNS.map((c) => (
             <col key={c.label} className={c.width} />

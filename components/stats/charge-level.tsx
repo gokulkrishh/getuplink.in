@@ -33,7 +33,8 @@ const RANGES = [
 export function ChargeLevelChart({ level, now, frame }: { level: ChargeLevel | null; now: number; frame?: Pick<Timeframe, "span" | "title" | "words"> }) {
   const [days, setDays] = useState(7);
   if (!level || level.points.length < 2) return null;
-  const from = Math.max(level.from, frame ? frame.span.from : now - days * DAY);
+  // On home the line starts at the first reading in the span, so a long period doesn't squeeze it to one side.
+  const from = frame ? Math.max(level.points.find((p) => p.at >= frame.span.from)?.at ?? level.from, frame.span.from) : Math.max(level.from, now - days * DAY);
   const to = frame ? Math.min(now, frame.span.to) : now;
   const points = level.points.filter((p) => p.at >= from && p.at < to);
   const charging = level.charging.filter((c) => c.end > from && c.start < to).map((c) => ({ start: Math.max(c.start, from), end: Math.min(c.end, to) }));
@@ -41,6 +42,15 @@ export function ChargeLevelChart({ level, now, frame }: { level: ChargeLevel | n
   // The readings kept start after the span does: "This year. Readings go back to 25 Sept."
   const cut = frame && frame.span.from < level.from ? ` Readings go back to ${formatShortDate(level.from)}.` : "";
   const caption = frame ? `${frame.title}.${cut}${charging.length > 0 ? " Shaded while charging." : ""}` : charging.length > 0 ? `Last ${days} days, shaded while charging` : `Last ${days} days`;
+  // On home the car strip already shows the charge now, so the chart stands alone with one line saying what it is.
+  if (frame) {
+    return (
+      <div className="space-y-3">
+        {points.length >= 2 ? <Plot points={points} charging={charging} from={from} to={to} /> : <p className="text-sm text-muted-foreground">No readings {frame.words}.{cut}</p>}
+        {points.length >= 2 && <p className="text-xs text-faint">Charge level over time. {caption}</p>}
+      </div>
+    );
+  }
   return (
     <section className="space-y-8">
       <div className="space-y-2">
@@ -49,11 +59,11 @@ export function ChargeLevelChart({ level, now, frame }: { level: ChargeLevel | n
         <p className="text-sm text-muted-foreground">{caption}</p>
       </div>
       <div className="space-y-4">
-        {!frame && <Segmented label="Range" options={RANGES} value={days} onChange={setDays} />}
+        <Segmented label="Range" options={RANGES} value={days} onChange={setDays} />
         {points.length >= 2 ? (
           <Plot points={points} charging={charging} from={from} to={to} />
         ) : (
-          <p className="text-sm text-muted-foreground">{frame ? `No readings ${frame.words}.${cut}` : `No readings in the last ${days} days.`}</p>
+          <p className="text-sm text-muted-foreground">No readings in the last {days} days.</p>
         )}
       </div>
     </section>
