@@ -26,7 +26,7 @@ const oneDecimal = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 function Section({ title, view, more, children }: { title: string; view: View; more: string; children: ReactNode }) {
   return (
     <section className="space-y-6">
-      <div className="flex items-baseline justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <h2 className="text-lg font-medium tracking-heading">{title}</h2>
         <MoreLink view={view}>{more}</MoreLink>
       </div>
@@ -74,7 +74,7 @@ export function ChargingSection({ frames, sessions, listed, now }: { frames: Hom
     );
   };
   return (
-    <Section title="Charging" view="charging" more="All sessions">
+    <Section title="Charging" view="charging" more="See all sessions">
       {eachFrame(frames, chart, { steady: true })}
       {eachFrame(frames, rows)}
     </Section>
@@ -112,7 +112,7 @@ export function DrivingSection({ frames, figures, drives, now }: { frames: HomeF
     );
   };
   return (
-    <Section title="Driving" view="driving" more="All trips">
+    <Section title="Driving" view="driving" more="See all trips">
       {eachFrame(frames, chart, { steady: true })}
       {eachFrame(frames, rows)}
     </Section>
@@ -139,7 +139,7 @@ export function BatterySection({
   const usually = drain && `${oneDecimal.format(drain.percentPerDay)}% a day`;
   const lost = parkedNow?.lostPercent ?? null;
   return (
-    <Section title="Battery" view="battery" more="Battery details">
+    <Section title="Battery" view="battery" more="See battery details">
       {(parkedNow || usually) && (
         <div className="space-y-3">
           {parkedNow && (
