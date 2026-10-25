@@ -76,6 +76,49 @@ Current entries:
 
 Where you can, prefer a unit people already understand. The drive page shows acceleration as km/h per second (the car's m/s² × 3.6) instead of m/s². Its tiles say "8.8 km/h" with the note "Gained in one second, at 8:27 AM", because the full unit doesn't fit a phone tile.
 
+## Building blocks
+
+- `ChartCard`, in `components/chart-card.tsx`: the wrapper.
+- `DriveTrace`, in `components/stats/drive-lanes.tsx` (the file kept its old name): a single-series line over a time span. It has HTML axes, breaks at gaps and shows a tooltip.
+- `Bars`, `ChartFrame`, `Captioned` and `EmptyChart`, in `components/stats/bars.tsx`: bar charts.
+- `LineChart`, in `components/stats/line-chart.tsx`: lines over a 600-wide `viewBox`, so its 11px text renders at about 7px on a 390px phone. Move its axes to HTML following the `DriveTrace` pattern.
+- The glossary: `lib/unit-words.ts`.
+
 ## Charts that move to ChartCard in phase 2
 
-See the phase 1 report for the full list. They include the bar sections in `driving-sections.tsx`, `charging-sections.tsx`, `driving-extras.tsx`, `rollout-adoption.tsx` and `components/home/sections.tsx`; the `LineChart` users in `battery-extras.tsx` and `charging-extras.tsx`; and the custom plots (charge curve, charge level, battery trend, version chart, parked drain, charge habits, season efficiency, awake and day timelines).
+| File | Chart | What it shows |
+| --- | --- | --- |
+| `components/stats/driving-sections.tsx` | Distance | Bars: km per slot of the period |
+| `components/stats/driving-sections.tsx` | Energy use and regen | Bars: kWh used per slot, then kWh won back by regen |
+| `components/stats/driving-sections.tsx` | Driving per day | Bars: km per day, last 90 days |
+| `components/stats/driving-extras.tsx` | Time at each speed | Bars: time spent in each speed band |
+| `components/stats/driving-extras.tsx` | Efficiency | Wh/km figures |
+| `components/stats/driving-extras.tsx` | Places | Map of everywhere the car went |
+| `components/stats/season-efficiency.tsx` | Efficiency by season | Tiles: Wh/km per Indian season |
+| `components/stats/day-timeline.tsx` | Timeline (Driving page, day page) | Strips of driving, parked and charging by time of day |
+| `components/stats/trip-timeline.tsx` | Timeline (drive page) | Legs and stops of a trip |
+| `components/stats/trip-map.tsx` | Map (drive page, day page) | Route with start, stops and end |
+| `components/stats/charging-sections.tsx` | Spend | Bars: Supercharger bill per slot |
+| `components/stats/charging-sections.tsx` | Energy added | Stacked bars (`stacked-bars.tsx`): kWh added per slot, by charger type |
+| `components/stats/charging-extras.tsx` | DC charging speed | `LineChart`: kW against battery % |
+| `components/stats/charging-extras.tsx` | Charging map | Where charges happened |
+| `components/stats/charge-habits.tsx` | When you charge | Heatmap of charge starts by weekday and hour |
+| `components/stats/charge-range.tsx` | Charge range | Bars across 0 to 100%: where charges start and stop |
+| `components/stats/charge-level.tsx` + `charge-level-plot.tsx` | Charge level | Recharts: battery % over the span, charging shaded (Battery page and home) |
+| `components/stats/charge-curve.tsx` + `charge-curve-plot.tsx` | Charge curve (charge detail page) | Recharts: kW and battery % through one charge |
+| `components/stats/charge-supply.tsx` | Charger | Tiles: volts, amps, phases, cable (explain V and A) |
+| `components/stats/battery-pack.tsx` + `battery-trend*.tsx` | Usable capacity by week | Recharts: kWh a full pack holds, by week |
+| `components/stats/battery-extras.tsx` | Temperatures | `LineChart`: battery, inside and outside °C |
+| `components/stats/battery-extras.tsx` | Cell balance | `LineChart`: spread between cells |
+| `components/stats/battery-extras.tsx` | Capacity by distance | `LineChart`: full-pack kWh against odometer km |
+| `components/stats/battery-extras.tsx` | Full pack by week, per Tesla | `LineChart`: Tesla's full-pack kWh by week |
+| `components/stats/battery-health.tsx` | Battery health | Tiles: capacity, range at 100%, cycles, charging efficiency |
+| `components/stats/parked-drain.tsx` | Parked drain | Headline and rows: % a day and W lost while parked |
+| `components/stats/awake-timeline.tsx` + `awake-strip.tsx` | Online and asleep (Updates page) | Strips of awake and asleep runs per day |
+| `components/home/sections.tsx` | Home sections | Bars: spend and distance per slot |
+| `components/home/sparkline.tsx` | Headline sparklines (home) | Small bars or line behind each headline number |
+| `components/version-chart.tsx` + `version-chart-plot.tsx` | Version history (Updates page, preview) | Recharts step line of software versions |
+| `components/rollout-adoption.tsx` | Rollout adoption | Bars: cars on each version |
+| `components/rollout-map.tsx` | Rollout map | India's states shaded by cars on a version |
+
+Maps, timelines and tile-only sections still take the same title and description. Tiles explain their units through the glossary.

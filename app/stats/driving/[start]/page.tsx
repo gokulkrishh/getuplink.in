@@ -109,7 +109,7 @@ function Drive({ detail }: { detail: DriveDetail }) {
             <div className="space-y-1">
               <h2 className="text-lg font-medium tracking-heading">Over the drive</h2>
               <p className="text-sm text-muted-foreground">
-                What the car sent from {formatClock(trip.start)} to {formatClock(trip.end)}, one chart for each. Hover or tap a chart for the time and value.
+                What the car sent from {formatClock(trip.start)} to {formatClock(trip.end)}, one chart per measure. Hover or tap a chart for the time and value.
                 {trip.stops > 0 && " Gaps in a line are stops."}
               </p>
             </div>

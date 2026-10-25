@@ -3,7 +3,7 @@
 // and are never explained. Each entry is one sentence, without its full stop.
 export const UNIT_WORDS: Record<string, string> = {
   kWh: "kWh (kilowatt-hours) is energy, the same unit as on an electricity bill",
-  kW: "kW (kilowatts) is power, how fast energy flows at a moment",
+  kW: "kW (kilowatts) is power, how fast energy flows at a moment; kW is to kWh what km/h is to km",
   "km/h per second": "km/h per second is how much speed the car gained or lost in one second",
   "m/s²": "m/s² is how quickly the car sped up or slowed down: 1 m/s² is 3.6 km/h gained or lost each second",
   "Wh/km": "Wh/km is the energy used for each kilometre, in watt-hours (1,000 Wh is 1 kWh); lower is more efficient",
