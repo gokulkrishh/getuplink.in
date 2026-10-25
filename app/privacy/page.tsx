@@ -123,7 +123,7 @@ export default function PrivacyPage() {
             <p className="mt-2 text-sm text-muted-foreground">Until you delete it, except streamed readings.</p>
             <ul className={LIST}>
               <li>
-                Streamed readings are kept as long as a page shows them: charging, battery, odometer and software
+                Streamed readings are kept as long as a page shows them: charging, charge level, odometer and software
                 updates for good; trip routes, speed and location for 120 days; the rest for 7 to 14 days. The
                 latest reading of each kind is always kept, so the car page can show it.
               </li>
