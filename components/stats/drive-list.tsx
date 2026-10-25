@@ -56,8 +56,10 @@ function TripTableRow({ trip, serial, now }: { trip: Trip; serial: number; now: 
 // keeps its columns and scrolls sideways. `header` is off for a continuation behind Show more.
 export function TripTable({ trips, serialOf, now, header = true }: { trips: Trip[]; serialOf: (trip: Trip) => number; now: number; header?: boolean }) {
   return (
-    <div className="max-sm:-mx-1 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:px-1">
-      <table className="w-full table-fixed text-sm tabular-nums max-sm:min-w-xl">
+    // The table sits 0.75rem wider than the column on each side and pads its outer cells by the same, so a
+    // highlighted row has room around its text while the text still lines up with the page.
+    <div className="-mx-3 max-sm:overflow-x-auto max-sm:overflow-y-hidden">
+      <table className="w-full table-fixed text-sm tabular-nums max-sm:min-w-xl [&_td:first-child]:pl-3 [&_td:last-child]:pr-3 [&_th:first-child]:pl-3 [&_th:last-child]:pr-3">
         <colgroup>
           {COLUMNS.map((c) => (
             <col key={c.label} className={c.width} />
@@ -67,7 +69,7 @@ export function TripTable({ trips, serialOf, now, header = true }: { trips: Trip
           <thead>
             <tr className="border-b text-left text-xs text-faint">
               {COLUMNS.map((c) => (
-                <th key={c.label} scope="col" className={`pb-2 pr-3 font-normal last:pr-0 ${c.right ? "text-right" : ""}`}>
+                <th key={c.label} scope="col" className={`pb-2 pr-3 font-normal ${c.right ? "text-right" : ""}`}>
                   {c.label}
                 </th>
               ))}

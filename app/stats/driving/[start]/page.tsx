@@ -121,8 +121,8 @@ function Legs({ legs }: { legs: DriveDetail["trip"]["legs"] }) {
   return (
     <section className="space-y-4">
       <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Legs</h2>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-md text-sm tabular-nums">
+      <div className="-mx-3 overflow-x-auto">
+        <table className="w-full min-w-md text-sm tabular-nums [&_td:last-child]:pr-3 [&_th:first-child]:pl-3 [&_th:last-child]:pr-3">
           <thead>
             <tr className="border-b text-left text-xs text-faint">
               <th scope="col" className="py-2 pr-4 font-normal">Leg</th>
