@@ -42,7 +42,7 @@ export function DayTimeline({ days: all7, now, title = "Your days", caption }: {
       <ol ref={list} className="chart-touch space-y-1.5" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
         {[...days].reverse().map((d) => (
           <li key={d.day} className="flex items-center gap-3">
-            <Link href={`/stats/day/${dayParam(d.day)}`} className="w-16 shrink-0 text-xs text-faint hover:text-foreground hover:underline hover:underline-offset-4">
+            <Link href={`/stats/day/${dayParam(d.day)}`} className="w-16 shrink-0 text-xs text-muted-foreground underline decoration-border decoration-dotted underline-offset-4 hover:text-foreground hover:decoration-foreground">
               {formatDayLabel(d.start, now)}
             </Link>
             <div className="relative h-4 flex-1">

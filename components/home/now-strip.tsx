@@ -1,3 +1,4 @@
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { BatteryGauge } from "@/components/battery-gauge";
@@ -19,10 +20,14 @@ export function NowStrip({ car, odometerKm, now }: { car: HomeCar; odometerKm: n
     <section aria-label="Your car now" className="space-y-4">
       {awake && <AutoRefresh />}
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <h2 className="min-w-0 truncate text-sm text-muted-foreground">
-          <Link href={`/car/${vehicle.id}`} prefetch={true} className="transition-colors duration-150 hover:text-foreground">
-            {vehicle.display_name || "Tesla"}
-            {carLabel && <span className="ml-2 text-faint">· {carLabel}</span>}
+        {/* The car's name opens its page: set as a link (foreground, arrow), not as a caption. */}
+        <h2 className="min-w-0 text-sm">
+          <Link href={`/car/${vehicle.id}`} prefetch={true} className="group inline-flex max-w-full items-center gap-1 rounded-sm">
+            <span className="truncate">
+              <span className="font-medium text-foreground group-hover:underline group-hover:underline-offset-4">{vehicle.display_name || "Tesla"}</span>
+              {carLabel && <span className="text-muted-foreground"> · {carLabel}</span>}
+            </span>
+            <ChevronRight aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground transition-[color,translate] duration-150 group-hover:translate-x-0.5 group-hover:text-foreground" />
           </Link>
         </h2>
         <p className="shrink-0 text-sm text-faint tabular-nums">
@@ -41,7 +46,7 @@ export function NowStrip({ car, odometerKm, now }: { car: HomeCar; odometerKm: n
       {battery && <BatteryGauge snapshot={battery} />}
       {vehicle.current_version ? (
         <p className="text-sm text-muted-foreground tabular-nums">
-          <Link href="/updates" prefetch={true} className="font-mono transition-colors duration-150 hover:text-foreground">
+          <Link href="/updates" prefetch={true} className="font-mono underline decoration-border decoration-dotted underline-offset-4 transition-colors duration-150 hover:text-foreground hover:decoration-foreground">
             {vehicle.current_version}
           </Link>
           {odometerKm !== null && <span> · {formatKm(odometerKm)}</span>}
