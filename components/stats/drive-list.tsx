@@ -9,81 +9,97 @@ import { LIST_PREVIEW } from "@/lib/list";
 // Names the drive list's columns, on the same grid as its rows.
 export function DriveHeader() {
   return (
-    <div className="grid grid-cols-session-wide gap-x-4 pb-2 text-xs text-faint" aria-hidden="true">
+    <div className="grid grid-cols-drive gap-x-4 pb-2 text-xs text-faint" aria-hidden="true">
       <span>Date</span>
       <span>Trip</span>
-      <span className="text-right">Energy · battery</span>
-      <span />
+      <span className="text-right">Distance</span>
+      <span className="text-right">Energy</span>
     </div>
   );
 }
 
-export function DriveRow({ drive, serial, now }: { drive: Drive; serial: number; now: number }) {
-  const levels =
-    drive.startLevel !== null && drive.endLevel !== null ? `${Math.round(drive.startLevel)}% to ${Math.round(drive.endLevel)}%` : null;
+function levels(start: number | null, end: number | null): string | null {
+  return start !== null && end !== null ? `${Math.round(start)}% to ${Math.round(end)}%` : null;
+}
+
+// The row's first line: its number, then the times, as the link that covers the whole row.
+function Title({ serial, start, end }: { serial: number; start: number; end: number }) {
   return (
-    <li className="relative grid grid-cols-session-wide items-start gap-x-4 py-4 text-sm">
+    <p className="truncate font-medium tabular-nums">
+      <span className="mr-2 font-mono text-xs font-normal text-faint">#{serial}</span>
+      <Link href={`/stats/driving/${start}`} className="after:absolute after:inset-0 hover:underline hover:underline-offset-4">
+        {formatClock(start)} to {formatClock(end)}
+      </Link>
+    </p>
+  );
+}
+
+// Distance, then the energy used with the battery's start and end level under it (each only when known).
+function Figures({ km, kwh, level }: { km: number; kwh: number | null; level: string | null }) {
+  return (
+    <>
+      <p className="text-right font-mono font-medium whitespace-nowrap tabular-nums">{formatKm(km)}</p>
+      <div className="space-y-1 text-right">
+        {kwh === null ? (
+          <p className="text-faint">—</p>
+        ) : (
+          <p className="font-mono font-medium whitespace-nowrap tabular-nums">{formatKwh(kwh)}</p>
+        )}
+        {level && <p className="text-xs whitespace-nowrap text-muted-foreground tabular-nums">{level}</p>}
+      </div>
+    </>
+  );
+}
+
+export function DriveRow({ drive, serial, now }: { drive: Drive; serial: number; now: number }) {
+  return (
+    <li className="relative grid grid-cols-drive items-start gap-x-4 py-4 text-sm">
       <p className="tabular-nums">{formatDayLabel(drive.start, now)}</p>
       <div className="min-w-0 space-y-1">
-        <p className="truncate font-medium tabular-nums">
-          <span className="mr-2 font-mono text-xs font-normal text-faint">#{serial}</span>
-          <Link href={`/stats/driving/${drive.start}`} className="after:absolute after:inset-0 hover:underline hover:underline-offset-4">
-            {formatClock(drive.start)} to {formatClock(drive.end)}
-          </Link>
-        </p>
-        <p className="truncate text-xs text-muted-foreground tabular-nums">
-          {formatKm(drive.km)} · {formatDuration((drive.end - drive.start) / 1000)}
-        </p>
+        <Title serial={serial} start={drive.start} end={drive.end} />
+        <p className="truncate text-xs text-muted-foreground tabular-nums">{formatDuration((drive.end - drive.start) / 1000)}</p>
       </div>
-      <div className="space-y-1 text-right">
-        {drive.kwh !== null && <p className="font-mono font-medium tabular-nums">{formatKwh(drive.kwh)}</p>}
-        {levels && <p className="text-xs text-muted-foreground tabular-nums">{levels}</p>}
-      </div>
-      <div />
+      <Figures km={drive.km} kwh={drive.kwh} level={levels(drive.startLevel, drive.endLevel)} />
     </li>
   );
 }
 
 // A trip of several legs with short stops between (see groupTrips): the trip's totals, linking to the
-// whole trip's page, then each leg behind a toggle, which opens its own.
+// whole trip's page, then each leg behind a toggle at the end of the second line, which opens its own.
+// The summary lets taps through to the row's link except on "3 legs" itself (a tap on a summary's
+// child still toggles it).
 export function TripRow({ trip, serial, now }: { trip: Trip; serial: number; now: number }) {
   if (trip.legs.length === 1) return <DriveRow drive={trip.legs[0]} serial={serial} now={now} />;
-  const levels = trip.startLevel !== null && trip.endLevel !== null ? `${Math.round(trip.startLevel)}% to ${Math.round(trip.endLevel)}%` : null;
   return (
-    <li className="grid grid-cols-session-wide items-start gap-x-4 py-4 text-sm">
+    <li className="relative grid grid-cols-drive items-start gap-x-4 py-4 text-sm">
       <p className="tabular-nums">{formatDayLabel(trip.start, now)}</p>
       <div className="min-w-0 space-y-1">
-        <p className="truncate font-medium tabular-nums">
-          <span className="mr-2 font-mono text-xs font-normal text-faint">#{serial}</span>
-          <Link href={`/stats/driving/${trip.start}`} className="hover:underline hover:underline-offset-4">
-            {formatClock(trip.start)} to {formatClock(trip.end)}
-          </Link>
-        </p>
-        <p className="truncate text-xs text-muted-foreground tabular-nums">
-          {formatKm(trip.km)} · {formatDuration((trip.end - trip.start) / 1000)} · {trip.stops} {trip.stops === 1 ? "stop" : "stops"}
-        </p>
+        <Title serial={serial} start={trip.start} end={trip.end} />
         <details className="group">
-          <summary className="flex w-fit cursor-pointer list-none items-center gap-1 text-xs text-faint hover:text-foreground [&::-webkit-details-marker]:hidden">
-            {trip.legs.length} legs
-            <ChevronDown aria-hidden="true" className="size-3 transition-transform group-open:rotate-180" />
+          <summary className="pointer-events-none relative z-10 flex w-fit max-w-full cursor-pointer list-none items-center gap-1 rounded-sm text-xs text-muted-foreground tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+            <span className="truncate">
+              {formatDuration((trip.end - trip.start) / 1000)} · {trip.stops} {trip.stops === 1 ? "stop" : "stops"} ·
+            </span>
+            <span className="pointer-events-auto flex shrink-0 items-center gap-0.5 text-foreground hover:underline hover:underline-offset-4">
+              {trip.legs.length} legs
+              <ChevronDown aria-hidden="true" className="size-3 transition-transform group-open:rotate-180" />
+            </span>
           </summary>
-          <ul className="mt-2 space-y-1 border-l pl-3 text-xs text-muted-foreground tabular-nums">
+          <ul className="relative z-10 mt-2 w-fit max-w-full space-y-1 border-l pl-3 text-xs text-muted-foreground tabular-nums">
             {trip.legs.map((d) => (
-              <li key={d.start} className="flex justify-between gap-3">
+              <li key={d.start} className="truncate">
                 <Link href={`/stats/driving/${d.start}?leg`} className="hover:text-foreground hover:underline hover:underline-offset-4">
-                  {formatClock(d.start)} to {formatClock(d.end)} · {formatKm(d.km)}
+                  {formatClock(d.start)} to {formatClock(d.end)}
                 </Link>
-                {d.kwh !== null && <span className="font-mono">{formatKwh(d.kwh)}</span>}
+                {" · "}
+                {formatKm(d.km)}
+                {d.kwh !== null && ` · ${formatKwh(d.kwh)}`}
               </li>
             ))}
           </ul>
         </details>
       </div>
-      <div className="space-y-1 text-right">
-        {trip.kwh !== null && <p className="font-mono font-medium tabular-nums">{formatKwh(trip.kwh)}</p>}
-        {levels && <p className="text-xs text-muted-foreground tabular-nums">{levels}</p>}
-      </div>
-      <div />
+      <Figures km={trip.km} kwh={trip.kwh} level={levels(trip.startLevel, trip.endLevel)} />
     </li>
   );
 }
