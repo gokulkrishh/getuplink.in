@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef } from "react";
+import { FloatTip, useActiveMark } from "@/components/stats/float-tip";
 import { type Day, type DayKind, dayParam } from "@/lib/day-timeline";
 import { formatClock, formatDayLabel, formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -18,26 +19,22 @@ const KINDS: { kind: DayKind; label: string; className: string }[] = [
 const style = Object.fromEntries(KINDS.map((k) => [k.kind, k])) as Record<DayKind, (typeof KINDS)[number]>;
 
 // The last days as strips, after TeslaMate's timeline: when the car was driving, charging, parked or
-// seen asleep. Hover, focus or tap a stretch for its times; the line above says them.
+// seen asleep. Hover, focus or tap a stretch for a tooltip with its times.
 export function DayTimeline({ days: all7, now, title = "Your days" }: { days: Day[]; now: number; title?: string }) {
-  const [active, setActive] = useState<string | null>(null);
+  const list = useRef<HTMLOListElement>(null);
+  const [active, setActive] = useActiveMark<string>(list);
   // Days from before tracking began say nothing, so the strips start at the first tracked one.
   const firstTracked = all7.findIndex((d) => d.segments.some((s) => s.kind !== "unknown"));
   const days = firstTracked < 0 ? [] : all7.slice(firstTracked);
   const all = days.flatMap((d) => d.segments.map((s) => ({ ...s, key: `${d.day}-${s.start}` })));
-  const shown = all.find((s) => s.key === active);
+  const shown = active && all.find((s) => s.key === active.key);
   if (!all.some((s) => s.kind !== "unknown")) return null;
   const describe = (s: (typeof all)[number]) => `${style[s.kind].label} · ${formatClock(s.start)} to ${formatClock(s.end)} · ${formatDuration((s.end - s.start) / 1000)}`;
 
   return (
     <section className="space-y-4">
-      <div className="space-y-2">
-        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">{title}</h2>
-        <p className="text-sm text-muted-foreground tabular-nums" aria-live="polite">
-          {shown ? describe(shown) : "Hover or tap a stretch for its times."}
-        </p>
-      </div>
-      <ol className="chart-touch space-y-1.5" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
+      <h2 className="text-xs font-medium tracking-wide text-faint uppercase">{title}</h2>
+      <ol ref={list} className="chart-touch space-y-1.5" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
         {[...days].reverse().map((d) => (
           <li key={d.day} className="flex items-center gap-3">
             <Link href={`/stats/day/${dayParam(d.day)}`} className="w-16 shrink-0 text-xs text-faint hover:text-foreground hover:underline hover:underline-offset-4">
@@ -51,19 +48,29 @@ export function DayTimeline({ days: all7, now, title = "Your days" }: { days: Da
                     key={key}
                     type="button"
                     aria-label={describe({ ...s, key })}
-                    aria-pressed={active === key}
-                    onPointerEnter={(e) => e.pointerType === "mouse" && setActive(key)}
-                    onFocus={() => setActive(key)}
-                    onClick={() => setActive(key)}
+                    aria-pressed={active?.key === key}
+                    onPointerEnter={(e) => e.pointerType === "mouse" && setActive({ key, el: e.currentTarget })}
+                    onFocus={(e) => setActive({ key, el: e.currentTarget })}
+                    onClick={(e) => setActive({ key, el: e.currentTarget })}
                     className={cn(
                       "absolute inset-y-0 outline-offset-1 focus-visible:outline-2 focus-visible:outline-ring",
                       style[s.kind].className,
-                      active === key && "ring-2 ring-foreground",
+                      active?.key === key && "ring-2 ring-foreground",
                     )}
                     style={{ left: `${((s.start - d.start) / DAY) * 100}%`, width: `max(${((s.end - s.start) / DAY) * 100}%, 2px)` }}
                   />
                 );
               })}
+              {active && shown && active.key.startsWith(`${d.day}-`) && (
+                <FloatTip anchor={active.el}>
+                  <span className="block text-muted-foreground">
+                    {style[shown.kind].label} · {formatDuration((shown.end - shown.start) / 1000)}
+                  </span>
+                  <span className="block">
+                    {formatClock(shown.start)} to {formatClock(shown.end)}
+                  </span>
+                </FloatTip>
+              )}
             </div>
           </li>
         ))}
