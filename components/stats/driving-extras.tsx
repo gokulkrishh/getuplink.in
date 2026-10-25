@@ -8,8 +8,14 @@ const oneDecimal = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 const TAGS = { home: "Home", work: "Work", favorite: "Favourite" } as const;
 const placeName = (p: NamedPlace, k: number) => (p.tag ? TAGS[p.tag] : (p.name ?? `Place ${k + 1}`));
 
+// What each insight covers, ending its caption: the last 30 days, or a range picked by date ("from 1 Sept
+// to 30 Sept"); `note` says when that range reaches back past the readings kept.
+type Covers = { words?: string; note?: string };
+
+const Note = ({ note }: { note?: string }) => (note ? <p className="text-xs text-faint">{note}</p> : null);
+
 // How long you spend at each speed, after TeslaMate's speed histogram.
-export function SpeedBands({ bins }: { bins: DrivingExtras["speed"] }) {
+export function SpeedBands({ bins, words = "last 30 days", note }: { bins: DrivingExtras["speed"] } & Covers) {
   if (bins.length === 0) return null;
   const bars = bins.map((b, k) => ({
     key: String(b.from),
@@ -22,7 +28,8 @@ export function SpeedBands({ bins }: { bins: DrivingExtras["speed"] }) {
     <section className="space-y-6">
       <div className="space-y-2">
         <h2 className="text-lg font-medium tracking-heading">Time at each speed</h2>
-        <p className="text-sm text-muted-foreground">Share of driving time in each speed band, km/h, last 30 days.</p>
+        <p className="text-sm text-muted-foreground">Share of driving time in each speed band, km/h, {words}.</p>
+        <Note note={note} />
       </div>
       <Bars bars={bars} ariaLabel="Share of driving time by speed in km/h" unit="%" scrollFrom="start" />
     </section>
@@ -68,13 +75,14 @@ function BandTable({ title, bands }: { title: string; bands: Band[] }) {
 }
 
 // How far a kWh goes in different weather and at different speeds, after TeslaMate's efficiency.
-export function EfficiencyBands({ byTemp, bySpeed }: { byTemp: Band[]; bySpeed: Band[] }) {
+export function EfficiencyBands({ byTemp, bySpeed, words = "last 30 days", note }: { byTemp: Band[]; bySpeed: Band[] } & Covers) {
   if (byTemp.length === 0 && bySpeed.length === 0) return null;
   return (
     <section className="space-y-6">
       <div className="space-y-2">
         <h2 className="text-lg font-medium tracking-heading">Efficiency</h2>
-        <p className="text-sm text-muted-foreground">How far each kWh took you, by outside temperature and by average speed, last 30 days. Higher is better.</p>
+        <p className="text-sm text-muted-foreground">How far each kWh took you, by outside temperature and by average speed, {words}. Higher is better.</p>
+        <Note note={note} />
       </div>
       <BandTable title="Outside" bands={byTemp} />
       <BandTable title="Average speed" bands={bySpeed} />
@@ -84,7 +92,7 @@ export function EfficiencyBands({ byTemp, bySpeed }: { byTemp: Band[]; bySpeed: 
 
 // Where the car parks, after TeslaMate's locations: Home, Work and Favourite from the car's own settings,
 // other spots by area name, with visits and time parked; then everywhere it went on a map.
-export function Places({ places, visited }: { places: NamedPlace[]; visited: DrivingExtras["visited"] }) {
+export function Places({ places, visited, words = "last 30 days", note }: { places: NamedPlace[]; visited: DrivingExtras["visited"] } & Covers) {
   if (places.length === 0 && visited.length < 2) return null;
   const pins = places.slice(0, 15).map((p, k) => ({
     lat: p.lat,
@@ -98,7 +106,8 @@ export function Places({ places, visited }: { places: NamedPlace[]; visited: Dri
     <section className="space-y-6">
       <div className="space-y-2">
         <h2 className="text-lg font-medium tracking-heading">Places</h2>
-        <p className="text-sm text-muted-foreground">Where you went and where the car parked, last 30 days.</p>
+        <p className="text-sm text-muted-foreground">Where you went and where the car parked, {words}.</p>
+        <Note note={note} />
       </div>
       {(pins.length > 0 || visited.length >= 2) && <TripMap route={visited} pins={pins} label="Everywhere the car went, with where it parked" />}
       {places.length > 0 && (

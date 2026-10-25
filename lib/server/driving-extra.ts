@@ -1,6 +1,7 @@
 import "server-only";
 import { MILES_TO_KM } from "@/lib/car";
 import type { Drive } from "@/lib/drives";
+import type { Span } from "@/lib/periods";
 import { type Band, efficiencyBands, type LatLng, type Place, places, speedHistogram, type TimedValue } from "@/lib/driving-insights";
 import { num, type Reading } from "@/lib/telemetry-derive";
 import { placeKey, placeNames } from "./place-names";
@@ -33,24 +34,26 @@ const located = (readings: Reading[] | undefined): LatLng[] =>
     return lat === null || lng === null || (lat === 0 && lng === 0) ? [] : [{ t: Date.parse(r.at), lat, lng }];
   });
 
-// The Driving page's insights for the last INSIGHT_DAYS: speed bands, efficiency by temperature and
-// speed, where the car parks, and everywhere it went. Each is empty until the car streams its fields.
-export async function loadDrivingExtras(vin: string | null, allDrives: Drive[], now: number): Promise<DrivingExtras> {
+// The Driving page's insights for the last INSIGHT_DAYS, or for `window` (a range picked by date, cut to the
+// drives kept): speed bands, efficiency by temperature and speed, where the car parks, and everywhere it
+// went. Each is empty until the car streams its fields.
+export async function loadDrivingExtras(vin: string | null, allDrives: Drive[], now: number, window?: Span): Promise<DrivingExtras> {
   const empty: DrivingExtras = { speed: [], byTemp: [], bySpeed: [], places: [], visited: [] };
   if (!vin) return empty;
-  const from = now - INSIGHT_DAYS * DAY;
-  const drives = allDrives.filter((d) => d.start >= from);
+  const { from, to } = window ?? { from: now - INSIGHT_DAYS * DAY, to: now };
+  if (from >= to) return empty;
+  const drives = allDrives.filter((d) => d.start >= from && d.start < to);
   const r = await loadReadingsByField(
     vin,
     ["VehicleSpeed", "OutsideTemp", "Location", "LocatedAtHome", "LocatedAtWork", "LocatedAtFavorite"],
     new Date(from).toISOString(),
-    new Date(now).toISOString(),
+    new Date(to).toISOString(),
   );
   if (!r) return empty;
   const locations = located(r.Location);
   // VehicleSpeed arrives in mph, like the odometer.
   const { byTemp, bySpeed } = efficiencyBands(drives, timed(r.OutsideTemp));
-  const parked = places(drives, locations, { home: timed(r.LocatedAtHome), work: timed(r.LocatedAtWork), favorite: timed(r.LocatedAtFavorite) }, now);
+  const parked = places(drives, locations, { home: timed(r.LocatedAtHome), work: timed(r.LocatedAtWork), favorite: timed(r.LocatedAtFavorite) }, to);
   const names = await placeNames(parked.filter((p) => !p.tag).slice(0, 12));
   const inDrive = (t: number) => drives.some((d) => t >= d.start - 60_000 && t <= d.end + 60_000);
   const visited = locations.filter((p) => inDrive(p.t)).filter((p, k, all) => k === 0 || p.t - all[k - 1].t >= ROUTE_STEP_MS || all[k - 1].t < p.t - 5 * 60_000);

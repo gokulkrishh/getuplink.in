@@ -8,7 +8,8 @@ const kindLabel = (s: StreamChargeSession) => (s.supercharger ? "Supercharger" :
 
 // Where charges start and stop, after TeslaMate's charge delta: the median start and end level, then the
 // latest charges as bars across 0–100%, each with its numbers written out.
-export function ChargeRange({ sessions }: { sessions: StreamChargeSession[] }) {
+// `title` names a range picked by date.
+export function ChargeRange({ sessions, title }: { sessions: StreamChargeSession[]; title?: string }) {
   const finished = sessions.filter((s) => s.ended_at !== null && s.start_level !== null && s.end_level !== null && s.end_level > s.start_level);
   if (finished.length === 0) return null;
   const from = Math.round(median(finished.map((s) => s.start_level!)));
@@ -23,7 +24,7 @@ export function ChargeRange({ sessions }: { sessions: StreamChargeSession[] }) {
           {from}% to {to}%
         </p>
         <p className="text-sm text-muted-foreground">
-          Typical start and end, median of {finished.length} {finished.length === 1 ? "charge" : "charges"}
+          {title && `${title}. `}Typical start and end, median of {finished.length} {finished.length === 1 ? "charge" : "charges"}
         </p>
       </div>
       <ul className="space-y-3">

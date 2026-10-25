@@ -2,22 +2,24 @@ import { Zap } from "lucide-react";
 import type { ReactNode } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Header } from "@/components/header";
-import type { Period } from "@/lib/periods";
+import type { Frame } from "@/lib/frames";
 import { ByPeriod, PeriodPicker, PeriodScope } from "./period-scope";
-import { PERIODS, type View } from "./periods";
+import { type CustomScope, PERIODS, type View } from "./periods";
 import { ViewTabs } from "./view-tabs";
 
-// A section that depends on the period, rendered for each one so the switch needs no server trip (see ByPeriod,
-// and `steady` there).
-export function eachPeriod(render: (period: Period) => ReactNode, { steady = false }: { steady?: boolean } = {}) {
-  return <ByPeriod steady={steady} panels={Object.fromEntries(PERIODS.map(({ value }) => [value, render(value)]))} />;
+// A section with a window of its own (the last 90 days, say) whatever period is picked, which follows a
+// range picked by date: `fixed` for every period, `render` for the range, when the page drew one.
+export function byRange(custom: Frame | undefined, fixed: ReactNode, render: (frame: Frame) => ReactNode) {
+  if (!custom) return fixed;
+  return <ByPeriod panels={{ ...Object.fromEntries(PERIODS.map(({ value }) => [value, fixed])), custom: render(custom) }} />;
 }
 
 // What every Stats page shows around its sections, once its data is in: the topic links and, when the
-// sections use one, the period switch. The period is the URL's (see PeriodScope).
-export function StatsFrame({ view, periodSwitch = true, children }: { view: View; periodSwitch?: boolean; children: ReactNode }) {
+// sections use one, the period switch with Custom. The period is the URL's (see PeriodScope); a page without
+// the switch still keeps a range picked by date in its links.
+export function StatsFrame({ view, custom, periodSwitch = true, children }: { view: View; custom: CustomScope; periodSwitch?: boolean; children: ReactNode }) {
   return (
-    <PeriodScope>
+    <PeriodScope custom={custom}>
       <div className="space-y-12">
         <div className="space-y-6">
           <ViewTabs view={view} />

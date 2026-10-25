@@ -312,6 +312,15 @@ export function customRange(period: string | string[] | undefined, from: string 
   return period === "custom" ? (parseRange(from, to, now) ?? defaultRange(now)) : null;
 }
 
+// What a page's cached loader needs to draw Custom: the URL's from and to as plain strings (null when
+// missing), or null for any other period. Pass it to customRange inside the cache, where the clock is read.
+export type CustomQuery = { from: string | null; to: string | null };
+
+export function customQuery(params: { period?: string | string[]; from?: string | string[]; to?: string | string[] }): CustomQuery | null {
+  const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : null);
+  return params.period === "custom" ? { from: one(params.from), to: one(params.to) } : null;
+}
+
 // Whether a span reaches back before a window of kept data (`windowFrom`) that tracking predates, so what
 // is drawn from that window covers only part of the span. `since` is when tracking began, null if unknown.
 export function reachesBefore(span: Span, windowFrom: number, since: number | null): boolean {

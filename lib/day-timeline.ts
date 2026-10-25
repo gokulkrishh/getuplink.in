@@ -37,11 +37,19 @@ const merge = (segments: DaySegment[]) =>
     return out;
   }, []);
 
+type Layers = { driving: Span[]; charging: Span[]; asleep: Span[] };
+
 // The last `days` IST days, oldest first, up to now.
-export function dayStrips(days: number, layers: { driving: Span[]; charging: Span[]; asleep: Span[] }, trackingFrom: number | null, now: number): Day[] {
+export function dayStrips(days: number, layers: Layers, trackingFrom: number | null, now: number): Day[] {
   const today = istDay(now);
-  return Array.from({ length: days }, (_, k) => {
-    const day = today - days + 1 + k;
+  return stripsBetween(today - days + 1, today, layers, trackingFrom, now);
+}
+
+// IST days `from` to `to` (both included, none after today), oldest first, up to now.
+export function stripsBetween(from: number, to: number, layers: Layers, trackingFrom: number | null, now: number): Day[] {
+  const last = Math.min(to, istDay(now));
+  return Array.from({ length: Math.max(0, last - from + 1) }, (_, k) => {
+    const day = from + k;
     const start = istDayStart(day);
     const end = Math.min(start + DAY, now);
     let segments: DaySegment[] = [{ kind: trackingFrom === null || trackingFrom >= end ? "unknown" : "parked", start, end }];

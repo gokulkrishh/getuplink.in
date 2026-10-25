@@ -11,11 +11,12 @@ import { CheckedFooter, OwnerNotices } from "@/components/owner-notices";
 import { ReleaseNotesToggle } from "@/components/release-notes";
 import { AwakeTimeline } from "@/components/stats/awake-timeline";
 import { ByPeriod, PeriodPicker, PeriodScope } from "@/components/stats/period-scope";
-import { UPDATE_PERIODS } from "@/components/stats/periods";
+import { customScope, UPDATE_PERIODS } from "@/components/stats/periods";
 import { VersionHistory } from "@/components/updates/history";
 import { UpdateStats } from "@/components/updates/update-stats";
 import { isPending, UpdateStatus } from "@/components/updates/update-status";
 import { DEMO, type DemoScenario, parseScenario } from "@/lib/demo";
+import { customRange, rangeTimeframe, type Timeframe } from "@/lib/periods";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -39,8 +40,9 @@ async function loadOwnUpdates(demo: DemoScenario): Promise<{ data: UpdatesPage; 
 }
 
 // One car: the installed version and its status, the pending update, the history, how updates usually go,
-// and when the car was awake to receive one. `label` names the car when there are several.
-function CarUpdates({ car, notes, label, now }: { car: UpdatesCar; notes: ReleaseNotesByVersion; label: string; now: number }) {
+// and when the car was awake to receive one. `label` names the car when there are several; `range` is
+// the range picked by date, when the page drew one.
+function CarUpdates({ car, notes, label, range, now }: { car: UpdatesCar; notes: ReleaseNotesByVersion; label: string; range: Timeframe | null; now: number }) {
   const { vehicle, latest, lastOnline, history, streamAt, updates, awake } = car;
   // A car that streamed in the last few minutes is awake: keep the page fresh so new data shows up on its own.
   const isAwake = streamAt !== null && now - Date.parse(streamAt) < AWAKE_MS;
@@ -101,7 +103,12 @@ function CarUpdates({ car, notes, label, now }: { car: UpdatesCar; notes: Releas
           {hasStats && <PeriodPicker />}
         </div>
         {hasStats ? (
-          <ByPeriod panels={Object.fromEntries(UPDATE_PERIODS.map((p) => [p, <UpdateStats key={p} rows={updates} now={now} period={p} />]))} />
+          <ByPeriod
+            panels={{
+              ...Object.fromEntries(UPDATE_PERIODS.map((p) => [p, <UpdateStats key={p} rows={updates} now={now} covers={p} />])),
+              ...(range && { custom: <UpdateStats rows={updates} now={now} covers={range} /> }),
+            }}
+          />
         ) : (
           <p className="text-sm text-muted-foreground">Update stats show up after your car&apos;s second update.</p>
         )}
@@ -118,13 +125,17 @@ async function Updates({ searchParams }: Pick<PageProps<"/updates">, "searchPara
   const { data, now } = await loadOwnUpdates(demo);
   const failedRun = data.kind === "ready" && data.lastRun?.ok === false ? data.lastRun : null;
   const cars = data.kind === "ready" ? data.cars : [];
+  // Only the update count follows a range picked by date, and it is counted from rows already here, so
+  // the range costs no extra read. Without dates it opens on the last 30 days.
+  const range = customRange(params.period, params.from, params.to, now);
+  const frame = range && rangeTimeframe(range, now);
 
   return (
     <>
       {DEMO && <DemoBar active={demo} path="/updates" />}
       <OwnerNotices data={data} count={cars.length} failedRun={failedRun} />
       {data.kind === "ready" && cars.length > 0 && (
-        <PeriodScope options={UPDATE_PERIODS}>
+        <PeriodScope options={UPDATE_PERIODS} custom={customScope(range, now)}>
           <div className="space-y-24">
             {cars.map((car) => (
               <CarUpdates
@@ -132,6 +143,7 @@ async function Updates({ searchParams }: Pick<PageProps<"/updates">, "searchPara
                 car={car}
                 notes={data.releaseNotes}
                 label={cars.length > 1 ? car.vehicle.display_name || "Tesla" : "Software"}
+                range={frame}
                 now={now}
               />
             ))}

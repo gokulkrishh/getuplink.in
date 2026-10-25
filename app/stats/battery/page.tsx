@@ -7,6 +7,7 @@ import { BatteryHealth } from "@/components/stats/battery-health";
 import { BatteryPack } from "@/components/stats/battery-pack";
 import { ChargeLevelChart } from "@/components/stats/charge-level";
 import { ParkedDrain } from "@/components/stats/parked-drain";
+import { customScope } from "@/components/stats/periods";
 import { NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/components/stats/stats-frame";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -38,7 +39,9 @@ async function Battery() {
   const enough = trend.length >= 2 || range.length > 0 || (level?.points.length ?? 0) >= 2 || driving.parked.length > 0 || driving.parkedNow !== null;
 
   return (
-    <StatsFrame view="battery" periodSwitch={false}>
+    // No section here follows the switch, so there is none; a range picked by date still rides along in the
+    // tabs (from the URL), so Driving and Charging open on it again.
+    <StatsFrame view="battery" custom={customScope(null, now)} periodSwitch={false}>
       {enough ? (
         <div className="space-y-12">
           <BatteryHealth trend={trend} range={range} sessions={sessions} />

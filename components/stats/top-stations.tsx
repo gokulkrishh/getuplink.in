@@ -3,12 +3,16 @@ import type { StationRow } from "@/lib/top-stations";
 const oneDecimal = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
 
-// Where you charge most, by energy, with how often and what the bills came to.
-export function TopStations({ rows }: { rows: StationRow[] }) {
+// Where you charge most, by energy, with how often and what the bills came to. `title` names a range
+// picked by date.
+export function TopStations({ rows, title }: { rows: StationRow[]; title?: string }) {
   if (rows.length === 0) return null;
   return (
     <section className="space-y-4">
-      <h2 className="text-lg font-medium tracking-heading">Where you charge</h2>
+      <div className="space-y-2">
+        <h2 className="text-lg font-medium tracking-heading">Where you charge</h2>
+        {title && <p className="text-sm text-muted-foreground">{title}</p>}
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-md text-sm tabular-nums">
           <thead>

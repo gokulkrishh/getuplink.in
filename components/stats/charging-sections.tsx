@@ -7,7 +7,7 @@ import { chargeEfficiency } from "@/lib/charge-sessions";
 import { type Bill, billsBySlot, billsIn } from "@/lib/charging-figures";
 import { formatDuration, formatKwh, formatMoney, formatMonth } from "@/lib/format";
 import { LIST_PREVIEW } from "@/lib/list";
-import { inSpan, type Period, PERIOD_WORDS, periodSpan, SLOT_NAMES, slotsFor } from "@/lib/periods";
+import { inSpan, type Timeframe } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
 
@@ -30,26 +30,23 @@ export function Summary({
   bills,
   unbilled,
   km,
-  now,
-  period,
+  frame,
 }: {
   bills: Bill[];
   unbilled: { started_at: string }[];
   km: number | null;
-  now: number;
-  period: Period;
+  frame: Timeframe;
 }) {
-  const span = periodSpan(period, now);
+  const { span, slots } = frame;
   const { cost, kwh, count, acPerKwh, dcPerKwh } = billsIn(bills, span);
   const missing = unbilled.filter((s) => inSpan(Date.parse(s.started_at), span)).length;
-  const slots = slotsFor(period, now);
   const spend = billsBySlot(bills, slots);
   const compact = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
   const bars = slots.map((slot, k) => ({ key: String(slot.id), label: slot.label, value: spend[k], display: compact.format(spend[k]), isCurrent: slot.isCurrent }));
   return (
     <section className="space-y-8">
       <div className="space-y-2">
-        <p className="text-xs tracking-wide text-faint uppercase">Spent {PERIOD_WORDS[period]}</p>
+        <p className="text-xs tracking-wide text-faint uppercase">Spent {frame.words}</p>
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatMoney(cost, "INR")}</p>
         <Figures
           figures={[
@@ -68,7 +65,7 @@ export function Summary({
           </p>
         )}
       </div>
-      <Bars bars={bars} ariaLabel={`Spend per ${SLOT_NAMES[period]}`} prefix="₹" empty={`No bills ${PERIOD_WORDS[period]}`} />
+      <Bars bars={bars} ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} empty={`No bills ${frame.words}`} />
     </section>
   );
 }
@@ -82,21 +79,18 @@ const ENERGY_SERIES = [
   { label: "AC", className: "bg-chart-3" },
 ];
 
-// Energy added per month (per year for All time), split by charger kind. Supercharger energy is
+// Energy added per bar of the period or range (see Timeframe), split by charger kind. Supercharger energy is
 // Tesla's billed figure; the other two come from the car's own readings.
 export function EnergyAdded({
   sessions,
   streamOnly,
-  now,
-  period,
+  frame,
 }: {
   sessions: ChargingSession[];
   streamOnly: StreamChargeSession[];
-  now: number;
-  period: Period;
+  frame: Timeframe;
 }) {
-  const span = periodSpan(period, now);
-  const slots = slotsFor(period, now);
+  const { span, slots } = frame;
   // Supercharger, third-party DC and AC energy per slot.
   const energy = slots.map(() => [0, 0, 0]);
   let total = 0;
@@ -128,9 +122,15 @@ export function EnergyAdded({
       <div className="space-y-2">
         <h2 className="text-lg font-medium tracking-heading">Energy added</h2>
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatKwh(total)}</p>
-        <p className="text-sm text-muted-foreground">{PERIOD_WORDS[period]}</p>
+        <p className="text-sm text-muted-foreground">{frame.words}</p>
       </div>
-      <StackedBars bars={bars} series={ENERGY_SERIES} ariaLabel={`Energy added per ${SLOT_NAMES[period]}`} empty={`No charging ${PERIOD_WORDS[period]}`} />
+      <StackedBars
+        bars={bars}
+        series={ENERGY_SERIES}
+        ariaLabel={`Energy added per ${frame.slotName}`}
+        labelEvery={frame.labelEvery}
+        empty={`No charging ${frame.words}`}
+      />
       {charged.ac + charged.dc > 0 && (
         <Figures
           figures={[

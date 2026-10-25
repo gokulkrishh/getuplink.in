@@ -21,7 +21,8 @@ function typical(curves: Curve[]): { x: number; y: number }[] {
 
 // How DC charging power falls as the battery fills, after TeslaMate's DC charging curve: one typical line
 // for Superchargers and one for other DC chargers, then the recent charges with their peak and average.
-export function DcCurves({ curves }: { curves: Curve[] }) {
+// With `title` (a range picked by date), the caption starts with the range.
+export function DcCurves({ curves, title }: { curves: Curve[]; title?: string }) {
   if (curves.length === 0) return null;
   const series = [
     { name: "Superchargers", className: "stroke-chart-accent", points: typical(curves.filter((c) => c.supercharger)) },
@@ -31,7 +32,9 @@ export function DcCurves({ curves }: { curves: Curve[] }) {
     <section className="space-y-6">
       <div className="space-y-2">
         <h2 className="text-lg font-medium tracking-heading">DC charging speed</h2>
-        <p className="text-sm text-muted-foreground">Typical power as the battery fills, from your last {curves.length} DC charges. Power drops as the battery gets fuller.</p>
+        <p className="text-sm text-muted-foreground">
+          {title && `${title}. `}Typical power as the battery fills, from your last {curves.length} DC charges. Power drops as the battery gets fuller.
+        </p>
       </div>
       <LineChart series={series} formatX={(x) => `${Math.round(x)}%`} formatY={(y) => `${Math.round(y)} kW`} label="Typical DC charging power against battery level" yFrom={0} />
       <div className="overflow-x-auto">
@@ -64,13 +67,13 @@ export function DcCurves({ curves }: { curves: Curve[] }) {
 }
 
 // Where you charged, each pin sized by the energy added.
-export function ChargingMap({ pins }: { pins: MapPin[] }) {
+export function ChargingMap({ pins, title }: { pins: MapPin[]; title?: string }) {
   if (pins.length === 0) return null;
   return (
     <section className="space-y-4">
       <div className="space-y-2">
         <h2 className="text-lg font-medium tracking-heading">Charging map</h2>
-        <p className="text-sm text-muted-foreground">Each charge where it happened; bigger pins added more energy.</p>
+        <p className="text-sm text-muted-foreground">{title && `${title}. `}Each charge where it happened; bigger pins added more energy.</p>
       </div>
       <TripMap pins={pins} label={`${pins.length} charges on a map`} />
     </section>

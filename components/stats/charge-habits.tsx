@@ -11,7 +11,8 @@ const describe = (day: number, slot: number, count: number) => `${WEEKDAYS[day]}
 
 // When charges start, by weekday and time of day (IST), after TeslaMate's charge heatmap. Hover, focus
 // or tap a cell for a tooltip with its count; the line above names the busiest slot.
-export function ChargeHabits({ starts }: { starts: number[] }) {
+// `title` names a range picked by date.
+export function ChargeHabits({ starts, title }: { starts: number[]; title?: string }) {
   const counts = chargeStarts(starts);
   const max = Math.max(0, ...counts.flat());
   const grid = useRef<HTMLDivElement>(null);
@@ -25,7 +26,7 @@ export function ChargeHabits({ starts }: { starts: number[] }) {
     <section className="space-y-4">
       <div className="space-y-2">
         <h2 className="text-lg font-medium tracking-heading">When you charge</h2>
-        <p className="text-sm text-muted-foreground tabular-nums">Most often {describe(busiest[0], busiest[1], counts[busiest[0]][busiest[1]])}</p>
+        <p className="text-sm text-muted-foreground tabular-nums">{title && `${title}. `}Most often {describe(busiest[0], busiest[1], counts[busiest[0]][busiest[1]])}</p>
       </div>
       <div ref={grid} className="chart-touch relative space-y-1.5" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
         {counts.map((row, d) => (

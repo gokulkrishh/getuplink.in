@@ -2,28 +2,48 @@ import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { eachFrame } from "@/components/home/frames";
 import { DriveList } from "@/components/stats/drive-list";
 import { DailyDriving, Distance, DriveStatsSection, EnergyUse } from "@/components/stats/driving-sections";
+import { customScope } from "@/components/stats/periods";
 import { driveStats, withDriveEfficiency } from "@/lib/drive-stats";
-import { type Day, dayStrips } from "@/lib/day-timeline";
+import { type Day, dayStrips, stripsBetween } from "@/lib/day-timeline";
 import { DayTimeline } from "@/components/stats/day-timeline";
 import { EfficiencyBands, Places, SpeedBands } from "@/components/stats/driving-extras";
 import { type DrivingExtras, loadDrivingExtras } from "@/lib/server/driving-extra";
-import { loadPresence } from "@/lib/server/awake";
+import { AWAKE_DAYS, loadPresence } from "@/lib/server/awake";
 import { loadStreamSessions } from "@/lib/server/stream-charging";
 import { DRIVE_DAYS } from "@/lib/drives";
-import { eachPeriod, NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/components/stats/stats-frame";
+import { type CustomFrame, periodFrames } from "@/lib/frames";
+import { clipSpan, customQuery, type CustomQuery, customRange, inSpan, reachesBefore, rangeTimeframe } from "@/lib/periods";
+import { byRange, NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/components/stats/stats-frame";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import type { DrivingFigures } from "@/lib/driving-figures";
 import { loadDrivingFigures, loadWindowStats, type WindowStats } from "@/lib/server/driving";
+import { loadRangeDriving } from "@/lib/server/home";
 import { loadPrimaryVehicle } from "@/lib/server/telemetry";
+import { istDay, istDayStart } from "@/lib/telemetry-derive";
 
 export const metadata: Metadata = { title: "Driving · Uplink" };
 
+const DAY = 86_400_000;
+
+// A range picked by date: its driving figures, the insights over its days (cut to the drives kept), and
+// its days as strips (cut to the days the car's presence is kept).
+type CustomDriving = CustomFrame & { extras: DrivingExtras; days: Day[] };
+
 // Session check plus data in one browser-only private cache, so links can prefetch it (see app/page.tsx).
-// The car is read once; the period counters and the 90-day window share its VIN.
-async function loadDriving(): Promise<{ figures: DrivingFigures; window: WindowStats; days: Day[]; extras: DrivingExtras; now: number }> {
+// The car is read once; the period counters and the 90-day window share its VIN. A range picked by date
+// is an argument, so each one gets its own entry.
+async function loadDriving(query: CustomQuery | null): Promise<{
+  figures: DrivingFigures;
+  window: WindowStats;
+  days: Day[];
+  extras: DrivingExtras;
+  custom: CustomDriving | null;
+  now: number;
+}> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
@@ -32,41 +52,87 @@ async function loadDriving(): Promise<{ figures: DrivingFigures; window: WindowS
   const now = Date.now();
   const vehicle = await loadPrimaryVehicle();
   const vin = vehicle?.vin ?? null;
-  const [counted, window, presence, sessions] = await Promise.all([loadDrivingFigures(vin, now), loadWindowStats(vin, now), loadPresence(vehicle, now), loadStreamSessions()]);
+  const range = query && customRange("custom", query.from ?? undefined, query.to ?? undefined, now);
+  const frame = range && rangeTimeframe(range, now);
+  const [counted, window, presence, sessions, rangeDriving] = await Promise.all([
+    loadDrivingFigures(vin, now),
+    loadWindowStats(vin, now),
+    loadPresence(vehicle, now),
+    loadStreamSessions(),
+    frame ? loadRangeDriving("normal", vin, frame, now) : null,
+  ]);
   const figures = withDriveEfficiency(counted, window.driving.drives, now);
-  const days = dayStrips(
-    7,
-    {
-      driving: window.driving.drives,
-      charging: sessions.map((s) => ({ start: Date.parse(s.started_at), end: s.ended_at ? Date.parse(s.ended_at) : now })),
-      asleep: presence.days.flatMap((d) => d.runs.filter((r) => r.state === "asleep")),
-    },
-    figures.since,
-    now,
-  );
-  const extras = await loadDrivingExtras(vin, window.driving.drives, now);
-  return { figures, window, days, extras, now };
+  const layers = {
+    driving: window.driving.drives,
+    charging: sessions.map((s) => ({ start: Date.parse(s.started_at), end: s.ended_at ? Date.parse(s.ended_at) : now })),
+    asleep: presence.days.flatMap((d) => d.runs.filter((r) => r.state === "asleep")),
+  };
+  const days = dayStrips(7, layers, figures.since, now);
+  const [extras, rangeExtras] = await Promise.all([
+    loadDrivingExtras(vin, window.driving.drives, now),
+    frame ? loadDrivingExtras(vin, window.driving.drives, now, clipSpan(frame.span, now - DRIVE_DAYS * DAY, now)) : null,
+  ]);
+  const custom =
+    range && frame && rangeExtras
+      ? {
+          range,
+          frame,
+          driving: rangeDriving,
+          extras: rangeExtras,
+          days: stripsBetween(Math.max(range.from, istDay(now) - AWAKE_DAYS + 1), range.to, layers, figures.since, now),
+        }
+      : null;
+  return { figures, window, days, extras, custom, now };
 }
 
-async function Driving() {
-  const { figures, window, days: dayStripsData, extras, now } = await loadDriving();
+async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "searchParams">) {
+  const { figures, window, days: dayStripsData, extras, custom, now } = await loadDriving(customQuery(await searchParams));
   const { days, driving } = window;
   // Mirrors the sections' own "enough data" rules, so an empty page says so instead of showing nothing.
   const hasDriving = (figures.periods.all.current.km ?? 0) > 0 || days.filter((d) => d.km !== null).length >= 2 || driving.drives.length > 0;
+  const frames = periodFrames(figures, custom, driving.drives, now);
+  const range = frames.find((f) => f.key === "custom");
+  // What the drives, the days and the strips keep, for a range that starts earlier (see reachesBefore).
+  const tripsFrom = now - DRIVE_DAYS * DAY;
+  const partial = (windowFrom: number) => range !== undefined && reachesBefore(range.frame.span, windowFrom, figures.since);
+  const inRange = range ? driving.drives.filter((d) => inSpan(d.start, range.frame.span)) : [];
+  const tripsNote = partial(tripsFrom) ? `Covers only the last ${DRIVE_DAYS} days.` : undefined;
 
   return (
-    <StatsFrame view="driving" periodSwitch={hasDriving}>
+    <StatsFrame view="driving" custom={customScope(custom?.range ?? null, now)} periodSwitch={hasDriving}>
       {hasDriving ? (
         <div className="space-y-12">
-          {eachPeriod((p) => <Distance figures={figures} now={now} period={p} />, { steady: true })}
-          <DailyDriving days={days} />
-          {eachPeriod((p) => <EnergyUse figures={figures} now={now} period={p} />, { steady: true })}
-          <DayTimeline days={dayStripsData} now={now} />
-          <SpeedBands bins={extras.speed} />
-          <EfficiencyBands byTemp={extras.byTemp} bySpeed={extras.bySpeed} />
-          <Places places={extras.places} visited={extras.visited} />
-          <DriveStatsSection stats={driveStats(driving.drives, now - DRIVE_DAYS * 86_400_000, figures.since, now)} />
-          <DriveList drives={driving.drives} now={now} />
+          {eachFrame(frames, (f) => <Distance {...f} />, { steady: true })}
+          {byRange(range, <DailyDriving days={days} />, ({ frame }) => (
+            <DailyDriving days={days} frame={frame} partial={days.length > 0 && partial(days[0].start)} />
+          ))}
+          {eachFrame(frames, (f) => <EnergyUse {...f} />, { steady: true })}
+          {byRange(range, <DayTimeline days={dayStripsData} now={now} />, ({ frame }) => (
+            <DayTimeline
+              days={custom?.days ?? []}
+              now={now}
+              caption={`${frame.title}.${partial(istDayStart(istDay(now) - AWAKE_DAYS + 1)) ? ` Days cover only the last ${AWAKE_DAYS} days.` : ""}`}
+            />
+          ))}
+          {byRange(range, <SpeedBands bins={extras.speed} />, ({ frame }) => (
+            <SpeedBands bins={custom?.extras.speed ?? []} words={frame.words} note={tripsNote} />
+          ))}
+          {byRange(range, <EfficiencyBands byTemp={extras.byTemp} bySpeed={extras.bySpeed} />, ({ frame }) => (
+            <EfficiencyBands byTemp={custom?.extras.byTemp ?? []} bySpeed={custom?.extras.bySpeed ?? []} words={frame.words} note={tripsNote} />
+          ))}
+          {byRange(range, <Places places={extras.places} visited={extras.visited} />, ({ frame }) => (
+            <Places places={custom?.extras.places ?? []} visited={custom?.extras.visited ?? []} words={frame.words} note={tripsNote} />
+          ))}
+          {byRange(range, <DriveStatsSection stats={driveStats(driving.drives, tripsFrom, figures.since, now)} />, ({ frame }) => {
+            const kept = clipSpan(frame.span, tripsFrom, now);
+            return <DriveStatsSection stats={driveStats(inRange, kept.from, figures.since, kept.to)} title={frame.title} partial={partial(tripsFrom)} />;
+          })}
+          {byRange(range, <DriveList drives={driving.drives} now={now} />, ({ frame }) => (
+            <div className="space-y-3">
+              {inRange.length > 0 ? <DriveList drives={inRange} now={now} /> : <p className="text-sm text-muted-foreground">No trips {frame.words}.</p>}
+              {partial(tripsFrom) && <p className="text-xs text-faint">Trips cover only the last {DRIVE_DAYS} days.</p>}
+            </div>
+          ))}
         </div>
       ) : (
         <NotYet title="Not enough driving yet">Distance and energy use show up after a couple of days of driving.</NotYet>
@@ -75,11 +141,11 @@ async function Driving() {
   );
 }
 
-export default function Page() {
+export default function Page({ searchParams }: PageProps<"/stats/driving">) {
   return (
     <StatsPage description="How far you drove, the energy it took, and every drive.">
       <Suspense fallback={<StatsSkeleton />}>
-        <Driving />
+        <Driving searchParams={searchParams} />
       </Suspense>
     </StatsPage>
   );

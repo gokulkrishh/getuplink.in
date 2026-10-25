@@ -2,7 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { customScope, periodQuery, statsHref, UPDATE_PERIODS, urlRange } from "@/components/stats/periods";
 import { periodFrames } from "@/lib/frames";
 import type { DrivingFigures, DrivingPeriod } from "@/lib/driving-figures";
-import { clipSpan, customRange, isoDay, reachesBefore, rangeTimeframe } from "@/lib/periods";
+import { clipSpan, customQuery, customRange, isoDay, reachesBefore, rangeTimeframe } from "@/lib/periods";
+import { updatesIn } from "@/components/updates/update-stats";
 
 const ist = (local: string) => Date.parse(`${local}+05:30`);
 const now = ist("2026-10-25T14:00:00");
@@ -17,6 +18,29 @@ describe("customRange", () => {
     expect(customRange("custom", "2026-09-01", "2026-09-30", now)).toEqual({ from: day("2026-09-01"), to: day("2026-09-30") });
     expect(customRange("custom", undefined, undefined, now)).toEqual({ from: day("2026-09-26"), to: day("2026-10-25") });
     expect(customRange("custom", "nonsense", "2026-09-30", now)).toEqual({ from: day("2026-09-26"), to: day("2026-10-25") });
+  });
+});
+
+describe("customQuery", () => {
+  test("only Custom passes its dates on, as plain strings", () => {
+    expect(customQuery({ period: "custom", from: "2026-09-01", to: "2026-09-30" })).toEqual({ from: "2026-09-01", to: "2026-09-30" });
+    expect(customQuery({ period: "custom", from: ["a", "b"] })).toEqual({ from: null, to: null });
+    expect(customQuery({ period: "week", from: "2026-09-01", to: "2026-09-30" })).toBeNull();
+  });
+});
+
+describe("updatesIn", () => {
+  const rows = ["2026-08-31T20:00:00", "2026-09-01T09:00:00", "2026-09-30T23:00:00", "2026-10-02T10:00:00"].map((t) => ({
+    detected_at: new Date(ist(t)).toISOString(),
+    available_at: null,
+  }));
+  test("a period counts by IST month", () => {
+    expect(updatesIn(rows, "month", now)).toBe(1);
+    expect(updatesIn(rows, "year", now)).toBe(4);
+  });
+  test("a range counts by the day each update was seen", () => {
+    const sept = rangeTimeframe({ from: day("2026-09-01"), to: day("2026-09-30") }, now);
+    expect(updatesIn(rows, sept, now)).toBe(2);
   });
 });
 
