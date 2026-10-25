@@ -19,10 +19,12 @@ const SHUTDOWN_CHILD_MS = 3_000;
 const SHUTDOWN_FLUSH_MS = 8_000;
 const HEARTBEAT_MS = 10 * 60_000;
 
-// The car sends only the fields scripts/telemetry-config.mjs asked for, which is all of them (the owner
-// keeps everything, location included). These keys ride along on every record and aren't readings.
+// The car sends only the fields scripts/telemetry-config.mjs asked for, which is nearly all of them (the
+// owner keeps everything, location included). These keys ride along on every record and aren't readings.
 const RECORD_KEYS = new Set(["Vin", "CreatedAt", "IsResend"]);
-const isField = (key: string) => !RECORD_KEYS.has(key) && !/^(Semitruck|Experimental_|Deprecated_)/.test(key);
+// Media* (what's playing, its source, the volume) is no longer asked for and never stored, even from a
+// car still on an older config.
+const isField = (key: string) => !RECORD_KEYS.has(key) && !/^(Semitruck|Experimental_|Deprecated_|Media)/.test(key);
 
 type Row = { vin: string; created_at: string; field: string; value: unknown };
 

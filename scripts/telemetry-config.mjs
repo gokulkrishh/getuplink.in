@@ -35,7 +35,9 @@ const PROXY = (process.env.TESLA_PROXY_URL || "https://localhost:4443").replace(
 
 // Every field in protos/vehicle_data.proto (teslamotors/fleet-telemetry) that a car can send: the owner
 // asked Uplink to keep all of it, location included. Left out: Semitruck*, Experimental_* and
-// Deprecated_* (not this car, or not real fields). A field the car doesn't have is never sent.
+// Deprecated_* (not this car, or not real fields), and every Media* field: what was playing, from which
+// source, and the volume. Uplink shows none of it, so it isn't collected (fly/telemetry/worker.ts drops
+// any that still arrive). A field the car doesn't have is never sent.
 const ALL_FIELDS = [
   "DriveRail", "ChargeState", "BmsFullchargecomplete", "VehicleSpeed", "Odometer", "PackVoltage",
   "PackCurrent", "Soc", "DCDCEnable", "Gear", "IsolationResistance", "PedalPosition", "BrakePedal",
@@ -83,10 +85,7 @@ const ALL_FIELDS = [
   "WiperHeatEnabled", "LocatedAtHome", "LocatedAtWork", "LocatedAtFavorite", "SettingDistanceUnit",
   "SettingTemperatureUnit", "Setting24HourTime", "SettingTirePressureUnit", "SettingChargeUnit",
   "ClimateSeatCoolingFrontLeft", "ClimateSeatCoolingFrontRight", "LightsHazardsActive", "LightsTurnSignal",
-  "LightsHighBeams", "MediaPlaybackStatus", "MediaPlaybackSource", "MediaAudioVolume",
-  "MediaNowPlayingDuration", "MediaNowPlayingElapsed", "MediaNowPlayingArtist", "MediaNowPlayingTitle",
-  "MediaNowPlayingAlbum", "MediaNowPlayingStation", "MediaAudioVolumeIncrement", "MediaAudioVolumeMax",
-  "SunroofInstalled", "SeatVentEnabled", "RearDefrostEnabled", "ChargeRateMilePerHour", "MilesSinceReset",
+  "LightsHighBeams", "SunroofInstalled", "SeatVentEnabled", "RearDefrostEnabled", "ChargeRateMilePerHour", "MilesSinceReset",
   "SelfDrivingMilesSinceReset", "GpsAccuracyMeters", "LifetimeEnergyChargedKwh", "BrickSocMinPercent",
   "NominalFullPackEnergyKwh", "GradeEstimatePercent", "MaxSpeedToReachDestinationMph",
   "SoftwareUpdateAvailable", "SoftwareUpdateInProgress", "RemoteStartActive", "Cabin12vPortKeepOn",
@@ -97,7 +96,7 @@ const fields = {};
 const set = (names, interval_seconds, extra = {}) => {
   for (const n of names) fields[n] = { interval_seconds, ...extra };
 };
-// Everything else: sent when it changes, at most once a minute (states, settings, media, navigation).
+// Everything else: sent when it changes, at most once a minute (states, settings, navigation).
 set(ALL_FIELDS, 60);
 // Where the car is, every 10 s while it moves, for trip routes and stops.
 set(["Location", "GpsHeading", "GpsAccuracyMeters"], 10);

@@ -15,6 +15,7 @@ import {
   UNIQUE_VIOLATION,
 } from "./version-history";
 import { milesToKm, normaliseVersion } from "@/lib/versions";
+import { storedRaw } from "@/lib/stored-raw";
 import { colorName, MILES_TO_KM, modelName } from "@/lib/car";
 import { messageOf } from "@/lib/errors";
 import { mostCommonState } from "@/lib/india-states";
@@ -47,14 +48,6 @@ type VehicleData = {
 
 // How many located checks decide a car's home state (the column's check allows up to this many).
 const RECENT_STATES = 30;
-
-// The raw response is kept for /api/debug; token fields are never stored, and neither is drive_state,
-// which holds where the car is.
-const TOKEN_KEYS = ["tokens", "backseat_token", "backseat_token_updated_at", "drive_state"];
-function withoutTokens(data: VehicleData): Record<string, unknown> | null {
-  if (!data) return null;
-  return Object.fromEntries(Object.entries(data).filter(([key]) => !TOKEN_KEYS.includes(key)));
-}
 
 // The state the car is in now, from drive_state, which is then dropped from `data`: the coordinates are
 // never stored, logged or passed on. Null when Tesla sent no location or it is outside India.
@@ -190,7 +183,8 @@ async function pollVehicle(vehicle: FleetVehicle, now: string, located: boolean)
       battery_range_km: typeof charge.battery_range === "number" ? Math.round(charge.battery_range * MILES_TO_KM * 10) / 10 : null,
       charging_state: charge.charging_state ?? null,
       charge_limit: charge.charge_limit_soc ?? null,
-      raw: withoutTokens(data),
+      // Kept for /api/debug, without tokens, location or media_info (see storedRaw).
+      raw: storedRaw(data),
     }),
   );
   if (homeState) await recordState(id, homeState);
