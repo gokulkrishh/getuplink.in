@@ -141,7 +141,7 @@ export function DailyDriving({ days: all, frame, partial = false }: { days: DayK
         ariaLabel="Distance per day"
         labelEvery={7}
         unit="km"
-        caption={`Kilometres driven each day, last ${days.length} days.Days without an odometer reading are left blank.`}
+        caption={`Kilometres driven each day, last ${days.length} days. Days without an odometer reading are left blank.`}
       />
     </section>
   );

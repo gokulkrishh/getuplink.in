@@ -2,13 +2,13 @@ import { BarColumns } from "@/components/stats/bar-columns";
 import { type Bar } from "@/components/stats/bar-parts";
 import { cn } from "@/lib/utils";
 
-export { type Bar, BAR_MAX, BarTip, MIN_COLUMNS, MonthLabel, withUnit } from "@/components/stats/bar-parts";
+export { AxisLabel, type Bar, BAR_MAX, BarTip, MIN_COLUMNS, withUnit } from "@/components/stats/bar-parts";
 
 // 6 or 12 columns. Value labels are dropped at 12 so they don't collide on a phone.
-// With labelEvery, any number of columns (one per day, say): only every labelEvery-th column from the
-// last one carries its label, and values live in the hover title and for screen readers.
-// A chart never scrolls sideways: every column fits the panel, labels thin out (labelEvery, MonthLabel)
-// rather than the chart growing past it.
+// With labelEvery, any number of columns (one per day, say): labels are at least labelEvery columns apart from the
+// last one (more when the chart is narrow), and values live in the hover title and for screen readers.
+// A chart never scrolls sideways: every column fits the panel, and the x-axis shows only the labels that
+// fit, measured in the browser (useAxisLabels), rather than the chart growing past it.
 // With empty, a period with nothing to show says so (EmptyChart) in the same box instead of drawing an empty frame.
 // `caption` says in plain words what is plotted and over which bars (see chart-caption.ts); it sits under the
 // panel so a caption that wraps differently in another period never moves the chart.

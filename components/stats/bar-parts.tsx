@@ -3,8 +3,9 @@ import { cn } from "@/lib/utils";
 
 // The pieces Bars, BarColumns and StackedBars share. No directive: they render on either side.
 
-// `tip` is an extra line under the value in the hover tip, like "16 of 40 cars".
-export type Bar = { key: string; label: string; value: number; display: string; isCurrent: boolean; blank?: boolean; tip?: string };
+// `tip` is an extra line under the value in the hover tip, like "16 of 40 cars". `axis` is a shorter label
+// for under the bar when `label` (the tip's title) is too long to fit there, like "20" for "20 to 40 km/h".
+export type Bar = { key: string; label: string; value: number; display: string; isCurrent: boolean; blank?: boolean; tip?: string; axis?: string };
 
 // The widest a bar gets, so one bar in a wide column (or 6 on a desktop) isn't a block. Bars sit centred in their columns.
 export const BAR_MAX = "max-w-12";
@@ -17,11 +18,14 @@ export function withUnit(value: string, unit?: string): string {
   return unit ? `${value}${unit.startsWith("%") ? "" : " "}${unit}` : value;
 }
 
-// 12 columns: "Jan" rather than "J", and on a phone only every other month (counted from the newest) so
-// the names don't collide.
-export function MonthLabel({ label, dense, fromEnd }: { label: string; dense: boolean; fromEnd: number }) {
-  if (!dense) return label;
-  return <span className={cn(fromEnd % 2 === 1 && "max-sm:invisible")}>{label.slice(0, 3)}</span>;
+// A column's x-axis label: "Jan" rather than "January" on a dense chart. Which labels show is measured in
+// the browser (useAxisLabels), so they start hidden and never collide.
+export function AxisLabel({ label, dense, current }: { label: string; dense: boolean; current?: boolean }) {
+  return (
+    <span data-axis-label className={cn("invisible h-4 text-xs whitespace-nowrap", current ? "text-foreground" : "text-faint")}>
+      {dense ? label.slice(0, 3) : label}
+    </span>
+  );
 }
 
 // The value of the column under the pointer or tapped (see TapColumns), like the version chart's tooltip. It overlays the top of

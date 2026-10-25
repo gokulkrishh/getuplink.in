@@ -1,6 +1,8 @@
 "use client";
 
-import { type Bar, BAR_MAX, BarTip, MIN_COLUMNS, MonthLabel, withUnit } from "@/components/stats/bar-parts";
+import { useRef } from "react";
+import { useAxisLabels } from "@/components/stats/axis-labels";
+import { AxisLabel, type Bar, BAR_MAX, BarTip, MIN_COLUMNS, withUnit } from "@/components/stats/bar-parts";
 import { TapColumns } from "@/components/stats/tap-columns";
 import { cn } from "@/lib/utils";
 
@@ -13,9 +15,14 @@ export function BarColumns({ bars, max, ariaLabel, labelEvery, unit }: { bars: B
   // not even a tip: nothing is known about them.
   const first = bars.findIndex((b) => b.value > 0);
   const hidden = (b: Bar, k: number) => b.blank ?? k < first;
-  const labelled = (k: number) => (labelEvery ? (bars.length - 1 - k) % labelEvery === 0 : true);
+  // Labels show as many as fit, never fewer apart than labelEvery (see useAxisLabels).
+  const box = useRef<HTMLDivElement>(null);
+  useAxisLabels(box, labelEvery);
   const columns = labelEvery ? bars.length : Math.max(bars.length, MIN_COLUMNS);
+  // A label only shortens to a month's three letters on a 12-month chart, not on a chart of days.
+  const short = dense && !labelEvery;
   return (
+    <div ref={box}>
     <TapColumns
       className={cn("grid items-end", labelEvery ? "gap-0.5" : dense ? "gap-1" : "gap-3")}
       style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
@@ -26,9 +33,7 @@ export function BarColumns({ bars, max, ariaLabel, labelEvery, unit }: { bars: B
           <li key={b.key} aria-hidden="true" className="flex flex-col items-center gap-2">
             <span className="h-4" />
             <div className="h-20" />
-            <span className="h-4 text-xs whitespace-nowrap text-faint">
-              {labelEvery ? (labelled(k) ? b.label : "") : <MonthLabel label={b.label} dense={dense} fromEnd={bars.length - 1 - k} />}
-            </span>
+            <AxisLabel label={b.axis ?? b.label} dense={short} />
           </li>
         ) : (
           <li key={b.key} className="group relative flex flex-col items-center gap-2">
@@ -43,13 +48,12 @@ export function BarColumns({ bars, max, ariaLabel, labelEvery, unit }: { bars: B
               )}
             </div>
             {/* The label is as wide as its text and may spill over the neighbouring columns. */}
-            <span className={cn("h-4 text-xs whitespace-nowrap", b.isCurrent ? "text-foreground" : "text-faint")}>
-              {labelEvery ? (labelled(k) ? b.label : "") : <MonthLabel label={b.label} dense={dense} fromEnd={bars.length - 1 - k} />}
-            </span>
+            <AxisLabel label={b.axis ?? b.label} dense={short} current={b.isCurrent} />
             {(dense || b.tip) && <span className="sr-only">{[dense && withUnit(b.display, unit), b.tip].filter(Boolean).join(", ")}</span>}
           </li>
         ),
       )}
     </TapColumns>
+    </div>
   );
 }

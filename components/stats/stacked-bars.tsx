@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ChartFrame, EmptyChart, niceMax } from "@/components/stats/bars";
-import { BAR_MAX, BarTip, MIN_COLUMNS, MonthLabel } from "@/components/stats/bar-parts";
+import { useAxisLabels } from "@/components/stats/axis-labels";
+import { AxisLabel, BAR_MAX, BarTip, MIN_COLUMNS } from "@/components/stats/bar-parts";
 import { TapColumns } from "@/components/stats/tap-columns";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +33,9 @@ export function StackedBars({
   caption?: string;
 }) {
   const [hidden, setHidden] = useState<ReadonlySet<number>>(new Set());
+  // Labels show as many as fit, never fewer apart than labelEvery (see useAxisLabels).
+  const box = useRef<HTMLDivElement>(null);
+  useAxisLabels(box, labelEvery);
   if (empty && !all.some((b) => b.total > 0)) return <EmptyChart caption={caption}>{empty}</EmptyChart>;
   const dense = all.length > 6;
   const used = series.map((s, i) => ({ ...s, i })).filter(({ i }) => all.some((b) => b.segments[i] > 0));
@@ -39,7 +43,6 @@ export function StackedBars({
   const bars = all;
   // Slots before the history starts keep their column and label, with nothing drawn.
   const first = bars.findIndex((b) => b.total > 0);
-  const labelled = (k: number) => (labelEvery ? (bars.length - 1 - k) % labelEvery === 0 : true);
   const max = niceMax(Math.max(1, ...bars.map(shownTotal)));
   const breakdown = (b: StackedBar) =>
     series.map((s, i) => (b.segments[i] > 0 && !hidden.has(i) ? `${s.label} ${b.segments[i].toFixed(1)} kWh` : null)).filter(Boolean);
@@ -66,9 +69,7 @@ export function StackedBars({
             <li key={b.key} aria-hidden="true" className="flex flex-col items-center gap-2">
               <span className="h-4" />
               <div className="h-20" />
-              <span className="h-4 text-xs whitespace-nowrap text-faint">
-                <MonthLabel label={b.label} dense={dense} fromEnd={bars.length - 1 - k} />
-              </span>
+              <AxisLabel label={b.label} dense={dense && !labelEvery} />
             </li>
           );
         return (
@@ -86,9 +87,7 @@ export function StackedBars({
                 </div>
               )}
             </div>
-            <span className={cn("h-4 text-xs whitespace-nowrap", b.isCurrent ? "text-foreground" : "text-faint")}>
-              {labelEvery ? (labelled(k) ? b.label : "") : <MonthLabel label={b.label} dense={dense} fromEnd={bars.length - 1 - k} />}
-            </span>
+            <AxisLabel label={b.label} dense={dense && !labelEvery} current={b.isCurrent} />
             <span className="sr-only">
               {dense && `${kwh.format(total)} kWh. `}
               {breakdown(b).join(", ")}
@@ -101,7 +100,7 @@ export function StackedBars({
   return (
     <div className="space-y-3">
       <ChartFrame max={max} unit="kWh">
-        {list}
+        <div ref={box}>{list}</div>
       </ChartFrame>
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs" aria-label="Show or hide a charger type">
         {used.map((s) => (

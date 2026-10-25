@@ -20,7 +20,10 @@ export function SpeedBands({ bins, words = "last 30 days", note }: { bins: Drivi
   if (bins.length === 0) return null;
   const bars = bins.map((b, k) => ({
     key: String(b.from),
-    label: b.to === null ? `${b.from}+` : `${b.from} to ${b.to}`,
+    // The tip names the band; the axis gives where it starts ("20"), like a histogram's, so all six fit
+    // under their bars on a phone.
+    label: b.to === null ? `${b.from}+ km/h` : `${b.from} to ${b.to} km/h`,
+    axis: b.to === null ? `${b.from}+` : String(b.from),
     value: Math.round(b.share * 100),
     display: `${Math.round(b.share * 100)}`,
     isCurrent: b.share === Math.max(...bins.map((x) => x.share)) && k >= 0,
@@ -36,7 +39,7 @@ export function SpeedBands({ bins, words = "last 30 days", note }: { bins: Drivi
         bars={bars}
         ariaLabel="Share of driving time by speed in km/h"
         unit="%"
-        caption="Each bar is a speed band in km/h, and its height the percent of driving time spent in it. The band you drive in most is highlighted."
+        caption="Each bar is a 20 km/h band, labelled by the speed it starts at, and its height the percent of driving time spent in it. The band you drive in most is highlighted."
       />
     </section>
   );
