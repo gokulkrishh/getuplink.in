@@ -139,10 +139,35 @@ export async function signIn(code: string): Promise<SignInResult> {
   return before?.owner_sub ? "owner" : "claimed";
 }
 
-// Refresh tokens are single use, so the new pair is stored with a compare-and-swap on the refresh
-// token we read. A disconnect or a concurrent refresh changes that column, so we never write
-// tokens back after a disconnect, and a losing request reuses the winner's tokens.
-async function refresh(stored: StoredTokens): Promise<string> {
+// Refresh tokens are single use, and Tesla can revoke the whole chain (the pair just stored included)
+// when a spent one is presented again. So only one refresh may reach Tesla at a time: requests in this
+// instance share one (inflight), and across instances the first claims a short lease on the row while the
+// others wait for the tokens it stores. The new pair is stored with a compare-and-swap on the refresh
+// token we read, so a disconnect in the meantime is never overwritten.
+const LEASE_MS = 30_000;
+const WAIT_STEP_MS = 500;
+let inflight: { refreshTokenEnc: string; promise: Promise<string> } | null = null;
+
+function refresh(stored: StoredTokens): Promise<string> {
+  const current = inflight;
+  if (current && current.refreshTokenEnc === stored.refreshTokenEnc) return current.promise;
+  const promise = refreshOnce(stored).finally(() => {
+    if (inflight?.promise === promise) inflight = null;
+  });
+  inflight = { refreshTokenEnc: stored.refreshTokenEnc, promise };
+  return promise;
+}
+
+async function refreshOnce(stored: StoredTokens): Promise<string> {
+  const deadline = Date.now() + LEASE_MS;
+  while (!(await claimLease(stored))) {
+    // Another instance is refreshing: wait for the tokens it stores rather than spend the same one.
+    await new Promise((resolve) => setTimeout(resolve, WAIT_STEP_MS));
+    const current = await readTokens();
+    if (!current) throw new NotConnectedError();
+    if (current.refreshTokenEnc !== stored.refreshTokenEnc) return current.accessToken;
+    if (Date.now() > deadline) throw new Error("Waited too long for another token refresh");
+  }
   let tokens: TokenResponse;
   try {
     tokens = await tokenRequest({
@@ -151,7 +176,8 @@ async function refresh(stored: StoredTokens): Promise<string> {
       refresh_token: stored.refreshToken,
     });
   } catch (err) {
-    // Another request may have used the single-use token first; if so its tokens are already stored.
+    await releaseLease(stored);
+    // A disconnect or a sign-in may have replaced the tokens meanwhile; if so, use those.
     const current = await readTokens();
     if (!current) throw new NotConnectedError();
     if (current.refreshTokenEnc !== stored.refreshTokenEnc) return current.accessToken;
@@ -164,6 +190,7 @@ async function refresh(stored: StoredTokens): Promise<string> {
       refresh_token_enc: encrypt(tokens.refresh_token),
       expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
       scope: tokens.scope ?? null,
+      refreshing_until: null,
       updated_at: new Date().toISOString(),
     })
     .eq("provider", "tesla")
@@ -171,10 +198,28 @@ async function refresh(stored: StoredTokens): Promise<string> {
     .select("provider");
   if (error) throw new Error(`Saving tokens failed: ${error.message}`);
   if (data?.length === 1) return tokens.access_token;
-  // Nothing matched: the owner disconnected (don't write tokens back) or another request stored newer ones.
+  // Nothing matched: the owner disconnected (don't write tokens back) or signed in again meanwhile.
   const current = await readTokens();
   if (!current) throw new NotConnectedError();
   return current.accessToken;
+}
+
+// Claims the refresh for this refresh token, unless another request holds an unexpired lease on it.
+async function claimLease(stored: StoredTokens): Promise<boolean> {
+  const now = new Date();
+  const { data, error } = await db()
+    .from("oauth_tokens")
+    .update({ refreshing_until: new Date(now.getTime() + LEASE_MS).toISOString() })
+    .eq("provider", "tesla")
+    .eq("refresh_token_enc", stored.refreshTokenEnc)
+    .or(`refreshing_until.is.null,refreshing_until.lt.${now.toISOString()}`)
+    .select("provider");
+  if (error) throw new Error(`Claiming the token refresh failed: ${error.message}`);
+  return data?.length === 1;
+}
+
+async function releaseLease(stored: StoredTokens): Promise<void> {
+  await db().from("oauth_tokens").update({ refreshing_until: null }).eq("provider", "tesla").eq("refresh_token_enc", stored.refreshTokenEnc);
 }
 
 type StoredTokens = NonNullable<Awaited<ReturnType<typeof readTokens>>>;
