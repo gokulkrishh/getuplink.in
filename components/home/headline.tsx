@@ -1,3 +1,4 @@
+import { ChevronRight } from "lucide-react";
 import { PeriodLink } from "@/components/home/more-link";
 import type { View } from "@/components/stats/periods";
 import { energyBySlot, energyIn, spendBySlot, spendIn } from "@/lib/charging-figures";
@@ -47,7 +48,11 @@ function Cell({
       view={view}
       className="group @container flex min-w-0 flex-col gap-2 bg-background p-3 transition-colors duration-150 hover:bg-muted focus-visible:z-10 focus-visible:outline-offset-[-2px] sm:p-4"
     >
-      <p className="truncate text-xs font-medium tracking-wide text-faint uppercase">{label}</p>
+      {/* The arrow says the tile opens its Stats page; plain figure tiles elsewhere have none. */}
+      <p className="flex items-center justify-between gap-2 text-xs font-medium tracking-wide text-faint uppercase">
+        <span className="truncate">{label}</span>
+        <ChevronRight aria-hidden="true" className="size-3.5 shrink-0 transition-[color,translate] duration-150 group-hover:translate-x-0.5 group-hover:text-foreground" />
+      </p>
       <p className="font-mono text-[clamp(1rem,15cqi,1.75rem)] leading-none font-medium tracking-tight whitespace-nowrap tabular-nums">
         {value}
         {unit && <span className="ml-1 text-xs font-normal tracking-normal text-faint">{unit}</span>}

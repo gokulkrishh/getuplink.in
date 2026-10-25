@@ -112,7 +112,7 @@ export function SessionRow({ item, serial, now, costs }: { item: Listed; serial?
     ? [city, durationText, peakText, tempText]
     : [stream?.station_name && !stream.supercharger && stream.kind.toUpperCase(), stream && levels(stream), stoppedAt ? durationText : "In progress", peakText, tempText];
   return (
-    <li className={cn(columns(now !== undefined, costs, serial !== undefined), "grid items-start gap-x-4 py-4 text-sm", href && "relative")}>
+    <li className={cn(columns(now !== undefined, costs, serial !== undefined), "grid items-start gap-x-4 py-4 text-sm", href && "relative -mx-3 cursor-pointer px-3 transition-colors duration-150 hover:bg-muted focus-within:bg-muted")}>
       {serial !== undefined && <p className="pt-0.5 font-mono text-xs text-faint tabular-nums">{serial}</p>}
       <div className="space-y-1">
         <p className="tabular-nums">{now === undefined ? formatShortDate(item.started_at) : formatDayLabel(item.started_at, now)}</p>
@@ -121,7 +121,7 @@ export function SessionRow({ item, serial, now, costs }: { item: Listed; serial?
       <div className="min-w-0 space-y-1">
         <p className="truncate font-medium">
           {href ? (
-            <Link href={href} className="after:absolute after:inset-0 hover:underline hover:underline-offset-4">
+            <Link href={href} className="outline-none after:absolute after:inset-0">
               {place}
             </Link>
           ) : (

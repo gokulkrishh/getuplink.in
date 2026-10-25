@@ -95,9 +95,9 @@ function DayView({ detail, now }: { detail: DayDetail; now: number }) {
             <h2 className="text-lg font-medium tracking-heading">Charges</h2>
             <ul className="divide-y border-t text-sm tabular-nums">
               {detail.charges.map(({ session: s, cost }) => (
-                <li key={s.id} className="relative flex items-baseline justify-between gap-4 py-3">
+                <li key={s.id} className="relative -mx-3 flex cursor-pointer items-baseline justify-between gap-4 px-3 py-3 transition-colors duration-150 hover:bg-muted focus-within:bg-muted">
                   <span>
-                    <Link href={`/stats/charging/${s.id}`} className="after:absolute after:inset-0 hover:underline hover:underline-offset-4">
+                    <Link href={`/stats/charging/${s.id}`} className="outline-none after:absolute after:inset-0">
                       {formatClock(s.started_at)}
                       {s.ended_at ? ` to ${formatClock(s.ended_at)}` : ", charging"}
                     </Link>
