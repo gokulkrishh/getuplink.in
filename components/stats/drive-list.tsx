@@ -95,9 +95,9 @@ export function DriveList({ drives, now }: { drives: Drive[]; now: number }) {
   const serialOf = (t: Trip) => trips.length - trips.indexOf(t);
   return (
     <section className="space-y-6">
-      <div className="flex items-baseline justify-between gap-4 text-xs tracking-wide text-faint uppercase">
-        <h2 className="text-lg font-medium tracking-heading text-foreground normal-case">Trips</h2>
-        <p className="tabular-nums">
+      <div className="space-y-1">
+        <h2 className="text-lg font-medium tracking-heading">Trips</h2>
+        <p className="text-sm text-muted-foreground tabular-nums">
           {trips.length} {trips.length === 1 ? "trip" : "trips"} · {drives.length} {drives.length === 1 ? "drive" : "drives"} · {formatKm(totalKm)}
         </p>
       </div>

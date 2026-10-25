@@ -121,10 +121,10 @@ function HistoryRow({ change, notes, now }: { change: VersionChange; notes: Rele
 export function VersionHistory({ history, notes, now, until }: { history: VersionChange[]; notes: ReleaseNotesByVersion; now: number; until: string | null }) {
   return (
     <section className="space-y-4">
-      <div className="flex items-baseline justify-between gap-4 text-xs tracking-wide text-faint uppercase">
-        <h2 className="text-lg font-medium tracking-heading text-foreground normal-case">History</h2>
+      <div className="space-y-1">
+        <h2 className="text-lg font-medium tracking-heading">History</h2>
         {history.length > 0 && (
-          <p className="tabular-nums">
+          <p className="text-sm text-muted-foreground tabular-nums">
             {history.length} {history.length === 1 ? "version" : "versions"}
           </p>
         )}

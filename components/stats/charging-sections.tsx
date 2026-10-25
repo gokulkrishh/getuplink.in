@@ -167,9 +167,9 @@ export function SessionList({ sessions }: { sessions: Listed[] }) {
   return (
     <section className="space-y-6">
       <div className="space-y-3">
-        <div className="flex items-baseline justify-between gap-4 text-xs tracking-wide text-faint uppercase">
-          <h2 className="text-lg font-medium tracking-heading text-foreground normal-case">Charging sessions</h2>
-          <p className="tabular-nums">
+        <div className="space-y-1">
+          <h2 className="text-lg font-medium tracking-heading">Charging sessions</h2>
+          <p className="text-sm text-muted-foreground tabular-nums">
             {sessions.length} {sessions.length === 1 ? "session" : "sessions"}
             {energyTotal > 0 && ` · ${formatKwh(energyTotal)}`}
           </p>
