@@ -65,13 +65,13 @@ function Charge({ detail }: { detail: ChargeDetail }) {
       <div className="space-y-12">
         {curve.points.length > 0 && (
           <section className="space-y-4">
-            <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Power and battery</h2>
+            <h2 className="text-lg font-medium tracking-heading">Power and battery</h2>
             <ChargeCurve points={curve.points} />
           </section>
         )}
         {shown.length > 0 && (
           <section className="space-y-4">
-            <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Session</h2>
+            <h2 className="text-lg font-medium tracking-heading">Session</h2>
             {/* "₹450 · ₹18/kWh" shows the amount as the figure and the rate under it. */}
             <Figures
               figures={shown.map(([label, value]) => {

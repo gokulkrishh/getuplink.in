@@ -31,7 +31,7 @@ function Group({ title, rows }: { title: string; rows: [string, ReactNode][] }) 
   if (shown.length === 0) return null;
   return (
     <section>
-      <h2 className="text-xs tracking-wide text-foreground uppercase">{title}</h2>
+      <h2 className="text-lg font-medium tracking-heading">{title}</h2>
       <dl className="mt-3 divide-y border-y text-sm">
         {shown.map(([label, value]) => (
           <div key={label} className="flex items-baseline justify-between gap-4 py-3">

@@ -96,7 +96,7 @@ export function DriveList({ drives, now }: { drives: Drive[]; now: number }) {
   return (
     <section className="space-y-6">
       <div className="flex items-baseline justify-between gap-4 text-xs tracking-wide text-faint uppercase">
-        <h2 className="font-medium">Trips</h2>
+        <h2 className="text-lg font-medium tracking-heading text-foreground normal-case">Trips</h2>
         <p className="tabular-nums">
           {trips.length} {trips.length === 1 ? "trip" : "trips"} · {drives.length} {drives.length === 1 ? "drive" : "drives"} · {formatKm(totalKm)}
         </p>

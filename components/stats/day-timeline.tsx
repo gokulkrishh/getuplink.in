@@ -33,7 +33,10 @@ export function DayTimeline({ days: all7, now, title = "Your days" }: { days: Da
 
   return (
     <section className="space-y-4">
-      <h2 className="text-xs font-medium tracking-wide text-faint uppercase">{title}</h2>
+      <div className="space-y-1">
+        <h2 className="text-lg font-medium tracking-heading">{title}</h2>
+        <p className="text-sm text-muted-foreground">Asleep shows only where a check found the car asleep; the rest of a parked stretch may have been asleep too.</p>
+      </div>
       <ol ref={list} className="chart-touch space-y-1.5" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
         {[...days].reverse().map((d) => (
           <li key={d.day} className="flex items-center gap-3">
@@ -93,7 +96,6 @@ export function DayTimeline({ days: all7, now, title = "Your days" }: { days: Da
           </li>
         ))}
       </ul>
-      <p className="text-xs text-faint">Asleep shows only where a check found the car asleep; the rest of a parked stretch may have been asleep too.</p>
     </section>
   );
 }

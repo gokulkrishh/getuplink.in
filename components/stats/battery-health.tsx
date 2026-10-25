@@ -43,7 +43,7 @@ export function BatteryHealth({ trend, range, sessions }: { trend: WeeklyPack[];
 
   return (
     <section className="space-y-4">
-      <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Battery health</h2>
+      <h2 className="text-lg font-medium tracking-heading">Battery health</h2>
       <Figures figures={figures} />
       <p className="text-xs text-faint">Compared with the best week Uplink has seen, not with a new pack: it only knows what the car has reported since you connected it.</p>
     </section>

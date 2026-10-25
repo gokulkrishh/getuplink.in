@@ -30,7 +30,7 @@ export function DcCurves({ curves }: { curves: Curve[] }) {
   return (
     <section className="space-y-6">
       <div className="space-y-2">
-        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">DC charging speed</h2>
+        <h2 className="text-lg font-medium tracking-heading">DC charging speed</h2>
         <p className="text-sm text-muted-foreground">Typical power as the battery fills, from your last {curves.length} DC charges. Power drops as the battery gets fuller.</p>
       </div>
       <LineChart series={series} formatX={(x) => `${Math.round(x)}%`} formatY={(y) => `${Math.round(y)} kW`} label="Typical DC charging power against battery level" yFrom={0} />
@@ -69,7 +69,7 @@ export function ChargingMap({ pins }: { pins: MapPin[] }) {
   return (
     <section className="space-y-4">
       <div className="space-y-2">
-        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Charging map</h2>
+        <h2 className="text-lg font-medium tracking-heading">Charging map</h2>
         <p className="text-sm text-muted-foreground">Each charge where it happened; bigger pins added more energy.</p>
       </div>
       <TripMap pins={pins} label={`${pins.length} charges on a map`} />

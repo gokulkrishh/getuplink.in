@@ -20,7 +20,7 @@ export function AwakeTimeline({ days, now }: { days: DayStrip[]; now: number }) 
   return (
     <section className="space-y-8">
       <div className="space-y-2">
-        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Online and asleep</h2>
+        <h2 className="text-lg font-medium tracking-heading">Online and asleep</h2>
         <p className="text-sm text-muted-foreground tabular-nums">
           Online on {onlineDays} of the last {days.length} days
         </p>

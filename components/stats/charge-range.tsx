@@ -18,7 +18,7 @@ export function ChargeRange({ sessions }: { sessions: StreamChargeSession[] }) {
   return (
     <section className="space-y-6">
       <div className="space-y-2">
-        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Charge range</h2>
+        <h2 className="text-lg font-medium tracking-heading">Charge range</h2>
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
           {from}% to {to}%
         </p>

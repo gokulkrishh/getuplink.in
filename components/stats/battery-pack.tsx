@@ -9,7 +9,7 @@ export function BatteryPack({ trend }: { trend: WeeklyPack[] }) {
   return (
     <section id="battery" className="space-y-8">
       <div className="space-y-2">
-        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Usable capacity by week</h2>
+        <h2 className="text-lg font-medium tracking-heading">Usable capacity by week</h2>
         <p className="text-sm text-muted-foreground">Estimated full pack, weekly median. Now {formatKwh(latest.kwh)}.</p>
       </div>
       <BatteryTrend points={trend} />

@@ -54,7 +54,7 @@ export function ChargeLevelChart({ level, now, frame }: { level: ChargeLevel | n
   return (
     <section className="space-y-8">
       <div className="space-y-2">
-        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Charge level</h2>
+        <h2 className="text-lg font-medium tracking-heading">Charge level</h2>
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{Math.round(latest.level)}%</p>
         <p className="text-sm text-muted-foreground">{caption}</p>
       </div>

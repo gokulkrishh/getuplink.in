@@ -21,7 +21,7 @@ export function Temperatures({ temps }: { temps: BatteryExtras["temps"] }) {
   return (
     <section className="space-y-6">
       <div className="space-y-2">
-        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Temperatures</h2>
+        <h2 className="text-lg font-medium tracking-heading">Temperatures</h2>
         {/* The latest of each, labelled like the chart's legend. */}
         <Figures
           figures={series.map((s) => {
@@ -46,7 +46,7 @@ export function CellBalance({ spread, days }: { spread: BatteryExtras["cellSprea
   return (
     <section className="space-y-6">
       <div className="space-y-3">
-        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Cell balance</h2>
+        <h2 className="text-lg font-medium tracking-heading">Cell balance</h2>
         <p className="text-sm text-muted-foreground">
           The battery is made of many cells. This is how far apart the highest and lowest cell voltage are, in millivolts (mV, thousandths of a volt). Smaller is
           better: it means the cells are evenly balanced.
@@ -73,7 +73,7 @@ export function CapacityByKm({ points }: { points: BatteryExtras["capacityByKm"]
   return (
     <section className="space-y-6">
       <div className="space-y-2">
-        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Capacity by distance</h2>
+        <h2 className="text-lg font-medium tracking-heading">Capacity by distance</h2>
         <p className="text-sm text-muted-foreground">The estimated full pack each week, against the odometer.</p>
       </div>
       <LineChart

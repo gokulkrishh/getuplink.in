@@ -76,7 +76,7 @@ function Drive({ detail }: { detail: DriveDetail }) {
           />
         </section>
         <section className="space-y-4">
-          <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Map</h2>
+          <h2 className="text-lg font-medium tracking-heading">Map</h2>
           {route.length >= 2 ? (
             <TripMap route={route} pins={pins} />
           ) : (
@@ -85,14 +85,14 @@ function Drive({ detail }: { detail: DriveDetail }) {
         </section>
         {trip.stops > 0 && (
           <section className="space-y-4">
-            <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Timeline</h2>
+            <h2 className="text-lg font-medium tracking-heading">Timeline</h2>
             <TripTimeline legs={trip.legs} />
           </section>
         )}
         {trip.stops > 0 && <Legs legs={trip.legs} />}
         {[speed, power, accel, grade, battery].some((points) => points.length >= 2) && (
           <section className="space-y-4">
-            <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Over the drive</h2>
+            <h2 className="text-lg font-medium tracking-heading">Over the drive</h2>
             <Figures figures={highlights(power, accel)} />
             <DriveLanes
               from={trip.start}
@@ -120,7 +120,7 @@ function Drive({ detail }: { detail: DriveDetail }) {
 function Legs({ legs }: { legs: DriveDetail["trip"]["legs"] }) {
   return (
     <section className="space-y-4">
-      <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Legs</h2>
+      <h2 className="text-lg font-medium tracking-heading">Legs</h2>
       <div className="-mx-3 overflow-x-auto">
         <table className="w-full min-w-md text-sm tabular-nums [&_td:last-child]:pr-3 [&_th:first-child]:pl-3 [&_th:last-child]:pr-3">
           <thead>

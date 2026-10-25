@@ -21,7 +21,7 @@ export function SpeedBands({ bins }: { bins: DrivingExtras["speed"] }) {
   return (
     <section className="space-y-6">
       <div className="space-y-2">
-        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Time at each speed</h2>
+        <h2 className="text-lg font-medium tracking-heading">Time at each speed</h2>
         <p className="text-sm text-muted-foreground">Share of driving time in each speed band, km/h, last 30 days.</p>
       </div>
       <Bars bars={bars} ariaLabel="Share of driving time by speed in km/h" unit="%" scrollFrom="start" />
@@ -73,7 +73,7 @@ export function EfficiencyBands({ byTemp, bySpeed }: { byTemp: Band[]; bySpeed: 
   return (
     <section className="space-y-6">
       <div className="space-y-2">
-        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Efficiency</h2>
+        <h2 className="text-lg font-medium tracking-heading">Efficiency</h2>
         <p className="text-sm text-muted-foreground">How far each kWh took you, by outside temperature and by average speed, last 30 days. Higher is better.</p>
       </div>
       <BandTable title="Outside" bands={byTemp} />
@@ -97,7 +97,7 @@ export function Places({ places, visited }: { places: NamedPlace[]; visited: Dri
   return (
     <section className="space-y-6">
       <div className="space-y-2">
-        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Places</h2>
+        <h2 className="text-lg font-medium tracking-heading">Places</h2>
         <p className="text-sm text-muted-foreground">Where you went and where the car parked, last 30 days.</p>
       </div>
       {(pins.length > 0 || visited.length >= 2) && <TripMap route={visited} pins={pins} label="Everywhere the car went, with where it parked" />}

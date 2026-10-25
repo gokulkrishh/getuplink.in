@@ -8,7 +8,7 @@ export function TopStations({ rows }: { rows: StationRow[] }) {
   if (rows.length === 0) return null;
   return (
     <section className="space-y-4">
-      <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Where you charge</h2>
+      <h2 className="text-lg font-medium tracking-heading">Where you charge</h2>
       <div className="overflow-x-auto">
         <table className="w-full min-w-md text-sm tabular-nums">
           <thead>

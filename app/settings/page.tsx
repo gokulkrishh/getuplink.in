@@ -27,7 +27,7 @@ export const metadata: Metadata = { title: "Settings · Uplink" };
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mt-10 first:mt-0">
-      <h2 className="mb-2 text-xs font-medium tracking-wide text-faint uppercase">{title}</h2>
+      <h2 className="mb-2 text-lg font-medium tracking-heading">{title}</h2>
       <div className="divide-y border-t">{children}</div>
     </section>
   );

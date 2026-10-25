@@ -79,19 +79,19 @@ function DayView({ detail, now }: { detail: DayDetail; now: number }) {
         <DayTimeline days={[detail.strip]} now={now} title="Timeline" />
         {detail.route.length >= 2 && (
           <section className="space-y-4">
-            <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Map</h2>
+            <h2 className="text-lg font-medium tracking-heading">Map</h2>
             <TripMap route={detail.route} pins={detail.pins} label="Where the car went this day" />
           </section>
         )}
         {detail.trips.length > 0 && (
           <section className="space-y-4">
-            <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Trips</h2>
+            <h2 className="text-lg font-medium tracking-heading">Trips</h2>
             <TripTable trips={detail.trips} serialOf={(t) => detail.trips.length - detail.trips.indexOf(t)} now={now} />
           </section>
         )}
         {detail.charges.length > 0 && (
           <section className="space-y-4">
-            <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Charges</h2>
+            <h2 className="text-lg font-medium tracking-heading">Charges</h2>
             <ul className="divide-y border-t text-sm tabular-nums">
               {detail.charges.map(({ session: s, cost }) => (
                 <li key={s.id} className="relative flex items-baseline justify-between gap-4 py-3">

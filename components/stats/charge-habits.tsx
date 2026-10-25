@@ -24,7 +24,7 @@ export function ChargeHabits({ starts }: { starts: number[] }) {
   return (
     <section className="space-y-4">
       <div className="space-y-2">
-        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">When you charge</h2>
+        <h2 className="text-lg font-medium tracking-heading">When you charge</h2>
         <p className="text-sm text-muted-foreground tabular-nums">Most often {describe(busiest[0], busiest[1], counts[busiest[0]][busiest[1]])}</p>
       </div>
       <div ref={grid} className="chart-touch relative space-y-1.5" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>

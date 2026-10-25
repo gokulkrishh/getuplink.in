@@ -62,7 +62,7 @@ export function ParkedDrain({ drain, parked, parkedNow }: { drain: DrainSummary 
   return (
     <section className="space-y-8">
       <div className="space-y-2">
-        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Parked drain</h2>
+        <h2 className="text-lg font-medium tracking-heading">Parked drain</h2>
         {headline && (
           <>
             {/* The label wraps as a whole under the figure on a phone, rather than splitting across the big line. */}

@@ -23,7 +23,7 @@ export function Distance({ figures, now, period }: { figures: DrivingFigures; no
   return (
     <section className="space-y-8">
       <div className="space-y-2">
-        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Distance</h2>
+        <h2 className="text-lg font-medium tracking-heading">Distance</h2>
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{compactNumber.format(current.km ?? 0)} km</p>
         <p className="text-sm text-muted-foreground">{PERIOD_WORDS[period]}</p>
       </div>
@@ -52,7 +52,7 @@ export function EnergyUse({ figures, now, period }: { figures: DrivingFigures; n
   return (
     <section className="space-y-8">
       <div className="space-y-2">
-        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Energy use</h2>
+        <h2 className="text-lg font-medium tracking-heading">Energy use</h2>
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatKwh(used)}</p>
         <p className="text-sm text-muted-foreground tabular-nums">
           Used {PERIOD_WORDS[period]}
@@ -89,7 +89,7 @@ export function DailyDriving({ days }: { days: DayKm[] }) {
   return (
     <section className="space-y-8">
       <div className="space-y-2">
-        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Driving per day</h2>
+        <h2 className="text-lg font-medium tracking-heading">Driving per day</h2>
         <p className="text-sm text-muted-foreground tabular-nums">{compactNumber.format(total)} km in the last 30 days</p>
       </div>
       <Bars bars={bars} ariaLabel="Distance per day" labelEvery={7} visible={30} unit="km" />
@@ -115,7 +115,7 @@ export function DriveStatsSection({ stats }: { stats: DriveStats | null }) {
   return (
     <section className="space-y-4">
       <div className="space-y-1">
-        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Drive stats</h2>
+        <h2 className="text-lg font-medium tracking-heading">Drive stats</h2>
         <p className="text-sm text-muted-foreground">
           {stats.days >= 89 ? "Last 90 days" : `Since tracking began, ${Math.max(1, Math.round(stats.days))} ${Math.round(stats.days) === 1 ? "day" : "days"}`}. Typical drive is the median.
         </p>

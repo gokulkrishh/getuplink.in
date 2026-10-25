@@ -126,7 +126,7 @@ export function EnergyAdded({
   return (
     <section className="space-y-8">
       <div className="space-y-2">
-        <h2 className="text-xs font-medium tracking-wide text-faint uppercase">Energy added</h2>
+        <h2 className="text-lg font-medium tracking-heading">Energy added</h2>
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatKwh(total)}</p>
         <p className="text-sm text-muted-foreground">{PERIOD_WORDS[period]}</p>
       </div>
@@ -168,7 +168,7 @@ export function SessionList({ sessions }: { sessions: Listed[] }) {
     <section className="space-y-6">
       <div className="space-y-3">
         <div className="flex items-baseline justify-between gap-4 text-xs tracking-wide text-faint uppercase">
-          <h2 className="font-medium">Charging sessions</h2>
+          <h2 className="text-lg font-medium tracking-heading text-foreground normal-case">Charging sessions</h2>
           <p className="tabular-nums">
             {sessions.length} {sessions.length === 1 ? "session" : "sessions"}
             {energyTotal > 0 && ` · ${formatKwh(energyTotal)}`}

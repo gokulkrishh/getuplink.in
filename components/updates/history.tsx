@@ -122,7 +122,7 @@ export function VersionHistory({ history, notes, now, until }: { history: Versio
   return (
     <section className="space-y-4">
       <div className="flex items-baseline justify-between gap-4 text-xs tracking-wide text-faint uppercase">
-        <h2 className="font-medium">History</h2>
+        <h2 className="text-lg font-medium tracking-heading text-foreground normal-case">History</h2>
         {history.length > 0 && (
           <p className="tabular-nums">
             {history.length} {history.length === 1 ? "version" : "versions"}
