@@ -34,11 +34,9 @@ describe("motorLayout", () => {
 });
 
 describe("tyrePressureLabel", () => {
-  test("equal front and rear shows once", () => {
-    expect(tyrePressureLabel(2.9, 2.9)).toBe("2.9 bar (42 psi)");
-  });
-  test("different front and rear", () => {
-    expect(tyrePressureLabel(2.9, 3.1)).toBe("2.9 bar front · 3.1 bar rear (42 psi · 45 psi)");
+  test("bar in, whole psi out, front and rear", () => {
+    expect(tyrePressureLabel(2.9, 2.9)).toBe("42 psi front, 42 psi rear");
+    expect(tyrePressureLabel(2.9, 3.1)).toBe("42 psi front, 45 psi rear");
   });
   test("missing values show nothing", () => {
     expect(tyrePressureLabel(null, 2.9)).toBeNull();

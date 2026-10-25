@@ -1,3 +1,4 @@
+import { psi } from "@/lib/car";
 import type { Stream } from "@/lib/telemetry";
 
 // The car's state right now, from each field's latest streamed reading, in plain words. Pure, so tested.
@@ -49,7 +50,8 @@ function doors(value: unknown): string | null {
 }
 
 const temp = (v: unknown) => (typeof v === "number" ? `${Math.round(v * 10) / 10} °C` : null);
-const bar = (v: unknown) => (typeof v === "number" ? `${v.toFixed(1)} bar` : null);
+// The car streams tyre pressures in bar.
+const pressure = (v: unknown) => (typeof v === "number" && v > 0 ? psi(v) : null);
 
 type TyreKey = "fl" | "fr" | "rl" | "rr";
 const TYRES: [TyreKey, string, string][] = [
@@ -95,7 +97,16 @@ function names(keys: TyreKey[]): string {
   return n.length > 1 ? `${n.slice(0, -1).join(", ")} and ${n.at(-1)}` : n[0];
 }
 
-export type Tyre = { name: string; pressure: string; measuredAt: string | null; warning: "low" | "very low" | null };
+// pressure: "42 psi". measuredAt: when the tyre was measured, when the car said (TpmsLastSeenPressureTime*);
+// updatedAt: when the pressure reading arrived, for when it didn't. alert: "Front left is low".
+export type Tyre = {
+  name: string;
+  pressure: string;
+  measuredAt: string | null;
+  updatedAt: string;
+  warning: "low" | "very low" | null;
+  alert: string | null;
+};
 
 export type CarNow = { rows: [string, string][]; tyres: Tyre[]; tyreWarning: string | null; since: string | null };
 
@@ -146,10 +157,20 @@ export function carNow(stream: Stream, now: number, checked: CheckedTyres | null
         ? "A tyre is a little low."
         : null;
   const tyres = TYRES.flatMap(([key, name, suffix]): Tyre[] => {
-    const pressure = bar(v(`TpmsPressure${suffix}`));
-    if (pressure === null) return [];
+    const reading = stream[`TpmsPressure${suffix}`];
+    const value = pressure(reading?.value);
+    if (!reading || value === null) return [];
     const warning = hardKeys.includes(key) ? "very low" : softKeys.includes(key) ? "low" : null;
-    return [{ name, pressure, measuredAt: measuredAt(v(`TpmsLastSeenPressureTime${suffix}`), now), warning }];
+    return [
+      {
+        name,
+        pressure: value,
+        measuredAt: measuredAt(v(`TpmsLastSeenPressureTime${suffix}`), now),
+        updatedAt: reading.at,
+        warning,
+        alert: warning && `${name} is ${warning}`,
+      },
+    ];
   });
   const times = Object.values(stream).map((r) => Date.parse(r.at));
   return {

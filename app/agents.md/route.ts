@@ -54,7 +54,7 @@ All tools but one only read. Times without an offset are read as IST, for exampl
 | \`get_driving_insights\` | Last 30 days: share of time at each speed, km per kWh by outside temperature and by speed, and the places the car parks with visits and hours parked. | none |
 | \`get_monthly_summary\` | Month by month: km driven, time driving, kWh used, charges, kWh added and spend from real bills, with how many charges had no bill. | none |
 | \`get_battery_status\` | Charge level, usable capacity and range at 100% against the best week, Tesla's own full-pack figure with when it was reported, AC and DC charging efficiency, parked drain, temperatures and the cell voltage gap. | none |
-| \`get_car_now\` | The car's state from its latest readings: locked, Sentry Mode, doors, windows, charge port, climate, temperatures, and each tyre's pressure with when it was measured and which tyre is low. | none |
+| \`get_car_now\` | The car's state from its latest readings: locked, Sentry Mode, doors, windows, charge port, climate, temperatures, and each tyre's pressure in psi with when it was measured and which tyre is low. | none |
 | \`attach_charge_invoice\` | The one write. Saves a charging invoice from any network but Tesla Superchargers to the session it was for. | see below |
 
 ### Attaching an invoice

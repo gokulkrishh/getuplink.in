@@ -132,7 +132,11 @@ export async function carNowStatus() {
   return {
     last_update: now.since ? istIso(now.since) : null,
     state: Object.fromEntries(now.rows),
-    tyres: Object.fromEntries(now.tyres.map((t) => [t.name, { pressure: t.pressure, measured_at: t.measuredAt ? istIso(t.measuredAt) : null, warning: t.warning }])),
+    // Pressures in psi. measured_at is when the car measured the tyre, null when it didn't say; updated_at is
+    // when the reading arrived.
+    tyres: Object.fromEntries(
+      now.tyres.map((t) => [t.name, { pressure: t.pressure, measured_at: t.measuredAt ? istIso(t.measuredAt) : null, updated_at: istIso(t.updatedAt), warning: t.warning }]),
+    ),
     tyre_warning: now.tyreWarning,
   };
 }

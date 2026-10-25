@@ -11,7 +11,7 @@ describe("carNow", () => {
     expect(words("ClimateKeeperModeStateDog")).toBe("Dog");
     expect(words(true)).toBe("Yes");
   });
-  test("rows from the latest readings, tyres in bar, warnings named", () => {
+  test("rows from the latest readings, tyres in psi, warnings named", () => {
     const state = carNow(
       {
         Locked: { at, value: true },
@@ -34,8 +34,26 @@ describe("carNow", () => {
       ["Windows", "1 open"],
       ["Inside", "31.3 °C"],
     ]);
-    expect(state.tyres).toEqual([{ name: "Front left", pressure: "2.9 bar", measuredAt: "2026-10-23T08:00:00.000Z", warning: null }]);
+    expect(state.tyres).toEqual([{ name: "Front left", pressure: "41 psi", measuredAt: "2026-10-23T08:00:00.000Z", updatedAt: at, warning: null, alert: null }]);
     expect(state.tyreWarning).toBe("Rear left is low.");
+  });
+  test("each tyre in whole psi, front left to rear right, the warned one named on its own", () => {
+    const state = carNow(
+      {
+        TpmsPressureRr: { at, value: 2.75 },
+        TpmsPressureFl: { at, value: 2.9 },
+        TpmsPressureFr: { at, value: 2.9 },
+        TpmsPressureRl: { at: "2026-10-24T08:00:00Z", value: 2.1 },
+        TpmsSoftWarnings: { at, value: { rear_left: true } },
+      },
+      now,
+    );
+    expect(state.tyres.map((t) => [t.name, t.pressure, t.measuredAt, t.updatedAt, t.alert])).toEqual([
+      ["Front left", "42 psi", null, at, null],
+      ["Front right", "42 psi", null, at, null],
+      ["Rear left", "30 psi", null, "2026-10-24T08:00:00Z", "Rear left is low"],
+      ["Rear right", "40 psi", null, at, null],
+    ]);
   });
   test("hard warnings first, several tyres named together", () => {
     const state = carNow(

@@ -140,7 +140,7 @@ const handler = createMcpHandler(
       "get_car_now",
       {
         title: "Car now",
-        description: "The car's state from its latest readings: locked, Sentry Mode, doors, windows, charge port, climate, cabin overheat protection, temperatures, and each tyre's pressure with when it was measured and which tyre is low.",
+        description: "The car's state from its latest readings: locked, Sentry Mode, doors, windows, charge port, climate, cabin overheat protection, temperatures, and each tyre's pressure in psi with when it was measured and which tyre is low.",
         inputSchema: z.object({}),
         annotations: ro,
       },

@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { Header } from "@/components/header";
 import { CarNotices } from "@/components/owner-notices";
+import { Figures } from "@/components/stats/figures";
 import { Vin } from "@/components/vin";
 import { CAR_NOW_FIELDS, type CarNow, carNow } from "@/lib/car-now";
 import { formatAgo, formatClock, formatShortDate } from "@/lib/format";
@@ -81,19 +82,27 @@ async function Car({ id }: { id: Promise<string | null> }) {
           </div>
         )}
         {now && now.tyres.length > 0 && (
-          <div className="space-y-3">
-            <Group
-              title="Tyres"
-              rows={now.tyres.map((t) => [
-                t.name,
-                <>
-                  {t.pressure}
-                  {t.measuredAt && <span className="block text-xs text-muted-foreground">Measured {formatAgo(t.measuredAt, at)}</span>}
-                </>,
-              ])}
+          <section className="space-y-3">
+            <h2 className="text-lg font-medium tracking-heading">Tyres</h2>
+            {/* Laid out like the car: fronts on top, left on the left, two by two at every width. */}
+            <Figures
+              className="sm:grid-cols-2"
+              figures={now.tyres.map((t) => ({
+                label: t.name,
+                value: t.pressure,
+                note: (
+                  <>
+                    {/* When the car measured it; when it didn't say, when the reading arrived. */}
+                    {t.measuredAt ? `Measured ${formatAgo(t.measuredAt, at)}` : `Updated ${formatAgo(t.updatedAt, at)}`}
+                    {t.alert && <span className="block text-destructive">{t.alert}</span>}
+                  </>
+                ),
+              }))}
             />
-            {now.tyreWarning && <p className="text-sm text-destructive">{now.tyreWarning}</p>}
-          </div>
+            {car.tyrePressure && <p className="text-xs text-muted-foreground">Recommended {car.tyrePressure}</p>}
+            {/* A warning not shown on a tile: one that doesn't say which tyre, or a tyre with no reading. */}
+            {now.tyreWarning && !now.tyres.some((t) => t.alert) && <p className="text-sm text-destructive">{now.tyreWarning}</p>}
+          </section>
         )}
         <Group
           title="Car"
@@ -124,7 +133,8 @@ async function Car({ id }: { id: Promise<string | null> }) {
             ["Ventilated front seats", yesNo(car.seatCooling)],
             ["Heated rear seats", yesNo(car.rearSeatHeaters)],
             ["Air suspension", yesNo(car.airSuspension)],
-            ["Recommended tyre pressure", car.tyrePressure],
+            // Shown under the tyres instead, when they're shown.
+            ["Recommended tyre pressure", !(now && now.tyres.length > 0) && car.tyrePressure],
             [
               "Software",
               car.version && (

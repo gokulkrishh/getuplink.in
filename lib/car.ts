@@ -88,12 +88,13 @@ export function motorLayout(rear: string | null | undefined, front: string | nul
 }
 
 const PSI_PER_BAR = 14.5038;
-// Tesla's recommended cold pressures, in bar: "2.9 bar (42 psi)", or front and rear when they differ.
+// Tesla sends tyre pressures in bar (the streamed TpmsPressure* fields and vehicle_state's recommended
+// tpms_rcp_*_value); Uplink shows them in whole psi: 2.9 bar -> "42 psi".
+export const psi = (bar: number) => `${Math.round(bar * PSI_PER_BAR)} psi`;
+
+// Tesla's recommended cold pressures, given in bar: "42 psi front, 45 psi rear".
 export function tyrePressureLabel(front: number | null | undefined, rear: number | null | undefined): string | null {
   const ok = (v: number | null | undefined): v is number => typeof v === "number" && v > 0;
-  const bar = (v: number) => `${v.toFixed(1)} bar`;
-  const psi = (v: number) => `${Math.round(v * PSI_PER_BAR)} psi`;
   if (!ok(front) || !ok(rear)) return null;
-  if (bar(front) === bar(rear)) return `${bar(front)} (${psi(front)})`;
-  return `${bar(front)} front · ${bar(rear)} rear (${psi(front)} · ${psi(rear)})`;
+  return `${psi(front)} front, ${psi(rear)} rear`;
 }
