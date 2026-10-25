@@ -43,6 +43,9 @@ function BandTable({ title, bands }: { title: string; bands: Band[] }) {
       <table className="w-full min-w-sm text-sm tabular-nums">
         <thead>
           <tr className="border-b text-left text-xs text-faint">
+            <th scope="col" className="w-10 py-2 pr-3 font-normal">
+              #
+            </th>
             <th scope="col" className="py-2 pr-4 font-normal">
               {title}
             </th>
@@ -58,8 +61,9 @@ function BandTable({ title, bands }: { title: string; bands: Band[] }) {
           </tr>
         </thead>
         <tbody className="divide-y">
-          {bands.map((b) => (
+          {bands.map((b, k) => (
             <tr key={b.label}>
+              <td className="w-10 py-3 pr-3 font-mono text-xs text-faint">{k + 1}</td>
               <th scope="row" className="py-3 pr-4 text-left font-normal">
                 {b.label}
               </th>
@@ -115,6 +119,9 @@ export function Places({ places, visited, words = "last 30 days", note }: { plac
           <table className="w-full min-w-md text-sm tabular-nums">
             <thead>
               <tr className="border-b text-left text-xs text-faint">
+                <th scope="col" className="w-10 py-2 pr-3 font-normal">
+                  #
+                </th>
                 <th scope="col" className="py-2 pr-4 font-normal">
                   Place
                 </th>
@@ -132,6 +139,7 @@ export function Places({ places, visited, words = "last 30 days", note }: { plac
             <tbody className="divide-y">
               {places.slice(0, 15).map((p, k) => (
                 <tr key={`${p.lat},${p.lng}`}>
+                  <td className="w-10 py-3 pr-3 font-mono text-xs text-faint">{k + 1}</td>
                   <th scope="row" className="py-3 pr-4 text-left font-normal">
                     {placeName(p, k)}
                   </th>

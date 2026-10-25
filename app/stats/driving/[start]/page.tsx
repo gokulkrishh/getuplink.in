@@ -122,9 +122,10 @@ function Legs({ legs }: { legs: DriveDetail["trip"]["legs"] }) {
     <section className="space-y-4">
       <h2 className="text-lg font-medium tracking-heading">Legs</h2>
       <div className="-mx-3 overflow-x-auto">
-        <table className="w-full min-w-md text-sm tabular-nums [&_td:last-child]:pr-3 [&_th:first-child]:pl-3 [&_th:last-child]:pr-3">
+        <table className="w-full min-w-md text-sm tabular-nums [&_td:first-child]:pl-3 [&_td:last-child]:pr-3 [&_th:first-child]:pl-3 [&_th:last-child]:pr-3">
           <thead>
             <tr className="border-b text-left text-xs text-faint">
+              <th scope="col" className="w-10 py-2 pr-3 font-normal">#</th>
               <th scope="col" className="py-2 pr-4 font-normal">Leg</th>
               <th scope="col" className="py-2 pr-4 text-right font-normal">Distance</th>
               <th scope="col" className="py-2 pr-4 text-right font-normal">Energy</th>
@@ -134,8 +135,8 @@ function Legs({ legs }: { legs: DriveDetail["trip"]["legs"] }) {
           <tbody className="divide-y">
             {legs.map((d, k) => (
               <tr key={d.start} className="relative cursor-pointer transition-colors duration-150 hover:bg-muted focus-within:bg-muted">
+                <td className="py-3 pr-3 font-mono text-xs text-faint">{k + 1}</td>
                 <th scope="row" className="py-3 pr-4 text-left font-normal whitespace-nowrap">
-                  <span className="mr-2 font-mono text-xs text-faint">{k + 1}</span>
                   <Link href={`/stats/driving/${d.start}?leg`} className="outline-none after:absolute after:inset-0">
                     {formatClock(d.start)} to {formatClock(d.end)}
                   </Link>

@@ -23,6 +23,9 @@ export function MonthlyTable({ rows, empty }: { rows: MonthRow[]; empty?: string
           <table className="w-full min-w-xl text-sm tabular-nums">
             <thead>
               <tr className="border-b text-left text-xs text-faint">
+                <th scope="col" className="w-10 py-2 pr-3 font-normal">
+                  #
+                </th>
                 {COLUMNS.map((c, k) => (
                   <th key={c} scope="col" className={`py-2 pr-4 font-normal last:pr-0 ${k > 0 ? "text-right" : ""}`}>
                     {c}
@@ -31,8 +34,9 @@ export function MonthlyTable({ rows, empty }: { rows: MonthRow[]; empty?: string
               </tr>
             </thead>
             <tbody className="divide-y">
-              {rows.map((r) => (
+              {rows.map((r, k) => (
                 <tr key={r.month}>
+                  <td className="w-10 py-3 pr-3 font-mono text-xs text-faint">{k + 1}</td>
                   <th scope="row" className="py-3 pr-4 text-left font-normal whitespace-nowrap">
                     {formatMonth(monthStart(r.month))}
                   </th>
