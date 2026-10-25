@@ -173,3 +173,14 @@ export const DEMO_PLACES: [lat: number, lng: number, name: string][] = [
 export function demoChargingSessions(): ChargingSession[] {
   return demoData().teslaSessions;
 }
+
+// A demo Supercharger bill's fee lines, in Tesla's charging-history shape: the charging line carries the
+// whole cost, and the idle-fee line is the zero one Tesla sends when the car left in time.
+export function demoChargingFees(sessionId: string): unknown {
+  const s = demoData().teslaSessions.find((t) => t.session_id === sessionId);
+  if (!s || s.energy_kwh === null || s.cost_total === null) return null;
+  return [
+    { feeType: "CHARGING", currencyCode: "INR", usageBase: s.energy_kwh, totalDue: s.cost_total, uom: "kwh" },
+    { feeType: "PARKING", currencyCode: "INR", usageBase: 0, totalDue: 0, uom: "min" },
+  ];
+}

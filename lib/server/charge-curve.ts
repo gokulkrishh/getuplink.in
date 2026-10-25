@@ -4,7 +4,8 @@ import { type ChargeCurve, chargeCurve } from "@/lib/charge-curve";
 import { matchSessions } from "@/lib/charge-sessions";
 import { DEMO } from "@/lib/demo";
 import type { Reading } from "@/lib/telemetry-derive";
-import { type ChargingSession, loadChargingSessions } from "./charging";
+import { type FeeLines, feeLines } from "@/lib/charge-fees";
+import { type ChargingSession, loadChargingFees, loadChargingSessions } from "./charging";
 import { demoStreamSessions } from "./demo";
 import { selectSessions, type StreamChargeSession, toStreamSession } from "./stream-charging";
 import { db } from "./supabase";
@@ -14,8 +15,9 @@ const MIN = 60 * 1000;
 // A level or temperature sent this long before the start still describes the battery at the start.
 const LEAD_MS = 60 * MIN;
 
-// invoice: a third-party invoice attached through the MCP connector (lib/server/receipts.ts).
-export type ChargeDetail = { session: StreamChargeSession; tesla: ChargingSession | null; invoice: SessionInvoice | null; curve: ChargeCurve };
+// invoice: a third-party invoice attached through the MCP connector (lib/server/receipts.ts). fees: the
+// matching Supercharger bill's fee lines, when Tesla sent any it could read.
+export type ChargeDetail = { session: StreamChargeSession; tesla: ChargingSession | null; invoice: SessionInvoice | null; curve: ChargeCurve; fees: FeeLines | null };
 
 async function loadStreamSession(id: number): Promise<StreamChargeSession | null> {
   if (DEMO) return demoStreamSessions().find((s) => s.id === id) ?? null;
@@ -60,5 +62,6 @@ export async function loadChargeDetail(id: number, now: number): Promise<ChargeD
     tempMax: fromStart(read("ModuleTempMax"), session.started_at, true),
     end,
   });
-  return { session, tesla: twin, invoice, curve };
+  const fees = twin ? feeLines(await loadChargingFees(twin.session_id), twin.cost_total) : null;
+  return { session, tesla: twin, invoice, curve, fees };
 }

@@ -5,6 +5,8 @@ import { Suspense } from "react";
 import { Header } from "@/components/header";
 import { OsmCredit, rate, streamTitle } from "@/components/session-row";
 import { ChargeCurve } from "@/components/stats/charge-curve";
+import { ChargeFees } from "@/components/stats/charge-fees";
+import { ChargeSupply } from "@/components/stats/charge-supply";
 import { Figures } from "@/components/stats/figures";
 import { splitSite } from "@/lib/charge-sessions";
 import { formatClock, formatDate, formatDuration, formatKwh, formatMoney } from "@/lib/format";
@@ -81,6 +83,8 @@ function Charge({ detail }: { detail: ChargeDetail }) {
             />
           </section>
         )}
+        <ChargeFees fees={detail.fees} currency={currency} />
+        <ChargeSupply session={s} />
       </div>
       {invoice?.hasFile && (
         <a href={`/api/charging/receipt/${s.id}`} target="_blank" rel="noopener" className="mt-6 inline-block text-sm text-muted-foreground underline-offset-4 transition-colors duration-150 hover:text-foreground hover:underline">

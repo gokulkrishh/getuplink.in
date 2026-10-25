@@ -1,4 +1,5 @@
 import "server-only";
+import { acSupply, cableLabel, phasesLabel } from "@/lib/ac-charge";
 import {
   colorName,
   driveLabel,
@@ -144,8 +145,6 @@ function details(
   };
 }
 
-const CABLES: Record<string, string> = { IEC: "Type 2 (IEC)", SAE: "J1772 (SAE)", GB_AC: "GB/T AC" };
-
 type AcChargeRow = {
   started_at: string;
   ended_at: string | null;
@@ -178,16 +177,14 @@ async function loadLastAcCharge(vin: string): Promise<LastAcCharge | null> {
   // The typical draw over the session's window; the peak when there are too few readings.
   const readings = await loadReadingsByField(vin, ["ACChargingPower"], data.started_at, data.ended_at);
   const kw = typicalChargeKw(readings?.ACChargingPower ?? []) ?? num(data.peak_power_kw);
-  const volts = num(data.ac_voltage);
-  const amps = num(data.ac_amps);
-  const phases = num(data.ac_phases);
+  const supply = acSupply(data);
   const charger = [
     kw !== null && kw > 0 && `${kw.toFixed(1)} kW`,
-    volts !== null && `${Math.round(volts)} V`,
-    amps !== null && `${Math.round(amps)} A`,
-    phases === 1 ? "single-phase" : phases === 3 ? "three-phase" : false,
+    supply?.volts && `${supply.volts} V`,
+    supply?.amps && `${supply.amps} A`,
+    phasesLabel(supply?.phases)?.toLowerCase(),
   ].filter(Boolean);
-  const cable = typeof data.cable_type === "string" ? (CABLES[data.cable_type] ?? null) : null;
+  const cable = cableLabel(data.cable_type);
   return charger.length > 0 || cable ? { charger: charger.length > 0 ? charger.join(" · ") : null, cable } : null;
 }
 

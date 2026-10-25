@@ -1,6 +1,6 @@
 import "server-only";
 import { DEMO } from "@/lib/demo";
-import { demoChargingSessions } from "./demo";
+import { demoChargingFees, demoChargingSessions } from "./demo";
 import { db } from "./supabase";
 import { fleetGet, TeslaError } from "./tesla";
 
@@ -160,6 +160,18 @@ export async function syncChargingHistoryThrottled(): Promise<void> {
   } catch (err) {
     console.warn("Charging history sync failed:", (err as Error).message);
   }
+}
+
+// One session's fee lines as Tesla sent them (see feeLines for reading them), or null when there are none
+// or the read fails. Kept out of the list above, which only needs the totals.
+export async function loadChargingFees(sessionId: string): Promise<unknown> {
+  if (DEMO) return demoChargingFees(sessionId);
+  const { data, error } = await db().from("charging_sessions").select("fees").eq("session_id", sessionId).maybeSingle();
+  if (error) {
+    console.warn("Charging fees unavailable:", error.message);
+    return null;
+  }
+  return data?.fees ?? null;
 }
 
 // Newest first. A missing table or a read error shows as an empty list, with a log line.
