@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BarTip, ChartFrame, EmptyChart, leadingTrimmed, MIN_COLUMNS, minListWidth, MonthLabel, niceMax } from "@/components/stats/bars";
+import { BAR_MAX, BarTip, ChartFrame, EmptyChart, MIN_COLUMNS, minListWidth, MonthLabel, niceMax } from "@/components/stats/bars";
 import { ScrollEnd } from "@/components/stats/scroll-end";
 import { TapColumns } from "@/components/stats/tap-columns";
 import { cn } from "@/lib/utils";
@@ -13,27 +13,32 @@ const kwh = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 
 // Same look as Bars, with each column split into series (first series at the bottom). Tones tell the
 // series apart and a 2px gap separates them. The legend sits under the panel, so side-by-side panels
-// line up, and each entry turns its series on or off. With empty, a period with nothing says so instead.
-// With labelEvery, any number of columns, labelled as in Bars.
+// line up, and each entry turns its series on or off. With empty, a period with nothing says so instead, in
+// the same box. As in Bars, every period draws one box and every slot keeps its column; `caption` goes
+// under the legend. With labelEvery, any number of columns, labelled as in Bars.
 export function StackedBars({
   bars: all,
   series,
   ariaLabel,
   empty,
   labelEvery,
+  caption,
 }: {
   bars: StackedBar[];
   series: StackedSeries[];
   ariaLabel: string;
   empty?: string;
   labelEvery?: number;
+  caption?: string;
 }) {
   const [hidden, setHidden] = useState<ReadonlySet<number>>(new Set());
-  if (empty && !all.some((b) => b.total > 0)) return <EmptyChart>{empty}</EmptyChart>;
+  if (empty && !all.some((b) => b.total > 0)) return <EmptyChart caption={caption}>{empty}</EmptyChart>;
   const dense = all.length > 6;
   const used = series.map((s, i) => ({ ...s, i })).filter(({ i }) => all.some((b) => b.segments[i] > 0));
   const shownTotal = (b: StackedBar) => b.segments.reduce((sum, v, i) => sum + (hidden.has(i) ? 0 : v), 0);
-  const bars = labelEvery ? all : leadingTrimmed(all, (b) => b.total > 0);
+  const bars = all;
+  // Slots before the history starts keep their column and label, with nothing drawn.
+  const first = bars.findIndex((b) => b.total > 0);
   const labelled = (k: number) => (labelEvery ? (bars.length - 1 - k) % labelEvery === 0 : true);
   const max = niceMax(Math.max(1, ...bars.map(shownTotal)));
   const breakdown = (b: StackedBar) =>
@@ -57,13 +62,23 @@ export function StackedBars({
     >
       {bars.map((b, k) => {
         const total = shownTotal(b);
+        if (k < first)
+          return (
+            <li key={b.key} aria-hidden="true" className="flex flex-col items-center gap-2">
+              <span className="h-4" />
+              <div className="h-20" />
+              <span className="h-4 text-xs whitespace-nowrap text-faint">
+                <MonthLabel label={b.label} dense={dense} fromEnd={bars.length - 1 - k} />
+              </span>
+            </li>
+          );
         return (
           <li key={b.key} className="group relative flex flex-col items-center gap-2">
             <BarTip at={k} of={bars.length} lines={[`${total.toFixed(1)} kWh in total`, ...breakdown(b)]} title={b.label} />
-            {!dense && <span className="font-mono text-xs text-muted-foreground tabular-nums">{kwh.format(total)}</span>}
-            <div className="flex h-20 w-full items-end">
+            <span className="h-4 font-mono text-xs text-muted-foreground tabular-nums">{dense ? "" : kwh.format(total)}</span>
+            <div className="flex h-20 w-full items-end justify-center">
               {total > 0 && (
-                <div className="flex w-full flex-col-reverse gap-0.5" style={{ height: `${Math.max(4, (total / max) * 100)}%` }}>
+                <div className={cn("flex w-full flex-col-reverse gap-0.5", BAR_MAX)} style={{ height: `${Math.max(4, (total / max) * 100)}%` }}>
                   {series.map((s, i) =>
                     b.segments[i] > 0 && !hidden.has(i) ? (
                       <div key={s.label} className={cn("min-h-px", s.className)} style={{ flex: `${b.segments[i]} 1 0%` }} />
@@ -86,7 +101,7 @@ export function StackedBars({
   );
   return (
     <div className="space-y-3">
-      <ChartFrame max={max} dense={dense} unit="kWh">
+      <ChartFrame max={max} unit="kWh">
         {/* Only wrapped when it needs the room: its tips are laid out (hidden) and would add a sliver of scroll. */}
         {minWidth > 0 ? <ScrollEnd label={ariaLabel}>{list}</ScrollEnd> : list}
       </ChartFrame>
@@ -108,6 +123,7 @@ export function StackedBars({
           </li>
         ))}
       </ul>
+      {caption && <p className="text-xs text-muted-foreground">{caption}</p>}
     </div>
   );
 }

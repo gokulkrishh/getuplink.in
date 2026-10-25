@@ -48,24 +48,25 @@ export function Summary({
       <div className="space-y-2">
         <p className="text-xs tracking-wide text-faint uppercase">Spent {frame.words}</p>
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{formatMoney(cost, "INR")}</p>
-        <Figures
-          figures={[
-            { label: "Energy billed", value: formatKwh(kwh) },
-            { label: "Bills", value: count },
-            acPerKwh !== null && { label: "AC rate", value: `${formatMoney(acPerKwh, "INR")}/kWh` },
-            dcPerKwh !== null && { label: "DC rate", value: `${formatMoney(dcPerKwh, "INR")}/kWh` },
-          ]}
-        />
-        {km !== null && km >= 10 && cost > 0 && missing === 0 && (
-          <p className="text-sm text-muted-foreground tabular-nums">{formatMoney((cost / km) * 100, "INR")} per 100 km driven</p>
-        )}
-        {missing > 0 && (
-          <p className="text-xs text-faint">
-            {missing} {missing === 1 ? "charge has" : "charges have"} no bill yet (home charging, or no invoice attached), so {missing === 1 ? "it isn't" : "they aren't"} counted.
-          </p>
-        )}
       </div>
       <Bars bars={bars} ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} empty={`No bills ${frame.words}`} />
+      <Figures
+        figures={[
+          { label: "Energy billed", value: formatKwh(kwh) },
+          { label: "Bills", value: count },
+          acPerKwh !== null && { label: "AC rate", value: `${formatMoney(acPerKwh, "INR")}/kWh` },
+          dcPerKwh !== null && { label: "DC rate", value: `${formatMoney(dcPerKwh, "INR")}/kWh` },
+        ]}
+      />
+      {/* Lines only some periods have go under the chart, so it stays put on a switch. */}
+      {km !== null && km >= 10 && cost > 0 && missing === 0 && (
+        <p className="text-sm text-muted-foreground tabular-nums">{formatMoney((cost / km) * 100, "INR")} per 100 km driven</p>
+      )}
+      {missing > 0 && (
+        <p className="text-xs text-faint">
+          {missing} {missing === 1 ? "charge has" : "charges have"} no bill yet (home charging, or no invoice attached), so {missing === 1 ? "it isn't" : "they aren't"} counted.
+        </p>
+      )}
     </section>
   );
 }

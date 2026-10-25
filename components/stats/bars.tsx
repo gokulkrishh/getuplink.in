@@ -11,7 +11,12 @@ export type Bar = { key: string; label: string; value: number; display: string; 
 // Otherwise each column is at least as wide as its label and value (see minListWidth), so on a phone a
 // chart with long labels scrolls sideways rather than running them together; `scrollFrom` says which end
 // it opens on.
-// With empty, a period with nothing to show says so (EmptyChart) instead of drawing an empty frame.
+// With empty, a period with nothing to show says so (EmptyChart) in the same box instead of drawing an empty frame.
+// `caption` says in plain words what is plotted and over which bars (see barsCaption); it sits under the
+// panel so a caption that wraps differently in another period never moves the chart.
+// Every period draws the same box: the value row is kept (blank when dense), so a switch between 6 and 12
+// columns, or to an empty period, doesn't change the chart's height. Each slot keeps its column, those
+// before the history starts drawn blank, and a bar is never wider than BAR_MAX.
 // `unit` titles the y axis and follows each value in the hover tip and for screen readers; `display` is
 // the bare number (money carries its own sign, with `prefix` on the axis).
 export function Bars({
@@ -22,6 +27,7 @@ export function Bars({
   prefix,
   unit,
   empty,
+  caption,
   scrollFrom = "end",
 }: {
   bars: Bar[];
@@ -34,15 +40,17 @@ export function Bars({
   unit?: string;
   // Like "No driving today".
   empty?: string;
+  // Like "Kilometres driven each month, May to Oct".
+  caption?: string;
   // "start" for categories (speed bands), "end" for time, opening on the newest.
   scrollFrom?: "start" | "end";
 }) {
-  if (empty && !all.some((b) => b.value > 0)) return <EmptyChart>{empty}</EmptyChart>;
+  if (empty && !all.some((b) => b.value > 0)) return <EmptyChart caption={caption}>{empty}</EmptyChart>;
   const dense = all.length > 6;
-  // Months before the history starts are dropped, so the bars begin at the left edge.
-  const bars = labelEvery ? all : leadingTrimmed(all, (b) => b.value > 0);
+  const bars = all;
   const max = niceMax(Math.max(1, ...bars.map((b) => b.value)));
-  // Slots before the first value stay blank, so the bars start where the history starts.
+  // Slots before the first value (before the history starts) keep their column and label but draw nothing,
+  // not even a tip: nothing is known about them.
   const first = bars.findIndex((b) => b.value > 0);
   const hidden = (b: Bar, k: number) => b.blank ?? k < first;
   const labelled = (k: number) => (labelEvery ? (bars.length - 1 - k) % labelEvery === 0 : true);
@@ -62,15 +70,21 @@ export function Bars({
       >
         {bars.map((b, k) =>
           hidden(b, k) ? (
-            <li key={b.key} aria-hidden="true" />
+            <li key={b.key} aria-hidden="true" className="flex flex-col items-center gap-2">
+              <span className="h-4" />
+              <div className="h-20" />
+              <span className="h-4 text-xs whitespace-nowrap text-faint">
+                {labelEvery ? (labelled(k) ? b.label : "") : <MonthLabel label={b.label} dense={dense} fromEnd={bars.length - 1 - k} />}
+              </span>
+            </li>
           ) : (
             <li key={b.key} className="group relative flex flex-col items-center gap-2">
               <BarTip at={k} of={bars.length} lines={[withUnit(b.display, unit)]} title={b.label} />
-              {!dense && <span className="font-mono text-xs text-muted-foreground tabular-nums">{b.display}</span>}
-              <div className="flex h-20 w-full items-end">
+              <span className="h-4 font-mono text-xs text-muted-foreground tabular-nums">{dense ? "" : b.display}</span>
+              <div className="flex h-20 w-full items-end justify-center">
                 {b.value > 0 && (
                   <div
-                    className={cn("w-full", b.isCurrent ? "bg-chart-accent" : "bg-muted-foreground/40 group-hover:bg-muted-foreground/70 group-data-[tapped=true]:bg-muted-foreground/70")}
+                    className={cn("w-full", BAR_MAX, b.isCurrent ? "bg-chart-accent" : "bg-muted-foreground/40 group-hover:bg-muted-foreground/70 group-data-[tapped=true]:bg-muted-foreground/70")}
                     style={{ height: `${Math.max(4, (b.value / max) * 100)}%` }}
                   />
                 )}
@@ -86,16 +100,44 @@ export function Bars({
       </TapColumns>
   );
   return (
-    <ChartFrame max={max} dense={dense} prefix={prefix} unit={unit}>
-      {scrolls ? (
-        <ScrollEnd label={ariaLabel} from={scrollFrom}>
-          {list}
-        </ScrollEnd>
-      ) : (
-        list
-      )}
-    </ChartFrame>
+    <Captioned caption={caption}>
+      <ChartFrame max={max} prefix={prefix} unit={unit}>
+        {scrolls ? (
+          <ScrollEnd label={ariaLabel} from={scrollFrom}>
+            {list}
+          </ScrollEnd>
+        ) : (
+          list
+        )}
+      </ChartFrame>
+    </Captioned>
   );
+}
+
+// The widest a bar gets, so one bar in a wide column (or 6 on a desktop) isn't a block. Bars sit centred in their columns.
+export const BAR_MAX = "max-w-12";
+
+// A chart with its caption underneath, or just the chart.
+export function Captioned({ caption, children }: { caption?: string; children: React.ReactNode }) {
+  if (!caption) return children;
+  return (
+    <figure className="space-y-2">
+      {children}
+      <figcaption className="text-xs text-muted-foreground">{caption}</figcaption>
+    </figure>
+  );
+}
+
+// "Kilometres driven each day, Mon to Sun": what a bar chart plots and over which bars, from the bars
+// drawn, so the window is always the chart's (Month draws the last 6 months, not this month). `slotName`
+// is one bar ("day", "month", "3 hours"); `where` overrides the first-to-last labels, like "today" for a
+// day in 3-hour bars, whose labels are clock times.
+export function barsCaption(what: string, slotName: string, slots: { label: string }[], where?: string): string {
+  const each = slotName === "3 hours" ? "every 3 hours" : `each ${slotName}`;
+  const first = slots[0]?.label;
+  const last = slots.at(-1)?.label;
+  const span = where ?? (first === undefined ? "" : first === last ? first : `${first} to ${last}`);
+  return span ? `${what} ${each}, ${span}` : `${what} ${each}`;
 }
 
 // The narrowest the columns can be with each label and value still clear of its neighbours, in px, for a
@@ -109,9 +151,14 @@ export function minListWidth(bars: { label: string; display: string }[], columns
   return Math.ceil(columns * column + (columns - 1) * 12);
 }
 
-// In place of a bar chart with nothing in it: the panel, about a chart's height, with a short note.
-export function EmptyChart({ children }: { children: React.ReactNode }) {
-  return <div className="flex h-40 items-center justify-center bg-muted px-4 text-center text-sm text-faint">{children}</div>;
+// In place of a bar chart with nothing in it: the panel, exactly a chart's height (h-40, see ChartFrame), with a short
+// note, and the chart's caption under it like a drawn chart's.
+export function EmptyChart({ caption, children }: { caption?: string; children: React.ReactNode }) {
+  return (
+    <Captioned caption={caption}>
+      <div className="flex h-40 items-center justify-center bg-muted px-4 text-center text-sm text-faint">{children}</div>
+    </Captioned>
+  );
 }
 
 // "12 km", "1.2% a day": a space before a unit, none before a percent sign.
@@ -128,19 +175,19 @@ export function niceMax(value: number): number {
 const axisNumber = new Intl.NumberFormat("en-IN", { notation: "compact", maximumFractionDigits: 1 });
 
 // The panel with a y axis (0, half and the top) on the left and matching gridlines behind the bars. The
-// axis lines up with the bars' h-20 area: below the value labels (h-4 plus the gap) unless the chart is
-// dense, and above the x-axis labels. The bottom gridline is the x axis. `unit` sits above the axis, in
-// the top padding; a dense chart has its top number there too, so it gets a little more room.
-export function ChartFrame({ max, dense, prefix = "", unit, children }: { max: number; dense: boolean; prefix?: string; unit?: string; children: React.ReactNode }) {
-  const top = dense ? "top-0" : "top-6";
+// axis lines up with the bars' h-20 area: below the value row (h-4 plus the gap, kept blank on a dense
+// chart) and above the x-axis labels. The bottom gridline is the x axis. `unit` sits above the axis, in
+// the top padding. One geometry for every chart, 160px tall like EmptyChart, so periods with 6, 8 or 12
+// columns, or none, keep the same box. The y-axis gutter is a fixed w-8.
+export function ChartFrame({ max, prefix = "", unit, children }: { max: number; prefix?: string; unit?: string; children: React.ReactNode }) {
   return (
-    <div className={cn("chart-touch relative flex gap-2 bg-muted pr-4 pb-3 pl-2", unit && dense ? "pt-8" : "pt-5")}>
+    <div className="chart-touch relative flex gap-2 bg-muted pt-5 pr-4 pb-3 pl-2">
       {unit && (
         <span className="absolute top-1 left-2 font-mono text-xs text-faint" aria-hidden="true">
           {unit}
         </span>
       )}
-      <div className={cn("relative w-8 shrink-0", dense ? "mb-6" : "my-6")} aria-hidden="true">
+      <div className="relative my-6 w-8 shrink-0" aria-hidden="true">
         <div className="relative h-20 text-right font-mono text-xs whitespace-nowrap text-faint tabular-nums">
           {[max, max / 2, 0].map((v, i) => (
             <span key={i} className={cn("absolute right-0", i === 0 ? "top-0 -translate-y-1/2" : i === 1 ? "top-1/2 -translate-y-1/2" : "bottom-0 translate-y-1/2")}>
@@ -151,7 +198,7 @@ export function ChartFrame({ max, dense, prefix = "", unit, children }: { max: n
         </div>
       </div>
       <div className="relative min-w-0 flex-1">
-        <div className={cn("pointer-events-none absolute inset-x-0 h-20", top)} aria-hidden="true">
+        <div className={"pointer-events-none absolute inset-x-0 top-6 h-20"} aria-hidden="true">
           <div className="absolute inset-x-0 top-0 border-t border-dashed border-border" />
           <div className="absolute inset-x-0 top-1/2 border-t border-dashed border-border" />
           <div className="absolute inset-x-0 bottom-0 border-t border-muted-foreground/40" />
@@ -194,8 +241,3 @@ export function BarTip({ title, lines, at, of }: { title: string; lines: (string
 
 // Below this many columns the bars keep their width and the right side stays empty.
 export const MIN_COLUMNS = 6;
-
-export function leadingTrimmed<T>(items: T[], hasValue: (item: T) => boolean): T[] {
-  const first = items.findIndex(hasValue);
-  return first > 0 ? items.slice(first) : items;
-}

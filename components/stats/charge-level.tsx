@@ -46,8 +46,15 @@ export function ChargeLevelChart({ level, now, frame }: { level: ChargeLevel | n
   if (frame) {
     return (
       <div className="space-y-3">
-        {points.length >= 2 ? <Plot points={points} charging={charging} from={from} to={to} /> : <p className="text-sm text-muted-foreground">No readings {frame.words}.{cut}</p>}
-        {points.length >= 2 && <p className="text-xs text-faint">Charge level over time. {caption}</p>}
+        {/* With no readings, the note sits in the chart's own box (see charge-level-plot), so a switch doesn't move what follows. */}
+        {points.length >= 2 ? (
+          <Plot points={points} charging={charging} from={from} to={to} />
+        ) : (
+          <div className="bg-muted px-3 pt-6 pb-2">
+            <p className="flex h-40 items-center justify-center text-center text-sm text-faint">No readings {frame.words}</p>
+          </div>
+        )}
+        <p className="text-xs text-faint">Charge level over time, 0 to 100%. {caption}</p>
       </div>
     );
   }

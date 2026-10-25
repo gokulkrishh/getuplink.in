@@ -76,7 +76,7 @@ export function ChargingSection({ frames, sessions, listed, now }: { frames: Hom
   return (
     <Section title="Charging" view="charging" more="See all sessions">
       {eachFrame(frames, chart, { steady: true })}
-      {eachFrame(frames, rows)}
+      {eachFrame(frames, rows, { steady: true })}
     </Section>
   );
 }
@@ -114,7 +114,7 @@ export function DrivingSection({ frames, figures, drives, now }: { frames: HomeF
   return (
     <Section title="Driving" view="driving" more="See all trips">
       {eachFrame(frames, chart, { steady: true })}
-      {eachFrame(frames, rows)}
+      {eachFrame(frames, rows, { steady: true })}
     </Section>
   );
 }
@@ -161,7 +161,7 @@ export function BatterySection({
           {usually && lost === null && <p className="text-sm text-muted-foreground tabular-nums">Usually loses {usually} parked</p>}
         </div>
       )}
-      {hasLevel && eachFrame(frames, ({ frame }) => <ChargeLevelChart level={level} now={now} frame={frame} />)}
+      {hasLevel && eachFrame(frames, ({ frame }) => <ChargeLevelChart level={level} now={now} frame={frame} />, { steady: true })}
     </Section>
   );
 }
