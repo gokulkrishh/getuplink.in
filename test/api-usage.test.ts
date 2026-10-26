@@ -13,8 +13,7 @@ let signalRows: Row[];
 let lastRun: string | null;
 let missing: Set<string>; // "api_usage", "schedule": what the migration would add
 let rpcs: { fn: string; args: Row }[];
-let claims: number[];
-let userUpdates: { values: Row; filter: string }[];
+let claims: Row[]; // each claim RPC's name and arguments
 let teslaAnswers: number[]; // statuses Tesla answers with, in order; then 200
 let fleetCalls: { path: string; token: string }[];
 
@@ -37,19 +36,12 @@ function query(table: string) {
   let columns = "";
   const eq: Record<string, unknown> = {};
   let nullTokens = false;
-  let values: Row | null = null;
-  let filter = "";
   const settle = (single: boolean) => {
     const many = (rows: Row[]) => ({ data: single ? (rows[0] ?? null) : rows, error: null, count: rows.length });
     if (table === "users") {
       if (columns.includes("next_check_at") && missing.has("schedule")) return { data: null, error: MISSING_COLUMN };
-      if (op === "update") {
-        if (missing.has("schedule")) return { data: null, error: MISSING_COLUMN };
-        claims.push(Number(eq.id));
-        // Only claims (they filter with .or); a release has none.
-        if (filter) userUpdates.push({ values: values ?? {}, filter });
-        return many(users.filter((u) => u.id === eq.id));
-      }
+      // A release (the claims are RPCs, below).
+      if (op === "update") return missing.has("schedule") ? { data: null, error: MISSING_COLUMN } : many(users.filter((u) => u.id === eq.id));
       return many(users.filter((u) => u.status === "approved" && (eq.id === undefined || u.id === eq.id)));
     }
     if (table === "user_tokens") {
@@ -72,8 +64,6 @@ function query(table: string) {
         return (...args: unknown[]) => {
           if (key === "select" && op === "select") columns = String(args[0] ?? "");
           if (key === "eq") eq[String(args[0])] = args[1];
-          if (key === "update") values = args[0] as Row;
-          if (key === "or") filter = String(args[0]);
           if (key === "is" && args[1] === null) nullTokens = true;
           if (["insert", "upsert", "update", "delete"].includes(key) && op === "select") op = key;
           return chain;
@@ -89,7 +79,14 @@ mock.module("@/lib/server/supabase", () => ({
   db: () => ({
     from: (table: string) => query(table),
     rpc: async (fn: string, args: Row) => {
-      if (fn === "increment_api_usage" && missing.has("api_usage")) return { data: null, error: { code: "PGRST202", message: "Could not find the function" } };
+      const absent = { data: null, error: { code: "PGRST202", message: "Could not find the function" } };
+      if (fn === "increment_api_usage" && missing.has("api_usage")) return absent;
+      // The claims' conditions are SQL (tested in PGlite); here every approved user listed can be claimed.
+      if (fn === "claim_scheduled_check" || fn === "claim_check_now") {
+        if (missing.has("schedule")) return absent;
+        claims.push({ fn, ...args });
+        return { data: users.some((u) => u.id === args.p_user_id), error: null };
+      }
       rpcs.push({ fn, args });
       return { data: null, error: null };
     },
@@ -134,7 +131,6 @@ beforeEach(() => {
   missing = new Set();
   rpcs = [];
   claims = [];
-  userUpdates = [];
   teslaAnswers = [];
   fleetCalls = [];
   delete process.env.TESLA_BUDGET_USD;
@@ -262,9 +258,7 @@ describe("the cron's batches", () => {
     users = [1, 2, 3, 4, 5, 6].map((id) => approved(id));
     const result = await checkDue(() => NOW);
     expect(result.users).toBe(4);
-    // Each user's claim, then its release, in turn.
-    expect([...new Set(claims)]).toEqual([1, 2, 3, 4]);
-    expect(userUpdates).toHaveLength(4);
+    expect(claims.map((c) => c.p_user_id)).toEqual([1, 2, 3, 4]);
     expect(fleetCalls.filter((c) => c.path === "/api/1/vehicles").map((c) => c.token)).toEqual(["token-1", "token-2", "token-3", "token-4"]);
   });
 
@@ -283,14 +277,11 @@ describe("the cron's batches", () => {
 
   test("a check makes the user due again in 6 hours, or 12 near the budget", async () => {
     expect((await checkDue(() => NOW)).users).toBe(1);
-    expect(userUpdates[0].values.next_check_at).toBe(at(6 * HOUR));
-    userUpdates = [];
+    expect(claims[0]).toMatchObject({ fn: "claim_scheduled_check", p_now: at(0), p_next_at: at(6 * HOUR), p_lock_until: at(2 * 60_000) });
+    claims = [];
     usageRows = [{ user_id: 1, kind: "vehicle_data", count: 4200 }]; // $8.40 of $10
     expect((await checkDue(() => NOW)).users).toBe(1);
-    expect(userUpdates[0].values.next_check_at).toBe(at(12 * HOUR));
-    // Claimed only while due and free of another check's lock.
-    expect(userUpdates[0].filter).toContain(`next_check_at.lte.${at(0)}`);
-    expect(userUpdates[0].filter).toContain(`check_lock_until.lt.${at(0)}`);
+    expect(claims[0]).toMatchObject({ p_next_at: at(12 * HOUR) });
   });
 
   test("before the migration, a run checks only once the last check is 6 hours old", async () => {
@@ -315,9 +306,8 @@ describe("the check after a sign-in", () => {
 
   test("is limited to once per 5 minutes", async () => {
     await checkNow(asOwner(1, "sub-1"), () => NOW);
-    // The claim keeps the user only if their last one started more than 5 minutes ago.
-    expect(userUpdates[0].filter).toContain(`check_now_at.lt.${new Date(NOW - 5 * 60_000).toISOString()}`);
-    expect(userUpdates[0].values.check_now_at).toBe(new Date(NOW).toISOString());
+    // The claim keeps the user only if their last one started before 5 minutes ago (the SQL is in PGlite).
+    expect(claims[0]).toMatchObject({ fn: "claim_check_now", p_now: new Date(NOW).toISOString(), p_since: new Date(NOW - 5 * 60_000).toISOString() });
     // Within the 5 minutes Postgres matches no row: the check is refused.
     users = [];
     fleetCalls = [];

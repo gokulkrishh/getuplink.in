@@ -85,27 +85,24 @@ export async function schedules(): Promise<Schedule[]> {
 // Takes the user for a scheduled check: only while they are still due and nobody holds them. Moves
 // next_check_at on in the same update, so a second cron run can't take them too. True when taken.
 export async function claimScheduledCheck(userId: number, now: string, nextAt: string, lockUntil: string): Promise<boolean> {
-  const { data, error } = await db()
-    .from("users")
-    .update({ next_check_at: nextAt, check_lock_until: lockUntil })
-    .eq("id", userId)
-    // One filter for both conditions: and(due, free).
-    .or(`and(or(next_check_at.is.null,next_check_at.lte.${now}),or(check_lock_until.is.null,check_lock_until.lt.${now}))`)
-    .select("id");
+  const { data, error } = await db().rpc("claim_scheduled_check", { p_user_id: userId, p_now: now, p_next_at: nextAt, p_lock_until: lockUntil });
   if (error) fail(error);
-  return (data?.length ?? 0) === 1;
+  return data === true;
 }
 
 // Takes the user for an on-demand check: nobody holds them, and their last one started before `since`.
 export async function claimCheckNow(userId: number, now: string, since: string, nextAt: string, lockUntil: string): Promise<boolean> {
-  const { data, error } = await db()
-    .from("users")
-    .update({ check_now_at: now, next_check_at: nextAt, check_lock_until: lockUntil })
-    .eq("id", userId)
-    .or(`and(or(check_now_at.is.null,check_now_at.lt.${since}),or(check_lock_until.is.null,check_lock_until.lt.${now}))`)
-    .select("id");
+  const { data, error } = await db().rpc("claim_check_now", { p_user_id: userId, p_now: now, p_since: since, p_next_at: nextAt, p_lock_until: lockUntil });
   if (error) fail(error);
-  return (data?.length ?? 0) === 1;
+  return data === true;
+}
+
+// Delete my data: the cars' streamed-signal days lose their VINs (folded into a VIN-less row per day, so
+// the month's total stays). Throws MissingSchema before the migration.
+export async function foldSignalDays(vins: string[]): Promise<void> {
+  if (vins.length === 0) return;
+  const { error } = await db().rpc("fold_signal_days", { p_vins: vins });
+  if (error) fail(error);
 }
 
 // Lets the user go after a check. `nextAt` puts them back as due (their check couldn't run).

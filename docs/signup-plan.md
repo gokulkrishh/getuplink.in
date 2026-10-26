@@ -102,11 +102,11 @@ Built here, not deployed. Prices, the credit, the reset rule and what's ambiguou
 
 **Migration** `supabase/migrations/20261101120000_api_usage.sql`, not applied. Checked in a throwaway PGlite over every earlier migration.
 - `api_usage (user_id, month, kind, count)` and `increment_api_usage()`, an atomic upsert-increment. user_id 0 is unattributed: a sign-up's region check, and deleted accounts' counts (`fold_api_usage()`, so a deletion doesn't take its spend out of the month). No foreign key, for that reason.
-- `telemetry_signal_days (vin, day, signals)` and `count_telemetry_signals()`.
-- `users.next_check_at`, `check_lock_until` and `check_now_at`.
+- `telemetry_signal_days (vin, day, signals)` and `count_telemetry_signals()`. Delete my data calls `fold_signal_days()`, which moves the cars' days into a VIN-less row, so the VINs go and the month's total stays.
+- `users.next_check_at`, `check_lock_until` and `check_now_at`, and `claim_scheduled_check()` / `claim_check_now()`: each claim is one conditional update.
 - The check lock becomes one per user: `poll_runs_one_running_per_user_idx` replaces `poll_runs_one_running_idx` (step 4's item 5, done here).
 
-Apply it before deploying this code, or soon after. Until it is applied, the code counts nothing (it logs once), every check is "normal", and the 15-minute cron checks everyone together only once the newest `poll_runs` row is 6 hours old, as today.
+**Apply it before deploying this code.** It is safe under the deployed code (checked in PGlite). The code also runs without it: it counts nothing (it logs once), every check is "normal", and the 15-minute cron checks everyone together only once the newest `poll_runs` row is 6 hours old, as today. But an instance that found the table missing stops counting until it restarts, so applying it after the deploy loses counts for a while.
 
 - **Counting:** every Fleet API request goes through `teslaFetch` in `lib/server/tesla.ts` and is counted under its user and kind (`lib/tesla-billing.ts` `kindOf`). That includes the vehicle list, vehicle_data, charging history, invoices, release notes, the streaming config (GET and DELETE) and errors, and the sign-up region check. Answers below 500 count, once per attempt, as Tesla bills them. A count that fails never fails the call. Uplink has no wake call, and a test checks the source for one.
 - **Streaming signals:** counted once a day in the retention cron, before it prunes, from `telemetry_readings` rows per VIN per UTC day. The last 3 days are recounted and set each run. The Fly receiver is unchanged. Why this over a receiver counter: see `docs/tesla-billing.md`.

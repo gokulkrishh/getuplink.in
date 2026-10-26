@@ -44,7 +44,10 @@ function query(table: string) {
 }
 
 mock.module("server-only", () => ({}));
-mock.module("@/lib/server/supabase", () => ({ db: () => ({ from: (table: string) => query(table), rpc: () => query("rpc") }) }));
+mock.module("@/lib/server/supabase", () => ({
+  // The cron's claim of a user is an RPC that answers whether it got them: here it always does.
+  db: () => ({ from: (table: string) => query(table), rpc: (fn: string) => (fn.startsWith("claim_") ? Promise.resolve({ data: true, error: null }) : query("rpc")) }),
+}));
 mock.module("@/lib/server/crypto", () => ({ encrypt: (s: string) => `enc:${s}`, decrypt: (s: string) => s.slice(4) }));
 mock.module("@/lib/server/connector-token", () => ({ revokeConnectorToken: async () => {} }));
 mock.module("@/lib/server/receipts", () => ({ deleteAllInvoices: async () => {} }));

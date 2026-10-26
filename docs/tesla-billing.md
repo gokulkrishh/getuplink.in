@@ -118,3 +118,22 @@ Why this and not a counter in the receiver:
 When stopped, nothing optional calls Tesla either: the station check and the Charging page's history sync are skipped. Streaming is left alone. A sign-in still signs in, but its check is skipped. The health checks, invoices and Disconnect are never skipped.
 
 If the usage can't be read (the table isn't there yet), checks stay at every 6 hours.
+
+### What it means for the owner alone, before anyone else joins
+
+An estimate at the Data price, with one car streaming about 1,000 signals an hour (Tesla's own example; Uplink asks for nearly every field, so it may stream more):
+
+| Source | A day | 30 days |
+| --- | --- | --- |
+| Health bot, 192 requests | $0.38 | $11.52 |
+| Streaming, about 24,000 signals | $0.16 | $4.80 |
+| Checks, about 12 requests | $0.02 | $0.72 |
+| **Total** | **about $0.57** | **about $17** |
+
+So with the defaults, checks would slow to every 12 hours around the 14th and stop around the 18th. **Stopping checks doesn't stop the spend**: the health bot and streaming carry on past $10. If Tesla's "billing limit of 0" means access stops at the credit, streaming could stop mid-month too.
+
+The owner's options, none chosen here:
+- compare Uplink's figure with Tesla's billing page after a few days, before relying on either;
+- if Tesla prices `fleet_telemetry_config` or `fleet_telemetry_errors` below Data, change `CATEGORY_OF` in `lib/tesla-billing.ts`;
+- call the health bot less often, or have the health check reuse the last config answer for a while;
+- raise `TESLA_BUDGET_USD`.

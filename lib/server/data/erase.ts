@@ -1,6 +1,7 @@
 import "server-only";
 import { ownedRows } from "./owned";
 import { type Owner, ownerDb, type OwnerTable } from "./owner";
+import { foldSignalDays, MissingSchema } from "./usage";
 
 // Postgres 42P01 / PostgREST PGRST205: a table whose migration never ran, so there is nothing to delete.
 const MISSING_TABLE = ["42P01", "PGRST205"];
@@ -45,4 +46,9 @@ export async function eraseOwnerRows(owner: Owner): Promise<void> {
   await deleteIn(owner, "telemetry_readings", "vin", keys.vins);
   await deleteRest(owner, "telemetry_readings");
   await deleteRest(owner, "poll_runs");
+  // The streamed-signal counts keep their numbers but lose the VINs. After the readings, so the daily
+  // recount can't bring them back. Best effort: a count is never worth failing a deletion.
+  await foldSignalDays(keys.vins.filter((v): v is string => typeof v === "string" && v !== "")).catch((err: Error) => {
+    if (!(err instanceof MissingSchema)) console.warn("Clearing the signal counts' VINs failed:", err.message);
+  });
 }

@@ -299,8 +299,11 @@ async function checkEach(owners: Owner[], clock: () => number, started: number, 
     if (clock() - started > RUN_BUDGET_MS) break;
     const at = clock();
     const now = new Date(at).toISOString();
-    if (every !== null && !(await claimScheduledCheck(owner.userId, now, new Date(at + every).toISOString(), new Date(at + LOCK_MS).toISOString()))) continue;
+    let claimed = every === null;
     try {
+      // A claim that fails is that user's error, never the whole run's.
+      if (every !== null) claimed = await claimScheduledCheck(owner.userId, now, new Date(at + every).toISOString(), new Date(at + LOCK_MS).toISOString());
+      if (!claimed) continue;
       const result = await runCheck(owner, now);
       if (result === null) {
         // Another check holds the user's lock: due again at the next run.
@@ -313,7 +316,8 @@ async function checkEach(owners: Owner[], clock: () => number, started: number, 
     } catch (err) {
       errors.push(messageOf(err));
     } finally {
-      if (every !== null) await releaseCheck(owner.userId).catch(() => {});
+      // Only a user this run claimed: never a lock another run holds.
+      if (every !== null && claimed) await releaseCheck(owner.userId).catch(() => {});
     }
   }
   return { ok: errors.length === 0, vehicles, users, error: errors.join("; ") || undefined };
