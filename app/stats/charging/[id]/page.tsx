@@ -12,6 +12,7 @@ import { ChargeFees } from "@/components/stats/charge-fees";
 import { ChargeSupply } from "@/components/stats/charge-supply";
 import { Figures } from "@/components/stats/figures";
 import { splitSite } from "@/lib/charge-sessions";
+import { invoiceParts } from "@/lib/charging-figures";
 import { formatClock, formatDate, formatDuration, formatKw, formatKwh, formatLevels, formatMoney, formatTempRange } from "@/lib/format";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargeDetail, loadChargeDetail } from "@/lib/server/charge-curve";
@@ -64,6 +65,11 @@ function Charge({ detail }: { detail: ChargeDetail }) {
   // The stored temperatures can carry over from long before an AC charge, so only DC falls back to them.
   const tempLow = curve.tempMinC ?? (s.kind === "dc" ? s.temp_start_c : null);
   const tempHigh = curve.tempMaxC ?? (s.kind === "dc" ? s.temp_max_c : null);
+  // The invoice's own split (energy and fees before GST), the way the Spend breakdown counts it.
+  const part = (label: string) => {
+    const found = invoice ? invoiceParts({ amount: invoice.amountTotal, gst: invoice.gst, energyAmount: invoice.energyAmount })?.find((p) => p.label === label) : undefined;
+    return found ? formatMoney(found.amount, "INR") : null;
+  };
   // Related figures sit together: what the battery did, how fast it charged, and what it cost.
   const groups: { title: string; rows: [string, string | null][] }[] = [
     {
@@ -86,6 +92,8 @@ function Charge({ detail }: { detail: ChargeDetail }) {
       rows: [
         ["Cost", cost(tesla, invoice, energy, currency, s)],
         ["Energy billed", invoice?.kwhBilled ? formatKwh(invoice.kwhBilled) : null],
+        ["Energy charge", part("Energy")],
+        ["Fees", part("Fees")],
         ["GST", invoice?.gst ? formatMoney(invoice.gst, "INR") : null],
       ],
     },

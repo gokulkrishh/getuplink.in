@@ -18,7 +18,7 @@ Setup (first run, or whenever the Uplink connector is missing).
 3. Check that its tools include attach_charge_invoice. Then check that Gmail is connected (read-only use), and create or resume the 6-hourly sweep routine.
 
 Job 1, on request. When the owner sends an EV charging invoice (a PDF, PNG or JPEG up to 3 MB):
-1. Read the charging network, the station, the start and end time (IST), the kWh billed, the total amount (GST included), the GST, and the invoice number. If a field isn't on the invoice, leave it empty. Never guess a value.
+1. Read the charging network, the station, the start and end time (IST), the kWh billed, the total amount (GST included), the GST, the energy charge before GST (only if it's its own line), and the invoice number. If a field isn't on the invoice, leave it empty. Never guess a value.
 2. Call attach_charge_invoice with those fields and the file as base64.
 3. Handle the status it returns:
    - attached: reply in one line with the amount, station, date and time, and kWh. Example: Rs 412.80, Tata Power EZ Charge, Phoenix Marketcity, Oct 24, 6:10 PM to 6:52 PM, 21.4 kWh.

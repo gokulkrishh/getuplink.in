@@ -5,7 +5,7 @@ import { Bars } from "@/components/stats/bars";
 import { Figures, Value } from "@/components/stats/figures";
 import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
 import { chargeEfficiency } from "@/lib/charge-sessions";
-import { type Bill, billsBySlot, billsIn } from "@/lib/charging-figures";
+import { type Bill, billsBySlot, billsIn, spendBreakdown } from "@/lib/charging-figures";
 import { DECIMALS, formatDuration, formatKwh, formatMoney, formatMonth, formatNumber, formatPercent, showsZero, sumKnown } from "@/lib/format";
 import { hasBars, knownBars } from "@/components/stats/driving-sections";
 import { LIST_PREVIEW } from "@/lib/list";
@@ -32,16 +32,19 @@ function totals(rows: Listed[]) {
 }
 
 // Spend from real bills only: Tesla's for Superchargers, attached invoices for other chargers. Then
-// ₹/kWh by charger kind, ₹ per 100 km driven in the same period, and how many charges had no bill, so a
-// cheap-looking month isn't mistaken for one.
+// ₹/kWh by charger kind and time on the charger (`charged`, ms by kind, see chargingTime) in one row of
+// tiles, ₹ per 100 km driven in the same period, and how many charges had no
+// bill, so a cheap-looking month isn't mistaken for one.
 export function Summary({
   bills,
   unbilled,
+  charged,
   km,
   frame,
 }: {
   bills: Bill[];
   unbilled: { started_at: string }[];
+  charged: { ac: number; dc: number };
   km: number | null;
   frame: Timeframe;
 }) {
@@ -51,6 +54,8 @@ export function Summary({
   // A bar ahead of now (the rest of this year or of today) is blank, not ₹0. To the paisa, rounded with
   // the headline (see knownBars), so the bars add up to it as shown.
   const { bars, total: cost } = knownBars(slots, billsBySlot(bills, slots), DECIMALS.money, (n) => formatMoney(n, "INR"));
+  const ac = acPerKwh !== null || charged.ac > 0;
+  const dc = dcPerKwh !== null || charged.dc > 0;
   return (
     <section className="space-y-8">
       <ChartCard
@@ -78,9 +83,11 @@ export function Summary({
             { label: "Bills", value: count },
             acPerKwh !== null && { label: "AC rate", value: `${formatMoney(acPerKwh, "INR")}/kWh`, note: "Slower charging" },
             dcPerKwh !== null && { label: "DC rate", value: `${formatMoney(dcPerKwh, "INR")}/kWh`, note: "Fast charging" },
+            charged.ac > 0 && { label: "Time on AC", value: formatDuration(charged.ac / 1000) },
+            charged.dc > 0 && { label: "Time on DC", value: formatDuration(charged.dc / 1000) },
           ]}
           label="bills"
-          terms={["kWh", acPerKwh !== null || dcPerKwh !== null ? "₹/kWh" : undefined, acPerKwh !== null ? "AC" : undefined, dcPerKwh !== null ? "DC" : undefined]}
+          terms={["kWh", acPerKwh !== null || dcPerKwh !== null ? "₹/kWh" : undefined, ac ? "AC" : undefined, dc ? "DC" : undefined]}
         />
       </div>
       {km !== null && km >= 10 && cost > 0 && missing === 0 && (
@@ -91,6 +98,51 @@ export function Summary({
           {missing} {missing === 1 ? "charge has" : "charges have"} no bill yet, so {missing === 1 ? "it isn't" : "they aren't"} counted.
         </p>
       )}
+    </section>
+  );
+}
+
+// What the period's bills were for, as lines adding up to Spend's total: Tesla's fee lines for
+// Superchargers, the invoices' energy, fees and GST for other chargers, and any bill that doesn't split
+// its amount. Nothing when no bill in the period is itemised. Its own section, not under Spend's tiles,
+// so periods without it don't hold Spend open to its height.
+export function PaidFor({ bills, frame }: { bills: Bill[]; frame: Timeframe }) {
+  const breakdown = spendBreakdown(bills, frame.span);
+  if (!breakdown) return null;
+  const { supercharger, invoice, unitemised, total } = breakdown;
+  const both = supercharger.length > 0 && invoice.length > 0;
+  const row = (label: string, amount: number, strong = false) => (
+    <div key={label} className={`flex items-baseline justify-between gap-4 py-2.5 ${strong ? "font-medium" : ""}`}>
+      <dt className={strong ? "" : "text-muted-foreground"}>{label}</dt>
+      <dd className="font-mono tabular-nums">
+        <Measure text={formatMoney(amount, "INR")} />
+      </dd>
+    </div>
+  );
+  const group = (title: string, lines: { label: string; amount: number }[]) =>
+    lines.length > 0 && (
+      <div key={title}>
+        {both && <p className="pt-3 pb-1 text-xs text-faint">{title}</p>}
+        <dl>{lines.map((l) => row(l.label, l.amount))}</dl>
+      </div>
+    );
+  return (
+    <section className="space-y-3">
+      <div className="space-y-1">
+        <div className="flex items-center gap-1.5">
+          <h2 className="text-lg font-medium tracking-heading">What you paid for</h2>
+          <InfoButton label="what you paid for">
+            Supercharger lines are as Tesla bills them. Energy, fees and GST are from the invoices you attached; a bill that doesn&apos;t split its amount is counted as not itemised.
+          </InfoButton>
+        </div>
+        <p className="text-sm text-muted-foreground">Your spend {frame.words}, line by line from the bills.</p>
+      </div>
+      <div className="divide-y border-t border-b text-sm">
+        {group("Superchargers", supercharger)}
+        {group("Other chargers", invoice)}
+        {unitemised > 0 && <dl>{row("Not itemised", unitemised)}</dl>}
+        <dl>{row("Total", total, true)}</dl>
+      </div>
     </section>
   );
 }
@@ -134,15 +186,6 @@ export function EnergyAdded({
     return { key: String(slot.id), label: slot.label, axis: slot.axis, edge: slot.edge, total: sum, display: formatNumber(sum, DECIMALS.kWh), isCurrent: slot.isCurrent, segments: energy[k], blank: slot.ahead || undefined };
   });
   const efficiency = chargeEfficiency(streamOnly.filter((s) => s.kind === "ac" && inSpan(Date.parse(s.started_at), span)));
-  // Time on the charger by kind, after TeslaMate's AC/DC duration: Superchargers from Tesla's times, the
-  // rest from the car's own sessions.
-  const charged = { ac: 0, dc: 0 };
-  for (const s of sessions) {
-    if (s.stopped_at && inSpan(Date.parse(s.started_at), span)) charged.dc += Date.parse(s.stopped_at) - Date.parse(s.started_at);
-  }
-  for (const s of streamOnly) {
-    if (s.ended_at && inSpan(Date.parse(s.started_at), span)) charged[s.kind] += Date.parse(s.ended_at) - Date.parse(s.started_at);
-  }
   return (
     <section className="space-y-8">
       <ChartCard
@@ -164,14 +207,6 @@ export function EnergyAdded({
       >
         <StackedBars bars={bars} series={ENERGY_SERIES} ariaLabel={`Energy added per ${frame.slotName}`} labelEvery={frame.labelEvery} fit />
       </ChartCard>
-      {charged.ac + charged.dc > 0 && (
-        <Figures
-          figures={[
-            charged.ac > 0 && { label: "Time on AC", value: formatDuration(charged.ac / 1000) },
-            charged.dc > 0 && { label: "Time on DC", value: formatDuration(charged.dc / 1000) },
-          ]}
-        />
-      )}
       {efficiency !== null && (
         <p className="flex items-center gap-1.5 text-sm">
           AC charging efficiency <span className="font-mono font-medium tabular-nums"><Measure text={formatPercent(efficiency * 100)} /></span>

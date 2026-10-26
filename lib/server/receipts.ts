@@ -28,6 +28,7 @@ type ReceiptRow = {
   station: string | null;
   amount_total: number;
   gst: number | null;
+  energy_amount?: number | null;
   kwh_billed: number | null;
   invoice_number: string | null;
   invoice_path: string | null;
@@ -36,15 +37,21 @@ type ReceiptRow = {
 // The ids go in the URL, so a long list is read in chunks.
 const IDS_PER_READ = 200;
 
+const RECEIPT_COLUMNS = "session_id, network, station, amount_total, gst, kwh_billed, invoice_number, invoice_path";
+// energy_amount comes with migration 20261103160000; until it's applied, reads leave it out (Postgres
+// answers 42703, undefined column) and writes only send it when there is one.
+const ENERGY = "energy_amount";
+const noEnergyColumn = (error: { code?: string } | null) => error?.code === "42703";
+const amount = (n: unknown) => (n == null ? null : Number(n));
+
 async function receiptsFor(owner: Owner, ids: number[]): Promise<Map<number, ReceiptRow>> {
   const out = new Map<number, ReceiptRow>();
   for (let i = 0; i < ids.length; i += IDS_PER_READ) {
-    const { data, error } = await ownerDb(owner)
-      .from("charge_receipts")
-      .select("session_id, network, station, amount_total, gst, kwh_billed, invoice_number, invoice_path")
-      .in("session_id", ids.slice(i, i + IDS_PER_READ));
+    const read = (columns: string) => ownerDb(owner).from("charge_receipts").select(columns).in("session_id", ids.slice(i, i + IDS_PER_READ));
+    let { data, error } = await read(`${RECEIPT_COLUMNS}, ${ENERGY}`);
+    if (noEnergyColumn(error)) ({ data, error } = await read(RECEIPT_COLUMNS));
     if (error) throw new Error(`Reading invoices failed: ${error.message}`);
-    for (const r of data as ReceiptRow[]) out.set(Number(r.session_id), r);
+    for (const r of data as unknown as ReceiptRow[]) out.set(Number(r.session_id), r);
   }
   return out;
 }
@@ -76,7 +83,13 @@ function describe(s: ReceiptSession, receipt: ReceiptRow | undefined) {
     kwh_added: s.energy_added_kwh,
     station: s.station_name,
     invoice: receipt
-      ? { network: receipt.network, amount_total: Number(receipt.amount_total), gst: receipt.gst == null ? null : Number(receipt.gst), kwh_billed: receipt.kwh_billed == null ? null : Number(receipt.kwh_billed) }
+      ? {
+          network: receipt.network,
+          amount_total: Number(receipt.amount_total),
+          gst: amount(receipt.gst),
+          energy_amount: amount(receipt.energy_amount),
+          kwh_billed: amount(receipt.kwh_billed),
+        }
       : null,
   };
 }
@@ -101,6 +114,7 @@ export type AttachInput = {
   kwh_billed?: number;
   amount_total: number;
   gst?: number;
+  energy_amount?: number;
   currency?: string;
   invoice_number?: string;
   source_ref?: string;
@@ -129,6 +143,7 @@ export async function attachInvoice(owner: Owner, input: AttachInput) {
     kwhBilled: input.kwh_billed ?? null,
     amountTotal: input.amount_total,
     gst: input.gst ?? null,
+    energyAmount: input.energy_amount ?? null,
   };
   const problem = invoiceProblem(invoice, now);
   if (problem) return { status: "rejected", reason: problem };
@@ -194,6 +209,8 @@ export async function attachInvoice(owner: Owner, input: AttachInput) {
     kwh_billed: invoice.kwhBilled,
     amount_total: invoice.amountTotal,
     gst: invoice.gst,
+    // Only when sent, so a database without the column yet still takes invoices without it.
+    ...(invoice.energyAmount != null && { energy_amount: invoice.energyAmount }),
     currency: "INR",
     invoice_path: invoicePath,
     invoice_number: input.invoice_number ?? null,
@@ -210,7 +227,7 @@ export async function attachInvoice(owner: Owner, input: AttachInput) {
   if (existing?.invoice_path && existing.invoice_path !== invoicePath) {
     await ownerDb(owner).invoices().remove([existing.invoice_path]);
   }
-  return { status: "attached", session: describe(session, { ...row, gst: row.gst ?? null, kwh_billed: row.kwh_billed ?? null }) };
+  return { status: "attached", session: describe(session, { ...row, gst: row.gst ?? null, energy_amount: invoice.energyAmount ?? null, kwh_billed: row.kwh_billed ?? null }) };
 }
 
 const monthOf = (iso: string) => istIso(iso).slice(0, 7);
@@ -287,7 +304,16 @@ export async function drivingSummary(owner: Owner) {
 // The invoice for each of these sessions that has one, for every spend figure and session row. hasFile:
 // the invoice's file is stored, so the row can offer it. Never fails the page: a read error (or a
 // database without the table yet) shows as no invoices.
-export type SessionInvoiceAmount = { amount: number; kwhBilled: number | null; network: string; station: string | null; hasFile: boolean };
+// gst and energyAmount are as printed, for the Spend breakdown; null when the invoice didn't say.
+export type SessionInvoiceAmount = {
+  amount: number;
+  gst: number | null;
+  energyAmount: number | null;
+  kwhBilled: number | null;
+  network: string;
+  station: string | null;
+  hasFile: boolean;
+};
 
 export async function invoicesBySession(owner: Owner, ids: number[]): Promise<Map<number, SessionInvoiceAmount>> {
   if (DEMO) {
@@ -296,20 +322,41 @@ export async function invoicesBySession(owner: Owner, ids: number[]): Promise<Ma
     // The demo stores no files (the invoice route answers 404 there).
     return new Map(ids.flatMap((id) => {
       const i = all.get(id);
-      return i ? [[id, { amount: i.amount, kwhBilled: i.kwhBilled, network: i.network, station: i.station, hasFile: false }] as const] : [];
+      return i ? [[id, { amount: i.amount, gst: i.gst, energyAmount: i.energyAmount, kwhBilled: i.kwhBilled, network: i.network, station: i.station, hasFile: false }] as const] : [];
     }));
   }
   if (ids.length === 0) return new Map();
   try {
     const rows = await receiptsFor(owner, ids);
-    return new Map([...rows].map(([id, r]) => [id, { amount: Number(r.amount_total), kwhBilled: r.kwh_billed == null ? null : Number(r.kwh_billed), network: r.network, station: r.station ?? null, hasFile: Boolean(r.invoice_path) }]));
+    return new Map(
+      [...rows].map(([id, r]) => [
+        id,
+        {
+          amount: Number(r.amount_total),
+          gst: amount(r.gst),
+          energyAmount: amount(r.energy_amount),
+          kwhBilled: amount(r.kwh_billed),
+          network: r.network,
+          station: r.station ?? null,
+          hasFile: Boolean(r.invoice_path),
+        },
+      ]),
+    );
   } catch (err) {
     if (!/charge_receipts/.test(String(err))) console.warn("Invoices unavailable:", (err as Error).message);
     return new Map();
   }
 }
 
-export type SessionInvoice = { network: string; station: string | null; amountTotal: number; gst: number | null; kwhBilled: number | null; hasFile: boolean };
+export type SessionInvoice = {
+  network: string;
+  station: string | null;
+  amountTotal: number;
+  gst: number | null;
+  energyAmount: number | null;
+  kwhBilled: number | null;
+  hasFile: boolean;
+};
 
 // The invoice attached to one session, for its page. Never fails the page: a read error (or a
 // database without the table yet) shows as no invoice.
@@ -317,21 +364,26 @@ export async function sessionInvoice(owner: Owner, sessionId: number): Promise<S
   if (DEMO) {
     const { demoInvoices } = await import("./demo");
     const i = demoInvoices().get(sessionId);
-    return i ? { network: i.network, station: i.station, amountTotal: i.amount, gst: i.gst, kwhBilled: i.kwhBilled, hasFile: false } : null;
+    return i ? { network: i.network, station: i.station, amountTotal: i.amount, gst: i.gst, energyAmount: i.energyAmount, kwhBilled: i.kwhBilled, hasFile: false } : null;
   }
-  const { data, error } = await ownerDb(owner).from("charge_receipts").select("network, station, amount_total, gst, kwh_billed, invoice_path").eq("session_id", sessionId).maybeSingle();
+  const columns = "network, station, amount_total, gst, kwh_billed, invoice_path";
+  const read = (cols: string) => ownerDb(owner).from("charge_receipts").select(cols).eq("session_id", sessionId).maybeSingle();
+  let { data, error } = await read(`${columns}, ${ENERGY}`);
+  if (noEnergyColumn(error)) ({ data, error } = await read(columns));
   if (error) {
     if (!["42P01", "PGRST205"].includes(error.code)) console.warn("Invoice unavailable:", error.message);
     return null;
   }
   if (!data) return null;
+  const row = data as unknown as Record<string, unknown>;
   return {
-    network: data.network as string,
-    station: (data.station as string | null) ?? null,
-    amountTotal: Number(data.amount_total),
-    gst: data.gst == null ? null : Number(data.gst),
-    kwhBilled: data.kwh_billed == null ? null : Number(data.kwh_billed),
-    hasFile: Boolean(data.invoice_path),
+    network: row.network as string,
+    station: (row.station as string | null) ?? null,
+    amountTotal: Number(row.amount_total),
+    gst: amount(row.gst),
+    energyAmount: amount(row.energy_amount),
+    kwhBilled: amount(row.kwh_billed),
+    hasFile: Boolean(row.invoice_path),
   };
 }
 

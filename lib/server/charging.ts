@@ -1,4 +1,5 @@
 import "server-only";
+import { feeLines } from "@/lib/charge-fees";
 import { DEMO } from "@/lib/demo";
 import { readAllRows, readPages } from "@/lib/paging";
 import { demoChargingFees, demoChargingSessions } from "./demo";
@@ -51,7 +52,18 @@ export type ChargingSession = {
   cost_total: number | null;
   currency: string | null;
   invoices: ChargingInvoice[];
+  // Tesla's fee lines ("Charging", "Idle fee") with what each came to, only when they add up to
+  // cost_total (see billLines); otherwise the bill isn't itemised.
+  lines?: BillLine[] | null;
 };
+
+export type BillLine = { type: string; amount: number };
+
+// A bill's fee lines, for the Spend breakdown: null unless every line was read and they add up to the total.
+export function billLines(fees: unknown, total: number | null): BillLine[] | null {
+  const read = feeLines(fees, total);
+  return read && read.addsUp && total !== null ? read.lines.map((l) => ({ type: l.type, amount: l.amount })) : null;
+}
 
 type ChargingRow = {
   session_id: string;
@@ -239,11 +251,11 @@ export async function loadChargingFees(owner: Owner, sessionId: string): Promise
 // Every one of the owner's sessions, newest first: All time and each period are worked out from this list. A missing table
 // or a read error shows as an empty list, with a log line.
 export async function loadChargingSessions(owner: Owner): Promise<ChargingSession[]> {
-  if (DEMO) return demoChargingSessions();
+  if (DEMO) return demoChargingSessions().map((s) => ({ ...s, lines: billLines(demoChargingFees(s.session_id), s.cost_total) }));
   const { data, error } = await readAllRows((from, to) =>
     ownerDb(owner)
       .from("charging_sessions")
-      .select("session_id, vehicle_vin, site_name, started_at, stopped_at, energy_kwh, cost_total, currency, invoices")
+      .select("session_id, vehicle_vin, site_name, started_at, stopped_at, energy_kwh, cost_total, currency, invoices, fees")
       .order("started_at", { ascending: false })
       .order("session_id", { ascending: false })
       .range(from, to),
@@ -262,5 +274,6 @@ export async function loadChargingSessions(owner: Owner): Promise<ChargingSessio
     cost_total: num(row.cost_total),
     currency: (row.currency as string | null) ?? null,
     invoices: Array.isArray(row.invoices) ? (row.invoices as ChargingInvoice[]) : [],
+    lines: billLines(row.fees, num(row.cost_total)),
   }));
 }

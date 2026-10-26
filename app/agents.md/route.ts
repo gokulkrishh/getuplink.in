@@ -59,7 +59,7 @@ All tools but one only read. Times without an offset are read as IST, for exampl
 
 ### Attaching an invoice
 
-\`attach_charge_invoice\` needs \`network\` (as printed), \`started_at\` and \`amount_total\` (₹, GST included). Also send what the invoice shows: \`station\`, \`ended_at\`, \`kwh_billed\`, \`gst\`, \`invoice_number\`, and the file as \`file_base64\` (PDF, PNG or JPEG, up to 3 MB). For an email, set \`source_ref\` to \`gmail:<message id>\` so a repeat is skipped.
+\`attach_charge_invoice\` needs \`network\` (as printed), \`started_at\` and \`amount_total\` (₹, GST included). Also send what the invoice shows: \`station\`, \`ended_at\`, \`kwh_billed\`, \`gst\`, \`energy_amount\` (the energy line before GST, when printed), \`invoice_number\`, and the file as \`file_base64\` (PDF, PNG or JPEG, up to 3 MB). For an email, set \`source_ref\` to \`gmail:<message id>\` so a repeat is skipped.
 
 It returns a status:
 

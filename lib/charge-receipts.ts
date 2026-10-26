@@ -25,6 +25,7 @@ export type Invoice = {
   kwhBilled?: number | null;
   amountTotal: number;
   gst?: number | null;
+  energyAmount?: number | null; // the energy line before GST, as printed
 };
 
 export type ReceiptSession = {
@@ -51,6 +52,9 @@ export function invoiceProblem(inv: Invoice, now: number): string | null {
   if (inv.endedAt != null && !(inv.endedAt >= inv.startedAt)) return "The invoice ends before it starts.";
   if (!(inv.amountTotal > 0 && inv.amountTotal <= MAX_AMOUNT)) return "The amount isn't between ₹0 and ₹1,00,000.";
   if (inv.gst != null && !(inv.gst >= 0 && inv.gst < inv.amountTotal)) return "The GST isn't less than the amount.";
+  if (inv.energyAmount != null && !(inv.energyAmount > 0 && inv.energyAmount + (inv.gst ?? 0) <= inv.amountTotal + 0.005)) {
+    return "The energy amount plus GST is more than the total.";
+  }
   if (inv.kwhBilled != null && !(inv.kwhBilled > 0 && inv.kwhBilled <= MAX_KWH)) return "The kWh billed isn't between 0 and 150.";
   return null;
 }

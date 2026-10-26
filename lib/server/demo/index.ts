@@ -151,8 +151,9 @@ export function demoStreamSessions(): StreamChargeSession[] {
 }
 
 // Invoices for the demo's third-party DC charges, as the Grok bot would attach them: billed a little over
-// what the car added, at ₹21/kWh with 18% GST, every other one so some show "Cost not available".
-type DemoInvoice = { amount: number; kwhBilled: number | null; network: string; station: string | null; gst: number };
+// what the car added, at ₹21/kWh (₹19.50 of it energy, the rest a service fee) with 18% GST, every other
+// one so some show "Cost not available".
+type DemoInvoice = { amount: number; kwhBilled: number | null; network: string; station: string | null; gst: number; energyAmount: number };
 
 export function demoInvoices(): Map<number, DemoInvoice> {
   const out = new Map<number, DemoInvoice>();
@@ -162,7 +163,7 @@ export function demoInvoices(): Map<number, DemoInvoice> {
       if (k % 2 === 1 && s.station_name) return;
       const kwhBilled = Math.round(s.energy_added_kwh! * 1.04 * 100) / 100;
       const amount = Math.round(kwhBilled * 21 * 1.18 * 100) / 100;
-      out.set(s.id, { amount, kwhBilled, ...(s.station_name ? { network: s.station_name.split(",")[0], station: null } : { network: "VoltPoint", station: "Lakeview Fuels, Ring Road" }), gst: Math.round((amount - amount / 1.18) * 100) / 100 });
+      out.set(s.id, { amount, kwhBilled, ...(s.station_name ? { network: s.station_name.split(",")[0], station: null } : { network: "VoltPoint", station: "Lakeview Fuels, Ring Road" }), gst: Math.round((amount - amount / 1.18) * 100) / 100, energyAmount: Math.round(kwhBilled * 19.5 * 100) / 100 });
     });
   return out;
 }
