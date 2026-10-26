@@ -74,7 +74,7 @@ export default async function Page() {
           />
         </section>
 
-        <Group title="Versions" note={data.noVersion > 0 ? `${data.noVersion} more not seen online yet, so no version.` : undefined}>
+        <Group title="Versions" note={data.noVersion > 0 ? `${data.noVersion} more not seen online yet.` : undefined}>
           {data.versions.length === 0 ? (
             <Item label="No car has reported a version yet" value="—" muted />
           ) : (
@@ -106,7 +106,7 @@ export default async function Page() {
         ) : (
           <Group
             title={`Tesla API, last ${USAGE_DAYS} days`}
-            note="Fleet API requests aren't counted yet. Each check makes a few requests, so the number of checks is a lower bound, not a request count."
+            note="Requests aren't counted yet. Each check makes a few, so checks run is a lower bound."
           >
             <Item label="Requests" value="Not tracked yet" muted />
             <Item label="Cost" value="Not tracked yet" muted />

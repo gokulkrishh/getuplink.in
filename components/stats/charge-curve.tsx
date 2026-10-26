@@ -29,8 +29,9 @@ export function ChargeCurve({ points }: { points: CurvePoint[] }) {
   return (
     <ChartCard
       title="Power and battery"
-      description="How fast the car charged, in kW on the left scale, and how full the battery was, from 0 to 100% on the right, through the charge."
+      description="Charging power and battery level through the charge."
       unit="kW"
+      info="Power is on the left scale, battery level on the right."
     >
       <div className="space-y-3">
         <Plot points={points} />

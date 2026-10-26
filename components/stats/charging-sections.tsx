@@ -9,7 +9,8 @@ import { type Bill, billsBySlot, billsIn } from "@/lib/charging-figures";
 import { formatDuration, formatKwh, formatMoney, formatMonth } from "@/lib/format";
 import { LIST_PREVIEW } from "@/lib/list";
 import { inSpan, type Timeframe } from "@/lib/periods";
-import { barsCaption, EACH_HOURS, unitNotes } from "@/components/stats/chart-caption";
+import { barsSpan, EACH_HOURS } from "@/components/stats/chart-caption";
+import { InfoButton } from "@/components/info-button";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { Measure } from "@/components/measure";
@@ -54,7 +55,8 @@ export function Summary({
     <section className="space-y-8">
       <ChartCard
         title="Spend"
-        description={`What you paid to charge ${eachSlot(frame)}, from Tesla's Supercharger bills and the invoices you attached.`}
+        description={`What you paid to charge ${eachSlot(frame)}.`}
+        info="From Tesla's Supercharger bills and the invoices you attached."
         summary={
           <div className="space-y-2">
             <p className="text-[0.8125rem] text-muted-foreground">Spent {frame.words}</p>
@@ -63,7 +65,7 @@ export function Summary({
             </p>
           </div>
         }
-        caption={`${barsCaption("Bills", frame)}.`}
+        caption={barsSpan(frame)}
         empty={bars.some((b) => b.value > 0) ? undefined : `No bills ${frame.words}`}
       >
         <Bars bars={bars} ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} />
@@ -77,17 +79,16 @@ export function Summary({
             acPerKwh !== null && { label: "AC rate", value: `${formatMoney(acPerKwh, "INR")}/kWh`, note: "Slower charging" },
             dcPerKwh !== null && { label: "DC rate", value: `${formatMoney(dcPerKwh, "INR")}/kWh`, note: "Fast charging" },
           ]}
+          label="bills"
+          terms={["kWh", acPerKwh !== null || dcPerKwh !== null ? "₹/kWh" : undefined, acPerKwh !== null ? "AC" : undefined, dcPerKwh !== null ? "DC" : undefined]}
         />
-        <p className="text-xs text-muted-foreground">
-          {unitNotes(["kWh", acPerKwh !== null || dcPerKwh !== null ? "₹/kWh" : undefined, acPerKwh !== null ? "AC" : undefined, dcPerKwh !== null ? "DC" : undefined])}
-        </p>
       </div>
       {km !== null && km >= 10 && cost > 0 && missing === 0 && (
         <p className="text-sm text-muted-foreground tabular-nums">{formatMoney((cost / km) * 100, "INR")} per 100 km driven</p>
       )}
       {missing > 0 && (
         <p className="text-xs text-faint">
-          {missing} {missing === 1 ? "charge has" : "charges have"} no bill yet (home charging, or no invoice attached), so {missing === 1 ? "it isn't" : "they aren't"} counted.
+          {missing} {missing === 1 ? "charge has" : "charges have"} no bill yet, so {missing === 1 ? "it isn't" : "they aren't"} counted.
         </p>
       )}
     </section>
@@ -145,7 +146,8 @@ export function EnergyAdded({
     <section className="space-y-8">
       <ChartCard
         title="Energy added"
-        description={`How much energy went into the battery ${eachSlot(frame)}, split by charger: Superchargers, third-party DC fast chargers, and AC.`}
+        description="Energy into the battery, by charger type."
+        info="Supercharger energy is from Tesla's bills; third-party DC and AC are from the car's own readings."
         unit="kWh"
         terms={["AC", "DC"]}
         summary={
@@ -156,7 +158,7 @@ export function EnergyAdded({
             </p>
           </div>
         }
-        caption={`${barsCaption("Energy added", frame)}. Tap a charger type to show or hide it.`}
+        caption={barsSpan(frame)}
         empty={bars.some((b) => b.total > 0) ? undefined : `No charging ${frame.words}`}
       >
         <StackedBars bars={bars} series={ENERGY_SERIES} ariaLabel={`Energy added per ${frame.slotName}`} labelEvery={frame.labelEvery} />
@@ -170,14 +172,12 @@ export function EnergyAdded({
         />
       )}
       {efficiency !== null && (
-        <div className="space-y-1">
-          <p className="text-sm">
-            AC charging efficiency <span className="font-mono font-medium tabular-nums"><Measure text={`${Math.round(efficiency * 100)}%`} /></span>
-          </p>
-          <p className="text-xs text-muted-foreground">
-            How much of the energy from the charger ended up in the battery, estimated from the car&apos;s own readings.
-          </p>
-        </div>
+        <p className="flex items-center gap-1.5 text-sm">
+          AC charging efficiency <span className="font-mono font-medium tabular-nums"><Measure text={`${Math.round(efficiency * 100)}%`} /></span>
+          <InfoButton label="AC charging efficiency" terms={["charging efficiency"]}>
+            Estimated from the car&apos;s own readings.
+          </InfoButton>
+        </p>
       )}
     </section>
   );

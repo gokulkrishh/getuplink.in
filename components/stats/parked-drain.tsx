@@ -6,7 +6,7 @@ import { backTo, overlapping } from "@/lib/kept";
 import { LIST_PREVIEW } from "@/lib/list";
 import type { Timeframe } from "@/lib/periods";
 import { median } from "@/lib/telemetry-derive";
-import { unitNotes } from "@/lib/unit-words";
+import { InfoButton } from "@/components/info-button";
 import { type ParkedRow, ParkedBlocks, ParkedTable } from "@/components/stats/parked-rows";
 
 const HOUR = 3_600_000;
@@ -67,14 +67,14 @@ export function ParkedDrain({ parked, parkedNow, frame }: { parked: ParkedPeriod
         watts: watts.length >= 2 ? median(watts) : null,
         perDay: drain.percentPerDay,
         kmPerDay: drain.kmPerDay,
-        basis: `Median of ${finished.length} stretches parked 6 hours or more, ${frame.words}.`,
+        basis: `The headline is the median of ${finished.length} stretches parked 6 hours or more, ${frame.words}.`,
       }
     : now && now.lostPercent !== null
       ? {
           watts: now.watts,
           perDay: (now.lostPercent / now.hours) * 24,
           kmPerDay: now.lostKm !== null ? (now.lostKm / now.hours) * 24 : null,
-          basis: "From the stretch the car is parked in now. A median shows after two finished stretches of 6 hours or more.",
+          basis: "The headline is from the stretch the car is parked in now. A median shows after two finished stretches of 6 hours or more.",
         }
       : null;
   const first = Math.min(parked[0]?.start ?? Infinity, parkedNow?.start ?? Infinity);
@@ -84,10 +84,16 @@ export function ParkedDrain({ parked, parkedNow, frame }: { parked: ParkedPeriod
     <section className="space-y-8">
       <div className="space-y-2">
         <div className="space-y-1">
-          <h2 className="text-lg font-medium tracking-heading">Parked drain</h2>
-          <p className="text-sm text-muted-foreground">
-            How much battery the car lost while parked, as % a day, and the power it drew to stay on, in W. Lower is better.
-          </p>
+          <div className="flex items-center gap-1.5">
+            <h2 className="text-lg font-medium tracking-heading">Parked drain</h2>
+            <InfoButton label="Parked drain" terms={["% a day", "W", "kWh"]}>
+              {headline && <p>{headline.basis}</p>}
+              <p>Energy is what the pack lost. Average power is that energy over the time parked.</p>
+              <p>Seen awake counts only the time the car was sending data, so it&apos;s a minimum.</p>
+              <p>≥ means parked since before Uplink&apos;s first reading.</p>
+            </InfoButton>
+          </div>
+          <p className="text-sm text-muted-foreground">Battery lost while parked. Lower is better.</p>
         </div>
         {headline && (
           <>
@@ -106,10 +112,9 @@ export function ParkedDrain({ parked, parkedNow, frame }: { parked: ParkedPeriod
                 .filter(Boolean)
                 .join(" · ")}
             </p>
-            <p className="text-xs text-faint">{headline.basis}</p>
           </>
         )}
-        <p className="text-xs text-muted-foreground">A sleeping car draws little. Sentry Mode, cabin overheat protection and apps checking in keep it awake and raise this.</p>
+        <p className="text-xs text-muted-foreground">Sentry Mode and apps checking in keep the car awake and raise this.</p>
       </div>
 
       {rows.length === 0 ? (
@@ -135,10 +140,7 @@ export function ParkedDrain({ parked, parkedNow, frame }: { parked: ParkedPeriod
           </div>
         </div>
       )}
-      <p className="text-xs text-faint">
-        {cut && `${cut} `}Energy is what the pack lost; average power is that over the time parked. Seen awake counts only the time the car was sending data, so
-        it&apos;s a minimum. ≥ means parked since before Uplink&apos;s first reading. {unitNotes(["% a day", "W", "kWh"])}
-      </p>
+      {cut && <p className="text-xs text-faint">{cut}</p>}
     </section>
   );
 }

@@ -8,7 +8,8 @@ import { formatDate, formatShortDate } from "@/lib/format";
 import { type Slot, type Timeframe, trackingGap } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
-import { barsCaption, unitNotes } from "@/components/stats/chart-caption";
+import { barsCaption } from "@/components/stats/chart-caption";
+import { InfoButton } from "@/components/info-button";
 import { type Spark, Sparkline } from "./sparkline";
 
 // Energy used driving, in kWh like every other energy figure.
@@ -200,10 +201,12 @@ export function Headline({
         />
       </div>
       {/* One line in every period, so the strip keeps its height (see ByPeriod's steady). */}
-      <p className="text-xs text-muted-foreground">
-        {barsCaption("Small bars: the amount", frame)}. Hover or tap one for its value. {unitNotes(["kWh"])}
+      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <InfoButton label="these figures" terms={["kWh"]}>
+          {`${barsCaption("Small bars: the amount", frame)}.`}
+        </InfoButton>
+        {gapText && <span>Tracking since {gapText}</span>}
       </p>
-      {gapText && <p className="text-xs text-muted-foreground">Tracking since {gapText} · no earlier period to compare</p>}
     </div>
   );
 }

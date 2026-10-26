@@ -44,7 +44,8 @@ export function Temperatures({ temps, frame }: { temps: BatteryExtras["temps"]; 
   return (
     <ChartCard
       title="Temperatures"
-      description="How warm the battery, the cabin and the air outside were, in °C. A higher line is warmer."
+      description="Battery, cabin and outside temperatures."
+      info={drawn ? GAPS : undefined}
       summary={
         drawn && (
           <div className="space-y-2">
@@ -55,11 +56,11 @@ export function Temperatures({ temps, frame }: { temps: BatteryExtras["temps"]; 
                 return v !== undefined && { label: s.name, value: `${oneDecimal.format(v)} °C` };
               })}
             />
-            <p className="text-xs text-faint">Latest reading {frame.words}, {when(last)}.</p>
+            <p className="text-xs text-faint">Latest reading, {when(last)}</p>
           </div>
         )
       }
-      caption={[cut, drawn && GAPS].filter(Boolean).join(" ")}
+      caption={cut}
       empty={!drawn && `No temperature readings ${frame.words}.`}
     >
       <LineChart
@@ -89,23 +90,24 @@ export function CellBalance({ spread, frame }: { spread: BatteryExtras["cellSpre
   return (
     <ChartCard
       title="Cell balance"
-      description="How far apart the battery's highest and lowest cell voltages were, at each reading, in mV. Lower is better: the cells are evenly balanced."
+      description="Gap between the highest and lowest cell. Lower is better."
       unit="mV"
       terms={["cell"]}
-      summary={
-        <div className="space-y-2">
-          <Figures
-            figures={[
-              { label: "Gap now", value: mv(now.y), note: `Latest reading, ${when(now.x)}` },
-              widest && { label: "Widest", value: mv(widest.y), note: `${frame.title}, ${when(widest.x)}` },
-            ]}
-          />
-          <p className="text-xs text-muted-foreground">
-            The gap widens while driving and charging hard, and settles back at rest. A gap that keeps growing over months is worth a service check.
-          </p>
-        </div>
+      info={
+        <>
+          <p>The gap widens while driving and charging hard, and settles back at rest. A gap that keeps growing over months is worth a service check.</p>
+          {shown.length >= 2 && <p>{GAPS}</p>}
+        </>
       }
-      caption={[cut, shown.length >= 2 && GAPS].filter(Boolean).join(" ")}
+      summary={
+        <Figures
+          figures={[
+            { label: "Gap now", value: mv(now.y), note: `Latest reading, ${when(now.x)}` },
+            widest && { label: "Widest", value: mv(widest.y), note: `${frame.title}, ${when(widest.x)}` },
+          ]}
+        />
+      }
+      caption={cut}
       empty={shown.length < 2 && `No cell voltage readings ${frame.words}.`}
     >
       <LineChart
@@ -133,6 +135,7 @@ export function CapacityByKm({ points, frame }: { points: BatteryExtras["capacit
       description="Usable capacity each week, against the odometer."
       unit="kWh"
       terms={["usable capacity"]}
+      info="A line that falls means the pack holds less."
       caption={backTo(frame.span, points[0].weekStart, "Weekly estimates")}
       empty={
         shown.length < 2 &&
@@ -162,12 +165,16 @@ export function TeslaPackByWeek({ pack, frame }: { pack: BatteryExtras["teslaPac
   return (
     <ChartCard
       title="Full pack by week, per Tesla"
-      description="How much energy a full battery holds, as the car itself reports it: the middle value of each week's reports. A line that falls means the pack holds less."
+      description="Full-pack energy, as the car reports it."
       unit="kWh"
-      terms={["capacity"]}
-      caption={["The car only sends this figure when it changes, so a week with no new figure has no point.", backTo(frame.span, weeks[0].weekStart, "Weekly reports")]
-        .filter(Boolean)
-        .join(" ")}
+      terms={["full pack, per Tesla"]}
+      info={
+        <>
+          <p>The middle value of each week&apos;s reports. A line that falls means the pack holds less.</p>
+          <p>The car only sends this figure when it changes, so a week with no new figure has no point.</p>
+        </>
+      }
+      caption={backTo(frame.span, weeks[0].weekStart, "Weekly reports")}
       empty={
         shown.length < 2 &&
         (shown.length === 1

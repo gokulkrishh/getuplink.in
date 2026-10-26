@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { ChartCard } from "@/components/chart-card";
 import { type Bar, Bars } from "@/components/stats/bars";
-import { barsCaption } from "@/components/stats/chart-caption";
+import { barsSpan } from "@/components/stats/chart-caption";
 import { Figures, Value } from "@/components/stats/figures";
 import { type DriveStats } from "@/lib/drive-stats";
 import { DRIVE_DAYS } from "@/lib/drives";
@@ -29,7 +29,7 @@ function Headline({ value, children }: { value: string; children: ReactNode }) {
 
 // Distance for the period or range, with a bar per slot of it (see Timeframe).
 export function Distance({ frame, driving }: Frame) {
-  const description = `${barsCaption("Kilometres driven", frame)}. A taller bar is more driving.`;
+  const description = "Kilometres driven.";
   // The counters couldn't be read for a range picked by date: say so in the chart's place rather than show 0 km.
   if (!driving) return <ChartCard title="Distance" description={description} empty={`Couldn't read the car's counters ${frame.words}`} />;
   const { current, bars: values } = driving;
@@ -41,6 +41,7 @@ export function Distance({ frame, driving }: Frame) {
     <ChartCard
       title="Distance"
       description={description}
+      caption={barsSpan(frame)}
       summary={<Headline value={`${compactNumber.format(current.km ?? 0)} km`}>Driven {frame.words}</Headline>}
       empty={hasBars(bars) ? undefined : `No driving ${frame.words}`}
     >
@@ -76,8 +77,9 @@ export function EnergyUse({ frame, driving }: Frame) {
     <div className="space-y-12">
       <ChartCard
         title="Energy use"
-        description={`${barsCaption("Energy the car used driving", frame)}, in kWh. A taller bar used more.`}
+        description="Energy the car used driving."
         unit="kWh"
+        caption={barsSpan(frame)}
         summary={
           <Headline value={formatKwh(used)}>
             Used {frame.words}
@@ -92,8 +94,11 @@ export function EnergyUse({ frame, driving }: Frame) {
         <ChartCard
           as="h3"
           title="Regen"
-          description={`${barsCaption("Energy won back as the car slowed down", frame)}, in kWh. It goes back into the battery, so it makes up for part of the energy used.`}
+          description="Energy won back as the car slowed."
+          unit="kWh"
           terms={["regen"]}
+          info="It goes back into the battery, making up for part of the energy used."
+          caption={barsSpan(frame)}
           summary={
             <p className="text-sm">
               Won back <span className="font-mono font-medium tabular-nums"><Measure text={formatKwh(regenTotal)} /></span>{" "}
@@ -107,6 +112,8 @@ export function EnergyUse({ frame, driving }: Frame) {
     </div>
   );
 }
+
+const upper = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 // The phone shows the last PHONE_DAYS of a longer run of days, so its bars stay wide enough to tap.
 const PHONE_DAYS = 30;
@@ -134,16 +141,8 @@ export function DailyDriving({ days: all, frame, partial = false }: { days: DayK
   return (
     <ChartCard
       title="Driving per day"
-      description={
-        split ? (
-          <>
-            Kilometres driven each day, <span className="max-sm:hidden">{span(days.length)}</span>
-            <span className="sm:hidden">{phoneSpan}</span>. A taller bar is a longer day of driving.
-          </>
-        ) : (
-          `Kilometres driven each day, ${span(days.length)}. A taller bar is a longer day of driving.`
-        )
-      }
+      description="Kilometres driven each day."
+      info="A day without an odometer reading is left blank."
       summary={
         <div className="space-y-1">
           <p className="text-sm text-muted-foreground tabular-nums">
@@ -152,7 +151,16 @@ export function DailyDriving({ days: all, frame, partial = false }: { days: DayK
           {partial && <p className="text-xs text-faint">Days cover only the last {all.length} days.</p>}
         </div>
       }
-      caption="A day without an odometer reading is left blank."
+      caption={
+        split ? (
+          <>
+            <span className="max-sm:hidden">{upper(span(days.length))}</span>
+            <span className="sm:hidden">{upper(phoneSpan)}</span>
+          </>
+        ) : (
+          upper(span(days.length))
+        )
+      }
     >
       {split ? (
         <>

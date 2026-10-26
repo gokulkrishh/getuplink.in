@@ -14,7 +14,7 @@ import { formatClock, formatDate, formatDuration, formatKwh, formatMoney, format
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargeDetail, loadChargeDetail } from "@/lib/server/charge-curve";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
-import { unitNotes } from "@/lib/unit-words";
+import { InfoButton } from "@/components/info-button";
 
 export const metadata: Metadata = { title: "Charge · Uplink" };
 
@@ -93,7 +93,20 @@ function Charge({ detail }: { detail: ChargeDetail }) {
         {curve.points.length >= 2 && <ChargeCurve points={curve.points} />}
         {shown.length > 0 && (
           <section className="space-y-6">
-            <h2 className="text-lg font-medium tracking-heading">Session</h2>
+            {/* The units the tiles use, in plain words, and what kind of charge this was. The chart above
+                already explains kW when it shows. */}
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-lg font-medium tracking-heading">Session</h2>
+              <InfoButton
+                label="this session"
+                terms={[
+                  curve.points.length < 2 && shown.some(([label]) => label.endsWith("power")) ? "kW" : undefined,
+                  shown.some(([label]) => label.startsWith("Energy")) ? "kWh" : undefined,
+                  shown.some(([, value]) => value.includes("/kWh")) ? "₹/kWh" : undefined,
+                  s.kind === "dc" ? "DC" : "AC",
+                ]}
+              />
+            </div>
             {sections.map((g) => (
               <div key={g.title} className="space-y-3">
                 <h3 className="text-base font-medium tracking-heading">{g.title}</h3>
@@ -106,16 +119,6 @@ function Charge({ detail }: { detail: ChargeDetail }) {
                 />
               </div>
             ))}
-            {/* The units the tiles use, in plain words, and what kind of charge this was. The chart above
-                already explains kW when it shows. */}
-            <p className="text-xs text-muted-foreground">
-              {unitNotes([
-                curve.points.length < 2 && shown.some(([label]) => label.endsWith("power")) ? "kW" : undefined,
-                shown.some(([label]) => label.startsWith("Energy")) ? "kWh" : undefined,
-                shown.some(([, value]) => value.includes("/kWh")) ? "₹/kWh" : undefined,
-                s.kind === "dc" ? "DC" : "AC",
-              ])}
-            </p>
           </section>
         )}
         <ChargeFees fees={detail.fees} currency={currency} />
