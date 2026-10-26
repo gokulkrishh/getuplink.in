@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { cacheLife } from "next/cache";
-import { LogOut, Settings, ShieldCheck } from "lucide-react";
+import { LogOut, ReceiptText, Settings, ShieldCheck, UserPlus } from "lucide-react";
 import { Suspense } from "react";
 import { logout } from "@/app/actions";
 import { AvatarBlob } from "@/components/avatar-blob";
@@ -46,14 +46,24 @@ async function AccountAvatar() {
   return <AvatarBlob seed={await accountSeed()} />;
 }
 
-// Only the admin (users.role = 'admin') sees the Admin item; for everyone else /admin is a 404.
+// Only the admin (users.role = 'admin') sees the Admin, Waitlist and Costs items; for everyone else they're a 404.
 async function AdminItem() {
   if (!(await adminSession())) return null;
   return (
-    <DropdownMenuItem render={<Link href="/admin" prefetch={true} />}>
-      <ShieldCheck aria-hidden />
-      Admin
-    </DropdownMenuItem>
+    <>
+      <DropdownMenuItem render={<Link href="/admin" prefetch={true} />}>
+        <ShieldCheck aria-hidden />
+        Admin
+      </DropdownMenuItem>
+      <DropdownMenuItem render={<Link href="/admin/waitlist" prefetch={true} />}>
+        <UserPlus aria-hidden />
+        Waitlist
+      </DropdownMenuItem>
+      <DropdownMenuItem render={<Link href="/admin/costs" prefetch={true} />}>
+        <ReceiptText aria-hidden />
+        Costs
+      </DropdownMenuItem>
+    </>
   );
 }
 
