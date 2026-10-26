@@ -1,5 +1,5 @@
 import "server-only";
-import { DEMO } from "@/lib/demo";
+import { DEMO, DEMO_SITE } from "@/lib/demo";
 import { compareVersions } from "@/lib/rollout";
 import { istDay } from "@/lib/status";
 import { normaliseVersion } from "@/lib/versions";
@@ -19,6 +19,9 @@ export const RECENT_DAYS = 7;
 // read fresh from the database. Uncached: every admin action calls this again. In demo mode the demo
 // owner is an admin.
 export async function adminOwner(): Promise<Owner | null> {
+  // The public demo site has no admin: no Admin, Waitlist or Costs in its menu, and those pages are a 404.
+  // Local demo mode (UPLINK_DEMO=1) keeps them, to preview them while building.
+  if (DEMO_SITE) return null;
   if (DEMO) return DEMO_OWNER;
   if (missingEnv().length) return null;
   const owner = await currentOwner();
