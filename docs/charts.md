@@ -62,6 +62,37 @@ The owner's rule, for every page: too much text is worse than too little. Keep t
 
 Copy rules: plain sentences, sentence case, no arrows, no en-dash ranges ("58% to 51%", "8:18 AM to 8:48 AM"). Show only what is known: no guessed times or durations, and no projections presented as readings.
 
+## Precision
+
+Every figure shows the precision its data supports, the same everywhere it appears. The rules live in one place, `lib/format.ts` (`DECIMALS` and the `format*` helpers). Never write `toFixed`, `Math.round` or a new `Intl.NumberFormat` for a figure on a page; use the helper for its unit.
+
+| Unit | Shown | Helper | Why |
+| --- | --- | --- | --- |
+| Distance driven | 1 decimal: "46.2 km" | `formatKm` | The odometer reads to a few metres. Whole km lost up to 0.5 km a bar |
+| Odometer | 1 decimal: "3,434.7 km" | `formatKm` | The same reading |
+| Range (the car's estimate) | Whole: "287 km" | `formatRangeKm` | An estimate; tenths would be false precision |
+| Energy | 1 decimal: "11.1 kWh" | `formatKwh` | Counters and bills read to 0.001 kWh |
+| Power | 1 decimal: "7.2 kW"; under 1 kW in W: "24 W", "4.5 W" | `formatKw`, `formatPower` | |
+| Money | To the paisa: "₹874.50" | `formatMoney` | Bills are to the paisa. Axis ticks stay compact |
+| Battery level, shares | Whole: "66%", "58% to 51%" | `formatPercent`, `formatLevels` | Whole percent, as the car's screen shows it |
+| Rates of %: drain | 1 decimal: "1.4% a day" | `formatPercent(v, 1)` | Small numbers |
+| Speed | Whole: "92 km/h" | `formatSpeed` | |
+| Wh/km | Whole: "152 Wh/km" | `formatWhPerKm` (`lib/seasons.ts`) | |
+| km per kWh | 1 decimal | `formatNumber(v, DECIMALS.kmPerKwh)` | |
+| Temperature | Up to 1 decimal: "35.5 °C", "30 °C" | `formatCelsius`, `formatTempRange` | Reported in half degrees, never summed |
+
+A unit with decimals always shows all of them, the trailing zero included: "46.0 km", never "46 km" in one place and "46.0 km" in another. Zero reads "0.0 km" and "0.0 kWh" too. Only the whole-number units (%, km/h, Wh/km, range) show no decimals.
+
+### One quantity, one reading
+
+The same number always shows the same digits: on its bar, in the bar's tooltip, in a trip row, on the day page and in the monthly table. Each figure is rounded on its own by its unit's helper, and nothing is nudged to make a sum come out even.
+
+- Keep every figure at full precision in the data (`lib/driving-figures.ts`, `dailyDistance`, `groupTrips`, the MCP JSON in `lib/server/mcp-data.ts`). Round only to show it.
+- A total and its parts come from the same values: the headline is the raw sum of the bars or rows under it (`sumKnown`, or `knownBars` in `driving-sections.tsx`, which builds both), never a figure worked out apart. The bars share their edges, so the odometer's rise over a period is the same sum.
+- Shown parts can then add up to a last digit off the shown total. Three days of 46.215, 7.416 and 46.377 km read 46.2, 7.4 and 46.4 against 100.0 km, but 0.35 + 0.35 + 0.35 reads 0.4 + 0.4 + 0.4 against 1.1. Both are the honest values, so leave them; never change a part's digits to match the total.
+- Use one source for one quantity. The Distance bars, Driving per day and the monthly table all read the odometer, merging the stream with the online polls by taking whichever was read later at each midnight: the later reading is closer to the boundary, so it puts each kilometre on the right day. Trips, legs and drive stats come from the drives the stream shows, so a day's trips can come to up to about 0.1 km less than its odometer bar. Both are shown as read, with no note.
+- A bar's tooltip shows its `display`, so the tip and the label read the same digits.
+
 ## The info popover
 
 `InfoButton` (`components/info-button.tsx`) is a small ⓘ that opens a popover: method notes first, then the glossary words for each unit or term. Hover or keyboard focus opens it on a desktop, a tap on a phone; a tap outside or Esc closes it. It renders nothing when there's nothing to say.

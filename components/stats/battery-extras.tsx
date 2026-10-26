@@ -3,7 +3,7 @@
 import { ChartCard } from "@/components/chart-card";
 import { Figures } from "@/components/stats/figures";
 import { LineChart } from "@/components/stats/line-chart";
-import { formatClock, formatShortDate } from "@/lib/format";
+import { formatCelsius, formatClock, formatKm, formatKwh, formatShortDate } from "@/lib/format";
 import { backTo, weeksIn, within } from "@/lib/kept";
 import type { Timeframe } from "@/lib/periods";
 import type { BatteryExtras, Point } from "@/lib/server/battery-extra";
@@ -13,7 +13,6 @@ const DAY = 24 * HOUR;
 // Readings further apart than this break the line: the car was asleep or out of reach, not reading.
 const GAP = 3 * HOUR;
 const when = (t: number) => `${formatShortDate(t)}, ${formatClock(t)}`;
-const oneDecimal = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 const number = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 const inFrame = (points: Point[], frame: Timeframe) => within(points, frame.span, (p) => p.x);
 // The first reading held across the series, for the note on how far back they go.
@@ -53,7 +52,7 @@ export function Temperatures({ temps, frame }: { temps: BatteryExtras["temps"]; 
             <Figures
               figures={series.map((s) => {
                 const v = s.points.at(-1)?.y;
-                return v !== undefined && { label: s.name, value: `${oneDecimal.format(v)} °C` };
+                return v !== undefined && { label: s.name, value: formatCelsius(v) };
               })}
             />
             <p className="text-xs text-faint">Latest reading, {when(last)}</p>
@@ -67,7 +66,7 @@ export function Temperatures({ temps, frame }: { temps: BatteryExtras["temps"]; 
         series={series}
         formatX={when}
         formatTickX={timeTicks(series.flatMap((s) => s.points))}
-        formatY={(y) => `${oneDecimal.format(y)} °C`}
+        formatY={(y) => formatCelsius(y)}
         unit="°C"
         gap={GAP}
         label={`Battery, inside and outside temperature, ${frame.title}`}
@@ -140,14 +139,14 @@ export function CapacityByKm({ points, frame }: { points: BatteryExtras["capacit
       empty={
         shown.length < 2 &&
         (shown.length === 1
-          ? `Week of ${formatShortDate(shown[0].weekStart)}: ${oneDecimal.format(shown[0].y)} kWh at ${number.format(shown[0].x)} km. A line needs two weeks.`
+          ? `Week of ${formatShortDate(shown[0].weekStart)}: ${formatKwh(shown[0].y)} at ${formatKm(shown[0].x)}. A line needs two weeks.`
           : `No weekly estimate ${frame.words}.`)
       }
     >
       <LineChart
         series={[{ name: "Capacity", className: "stroke-chart-accent", points: shown }]}
-        formatX={(x) => `${number.format(x)} km`}
-        formatY={(y) => `${oneDecimal.format(y)} kWh`}
+        formatX={(x) => formatKm(x)}
+        formatY={(y) => formatKwh(y)}
         unit="kWh"
         label={`Usable capacity against the odometer, ${frame.title}`}
       />
@@ -178,7 +177,7 @@ export function TeslaPackByWeek({ pack, frame }: { pack: BatteryExtras["teslaPac
       empty={
         shown.length < 2 &&
         (shown.length === 1
-          ? `Week of ${formatShortDate(shown[0].weekStart)}: ${oneDecimal.format(shown[0].kwh)} kWh. A line needs two weeks.`
+          ? `Week of ${formatShortDate(shown[0].weekStart)}: ${formatKwh(shown[0].kwh)}. A line needs two weeks.`
           : `No new figure from Tesla ${frame.words}.`)
       }
     >
@@ -186,7 +185,7 @@ export function TeslaPackByWeek({ pack, frame }: { pack: BatteryExtras["teslaPac
         series={[{ name: "Full pack", className: "stroke-chart-accent", points: shown.map((w) => ({ x: w.weekStart, y: w.kwh })) }]}
         formatX={(x) => `Week of ${formatShortDate(x)}`}
         formatTickX={formatShortDate}
-        formatY={(y) => `${oneDecimal.format(y)} kWh`}
+        formatY={(y) => formatKwh(y)}
         unit="kWh"
         label={`Tesla's full-pack figure by week, ${frame.title}`}
       />

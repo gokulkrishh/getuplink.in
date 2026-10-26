@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRef } from "react";
 import { FloatTip, useActiveMark } from "@/components/stats/float-tip";
 import type { Drive } from "@/lib/drives";
-import { formatClock, formatDuration, formatKm, formatKwh } from "@/lib/format";
+import { formatClock, formatDuration, formatKm, formatKwh, formatLevels } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Measure } from "@/components/measure";
 
@@ -30,7 +30,7 @@ export function TripTimeline({ legs }: { legs: Drive[] }) {
       `Drive ${s.n} · ${time}`,
       formatKm(d.km),
       d.kwh !== null && formatKwh(d.kwh),
-      d.startLevel !== null && d.endLevel !== null && `battery ${Math.round(d.startLevel)}% to ${Math.round(d.endLevel)}%`,
+      d.startLevel !== null && d.endLevel !== null && `battery ${formatLevels(d.startLevel, d.endLevel)}`,
     ]
       .filter(Boolean)
       .join(" · ");
@@ -112,7 +112,7 @@ function Tip({ segment: s }: { segment: Segment }) {
       <span className="block font-mono"><Measure text={[formatKm(d.km), d.kwh !== null && formatKwh(d.kwh)].filter(Boolean).join(" · ")} /></span>
       {d.startLevel !== null && d.endLevel !== null && (
         <span className="block font-mono">
-          <Measure text={`Battery ${Math.round(d.startLevel)}% to ${Math.round(d.endLevel)}%`} />
+          <Measure text={`Battery ${formatLevels(d.startLevel, d.endLevel)}`} />
         </span>
       )}
       <Link href={`/stats/driving/${s.start}?leg`} className="mt-1 block text-foreground underline underline-offset-4">

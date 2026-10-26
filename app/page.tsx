@@ -76,6 +76,7 @@ function Totals({ home, custom, now }: { home: Extract<Home, { kind: "ready" }>;
       charges.filter((c) => inSpan(Date.parse(c.started_at), span)),
       Math.max(span.from, now - DRIVE_DAYS * 86_400_000),
       Math.min(span.to - 1, now),
+      window.days,
     );
     return rows.length > 1 ? rows : [];
   };

@@ -2,7 +2,7 @@ import { ShowMore } from "@/components/show-more";
 import { type TripRow, TripRows } from "@/components/stats/trip-rows";
 import type { Drive } from "@/lib/drives";
 import { groupTrips, type Trip } from "@/lib/trips";
-import { formatClock, formatDayLabel, formatDuration, formatKm, formatKwh } from "@/lib/format";
+import { formatClock, formatDayLabel, formatDuration, formatKm, formatKwh, sumKnown } from "@/lib/format";
 import { LIST_PREVIEW } from "@/lib/list";
 
 // A trip's texts for the table (see TripRows). How much of the battery it took is "9%", with the start and
@@ -35,9 +35,10 @@ export function TripTable({ trips, serialOf, now, header = true }: { trips: Trip
 // `all`, so a list cut to a range keeps each trip's number.
 export function DriveList({ drives, all = drives, now }: { drives: Drive[]; all?: Drive[]; now: number }) {
   if (drives.length === 0) return null;
+  // The total is the trips' raw km added up, rounded once when shown, like each row.
   const trips = groupTrips(drives);
+  const totalKm = sumKnown(trips.map((t) => t.km));
   const numbered = all === drives ? trips : groupTrips(all);
-  const totalKm = drives.reduce((sum, d) => sum + d.km, 0);
   const serialOf = (t: Trip) => numbered.length - numbered.findIndex((n) => n.start === t.start);
   return (
     <section className="space-y-6">

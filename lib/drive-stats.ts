@@ -27,14 +27,15 @@ export function driveStats(drives: Drive[], windowFrom: number, since: number | 
   };
 }
 
-// The drives' energy, and Wh/km over their distance, or null with under 1 km of drives that have an
-// energy figure.
+// The drives' energy, and Wh/km over their distance. kWh is the sum of every drive with an energy figure,
+// however short, so a span's figure is the sum of its bars'; null when no drive has one (none were found,
+// or the odometer moved without one). Wh/km is null under 1 km, too short to mean anything.
 function driveEnergy(drives: Drive[]): { kwh: number | null; whPerKm: number | null } {
   const counted = drives.filter((d) => d.kwh !== null);
+  if (counted.length === 0) return { kwh: null, whPerKm: null };
   const km = counted.reduce((sum, d) => sum + d.km, 0);
-  if (km < 1) return { kwh: null, whPerKm: null };
   const kwh = counted.reduce((sum, d) => sum + d.kwh!, 0);
-  return { kwh, whPerKm: (kwh * 1000) / km };
+  return { kwh, whPerKm: km < 1 ? null : (kwh * 1000) / km };
 }
 
 // Energy used driving, and efficiency, from the drives wherever they cover the whole span (they reach

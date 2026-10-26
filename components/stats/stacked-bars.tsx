@@ -6,6 +6,7 @@ import { useAxisLabels } from "@/components/stats/axis-labels";
 import { AxisLabel, BAR_MAX, BarTip, MIN_COLUMN_PX, MIN_COLUMNS } from "@/components/stats/bar-parts";
 import { ScrollEnd } from "@/components/stats/scroll-end";
 import { TapColumns } from "@/components/stats/tap-columns";
+import { DECIMALS, formatKwh, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 // `blank` draws the column empty with no tip (a slot ahead of now); without it, columns before the first
@@ -13,7 +14,8 @@ import { cn } from "@/lib/utils";
 export type StackedBar = { key: string; label: string; total: number; display: string; isCurrent: boolean; segments: number[]; blank?: boolean; axis?: string; edge?: boolean };
 export type StackedSeries = { label: string; className: string };
 
-const kwh = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
+// Each segment, column total and tip line is rounded on its own, to the energy rule (see lib/format.ts).
+const kwh = { format: (n: number) => formatNumber(n, DECIMALS.kWh) };
 
 // Same look as Bars, with each column split into series (first series at the bottom). Tones tell the
 // series apart and a 2px gap separates them. The legend sits under the panel, so side-by-side panels
@@ -48,7 +50,7 @@ export function StackedBars({
   const first = bars.findIndex((b) => b.total > 0);
   const max = niceMax(Math.max(1, ...bars.map(shownTotal)));
   const breakdown = (b: StackedBar) =>
-    series.map((s, i) => (b.segments[i] > 0 && !hidden.has(i) ? `${s.label} ${b.segments[i].toFixed(1)} kWh` : null)).filter(Boolean);
+    series.map((s, i) => (b.segments[i] > 0 && !hidden.has(i) ? `${s.label} ${formatKwh(b.segments[i])}` : null)).filter(Boolean);
   const toggle = (i: number) =>
     setHidden((prev) => {
       const next = new Set(prev);
@@ -77,7 +79,7 @@ export function StackedBars({
           );
         return (
           <li key={b.key} className="group relative flex flex-col items-center gap-2">
-            <BarTip at={k} of={bars.length} lines={[`${total.toFixed(1)} kWh in total`, ...breakdown(b)]} title={b.label} />
+            <BarTip at={k} of={bars.length} lines={[`${formatKwh(total)} in total`, ...breakdown(b)]} title={b.label} />
             <span className="h-4 font-mono text-xs text-muted-foreground tabular-nums">{dense ? "" : kwh.format(total)}</span>
             <div className="flex h-20 w-full items-end justify-center">
               {total > 0 && (

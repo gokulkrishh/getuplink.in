@@ -1,6 +1,6 @@
 import { ShowMore } from "@/components/show-more";
 import { Value } from "@/components/stats/figures";
-import { formatClock, formatDuration, formatPower, formatShortDate } from "@/lib/format";
+import { formatClock, formatDuration, formatKwh, formatNumber, formatPower, formatRangeKm, formatShortDate } from "@/lib/format";
 import { type DrainSummary, drainSummary, type ParkedNow, type ParkedPeriod, type ParkStats } from "@/lib/drives";
 import { backTo, overlapping } from "@/lib/kept";
 import { LIST_PREVIEW } from "@/lib/list";
@@ -13,7 +13,7 @@ const HOUR = 3_600_000;
 // A stretch this long says something per day; a shorter one in progress is shown but not summarised.
 const SUMMARY_MS = 6 * HOUR;
 
-const oneDecimal = (value: number) => (Math.round(value * 10) / 10).toString();
+const oneDecimal = (value: number) => formatNumber(value, 1);
 const dash = "Unknown";
 
 type Row = ParkStats & { serial: number; ongoing: boolean; atLeast: boolean };
@@ -21,7 +21,7 @@ type Row = ParkStats & { serial: number; ongoing: boolean; atLeast: boolean };
 // The texts of one stretch for the list (see ParkedRows), each "Unknown" when the readings don't show it.
 function cells(r: Row): ParkedRow {
   const lost = r.lostPercent !== null ? `${oneDecimal(r.lostPercent)}%` : dash;
-  const range = r.lostKm !== null ? `${Math.round(r.lostKm)} km` : dash;
+  const range = r.lostKm !== null ? formatRangeKm(r.lostKm) : dash;
   return {
     start: r.start,
     serial: r.serial,
@@ -31,7 +31,7 @@ function cells(r: Row): ParkedRow {
     lost,
     lostWithRange: r.lostKm !== null ? `${lost} · ${range}` : lost,
     range,
-    energy: r.kwh !== null ? `${oneDecimal(r.kwh)} kWh` : dash,
+    energy: r.kwh !== null ? formatKwh(r.kwh) : dash,
     power: r.watts !== null ? formatPower(r.watts) : dash,
     awake: formatDuration(r.awakeMs / 1000),
   };
@@ -107,7 +107,7 @@ export function ParkedDrain({ parked, parkedNow, frame }: { parked: ParkedPeriod
             <p className="text-sm text-muted-foreground tabular-nums">
               {[
                 headline.watts !== null && `${oneDecimal(headline.perDay)}% a day`,
-                headline.kmPerDay !== null && headline.kmPerDay >= 1 && `about ${Math.round(headline.kmPerDay)} km a day`,
+                headline.kmPerDay !== null && headline.kmPerDay >= 1 && `about ${formatRangeKm(headline.kmPerDay)} a day`,
               ]
                 .filter(Boolean)
                 .join(" · ")}

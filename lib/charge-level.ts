@@ -53,5 +53,5 @@ export function weeklyFullRange(range: Reading[], level: Reading[]): WeeklyRange
     const week = istWeek(Date.parse(r.at));
     byWeek.set(week, [...(byWeek.get(week) ?? []), (r.value * MILES_TO_KM) / (r.level / 100)]);
   }
-  return [...byWeek].sort(([a], [b]) => a - b).map(([week, values]) => ({ weekStart: istWeekStart(week), km: Math.round(median(values)) }));
+  return [...byWeek].sort(([a], [b]) => a - b).map(([week, values]) => ({ weekStart: istWeekStart(week), km: median(values) }));
 }

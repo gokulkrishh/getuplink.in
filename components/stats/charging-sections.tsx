@@ -6,7 +6,8 @@ import { Figures, Value } from "@/components/stats/figures";
 import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
 import { chargeEfficiency } from "@/lib/charge-sessions";
 import { type Bill, billsBySlot, billsIn } from "@/lib/charging-figures";
-import { formatDuration, formatKwh, formatMoney, formatMonth } from "@/lib/format";
+import { DECIMALS, formatDuration, formatKwh, formatMoney, formatMonth, formatNumber, formatPercent, sumKnown } from "@/lib/format";
+import { knownBars } from "@/components/stats/driving-sections";
 import { LIST_PREVIEW } from "@/lib/list";
 import { inSpan, type Timeframe } from "@/lib/periods";
 import { barsSpan, EACH_HOURS } from "@/components/stats/chart-caption";
@@ -45,12 +46,11 @@ export function Summary({
   frame: Timeframe;
 }) {
   const { span, slots } = frame;
-  const { cost, kwh, count, acPerKwh, dcPerKwh } = billsIn(bills, span);
+  const { kwh, count, acPerKwh, dcPerKwh } = billsIn(bills, span);
   const missing = unbilled.filter((s) => inSpan(Date.parse(s.started_at), span)).length;
-  const spend = billsBySlot(bills, slots);
-  const compact = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
-  // A bar ahead of now (the rest of this year or of today) is blank, not ₹0.
-  const bars = slots.map((slot, k) => ({ key: String(slot.id), label: slot.label, axis: slot.axis, edge: slot.edge, value: spend[k], display: compact.format(spend[k]), isCurrent: slot.isCurrent, blank: slot.ahead || undefined }));
+  // A bar ahead of now (the rest of this year or of today) is blank, not ₹0. To the paisa, rounded with
+  // the headline (see knownBars), so the bars add up to it as shown.
+  const { bars, total: cost } = knownBars(slots, billsBySlot(bills, slots), DECIMALS.money, (n) => formatMoney(n, "INR"));
   return (
     <section className="space-y-8">
       <ChartCard
@@ -95,8 +95,6 @@ export function Summary({
   );
 }
 
-const kwhCompact = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
-
 // Tones from the foreground down, so the series read apart without colour.
 const ENERGY_SERIES = [
   { label: "Supercharger", className: "bg-chart-1" },
@@ -128,9 +126,12 @@ export function EnergyAdded({
   };
   for (const s of sessions) add(s.started_at, 0, s.energy_kwh);
   for (const s of streamOnly) add(s.started_at, s.supercharger ? 0 : s.kind === "dc" ? 1 : 2, s.energy_added_kwh);
+  // The headline is the columns' raw sum, and each column its chargers' raw sum; every figure is rounded
+  // on its own when shown.
+  total = sumKnown(energy.map((e, k) => (slots[k].ahead ? null : sumKnown(e))));
   const bars: StackedBar[] = slots.map((slot, k) => {
-    const sum = energy[k].reduce((a, b) => a + b, 0);
-    return { key: String(slot.id), label: slot.label, axis: slot.axis, edge: slot.edge, total: sum, display: kwhCompact.format(sum), isCurrent: slot.isCurrent, segments: energy[k], blank: slot.ahead || undefined };
+    const sum = sumKnown(energy[k]);
+    return { key: String(slot.id), label: slot.label, axis: slot.axis, edge: slot.edge, total: sum, display: formatNumber(sum, DECIMALS.kWh), isCurrent: slot.isCurrent, segments: energy[k], blank: slot.ahead || undefined };
   });
   const efficiency = chargeEfficiency(streamOnly.filter((s) => s.kind === "ac" && inSpan(Date.parse(s.started_at), span)));
   // Time on the charger by kind, after TeslaMate's AC/DC duration: Superchargers from Tesla's times, the
@@ -173,7 +174,7 @@ export function EnergyAdded({
       )}
       {efficiency !== null && (
         <p className="flex items-center gap-1.5 text-sm">
-          AC charging efficiency <span className="font-mono font-medium tabular-nums"><Measure text={`${Math.round(efficiency * 100)}%`} /></span>
+          AC charging efficiency <span className="font-mono font-medium tabular-nums"><Measure text={formatPercent(efficiency * 100)} /></span>
           <InfoButton label="AC charging efficiency" terms={["charging efficiency"]}>
             Estimated from the car&apos;s own readings.
           </InfoButton>
@@ -189,7 +190,8 @@ export function SessionList({ sessions, all = sessions }: { sessions: Listed[]; 
   // Sessions arrive newest first, so each month's group is in order too. Numbers count from the first
   // charge, so the newest has the highest.
   const serial = new Map(all.map((s, i) => [s.key, all.length - i]));
-  const energyTotal = sessions.reduce((sum, s) => sum + ((s.tesla ? s.tesla.energy_kwh : s.stream?.energy_added_kwh) ?? 0), 0);
+  // The total is the rows' raw energy added up, rounded once when shown, like each row.
+  const energyTotal = sumKnown(sessions.map((s) => (s.tesla ? s.tesla.energy_kwh : s.stream?.energy_added_kwh)));
   const costs = hasCosts(sessions);
   const groups = new Map<string, Listed[]>();
   for (const s of sessions) {

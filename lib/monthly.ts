@@ -1,5 +1,8 @@
 import type { Drive } from "@/lib/drives";
 import { monthIndex, monthStart } from "@/lib/periods";
+import type { DayKm } from "@/lib/telemetry-derive";
+
+const DAY_MS = 86_400_000;
 
 // A month-by-month table after TeslaMate's statistics: driving from the drives, charging from the
 // sessions, spend from real bills only. Pure, so tested directly.
@@ -20,7 +23,10 @@ type Charge = { started_at: string; kwh: number | null; cost: number | null };
 // Months from the earliest one with a drive or a charge to now, newest first, never before `from`. Nothing
 // before `from` counts, so the oldest month, cut by it, counts drives and charges over the same days
 // (not drives from the 90-day edge against the whole month's charges).
-export function monthlyRows(allDrives: Drive[], allCharges: Charge[], from: number, now: number): MonthRow[] {
+// `days` (the odometer's kilometres per day, see dailyDistance) gives each month the odometer's distance,
+// the same as its Distance bar, rather than the drives' sum, which misses what no drive was found for; the
+// days that overlap `from` onward count. Without it, the drives' distance stands.
+export function monthlyRows(allDrives: Drive[], allCharges: Charge[], from: number, now: number, days?: DayKm[]): MonthRow[] {
   const drives = allDrives.filter((d) => d.start >= from);
   const charges = allCharges.filter((c) => Date.parse(c.started_at) >= from);
   const first = Math.max(
@@ -35,7 +41,9 @@ export function monthlyRows(allDrives: Drive[], allCharges: Charge[], from: numb
     const known = ds.filter((d) => d.kwh !== null);
     rows.push({
       month: m,
-      km: ds.reduce((sum, d) => sum + d.km, 0),
+      km: days
+        ? days.filter((d) => inMonth(d.start) && d.start + DAY_MS > from && d.start <= now).reduce((sum, d) => sum + (d.km ?? 0), 0)
+        : ds.reduce((sum, d) => sum + d.km, 0),
       drivingMs: ds.reduce((sum, d) => sum + (d.end - d.start), 0),
       kwhUsed: known.length ? known.reduce((sum, d) => sum + d.kwh!, 0) : null,
       charges: cs.length,
