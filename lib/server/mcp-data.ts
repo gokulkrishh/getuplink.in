@@ -178,8 +178,8 @@ export async function monthlySummary(owner: Owner) {
 // Where you charge, typical start and end level, AC and DC time, and recent DC charges' power.
 export async function chargingInsights(owner: Owner) {
   const { vin } = await car(owner);
-  const { teslaSessions, streamSessions, streamOnly, invoices } = await charges(owner);
-  const extras = await loadChargingExtras(owner, vin, streamSessions);
+  const { now, teslaSessions, streamSessions, streamOnly, invoices } = await charges(owner);
+  const extras = await loadChargingExtras(owner, vin, streamSessions, { tesla: teslaSessions, invoices, now });
   const finished = streamSessions.filter((s) => s.ended_at !== null && s.start_level !== null && s.end_level !== null);
   const hours = (kind: "ac" | "dc") =>
     r1(streamSessions.filter((s) => s.kind === kind && s.ended_at).reduce((a, s) => a + Date.parse(s.ended_at!) - Date.parse(s.started_at), 0) / 3_600_000);

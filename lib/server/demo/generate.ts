@@ -192,7 +192,7 @@ export function generateDemo(now: number): DemoData {
     }
   }
   // Two quick top-ups at a third-party CCS charger.
-  for (const ago of [33, 61]) {
+  for (const ago of [23, 61]) {
     const d = today - ago;
     const rng = rngFor(8, d);
     special.set(d, [{ start: at(d, between(rng, 10, 13)), km: Math.round(between(rng, 40, 70)), mult: 1, kind: "detour", stop: { supercharger: false, at: 0.5 } }]);

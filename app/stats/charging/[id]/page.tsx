@@ -3,7 +3,8 @@ import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
-import { OsmCredit, rate, streamTitle } from "@/components/session-row";
+import { OsmCredit, rate, streamName } from "@/components/session-row";
+import { chargeType } from "@/lib/charge-names";
 import { ChargeCurve } from "@/components/stats/charge-curve";
 import { ChargeFees } from "@/components/stats/charge-fees";
 import { ChargeSupply } from "@/components/stats/charge-supply";
@@ -40,7 +41,10 @@ function cost(tesla: ChargeDetail["tesla"], invoice: ChargeDetail["invoice"], en
 
 function Charge({ detail }: { detail: ChargeDetail }) {
   const { session: s, tesla, invoice, curve } = detail;
-  const { place, city } = tesla ? splitSite(tesla.site_name) : { place: streamTitle(s), city: null };
+  // Tesla's site for a Supercharger it billed; otherwise the best name known, with the kind of charge
+  // under it, or the kind alone.
+  const named = tesla ? null : streamName(s, invoice, detail.place);
+  const { place, city } = tesla ? splitSite(tesla.site_name) : { place: named?.text ?? chargeType(s), city: named ? chargeType(s) : null };
   const stoppedAt = tesla?.stopped_at ?? s.ended_at;
   const span = stoppedAt
     ? `${formatClock(s.started_at)} to ${formatClock(stoppedAt)} · ${formatDuration((Date.parse(stoppedAt) - Date.parse(s.started_at)) / 1000)}`
@@ -98,7 +102,7 @@ function Charge({ detail }: { detail: ChargeDetail }) {
           {invoice.network} invoice
         </a>
       )}
-      {!tesla && !s.supercharger && s.station_name && <OsmCredit className="mt-8" />}
+      {(named?.source === "station" || named?.source === "place") && <OsmCredit className="mt-8" />}
     </>
   );
 }
