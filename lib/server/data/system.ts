@@ -49,35 +49,25 @@ export async function revokeUserSessions(owner: Owner, at: string): Promise<void
   check(await db().from("users").update({ sessions_valid_after: at, updated_at: at }).eq("id", owner.userId));
 }
 
-// Delete account: the users row, which cascades to every per-user table with a foreign key to it (all but
-// telemetry_readings, which the caller deletes first).
+// Delete account: the users row, which cascades to every per-user table. Streamed readings aren't one
+// user's: the caller first deletes those nobody may see any more.
 export async function deleteUser(owner: Owner): Promise<void> {
   check(await db().from("users").delete().eq("id", owner.userId));
 }
 
-// Whom the crons check: every approved user with Tesla tokens. An approved user with no user_tokens row
-// yet is checked only if they are oauth_tokens' owner: that first check is what copies the tokens over at
-// cutover (see lib/server/tesla.ts). Anyone else approved from the waitlist has no tokens until they sign
-// in, so checking them would only fail every run with "not connected". A user who disconnected keeps an
-// empty row and isn't checked.
+// Whom the crons check: every approved user with Tesla tokens. Anyone approved from the waitlist has no
+// tokens until they sign in, so checking them would only fail every run with "not connected". A user who
+// disconnected keeps an empty row and isn't checked.
 export async function accountOwners(): Promise<Owner[]> {
-  const [users, rows, connected, legacy] = await Promise.all([
+  const [users, connected] = await Promise.all([
     db().from("users").select("id, tesla_sub").eq("status", APPROVED).order("id"),
-    db().from("user_tokens").select("user_id"),
     db().from("user_tokens").select("user_id").not("access_token_enc", "is", null),
-    db().from("oauth_tokens").select("owner_sub").eq("provider", "tesla"),
   ]);
-  for (const result of [users, rows, connected]) {
+  for (const result of [users, connected]) {
     if (result.error) throw new Error(`Reading accounts failed: ${result.error.message}`);
   }
-  if (legacy.error && !MISSING_TABLE.includes(legacy.error.code)) throw new Error(`Reading accounts failed: ${legacy.error.message}`);
-  const ids = (list: { user_id: unknown }[] | null) => new Set((list ?? []).map((r) => Number(r.user_id)));
-  const hasRow = ids(rows.data);
-  const hasTokens = ids(connected.data);
-  const legacySubs = new Set((legacy.data ?? []).map((r) => r.owner_sub as string | null).filter(Boolean));
-  return (users.data ?? [])
-    .filter((u) => hasTokens.has(Number(u.id)) || (!hasRow.has(Number(u.id)) && legacySubs.has(u.tesla_sub as string)))
-    .map((u) => ownerOf(u as UserRow));
+  const hasTokens = new Set((connected.data ?? []).map((r) => Number(r.user_id)));
+  return (users.data ?? []).filter((u) => hasTokens.has(Number(u.id))).map((u) => ownerOf(u as UserRow));
 }
 
 // ---- The waitlist and the admin role (step 6) ----
@@ -158,67 +148,48 @@ export async function connectorTokenAccount(tokenHash: string): Promise<{ owner:
   return { owner: ownerOf(user), tokenHash: data.token_hash as string, usedAt: (data.used_at as string | null) ?? null };
 }
 
-// ---- The single-owner token row (oauth_tokens), read only at the token cutover ----
-// Until step 4 drops it, oauth_tokens holds the pair the old code used. lib/server/tesla.ts copies it to
-// user_tokens once, under the refresh lease, then empties it here. owner_sub stays: legacy_owner_id(),
-// the default user_id of every streamed reading, still reads it.
+// ---- Shared cars: one car, more than one user ----
+// Each user who tracks a car has their own vehicles row for it (the car link). Its streamed readings are
+// stored once per VIN, and each user reads them through their link (ownerDb readings).
 
-export type LegacyTokens = {
-  access_token_enc: string;
-  refresh_token_enc: string;
-  expires_at: string | null;
-  scope: string | null;
-  refreshing_until: string | null;
-  created_at: string;
-  updated_at: string;
-};
+// Of these VINs, the ones another user still tracks (their link is open). Delete my data and Disconnect
+// leave those cars streaming: Tesla's streaming config is one per car, shared by everyone who tracks it.
+export async function carsOthersTrack(owner: Owner, vins: string[]): Promise<Set<string>> {
+  if (vins.length === 0) return new Set();
+  const { data, error } = await db().from("vehicles").select("vin").in("vin", vins).neq("user_id", owner.userId).is("readings_until", null);
+  if (error) throw new Error(`Reading shared cars failed: ${error.message}`);
+  return new Set((data ?? []).map((r) => r.vin as string));
+}
 
-// The pair still in oauth_tokens for this Tesla account, or null when it is empty or someone else's.
-export async function legacyTokens(sub: string): Promise<LegacyTokens | null> {
-  const { data, error } = await db()
-    .from("oauth_tokens")
-    .select("access_token_enc, refresh_token_enc, expires_at, scope, refreshing_until, created_at, updated_at")
-    .eq("provider", "tesla")
-    .eq("owner_sub", sub)
-    .maybeSingle();
-  if (error) {
-    if (MISSING_TABLE.includes(error.code)) return null;
-    throw new Error(`Reading tokens failed: ${error.message}`);
+// Of these VINs, the ones no user tracks at all any more.
+export async function untrackedCars(vins: string[]): Promise<string[]> {
+  if (vins.length === 0) return [];
+  const { data, error } = await db().from("vehicles").select("vin").in("vin", vins);
+  if (error) throw new Error(`Reading shared cars failed: ${error.message}`);
+  const tracked = new Set((data ?? []).map((r) => r.vin as string));
+  return vins.filter((vin) => !tracked.has(vin));
+}
+
+// Rows per call: each call is its own short transaction (see the shared_cars migration).
+const FORGET_BATCH = 5000;
+
+// Deletes a car's readings that no user's link may see any more, a batch at a time: all of them once
+// nobody tracks the car, otherwise only those outside every remaining user's window. Run after the
+// leaving user's car rows are gone. Returns how many rows went.
+export async function forgetUnseenReadings(vin: string): Promise<number> {
+  let total = 0;
+  for (;;) {
+    const { data, error } = await db().rpc("forget_unseen_readings", { p_vin: vin, p_limit: FORGET_BATCH });
+    if (error) throw new Error(`Deleting readings failed: ${error.message}`);
+    const n = typeof data === "number" ? data : 0;
+    total += n;
+    if (n < FORGET_BATCH) return total;
   }
-  return data?.access_token_enc && data.refresh_token_enc ? (data as LegacyTokens) : null;
 }
 
-// Takes the refresh lease on the pair we read, so neither a refresh nor another copy can run on it. The
-// lease must be free: never taken, released, or run out before `freeBefore`.
-export async function claimLegacyLease(sub: string, refreshTokenEnc: string, until: string, freeBefore: string): Promise<boolean> {
-  const { data, error } = await db()
-    .from("oauth_tokens")
-    .update({ refreshing_until: until })
-    .eq("provider", "tesla")
-    .eq("owner_sub", sub)
-    .eq("refresh_token_enc", refreshTokenEnc)
-    .or(`refreshing_until.is.null,refreshing_until.lt.${freeBefore}`)
-    .select("provider");
-  if (error) throw new Error(`Claiming the token copy failed: ${error.message}`);
-  return data?.length === 1;
-}
-
-// Gives the lease back after a copy that failed, so the next try needn't wait for it to run out.
-export async function releaseLegacyLease(sub: string, refreshTokenEnc: string): Promise<void> {
-  await db().from("oauth_tokens").update({ refreshing_until: null }).eq("provider", "tesla").eq("owner_sub", sub).eq("refresh_token_enc", refreshTokenEnc);
-}
-
-// Empties the pair (keeping owner_sub), so nothing can present it to Tesla again. With refreshTokenEnc,
-// only while it still holds that pair.
-export async function retireLegacyTokens(sub: string, refreshTokenEnc?: string): Promise<void> {
-  let query = db()
-    .from("oauth_tokens")
-    .update({ access_token_enc: null, refresh_token_enc: null, expires_at: null, refreshing_until: null, updated_at: new Date().toISOString() })
-    .eq("provider", "tesla")
-    .eq("owner_sub", sub);
-  if (refreshTokenEnc) query = query.eq("refresh_token_enc", refreshTokenEnc);
-  const { error } = await query;
-  if (error && !MISSING_TABLE.includes(error.code)) throw new Error(`Clearing the old tokens failed: ${error.message}`);
+// The retention run's sweep over every car: one batch of readings nobody may see.
+export function pruneUnseenBatch(limit: number) {
+  return db().rpc("prune_unseen_readings", { p_limit: limit });
 }
 
 // ---- The check lock (poll_runs) ----
@@ -354,9 +325,9 @@ export type FleetOffer = { car: string; version: string | null; status: string |
 export async function fleetOffers(): Promise<FleetOffer[]> {
   const { data, error } = await db()
     .from("vehicles")
-    // Named key: once the users migration adds (user_id, vehicle_id), PostgREST sees two links between the
-    // tables and refuses an embed that doesn't say which one.
-    .select("car:id::text, user_id, version:current_version, snapshots!snapshots_vehicle_id_fkey(status:update_status, offered:update_version)")
+    // Named key: the per-user one, (user_id, vehicle_id). Step 4 drops the vehicle_id-only one; until then
+    // PostgREST sees two links between the tables and refuses an embed that doesn't say which.
+    .select("car:id::text, user_id, version:current_version, snapshots!snapshots_user_vehicle_fkey(status:update_status, offered:update_version)")
     .eq("snapshots.state", "online")
     .order("polled_at", { referencedTable: "snapshots", ascending: false })
     .limit(1, { referencedTable: "snapshots" });

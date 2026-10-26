@@ -18,7 +18,8 @@ export const asOwner = (userId: number, sub: string): Owner => ({ userId, sub })
 // Demo mode signs everyone in as this account; db() refuses to run, so it never reaches the database.
 export const DEMO_OWNER = asOwner(0, "demo");
 
-// Every table that holds one account's rows. Each has a user_id column.
+// Every table that holds one account's rows. Each has a user_id column. Streamed readings aren't one
+// account's: they are stored once per car (VIN) and read through readings() below.
 export const OWNER_TABLES = [
   "user_tokens",
   "connector_token",
@@ -29,7 +30,6 @@ export const OWNER_TABLES = [
   "charging_sessions",
   "stream_charge_sessions",
   "charge_receipts",
-  "telemetry_readings",
   "user_places",
 ] as const;
 export type OwnerTable = (typeof OWNER_TABLES)[number];
@@ -78,12 +78,22 @@ export type OwnerRpc = "counter_values_at" | "snapshot_odometer_at";
 // Invoice files for the owner's charging sessions (the private charge-invoices bucket).
 export const INVOICE_BUCKET = "charge-invoices";
 
+// Streamed readings the owner may see. The Fly receiver stores each reading once per VIN, whoever tracks
+// the car; the view user_telemetry_readings (20261102120000_shared_cars.sql) pairs them with each user's
+// car row and keeps only those inside that user's window (vehicles.readings_from .. readings_until). So a
+// user sees only cars they track, and only from when they began tracking: a second user of a shared car
+// never sees the time before they added it. Select only: readings are deleted by VIN, once nobody may see
+// them (forgetUnseenReadings in ./system.ts).
+const READINGS_VIEW = "user_telemetry_readings";
+
 // The one way to read or write an account's rows. Every query it builds is filtered to the owner (see
 // ownerKeys), so a caller can't forget to.
 export function ownerDb(owner: Owner) {
   return {
     owner,
     from: (table: OwnerTable) => ownerTable(table, owner),
+    readings: ((...args: Parameters<Builder["select"]>) =>
+      where(db().from(READINGS_VIEW).select(...args), { user_id: owner.userId })) as Builder["select"],
     rpc: (fn: OwnerRpc, args: Record<string, unknown>) => db().rpc(fn, { ...args, p_user_id: owner.userId }),
     invoices: () => db().storage.from(INVOICE_BUCKET),
   };

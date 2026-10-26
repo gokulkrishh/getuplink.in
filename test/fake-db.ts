@@ -2,6 +2,9 @@
 // select, insert, upsert (on a conflict key, optionally ignoring duplicates), update and delete, with the
 // filters the data layer uses. Each query awaits a tick, so concurrent requests interleave as they would
 // against PostgREST. Every query is recorded with its table, operation and filters.
+// Streamed readings work as the shared_cars migration has them: telemetry_readings holds each reading once
+// per VIN, the view user_telemetry_readings pairs it with each car row whose window covers it, and the
+// forget_unseen_readings / prune_unseen_readings functions delete what no window covers.
 
 export type Row = Record<string, unknown>;
 export type Call = { table: string; op: string; filters: string[] };
@@ -21,15 +24,49 @@ export class FakeDb {
     this.clients++;
     return {
       from: (table: string) => new FakeQuery(this, table),
-      rpc: async (fn: string, args: Record<string, unknown>) => (this.rpcs.push({ fn, args }), { data: [], error: null }),
+      rpc: async (fn: string, args: Record<string, unknown>) => (this.rpcs.push({ fn, args }), { data: this.callRpc(fn, args), error: null }),
       storage: { from: () => ({ remove: async (paths: string[]) => (this.removedFiles.push(...paths), { data: null, error: null }) }) },
     };
   }
 
   rows(table: string): Row[] {
+    if (table === READINGS_VIEW) return this.visibleReadings();
     return (this.tables[table] ??= []);
   }
+
+  // Each reading once per car row whose window covers it, with that row's user (the view).
+  private visibleReadings(): Row[] {
+    return this.rows("telemetry_readings").flatMap((r) => this.linksSeeing(r).map((v) => ({ ...r, user_id: v.user_id })));
+  }
+
+  private linksSeeing(reading: Row): Row[] {
+    const at = Date.parse(reading.created_at as string);
+    return this.rows("vehicles").filter(
+      (v) =>
+        v.vin === reading.vin &&
+        (v.readings_from === undefined || at >= Date.parse(v.readings_from as string)) &&
+        (v.readings_until === undefined || v.readings_until === null || at < Date.parse(v.readings_until as string)),
+    );
+  }
+
+  private forget(vin: string, limit: number): number {
+    const unseen = this.rows("telemetry_readings").filter((r) => r.vin === vin && this.linksSeeing(r).length === 0).slice(0, limit);
+    this.tables.telemetry_readings = this.rows("telemetry_readings").filter((r) => !unseen.includes(r));
+    return unseen.length;
+  }
+
+  private callRpc(fn: string, args: Record<string, unknown>): unknown {
+    if (fn === "forget_unseen_readings") return this.forget(args.p_vin as string, args.p_limit as number);
+    if (fn === "prune_unseen_readings") {
+      let left = args.p_limit as number;
+      for (const vin of new Set(this.rows("telemetry_readings").map((r) => r.vin as string))) left -= this.forget(vin, left);
+      return (args.p_limit as number) - left;
+    }
+    return [];
+  }
 }
+
+const READINGS_VIEW = "user_telemetry_readings";
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 1));
 
@@ -81,6 +118,15 @@ class FakeQuery {
     this.filters.push([`${column} <> ${value}`, (r) => r[column] !== value]);
     return this;
   }
+  // ISO times compare as instants.
+  gte(column: string, value: string) {
+    this.filters.push([`${column} >= ${value}`, (r) => Date.parse(r[column] as string) >= Date.parse(value)]);
+    return this;
+  }
+  lt(column: string, value: string) {
+    this.filters.push([`${column} < ${value}`, (r) => Date.parse(r[column] as string) < Date.parse(value)]);
+    return this;
+  }
   in(column: string, values: unknown[]) {
     this.filters.push([`${column} in (${values.join(",")})`, (r) => values.includes(r[column])]);
     return this;
@@ -91,6 +137,12 @@ class FakeQuery {
     return this;
   }
   not(column: string, op: string, value: unknown) {
+    // "(a,b)" or "(\"a\",\"b\")": not in the list.
+    if (op === "in" && typeof value === "string") {
+      const values = value.replace(/^\(|\)$/g, "").split(",").map((v) => v.replace(/^"|"$/g, ""));
+      this.filters.push([`${column} not in (${values.join(",")})`, (r) => !values.includes(String(r[column]))]);
+      return this;
+    }
     if (op !== "is" || value !== null) throw new Error(`Unexpected not(${column}, ${op})`);
     this.filters.push([`${column} is not null`, (r) => r[column] !== null && r[column] !== undefined]);
     return this;
@@ -151,6 +203,7 @@ class FakeQuery {
       matched = [...matched].sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0) * (ascending ? 1 : -1));
     }
     if (this.max !== null) matched = matched.slice(0, this.max);
+    if (this.table === READINGS_VIEW && this.op !== "select") throw new Error("The readings view is read only");
     if (this.op === "delete") this.db.tables[this.table] = all.filter((r) => !matched.includes(r));
     if (this.op === "update") for (const r of matched) Object.assign(r, this.patch);
     return { data: matched.map((r) => ({ ...r })), error: null };

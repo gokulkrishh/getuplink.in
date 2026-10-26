@@ -34,8 +34,7 @@ async function syncChargingCars(owner: Owner): Promise<void> {
   for (const { vin } of data ?? []) {
     if (!vin) continue;
     const recent = await ownerDb(owner)
-      .from("telemetry_readings")
-      .select("id")
+      .readings("id")
       .eq("vin", vin)
       .in("field", CHARGING_FIELDS)
       .gte("created_at", since)

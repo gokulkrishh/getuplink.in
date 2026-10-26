@@ -85,7 +85,7 @@ export async function loadWindowStats(owner: Owner, vin: string | null, now: num
     // The last odometer reading before the daily window, so the first day has something to count from.
     DEMO
       ? { data: { value: demoCounter("Odometer", dailyFrom), created_at: dailyFrom }, error: null }
-      : ownerDb(owner).from("telemetry_readings").select("value, created_at").eq("vin", vin).eq("field", "Odometer").lt("created_at", dailyFrom).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      : ownerDb(owner).readings("value, created_at").eq("vin", vin).eq("field", "Odometer").lt("created_at", dailyFrom).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     // The polls' odometer at each midnight, merged with the stream's as the Distance bars merge them.
     loadPolledOdometers(owner, bounds.map((t) => new Date(t).toISOString())),
   ]);

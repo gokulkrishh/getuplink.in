@@ -80,8 +80,7 @@ async function readingsSince(owner: Owner, vin: string, since: string): Promise<
   const out: ChargeReading[] = [];
   for (let page = 0; page < MAX_PAGES; page++) {
     const { data, error } = await ownerDb(owner)
-      .from("telemetry_readings")
-      .select("field, created_at, value")
+      .readings("field, created_at, value")
       .eq("vin", vin)
       .in("field", CHARGE_FIELDS)
       .gte("created_at", since)
@@ -115,7 +114,7 @@ export async function syncStreamSessions(owner: Owner, vin: string): Promise<voi
       .from("stream_charge_sessions")
       .upsert(
         sessions.map((s) => ({ ...s, vin, updated_at: now })),
-        { onConflict: "vin,started_at" },
+        { onConflict: "user_id,vin,started_at" },
       );
     if (error) throw new Error(error.message);
   }

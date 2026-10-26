@@ -1,6 +1,7 @@
 import "server-only";
 import { ownedRows } from "./owned";
 import { type Owner, ownerDb, type OwnerTable } from "./owner";
+import { forgetUnseenReadings, untrackedCars } from "./system";
 import { foldSignalDays, forgetAnswers, MissingSchema } from "./usage";
 
 // Postgres 42P01 / PostgREST PGRST205: a table whose migration never ran, so there is nothing to delete.
@@ -26,6 +27,9 @@ async function deleteRest(owner: Owner, table: OwnerTable, optional = false) {
 // version history), their charging sessions, streamed readings and check log. Every delete is the owner's
 // own rows (user_id, see ownerKeys), so another account's can't go with them. Release notes and place
 // names are shared, not the owner's.
+// Streamed readings are stored once per car, not per user. Once the owner's car rows are gone, a car's
+// readings that no other user may see go (all of them when nobody else tracks the car); those another
+// user of a shared car may see stay theirs.
 export async function eraseOwnerRows(owner: Owner): Promise<void> {
   const scope = ownerDb(owner);
   const keys = await ownedRows(owner);
@@ -41,17 +45,15 @@ export async function eraseOwnerRows(owner: Owner): Promise<void> {
   await deleteIn(owner, "vehicles", "id", keys.vehicleIds);
   await deleteRest(owner, "charging_sessions", true);
   await deleteRest(owner, "stream_charge_sessions", true);
-  // Readings by VIN first, which the (vin, field, created_at) index serves; then any left under the owner
-  // for a VIN no car row names any more (streaming that didn't stop after an earlier delete).
-  await deleteIn(owner, "telemetry_readings", "vin", keys.vins);
-  await deleteRest(owner, "telemetry_readings");
+  const vins = keys.vins.filter((v): v is string => typeof v === "string" && v !== "");
+  for (const vin of vins) await forgetUnseenReadings(vin);
   await deleteRest(owner, "poll_runs");
   // The owner's names for places; optional, since the table may not exist yet.
   await deleteRest(owner, "user_places", true);
-  // The streamed-signal counts keep their numbers but lose the VINs. After the readings, so the daily
-  // recount can't bring them back. Best effort: a count is never worth failing a deletion.
-  const vins = keys.vins.filter((v): v is string => typeof v === "string" && v !== "");
-  await foldSignalDays(vins).catch((err: Error) => {
+  // The streamed-signal counts of cars nobody tracks any more keep their numbers but lose the VINs. After
+  // the readings, so the daily recount can't bring them back. A shared car's stay: its stream goes on. Best
+  // effort: a count is never worth failing a deletion.
+  await untrackedCars(vins).then(foldSignalDays).catch((err: Error) => {
     if (!(err instanceof MissingSchema)) console.warn("Clearing the signal counts' VINs failed:", err.message);
   });
   // The health check's stored Tesla answers about these cars.

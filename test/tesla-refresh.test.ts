@@ -70,7 +70,6 @@ const OWNER: Owner = asOwner(1, "owner");
 const OTHER: Owner = asOwner(2, "other");
 
 const soon = () => new Date(Date.now() + 60_000).toISOString(); // inside the refresh margin
-const later = () => new Date(Date.now() + 3_600_000).toISOString();
 
 function users() {
   return [
@@ -98,7 +97,6 @@ describe("Tesla token refresh", () => {
     fake = new FakeDb({
       users: users(),
       user_tokens: [{ user_id: 1, access_token_enc: `enc:${first.access_token}`, refresh_token_enc: `enc:${first.refresh_token}`, expires_at: soon(), refreshing_until: null }],
-      oauth_tokens: [{ provider: "tesla", owner_sub: "owner", access_token_enc: null, refresh_token_enc: null }],
     });
   });
   const row = () => tokensOf(1)[0];
@@ -142,110 +140,17 @@ describe("Tesla token refresh", () => {
     expect(tokensOf(2)[0].refresh_token_enc).toBe("enc:r4");
     expect(tesla.valid).toEqual(new Set(["r3", "r4"]));
   });
-});
 
-describe("token cutover", () => {
-  // The deployed state at cutover: the owner's pair in oauth_tokens, user_tokens empty.
-  function legacy(expiresAt: string, refreshingUntil: string | null = null) {
-    const first = tesla.issue();
-    tesla.requests = 0;
-    fake = new FakeDb({
-      users: users(),
-      user_tokens: [],
-      oauth_tokens: [
-        {
-          provider: "tesla",
-          owner_sub: "owner",
-          access_token_enc: `enc:${first.access_token}`,
-          refresh_token_enc: `enc:${first.refresh_token}`,
-          expires_at: expiresAt,
-          scope: "openid vehicle_device_data",
-          refreshing_until: refreshingUntil,
-          created_at: "2026-10-01T00:00:00Z",
-          updated_at: "2026-10-24T00:00:00Z",
-          sessions_valid_after: "-infinity",
-        },
-      ],
-    });
-  }
-  const oauth = () => fake.rows("oauth_tokens")[0];
-  const copies = () => fake.calls.filter((c) => c.table === "user_tokens" && c.op === "upsert").length;
-
-  test("copies the owner's tokens exactly once, however many requests need them at once", async () => {
-    legacy(later());
-    const results = await Promise.all(Array.from({ length: 5 }, () => fleetGet<string>(OWNER, "/api/1/vehicles")));
-    expect(results).toEqual(["ok", "ok", "ok", "ok", "ok"]);
-    expect(tesla.requests).toBe(0);
-    expect(copies()).toBe(1);
-    expect(tokensOf(1)).toEqual([
-      expect.objectContaining({ access_token_enc: "enc:a1", refresh_token_enc: "enc:r1", scope: "openid vehicle_device_data", created_at: "2026-10-01T00:00:00Z", updated_at: "2026-10-24T00:00:00Z" }),
-    ]);
-    // Emptied, so nothing can present that refresh token again; the row still names the owner.
-    expect(oauth()).toEqual(expect.objectContaining({ owner_sub: "owner", access_token_enc: null, refresh_token_enc: null, refreshing_until: null }));
-    // Later requests use user_tokens and never copy again.
-    await fleetGet<string>(OWNER, "/api/1/vehicles");
-    expect(copies()).toBe(1);
-  });
-
-  test("a copy that needs a refresh spends the refresh token once, from user_tokens", async () => {
-    legacy(soon());
-    const results = await Promise.all(Array.from({ length: 3 }, () => fleetGet<string>(OWNER, "/api/1/vehicles")));
-    expect(results).toEqual(["ok", "ok", "ok"]);
-    expect(tesla.requests).toBe(1);
-    expect(copies()).toBe(1);
-    expect(tokensOf(1)[0].refresh_token_enc).toBe("enc:r2");
-    expect(tesla.valid).toEqual(new Set(["r2"]));
-  });
-
-  test("waits for a refresh by the old code still finishing, then copies the pair it stored", async () => {
-    legacy(later(), new Date(Date.now() + 30_000).toISOString());
-    setTimeout(() => {
-      // The old code's refresh lands: the new pair, lease released.
-      const next = tesla.issue();
-      tesla.valid.delete("r1");
-      tesla.spent.add("r1");
-      Object.assign(oauth(), { access_token_enc: `enc:${next.access_token}`, refresh_token_enc: `enc:${next.refresh_token}`, refreshing_until: null });
-    }, 700);
-    expect(await fleetGet<string>(OWNER, "/api/1/vehicles")).toBe("ok");
-    expect(tokensOf(1)).toEqual([expect.objectContaining({ refresh_token_enc: "enc:r2" })]);
-    expect(oauth().refresh_token_enc).toBeNull();
-  });
-
-  test("takes a lease left long ago by a request that died", async () => {
-    legacy(later(), new Date(Date.now() - 20 * 60_000).toISOString());
-    expect(await fleetGet<string>(OWNER, "/api/1/vehicles")).toBe("ok");
-    expect(tokensOf(1)).toHaveLength(1);
-  });
-
-  test("never hands the owner's tokens to another user", async () => {
-    legacy(later());
+  test("a user with no token row isn't connected, and is never handed anyone else's", async () => {
     await expect(fleetGet<string>(OTHER, "/api/1/vehicles")).rejects.toBeInstanceOf(NotConnectedError);
-    expect(fake.rows("user_tokens")).toEqual([]);
-    expect(oauth().refresh_token_enc).toBe("enc:r1");
-  });
-
-  test("never copies to a user who disconnected", async () => {
-    legacy(later());
-    fake.rows("user_tokens").push({ user_id: 1, access_token_enc: null, refresh_token_enc: null, expires_at: null });
-    await expect(fleetGet<string>(OWNER, "/api/1/vehicles")).rejects.toBeInstanceOf(NotConnectedError);
-    expect(tokensOf(1)[0].access_token_enc).toBeNull();
-  });
-
-  test("a sign-in before the copy stores its own pair and retires the old one", async () => {
-    legacy(later());
-    expect(await signIn("owner")).toMatchObject({ userId: 1 });
-    expect(tokensOf(1)).toEqual([expect.objectContaining({ refresh_token_enc: "enc:r2" })]);
-    expect(oauth().refresh_token_enc).toBeNull();
-    expect(await fleetGet<string>(OWNER, "/api/1/vehicles")).toBe("ok");
-    expect(copies()).toBe(1); // the sign-in's own write
+    expect(tokensOf(2)).toEqual([]);
+    expect(tesla.requests).toBe(0);
   });
 });
-
-const oauthRow = () => fake.rows("oauth_tokens")[0];
 
 describe("sign-in with sign-up closed", () => {
   beforeEach(() => {
-    fake = new FakeDb({ users: users(), user_tokens: [], oauth_tokens: [{ provider: "tesla", owner_sub: "owner", access_token_enc: null, refresh_token_enc: null }] });
+    fake = new FakeDb({ users: users(), user_tokens: [] });
   });
 
   test("an approved user signs in and their tokens are stored as theirs", async () => {
@@ -266,7 +171,6 @@ describe("sign-in with sign-up closed", () => {
     expect(await signIn("declined")).toBe("not-approved");
     expect(await signIn("other")).toBe("not-approved");
     expect(fake.rows("user_tokens")).toEqual([]);
-    expect(oauthRow().owner_sub).toBe("owner"); // and the old owner's row untouched
   });
 });
 
@@ -275,7 +179,7 @@ describe("sign-in with SIGNUP_MODE=waitlist", () => {
     process.env.SIGNUP_MODE = "waitlist";
     region = FLEET_NA_APAC;
     regionAsked = 0;
-    fake = new FakeDb({ users: users(), user_tokens: [], oauth_tokens: [{ provider: "tesla", owner_sub: "owner", access_token_enc: null, refresh_token_enc: null }] });
+    fake = new FakeDb({ users: users(), user_tokens: [] });
   });
   afterEach(() => {
     delete process.env.SIGNUP_MODE;
@@ -288,7 +192,6 @@ describe("sign-in with SIGNUP_MODE=waitlist", () => {
     expect(Object.keys(row("newcomer")!).sort()).toEqual(["status", "tesla_sub"]);
     expect(row("newcomer")!.status).toBe("waitlist");
     expect(fake.rows("user_tokens")).toEqual([]);
-    expect(oauthRow().access_token_enc).toBeNull();
     expect(regionAsked).toBe(1);
   });
 

@@ -53,10 +53,30 @@ type VehicleData = {
 // How many located checks decide a car's home state (the column's check allows up to this many).
 const RECENT_STATES = 30;
 
-// A car row is the owner's copy of the car: the upsert matches on (user_id, id), never on the id alone,
-// so it can't take over another user's row. Until step 4 makes that the key, another user's copy of the
-// same car is refused (the old id key).
+// A car row is the owner's copy of the car, and their link to its streamed readings: the upsert matches
+// on (user_id, id), its key, never on the id alone, so it can't take over another user's row. It never
+// sends readings_from or readings_until, so a check can't move the owner's window (see syncWindows).
 const CAR_KEY = { onConflict: "user_id,id" };
+
+// The owner's window on each car's streamed readings (vehicles.readings_from .. readings_until, read
+// through ownerDb readings), from the cars Tesla lists for them now. A car that left their Tesla account
+// (sold, or a shared car's access removed) closes now, so they don't see what it streams for its next
+// owner. One that comes back opens a new window from now: the time it was away stays hidden. A new car
+// opens on insert (the column's default). Best effort: a failure leaves the windows as they were.
+export async function syncWindows(owner: Owner, listedIds: string[], now: string) {
+  const scope = ownerDb(owner);
+  const ids = `(${listedIds.map((id) => `"${id}"`).join(",")})`;
+  try {
+    let gone = scope.from("vehicles").update({ readings_until: now }).is("readings_until", null);
+    if (listedIds.length) gone = gone.not("id", "in", ids);
+    await check(gone);
+    if (listedIds.length) {
+      await check(scope.from("vehicles").update({ readings_from: now, readings_until: null }).in("id", listedIds).not("readings_until", "is", null));
+    }
+  } catch (err) {
+    console.warn("Updating the cars' reading windows failed:", messageOf(err));
+  }
+}
 
 // The state the car is in now, from drive_state, which is then dropped from `data`: the coordinates are
 // never stored, logged or passed on. Null when Tesla sent no location or it is outside India.
@@ -367,6 +387,9 @@ async function pollOwner(owner: Owner, now: string, errors: string[]): Promise<n
   // and the stream sync after it reads only Version readings newer than that. The poll holds the lock, so
   // the sync skips its own lock check; it logs its own failures.
   await syncStreamVersionsSafely(owner, vins, { lockHeld: true });
+  // Before the cars are read, so the stream syncs below read through windows that match the list. Only
+  // from a real list: a null answer says nothing about which cars are the owner's.
+  if (Array.isArray(listed)) await syncWindows(owner, vehicles.map((v) => v.id_s), now);
   // Supercharger history is extra and can never fail the check; it touches its own table, so it
   // runs alongside the vehicles. Each car is polled on its own: one failing can't block another.
   // The check holds the lock, so it is where a car's one-time full history read happens.

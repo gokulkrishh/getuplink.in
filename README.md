@@ -90,7 +90,7 @@ It gets a partner token (`client_credentials`), calls `POST /api/1/partner_accou
 
 ### 4. Apply the Supabase migration
 
-The schema is in [`supabase/migrations/20261021000000_init.sql`](supabase/migrations/20261021000000_init.sql): `oauth_tokens`, `vehicles`, `snapshots`, `version_history`, `poll_runs`. RLS is enabled on every table with no policies, so only the service role (this server) can read or write.
+The schema is the files in [`supabase/migrations/`](supabase/migrations/), applied in order: `users` and `user_tokens`, then per-user `vehicles`, `snapshots`, `version_history`, `poll_runs` and the rest, and `telemetry_readings`, stored once per car and read by each user through their own car row. RLS is enabled on every table with no policies, so only the service role (this server) can read or write.
 
 Either paste the file into **Supabase Dashboard → SQL Editor** and run it, or with the CLI:
 
@@ -151,4 +151,4 @@ Runs `bun dev` with generated data for one car ("Demo car", ten months of update
 
 Sign in with Tesla only works against the registered redirect URI, so local dev at `localhost` can't sign in unless you add a localhost redirect URI to the Tesla app and set `TESLA_REDIRECT_URI` to match.
 
-To hand the dashboard to a different Tesla account, clear the owner in Supabase (`update oauth_tokens set owner_sub = null;`) and sign in with the new account.
+To let another Tesla account in, approve its `users` row (Admin > Waitlist, or the seeding SQL in [`docs/signup-plan.md`](docs/signup-plan.md)) and sign in with it.

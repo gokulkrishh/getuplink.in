@@ -173,7 +173,7 @@ async function saveRows(owner: Owner, rows: ChargingRow[]): Promise<void> {
   for (let i = 0; i < rows.length; i += UPSERT_CHUNK) {
     const { error } = await ownerDb(owner)
       .from("charging_sessions")
-      .upsert(rows.slice(i, i + UPSERT_CHUNK), { onConflict: "session_id" });
+      .upsert(rows.slice(i, i + UPSERT_CHUNK), { onConflict: "user_id,session_id" });
     if (error) throw new Error(error.message);
   }
 }

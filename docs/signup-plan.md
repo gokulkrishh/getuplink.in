@@ -12,7 +12,7 @@ The owner's decisions are final:
 | 1. One data layer | Live |
 | 2. `users` migration | Applied |
 | 3. Multi-user code, sign-up closed | Built, merged here, not deployed |
-| 4. Remove the single-owner table and keys | Not started. Do before approving anyone but the owner |
+| 4. Per-user keys, shared cars, drop the single-owner table | Built here, not deployed: three migrations, not applied. Do before approving anyone but the owner |
 | 5. Scale and limits | Built here, not deployed: `MAX_USERS`, per-user checks, API usage counts and the budget guard. Migration written, not applied |
 | 6. Waitlist | Built here, not deployed: waitlist sign-up, region check, `/admin/waitlist`, admin role. Copy for more than one owner and the rollout opt-out not started |
 
@@ -56,45 +56,92 @@ Applied to production after step 1 was deployed. `owner_settings` never existed 
 - **Unchanged, on purpose:**
   - Retention prunes by field age across all readings. A loop over users would delete the same rows.
   - The check lock (`poll_runs`) is still one run for everyone; step 5 makes it per user (built).
-  - The Fly receiver still writes readings with the default `legacy_owner_id()`.
+  - The Fly receiver still writes readings with the default `legacy_owner_id()` (step 4 reads them per car instead, and drops the column).
 
 **Deploy notes for step 3.** Deploy at a quiet hour, and don't roll back after it: the cutover empties `oauth_tokens`' pair, so the old code would come back "not connected" and need a sign-in. The owner is signed out and signs in again. A fresh database (local dev, a new project) needs its owner seeded by hand, since nobody can claim it by signing in:
 ```sql
 insert into public.users (tesla_sub, status, approved_at) values ('<tesla sub>', 'approved', now());
 -- After step 6's migration: the owner is the admin.
 update public.users set role = 'admin' where tesla_sub = '<tesla sub>';
--- Until step 4: the default user of streamed readings.
-insert into public.oauth_tokens (provider, owner_sub) values ('tesla', '<tesla sub>');
 ```
 
-## Step 4: remove the single-owner table and keys
+## Step 4: more than one owner, and shared cars (built here, not deployed)
 
-Until this step, two users can't track the same car: the old global keys refuse the second copy. `SIGNUP_MODE=waitlist` is safe before then, since a request stores no car. **Approve no one but the owner until step 4 is done.** Before it:
-- a car another user already tracks fails its checks for the second user;
-- the Fly receiver writes every streamed reading, locations included, with the default `legacy_owner_id()`. A second user's streamed readings would be filed under the owner: the second user never sees them, and their Delete account leaves them behind.
-- Also drop `users.email` and `users_email_key` (unused since step 6).
-1. Drop `oauth_tokens`, `legacy_owner_id()`, the `oauth_tokens_legacy_owner_user` trigger and the `user_id` defaults. Do this only once the step 3 cutover has run in production: `oauth_tokens` has no pair left and `user_tokens` has the owner's row. Remove the cutover code with it:
-   - in `lib/server/tesla.ts`: `adoptLegacyTokens`, and the `retireLegacyTokens` calls in `signIn` and `disconnectTesla`.
-   - in `lib/server/data/system.ts`: `legacyTokens`, `claimLegacyLease`, `releaseLegacyLease` and `retireLegacyTokens`.
-   - in this doc: the `oauth_tokens` line of the seeding SQL.
-2. Swap the keys:
-   - `vehicles`: PK → `(user_id, id)`, and `vin` unique → `(user_id, vin)`. Drop the old `snapshots.vehicle_id` / `version_history.vehicle_id` FKs first.
-   - `charging_sessions`: PK → `(user_id, session_id)`.
-   - `stream_charge_sessions`: unique → `(user_id, vin, started_at)`.
-   - `connector_token`: PK → `user_id`, and drop `owner` and the `= 'tesla'` checks.
-   - Drop the restrict key `charge_receipts.session_id`.
+Until step 4 is rolled out, two users can't track the same car: the old global keys refuse the second copy. **Approve no one but the owner until migration 2 below is applied.** `SIGNUP_MODE=waitlist` is safe before then, since a request stores no car.
 
-   Update every `onConflict` in the code to match.
-3. **`telemetry_readings`** (large, write-heavy; use a separate hand-run file):
-   1. `create unique index concurrently … (user_id, vin, field, created_at)`.
-   2. Change the Fly receiver (`fly/telemetry/worker.ts`) to look up each VIN's users (cached), insert one row per user with `user_id`, and use `on_conflict=user_id,vin,field,created_at`.
-   3. Drop the old unique index.
-   4. Make `user_id` NOT NULL with `CHECK (user_id is not null) NOT VALID` → `VALIDATE` → `SET NOT NULL`.
-   5. Add the users FK and an index for the cascade, or delete readings in batches in Delete account instead.
+### The design: readings once per car, a window per user
 
-   `fly/telemetry/worker.ts` is the one writer outside the app: it posts straight to PostgREST with the service-role key.
-4. Drop the old RPC signatures. `prune_telemetry_readings`: the near-charge check joins on `user_id` as well as `vin`.
-5. `poll_runs_one_running_idx` → unique on `(user_id) where finished_at is null`: done in step 5's migration.
+The Fly receiver keeps writing each reading once per VIN, exactly as today. `fly/telemetry/worker.ts` is unchanged and needs no deploy. Each user reads a car's readings through their own car row (`vehicles (user_id, vin)`, the per-user car link), which now carries the window that user may see:
+- `vehicles.readings_from`: when they began tracking it. It is `-infinity` for the cars that existed before step 4, so the owner keeps all their history, and `now()` for every new link. A second user of a shared car sees what it streams from then on, never the time before.
+- `vehicles.readings_until`: set by the check when the car leaves that user's Tesla vehicle list (`syncWindows` in `lib/server/poll.ts`), so a seller stops seeing what the car streams for its next owner. If the car comes back, it gets a new window from then, and the time away stays hidden.
+
+The app reads readings only through the view `user_telemetry_readings` (readings joined to car rows, inside each row's window), filtered to the signed-in user by `ownerDb(owner).readings(...)`. `telemetry_readings` is no longer in `OWNER_TABLES`, so no per-user query can write or delete it. `counter_values_at(p_user_id, …)` applies the same window.
+
+Why not a copy per user (the earlier plan):
+- Tesla streams a car once per app, however many users track it. A copy per user doubles writes and storage for a shared car, and double counts streamed signals in the budget.
+- The receiver would have to look up each VIN's users, and a stale cache would file rows under the wrong user or lose them.
+- It needs a new unique index built concurrently on the largest table, by hand.
+
+One copy keeps the receiver, the `(vin, field, created_at)` key and the signal count as they are. Every per-user read still walks that index (checked with `EXPLAIN` in PGlite).
+
+**Readings stay while anyone tracks the car.**
+- Delete my data and Delete account delete the leaving user's car rows, then `forget_unseen_readings(vin)` deletes the readings no remaining window covers: all of them once nobody tracks the car.
+- `fold_signal_days` runs only for cars nobody tracks any more.
+- `stopStreaming` (Delete my data, Delete account, Disconnect) skips any car another user still tracks with an open window, because Tesla's streaming config is one per car.
+- The daily retention run first runs `prune_unseen_readings`, which catches a delete that didn't finish and a car still streaming after its last user left.
+- `prune_telemetry_readings`' near-charge check stays on `vin` alone: any user's charge session protects a Location row, which is right for a shared reading.
+
+**Per-user keys.**
+- `vehicles` PK becomes `(user_id, id)`, and `vin` is unique per user.
+- `charging_sessions` PK becomes `(user_id, session_id)`.
+- `stream_charge_sessions` is unique on `(user_id, vin, started_at)`.
+- `version_history`'s two unique keys become per user, since both users of a shared car record the same streamed change.
+- `charge_receipts`' `source_ref` and invoice-number keys become per user, so each user can attach the same invoice to their own session. Its restrict key on `session_id` goes, and `session_id` stays the PK, since it is an identity and unique across users.
+- `connector_token` PK becomes `user_id`, and the `owner = 'tesla'` column goes.
+
+The code upserts on `user_id,session_id` and `user_id,vin,started_at`. Rollout totals embed snapshots through `snapshots_user_vehicle_fkey`.
+
+**Removed:** the step 3 token cutover (`adoptLegacyTokens`, the `retireLegacyTokens` calls, `legacyTokens`, `claimLegacyLease`, `releaseLegacyLease`, `retireLegacyTokens`) and the `oauth_tokens` branch of `accountOwners`.
+
+### Migrations, in order, each applied alone
+
+`supabase db push` applies every pending file at once, so apply these one at a time (SQL Editor, or one push per file).
+
+1. `20261102120000_shared_cars.sql` (expand). Adds the window columns, the view, the forget and prune functions, the window in `counter_values_at`, and the per-user unique indexes beside the old ones. It is safe under the deployed code: the owner's answers don't change, and the old conflict targets still exist.
+2. `20261102130000_per_user_keys.sql` (contract). Drops the single-owner keys and swaps the primary keys. Apply it only after the step 4 app is deployed: the step 3 code's upserts on `session_id` and `vin,started_at` fail with 42P10 once it runs.
+3. `20261102140000_drop_single_owner.sql` (cleanup). Drops:
+   - `oauth_tokens`, its trigger, `legacy_owner_user()` and `legacy_owner_id()`;
+   - every `user_id` default;
+   - `telemetry_readings.user_id`, which is metadata only;
+   - the old `counter_values_at` and `snapshot_odometer_at` signatures;
+   - `users.email` and `users_email_key`;
+   - `owner_settings`, if it exists.
+
+   It refuses to run while `oauth_tokens` still holds a token pair or any `users.email` is set.
+
+Checked in a throwaway PGlite (Postgres 17): every migration in order, with data shaped like production (one owner, the cutover done, a car with 100k readings, sessions and an invoice). It covered the step 3 writes after 1, a second user's copy refused before 2 and accepted after it, the windows, the plans, Delete account by each user, the sweep, the cleanup and its guard.
+
+### Rollout
+
+0. **Check first.** In production, confirm that `oauth_tokens` has no pair and `user_tokens` has the owner's row (the step 3 cutover ran):
+   `select access_token_enc is null and refresh_token_enc is null from oauth_tokens;`
+1. **Apply migration 1.** If it fails, it rolls back as one transaction and nothing changes.
+2. **Deploy the app** (merge to main; the receiver workflow doesn't fire, since `fly/telemetry` is unchanged).
+   - If the deploy fails or misbehaves, roll back to the step 3/5/6 build: it still works on migration 1.
+   - Before migration 1, the new app would show no streamed data (the view is missing) and fail Delete my data at the readings step. That is why migration 1 goes first.
+3. **Apply migration 2**, once the app is live and a check has run cleanly.
+   - If it fails, it rolls back, and the app keeps working on migration 1.
+   - Once it is applied, don't roll the app back to step 3: its charging upserts would fail.
+4. **Apply migration 3.**
+   - If its guard stops it, nothing changes: sign in once as the owner, or check what `users.email` holds, then rerun.
+   - Rolling back past it isn't possible. Nothing it drops holds data by then.
+5. **Approve other users.**
+
+### Still open
+
+- A car's streaming config is still set by hand per VIN (`scripts/telemetry-config.mjs`). A second user's car streams only once someone sends its config.
+- A transient Tesla vehicle list that leaves out a car closes that user's window, and the next check opens a new one. The readings in between stay hidden from them.
+- The charging-session trigger (`check_vin_user`) can refuse a second user's first Supercharger sync for a shared car if it runs before their car row exists (the check runs both at once). The next check retries it.
 
 ## Step 5: scale and limits
 

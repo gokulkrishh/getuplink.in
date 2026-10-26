@@ -52,7 +52,6 @@ function query(table: string) {
     if (table === "telemetry_signal_days") return missing.has("api_usage") ? { data: null, error: MISSING_TABLE } : many(signalRows);
     if (table === "poll_runs" && op === "insert") return { data: { id: 1 }, error: null };
     if (table === "poll_runs" && columns === "started_at") return { data: lastRun ? { started_at: lastRun } : null, error: null };
-    if (table === "oauth_tokens") return many([]);
     return many([]);
   };
   const chain: Record<string, unknown> = new Proxy(

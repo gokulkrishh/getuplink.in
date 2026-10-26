@@ -15,8 +15,7 @@ export async function loadReadingsByField(owner: Owner, vin: string, fields: str
   if (DEMO) return Object.fromEntries(fields.map((field) => [field, demoReadings(field, from, to)]));
   const page = (k: number, count?: "exact") =>
     ownerDb(owner)
-      .from("telemetry_readings")
-      .select("field, created_at, value", { count })
+      .readings("field, created_at, value", { count })
       .eq("vin", vin)
       .in("field", fields)
       .gte("created_at", from)

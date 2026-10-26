@@ -48,8 +48,7 @@ export async function loadStream(owner: Owner, vin: string, fields: string[] = S
   const results = await Promise.all(
     fields.map(async (field) => {
       const { data, error } = await ownerDb(owner)
-        .from("telemetry_readings")
-        .select("created_at, value")
+        .readings("created_at, value")
         .eq("vin", vin)
         .eq("field", field)
         .order("created_at", { ascending: false })
@@ -74,7 +73,7 @@ export async function loadReadings(owner: Owner, vin: string, field: string, fro
   if (DEMO) return demoReadings(field, from, to);
   const rows: Reading[] = [];
   for (let page = 0; page < MAX_PAGES; page++) {
-    let query = ownerDb(owner).from("telemetry_readings").select("created_at, value").eq("vin", vin).eq("field", field).gte("created_at", from);
+    let query = ownerDb(owner).readings("created_at, value").eq("vin", vin).eq("field", field).gte("created_at", from);
     if (to) query = query.lt("created_at", to);
     const { data, error } = await query.order("created_at", { ascending: true }).range(page * PAGE, (page + 1) * PAGE - 1);
     if (error) {
@@ -99,8 +98,8 @@ export async function loadPrimaryVehicle(owner: Owner): Promise<{ id: string; vi
 }
 
 // When the owner's newest streamed reading arrived, or null when there are none (or the query fails).
-// Read by the owner's VINs, which the (vin, field, created_at) index serves; telemetry_readings has no
-// index on user_id.
+// Read by the owner's VINs, which the (vin, field, created_at) index serves, within the owner's window
+// for each car (ownerDb readings).
 export async function lastReadingAt(owner: Owner): Promise<string | null> {
   if (DEMO) return demoLastReadingAt();
   const scope = ownerDb(owner);
@@ -112,8 +111,7 @@ export async function lastReadingAt(owner: Owner): Promise<string | null> {
   const vins = (cars.data ?? []).map((c) => c.vin as string);
   if (vins.length === 0) return null;
   const { data, error } = await scope
-    .from("telemetry_readings")
-    .select("created_at")
+    .readings("created_at")
     .in("vin", vins)
     .order("created_at", { ascending: false })
     .limit(1)
