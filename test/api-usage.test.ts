@@ -117,7 +117,7 @@ globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
 const { fleetGet } = await import("@/lib/server/tesla");
 const { checkDue, checkNow, dueUsers, BATCH } = await import("@/lib/server/poll");
 const { asOwner } = await import("@/lib/server/data/owner");
-const { budgetState, loadUsage } = await import("@/lib/server/usage");
+const { accountKinds, budgetState } = await import("@/lib/server/usage");
 
 const approved = (id: number, schedule: Row = {}) => ({ id, tesla_sub: `sub-${id}`, status: "approved", ...schedule });
 const counted = () => rpcs.filter((r) => r.fn === "increment_api_usage").map((r) => `${r.args.p_user_id}:${r.args.p_kind}`);
@@ -219,16 +219,17 @@ describe("the budget", () => {
     expect(await budgetState(NOW)).toMatchObject({ level: "normal", known: false });
   });
 
-  test("a user sees their own share; the budget runs on the account's total", async () => {
+  test("admin sees each user's share, dearest first; the budget runs on the account's total", async () => {
     usageRows = [
       { user_id: 1, kind: "vehicle_data", count: 500 },
       { user_id: 2, kind: "vehicle_data", count: 1000 },
     ];
-    const mine = await loadUsage(asOwner(1, "sub-1"), NOW);
-    expect(mine.mine.costUsd).toBeCloseTo(1, 10);
-    expect(mine.budget.spentUsd).toBeCloseTo(3, 10);
-    expect(mine.resetsAt).toBe("2026-11-01T00:00:00.000Z");
-    expect(mine).not.toHaveProperty("account");
+    const { users, usage } = await accountKinds(NOW);
+    expect(users.map((u) => u.userId)).toEqual([2, 1]);
+    expect(users[0].costUsd).toBeCloseTo(2, 10);
+    expect(users[1].costUsd).toBeCloseTo(1, 10);
+    expect(usage.costUsd).toBeCloseTo(3, 10);
+    expect((await budgetState(NOW)).spentUsd).toBeCloseTo(3, 10);
   });
 });
 

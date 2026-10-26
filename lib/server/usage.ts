@@ -5,7 +5,6 @@ import {
   budgetLevel,
   type BudgetLevel,
   CHECK_EVERY_MS,
-  CREDIT_USD,
   type Kind,
   type KindCount,
   monthStart,
@@ -128,57 +127,29 @@ export function checkEveryHours(state: Pick<BudgetState, "level">): number | nul
   return state.level === "stopped" ? null : CHECK_EVERY_MS[state.level] / 3_600_000;
 }
 
-export type UsageView = {
-  month: string;
-  resetsAt: string;
-  creditUsd: number;
-  budget: BudgetState;
-  // This user's requests and signals.
-  mine: Usage;
-  // False before the migration: nothing is counted yet.
-  counted: boolean;
-};
-
 const empty = priceUsage([], 0);
 
-// Settings > Tesla API usage: everyone's own share, an admin's too. The account's total is on Costs.
-export async function loadUsage(owner: Owner, now = Date.now()): Promise<UsageView> {
-  const base = { month: usageMonth(now), resetsAt: nextReset(now).toISOString(), creditUsd: CREDIT_USD };
-  if (DEMO) {
-    const demo = demoMonth(now);
-    return { ...base, budget: stateFor(demo.total.costUsd), mine: demo.mine, counted: true };
-  }
-  try {
-    const month = await accountMonth(now);
-    const total = priceUsage(month.total.kinds, month.total.signals);
-    const own = month.byUser.get(owner.userId);
-    return {
-      ...base,
-      budget: stateFor(total.costUsd),
-      mine: own ? priceUsage(own.kinds, own.signals) : empty,
-      counted: true,
-    };
-  } catch (err) {
-    if (!(err instanceof MissingSchema)) console.warn("Reading Tesla API usage failed:", messageOf(err));
-    return { ...base, budget: { level: "normal", spentUsd: 0, budgetUsd: budgetUsd(), known: false }, mine: empty, counted: false };
-  }
-}
-
 // Admin (/admin's Tesla line, the Costs row): this month's requests per kind across the account, and its signals.
-export async function accountKinds(now = Date.now()): Promise<{ kinds: KindCount[]; signals: number; usage: Usage; counted: boolean }> {
+// users: each user's share, dearest first; UNATTRIBUTED is signals from a car no user holds.
+export type UserCost = { userId: number; costUsd: number };
+
+export async function accountKinds(now = Date.now()): Promise<{ kinds: KindCount[]; signals: number; usage: Usage; users: UserCost[]; counted: boolean }> {
   if (DEMO) {
-    const { kinds, signals, total } = demoMonth(now);
-    return { kinds, signals, usage: total, counted: true };
+    const { kinds, signals, total, mine } = demoMonth(now);
+    return { kinds, signals, usage: total, users: [1, 2, 3].map((userId) => ({ userId, costUsd: mine.costUsd })), counted: true };
   }
   try {
-    const { total } = await accountMonth(now);
+    const { total, byUser } = await accountMonth(now);
+    const users = [...byUser]
+      .map(([userId, t]) => ({ userId, costUsd: priceUsage(t.kinds, t.signals).costUsd }))
+      .sort((a, b) => b.costUsd - a.costUsd);
     const merged = new Map<string, number>();
     for (const k of total.kinds) merged.set(k.kind, (merged.get(k.kind) ?? 0) + k.count);
     const kinds = [...merged].map(([kind, count]) => ({ kind, count })).sort((a, b) => b.count - a.count);
-    return { kinds, signals: total.signals, usage: priceUsage(total.kinds, total.signals), counted: true };
+    return { kinds, signals: total.signals, usage: priceUsage(total.kinds, total.signals), users, counted: true };
   } catch (err) {
     if (!(err instanceof MissingSchema)) console.warn("Reading Tesla API usage failed:", messageOf(err));
-    return { kinds: [], signals: 0, usage: empty, counted: false };
+    return { kinds: [], signals: 0, usage: empty, users: [], counted: false };
   }
 }
 

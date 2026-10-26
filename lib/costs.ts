@@ -389,15 +389,22 @@ export type Part = { label: string; value: string; muted?: boolean };
 
 const plural = (n: number, one: string, many: string) => `${formatCount(n)} ${n === 1 ? one : many}`;
 
-export type TeslaParts = { kinds: KindCount[]; signals: number; budget: { level: BudgetLevel; budgetUsd: number } };
+export type TeslaParts = {
+  kinds: KindCount[];
+  signals: number;
+  users?: { userId: number; costUsd: number }[];
+  budget: { level: BudgetLevel; budgetUsd: number };
+};
 
-// Requests per kind, streamed signals, and the check cadence, with the budget when it isn't the credit.
+// Requests per kind, streamed signals, each user's share (user 0: signals from a car no user holds), and
+// the check cadence, with the budget when it isn't the credit.
 export function teslaParts(t: TeslaParts, now: number): Part[] {
   const budget = t.budget.budgetUsd === CREDIT_USD ? "" : `, budget ${usd(t.budget.budgetUsd)}`;
   return [
     ...t.kinds.map((k) => ({ label: KIND_NAMES[k.kind as Kind] ?? k.kind, value: plural(k.count, "request", "requests") })),
     // The daily retention cron counts signals, so a month reads 0 until its first run.
     t.signals > 0 ? { label: "Streamed signals", value: formatCount(t.signals) } : { label: "Streamed signals", value: "Counted daily", muted: true },
+    ...(t.users ?? []).map((u) => ({ label: u.userId === 0 ? "No user" : `User ${u.userId}`, value: usd(u.costUsd) })),
     { label: "Checks", value: `${checkCadence(t.budget.level, nextReset(now))}${budget}`, muted: true },
   ];
 }
