@@ -9,7 +9,7 @@ import { type Bill, billsBySlot, billsIn } from "@/lib/charging-figures";
 import { formatDuration, formatKwh, formatMoney, formatMonth } from "@/lib/format";
 import { LIST_PREVIEW } from "@/lib/list";
 import { inSpan, type Timeframe } from "@/lib/periods";
-import { barsSpan } from "@/components/stats/chart-caption";
+import { barsSpan, EACH_HOURS } from "@/components/stats/chart-caption";
 import { InfoButton } from "@/components/info-button";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
@@ -17,8 +17,8 @@ import { Measure } from "@/components/measure";
 
 // The Charging page's sections: spend, energy added by charger kind, and every session by month.
 
-// "each day", "every 3 hours": one bar of the period, for a chart's description.
-const eachSlot = ({ slotName }: Timeframe) => (slotName === "3 hours" ? "every 3 hours" : `each ${slotName}`);
+// "each day", "in each 3-hour block": one bar of the period, for a chart's description.
+const eachSlot = ({ slotName }: Timeframe) => (slotName === "3 hours" ? EACH_HOURS : `each ${slotName}`);
 
 // What a month of the session list was billed: Tesla's bills and the invoices attached, as in Summary.
 function totals(rows: Listed[]) {
@@ -50,7 +50,7 @@ export function Summary({
   const spend = billsBySlot(bills, slots);
   const compact = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
   // A bar ahead of now (the rest of this year or of today) is blank, not ₹0.
-  const bars = slots.map((slot, k) => ({ key: String(slot.id), label: slot.label, value: spend[k], display: compact.format(spend[k]), isCurrent: slot.isCurrent, blank: slot.ahead || undefined }));
+  const bars = slots.map((slot, k) => ({ key: String(slot.id), label: slot.label, axis: slot.axis, edge: slot.edge, value: spend[k], display: compact.format(spend[k]), isCurrent: slot.isCurrent, blank: slot.ahead || undefined }));
   return (
     <section className="space-y-8">
       <ChartCard
@@ -130,7 +130,7 @@ export function EnergyAdded({
   for (const s of streamOnly) add(s.started_at, s.supercharger ? 0 : s.kind === "dc" ? 1 : 2, s.energy_added_kwh);
   const bars: StackedBar[] = slots.map((slot, k) => {
     const sum = energy[k].reduce((a, b) => a + b, 0);
-    return { key: String(slot.id), label: slot.label, total: sum, display: kwhCompact.format(sum), isCurrent: slot.isCurrent, segments: energy[k], blank: slot.ahead || undefined };
+    return { key: String(slot.id), label: slot.label, axis: slot.axis, edge: slot.edge, total: sum, display: kwhCompact.format(sum), isCurrent: slot.isCurrent, segments: energy[k], blank: slot.ahead || undefined };
   });
   const efficiency = chargeEfficiency(streamOnly.filter((s) => s.kind === "ac" && inSpan(Date.parse(s.started_at), span)));
   // Time on the charger by kind, after TeslaMate's AC/DC duration: Superchargers from Tesla's times, the

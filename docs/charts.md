@@ -29,6 +29,7 @@ The card renders the title with an ⓘ beside it, the description, the summary, 
 - **Width**: a chart never scrolls sideways. Draw text in HTML, not inside a scaled SVG `viewBox`, so it stays 12px on a 390px phone. `DriveTrace` shows the pattern: HTML axes, and an SVG with `preserveAspectRatio="none"` and `vectorEffect="non-scaling-stroke"` that draws only the line.
 - **X axis**: the axis covers only the data's own span, such as the drive's start to its end, and never pads out to a later reading. Charts stacked on one page share `from` and `to` so their axes line up. Clock labels are measured to fit, with none colliding.
 - **Gaps**: break the line wherever there are no readings (stops between legs) rather than drawing a straight line across.
+- **Blocks of hours**: a bar or square that covers hours (Day's 3-hour bars, a custom range of 2 days or less, the charge heatmap) says its whole span wherever it is named: "6 AM to 9 AM" in the tooltip and for screen readers (`formatHours`), never just its start, which reads as "at 6 AM". The caption says what each bar covers ("Kilometres driven in each 3-hour block today, 12 AM to 12 AM"). The axis writes the start hour on the block's start boundary under a tick (a slot's `axis` and `edge`, see `Slot`), like a clock axis, not centred under the bar.
 
 ## Title
 

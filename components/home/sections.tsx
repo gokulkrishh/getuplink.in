@@ -62,6 +62,8 @@ export function ChargingSection({ frames, bills, listed, now }: { frames: HomeFr
     const bars = frame.slots.map((slot, k) => ({
       key: String(slot.id),
       label: slot.label,
+      axis: slot.axis,
+      edge: slot.edge,
       value: slot.ahead ? 0 : spend[k],
       display: slot.ahead ? "" : compact.format(spend[k]),
       isCurrent: slot.isCurrent,
@@ -98,7 +100,7 @@ export function ChargingSection({ frames, bills, listed, now }: { frames: HomeFr
   return (
     <Section title="Charging" view="charging" more="See all sessions">
       {eachFrame(frames, chart, { steady: true })}
-      {eachFrame(frames, rows, { steady: true })}
+      {eachFrame(frames, rows)}
     </Section>
   );
 }
@@ -138,7 +140,7 @@ export function DrivingSection({ frames, figures, drives, now }: { frames: HomeF
   return (
     <Section title="Driving" view="driving" more="See all trips">
       {eachFrame(frames, chart, { steady: true })}
-      {eachFrame(frames, rows, { steady: true })}
+      {eachFrame(frames, rows)}
     </Section>
   );
 }

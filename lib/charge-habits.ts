@@ -1,4 +1,4 @@
-import { formatHour } from "@/lib/format";
+import { formatHours } from "@/lib/format";
 import { istDay } from "@/lib/telemetry-derive";
 
 // When charging starts, by IST weekday and 3-hour slot, for the Charging page's heatmap. Pure, so it's
@@ -21,8 +21,5 @@ export function chargeStarts(starts: number[]): number[][] {
   return counts;
 }
 
-// "6–9 PM", "9 PM–12 AM": the slot's hours, 12-hour like the rest of the app.
-export function slotLabel(slot: number): string {
-  const [from, to] = [formatHour(slot * SLOT_HOURS), formatHour(slot * SLOT_HOURS + SLOT_HOURS)];
-  return from.slice(-2) === to.slice(-2) ? `${from.slice(0, -3)} to ${to}` : `${from} to ${to}`;
-}
+// "6 PM to 9 PM", "9 PM to 12 AM": the slot's whole span, 12-hour like the rest of the app.
+export const slotLabel = (slot: number) => formatHours(slot * SLOT_HOURS, slot * SLOT_HOURS + SLOT_HOURS);

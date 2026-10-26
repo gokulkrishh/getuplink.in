@@ -5,8 +5,8 @@ import { backTo, weeksIn } from "@/lib/kept";
 import type { Timeframe } from "@/lib/periods";
 import type { WeeklyPack } from "@/lib/telemetry-derive";
 
-// The estimated full pack by week, from the streamed energy remaining and battery level: the weeks that
-// overlap the span, as far back as the estimates go (12 weeks). The page keeps its id outside, since each
+// Usable capacity by week (see weeklyUsable), from the streamed energy remaining and battery level: the
+// weeks that overlap the span, as far back as the estimates go (12 weeks). The page keeps its id outside, since each
 // period draws its own copy.
 export function BatteryPack({ trend, frame }: { trend: WeeklyPack[]; frame: Timeframe }) {
   if (trend.length < 2) return null;
@@ -16,15 +16,10 @@ export function BatteryPack({ trend, frame }: { trend: WeeklyPack[]; frame: Time
   return (
     <ChartCard
       title="Usable capacity by week"
-      description={`Energy a full battery holds. Latest week ${formatKwh(latest.kwh)}.`}
+      description={`Usable capacity, week by week. Latest week ${formatKwh(latest.kwh)}.`}
       unit="kWh"
-      terms={["capacity"]}
-      info={
-        <>
-          <p>Uplink estimates it from the car&apos;s readings: the middle value of each week&apos;s estimates.</p>
-          <p>The scale starts near the readings, not at zero, so small changes show.</p>
-        </>
-      }
+      terms={["usable capacity"]}
+      info="The scale starts near the readings, not at zero, so small changes show."
       caption={cut}
       empty={
         weeks.length < 2 &&

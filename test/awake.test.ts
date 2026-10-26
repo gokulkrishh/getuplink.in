@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { awakeDays, runLabel } from "@/lib/awake";
+import { awakeDays, PRESENCE_FIELDS, runLabel } from "@/lib/awake";
 
 // An instant given as IST wall-clock time.
 const ist = (local: string) => Date.parse(`${local}+05:30`);
@@ -8,13 +8,13 @@ describe("runLabel", () => {
   test("one reading is a time, not a length", () => {
     expect(runLabel({ state: "online", start: ist("2026-10-20T08:00:00"), end: ist("2026-10-20T08:15:00"), seen: [ist("2026-10-20T08:12:00")] })).toBe("Online · 8:12 AM");
   });
-  test("steady readings give a length, the shared AM or PM said once", () => {
+  test("steady readings give a length, both times in full", () => {
     const seen = ["19:12", "19:17", "19:25", "19:33", "19:40"].map((t) => ist(`2026-10-20T${t}:00`));
-    expect(runLabel({ state: "online", start: ist("2026-10-20T19:00:00"), end: ist("2026-10-20T19:45:00"), seen })).toBe("Online · 7:12 to 7:40 PM · 28 min");
+    expect(runLabel({ state: "online", start: ist("2026-10-20T19:00:00"), end: ist("2026-10-20T19:45:00"), seen })).toBe("Online · 7:12 PM to 7:40 PM · 28 min");
   });
   test("a gap wider than 10 minutes splits the times and drops the length", () => {
     const seen = ["08:02", "08:06", "08:29"].map((t) => ist(`2026-10-20T${t}:00`));
-    expect(runLabel({ state: "online", start: ist("2026-10-20T08:00:00"), end: ist("2026-10-20T08:30:00"), seen })).toBe("Online · 8:02 to 8:06 AM, 8:29 AM");
+    expect(runLabel({ state: "online", start: ist("2026-10-20T08:00:00"), end: ist("2026-10-20T08:30:00"), seen })).toBe("Online · 8:02 AM to 8:06 AM, 8:29 AM");
   });
   test("a check is the time it ran", () => {
     expect(runLabel({ state: "asleep", start: ist("2026-10-20T02:00:00"), end: ist("2026-10-20T02:15:00"), seen: [ist("2026-10-20T02:00:40")] })).toBe("Asleep · 2:00 AM");
@@ -42,5 +42,13 @@ describe("awakeDays", () => {
   });
   test("online wins a slot a check found asleep", () => {
     expect(runs([ist("2026-10-20T06:05:00")], [{ at: ist("2026-10-20T06:00:40"), state: "asleep" }]).map((r) => r.state)).toEqual(["online"]);
+  });
+});
+
+describe("PRESENCE_FIELDS", () => {
+  // On 24 Oct 2026 the car streamed 86 readings from 11:00 to 11:15 IST; of the presence fields only
+  // IsolationResistance came. From 12:00 on 25 Oct only Soc did. Both quarter hours showed No data.
+  test("include the fields that were the car's only sign of life in a quarter hour", () => {
+    for (const field of ["IsolationResistance", "Soc", "EnergyRemaining"]) expect(PRESENCE_FIELDS).toContain(field);
   });
 });

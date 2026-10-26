@@ -39,8 +39,11 @@ export function Figures({
   const columns = shown.length <= 4 ? shown.length : 3;
   const left = shown.length % columns;
   const button = Boolean(info) || hasWords(terms);
+  // A lone tile stays tile-sized (half the width) instead of stretching across the page. With an ⓘ, the
+  // wrapper takes that width instead, so the ⓘ stays in the tile's corner rather than the page's.
+  const lone = shown.length === 1 && "sm:w-1/2";
   const grid = (
-    <dl className={cn("grid grid-cols-2 gap-px border bg-border bg-clip-padding dark:border-transparent dark:bg-background", SM_COLUMNS[columns], className)}>
+    <dl className={cn("grid grid-cols-2 gap-px border bg-border bg-clip-padding dark:border-transparent dark:bg-background", SM_COLUMNS[columns], !button && lone, className)}>
       {shown.map((f, k) => (
         <div
           key={f.label}
@@ -66,7 +69,7 @@ export function Figures({
   );
   if (!button) return grid;
   return (
-    <div className="relative">
+    <div className={cn("relative", lone)}>
       {grid}
       <InfoButton label={label} terms={terms} className="absolute top-2 right-2 sm:top-3 sm:right-3">
         {info}

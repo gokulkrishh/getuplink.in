@@ -1,15 +1,11 @@
 import "server-only";
-import { awakeDays, type DayStrip, type Poll } from "@/lib/awake";
+import { awakeDays, type DayStrip, type Poll, PRESENCE_FIELDS } from "@/lib/awake";
 import { DEMO } from "@/lib/demo";
 import { demoPolls } from "./demo/awake";
 import { type Owner, ownerDb } from "./data/owner";
 import { loadReadingsByField } from "./telemetry-window";
 
 export const AWAKE_DAYS = 14;
-
-// Fields that change every few minutes while the car is awake (the pack drains, the counter ticks), plus
-// update downloads. A scan across every field would not be served by the (vin, field, created_at) index.
-const PRESENCE_FIELDS = ["EnergyRemaining", "LifetimeEnergyUsed", "SoftwareUpdateDownloadPercentComplete"];
 
 // The poll's checks in a window, oldest first. Only the time and state, never the raw payload.
 async function loadPolls(owner: Owner, vehicleId: string, from: string): Promise<Poll[]> {

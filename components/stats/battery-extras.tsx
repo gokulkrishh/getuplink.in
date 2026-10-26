@@ -124,7 +124,7 @@ export function CellBalance({ spread, frame }: { spread: BatteryExtras["cellSpre
   );
 }
 
-// Each week's estimated full pack against the odometer, after TeslaMate's capacity by mileage: the weeks
+// Each week's usable capacity against the odometer, after TeslaMate's capacity by mileage: the weeks
 // that overlap the span, as far back as the estimates go (12 weeks).
 export function CapacityByKm({ points, frame }: { points: BatteryExtras["capacityByKm"]; frame: Timeframe }) {
   if (points.length < 2) return null;
@@ -132,10 +132,10 @@ export function CapacityByKm({ points, frame }: { points: BatteryExtras["capacit
   return (
     <ChartCard
       title="Capacity by distance"
-      description="Full-pack energy against km driven."
+      description="Usable capacity each week, against the odometer."
       unit="kWh"
-      terms={["capacity"]}
-      info="One point a week, as the car estimates it. A line that falls means the pack holds less."
+      terms={["usable capacity"]}
+      info="A line that falls means the pack holds less."
       caption={backTo(frame.span, points[0].weekStart, "Weekly estimates")}
       empty={
         shown.length < 2 &&
@@ -149,7 +149,7 @@ export function CapacityByKm({ points, frame }: { points: BatteryExtras["capacit
         formatX={(x) => `${number.format(x)} km`}
         formatY={(y) => `${oneDecimal.format(y)} kWh`}
         unit="kWh"
-        label={`Estimated full pack against the odometer, ${frame.title}`}
+        label={`Usable capacity against the odometer, ${frame.title}`}
       />
     </ChartCard>
   );
@@ -167,7 +167,7 @@ export function TeslaPackByWeek({ pack, frame }: { pack: BatteryExtras["teslaPac
       title="Full pack by week, per Tesla"
       description="Full-pack energy, as the car reports it."
       unit="kWh"
-      terms={["capacity"]}
+      terms={["full pack, per Tesla"]}
       info={
         <>
           <p>The middle value of each week&apos;s reports. A line that falls means the pack holds less.</p>

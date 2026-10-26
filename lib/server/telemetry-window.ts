@@ -1,4 +1,5 @@
 import "server-only";
+import { firstArrival, TYRE_SEEN_FIELDS } from "@/lib/car-now";
 import { DEMO } from "@/lib/demo";
 import type { Reading } from "@/lib/telemetry-derive";
 import { demoReadings } from "./demo";
@@ -36,4 +37,14 @@ export async function loadReadingsByField(owner: Owner, vin: string, fields: str
     for (const r of data ?? []) byField[r.field as string]?.push({ at: r.created_at as string, value: r.value as unknown });
   }
   return byField;
+}
+
+export const TYRE_ARRIVAL_DAYS = 14;
+
+// When each tyre's current TpmsLastSeenPressureTime* value first arrived (see firstArrival), from the last
+// TYRE_ARRIVAL_DAYS of readings: carNow needs it to tell a real measured time from a wrong one. Null for a
+// tyre whose value goes back further, or when the read fails.
+export async function loadTyreArrivals(owner: Owner, vin: string, now: number): Promise<Record<string, string | null>> {
+  const readings = await loadReadingsByField(owner, vin, TYRE_SEEN_FIELDS, new Date(now - TYRE_ARRIVAL_DAYS * 86_400_000).toISOString(), new Date(now + 1).toISOString());
+  return Object.fromEntries(TYRE_SEEN_FIELDS.map((field) => [field, readings ? firstArrival(readings[field] ?? []) : null]));
 }

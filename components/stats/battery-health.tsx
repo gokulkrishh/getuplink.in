@@ -16,7 +16,7 @@ function vsBest<T>(weeks: T[], value: (w: T) => number, format: (n: number) => s
   const latest = weeks.at(-1);
   if (!latest) return null;
   const best = weeks.reduce((a, w) => (value(w) > value(a) ? w : a));
-  if (weeks.length < 2 || best === latest) return { now: format(value(latest)), note: weeks.length < 2 ? "Latest week's median" : "Latest week, the best on record" };
+  if (weeks.length < 2 || best === latest) return { now: format(value(latest)), note: weeks.length < 2 ? "Latest week" : "Latest week, the best on record" };
   const change = (value(latest) - value(best)) / value(best);
   return { now: format(value(latest)), note: `Latest week, ${Math.abs(change * 100).toFixed(1)}% below the best week, ${format(value(best))}` };
 }
@@ -72,13 +72,8 @@ export function BatteryHealth({
       title="Battery health"
       description="What the pack holds now, against its best week."
       unit="kWh"
-      terms={["capacity", "range at 100%", "charge cycles", "charging efficiency", "AC and DC"]}
-      info={
-        <>
-          <p>Uplink compares with the best week it has seen, not with a new pack: it only knows what the car has reported since you connected it.</p>
-          {teslaPack && <p>Full pack, per Tesla, is the car&apos;s own figure, as it last sent it. Tesla may count the pack differently from Uplink&apos;s estimate.</p>}
-        </>
-      }
+      terms={["usable capacity", ...(teslaPack ? ["full pack, per Tesla"] : []), "range at 100%", "charge cycles", "charging efficiency", "AC and DC"]}
+      info="Uplink compares with the best week it has seen, not with a new pack: it only knows what the car has reported since you connected it."
     >
       <Figures figures={figures} />
     </ChartCard>

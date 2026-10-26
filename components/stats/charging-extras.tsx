@@ -3,7 +3,7 @@
 import { ChartCard } from "@/components/chart-card";
 import { DcCurvePlot } from "@/components/stats/dc-curve-plot";
 import { type MapPin, TripMap } from "@/components/stats/trip-map";
-import { formatShortDate } from "@/lib/format";
+import { formatKw, formatShortDate } from "@/lib/format";
 import type { Timeframe } from "@/lib/periods";
 import type { Curve } from "@/lib/server/charging-extra";
 import { Measure } from "@/components/measure";
@@ -65,18 +65,15 @@ export function DcCurves({ curves, frame, note }: { curves: (Curve & { serial?: 
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {curves.map((c) => {
-                  const ys = c.points.map((p) => p.y);
-                  return (
-                    <tr key={c.id}>
-                      <td className="py-3 pr-3 font-mono text-xs text-faint">{c.serial ?? ""}</td>
-                      <td className="py-3 pr-3 whitespace-nowrap">{formatShortDate(c.date)}</td>
-                      <td className="truncate py-3 pr-3">{c.name}</td>
-                      <td className="py-3 pr-3 text-right font-mono"><Measure text={`${Math.round(Math.max(...ys))} kW`} /></td>
-                      <td className="py-3 text-right font-mono"><Measure text={`${Math.round(ys.reduce((a, b) => a + b, 0) / ys.length)} kW`} /></td>
-                    </tr>
-                  );
-                })}
+                {curves.map((c) => (
+                  <tr key={c.id}>
+                    <td className="py-3 pr-3 font-mono text-xs text-faint">{c.serial ?? ""}</td>
+                    <td className="py-3 pr-3 whitespace-nowrap">{formatShortDate(c.date)}</td>
+                    <td className="truncate py-3 pr-3">{c.name}</td>
+                    <td className="py-3 pr-3 text-right font-mono">{c.peakKw !== null && <Measure text={formatKw(c.peakKw)} />}</td>
+                    <td className="py-3 text-right font-mono">{c.avgKw !== null && <Measure text={formatKw(c.avgKw)} />}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
