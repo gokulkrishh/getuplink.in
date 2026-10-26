@@ -7,8 +7,9 @@ import { normaliseVersion } from "@/lib/versions";
 
 export type AdoptionGrain = "day" | "week";
 
-// How many bars each grain draws: a month of days, half a year of weeks.
-export const ADOPTION_SLOTS: Record<AdoptionGrain, number> = { day: 30, week: 26 };
+// How many bars each grain draws: three weeks of days, 20 weeks. Bars keeps each column at least 12px, so
+// more than about 23 would make the chart scroll sideways on a 390px phone.
+export const ADOPTION_SLOTS: Record<AdoptionGrain, number> = { day: 21, week: 20 };
 
 // One bar. `of` is the cars whose version was known by the slot's end; 0 means nothing is known yet.
 export type AdoptionSlot = { key: string; label: string; of: number };

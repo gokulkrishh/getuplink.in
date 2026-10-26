@@ -1,3 +1,4 @@
+import { ChartCard } from "@/components/chart-card";
 import { AwakeStrip } from "@/components/stats/awake-strip";
 import { type DayStrip, hasPresence, type Presence, runLabel } from "@/lib/awake";
 import { formatDayLabel } from "@/lib/format";
@@ -18,47 +19,48 @@ export function AwakeTimeline({ days, now }: { days: DayStrip[]; now: number }) 
   if (!hasPresence(days)) return null;
   const onlineDays = days.filter((d) => d.runs.some((r) => r.state === "online")).length;
   return (
-    <section className="space-y-8">
-      <div className="space-y-2">
-        <h2 className="text-lg font-medium tracking-heading">Online and asleep</h2>
-        <p className="text-sm text-muted-foreground tabular-nums">
+    <ChartCard
+      title="Online and asleep"
+      description={`When the car was awake each day, last ${days.length} days, newest on top. Updates download only while it's awake, so long asleep stretches can explain a late update.`}
+      summary={
+        <p className="text-sm tabular-nums">
           Online on {onlineDays} of the last {days.length} days
         </p>
-        <p className="text-xs text-muted-foreground">
-          Updates download only while the car is awake. The car doesn&apos;t say when it wakes or sleeps, so each mark is a 15-minute
-          block where it sent data, or where a check (every 6 hours) found it asleep or offline.
-        </p>
-      </div>
-      <div className="space-y-3 bg-muted dark:bg-card px-3 pt-4 pb-3">
-        <ol className="space-y-1.5">
-          {[...days].reverse().map((d) => (
-            <li key={d.day} className="flex items-center gap-3">
-              <span className="w-16 shrink-0 text-xs text-faint">{formatDayLabel(d.start, now)}</span>
-              <AwakeStrip start={d.start} runs={d.runs} classes={classes} />
-              <span className="sr-only">{summary(d)}</span>
-            </li>
-          ))}
-        </ol>
-        <div className="flex gap-3 text-xs text-faint" aria-hidden="true">
-          <span className="w-16 shrink-0" />
-          <div className="relative h-4 flex-1 tabular-nums">
-            {["12 AM", "6 AM", "12 PM", "6 PM"].map((label, k) => (
-              <span key={label} className="absolute" style={{ left: `${k * 25}%` }}>
-                {label}
-              </span>
+      }
+      caption="The car doesn't say when it wakes or sleeps, so each mark is a 15-minute block where it sent data, or where a check every 6 hours found it asleep or offline. Hover or tap a mark for its times."
+    >
+      <div className="space-y-3">
+        <div className="space-y-3 bg-muted dark:bg-card px-3 pt-4 pb-3">
+          <ol className="space-y-1.5">
+            {[...days].reverse().map((d) => (
+              <li key={d.day} className="flex items-center gap-3">
+                <span className="w-16 shrink-0 text-xs text-faint">{formatDayLabel(d.start, now)}</span>
+                <AwakeStrip start={d.start} runs={d.runs} classes={classes} />
+                <span className="sr-only">{summary(d)}</span>
+              </li>
             ))}
+          </ol>
+          <div className="flex gap-3 text-xs text-faint" aria-hidden="true">
+            <span className="w-16 shrink-0" />
+            <div className="relative h-4 flex-1 tabular-nums">
+              {["12 AM", "6 AM", "12 PM", "6 PM"].map((label, k) => (
+                <span key={label} className="absolute" style={{ left: `${k * 25}%` }}>
+                  {label}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
+        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          {STATES.map((s) => (
+            <li key={s.state} className="inline-flex items-center gap-1.5">
+              <span className={cn("size-2", s.className)} aria-hidden="true" />
+              {s.label}
+            </li>
+          ))}
+        </ul>
       </div>
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        {STATES.map((s) => (
-          <li key={s.state} className="inline-flex items-center gap-1.5">
-            <span className={cn("size-2", s.className)} aria-hidden="true" />
-            {s.label}
-          </li>
-        ))}
-      </ul>
-    </section>
+    </ChartCard>
   );
 }
 

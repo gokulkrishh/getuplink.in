@@ -16,7 +16,8 @@ function Placeholder() {
 // recharts loads lazily, client-only.
 const Plot = dynamic(() => import("./version-chart-plot"), { ssr: false, loading: Placeholder });
 
-// A quiet step line: each rise is a new version, the last segment runs to the latest check.
+// A quiet step line: each rise is a new version, the last segment runs to the latest check. Just the plot:
+// the page wraps it in a ChartCard for its title, description and caption.
 export function VersionChart({
   changes,
   until,
@@ -25,12 +26,5 @@ export function VersionChart({
   until: string | null;
 }) {
   if (changes.length === 0) return null;
-  return (
-    <figure className="space-y-2">
-      <Plot changes={changes} until={until} />
-      <figcaption className="text-xs text-muted-foreground">
-        The car&apos;s software version over time, first to latest. Each step up is a new version arriving. Hover or tap for the version and date.
-      </figcaption>
-    </figure>
-  );
+  return <Plot changes={changes} until={until} />;
 }

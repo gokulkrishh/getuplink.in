@@ -6,7 +6,8 @@ import { isoDay } from "@/lib/periods";
 import type { Owner } from "@/lib/server/auth";
 import { verifyConnectorToken } from "@/lib/server/connector-token";
 import { batteryStatus, carNowStatus, chargingInsights, daySummary, drivingInsights, getTrip, listTrips, monthlySummary } from "@/lib/server/mcp-data";
-import { attachInvoice, chargingSummary, drivingSummary, listChargingSessions, parseInvoiceTime } from "@/lib/server/receipts";
+import { parseInvoiceTime, parseRangeEnd } from "@/lib/mcp-ranges";
+import { attachInvoice, chargingSummary, drivingSummary, listChargingSessions } from "@/lib/server/receipts";
 
 // The Uplink MCP connector, for any AI the owner connects (a Grok bot, Claude, ChatGPT). proxy.ts lets
 // it through without a session; the token from Settings → Integrations is checked here instead.
@@ -106,7 +107,8 @@ const handlerFor = (owner: Owner) =>
       },
       ({ from, to }) =>
         run(() => {
-          const end = to ? parseInvoiceTime(to) + DAY : Date.now() + DAY;
+          // A date alone takes in that whole day; a time ends there.
+          const end = to ? parseRangeEnd(to) : Date.now() + DAY;
           return listTrips(owner, from ? parseInvoiceTime(from) : Date.now() - 7 * DAY, end);
         }),
     );

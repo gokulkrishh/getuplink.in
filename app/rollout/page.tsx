@@ -5,9 +5,11 @@ import { Globe } from "lucide-react";
 import { Suspense } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Header } from "@/components/header";
+import { ChartCard } from "@/components/chart-card";
 import { ReleaseNotesToggle } from "@/components/release-notes";
 import { RolloutAdoption } from "@/components/rollout-adoption";
 import { RolloutMap } from "@/components/rollout-map";
+import { ShareBar } from "@/components/rollout-share-bar";
 import { DEMO } from "@/lib/demo";
 import { formatShortDate } from "@/lib/format";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
@@ -67,8 +69,9 @@ function ArrivingRow({ a, n, notes }: { a: Arriving; n: number; notes: ReleaseNo
   );
 }
 
-// One version: cars on it now with a bar against every counted car, and how its arrival compares with the world.
-// A version no car is on any more has no bar: an empty track reads as a chart still loading.
+// One version: cars on it now with a bar against every counted car (hover or tap it for the share), and how
+// its arrival compares with the world. A version no car is on any more has no bar: an empty track reads as
+// a chart still loading.
 function VersionRow({ v, counted, n, notes }: { v: RolloutVersion; counted: number; n: number; notes: ReleaseNotesByVersion }) {
   return (
     <li className="flex gap-4 py-4">
@@ -78,12 +81,7 @@ function VersionRow({ v, counted, n, notes }: { v: RolloutVersion; counted: numb
         <span className="font-mono text-sm font-medium tabular-nums">{v.version}</span>
         <span className={cn("text-sm tabular-nums", v.carsNow === 0 && "text-faint")}>{cars(v.carsNow)}</span>
       </div>
-      {/* The share of cars is the screen's data, so it carries the one chart hue. */}
-      {v.carsNow > 0 && (
-        <div className="h-1.5 w-full bg-muted" aria-hidden>
-          <div className="h-full bg-chart-accent" style={{ width: `${counted ? (v.carsNow / counted) * 100 : 0}%` }} />
-        </div>
-      )}
+      {v.carsNow > 0 && <ShareBar on={v.carsNow} of={counted} />}
       {/* Only what's known: a car already on the version when tracking began has no arrival date. */}
       {(v.firstInIndia || v.globalRelease) && (
         <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground tabular-nums">
@@ -162,18 +160,12 @@ async function Rollout() {
         </section>
       )}
 
-      {hasAdoption && (
-        <section className="space-y-3">
-          <div className="space-y-1">
-            <h2 className={heading}>Adoption over time</h2>
-            <p className="text-sm text-muted-foreground">How a version spread across Indian cars, from the updates Uplink recorded.</p>
-          </div>
-          <RolloutAdoption adoption={adoption} />
-        </section>
-      )}
+      {hasAdoption && <RolloutAdoption adoption={adoption} />}
 
-      <section className="space-y-2">
-        <h2 className={heading}>Versions</h2>
+      <ChartCard
+        title="Versions"
+        description={`Every version Indian cars run, newest first. Each bar is the version's share of the ${cars(counted)} Uplink counts; hover or tap it for the share.`}
+      >
         <ul className="divide-y border-t">
           <li className="flex gap-4 py-2 text-xs text-faint" aria-hidden="true">
             <span className="w-6 shrink-0">#</span>
@@ -184,7 +176,7 @@ async function Rollout() {
             <VersionRow key={v.version} v={v} counted={counted} n={k + 1} notes={releaseNotes} />
           ))}
         </ul>
-      </section>
+      </ChartCard>
 
       <div className="space-y-2 text-xs text-faint">
         <p>
@@ -195,10 +187,7 @@ async function Rollout() {
           A car&apos;s state comes from its location or, until then, its Superchargers.
         </p>
         <p>Global dates come from a hand-kept list of public first sightings. A version not on it shows no lag.</p>
-        <p>
-          Adoption counts a car from its first recorded version, never before. Release notes are Tesla&apos;s, fetched
-          once per version from a car that ran or was offered it.
-        </p>
+        <p>Release notes are Tesla&apos;s, fetched once per version from a car that ran or was offered it.</p>
         <p>
           State boundaries:{" "}
           <a href="https://github.com/datameet/maps" className="underline decoration-border decoration-dotted underline-offset-4 hover:text-foreground hover:decoration-foreground">
