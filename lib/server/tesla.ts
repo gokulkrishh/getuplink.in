@@ -5,6 +5,9 @@ import { decrypt, encrypt } from "./crypto";
 import { demoData } from "./demo";
 import { env, fleetApiBase, signupMode } from "./env";
 import { eraseOwnerRows } from "./data/erase";
+import { foldApiUsage, UNATTRIBUTED } from "./data/usage";
+import { countRequest } from "./usage";
+import { isBillable, kindOf } from "@/lib/tesla-billing";
 import { type Owner, ownerDb } from "./data/owner";
 import {
   APPROVED,
@@ -55,6 +58,16 @@ export class NotConnectedError extends Error {
   constructor() {
     super("Tesla account is not connected");
   }
+}
+
+// Every request Uplink sends the Fleet API goes through here, so each is counted (lib/server/usage.ts) under
+// its user, or UNATTRIBUTED before there is one. Tesla bills every answer below 500, so that's what counts,
+// once per attempt: a 401 and its retry are two. No answer (a network error) isn't billed or counted.
+async function teslaFetch(userId: number, path: string, init: { method?: string; token: string }): Promise<Response> {
+  const method = init.method ?? "GET";
+  const res = await fetch(`${fleetApiBase()}${path}`, { method, headers: { Authorization: `Bearer ${init.token}` }, cache: "no-store" });
+  if (isBillable(res.status)) await countRequest(userId, kindOf(method, path));
+  return res;
 }
 
 export function authorizeUrl(state: string): string {
@@ -114,14 +127,14 @@ function idTokenSubject(idToken: string | undefined): string {
 // - "waitlist": on the waitlist (just joined, or still waiting);
 // - "not-approved": declined or suspended;
 // - "region": not an account the APAC Fleet API serves, so it can't join.
-export type SignInResult = { userId: number } | "not-owner" | "waitlist" | "not-approved" | "region";
+export type SignInResult = { userId: number; owner: Owner } | "not-owner" | "waitlist" | "not-approved" | "region";
 
 // Whether Tesla serves this account from the Fleet API Uplink uses (TESLA_FLEET_API_BASE_URL, the
 // North America and Asia-Pacific one): /api/1/users/region names the account's base URL. Tesla gives
 // North America and Asia-Pacific the same one, so this refuses Europe, the Middle East, Africa and China,
 // not North America. Throws when Tesla doesn't answer: a sign-up then fails rather than joining unchecked.
 async function servedRegion(accessToken: string): Promise<boolean> {
-  const res = await fetch(`${fleetApiBase()}/api/1/users/region`, { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
+  const res = await teslaFetch(UNATTRIBUTED, "/api/1/users/region", { token: accessToken });
   if (!res.ok) throw new TeslaError(`GET /api/1/users/region failed (${res.status})`, res.status);
   const body = (await res.json().catch(() => null)) as { response?: { fleet_api_base_url?: unknown } | null } | null;
   const base = body?.response?.fleet_api_base_url;
@@ -172,7 +185,7 @@ export async function signIn(code: string): Promise<SignInResult> {
   if (error) throw new Error(`Saving tokens failed: ${error.message}`);
   // The new pair supersedes any single-owner one still in oauth_tokens: nothing may present that again.
   await retireLegacyTokens(sub);
-  return { userId: owner.userId };
+  return { userId: owner.userId, owner };
 }
 
 // Refresh tokens are single use, and Tesla can revoke the whole chain (the pair just stored included)
@@ -429,11 +442,7 @@ async function stopStreaming(owner: Owner): Promise<void> {
     await Promise.all(
       (data ?? []).map(async ({ vin }) => {
         try {
-          const res = await fetch(`${fleetApiBase()}/api/1/vehicles/${vin}/fleet_telemetry_config`, {
-            method: "DELETE",
-            headers: { Authorization: `Bearer ${token}` },
-            cache: "no-store",
-          });
+          const res = await teslaFetch(owner.userId, `/api/1/vehicles/${vin}/fleet_telemetry_config`, { method: "DELETE", token });
           if (!res.ok) console.warn(`Stopping streaming failed (${res.status}):`, await res.text());
         } catch (err) {
           console.warn("Stopping streaming failed:", err instanceof Error ? err.message : err);
@@ -477,10 +486,7 @@ async function accessToken(owner: Owner, forceRefresh = false): Promise<string> 
 async function fleetFetch(owner: Owner, path: string): Promise<Response> {
   let token = await accessToken(owner);
   for (let attempt = 0; ; attempt++) {
-    const res = await fetch(`${fleetApiBase()}${path}`, {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
+    const res = await teslaFetch(owner.userId, path, { token });
     if (res.status === 401 && attempt === 0) {
       token = await accessToken(owner, true);
       continue;
@@ -524,6 +530,8 @@ export async function deleteMyData(owner: Owner): Promise<void> {
 export async function deleteAccount(owner: Owner): Promise<void> {
   if (DEMO) return;
   await deleteMyData(owner);
+  // Its Tesla API counts stay in the developer account's month, as unattributed. Best effort.
+  await foldApiUsage(owner).catch((err: Error) => console.warn("Keeping the Tesla API counts failed:", err.message));
   await deleteUser(owner).catch((err: Error) => {
     throw new Error(`Deleting the account failed: ${err.message}`);
   });

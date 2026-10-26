@@ -2,7 +2,7 @@ import { after, NextResponse, type NextRequest } from "next/server";
 import { DEMO } from "@/lib/demo";
 import type { LoginErrorCode } from "@/lib/login-errors";
 import { createSession, EXPIRE_HOST_ONLY_SESSION, isValidSession, safeEqual, SESSION_COOKIE, SESSION_MAX_AGE, requestHost, sessionCookieDomain, STATE_COOKIE } from "@/lib/session";
-import { pollAll } from "@/lib/server/poll";
+import { checkNow } from "@/lib/server/poll";
 import { signIn, type SignInResult } from "@/lib/server/tesla";
 
 // Room for the check that runs after the redirect, like the cron's.
@@ -45,10 +45,12 @@ export async function GET(request: NextRequest) {
   if (result === "waitlist") return done("/waitlist");
   if (result === "not-owner" || result === "not-approved" || result === "region") return done("/home", result);
 
-  // Check with the new tokens right away rather than waiting for the cron: on a first sign-in this records
-  // the first snapshot, and after a sign-in that replaced refused tokens it clears the failed run's
-  // "sign in again". Runs after the redirect is sent, so sign-in isn't held up or failed by it.
-  after(() => pollAll().catch((err) => console.error(err)));
+  // Check this user with the new tokens right away rather than waiting for the cron: on a first sign-in this
+  // records the first snapshot, and after a sign-in that replaced refused tokens it clears the failed run's
+  // "sign in again". At most once per 5 minutes, and not past the Tesla budget (checkNow). Runs after the
+  // redirect is sent, so sign-in isn't held up or failed by it.
+  const { owner } = result;
+  after(() => checkNow(owner).catch((err) => console.error(err)));
 
   const res = done("/");
   const domain = sessionCookieDomain(requestHost(request.headers));

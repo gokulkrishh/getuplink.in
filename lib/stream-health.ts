@@ -37,7 +37,8 @@ export type StreamHealth = {
   checked_at: string;
   last_reading_at: string | null;
   car_last_online_at: string | null;
-  config: { synced: boolean | null; expires_at: string | null };
+  // fetched_at: when Tesla was last asked for the config and errors; the answer is reused for up to an hour.
+  config: { synced: boolean | null; expires_at: string | null; fetched_at: string | null };
 };
 
 export function assembleHealth(input: {
@@ -47,6 +48,7 @@ export function assembleHealth(input: {
   carLastOnlineAt: string | null;
   synced: boolean | null;
   expiresAt: string | null;
+  teslaFetchedAt?: string | null;
 }): StreamHealth {
   return {
     ok: input.problems.length === 0,
@@ -54,7 +56,7 @@ export function assembleHealth(input: {
     checked_at: new Date(input.now).toISOString(),
     last_reading_at: input.lastReadingAt,
     car_last_online_at: input.carLastOnlineAt,
-    config: { synced: input.synced, expires_at: input.expiresAt },
+    config: { synced: input.synced, expires_at: input.expiresAt, fetched_at: input.teslaFetchedAt ?? null },
   };
 }
 

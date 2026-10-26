@@ -18,7 +18,7 @@ const AWAKE_MS = 10 * 60 * 1000;
 // caller is that poll.
 export async function syncStreamVersions(owner: Owner, vin: string, { lockHeld = false }: { lockHeld?: boolean } = {}): Promise<void> {
   if (DEMO) return;
-  if (!lockHeld && (await pollInProgress())) return;
+  if (!lockHeld && (await pollInProgress(owner))) return;
   const vehicle = await check(ownerDb(owner).from("vehicles").select("id:id::text, current_version").eq("vin", vin).maybeSingle());
   if (!vehicle) return;
   const id = vehicle.id as string;
