@@ -6,19 +6,24 @@ import {
   monthWindow,
   TESLA_MONTHLY_CREDIT_USD,
 } from "@/lib/costs";
+import { accountKinds } from "../usage";
 
-// Tesla Fleet API and Google Maps Platform are billed on use, and Uplink counts its own calls. The counters
-// are built elsewhere (Tesla: api_usage and its helpers; Google: the place lookups); this file only says
-// what it needs from them. Until they're wired in at merge, each source returns null: "Not tracked yet".
+// Tesla Fleet API and Google Maps Platform are billed on use, and Uplink counts its own calls. Tesla's
+// count is api_usage (docs/tesla-billing.md); Google's is still to come from the place lookups, so its
+// source returns null for now: "Not tracked yet".
 
 // ---- Tesla Fleet API ----
 
-// This calendar month's estimated cost in USD, before Tesla's monthly credit.
+// This calendar month's estimated cost in USD so far, before Tesla's monthly credit.
 export type TeslaUsage = { estimatedUsd: number };
-export type TeslaUsageSource = (monthStart: string) => Promise<TeslaUsage | null>;
+export type TeslaUsageSource = (now: number) => Promise<TeslaUsage | null>;
 
-// Wire the usage helper in here, e.g. `async (from) => ({ estimatedUsd: await teslaCostSince(from) })`.
-export const teslaUsage: TeslaUsageSource = async () => null;
+// The developer account's month to date, the same figure as /admin's Tesla API total. Null before the
+// api_usage migration, when nothing is counted.
+export const teslaUsage: TeslaUsageSource = async (now) => {
+  const { usage, counted } = await accountKinds(now);
+  return counted ? { estimatedUsd: usage.costUsd } : null;
+};
 
 export const TESLA_BILLING_LINK = "https://developer.tesla.com/dashboard";
 

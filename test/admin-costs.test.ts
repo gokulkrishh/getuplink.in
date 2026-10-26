@@ -17,6 +17,16 @@ const missingTable = () => {
   return q;
 };
 
+// Step 5's month-to-date Tesla estimate (lib/server/usage.ts), as /admin reads it.
+let teslaMonth: { costUsd: number; counted: boolean } = { costUsd: 0, counted: false };
+const teslaCalls: number[] = [];
+mock.module("@/lib/server/usage", () => ({
+  accountKinds: async (now: number) => {
+    teslaCalls.push(now);
+    return { kinds: [], signals: 0, usage: { categories: [], costUsd: teslaMonth.costUsd }, counted: teslaMonth.counted };
+  },
+}));
+
 mock.module("server-only", () => ({}));
 mock.module("@/lib/server/supabase", () => ({
   db: () => {
@@ -75,6 +85,8 @@ function stubFetch(handler: (url: URL) => Response | Promise<Response>) {
 
 beforeEach(async () => {
   missing = false;
+  teslaMonth = { costUsd: 0, counted: false };
+  teslaCalls.length = 0;
   tagsUpdated.length = 0;
   fetched.length = 0;
   delete process.env.VERCEL_API_TOKEN;
@@ -192,6 +204,13 @@ describe("the page's data", () => {
     expect(lines.google.state).toBe("not-tracked");
     for (const id of ["supabase", "fly", "domain"]) expect(lines[id].state).toBe("not-set");
     expect(fetched).toEqual([]);
+  });
+
+  test("Tesla is step 5's month-to-date estimate against the $10 credit, and not tracked before its migration", async () => {
+    expect((await byId()).tesla).toMatchObject({ amount: null, state: "not-tracked" });
+    teslaMonth = { costUsd: 12.37, counted: true };
+    expect((await byId()).tesla).toMatchObject({ amount: 12.37, state: "ok", source: "estimated", allowance: 10, resetsOn: "2026-11-01" });
+    expect(teslaCalls.at(-1)).toBe(NOW);
   });
 
   test("a saved entry shows, its past renewal rolled on", async () => {

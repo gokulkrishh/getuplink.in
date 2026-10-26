@@ -4,7 +4,7 @@ import { db } from "@/lib/server/supabase";
 
 // /admin/costs: fixed and manual cost entries, the exchange rate and budgets, and the last live values.
 // Fleet-wide, not one owner's; only the admin page and its actions (which check the admin) call these.
-// Until the migration (20261101120000_cost_entries.sql) is applied, reads return null and writes "missing".
+// Until the migration (20261101130000_cost_entries.sql) is applied, reads return null and writes "missing".
 
 const MISSING_TABLE = ["42P01", "PGRST205"];
 

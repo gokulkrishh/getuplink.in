@@ -117,7 +117,7 @@ export async function loadCosts(now: number): Promise<CostsPage> {
     costEntries().catch((err) => (console.warn("Cost entries unavailable:", err instanceof Error ? err.message : err), null)),
     costSettings().catch((err) => (console.warn("Cost settings unavailable:", err instanceof Error ? err.message : err), null)),
     readVercel(from),
-    safely(() => teslaUsage(from), "Tesla"),
+    safely(() => teslaUsage(now), "Tesla"),
     safely(() => googleUsage(from), "Google"),
   ]);
 

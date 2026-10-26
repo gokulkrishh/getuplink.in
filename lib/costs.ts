@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { formatDate, formatMoney } from "@/lib/format";
 import { istDay } from "@/lib/status";
+import { CREDIT_USD } from "@/lib/tesla-billing";
 
 // What running Uplink costs, without the network or the database: the shape every provider returns, the
 // currency and period maths, renewals, the Google and Tesla estimates, and the checks on what the owner
@@ -195,7 +196,7 @@ export function googleEstimate(counts: GoogleCounts): number {
 }
 
 // Tesla Fleet API: a $10 monthly discount, with billing cycles starting on the 1st of the month.
-export const TESLA_MONTHLY_CREDIT_USD = 10;
+export const TESLA_MONTHLY_CREDIT_USD = CREDIT_USD;
 
 // Over budget: past the provider's allowance (Tesla) or the owner's budget (Google).
 export function overBudget(line: Pick<CostLine, "amount" | "allowance" | "budget">): boolean {

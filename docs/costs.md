@@ -8,7 +8,7 @@ Code:
 - `lib/server/costs/` has the providers (`vercel.ts`, `usage.ts` for Tesla and Google) and the loader (`index.ts`).
 - `lib/server/data/costs.ts` holds the `cost_entries` and `cost_settings` reads and writes (service role only).
 - `app/admin/costs/` is the page, its actions and its forms. Tests: `test/admin-costs.test.ts`.
-- `supabase/migrations/20261101120000_cost_entries.sql` is the migration. The page renders before it is applied: fixed entries read "Not set" and saving says to apply it.
+- `supabase/migrations/20261101130000_cost_entries.sql` is the migration. The page renders before it is applied: fixed entries read "Not set" and saving says to apply it.
 
 ## Each line
 
@@ -62,8 +62,8 @@ Checked 26 Oct 2026.
 ### Tesla Fleet API: estimated
 
 - Tesla gives a $10 monthly discount to support individual developers. Billing cycles are monthly and begin on the 1st. [Billing and limits](https://developer.tesla.com/docs/fleet-api/billing-and-limits).
-- Tesla has no usage or cost API. The line comes from Uplink's own request count: `teslaUsage` in `lib/server/costs/usage.ts`. It returns `{ estimatedUsd }` for the month, or null, which shows as "Not tracked yet".
-- The counter (`api_usage` and its helpers, with `docs/tesla-billing.md`) is being built separately. Wire it in at merge by replacing the stub.
+- Tesla has no usage or cost API. The line comes from Uplink's own count in `api_usage` (`docs/tesla-billing.md`). `teslaUsage` in `lib/server/costs/usage.ts` reads `accountKinds(now)` from `lib/server/usage.ts`, the same month-to-date figure as /admin's Tesla API total. It returns `{ estimatedUsd }`, or null before the `api_usage` migration, which shows as "Not tracked yet".
+- The credit is `CREDIT_USD` from `lib/tesla-billing.ts`.
 
 ### Google Maps Platform: estimated
 
