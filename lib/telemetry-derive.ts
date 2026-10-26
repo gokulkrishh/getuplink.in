@@ -94,12 +94,15 @@ export const istWeekStart = (week: number) => istDayStart(week * 7 - 3);
 // Energy left isn't level × capacity: the car counts a reserve below 0% in it. Its readings sit on a
 // straight line, energy = reserve + usable × level (from 46% to 70% on this car: 2.97 kWh + 59.12 kWh ×
 // level, r² 0.9994), so energy ÷ level read 64.2 kWh at 61% and 65.5 kWh at 46% in the same week. The
-// usable capacity is that line's slope: the kWh between 0% and 100%. A slope needs levels apart, so a
-// week whose levels span fewer than MIN_SPAN points has none.
-export const MIN_SPAN = 10;
+// usable capacity is that line's slope: the kWh between 0% and 100%. Energy left moves in 0.12 kWh steps,
+// so a slope over few levels is loose: 13 readings over 11 points (26 Oct 2026) gave 58.5 kWh against
+// 59.0 from 90 over 24 the week before, which "vs best week" would show as a 0.8% loss. A week needs
+// MIN_POINTS readings whose levels span MIN_SPAN points, or it has no figure.
+export const MIN_SPAN = 15;
+export const MIN_POINTS = 6;
 
 export function usableKwh(points: EnergyPoint[]): number | null {
-  if (points.length < 2) return null;
+  if (points.length < MIN_POINTS) return null;
   const xs = points.map((p) => p.level / 100);
   if ((Math.max(...xs) - Math.min(...xs)) * 100 < MIN_SPAN) return null;
   const mx = xs.reduce((a, b) => a + b, 0) / xs.length;

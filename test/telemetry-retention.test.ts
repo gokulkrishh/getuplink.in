@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { PRESENCE_FIELDS } from "@/lib/awake";
-import { CAR_NOW_FIELDS } from "@/lib/car-now";
+import { CAR_NOW_FIELDS, TYRE_SEEN_FIELDS } from "@/lib/car-now";
 import { CHARGE_FIELDS } from "@/lib/charge-sessions";
 import { DRIVE_DAYS } from "@/lib/drives";
 import { DEFAULT_KEEP_DAYS, keepDays, KEPT_UNREAD, NEAR_CHARGE_FIELDS, NEAR_CHARGE_MINUTES, READS, retentionRules, withMargin } from "@/lib/telemetry-retention";
@@ -32,6 +32,9 @@ describe("keepDays", () => {
     expect(READS.find((r) => r.by === "loadPresence")?.fields).toEqual(PRESENCE_FIELDS);
     for (const field of ["Soc", "IsolationResistance"]) expect(keepDays(field)).toBe(withMargin(15));
   });
+  test("the tyres' measured times are kept past the two weeks their first arrivals are read over", () => {
+    for (const field of TYRE_SEEN_FIELDS) expect(keepDays(field)).toBe(withMargin(14));
+  });
   test("Tesla's full-pack figure is read and kept forever", () => {
     expect(READS.some((r) => r.fields.includes("NominalFullPackEnergyKwh"))).toBe(true);
     expect(keepDays("NominalFullPackEnergyKwh")).toBeNull();
@@ -42,7 +45,7 @@ describe("keepDays", () => {
   test("fields nothing reads, or only reads the latest of, get the default", () => {
     for (const field of ["LateralAcceleration", "PedalPosition", "BrakePedal", "DiTorqueActualR", "GpsHeading", "SomeNewField"]) expect(keepDays(field)).toBe(DEFAULT_KEEP_DAYS);
     // The newest row of each field is always kept (in SQL), so the latest-value readers need nothing more.
-    for (const field of CAR_NOW_FIELDS.filter((f) => !["InsideTemp", "OutsideTemp"].includes(f))) expect(keepDays(field)).toBe(DEFAULT_KEEP_DAYS);
+    for (const field of CAR_NOW_FIELDS.filter((f) => !["InsideTemp", "OutsideTemp", ...TYRE_SEEN_FIELDS].includes(f))) expect(keepDays(field)).toBe(DEFAULT_KEEP_DAYS);
     for (const field of UPDATE_FIELDS) expect(keepDays(field) === null || keepDays(field)! >= DEFAULT_KEEP_DAYS).toBe(true);
   });
 });

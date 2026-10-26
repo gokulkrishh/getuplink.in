@@ -34,7 +34,7 @@ export function BatteryPack({ trend, frame }: { trend: WeeklyPack[]; frame: Time
         )}
         <figcaption className="text-xs text-muted-foreground">
           How much energy the battery gives from 100% down to 0%, worked out from each week&apos;s energy-left and charge-level readings. A week
-          shows once its charge moved by at least 10 points. The scale starts near the readings, not at zero, so small changes show. {unitNotes(["kWh"])} {frame.title}.{cut && ` ${cut}`}
+          shows once its charge moved by at least 15 points. The scale starts near the readings, not at zero, so small changes show. {unitNotes(["kWh"])} {frame.title}.{cut && ` ${cut}`}
         </figcaption>
       </figure>
     </section>

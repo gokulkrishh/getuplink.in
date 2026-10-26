@@ -6,13 +6,13 @@ import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/
 import { formatShortDate } from "@/lib/format";
 import { Measure } from "@/components/measure";
 
-const config = { kwh: { label: "Estimated full pack", color: "var(--chart-accent)" } } satisfies ChartConfig;
+const config = { kwh: { label: "Usable capacity", color: "var(--chart-accent)" } } satisfies ChartConfig;
 
 export type TrendPoint = { weekStart: number; kwh: number };
 
 const axisNumber = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 
-// Weekly median of the estimated full pack. The axis hugs the data (±2 kWh) instead of starting at 0,
+// Usable capacity per week (see weeklyUsable). The axis hugs the data (±2 kWh) instead of starting at 0,
 // since the pack moves by tenths of a kWh. Ticks are bare numbers with the unit titled above the axis,
 // so they stay on one line; the margins leave room for the top tick and the last date.
 export default function BatteryTrendPlot({ points }: { points: TrendPoint[] }) {
@@ -43,7 +43,7 @@ export default function BatteryTrendPlot({ points }: { points: TrendPoint[] }) {
         ref={box}
         className="h-40 w-full"
         role="img"
-        aria-label={`Estimated full pack per week: ${first.kwh.toFixed(1)} kWh in the week of ${formatShortDate(first.weekStart)}, ${last.kwh.toFixed(1)} kWh in the week of ${formatShortDate(last.weekStart)}.`}
+        aria-label={`Usable capacity per week: ${first.kwh.toFixed(1)} kWh in the week of ${formatShortDate(first.weekStart)}, ${last.kwh.toFixed(1)} kWh in the week of ${formatShortDate(last.weekStart)}.`}
       >
         {width === 0 ? (
           <div className="h-full w-full bg-background/60 motion-safe:animate-pulse" aria-busy="true" aria-label="Loading chart" />

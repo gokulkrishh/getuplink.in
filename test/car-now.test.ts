@@ -1,23 +1,52 @@
 import { describe, expect, test } from "bun:test";
-import { carNow, measuredAt, seenAt, tyreFlags, words } from "@/lib/car-now";
+import { carNow, firstArrival, measuredAt, seenAt, tyreFlags, words } from "@/lib/car-now";
+
+// TpmsLastSeenPressureTimeFl as the car sent it, arrival times in IST. Each new value came 12 h 30 min
+// ahead of its arrival; the 24 Oct 12:35:17 AM value (1792771517) was then sent again on every wake.
+const ist = (local: string) => new Date(`${local}+05:30`).toISOString();
+const seen = [
+  { at: ist("2026-10-23T13:51:05"), value: 1792771517 },
+  { at: ist("2026-10-23T23:57:39"), value: 1792771517 },
+  { at: ist("2026-10-24T07:39:50"), value: 1792771517 },
+  { at: ist("2026-10-25T21:07:59"), value: 1792771517 },
+  { at: ist("2026-10-25T21:20:39"), value: 1792948838 },
+  { at: ist("2026-10-25T22:06:15"), value: 1792991174 },
+  { at: ist("2026-10-26T07:09:00"), value: 1792991174 },
+  { at: ist("2026-10-26T07:14:12"), value: 1792991174 },
+];
+
+describe("firstArrival", () => {
+  test("the earliest of the newest run of equal values", () => {
+    expect(firstArrival(seen)).toBe(ist("2026-10-25T22:06:15"));
+    expect(firstArrival(seen.slice(0, 5))).toBe(ist("2026-10-25T21:20:39"));
+  });
+  test("unknown when the run reaches the first reading given", () => {
+    expect(firstArrival(seen.slice(0, 4))).toBeNull();
+    expect(firstArrival([])).toBeNull();
+  });
+});
 
 describe("seenAt", () => {
-  // The car's own reading: TpmsLastSeenPressureTimeFl arrived 25 Oct 2026 at 10:06:15 PM IST saying
-  // 26 Oct, 10:36:14 AM IST, 12 h 30 min ahead.
-  const reading = { at: "2026-10-25T16:36:15Z", value: 1792991174 };
-  test("a time after the reading arrived is left out, even once it has passed", () => {
-    expect(seenAt(reading, Date.parse("2026-10-25T16:40:00Z"))).toBeNull();
-    expect(seenAt(reading, Date.parse("2026-10-26T09:00:00Z"))).toBeNull();
+  test("a time after the value first arrived is left out, even once it has passed", () => {
+    // Arrived 25 Oct 10:06:15 PM IST saying 26 Oct 10:36:14 AM; still wrong on the 26th at 2:30 PM.
+    expect(seenAt(1792991174, ist("2026-10-25T22:06:15"), Date.parse(ist("2026-10-26T14:30:00")))).toBeNull();
   });
-  test("a time before the reading arrived is kept", () => {
-    expect(seenAt({ at: "2026-10-25T16:36:15Z", value: Date.parse("2026-10-25T16:30:00Z") / 1000 }, Date.parse("2026-10-26T09:00:00Z"))).toBe("2026-10-25T16:30:00.000Z");
+  test("a re-send doesn't make it right: the 24 Oct 7:39 AM row of the 12:35 AM value", () => {
+    // Bounded by that row's own arrival it would pass; bounded by the value's first arrival it doesn't.
+    expect(seenAt(1792771517, ist("2026-10-24T07:39:50"), Date.parse(ist("2026-10-24T08:00:00")))).not.toBeNull();
+    expect(seenAt(1792771517, firstArrival([{ at: ist("2026-10-23T12:00:00"), value: 1 }, ...seen.slice(0, 3)]), Date.parse(ist("2026-10-24T08:00:00")))).toBeNull();
   });
-  test("on the car page, the tyre falls back to when its pressure arrived", () => {
-    const state = carNow({ TpmsPressureFl: { at: reading.at, value: 2.75 }, TpmsLastSeenPressureTimeFl: reading }, Date.parse("2026-10-26T09:00:00Z"));
-    expect(state.tyres.map((t) => [t.pressure, t.measuredAt, t.updatedAt])).toEqual([["40 psi", null, reading.at]]);
+  test("a time before the value first arrived is kept", () => {
+    expect(seenAt(Date.parse("2026-10-25T16:30:00Z") / 1000, "2026-10-25T16:36:15Z", Date.parse("2026-10-26T09:00:00Z"))).toBe("2026-10-25T16:30:00.000Z");
   });
-  test("no reading, no time", () => {
-    expect(seenAt(undefined, Date.now())).toBeNull();
+  test("no first arrival, no time", () => {
+    expect(seenAt(1792991174, null, Date.now())).toBeNull();
+  });
+  test("on the car page, a tyre with a wrong or unknown time falls back to when its pressure arrived", () => {
+    const stream = { TpmsPressureFl: { at: seen[7].at, value: 2.75 }, TpmsLastSeenPressureTimeFl: seen[7] };
+    const later = Date.parse(ist("2026-10-26T14:30:00"));
+    for (const arrivals of [{}, { TpmsLastSeenPressureTimeFl: firstArrival(seen) }] as Record<string, string | null>[])
+      expect(carNow(stream, later, null, arrivals).tyres.map((t) => [t.pressure, t.measuredAt, t.updatedAt])).toEqual([["40 psi", null, seen[7].at]]);
   });
 });
 
@@ -46,6 +75,8 @@ describe("carNow", () => {
         TpmsSoftWarnings: { at, value: { front_left: false, front_right: false, rear_left: true, rear_right: false } },
       },
       now,
+      null,
+      { TpmsLastSeenPressureTimeFl: at },
     );
     expect(state.rows).toEqual([
       ["Locked", "Yes"],

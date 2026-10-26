@@ -21,6 +21,7 @@ import { seasonMonths, seasonName } from "@/lib/seasons";
 import { invoicesBySession, istIso } from "./receipts";
 import { loadStreamSessions } from "./stream-charging";
 import { loadPrimaryVehicle, loadStream } from "./telemetry";
+import { loadTyreArrivals } from "./telemetry-window";
 
 // What the MCP connector's read tools return: the same loaders the pages use, shaped as plain JSON for an
 // AI. Times are IST ("2026-10-23T10:54:00+05:30"), energy in kWh, distance in km, money in ₹. Nothing is
@@ -129,8 +130,9 @@ export async function batteryStatus(owner: Owner) {
 export async function carNowStatus(owner: Owner) {
   const { vehicle, vin } = await car(owner);
   if (!vehicle || !vin) return { error: "No car on this account." };
-  const [stream, flags] = await Promise.all([loadStream(owner, vin, CAR_NOW_FIELDS), loadCarFlags(owner, vehicle.id)]);
-  const now = carNow(stream, Date.now(), flags.tyres);
+  const at = Date.now();
+  const [stream, flags, arrivals] = await Promise.all([loadStream(owner, vin, CAR_NOW_FIELDS), loadCarFlags(owner, vehicle.id), loadTyreArrivals(owner, vin, at)]);
+  const now = carNow(stream, at, flags.tyres, arrivals);
   return {
     last_update: now.since ? istIso(now.since) : null,
     state: Object.fromEntries(now.rows),

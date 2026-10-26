@@ -15,7 +15,7 @@ function vsBest<T>(weeks: T[], value: (w: T) => number, format: (n: number) => s
   const latest = weeks.at(-1);
   if (!latest) return null;
   const best = weeks.reduce((a, w) => (value(w) > value(a) ? w : a));
-  if (weeks.length < 2 || best === latest) return { now: format(value(latest)), note: weeks.length < 2 ? "Latest week's median" : "Latest week, the best on record" };
+  if (weeks.length < 2 || best === latest) return { now: format(value(latest)), note: weeks.length < 2 ? "Latest week" : "Latest week, the best on record" };
   const change = (value(latest) - value(best)) / value(best);
   return { now: format(value(latest)), note: `Latest week, ${(change * 100).toFixed(1)}% vs best week, ${format(value(best))}` };
 }
@@ -71,7 +71,7 @@ export function BatteryHealth({
       <Figures figures={figures} />
       <p className="text-xs text-faint">
         Usable capacity and range are compared with the best week Uplink has seen, not with a new pack: it only knows what the car has reported since you connected it.
-        {teslaPack && " Full pack, per Tesla, is the car's own figure, as it last sent it; Tesla may count the pack differently from Uplink's estimate."}
+        {teslaPack && " Full pack, per Tesla, is the car's own figure, as it last sent it. It includes the reserve the car keeps below 0%, which usable capacity leaves out, so it reads a few kWh higher."}
       </p>
     </section>
   );

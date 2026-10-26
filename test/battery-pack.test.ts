@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { weeklyFullRange } from "@/lib/charge-level";
-import { energyPoints, levelAt, MIN_SPAN, type Reading, usableKwh, weeklyUsable } from "@/lib/telemetry-derive";
+import { energyPoints, levelAt, MIN_POINTS, type Reading, usableKwh, weeklyUsable } from "@/lib/telemetry-derive";
 
 // An instant given as IST wall-clock time.
 const at = (local: string) => new Date(`${local}+05:30`).toISOString();
@@ -92,7 +92,8 @@ describe("energyPoints", () => {
 describe("usableKwh", () => {
   const points = together.map(([t, kwh, level]) => ({ at: at(t), kwh, level }));
   test("the slope of energy against level: the kWh from 0% to 100%", () => {
-    expect(usableKwh(points)!).toBeCloseTo(59.1, 0);
+    // With the still reading after the 25 Oct charge, 46% to 69%.
+    expect(usableKwh([...points, ...energyPoints(energy25, level25)])!).toBeCloseTo(59.1, 0);
   });
   test("energy ÷ level, the old figure, moved with how full the car was", () => {
     const ratio = (p: (typeof points)[number]) => p.kwh / (p.level / 100);
@@ -100,9 +101,33 @@ describe("usableKwh", () => {
     expect(ratio(points.at(-1)!)).toBeCloseTo(65.5, 1);
   });
   test("levels that span fewer than MIN_SPAN points give nothing", () => {
-    const close = points.filter((p) => p.level >= 61.14 - MIN_SPAN + 1);
-    expect(close.length).toBeGreaterThan(1);
-    expect(usableKwh(close)).toBeNull();
+    // 46% to 61%: 14.75 points.
+    expect(usableKwh(points)).toBeNull();
+  });
+  test("the week of 26 Oct 2026 so far, 13 readings over 11 points, gives nothing yet", () => {
+    // The car's values; the level readings after 07:49:58 are placed either side of each energy reading,
+    // as they came, but at rounded times.
+    const level26 = rows([
+      ["2026-10-26T07:09:00", 69.211], ["2026-10-26T07:14:12", 69.114], ["2026-10-26T07:19:12", 68.758], ["2026-10-26T07:19:58", 68.79],
+      ["2026-10-26T07:24:58", 67.493], ["2026-10-26T07:29:58", 66.65], ["2026-10-26T07:34:58", 65.905], ["2026-10-26T07:39:58", 64.543],
+      ["2026-10-26T07:44:58", 63.279], ["2026-10-26T07:49:58", 62.339], ["2026-10-26T08:00:58", 62.177], ["2026-10-26T08:24:58", 58.319],
+      ["2026-10-26T08:29:58", 58.222], ["2026-10-26T08:36:58", 58.06], ["2026-10-26T08:41:58", 58.027],
+    ]);
+    const energy26 = rows([
+      ["2026-10-26T07:09:00", 43.74], ["2026-10-26T07:14:12", 43.76], ["2026-10-26T07:19:12", 43.62], ["2026-10-26T07:19:58", 43.5],
+      ["2026-10-26T07:24:58", 42.88], ["2026-10-26T07:29:58", 42.38], ["2026-10-26T07:34:58", 41.88], ["2026-10-26T07:39:58", 41.12],
+      ["2026-10-26T07:44:58", 40.38], ["2026-10-26T07:49:58", 39.88], ["2026-10-26T07:58:11", 39.76], ["2026-10-26T08:27:23", 37.38],
+      ["2026-10-26T08:38:57", 37.26],
+    ]);
+    const week = energyPoints(energy26, level26);
+    expect(week.length).toBe(13);
+    expect(usableKwh(week)).toBeNull();
+    expect(weeklyUsable(week)).toEqual([]);
+  });
+  test("fewer than MIN_POINTS readings give nothing, however far apart", () => {
+    const few = [points[0], points.at(-1)!, { at: at("2026-10-25T22:05:52"), kwh: 43.88, level: 69.456 }];
+    expect(few.length).toBeLessThan(MIN_POINTS);
+    expect(usableKwh(few)).toBeNull();
   });
 });
 

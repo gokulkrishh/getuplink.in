@@ -1,4 +1,5 @@
 import { PRESENCE_FIELDS } from "@/lib/awake";
+import { TYRE_SEEN_FIELDS } from "@/lib/car-now";
 import { CHARGE_FIELDS } from "@/lib/charge-sessions";
 import { DRIVE_DAYS } from "@/lib/drives";
 
@@ -50,6 +51,7 @@ import { DRIVE_DAYS } from "@/lib/drives";
 //                                                       BrickVoltageMax, BrickVoltageMin; Odometer,       12 weeks
 //                                                       NominalFullPackEnergyKwh (also its latest)
 //   syncChargingCars (station-check.ts)                 charging fields                                   45 min
+//   loadTyreArrivals (telemetry-window.ts)              TpmsLastSeenPressureTime*                         14 d (TYRE_ARRIVAL_DAYS)
 //   loadStream (telemetry.ts; car, home, updates)       STREAM_FIELDS, CAR_NOW_FIELDS, UPDATE_FIELDS      latest
 //   baselineBefore (stream-charging.ts)                 BatteryLevel, EnergyRemaining, FastCharger*,      latest before a time
 //                                                       ChargingCableType, ModuleTempMax
@@ -77,6 +79,7 @@ export const READS: { by: string; fields: readonly string[]; window: Window }[] 
   { by: "loadDrivingExtras", fields: ["VehicleSpeed", "OutsideTemp", "Location", "LocatedAtHome", "LocatedAtWork", "LocatedAtFavorite"], window: DRIVE_DAYS },
   { by: "chargeLevel", fields: ["BatteryLevel", "DetailedChargeState"], window: 30 },
   { by: "loadPresence", fields: PRESENCE_FIELDS, window: 15 },
+  { by: "loadTyreArrivals", fields: TYRE_SEEN_FIELDS, window: 14 },
   { by: "loadLatestWeekPack", fields: ["EnergyRemaining", "BatteryLevel"], window: 14 },
   { by: "loadBatteryExtras", fields: ["ModuleTempMax", "InsideTemp", "OutsideTemp", "BrickVoltageMax", "BrickVoltageMin"], window: 7 },
   { by: "loadBatteryExtras", fields: ["Odometer", "NominalFullPackEnergyKwh"], window: 12 * 7 },

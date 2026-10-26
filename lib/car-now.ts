@@ -1,5 +1,6 @@
 import { psi } from "@/lib/car";
 import type { Stream } from "@/lib/telemetry";
+import type { Reading } from "@/lib/telemetry-derive";
 
 // The car's state right now, from each field's latest streamed reading, in plain words. Pure, so tested.
 
@@ -87,14 +88,30 @@ export function measuredAt(value: unknown, now: number): string | null {
   return Number.isFinite(ms) && ms >= Date.UTC(2015, 0, 1) && ms <= now + 5 * 60_000 ? new Date(ms).toISOString() : null;
 }
 
-// measuredAt for a TpmsLastSeenPressureTime* reading: a tyre can't have been measured after the reading
-// that says so arrived, so a time past it (plus the same 5 minutes of slack) is wrong and left out. This
-// car's are: every new value from 23 to 26 Oct 2026 came 12 h 30 min ahead of its own arrival (sent at
-// 8:35 AM IST saying 9:05 PM), so once that time passed it read as a measurement that never happened.
-export function seenAt(reading: { at: string; value: unknown } | undefined, now: number): string | null {
-  if (!reading) return null;
-  const arrived = Date.parse(reading.at);
-  return measuredAt(reading.value, Number.isFinite(arrived) ? Math.min(now, arrived) : now);
+// The fields that say when each tyre was measured.
+export const TYRE_SEEN_FIELDS = ["TpmsLastSeenPressureTimeFl", "TpmsLastSeenPressureTimeFr", "TpmsLastSeenPressureTimeRl", "TpmsLastSeenPressureTimeRr"];
+
+// When a field's current value first arrived: the earliest of its newest run of equal readings (oldest
+// first). The car sends TpmsLastSeenPressureTime* again, unchanged, each time it wakes (the 24 Oct 2026
+// 12:35 AM value came 11 times, the last at 9:07 PM on 25 Oct), so the newest reading's time says nothing.
+// Null when the run reaches back to the first reading given: it may have begun before them.
+export function firstArrival(readings: Reading[]): string | null {
+  const key = (r: Reading) => JSON.stringify(r.value);
+  const last = readings.at(-1);
+  if (!last) return null;
+  let k = readings.length - 1;
+  while (k > 0 && key(readings[k - 1]) === key(last)) k--;
+  return k > 0 ? readings[k].at : null;
+}
+
+// measuredAt for a TpmsLastSeenPressureTime* value that first arrived at `arrived` (see firstArrival): a
+// tyre can't have been measured after the reading that first said so, so a time past it (plus the same 5
+// minutes of slack) is wrong and left out. This car's are: every new value from 23 to 26 Oct 2026 came
+// 12 h 30 min ahead of its arrival (sent at 8:35 AM IST saying 9:05 PM), so once that time passed it read
+// as a measurement that never happened. Null when the first arrival isn't known.
+export function seenAt(value: unknown, arrived: string | null | undefined, now: number): string | null {
+  const ms = arrived ? Date.parse(arrived) : NaN;
+  return Number.isFinite(ms) ? measuredAt(value, Math.min(now, ms)) : null;
 }
 
 // The tyre warnings from the latest online check (vehicle_state's tpms_soft_warning_fl, ...), and when.
@@ -121,8 +138,9 @@ export type Tyre = {
 export type CarNow = { rows: [string, string][]; tyres: Tyre[]; tyreWarning: string | null; since: string | null };
 
 // `now` bounds the measured times. `checked` is the latest online check's warnings: whichever of it and
-// the streamed warnings is newer says which tyres are low.
-export function carNow(stream: Stream, now: number, checked: CheckedTyres | null = null): CarNow {
+// the streamed warnings is newer says which tyres are low. `arrivals` holds when each TYRE_SEEN_FIELDS
+// value first arrived (see firstArrival); a tyre without one has no measured time.
+export function carNow(stream: Stream, now: number, checked: CheckedTyres | null = null, arrivals: Record<string, string | null> = {}): CarNow {
   const v = (field: string) => stream[field]?.value;
   const windowsOpen = ["FdWindow", "FpWindow", "RdWindow", "RpWindow"].filter((f) => {
     const w = words(v(f));
@@ -175,7 +193,7 @@ export function carNow(stream: Stream, now: number, checked: CheckedTyres | null
       {
         name,
         pressure: value,
-        measuredAt: seenAt(stream[`TpmsLastSeenPressureTime${suffix}`], now),
+        measuredAt: seenAt(v(`TpmsLastSeenPressureTime${suffix}`), arrivals[`TpmsLastSeenPressureTime${suffix}`], now),
         updatedAt: reading.at,
         warning,
         alert: warning && `${name} is ${warning}`,
