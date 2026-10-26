@@ -68,6 +68,12 @@ async function fleetApi(method: string, url: URL, account: SandboxAccount): Prom
     );
     return Response.json({ response: { key_paired_vins: vins, unpaired_vins: [], vehicle_info: info } });
   }
+  // Sending the streaming config (the /setup branch): every car on the account takes it.
+  if (method === "POST" && path === "/api/1/vehicles/fleet_telemetry_config_jws") {
+    return Response.json({
+      response: { updated_vehicles: account.cars.length, skipped_vehicles: { missing_key: [], unsupported_hardware: [], unsupported_firmware: [], max_configs: [] } },
+    });
+  }
   const match = path.match(/^\/api\/1\/vehicles\/([^/]+)\/([a-z_]+)$/);
   const car = match && account.cars.find((c) => c.vin === match[1] || c.id === match[1]);
   if (!match || !car) return notFound(path);

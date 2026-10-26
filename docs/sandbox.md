@@ -12,7 +12,7 @@ Demo mode (`bun run demo`) is different. It skips the database and sign-in entir
 
 ```sh
 bun install
-bun run sandbox          # UPLINK_SANDBOX=1 next dev
+bun run sandbox          # UPLINK_SANDBOX=1 OSM_LOOKUPS=off next dev
 ```
 
 Open http://localhost:3000. Every page carries a yellow banner, "Local sandbox: fake Tesla, throwaway data". Its **Reset** button puts the database back to the seed.
@@ -26,7 +26,8 @@ Open http://localhost:3000. Every page carries a yellow banner, "Local sandbox: 
 
 - **It only starts locally.** It's on only when `NODE_ENV` is `development` (that is, `next dev`) and `UPLINK_SANDBOX=1` is set.
 - **It refuses production and Vercel.** If the flag is set in a production build or server, or anywhere `VERCEL` is set, `next.config.ts` and `instrumentation.ts` throw at startup.
-- **It never reads your real secrets.** It ignores `.env.local` for every secret it would use: `SUPABASE_URL` and the service role key, the Supabase access token, Tesla's client id and secret, `TOKEN_ENCRYPTION_KEY`, `CRON_SECRET` and `MAX_USERS`. It uses its own values instead (`lib/sandbox/flag.ts`, `SANDBOX_ENV`).
+- **It never reads your real Supabase, Tesla or encryption secrets.** It ignores `.env.local` for `SUPABASE_URL` and the service role key, the Supabase access token, Tesla's client id, secret and API base URL, `TOKEN_ENCRYPTION_KEY`, `MAX_USERS` and `SIGNUP_MODE`. It uses its own values instead (`lib/sandbox/flag.ts`, `SANDBOX_ENV`).
+  - The cron routes still check the real `CRON_SECRET`. They aren't part of the sandbox.
 - **It never makes a Supabase client.** `db()` hands out the in-memory database.
 - **It can't reach Tesla or Supabase.** While it runs, any `fetch` to `*.tesla.com` or `*.supabase.co`/`.com` throws. Place-name lookups (OSM) are off.
 - **Sessions don't cross over.** They are signed with the sandbox's own key, so a sandbox session is useless in the real app, and the other way round.
@@ -87,7 +88,7 @@ Back in the main window:
 13. **Suspend** Friend's 3. In window 1, reload: the friend is signed out (home page). Signing in again as **Friend with car** says "Not approved."
 14. Choose **Reset** in the banner. You land on `/home`. The owner is still signed in in the main window, the invites are gone, and the other windows are signed out.
 
-The `/setup` gate isn't covered: `/setup` isn't on `main` yet (it's on `worktree-agent-ae3ec5d1f4a8a543a`). The fake Tesla already answers `fleet_status` (every car key-paired) and `fleet_telemetry_config` (synced), so the gate can be added to this script once that branch merges.
+The `/setup` gate isn't covered: `/setup` isn't on `main` yet (it's on `worktree-agent-ae3ec5d1f4a8a543a`). The fake Tesla already answers the three calls that branch makes: `fleet_status` (every car key-paired), `fleet_telemetry_config` (synced) and `fleet_telemetry_config_jws` (every car takes the config). So the gate can be added to this script once that branch merges. Those answers are untested until then.
 
 ## What the sandbox covers
 
@@ -113,6 +114,7 @@ The check after sign-in runs against the fake Tesla. It records the car, a snaps
 - `vehicle_data`
 - `fleet_status`
 - `fleet_telemetry_config` (GET and DELETE)
+- `fleet_telemetry_config_jws` (POST)
 - `fleet_telemetry_errors`
 - `release_notes` (none)
 - `dx/charging/history` (empty)

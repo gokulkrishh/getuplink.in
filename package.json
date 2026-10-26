@@ -9,7 +9,7 @@
     "lint": "eslint",
     "test": "bun test",
     "demo": "UPLINK_DEMO=1 bun dev",
-    "sandbox": "UPLINK_SANDBOX=1 next dev"
+    "sandbox": "UPLINK_SANDBOX=1 OSM_LOOKUPS=off next dev"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

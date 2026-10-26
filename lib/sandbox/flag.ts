@@ -21,8 +21,9 @@ export function assertSandboxAllowed(env: Record<string, string | undefined> = p
 // verify outside the sandbox (or inside it, the real ones).
 const SANDBOX_KEY = "dXBsaW5rLWxvY2FsLXNhbmRib3gtbm90LXNlY3JldCE="; // "uplink-local-sandbox-not-secret!"
 
-// What the sandbox reads instead of the real environment. Every name here ignores .env.local: the real
-// Supabase URL and keys, Tesla's app secrets and the encryption key are never read. Undefined means unset.
+// What the sandbox reads instead of the real environment, for every setting read through envValue (env(),
+// missingEnv(), signupMode(), session signing, Costs' Supabase token): the real Supabase URL and keys,
+// Tesla's app secrets and the encryption key are never read. Undefined means unset.
 export const SANDBOX_ENV: Readonly<Record<string, string | undefined>> = {
   TESLA_CLIENT_ID: "sandbox-client",
   TESLA_CLIENT_SECRET: "sandbox-secret",
@@ -32,14 +33,11 @@ export const SANDBOX_ENV: Readonly<Record<string, string | undefined>> = {
   SUPABASE_SERVICE_ROLE_KEY: "sandbox-not-a-key",
   SUPABASE_ACCESS_TOKEN: undefined,
   TOKEN_ENCRYPTION_KEY: SANDBOX_KEY,
+  // missingEnv() asks for it; the cron routes themselves still check the real one.
   CRON_SECRET: "sandbox-cron",
   MAX_USERS: undefined,
   // Invite only, as Uplink ships; SANDBOX_SIGNUP_MODE tries another.
   SIGNUP_MODE: process.env.SANDBOX_SIGNUP_MODE || "invite",
-  OSM_LOOKUPS: "off",
-  GOOGLE_MAPS_API_KEY: undefined,
-  VERCEL_API_TOKEN: undefined,
-  FLY_API_TOKEN: undefined,
 };
 
 // process.env[name], or the sandbox's value for it while the sandbox is on.

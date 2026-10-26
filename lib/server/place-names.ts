@@ -1,6 +1,5 @@
 import "server-only";
 import { DEMO } from "@/lib/demo";
-import { envValue } from "@/lib/sandbox/flag";
 import { nominatimName } from "@/lib/place-suggestions";
 import { placeNamesFor, savePlaceName } from "./data/system";
 
@@ -13,7 +12,7 @@ const NEW_PER_CALL = 2;
 const key = (p: { lat: number; lng: number }) => `${p.lat.toFixed(3)},${p.lng.toFixed(3)}`;
 
 // OSM_LOOKUPS=off stops every call to Nominatim; the names already kept still show.
-export const osmLookupsOn = () => envValue("OSM_LOOKUPS")?.trim().toLowerCase() !== "off";
+export const osmLookupsOn = () => process.env.OSM_LOOKUPS?.trim().toLowerCase() !== "off";
 
 // "Uplink/1.0 (+https://getuplink.in; <contact>)": OSM_CONTACT is an email or URL the OSM operators can
 // reach. Without it the app's site stands in.

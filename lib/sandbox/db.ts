@@ -10,7 +10,7 @@ import { FakeDb, type Row } from "./fake-db";
 // shares one copy across module reloads. A restart or Reset (the banner) seeds it afresh.
 //
 // Seeded with one account: the owner (user 1, approved, admin) with a Model Y ending SBX001, connected,
-// with the demo generator's three months of history moved onto that VIN, so the dashboard has something to
+// with the last five weeks of the demo generator's history moved onto that VIN, so the dashboard has something to
 // draw. Everyone else arrives through sign-in.
 
 const DAY = 86_400_000;

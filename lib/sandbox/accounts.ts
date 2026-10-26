@@ -28,7 +28,7 @@ export const SANDBOX_ACCOUNTS: SandboxAccount[] = [
   {
     key: "owner",
     label: "Owner (admin)",
-    note: "Approved admin. Model Y ending SBX001, with three months of fake history.",
+    note: "Approved admin. Model Y ending SBX001, with five weeks of fake telemetry.",
     sub: "sandbox-owner",
     name: "Sandbox Owner",
     region: APAC_BASE,

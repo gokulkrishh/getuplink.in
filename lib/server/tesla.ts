@@ -35,6 +35,11 @@ import {
   WAITLIST,
 } from "./data/system";
 
+// Every Tesla request in this module leaves through this fetch: the global one, or while the local sandbox
+// runs (docs/sandbox.md) its fake Tesla (lib/sandbox/tesla.ts), which answers from made-up accounts so the
+// code below runs unchanged. Decided per request; always the global fetch in production.
+const fetch = (input: string, init: RequestInit): Promise<Response> => (sandboxOn() ? sandboxTesla(input, init) : globalThis.fetch(input, init));
+
 export const AUTHORIZE_URL = "https://auth.tesla.com/oauth2/v3/authorize";
 // The local sandbox's stand-in for Tesla's sign-in page (app/sandbox/tesla-login).
 export const SANDBOX_AUTHORIZE_PATH = "/sandbox/tesla-login";
@@ -71,16 +76,12 @@ export class NotConnectedError extends Error {
   }
 }
 
-// How every Tesla request leaves: fetch, or the local sandbox's fake Tesla (lib/sandbox/tesla.ts), which
-// answers from made-up accounts so the code below runs unchanged. Read per request; off in production.
-const send = (input: string, init: RequestInit): Promise<Response> => (sandboxOn() ? sandboxTesla(input, init) : fetch(input, init));
-
 // Every request Uplink sends the Fleet API goes through here, so each is counted (lib/server/usage.ts) under
 // its user, or UNATTRIBUTED before there is one. Tesla bills every answer below 500, so that's what counts,
 // once per attempt: a 401 and its retry are two. No answer (a network error) isn't billed or counted.
 async function teslaFetch(userId: number, path: string, init: { method?: string; token: string }): Promise<Response> {
   const method = init.method ?? "GET";
-  const res = await send(`${fleetApiBase()}${path}`, { method, headers: { Authorization: `Bearer ${init.token}` }, cache: "no-store" });
+  const res = await fetch(`${fleetApiBase()}${path}`, { method, headers: { Authorization: `Bearer ${init.token}` }, cache: "no-store" });
   if (isBillable(res.status)) await countRequest(userId, kindOf(method, path));
   return res;
 }
@@ -102,7 +103,7 @@ export function authorizeUrl(state: string): string {
 
 async function tokenRequest(params: Record<string, string>): Promise<TokenResponse> {
   if (DEMO) throw new Error("Tesla is off in demo mode");
-  const res = await send(TOKEN_URL, {
+  const res = await fetch(TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams(params),
