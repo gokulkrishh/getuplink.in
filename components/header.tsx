@@ -2,6 +2,7 @@ import Link from "next/link";
 import { cacheLife } from "next/cache";
 import { LogOut, Settings, ShieldCheck } from "lucide-react";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { logout } from "@/app/actions";
 import { AvatarBlob } from "@/components/avatar-blob";
@@ -65,6 +66,8 @@ async function AdminItem() {
 // Streams in behind its own Suspense, so the redirect is a client-side one once the shell is out.
 async function SetupGate() {
   if (DEMO) return null;
+  // Request time only: the session check reads the clock, which a prerender (or a runtime prefetch) may not.
+  await connection();
   const owner = await currentOwner();
   if (!owner) return null;
   const gate = await setupGate(owner, { admin: await adminSession() });

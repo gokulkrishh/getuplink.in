@@ -160,3 +160,4 @@ next-env.d.ts
 .claude/settings.local.json
 # Git worktrees Claude Code agents work in
 .claude/worktrees/
+.env*
