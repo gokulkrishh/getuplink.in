@@ -12,7 +12,8 @@ const DAY = 86_400_000;
 
 const KINDS: { kind: DayKind; label: string; className: string }[] = [
   { kind: "driving", label: "Driving", className: "bg-chart-accent" },
-  { kind: "charging", label: "Charging", className: "bg-positive" },
+  // The charging green of the map's pins and the charge level's bands.
+  { kind: "charging", label: "Charging", className: "bg-charge" },
   { kind: "parked", label: "Parked", className: "bg-muted-foreground/45" },
   { kind: "asleep", label: "Asleep", className: "bg-muted-foreground/20" },
   { kind: "unknown", label: "Before tracking", className: "border border-muted-foreground/25" },
@@ -69,7 +70,7 @@ export function DayTimeline({ days: all7, now, title = "Your days", caption }: {
                       style[s.kind].className,
                       active?.key === key && "ring-2 ring-foreground",
                     )}
-                    style={{ left: `${((s.start - d.start) / DAY) * 100}%`, width: `max(${((s.end - s.start) / DAY) * 100}%, 2px)` }}
+                    style={{ left: `${((s.start - d.start) / DAY) * 100}%`, width: `max(${((s.end - s.start) / DAY) * 100}%, 3px)` }}
                   />
                 );
               })}

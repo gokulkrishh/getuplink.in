@@ -4,7 +4,7 @@ import type { View } from "@/components/stats/periods";
 import { type Bill, billsBySlot, billsIn, energyBySlot, energyIn } from "@/lib/charging-figures";
 import { type Change, changeToPrevious, compareToPrevious } from "@/lib/dashboard-summary";
 import type { DrivingPeriod } from "@/lib/driving-figures";
-import { DECIMALS, formatDate, formatKm, formatKwh, formatMoney, formatNumber, formatShortDate, sumKnown } from "@/lib/format";
+import { DECIMALS, formatDate, formatKm, formatKwh, formatMoney, formatNumber, formatShortDate, showsZero, sumKnown } from "@/lib/format";
 import { fromTracking, type Slot, type Timeframe, trackingGap } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
@@ -156,7 +156,8 @@ export function Headline({
       value: whole === null ? null : known ? sumKnown(parts) : whole,
       spark: {
         kind: "bars",
-        values: shown,
+        // A slot whose tip reads "0.0 km" draws no bar (see showsZero).
+        values: shown.map((v) => (v !== null && showsZero(format(v)) ? 0 : v)),
         current: currentSlot < 0 ? -1 : currentSlot - skip,
         tips: shown.map((v, k) => (v === null ? null : { title: slotTitle(slots[k + skip]), value: format(v) })),
       },

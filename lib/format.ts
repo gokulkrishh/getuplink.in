@@ -106,6 +106,12 @@ export function formatNumber(value: number, decimals: number): string {
   return /^-0(\.0+)?$/.test(text) ? text.slice(1) : text;
 }
 
+// Whether a figure shows as zero at its unit's precision ("0.0", "₹0.00"). A chart draws no bar for it, so
+// the bar and its "0.0 km" label agree: 0.04 km is not a sliver over "0.0".
+export function showsZero(shown: string): boolean {
+  return !/[1-9]/.test(shown);
+}
+
 // "46.2 km", "1,23,400.5 km": distance driven, to one decimal.
 export function formatKm(value: number): string {
   return `${formatNumber(value, DECIMALS.km)} km`;

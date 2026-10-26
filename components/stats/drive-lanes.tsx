@@ -2,7 +2,8 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Measure } from "@/components/measure";
-import { formatClock } from "@/lib/format";
+import { withUnit } from "@/components/stats/bar-parts";
+import { formatClock, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type Point = { t: number; v: number };
@@ -105,7 +106,7 @@ export function DriveTrace({
   const near = at === null ? null : shown.reduce((a, p) => (Math.abs(p.t - at) < Math.abs(a.t - at) ? p : a));
   const hit = near && at !== null && Math.abs(near.t - at) <= (to - from) * 0.02 ? near : null;
   const cursor = hit?.t ?? at;
-  const value = (v: number) => `${v.toLocaleString("en-IN", { minimumFractionDigits: digits, maximumFractionDigits: digits })} ${unit}`;
+  const value = (v: number) => withUnit(formatNumber(v, digits), unit);
   const pick = (clientX: number) => {
     const rect = plot.current?.getBoundingClientRect();
     if (!rect || rect.width === 0) return;

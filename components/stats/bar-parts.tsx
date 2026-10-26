@@ -44,6 +44,26 @@ export function AxisLabel({ label, current, edge, first }: { label: string; curr
   );
 }
 
+// A column's value above its bar, with its unit ("46.2 km", "25%", "₹243.52") when every column's fits,
+// else the bare number, else nothing (the tip still has it): which shows is measured in the browser
+// (useValueLabels), starting hidden, so values never collide on a phone. Screen readers get the column's
+// sr-only text instead.
+export function ValueLabel({ display, unit }: { display: string; unit?: string }) {
+  const full = withUnit(display, unit);
+  return (
+    <span data-value-label aria-hidden="true" className="invisible relative h-4 font-mono text-xs whitespace-nowrap text-muted-foreground tabular-nums">
+      <span data-value="full">
+        <Measure text={full} />
+      </span>
+      {full !== display && (
+        <span data-value="bare" className="hidden">
+          {display}
+        </span>
+      )}
+    </span>
+  );
+}
+
 // The value of the column under the pointer or tapped (see TapColumns), like the version chart's tooltip. It overlays the top of
 // the column (so a scrolling strip can't clip it) and leans inwards at the edges. Screen readers get the
 // same values from each column's sr-only text.

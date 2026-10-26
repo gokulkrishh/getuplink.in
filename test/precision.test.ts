@@ -10,6 +10,7 @@ import {
   formatLevels,
   formatMoney,
   formatNumber,
+  showsZero,
   formatPercent,
   formatPower,
   formatRangeKm,
@@ -182,5 +183,19 @@ describe("monthlyRows", () => {
     const rows = monthlyRows([drive("2026-03-16T07:30:00", 30, 15, 2)], [], ist("2026-02-25T00:00:00"), now, days);
     expect(rows[0].km).toBeCloseTo(10 * MILES_TO_KM, 9);
     expect(rows[0].drivingMs).toBe(30 * 60_000);
+  });
+});
+
+describe("showsZero", () => {
+  test("a figure that rounds to zero at its precision draws no bar", () => {
+    expect(showsZero(formatNumber(0.04, DECIMALS.km))).toBe(true);
+    expect(showsZero(formatKm(0))).toBe(true);
+    expect(showsZero(formatMoney(0.004, "INR"))).toBe(true);
+    expect(showsZero(formatNumber(0, DECIMALS.percent))).toBe(true);
+  });
+  test("anything that shows a digit draws one", () => {
+    expect(showsZero(formatNumber(0.05, DECIMALS.km))).toBe(false);
+    expect(showsZero(formatKwh(10))).toBe(false);
+    expect(showsZero(formatMoney(243.52, "INR"))).toBe(false);
   });
 });

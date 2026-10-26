@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Measure } from "@/components/measure";
+import { formatKw, formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export type CurveSeries = { name: string; stroke: string; swatch: string; points: { x: number; y: number }[] };
@@ -95,7 +96,7 @@ export function DcCurvePlot({ series, band, label }: { series: CurveSeries[]; ba
     if (!rect || rect.width === 0) return;
     setAt(from + Math.max(0, Math.min(0.999, (clientX - rect.left) / rect.width)) * (to - from));
   };
-  const pct = (x: number) => `${Math.round(x)}%`;
+  const pct = (x: number) => formatPercent(x);
 
   return (
     <div className="space-y-3">
@@ -161,7 +162,7 @@ export function DcCurvePlot({ series, band, label }: { series: CurveSeries[]; ba
                       {drawn.length > 1 && <span className="text-muted-foreground">{s.name}</span>}
                       {p ? (
                         <span className="font-mono">
-                          <Measure text={`${axisNumber.format(p.y)} kW`} />
+                          <Measure text={formatKw(p.y)} />
                         </span>
                       ) : (
                         <span className="text-muted-foreground">No reading here</span>
