@@ -1,0 +1,11 @@
+{
+  "response": {
+    "updated_vehicles": 1,
+    "skipped_vehicles": {
+      "missing_key": ["TESTVIN0000UNPAIRED"],
+      "unsupported_hardware": [],
+      "unsupported_firmware": [],
+      "max_configs": []
+    }
+  }
+}

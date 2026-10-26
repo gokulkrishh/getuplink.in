@@ -7,7 +7,9 @@ import { currentOwner } from "./auth";
 import { demoData, demoFleet } from "./demo";
 import { missingEnv } from "./env";
 import { DEMO_OWNER, type Owner } from "./data/owner";
+import { carsNotStreaming, type WaitingCar } from "./data/setup";
 import { ADMIN_ROLE, adminTotals, userRole } from "./data/system";
+import { canSendConfig } from "./telemetry-config";
 import { COMPONENTS } from "./stream-health";
 import { accountKinds } from "./usage";
 
@@ -45,6 +47,10 @@ export type AdminPage = {
   // This month's estimated Fleet API cost across the developer account; Costs has what it's made of.
   // counted is false before the api_usage migration.
   api: { costUsd: number; counted: boolean };
+  // Cars that don't stream to Uplink yet (/setup's two steps), by user id: null before the car_setup
+  // migration. sendsConfig: whether Uplink sends the streaming config itself (its keys are set).
+  notStreaming: WaitingCar[] | null;
+  sendsConfig: boolean;
 };
 
 function spread(versions: (string | null)[]): Pick<AdminPage, "versions" | "noVersion"> {
@@ -90,10 +96,12 @@ export async function loadAdmin(now: number): Promise<AdminPage> {
       runs: { total: fleet.runs.length, failed: failed.length, lastFailedAt: failed[0]?.started_at ?? null },
       health: healthTotals(demoData().healthDaily, sinceDay),
       api,
+      notStreaming: [],
+      sendsConfig: true,
     };
   }
   const since = new Date(recent).toISOString();
-  const totals = await adminTotals(since, new Date(now - RECENT_DAYS * DAY).toISOString());
+  const [totals, notStreaming] = await Promise.all([adminTotals(since, new Date(now - RECENT_DAYS * DAY).toISOString()), carsNotStreaming()]);
   const cars = totals.cars;
   return {
     simulated: false,
@@ -104,5 +112,7 @@ export async function loadAdmin(now: number): Promise<AdminPage> {
     runs: { total: totals.runs, failed: totals.failed, lastFailedAt: totals.lastFailedAt },
     health: healthTotals(totals.health as DailyCheck[], sinceDay),
     api,
+    notStreaming,
+    sendsConfig: canSendConfig(),
   };
 }

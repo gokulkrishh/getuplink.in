@@ -54,7 +54,7 @@ export default async function Page() {
   const { runs, api } = data;
   return (
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
-      <Header />
+      <Header setup={false} />
       <div className="space-y-12">
         <header className="space-y-1">
           <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">Admin</h1>
@@ -85,6 +85,42 @@ export default async function Page() {
             ]}
           />
         </section>
+
+        <Group
+          title="Cars not streaming yet"
+          note={
+            data.notStreaming === null
+              ? "Shown once the car_setup migration is applied."
+              : data.sendsConfig
+                ? "Uplink sends each car its streaming config once the key is on."
+                : "Uplink can't send streaming configs: TESLA_PRIVATE_KEY_PEM or TELEMETRY_CA_PEM isn't set."
+          }
+        >
+          {!data.notStreaming || data.notStreaming.length === 0 ? (
+            <Item label={data.notStreaming ? "Every car streams" : "Not known yet"} value="—" muted />
+          ) : (
+            data.notStreaming.map((car, i) => (
+              <Item
+                key={`${car.userId}-${i}`}
+                label={`User ${car.userId}`}
+                value={
+                  car.keyPaired === false
+                    ? "No key yet"
+                    : car.keyPaired === null
+                      ? "Key not checked"
+                      : car.streaming === "pending"
+                        ? "Config sent, car not online yet"
+                        : car.streaming === "full"
+                          ? "No room for another app"
+                          : car.sentAt
+                            ? `Config sent ${formatDateTime(car.sentAt)}`
+                            : "Waiting for config"
+                }
+                muted
+              />
+            ))
+          )}
+        </Group>
 
         <Group title="Versions" note={data.noVersion > 0 ? `${data.noVersion} more not seen online yet.` : undefined}>
           {data.versions.length === 0 ? (

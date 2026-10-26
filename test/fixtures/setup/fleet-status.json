@@ -1,0 +1,22 @@
+{
+  "response": {
+    "key_paired_vins": ["TESTVIN00000PAIRED"],
+    "unpaired_vins": ["TESTVIN0000UNPAIRED"],
+    "vehicle_info": {
+      "TESTVIN00000PAIRED": {
+        "firmware_version": "2026.38.4",
+        "vehicle_command_protocol_required": true,
+        "discounted_device_data": false,
+        "fleet_telemetry_version": "1.2.0",
+        "total_number_of_keys": 6
+      },
+      "TESTVIN0000UNPAIRED": {
+        "firmware_version": "2026.32.10",
+        "vehicle_command_protocol_required": true,
+        "discounted_device_data": false,
+        "fleet_telemetry_version": "1.2.0",
+        "total_number_of_keys": 4
+      }
+    }
+  }
+}

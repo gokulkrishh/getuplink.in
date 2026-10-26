@@ -34,6 +34,7 @@ export const KINDS = [
   "release_notes",
   "telemetry_config",
   "telemetry_errors",
+  "fleet_status",
   "region",
   "wake",
   "command",
@@ -49,6 +50,7 @@ export const KIND_NAMES: Record<Kind, string> = {
   release_notes: "Release notes",
   telemetry_config: "Streaming config",
   telemetry_errors: "Streaming errors",
+  fleet_status: "Key checks",
   region: "Sign-up region checks",
   wake: "Wakes",
   command: "Commands",
@@ -65,6 +67,7 @@ export const CATEGORY_OF: Record<Kind, Category> = {
   release_notes: "data",
   telemetry_config: "data",
   telemetry_errors: "data",
+  fleet_status: "data",
   region: "data",
   wake: "wakes",
   command: "commands",
@@ -77,6 +80,9 @@ export function kindOf(method: string, path: string): Kind {
   if (/\/command\//.test(p)) return "command";
   if (p === "/api/1/vehicles") return "vehicle_list";
   if (p === "/api/1/users/region") return "region";
+  if (p === "/api/1/vehicles/fleet_status") return "fleet_status";
+  // Uplink's streaming config, signed by Uplink (lib/server/setup.ts).
+  if (p === "/api/1/vehicles/fleet_telemetry_config_jws") return "telemetry_config";
   if (p.startsWith("/api/1/dx/charging/history")) return "charging_history";
   if (p.startsWith("/api/1/dx/charging/invoice/")) return "charging_invoice";
   const vehicle = p.match(/^\/api\/1\/vehicles\/[^/]+\/([a-z_]+)$/);

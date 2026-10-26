@@ -76,6 +76,8 @@ describe("Uplink's kinds", () => {
     expect(kindOf("GET", "/api/1/vehicles/VINVIN/fleet_telemetry_config")).toBe("telemetry_config");
     expect(kindOf("DELETE", "/api/1/vehicles/VINVIN/fleet_telemetry_config")).toBe("telemetry_config");
     expect(kindOf("GET", "/api/1/vehicles/VINVIN/fleet_telemetry_errors")).toBe("telemetry_errors");
+    expect(kindOf("POST", "/api/1/vehicles/fleet_telemetry_config_jws")).toBe("telemetry_config");
+    expect(kindOf("POST", "/api/1/vehicles/fleet_status")).toBe("fleet_status");
     expect(kindOf("GET", "/api/1/users/region")).toBe("region");
     expect(kindOf("POST", "/api/1/vehicles/VINVIN/wake_up")).toBe("wake");
     expect(kindOf("POST", "/api/1/vehicles/VINVIN/command/honk_horn")).toBe("command");

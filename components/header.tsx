@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { cacheLife } from "next/cache";
 import { LogOut, ReceiptText, Settings, ShieldCheck, UserPlus } from "lucide-react";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { logout } from "@/app/actions";
 import { AvatarBlob } from "@/components/avatar-blob";
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { isAdmin } from "@/lib/server/admin";
 import { currentOwner } from "@/lib/server/auth";
+import { setupGate } from "@/lib/server/setup";
 import { DEMO } from "@/lib/demo";
 import { cn } from "@/lib/utils";
 
@@ -67,10 +69,32 @@ async function AdminItem() {
   );
 }
 
-// The same header on every signed-in page; `current` marks the page's own link. The Stats pages open from
-// the home page's sections and the car page from the car's name there, so they have none.
-export function Header({ current }: { current?: Section }) {
+// Sends an owner whose car lacks Uplink's key to /setup (lib/server/setup.ts setupGate). It reads the
+// stored answer, asking Tesla only when that's old; when Tesla's answer is missing it shows a note instead.
+// Streams in behind its own Suspense, so the redirect is a client-side one once the shell is out.
+async function SetupGate() {
+  if (DEMO) return null;
+  const owner = await currentOwner();
+  if (!owner) return null;
+  const gate = await setupGate(owner, { admin: await adminSession() });
+  if (gate === "setup") redirect("/setup");
+  if (gate === "pass") return null;
   return (
+    <p role="status" className="-mt-12 mb-12 border-l-2 pl-3 text-xs text-muted-foreground">
+      Uplink couldn&apos;t check your car&apos;s key with Tesla. It will try again.{" "}
+      <Link href="/setup" className="underline decoration-border underline-offset-4 hover:decoration-foreground">
+        Setup
+      </Link>
+    </p>
+  );
+}
+
+// The same header on every signed-in page; `current` marks the page's own link. The Stats pages open from
+// the home page's sections and the car page from the car's name there, so they have none. `setup={false}`
+// leaves out the setup gate: Settings (sign out, disconnect, delete), the admin pages and /setup itself.
+export function Header({ current, setup = true }: { current?: Section; setup?: boolean }) {
+  return (
+    <>
     <header className="mb-16 flex items-center justify-between gap-4 text-sm">
       <Link href="/" prefetch={true} className="flex shrink-0 items-center gap-2.5 font-medium">
         <Logo className="size-5" />
@@ -117,5 +141,11 @@ export function Header({ current }: { current?: Section }) {
         </DropdownMenu>
       </nav>
     </header>
+    {setup && (
+      <Suspense>
+        <SetupGate />
+      </Suspense>
+    )}
+    </>
   );
 }

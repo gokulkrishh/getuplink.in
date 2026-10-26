@@ -85,7 +85,7 @@ export default async function Page() {
   const full = isFull(data.used, data.max);
   return (
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
-      <Header />
+      <Header setup={false} />
       <div className="space-y-12">
         <header className="space-y-1">
           <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">Waitlist</h1>

@@ -1,0 +1,204 @@
+import "server-only";
+import { DEMO } from "@/lib/demo";
+import { messageOf } from "@/lib/errors";
+import {
+  type CarSetup,
+  type Gate,
+  gateFor,
+  keyStale,
+  parseConfigSent,
+  parseFleetStatus,
+  parseTelemetryConfig,
+  shouldSendConfig,
+  skipReason,
+  type Streaming,
+  streamingStale,
+} from "@/lib/setup-status";
+import type { Owner } from "./data/owner";
+import { carSetups, carsWithoutSetup, markConfigSent, saveKeyStatus, saveStreaming, SetupSchemaMissing } from "./data/setup";
+import { canSendConfig, signedTelemetryConfig } from "./telemetry-config";
+import { fleetGetBody, fleetPost, NotConnectedError } from "./tesla";
+
+// A new owner's setup (app/setup): Uplink's virtual key on each car, then each car streaming to Uplink.
+// Tesla is asked as rarely as the answers allow (lib/setup-status.ts has the intervals):
+//   the gate (components/header.tsx, every signed-in page) only reads what's stored, and asks Tesla's
+//     fleet_status, one request for all the owner's cars, when the stored answer is old;
+//   /setup, its "Check again" and the 6-hourly check also read each car's streaming config, and send it
+//     Uplink's config once the key is on and it has none.
+// Every request goes through lib/server/tesla.ts, so it is counted in api_usage.
+
+// Where answers are kept: the vehicles row, or nowhere before the migration.
+type Store = {
+  saveKey(vin: string, paired: boolean | null, at: string): Promise<void>;
+  saveStreaming(vin: string, streaming: Streaming | null, at: string): Promise<void>;
+  markSent(vin: string, at: string): Promise<void>;
+  persistent: boolean;
+};
+
+const rowStore = (owner: Owner): Store => ({
+  saveKey: (vin, paired, at) => saveKeyStatus(owner, vin, paired, at),
+  saveStreaming: (vin, streaming, at) => saveStreaming(owner, vin, streaming, at),
+  markSent: (vin, at) => markConfigSent(owner, vin, at),
+  persistent: true,
+});
+
+const NO_STORE: Store = { saveKey: async () => {}, saveStreaming: async () => {}, markSent: async () => {}, persistent: false };
+
+// The owner's cars and where their answers go.
+async function load(owner: Owner): Promise<{ cars: CarSetup[]; store: Store }> {
+  try {
+    return { cars: await carSetups(owner), store: rowStore(owner) };
+  } catch (err) {
+    if (!(err instanceof SetupSchemaMissing)) throw err;
+    return { cars: await carsWithoutSetup(owner), store: NO_STORE };
+  }
+}
+
+// Asks fleet_status about these cars. A Tesla error or an answer that doesn't name a car leaves it unknown
+// (null), stored with the time so it isn't asked again at once; unknown never gates.
+async function refreshKeys(owner: Owner, cars: CarSetup[], store: Store, now: number): Promise<void> {
+  if (cars.length === 0) return;
+  const at = new Date(now).toISOString();
+  let paired: Map<string, boolean | null>;
+  try {
+    paired = parseFleetStatus(await fleetPost(owner, "/api/1/vehicles/fleet_status", { vins: cars.map((c) => c.vin) }), cars.map((c) => c.vin));
+  } catch (err) {
+    if (err instanceof NotConnectedError) return;
+    console.warn("Checking Uplink's key with Tesla failed:", messageOf(err));
+    paired = new Map();
+  }
+  for (const car of cars) {
+    car.keyPaired = paired.get(car.vin) ?? null;
+    car.keyCheckedAt = at;
+    await store.saveKey(car.vin, car.keyPaired, at);
+  }
+}
+
+// Each car with the key: its streaming config, and Uplink's config sent when it has none.
+async function refreshStreaming(owner: Owner, cars: CarSetup[], store: Store, now: number): Promise<void> {
+  const at = new Date(now).toISOString();
+  await Promise.all(
+    cars
+      .filter((car) => car.keyPaired === true)
+      .map(async (car) => {
+        let streaming: Streaming | null = null;
+        try {
+          streaming = parseTelemetryConfig(await fleetGetBody(owner, `/api/1/vehicles/${encodeURIComponent(car.vin)}/fleet_telemetry_config`));
+        } catch (err) {
+          if (err instanceof NotConnectedError) return;
+          console.warn("Reading a car's streaming config failed:", messageOf(err));
+        }
+        car.streaming = streaming;
+        car.streamingCheckedAt = at;
+        await store.saveStreaming(car.vin, streaming, at);
+      }),
+  );
+  // Only where the send can be remembered: without the columns, every page view could send again.
+  if (!store.persistent || !canSendConfig()) return;
+  const due = cars.filter((car) => shouldSendConfig(car, now));
+  if (due.length === 0) return;
+  let body: ReturnType<typeof signedTelemetryConfig>;
+  try {
+    body = signedTelemetryConfig(due.map((c) => c.vin), now);
+  } catch (err) {
+    // Missing or mismatched keys: nothing reaches Tesla, and nothing is marked sent. The message names the
+    // env var at most, never key material.
+    console.warn("Signing the streaming config failed:", messageOf(err));
+    return;
+  }
+  // Marked before sending: a send that fails or times out still waits an hour before the next.
+  for (const car of due) {
+    car.configSentAt = at;
+    await store.markSent(car.vin, at);
+  }
+  try {
+    const answer = parseConfigSent(await fleetPost(owner, "/api/1/vehicles/fleet_telemetry_config_jws", body));
+    for (const car of due) {
+      const reason = answer ? skipReason(answer, car.vin) : null;
+      if (reason === "missing_key") {
+        car.keyPaired = false;
+        await store.saveKey(car.vin, false, at);
+      } else if (reason === "max_configs") {
+        car.streaming = "full";
+        await store.saveStreaming(car.vin, "full", at);
+      } else if (answer && !reason) {
+        // Taken: the car picks it up next time it's online.
+        car.streaming = "pending";
+        await store.saveStreaming(car.vin, "pending", at);
+      } else if (reason) {
+        console.warn(`Tesla didn't take a car's streaming config: ${reason}`);
+      }
+    }
+  } catch (err) {
+    // Tesla's answer carries no key, and the signed token isn't secret (vehicle-command's tesla-jws README).
+    console.warn("Sending the streaming config failed:", messageOf(err));
+  }
+}
+
+// One refresh of each kind per user at a time in this instance: the header's prefetches open several
+// pages at once, and each would otherwise ask Tesla the same thing.
+const inflight = new Map<string, Promise<unknown>>();
+
+function once<T>(key: string, work: () => Promise<T>): Promise<T> {
+  const current = inflight.get(key) as Promise<T> | undefined;
+  if (current) return current;
+  const promise = work().finally(() => inflight.delete(key));
+  inflight.set(key, promise);
+  return promise;
+}
+
+// Whether this signed-in page should send the owner to /setup. `admin`: the session is the admin's (the
+// owner, whose car streams already), who is never sent there. Never throws: a failure shows the page.
+export async function setupGate(owner: Owner, { admin = false, now = Date.now() }: { admin?: boolean; now?: number } = {}): Promise<Gate> {
+  if (DEMO || admin) return "pass";
+  try {
+    const cars = await once(`gate:${owner.userId}`, async () => {
+      const { cars, store } = await load(owner);
+      // Before the migration nothing can be kept, so nothing is asked and nobody is sent to /setup.
+      if (!store.persistent) return [];
+      await refreshKeys(owner, cars.filter((car) => keyStale(car, now)), store, now);
+      return cars;
+    });
+    return gateFor({ demo: false, admin: false, cars });
+  } catch (err) {
+    console.warn("Reading setup status failed:", messageOf(err));
+    return "pass";
+  }
+}
+
+export type SetupView = { cars: CarSetup[]; canSend: boolean; checkedAt: string | null };
+
+// Force: "Check again", at most every FORCE_MS per user so the button can't run up requests.
+const FORCE_MS = 30_000;
+
+// /setup: every car with both steps, asking Tesla what's old (or everything, when forced).
+export async function loadSetup(owner: Owner, { force = false, now = Date.now() }: { force?: boolean; now?: number } = {}): Promise<SetupView> {
+  const recent = (at: string | null) => at !== null && now - Date.parse(at) < FORCE_MS;
+  const cars = await once(`full:${owner.userId}`, async () => {
+    const { cars, store } = await load(owner);
+    // Before the migration nothing is stored, so every car is asked each time.
+    const due = (at: string | null, stale: boolean) => !store.persistent || (force ? !recent(at) : stale);
+    await refreshKeys(owner, cars.filter((car) => due(car.keyCheckedAt, keyStale(car, now))), store, now);
+    await refreshStreaming(owner, cars.filter((car) => due(car.streamingCheckedAt, streamingStale(car, now))), store, now);
+    return cars;
+  });
+  const times = cars.flatMap((c) => [c.keyCheckedAt, c.streamingCheckedAt]).filter((t): t is string => t !== null);
+  return { cars, canSend: canSendConfig(), checkedAt: times.sort().at(-1) ?? null };
+}
+
+// The 6-hourly check: whatever is old, so a car paired while nobody had /setup open still gets its config.
+// Never fails the check.
+export async function checkSetup(owner: Owner, now: number = Date.now()): Promise<void> {
+  if (DEMO) return;
+  try {
+    await once(`full:${owner.userId}`, async () => {
+      const { cars, store } = await load(owner);
+      if (!store.persistent) return cars;
+      await refreshKeys(owner, cars.filter((car) => keyStale(car, now)), store, now);
+      await refreshStreaming(owner, cars.filter((car) => streamingStale(car, now)), store, now);
+      return cars;
+    });
+  } catch (err) {
+    console.warn("Checking setup failed:", messageOf(err));
+  }
+}

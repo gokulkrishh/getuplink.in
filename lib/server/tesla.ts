@@ -60,9 +60,12 @@ export class NotConnectedError extends Error {
 // Every request Uplink sends the Fleet API goes through here, so each is counted (lib/server/usage.ts) under
 // its user, or UNATTRIBUTED before there is one. Tesla bills every answer below 500, so that's what counts,
 // once per attempt: a 401 and its retry are two. No answer (a network error) isn't billed or counted.
-async function teslaFetch(userId: number, path: string, init: { method?: string; token: string }): Promise<Response> {
+async function teslaFetch(userId: number, path: string, init: { method?: string; token: string; json?: unknown }): Promise<Response> {
   const method = init.method ?? "GET";
-  const res = await fetch(`${fleetApiBase()}${path}`, { method, headers: { Authorization: `Bearer ${init.token}` }, cache: "no-store" });
+  const headers: Record<string, string> = { Authorization: `Bearer ${init.token}` };
+  if (init.json !== undefined) headers["Content-Type"] = "application/json";
+  const body = init.json === undefined ? undefined : JSON.stringify(init.json);
+  const res = await fetch(`${fleetApiBase()}${path}`, { method, headers, body, cache: "no-store" });
   if (isBillable(res.status)) await countRequest(userId, kindOf(method, path));
   return res;
 }
@@ -414,12 +417,12 @@ async function accessToken(owner: Owner, forceRefresh = false): Promise<string> 
   return tokens.accessToken;
 }
 
-// GET against the Fleet API with the owner's token; retries once after a 401. Returns the raw
-// Response, so the caller must check `ok`.
-async function fleetFetch(owner: Owner, path: string): Promise<Response> {
+// A request to the Fleet API with the owner's token (a GET, or a POST with a JSON body); retries once
+// after a 401. Returns the raw Response, so the caller must check `ok`.
+async function fleetFetch(owner: Owner, path: string, post?: { json: unknown }): Promise<Response> {
   let token = await accessToken(owner);
   for (let attempt = 0; ; attempt++) {
-    const res = await teslaFetch(owner.userId, path, { token });
+    const res = await teslaFetch(owner.userId, path, post ? { token, method: "POST", json: post.json } : { token });
     if (res.status === 401 && attempt === 0) {
       token = await accessToken(owner, true);
       continue;
@@ -436,6 +439,24 @@ export async function fleetGet<T>(owner: Owner, path: string): Promise<T | null>
   }
   const body = (await res.json()) as { response?: T | null } | null;
   return body?.response ?? null;
+}
+
+// A POST with a JSON body, answered with JSON: the whole body, since some answers say more than `response`.
+export async function fleetPost(owner: Owner, path: string, json: unknown): Promise<unknown> {
+  const res = await fleetFetch(owner, path, { json });
+  if (!res.ok) {
+    throw new TeslaError(`POST ${path} failed (${res.status}): ${await res.text()}`, res.status);
+  }
+  return res.json();
+}
+
+// The same GET as fleetGet, but the whole body.
+export async function fleetGetBody(owner: Owner, path: string): Promise<unknown> {
+  const res = await fleetFetch(owner, path);
+  if (!res.ok) {
+    throw new TeslaError(`GET ${path} failed (${res.status}): ${await res.text()}`, res.status);
+  }
+  return res.json();
 }
 
 // For binary responses such as invoice PDFs: the body is not JSON, so the caller reads it.

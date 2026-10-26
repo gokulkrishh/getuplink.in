@@ -141,7 +141,7 @@ Checked in a throwaway PGlite (Postgres 17): every migration in order, with data
 
 ### Still open
 
-- A car's streaming config is still set by hand per VIN (`scripts/telemetry-config.mjs`). A second user's car streams only once someone sends its config.
+- A car's streaming config: `/setup` sends a new owner there until Uplink's key is on their car, and Uplink then sends the config itself, signed with the app's key (`lib/server/setup.ts`, `lib/tesla-jws.ts`). That needs `TESLA_PRIVATE_KEY_PEM` and `TELEMETRY_CA_PEM` set and the `20261103120000_car_setup.sql` migration applied; until then the config goes by hand (`scripts/telemetry-config.mjs`), and `/admin` lists the cars not streaming yet. A config is never renewed before its `exp` (360 days): resend by hand for now.
 - A seller keeps seeing a sold car's stream for up to 7 days, until the close is confirmed. Checks paused by the budget don't advance it.
 - The charging-session trigger (`check_vin_user`) can refuse a second user's first Supercharger sync for a shared car if it runs before their car row exists (the check runs both at once). The next check retries it.
 
@@ -157,7 +157,7 @@ Built here, not deployed. Prices, the credit, the reset rule and what's ambiguou
 
 **Apply it before deploying this code.** It is safe under the deployed code (checked in PGlite). The code also runs without it: it counts nothing (it logs once), every check is "normal", and the 15-minute cron checks everyone together only once the newest `poll_runs` row is 6 hours old, as today. But an instance that found the table missing stops counting until it restarts, so applying it after the deploy loses counts for a while.
 
-- **Counting:** every Fleet API request goes through `teslaFetch` in `lib/server/tesla.ts` and is counted under its user and kind (`lib/tesla-billing.ts` `kindOf`). That includes the vehicle list, vehicle_data, charging history, invoices, release notes, the streaming config (GET and DELETE) and errors, and the sign-up region check. Answers below 500 count, once per attempt, as Tesla bills them. A count that fails never fails the call. Uplink has no wake call, and a test checks the source for one.
+- **Counting:** every Fleet API request goes through `teslaFetch` in `lib/server/tesla.ts` and is counted under its user and kind (`lib/tesla-billing.ts` `kindOf`). That includes the vehicle list, vehicle_data, charging history, invoices, release notes, the streaming config (GET, DELETE, and the signed send from `/setup`, kind `telemetry_config`) and errors, the key check (`fleet_status`, kind `fleet_status`), and the sign-up region check. Answers below 500 count, once per attempt, as Tesla bills them. A count that fails never fails the call. Uplink has no wake call, and a test checks the source for one.
 - **Streaming signals:** counted once a day in the retention cron, before it prunes, from `telemetry_readings` rows per VIN per UTC day. The last 3 days are recounted and set each run. The Fly receiver is unchanged. Why this over a receiver counter: see `docs/tesla-billing.md`.
 - **Cron:** `vercel.json` polls every 15 minutes (`checkDue` in `lib/server/poll.ts`).
   - Each run takes up to 4 users who are due (`next_check_at` passed or unset, lock free), soonest first, one after another, and stops starting new ones after 40 s.

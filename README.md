@@ -43,7 +43,9 @@ Every variable is listed in [`.env.example`](.env.example). In Vercel: **Project
 | `TESLA_REDIRECT_URI` | `https://app.getuplink.in/api/auth/callback` (must match the Tesla app). |
 | `TESLA_FLEET_API_BASE_URL` | Optional. Defaults to the NA/APAC host above. |
 | `TESLA_PUBLIC_KEY_PEM` | From step 2. |
-| `TESLA_PRIVATE_KEY_PEM` | Not used: the app only reads data. Keep the private key offline; only add it if vehicle commands are added later. |
+| `TESLA_PRIVATE_KEY_PEM` | Optional, a secret: `keys/private-key.pem` from step 2. Signs each car's streaming config, which Uplink sends once the owner adds its key (`/setup`). It must match `TESLA_PUBLIC_KEY_PEM`, or nothing is sent. Never logged. Unset, `/setup` says Uplink will turn streaming on, and the config goes by hand (`scripts/telemetry-config.mjs`). Uplink sends no vehicle commands. |
+| `TELEMETRY_CA_PEM` | Optional: the receiver's CA certificate (`ca.crt`, see `fly/telemetry/README.md`), sent in each car's streaming config. Needed with `TESLA_PRIVATE_KEY_PEM`. |
+| `TELEMETRY_HOSTNAME` | Optional. The receiver's host in the streaming config. Default `telemetry.getuplink.in`. |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Server only. Never prefix with `NEXT_PUBLIC_`. |
 | `TOKEN_ENCRYPTION_KEY` | `openssl rand -base64 32` (must decode to 32 bytes). Also signs session cookies. Changing it signs you out and makes stored tokens unreadable: sign in with Tesla again afterwards. |
 | `CRON_SECRET` | `openssl rand -hex 32`. Vercel sends it to the cron route automatically. |

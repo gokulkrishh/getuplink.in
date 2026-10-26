@@ -1,0 +1,22 @@
+{
+  "synced": {
+    "response": {
+      "synced": true,
+      "config": { "hostname": "telemetry.example", "port": 443, "ca": "-----BEGIN CERTIFICATE-----", "exp": 1999999999, "fields": { "Soc": { "interval_seconds": 300 } } },
+      "limit_reached": false,
+      "key_paired": true
+    }
+  },
+  "pending": {
+    "response": {
+      "synced": false,
+      "config": { "hostname": "telemetry.example", "port": 443, "exp": 1999999999, "fields": {} },
+      "limit_reached": false,
+      "key_paired": true
+    }
+  },
+  "none": { "response": { "synced": false, "config": null, "limit_reached": false, "key_paired": true } },
+  "full": { "response": { "synced": false, "limit_reached": true, "key_paired": true } },
+  "empty": { "response": {} },
+  "null": { "response": null }
+}

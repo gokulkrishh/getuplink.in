@@ -3,6 +3,7 @@ import { DEMO } from "@/lib/demo";
 import { type Owner, ownerDb } from "./data/owner";
 import { accountOwners, closeStaleRuns, finishRun, startRun } from "./data/system";
 import { claimCheckNow, claimScheduledCheck, lastRunStartedAt, MissingSchema, releaseCheck, type Schedule, schedules } from "./data/usage";
+import { checkSetup } from "./setup";
 import { budgetState } from "./usage";
 import { CHECK_EVERY_MS } from "@/lib/tesla-billing";
 import { fleetGet, hasScope, LOCATION_SCOPE, NotConnectedError, TeslaError } from "./tesla";
@@ -427,5 +428,8 @@ async function pollOwner(owner: Owner, now: string, errors: string[]): Promise<n
   });
   // Again for a car seen for the first time, which had no vehicles row for the first sync to start from.
   await syncStreamVersionsSafely(owner, vins, { lockHeld: true });
+  // Uplink's key and streaming on each car, when the stored answer is old (/setup). After the cars are
+  // read, so a first sign-in's cars have rows; never fails the check.
+  await checkSetup(owner, Date.parse(now));
   return vehicles.length;
 }
