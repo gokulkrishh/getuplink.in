@@ -1,11 +1,11 @@
-import { Bars } from "@/components/stats/bars";
+import { type Bar, Bars } from "@/components/stats/bars";
 import { barsCaption, unitNotes } from "@/components/stats/chart-caption";
 import { Figures, Value } from "@/components/stats/figures";
 import { type DriveStats } from "@/lib/drive-stats";
 import { DRIVE_DAYS } from "@/lib/drives";
 import { formatDuration, formatKwh, formatShortDate } from "@/lib/format";
 import type { Frame } from "@/lib/frames";
-import { inSpan, type Timeframe } from "@/lib/periods";
+import { inSpan, type Slot, type Timeframe } from "@/lib/periods";
 import type { DayKm } from "@/lib/telemetry-derive";
 import { Measure } from "@/components/measure";
 
@@ -20,11 +20,9 @@ export function Distance({ frame, driving }: Frame) {
   if (!driving) return <Unread title="Distance" frame={frame} />;
   const { current, bars: values } = driving;
   // A period without driving still shows, at 0 km with a note in place of the chart, so picking Day before
-  // the first drive of the day doesn't leave a blank gap.
-  const bars = frame.slots.map((slot, k) => {
-    const value = values[k]?.km ?? 0;
-    return { key: String(slot.id), label: slot.label, value, display: compactNumber.format(value), isCurrent: slot.isCurrent };
-  });
+  // the first drive of the day doesn't leave a blank gap. A bar with no reading (before tracking began, or
+  // ahead of now) is blank, never 0 km; a tracked day without driving is a real 0.
+  const bars = frame.slots.map((slot, k) => knownBar(slot, values[k]?.km ?? null, compactNumber.format));
   return (
     <section className="space-y-8">
       <div className="space-y-2">
@@ -46,6 +44,12 @@ export function Distance({ frame, driving }: Frame) {
   );
 }
 
+// One bar from a slot's figure: blank when the figure is unknown (null) or the slot lies ahead of now.
+export function knownBar(slot: Slot, value: number | null, format: (n: number) => string): Bar {
+  const blank = slot.ahead || value === null;
+  return { key: String(slot.id), label: slot.label, value: blank ? 0 : value, display: blank ? "" : format(value), isCurrent: slot.isCurrent, blank };
+}
+
 function Unread({ title, frame }: { title: string; frame: Timeframe }) {
   return (
     <section className="space-y-2">
@@ -64,14 +68,9 @@ export function EnergyUse({ frame, driving }: Frame) {
   const used = current.kwh ?? (current.km ? null : 0);
   if (used === null) return null;
   const slots = frame.slots;
-  const bars = slots.map((slot, k) => {
-    const value = values[k]?.kwh ?? 0;
-    return { key: String(slot.id), label: slot.label, value, display: oneDecimal.format(value), isCurrent: slot.isCurrent };
-  });
-  const regenBars = slots.map((slot, k) => {
-    const value = values[k]?.regenKwh ?? 0;
-    return { key: String(slot.id), label: slot.label, value, display: kwhCompact.format(value), isCurrent: slot.isCurrent };
-  });
+  // Like the total: no figure with no driving is nothing used, with driving it is unknown and left blank.
+  const bars = slots.map((slot, k) => knownBar(slot, values[k]?.kwh ?? (values[k]?.km === 0 ? 0 : null), oneDecimal.format));
+  const regenBars = slots.map((slot, k) => knownBar(slot, values[k]?.regenKwh ?? null, kwhCompact.format));
   const regenTotal = current.regenKwh ?? 0;
   return (
     <section className="space-y-8">

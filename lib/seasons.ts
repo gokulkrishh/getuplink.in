@@ -52,6 +52,7 @@ export function seasonTimeframe(now: number): Timeframe {
     from: monthStart(first + k),
     to: monthStart(first + k + 1),
     isCurrent: first + k === cur,
+    ahead: false,
   }));
   return { span: { from: monthStart(first), to: Infinity }, previous: null, previousLabel: null, slots, slotName: "month", title: "Last four seasons", words: "in the last four seasons" };
 }

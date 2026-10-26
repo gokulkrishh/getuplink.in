@@ -8,7 +8,9 @@ import { ScrollEnd } from "@/components/stats/scroll-end";
 import { TapColumns } from "@/components/stats/tap-columns";
 import { cn } from "@/lib/utils";
 
-export type StackedBar = { key: string; label: string; total: number; display: string; isCurrent: boolean; segments: number[] };
+// `blank` draws the column empty with no tip (a slot ahead of now); without it, columns before the first
+// value are blank (before the history starts).
+export type StackedBar = { key: string; label: string; total: number; display: string; isCurrent: boolean; segments: number[]; blank?: boolean };
 export type StackedSeries = { label: string; className: string };
 
 const kwh = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
@@ -65,7 +67,7 @@ export function StackedBars({
     >
       {bars.map((b, k) => {
         const total = shownTotal(b);
-        if (k < first)
+        if (b.blank ?? k < first)
           return (
             <li key={b.key} aria-hidden="true" className="flex flex-col items-center gap-2">
               <span className="h-4" />

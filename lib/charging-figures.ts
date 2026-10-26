@@ -97,3 +97,14 @@ export function billsIn(bills: Bill[], span: Span) {
 export function billsBySlot(bills: Bill[], slots: Slot[]): number[] {
   return sumBySlot(bills, slots, (b) => Date.parse(b.started_at), (b) => b.cost);
 }
+
+// A list of charges added up, for one day: energy added, null when any charge has no figure (so a total
+// never leaves one out), and what the bills came to, with how many charges had no bill. Spend counts real
+// bills only, so a charge with none is counted apart, never as ₹0.
+export function chargeTotals(charges: { kwh: number | null; cost: number | null }[]): { kwh: number | null; cost: number; unbilled: number } {
+  return {
+    kwh: charges.some((c) => c.kwh === null) ? null : charges.reduce((sum, c) => sum + (c.kwh ?? 0), 0),
+    cost: charges.reduce((sum, c) => sum + (c.cost ?? 0), 0),
+    unbilled: charges.filter((c) => c.cost === null).length,
+  };
+}
