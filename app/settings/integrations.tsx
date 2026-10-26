@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { type ReactNode, useState, useTransition } from "react";
 import { CopyButton } from "@/components/copy-button";
 import { GrokBotIcon } from "@/components/icons/grok-bot";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -20,6 +20,20 @@ function Copyable({ label, value }: { label: string; value: string }) {
         <CopyButton text={value} />
       </div>
     </div>
+  );
+}
+
+// Steps or text for setting something up by hand, closed until opened.
+function ManualInstructions({ children }: { children: ReactNode }) {
+  return (
+    <details className="group border">
+      <summary className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
+        Manual instructions
+        <span className="text-sm text-muted-foreground group-open:hidden">Show</span>
+        <span className="hidden text-sm text-muted-foreground group-open:inline">Hide</span>
+      </summary>
+      <div className="space-y-2 border-t px-3 py-3">{children}</div>
+    </details>
   );
 }
 
@@ -47,14 +61,16 @@ export function McpConnector({ status, now }: { status: ConnectorTokenStatus; no
       control={<p className="text-sm text-muted-foreground">{tokenSummary(status, now)}</p>}
     >
       <div className="mt-4 space-y-4">
-        <ol className="list-decimal space-y-1.5 pl-5 text-sm text-muted-foreground">
-          <li>Create a token below. It&apos;s shown once, so keep this page open until it&apos;s saved in your AI.</li>
-          <li>In your AI, add a custom MCP connector (in Grok, open Connectors, then New connector, then Custom) with the URL below.</li>
-          <li>
-            For its authentication, choose a header or API key, and enter the token as <code className="font-mono text-xs">Authorization: Bearer &lt;token&gt;</code>. If it asks
-            only for an API key, paste the token alone.
-          </li>
-        </ol>
+        <ManualInstructions>
+          <ol className="list-decimal space-y-1.5 pl-5 text-sm text-muted-foreground">
+            <li>Create a token below. It&apos;s shown once, so keep this page open until it&apos;s saved in your AI.</li>
+            <li>In your AI, add a custom MCP connector (in Grok, open Connectors, then New connector, then Custom) with the URL below.</li>
+            <li>
+              For its authentication, choose a header or API key, and enter the token as <code className="font-mono text-xs">Authorization: Bearer &lt;token&gt;</code>. If it asks
+              only for an API key, paste the token alone.
+            </li>
+          </ol>
+        </ManualInstructions>
         <Copyable label="Connector URL" value={CONNECTOR_URL} />
         {token && (
           <div className="space-y-3">
@@ -107,19 +123,12 @@ export function BotTemplate() {
           {BOT_TEMPLATE_URL && "In Grok Bot, choose Add to Grok, then paste the connector token above. "}
           For any other bot, paste the manual instructions.
         </p>
-        <details className="group border">
-          <summary className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
-            Manual instructions
-            <span className="text-sm text-muted-foreground group-open:hidden">Show</span>
-            <span className="hidden text-sm text-muted-foreground group-open:inline">Hide</span>
-          </summary>
-          <div className="space-y-2 border-t px-3 py-3">
-            <pre className="text-sm leading-relaxed break-words whitespace-pre-wrap text-muted-foreground select-all">{BOT_INSTRUCTIONS}</pre>
-            <div className="flex justify-end">
-              <CopyButton text={BOT_INSTRUCTIONS} />
-            </div>
+        <ManualInstructions>
+          <pre className="text-sm leading-relaxed break-words whitespace-pre-wrap text-muted-foreground select-all">{BOT_INSTRUCTIONS}</pre>
+          <div className="flex justify-end">
+            <CopyButton text={BOT_INSTRUCTIONS} />
           </div>
-        </details>
+        </ManualInstructions>
       </div>
     </Row>
   );
