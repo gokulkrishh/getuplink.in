@@ -692,7 +692,7 @@ export function generateDemo(now: number): DemoData {
   const vehicle: Vehicle = {
     id: "1",
     vin: DEMO_VIN,
-    display_name: "Shadow",
+    display_name: "Demo car",
     last_state: "online",
     current_version: current.version,
     last_seen_at: polledAt,
