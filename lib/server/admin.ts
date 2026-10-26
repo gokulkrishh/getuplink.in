@@ -1,26 +1,33 @@
 import "server-only";
-import { isAdminAccount } from "@/lib/admin";
 import { DEMO } from "@/lib/demo";
 import { compareVersions } from "@/lib/rollout";
 import { istDay } from "@/lib/status";
 import { normaliseVersion } from "@/lib/versions";
 import { currentOwner } from "./auth";
 import { demoData, demoFleet } from "./demo";
-import { adminAccounts, missingEnv } from "./env";
-import { adminTotals } from "./data/system";
+import { missingEnv } from "./env";
+import { DEMO_OWNER, type Owner } from "./data/owner";
+import { ADMIN_ROLE, adminTotals, userRole } from "./data/system";
 import { COMPONENTS } from "./stream-health";
 
 const DAY = 86_400_000;
 export const RECENT_DAYS = 7;
 export const USAGE_DAYS = 30;
 
-// /admin is for the accounts in ADMIN_ACCOUNTS: admin means a current session whose account is listed (see
-// currentOwner). In demo mode the demo owner is an admin.
+// The admin is a role on the users row (users.role = 'admin', set by hand), never anything in code or env.
+// Admin means a current session (currentOwner: signed, not revoked, approved) whose user has that role,
+// read fresh from the database. Uncached: every admin action calls this again. In demo mode the demo
+// owner is an admin.
+export async function adminOwner(): Promise<Owner | null> {
+  if (DEMO) return DEMO_OWNER;
+  if (missingEnv().length) return null;
+  const owner = await currentOwner();
+  if (!owner) return null;
+  return (await userRole(owner.userId)) === ADMIN_ROLE ? owner : null;
+}
+
 export async function isAdmin(): Promise<boolean> {
-  if (DEMO) return true;
-  const allowed = adminAccounts();
-  if (!allowed.size || missingEnv().length) return false;
-  return isAdminAccount((await currentOwner())?.sub, allowed);
+  return (await adminOwner()) !== null;
 }
 
 export type AdminPage = {

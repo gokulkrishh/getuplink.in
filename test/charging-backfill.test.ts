@@ -26,14 +26,14 @@ globalThis.fetch = (async (input: string | URL | Request) => {
   return Response.json({ response: { data: items.slice((pageNo - 1) * size, pageNo * size) } });
 }) as typeof fetch;
 
-// charging_sessions, and an oauth_tokens row whose access token is good for hours.
+// charging_sessions, and a user_tokens row whose access token is good for hours.
 type Row = Record<string, unknown>;
 class Query {
   private filters: ((r: Row) => boolean)[] = [];
   private sortBy: string | null = null;
   constructor(private table: string) {}
   async maybeSingle() {
-    if (this.table !== "oauth_tokens") throw new Error(`Unexpected read of ${this.table}`);
+    if (this.table !== "user_tokens") throw new Error(`Unexpected read of ${this.table}`);
     return { data: { access_token_enc: "enc:token", refresh_token_enc: "enc:refresh", expires_at: new Date(Date.now() + 8 * 3_600_000).toISOString() }, error: null };
   }
   select() {
@@ -71,7 +71,7 @@ const realSetTimeout = globalThis.setTimeout;
 const { syncChargingHistory } = await import("@/lib/server/charging");
 
 const VIN = "5YJ3E7EB0RF000001";
-const OWNER = { sub: "owner" } as Owner;
+const OWNER = { userId: 1, sub: "owner" } as Owner;
 const ago = (days: number) => new Date(Date.now() - days * DAY).toISOString();
 const session = (id: number, daysAgo: number): Item => ({
   sessionId: id,

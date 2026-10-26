@@ -4,7 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { deleteEverything, disconnect, signOutEverywhereWithError } from "./actions";
+import { deleteEverything, deleteWholeAccount, disconnect, signOutEverywhereWithError } from "./actions";
 import { Row } from "./row";
 
 // Opening a confirm form moves focus into it; cancelling hands focus back to the button that opened it.
@@ -74,17 +74,38 @@ export function DisconnectTesla({ description }: { description: string }) {
   );
 }
 
-// Irreversible, so the person types "delete".
-export function DeleteMyData() {
+type DeleteAction = (state: string | null, form: FormData) => Promise<string | null>;
+
+// Irreversible, so the person types the confirm word.
+function ConfirmDelete({
+  id,
+  title,
+  description,
+  question,
+  consequence,
+  word,
+  submit,
+  deleteAction,
+}: {
+  id: string;
+  title: string;
+  description: string;
+  question: string;
+  consequence: React.ReactNode;
+  word: string;
+  submit: string;
+  deleteAction: DeleteAction;
+}) {
   const [asking, setAsking] = useState(false);
-  const [error, action] = useActionState(deleteEverything, null);
+  const [error, action] = useActionState(deleteAction, null);
   const trigger = useRef<HTMLButtonElement>(null);
   const input = useRef<HTMLInputElement>(null);
   useAskingFocus(asking, input, trigger);
+  const errorId = `${id}-error`;
   return (
     <Row
-      title="Delete my data"
-      description="Permanently deletes your vehicles, history, streamed readings, check logs and Tesla connection."
+      title={title}
+      description={description}
       control={
         !asking ? (
           <Button ref={trigger} type="button" variant="destructive" size="lg" onClick={() => setAsking(true)}>
@@ -95,24 +116,20 @@ export function DeleteMyData() {
     >
       {asking && (
         <form action={action} className="mt-4 space-y-3 border-l-2 border-destructive pl-4 text-sm">
-          <p className="font-medium">Delete all your data?</p>
-          <p className="text-muted-foreground">
-            This permanently deletes your vehicles, history, streamed readings, check logs and Tesla connection, stops your
-            car streaming to Uplink and signs you out on every device. It can&apos;t be undone. You stay the owner: only
-            your Tesla account can sign in again. Then remove Uplink&apos;s key in your car&apos;s Locks settings.
-          </p>
+          <p className="font-medium">{question}</p>
+          <p className="text-muted-foreground">{consequence}</p>
           <label className="block space-y-1.5">
-            <span className="block text-sm text-muted-foreground">Type delete to confirm</span>
-            <Input ref={input} name="confirm" autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="delete" className="h-9 max-sm:h-10 max-w-48" aria-invalid={error ? true : undefined} aria-describedby={error ? "delete-error" : undefined} />
+            <span className="block text-sm text-muted-foreground">Type {word} to confirm</span>
+            <Input ref={input} name="confirm" autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder={word} className="h-9 max-sm:h-10 max-w-48" aria-invalid={error ? true : undefined} aria-describedby={error ? errorId : undefined} />
           </label>
           {error && (
-            <p id="delete-error" role="alert" className="text-sm text-destructive">
+            <p id={errorId} role="alert" className="text-sm text-destructive">
               {error}
             </p>
           )}
           {/* Right-aligned with the action last; reversed so it stays first in tab order and gets focus on open. */}
           <div className="flex flex-row-reverse gap-2 pt-1">
-            <Submit pendingLabel="Deleting…">Delete my data</Submit>
+            <Submit pendingLabel="Deleting…">{submit}</Submit>
             <Button type="button" variant="ghost" size="lg" onClick={() => setAsking(false)}>
               Cancel
             </Button>
@@ -120,6 +137,48 @@ export function DeleteMyData() {
         </form>
       )}
     </Row>
+  );
+}
+
+export function DeleteMyData() {
+  return (
+    <ConfirmDelete
+      id="delete"
+      title="Delete my data"
+      description="Permanently deletes your vehicles, history, streamed readings, check logs and Tesla connection."
+      question="Delete all your data?"
+      consequence={
+        <>
+          This permanently deletes your vehicles, history, streamed readings, check logs and Tesla connection, stops your
+          car streaming to Uplink and signs you out on every device. It can&apos;t be undone. Your Uplink account stays,
+          so you can sign in with Tesla again. Then remove Uplink&apos;s key in your car&apos;s Locks settings.
+        </>
+      }
+      word="delete"
+      submit="Delete my data"
+      deleteAction={deleteEverything}
+    />
+  );
+}
+
+export function DeleteAccount() {
+  return (
+    <ConfirmDelete
+      id="delete-account"
+      title="Delete account"
+      description="Deletes all your data and your Uplink account."
+      question="Delete your Uplink account?"
+      consequence={
+        <>
+          This deletes all your data, as Delete my data does, and then your Uplink account. It can&apos;t be undone. Sign-up
+          is closed, so you can&apos;t sign in again unless you&apos;re invited back. Then remove Uplink&apos;s key in your
+          car&apos;s Locks settings.
+        </>
+      }
+      word="delete account"
+      submit="Delete account"
+      deleteAction={deleteWholeAccount}
+    />
   );
 }
 

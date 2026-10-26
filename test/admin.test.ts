@@ -1,24 +1,46 @@
 import { describe, expect, test } from "bun:test";
-import { isAdminAccount, parseAdminAccounts } from "@/lib/admin";
+import { DECISIONS, isDecision, isFull, parseMaxUsers, placesLine } from "@/lib/admin";
 
-describe("parseAdminAccounts", () => {
-  test("splits on commas and trims", () => {
-    expect([...parseAdminAccounts(" abc-123 , def-456,")]).toEqual(["abc-123", "def-456"]);
+describe("parseMaxUsers", () => {
+  test("defaults to 25 when unset or not a positive whole number", () => {
+    for (const value of [undefined, "", " ", "0", "-3", "2.5", "lots"]) expect(parseMaxUsers(value)).toBe(25);
   });
-  test("unset or blank is nobody", () => {
-    expect(parseAdminAccounts(undefined).size).toBe(0);
-    expect(parseAdminAccounts(" , ").size).toBe(0);
+
+  test("reads a positive whole number", () => {
+    expect(parseMaxUsers(" 40 ")).toBe(40);
   });
 });
 
-describe("isAdminAccount", () => {
-  const allowed = parseAdminAccounts("abc-123");
-  test("only a listed account", () => {
-    expect(isAdminAccount("abc-123", allowed)).toBe(true);
-    expect(isAdminAccount("abc-1234", allowed)).toBe(false);
+describe("decisions", () => {
+  test("approve and restore take a place, the rest don't", () => {
+    expect(Object.entries(DECISIONS).filter(([, d]) => d.takesPlace).map(([k]) => k)).toEqual(["approve", "restore"]);
   });
-  test("no owner yet is nobody", () => {
-    expect(isAdminAccount(null, allowed)).toBe(false);
-    expect(isAdminAccount("", parseAdminAccounts(""))).toBe(false);
+
+  test("each moves from the state it belongs to", () => {
+    expect(DECISIONS.approve).toMatchObject({ from: ["waitlist"], to: "approved" });
+    expect(DECISIONS.decline).toMatchObject({ from: ["waitlist"], to: "declined" });
+    expect(DECISIONS.suspend).toMatchObject({ from: ["approved"], to: "suspended" });
+    expect(DECISIONS.restore).toMatchObject({ from: ["suspended"], to: "approved" });
+    expect(DECISIONS.reopen).toMatchObject({ from: ["declined"], to: "waitlist" });
+  });
+
+  test("only known decisions pass", () => {
+    expect(isDecision("approve")).toBe(true);
+    expect(isDecision("toString")).toBe(false);
+    expect(isDecision("delete")).toBe(false);
+    expect(isDecision(undefined)).toBe(false);
+  });
+});
+
+describe("the cap", () => {
+  test("is full at the cap", () => {
+    expect(isFull(24, 25)).toBe(false);
+    expect(isFull(25, 25)).toBe(true);
+    expect(isFull(26, 25)).toBe(true);
+  });
+
+  test("reads as places used", () => {
+    expect(placesLine(12, 25)).toBe("12 of 25 places used");
+    expect(placesLine(1, 1)).toBe("1 of 1 place used");
   });
 });

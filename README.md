@@ -14,7 +14,7 @@ Stack: Bun, Next.js 16 (App Router), shadcn/ui, Geist, Recharts, Supabase Postgr
 
 | Path | Purpose |
 | --- | --- |
-| `/login` → `/api/auth/connect` → `/api/auth/callback` | **Sign in with Tesla** is both the dashboard login and the data connection (authorization code + `state` cookie). The first Tesla account to sign in becomes the owner (its `id_token` `sub` is stored); any other account is refused. Sign-in sets a signed, httpOnly 30-day session cookie, and `proxy.ts` guards everything else. Tokens are stored AES-256-GCM encrypted in Supabase and refreshed automatically (access tokens last ~8 h, refresh tokens rotate). |
+| `/login` → `/api/auth/connect` → `/api/auth/callback` | **Sign in with Tesla** is both the dashboard login and the data connection (authorization code + `state` cookie). Only a Tesla account with an approved `users` row signs in (matched on its `id_token` `sub`). With `SIGNUP_MODE=waitlist` an unknown account joins the waitlist instead (its `sub` and the time, no tokens) and lands on `/waitlist`; declined and suspended accounts are told "Not approved." Sign-in sets a signed, httpOnly 30-day session cookie, and `proxy.ts` guards everything else. Tokens are stored AES-256-GCM encrypted in Supabase and refreshed automatically (access tokens last ~8 h, refresh tokens rotate). |
 | `/api/cron/poll` | Called by Vercel Cron with `Authorization: Bearer $CRON_SECRET`. Lists vehicles, fetches `vehicle_state` only for online cars, writes a snapshot per vehicle and a `version_history` row when the version changes. |
 | `/api/cron/stations` | Every 15 minutes, same `CRON_SECRET`. Names the charging station of a streamed session in progress or just ended (see Charging station names). With no such session it makes no Tesla call. |
 | `/.well-known/appspecific/com.tesla.3p.public-key.pem` | Serves `TESLA_PUBLIC_KEY_PEM` (rewritten to `/api/public-key`). |
@@ -23,7 +23,9 @@ Stack: Bun, Next.js 16 (App Router), shadcn/ui, Geist, Recharts, Supabase Postgr
 | `/stats/charging`, `/stats/driving`, `/stats/battery` | One topic each, in depth: every session, drive and chart. The period carries over in `?period=`. Old `/stats?view=…` links redirect here (update stats to `/updates`). |
 | `/car`, `/settings` | The car's details and battery health; theme, importing past updates and the account. |
 | `/rollout` | India rollout tracker, pooled across every car: versions on Indian cars, when the first got each, cars on each now and the lag behind the global release (from a hand-kept list in `lib/rollout.ts`). Totals only, with a state map of where each version runs. |
-| `/admin` | For `ADMIN_ACCOUNTS` only (404 for anyone else): owners, cars, version spread, failed checks and health checks. Tesla API usage and cost aren't tracked yet. |
+| `/admin` | For the admin only (`users.role = 'admin'`; 404 for anyone else): owners, cars, version spread, failed checks and health checks. Tesla API usage and cost aren't tracked yet. |
+| `/admin/waitlist` | For the admin only: requests waiting, oldest first, with Approve and Decline; approved, suspended and declined accounts with Suspend and Restore. Approve and Restore are refused past `MAX_USERS`. |
+| `/waitlist` | Public: "You're on the waitlist. Sign in again later to check." |
 
 The dashboard also has a **Check now** button that runs the same poll.
 
@@ -47,7 +49,10 @@ Every variable is listed in [`.env.example`](.env.example). In Vercel: **Project
 | `CRON_SECRET` | `openssl rand -hex 32`. Vercel sends it to the cron route automatically. |
 | `HEALTH_TOKEN` | Optional. `openssl rand -hex 32`. Bearer token for `GET /api/health/stream`, the streaming health check an external bot polls. Unset, the route answers 503. |
 | `TESLA_LOCATION_SCOPE` | Optional. `1` asks Tesla for `vehicle_location` at sign-in, so the 6-hourly check can work out the car's home state (only the state is kept). Enable Vehicle Location in the Tesla developer app first, then sign in again. Unset: the state comes from Supercharger history. |
-| `ADMIN_ACCOUNTS` | Optional. Comma-separated Tesla account ids that can open `/admin` (totals across every owner). The id is the `sub` Tesla's sign-in returns, stored after your first sign-in: `select owner_sub from oauth_tokens;` in the Supabase SQL editor. Unset, `/admin` is a 404 for everyone. Demo mode always shows it. |
+| `SIGNUP_MODE` | Optional. `closed` (default): only approved accounts sign in. `waitlist`: an unknown Tesla account in Tesla's NA/APAC region joins the waitlist. `open` acts as `waitlist` for now. |
+| `MAX_USERS` | Optional. How many accounts can be approved at once, the admin included. Default 25. |
+
+The admin isn't an env var: it's `users.role`. Set it once in the Supabase SQL editor: `update users set role = 'admin' where tesla_sub = '<tesla sub>';`. Demo mode always shows `/admin`.
 
 For local scripts, put the same values in `.env.local` (gitignored), e.g. `vercel env pull .env.local`.
 

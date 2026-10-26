@@ -1,0 +1,169 @@
+// A database of plain rows per table, behind enough of supabase-js's query builder for lib/server/data:
+// select, insert, upsert (on a conflict key, optionally ignoring duplicates), update and delete, with the
+// filters the data layer uses. Each query awaits a tick, so concurrent requests interleave as they would
+// against PostgREST. Every query is recorded with its table, operation and filters.
+
+export type Row = Record<string, unknown>;
+export type Call = { table: string; op: string; filters: string[] };
+
+export class FakeDb {
+  tables: Record<string, Row[]> = {};
+  calls: Call[] = [];
+  removedFiles: string[] = [];
+  rpcs: { fn: string; args: Record<string, unknown> }[] = [];
+  clients = 0;
+
+  constructor(tables: Record<string, Row[]> = {}) {
+    this.tables = tables;
+  }
+
+  client() {
+    this.clients++;
+    return {
+      from: (table: string) => new FakeQuery(this, table),
+      rpc: async (fn: string, args: Record<string, unknown>) => (this.rpcs.push({ fn, args }), { data: [], error: null }),
+      storage: { from: () => ({ remove: async (paths: string[]) => (this.removedFiles.push(...paths), { data: null, error: null }) }) },
+    };
+  }
+
+  rows(table: string): Row[] {
+    return (this.tables[table] ??= []);
+  }
+}
+
+const tick = () => new Promise((resolve) => setTimeout(resolve, 1));
+
+type Filter = [string, (r: Row) => boolean];
+
+class FakeQuery {
+  private op = "select";
+  private patch: Row | null = null;
+  private values: Row[] = [];
+  private conflict: string[] | null = null;
+  private ignoreDuplicates = false;
+  private filters: Filter[] = [];
+  private max: number | null = null;
+  private sort: { column: string; ascending: boolean } | null = null;
+  constructor(
+    private db: FakeDb,
+    private table: string,
+  ) {}
+  select() {
+    return this;
+  }
+  insert(rows: Row | Row[]) {
+    this.op = "insert";
+    this.values = Array.isArray(rows) ? rows : [rows];
+    return this;
+  }
+  upsert(rows: Row | Row[], options?: { onConflict?: string; ignoreDuplicates?: boolean }) {
+    this.op = "upsert";
+    this.values = Array.isArray(rows) ? rows : [rows];
+    this.conflict = options?.onConflict?.split(",") ?? null;
+    this.ignoreDuplicates = Boolean(options?.ignoreDuplicates);
+    return this;
+  }
+  update(patch: Row) {
+    this.op = "update";
+    this.patch = patch;
+    return this;
+  }
+  delete() {
+    this.op = "delete";
+    return this;
+  }
+  eq(column: string, value: unknown) {
+    this.filters.push([`${column} = ${value}`, (r) => r[column] === value]);
+    return this;
+  }
+  // A missing column reads as not equal, like a column default other than the value.
+  neq(column: string, value: unknown) {
+    this.filters.push([`${column} <> ${value}`, (r) => r[column] !== value]);
+    return this;
+  }
+  in(column: string, values: unknown[]) {
+    this.filters.push([`${column} in (${values.join(",")})`, (r) => values.includes(r[column])]);
+    return this;
+  }
+  is(column: string, value: null) {
+    if (value !== null) throw new Error(`Unexpected is(${column})`);
+    this.filters.push([`${column} is null`, (r) => r[column] === null || r[column] === undefined]);
+    return this;
+  }
+  not(column: string, op: string, value: unknown) {
+    if (op !== "is" || value !== null) throw new Error(`Unexpected not(${column}, ${op})`);
+    this.filters.push([`${column} is not null`, (r) => r[column] !== null && r[column] !== undefined]);
+    return this;
+  }
+  // "a.is.null,a.lt.<iso>": the lease checks.
+  or(expression: string) {
+    const parts = expression.split(",").map((part) => {
+      const [column, op, ...rest] = part.split(".");
+      const value = rest.join(".");
+      if (op === "is" && value === "null") return (r: Row) => r[column] === null || r[column] === undefined;
+      if (op === "lt") return (r: Row) => typeof r[column] === "string" && Date.parse(r[column] as string) < Date.parse(value);
+      throw new Error(`Unexpected or(${part})`);
+    });
+    this.filters.push([`(${expression})`, (r) => parts.some((p) => p(r))]);
+    return this;
+  }
+  order(column?: string, options?: { ascending?: boolean }) {
+    if (column) this.sort = { column, ascending: options?.ascending !== false };
+    return this;
+  }
+  range() {
+    return this;
+  }
+  limit(n: number) {
+    this.max = n;
+    return this;
+  }
+  private async run(): Promise<{ data: Row[]; error: null }> {
+    await tick();
+    this.db.calls.push({ table: this.table, op: this.op, filters: this.filters.map(([d]) => d) });
+    const all = this.db.rows(this.table);
+    const hit = (r: Row) => this.filters.every(([, f]) => f(r));
+    if (this.op === "insert") {
+      const added = this.values.map((v) => ({ ...v }));
+      all.push(...added);
+      return { data: added, error: null };
+    }
+    if (this.op === "upsert") {
+      const out: Row[] = [];
+      for (const value of this.values) {
+        const existing = this.conflict ? all.find((r) => this.conflict!.every((c) => r[c] === value[c])) : undefined;
+        if (existing) {
+          if (!this.ignoreDuplicates) Object.assign(existing, value);
+          if (!this.ignoreDuplicates) out.push({ ...existing });
+        } else {
+          const added = { ...value };
+          all.push(added);
+          out.push({ ...added });
+        }
+      }
+      return { data: out, error: null };
+    }
+    let matched = all.filter(hit);
+    if (this.sort) {
+      const { column, ascending } = this.sort;
+      // Numbers and ISO times both compare in order with < and >.
+      const key = (r: Row) => r[column] as number | string;
+      matched = [...matched].sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0) * (ascending ? 1 : -1));
+    }
+    if (this.max !== null) matched = matched.slice(0, this.max);
+    if (this.op === "delete") this.db.tables[this.table] = all.filter((r) => !matched.includes(r));
+    if (this.op === "update") for (const r of matched) Object.assign(r, this.patch);
+    return { data: matched.map((r) => ({ ...r })), error: null };
+  }
+  async maybeSingle() {
+    const { data } = await this.run();
+    return { data: data[0] ?? null, error: null };
+  }
+  async single() {
+    const { data } = await this.run();
+    return { data: data[0] ?? null, error: data[0] ? null : { message: "No row", code: "PGRST116" } };
+  }
+  then<T>(resolve: (value: { data: Row[]; error: null; count?: number }) => T, reject?: (err: unknown) => T) {
+    return this.run().then((result) => resolve({ ...result, count: result.data.length }), reject);
+  }
+}

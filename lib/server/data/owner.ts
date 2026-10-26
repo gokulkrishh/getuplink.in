@@ -8,19 +8,19 @@ import { db } from "@/lib/server/supabase";
 
 declare const OWNER: unique symbol;
 
-// The signed-in account a read or write is for. Plain data, since it crosses "use cache: private"
-// scopes; the brand is type-only, so only lib/server/auth.ts and ./system.ts make one (with asOwner).
-// The Tesla account id (id_token `sub`) is the identity until the users table (step 2) adds a user id.
-export type Owner = { readonly sub: string; readonly [OWNER]: true };
+// The signed-in account a read or write is for: its users row and its Tesla account id (id_token `sub`).
+// Plain data, since it crosses "use cache: private" scopes; the brand is type-only, so only
+// lib/server/auth.ts and ./system.ts make one (with asOwner).
+export type Owner = { readonly userId: number; readonly sub: string; readonly [OWNER]: true };
 
-export const asOwner = (sub: string): Owner => ({ sub }) as Owner;
+export const asOwner = (userId: number, sub: string): Owner => ({ userId, sub }) as Owner;
 
 // Demo mode signs everyone in as this account; db() refuses to run, so it never reaches the database.
-export const DEMO_OWNER = asOwner("demo");
+export const DEMO_OWNER = asOwner(0, "demo");
 
-// Every table that holds one account's rows.
+// Every table that holds one account's rows. Each has a user_id column.
 export const OWNER_TABLES = [
-  "oauth_tokens",
+  "user_tokens",
   "connector_token",
   "vehicles",
   "snapshots",
@@ -34,31 +34,23 @@ export const OWNER_TABLES = [
 export type OwnerTable = (typeof OWNER_TABLES)[number];
 
 // Which rows of a table are the owner's, as column = value, applied to every select, update and delete
-// and stamped on every insert and upsert. Today the account tables hold one row, keyed as below, and the
-// car tables hold only the one account's cars, so they need no key. Step 3 (docs/signup-plan.md) replaces
-// this with user_id = the owner's user on every table, here and nowhere else.
-export function ownerKeys(table: OwnerTable, owner: Owner): Record<string, string> {
-  switch (table) {
-    case "oauth_tokens":
-      return { provider: "tesla", owner_sub: owner.sub };
-    case "connector_token":
-      return { owner: "tesla" };
-    default:
-      return {};
-  }
+// and stamped on every insert and upsert: user_id = the owner's user, on every table. This is the one
+// place that says so.
+export function ownerKeys(_table: OwnerTable, owner: Owner): Record<string, number> {
+  return { user_id: owner.userId };
 }
 
 type Builder = ReturnType<SupabaseClient["from"]>;
 type Filterable = { eq(column: string, value: unknown): Filterable };
 export type OwnerQuery = Pick<Builder, "select" | "insert" | "upsert" | "update" | "delete">;
 
-function where<T>(query: T, keys: Record<string, string>): T {
+function where<T>(query: T, keys: Record<string, number>): T {
   let q = query as unknown as Filterable;
   for (const [column, value] of Object.entries(keys)) q = q.eq(column, value);
   return q as unknown as T;
 }
 
-function stamp<T>(values: T, keys: Record<string, string>): T {
+function stamp<T>(values: T, keys: Record<string, number>): T {
   if (Object.keys(keys).length === 0) return values;
   return (Array.isArray(values) ? values.map((v) => ({ ...v, ...keys })) : { ...(values as object), ...keys }) as T;
 }
@@ -78,8 +70,8 @@ function ownerTable(table: OwnerTable, owner: Owner): OwnerQuery {
   };
 }
 
-// Database functions that read one car's rows. snapshot_odometer_at reads every car's snapshots, which is
-// the owner's with one account; step 3 moves both to the user-aware overloads from the step 2 migration.
+// Database functions that read one user's rows: the p_user_id overloads from the users migration, called
+// with the owner's user.
 export type OwnerRpc = "counter_values_at" | "snapshot_odometer_at";
 
 // Invoice files for the owner's charging sessions (the private charge-invoices bucket).
@@ -91,7 +83,7 @@ export function ownerDb(owner: Owner) {
   return {
     owner,
     from: (table: OwnerTable) => ownerTable(table, owner),
-    rpc: (fn: OwnerRpc, args: Record<string, unknown>) => db().rpc(fn, args),
+    rpc: (fn: OwnerRpc, args: Record<string, unknown>) => db().rpc(fn, { ...args, p_user_id: owner.userId }),
     invoices: () => db().storage.from(INVOICE_BUCKET),
   };
 }

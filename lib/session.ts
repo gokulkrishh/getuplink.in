@@ -46,14 +46,15 @@ export function clearSession(jar: CookieJar, host: string | null | undefined) {
 const encoder = new TextEncoder();
 
 // Sessions are signed with a key derived from TOKEN_ENCRYPTION_KEY, so rotating
-// that key signs everyone out (and makes stored Tesla tokens unreadable).
+// that key signs everyone out (and makes stored Tesla tokens unreadable). The context string names the
+// cookie's format: v3 cookies (no user) don't verify as v4, so the move to v4 signed everyone out once.
 async function sign(payload: string): Promise<string> {
   const secret = process.env.TOKEN_ENCRYPTION_KEY;
   if (!secret) throw new Error("Missing env var TOKEN_ENCRYPTION_KEY");
   const key = await crypto.subtle.importKey("raw", encoder.encode(`session:${secret}`), { name: "HMAC", hash: "SHA-256" }, false, [
     "sign",
   ]);
-  const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(`tesla-in-updates/session/v3:${payload}`));
+  const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(`uplink/session/v4:${payload}`));
   return Array.from(new Uint8Array(sig), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
@@ -65,25 +66,31 @@ export function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-// Cookie value: "<issued-at-ms>.<expires-at-unix>.<hmac>". The issue time lets "Sign out everywhere"
-// revoke older sessions (checked on the server against oauth_tokens.sessions_valid_after).
-export async function createSession(): Promise<string> {
-  const payload = `${Date.now()}.${Math.floor(Date.now() / 1000) + SESSION_MAX_AGE}`;
+// Cookie value: "<user-id>.<issued-at-ms>.<expires-at-unix>.<hmac>". The user id says whose session it
+// is; the issue time lets "Sign out everywhere" revoke older sessions (checked on the server against
+// users.sessions_valid_after).
+export async function createSession(userId: number): Promise<string> {
+  const payload = `${userId}.${Date.now()}.${Math.floor(Date.now() / 1000) + SESSION_MAX_AGE}`;
   return `${payload}.${await sign(payload)}`;
 }
 
+const POSITIVE_INTEGER = /^[1-9][0-9]*$/;
+
 export async function isValidSession(cookie: string | undefined): Promise<boolean> {
-  const [issuedAt, expiresAt, sig] = cookie?.split(".") ?? [];
-  if (!issuedAt || !expiresAt || !sig || Number(expiresAt) * 1000 < Date.now()) return false;
+  const parts = cookie?.split(".") ?? [];
+  if (parts.length !== 4) return false;
+  const [userId, issuedAt, expiresAt, sig] = parts;
+  if (!POSITIVE_INTEGER.test(userId) || !issuedAt || !expiresAt || !sig || Number(expiresAt) * 1000 < Date.now()) return false;
   try {
-    return safeEqual(sig, await sign(`${issuedAt}.${expiresAt}`));
+    return safeEqual(sig, await sign(`${userId}.${issuedAt}.${expiresAt}`));
   } catch {
     return false;
   }
 }
 
-// When the session was created (ms), or null for a malformed cookie.
-export function sessionIssuedAt(cookie: string | undefined): number | null {
-  const issuedAt = Number(cookie?.split(".")[0]);
-  return Number.isFinite(issuedAt) ? issuedAt : null;
+// Whose session it is and when it was created (ms), from a cookie isValidSession accepted; null for a
+// malformed one.
+export function sessionClaims(cookie: string | undefined): { userId: number; issuedAt: number } | null {
+  const [userId, issuedAt] = (cookie?.split(".") ?? []).map(Number);
+  return Number.isSafeInteger(userId) && userId > 0 && Number.isFinite(issuedAt) ? { userId, issuedAt } : null;
 }
