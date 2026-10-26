@@ -9,8 +9,8 @@ import { TapColumns } from "@/components/stats/tap-columns";
 import { cn } from "@/lib/utils";
 
 // `blank` draws the column empty with no tip (a slot ahead of now); without it, columns before the first
-// value are blank (before the history starts).
-export type StackedBar = { key: string; label: string; total: number; display: string; isCurrent: boolean; segments: number[]; blank?: boolean };
+// value are blank (before the history starts). `axis` and `edge` label the x axis as in Bar.
+export type StackedBar = { key: string; label: string; total: number; display: string; isCurrent: boolean; segments: number[]; blank?: boolean; axis?: string; edge?: boolean };
 export type StackedSeries = { label: string; className: string };
 
 const kwh = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
@@ -69,10 +69,10 @@ export function StackedBars({
         const total = shownTotal(b);
         if (b.blank ?? k < first)
           return (
-            <li key={b.key} aria-hidden="true" className="flex flex-col items-center gap-2">
+            <li key={b.key} aria-hidden="true" className="relative flex flex-col items-center gap-2">
               <span className="h-4" />
               <div className="h-20" />
-              <AxisLabel label={b.label} />
+              <AxisLabel label={b.axis ?? b.label} edge={b.edge} first={k === 0} />
             </li>
           );
         return (
@@ -90,7 +90,7 @@ export function StackedBars({
                 </div>
               )}
             </div>
-            <AxisLabel label={b.label} current={b.isCurrent} />
+            <AxisLabel label={b.axis ?? b.label} current={b.isCurrent} edge={b.edge} first={k === 0} />
             <span className="sr-only">
               {dense && `${kwh.format(total)} kWh. `}
               {breakdown(b).join(", ")}

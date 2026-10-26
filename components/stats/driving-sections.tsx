@@ -52,7 +52,7 @@ export function Distance({ frame, driving }: Frame) {
 // One bar from a slot's figure: blank when the figure is unknown (null) or the slot lies ahead of now.
 export function knownBar(slot: Slot, value: number | null, format: (n: number) => string): Bar {
   const blank = slot.ahead || value === null;
-  return { key: String(slot.id), label: slot.label, value: blank ? 0 : value, display: blank ? "" : format(value), isCurrent: slot.isCurrent, blank };
+  return { key: String(slot.id), label: slot.label, axis: slot.axis, edge: slot.edge, value: blank ? 0 : value, display: blank ? "" : format(value), isCurrent: slot.isCurrent, blank };
 }
 
 // Whether a bar chart has anything to draw; without, its card shows a note in the chart's place.

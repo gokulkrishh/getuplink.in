@@ -17,8 +17,9 @@ describe("charge habits", () => {
     expect(counts[4][6]).toBe(2);
     expect(counts[5][2]).toBe(1);
   });
-  test("slot labels say the shared AM or PM once", () => {
-    expect(slotLabel(6)).toBe("6 to 9 PM");
+  test("slot labels say the whole span, both ends in full", () => {
+    expect(slotLabel(0)).toBe("12 AM to 3 AM");
+    expect(slotLabel(6)).toBe("6 PM to 9 PM");
     expect(slotLabel(3)).toBe("9 AM to 12 PM");
     expect(slotLabel(7)).toBe("9 PM to 12 AM");
   });

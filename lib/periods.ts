@@ -1,4 +1,4 @@
-import { formatDate, formatHour, formatShortDate } from "@/lib/format";
+import { formatDate, formatHour, formatHours, formatShortDate } from "@/lib/format";
 import { istDay, istDayStart } from "@/lib/telemetry-derive";
 
 // Pure period maths for the home page and the Stats pages: which instants a period covers, the bars it
@@ -97,7 +97,31 @@ export function previousLabel(period: Period, now: number): string | null {
 // One bar: the instants it covers and its label. Its id is its start, unique within a period. `ahead` says
 // it starts after now (the rest of this year, the rest of today), so nothing is known about it yet: drawn
 // blank, never as zero.
-export type Slot = { id: number; label: string; from: number; to: number; isCurrent: boolean; ahead: boolean };
+// A slot of hours is labelled by its whole span ("6 AM to 9 AM", for the tooltip and screen readers) and
+// carries a short `axis` ("6 AM") with `edge`: the axis writes it on the block's start boundary, like a
+// clock's tick, not centred under the bar, where "6 AM" would read as "at 6 AM".
+export type Slot = { id: number; label: string; from: number; to: number; isCurrent: boolean; ahead: boolean; axis?: string; edge?: boolean };
+
+const HOUR_MS = 3_600_000;
+export const SLOT_HOURS = 3;
+
+// The k-th 3-hour block of the day that starts at `dayStart`, labelled by its span. `day` ("Sat") leads
+// the label when the chart covers more than one day, and names the axis at that day's first boundary.
+function hourSlot(dayStart: number, k: number, now: number, day?: string): Slot {
+  const from = dayStart + k * SLOT_HOURS * HOUR_MS;
+  const to = from + SLOT_HOURS * HOUR_MS;
+  const hours = formatHours(k * SLOT_HOURS, (k + 1) * SLOT_HOURS);
+  return {
+    id: from,
+    label: day ? `${day}, ${hours}` : hours,
+    axis: day && k === 0 ? day : formatHour(k * SLOT_HOURS),
+    edge: true,
+    from,
+    to,
+    isCurrent: now >= from && now < to,
+    ahead: from > now,
+  };
+}
 
 // The bars a period draws: the last 7 days (Week), the last 6 months (Month, so the half-year shape stays),
 // the 12 months of this year (Year), or 6 years (All).
@@ -114,10 +138,7 @@ export function slotsFor(period: Period, now: number): Slot[] {
   if (period === "day") {
     // Today in 3-hour slots: when you drove or charged.
     const start = istDayStart(istDay(now));
-    return Array.from({ length: 8 }, (_, k) => {
-      const from = start + k * 3 * 3_600_000;
-      return { id: from, label: formatHour(k * 3), from, to: from + 3 * 3_600_000, isCurrent: now >= from && now < from + 3 * 3_600_000, ahead: from > now };
-    });
+    return Array.from({ length: 24 / SLOT_HOURS }, (_, k) => hourSlot(start, k, now));
   }
   if (period === "week") {
     const today = istDay(now);
@@ -265,11 +286,11 @@ export function rangeSlots(range: DayRange, now: number): { slots: Slot[]; slotN
   const days = rangeDays(range);
   const slot = (from: number, to: number, label: string): Slot => ({ id: from, label, from, to, isCurrent: now >= from && now < to, ahead: from > now });
   if (days <= 2) {
-    const slots = Array.from({ length: days * 8 }, (_, k) => {
-      const from = span.from + k * 3 * 3_600_000;
-      // With two days, each day's first bar is named for its day.
-      const label = days === 2 && k % 8 === 0 ? weekday.format(from + DAY_MS / 2) : formatHour((k % 8) * 3);
-      return slot(from, from + 3 * 3_600_000, label);
+    const perDay = 24 / SLOT_HOURS;
+    // With two days, each bar names its day too ("Sat, 6 AM to 9 AM"), and each midnight is named for it.
+    const slots = Array.from({ length: days * perDay }, (_, k) => {
+      const dayStart = istDayStart(range.from + Math.floor(k / perDay));
+      return hourSlot(dayStart, k % perDay, now, days === 2 ? weekday.format(dayStart + DAY_MS / 2) : undefined);
     });
     return { slots, slotName: "3 hours" };
   }
