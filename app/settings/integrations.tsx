@@ -43,7 +43,7 @@ export function McpConnector({ status, now }: { status: ConnectorTokenStatus; no
   return (
     <Row
       title="MCP connector"
-      description="Lets an AI you use, like Claude, ChatGPT, Grok or an always-on bot, read your charging and driving and attach charging invoices. It can't delete anything or reach your car."
+      description="Lets an AI like Claude, ChatGPT or Grok read your charging and driving, and attach invoices. It can't delete anything or reach your car."
       control={<p className="text-sm text-muted-foreground">{tokenSummary(status, now)}</p>}
     >
       <div className="mt-4 space-y-4">
@@ -90,7 +90,7 @@ export function BotTemplate() {
   return (
     <Row
       title={BOT_NAME}
-      description="An AI bot that finds your charging invoices in Gmail every 6 hours, and takes ones you share with it in chat, and attaches them to your charges. For always-on bots like Grok Bot, Claude Duet, Muse or a dot in ChatGPT."
+      description="An always-on AI bot that finds charging invoices in Gmail, or in chat, and attaches them to your charges."
       control={
         BOT_TEMPLATE_URL ? (
           <a href={BOT_TEMPLATE_URL} target="_blank" rel="noopener" className={buttonVariants({ variant: "outline", size: "lg" })}>
@@ -104,8 +104,8 @@ export function BotTemplate() {
     >
       <div className="mt-4 space-y-3">
         <p className="text-sm text-muted-foreground">
-          {BOT_TEMPLATE_URL && "In Grok Bot, choose Add to Grok, then paste the connector token above into the bot's Uplink connector. "}
-          For any other bot, paste the manual instructions into it.
+          {BOT_TEMPLATE_URL && "In Grok Bot, choose Add to Grok, then paste the connector token above. "}
+          For any other bot, paste the manual instructions.
         </p>
         <details className="group border">
           <summary className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">

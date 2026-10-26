@@ -52,7 +52,7 @@ export function ChargeLevelChart({
     <ChartCard
       as={heading ? "h2" : "h3"}
       title="Charge level"
-      description="How full the battery was over time, from 0 to 100%. Shaded stretches are when the car was charging."
+      description="Battery level over time. Shaded is charging."
       summary={
         heading && (
           // The latest level, whatever span is picked; the chart below follows the span.

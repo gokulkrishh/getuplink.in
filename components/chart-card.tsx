@@ -1,22 +1,23 @@
 import type { ReactNode } from "react";
+import { InfoButton } from "@/components/info-button";
 import { Captioned, EmptyChart } from "@/components/stats/bars";
-import { unitNotes } from "@/lib/unit-words";
 import { cn } from "@/lib/utils";
 
-// Every chart in the app, wrapped the same way (see docs/charts.md): a sentence-case title, one plain
-// line on what the chart shows and how to read it, optional tiles or a headline value, the chart itself,
-// and a caption under it. The caption ends with the unit's plain words from the glossary
-// (lib/unit-words.ts) when the unit isn't obvious, so "kW" or "Wh/km" is always explained, then the words
-// for any `terms`.
-// The unit itself is drawn once, by the chart, above its y axis (as ChartFrame and DriveTrace do); `unit`
-// here only picks the words. With `empty`, a note sits in the chart's place, the same height, so a period
-// page keeps its shape; on a page where a chart has no data, don't render the card at all.
-// Server-safe: no hooks, so it wraps server sections and client plots alike.
+// Every chart in the app, wrapped the same way (see docs/charts.md): a sentence-case title with an ⓘ beside
+// it, one short line on what the chart shows, optional tiles or a headline value, the chart itself, and at
+// most one short caption under it. The ⓘ opens a popover with the plain words for `unit` and `terms`
+// (lib/unit-words.ts) and any `info` (how a figure is worked out); nothing about units shows inline.
+// The unit itself is drawn once, by the chart, above its y axis (as ChartFrame and DriveTrace do). With
+// `empty`, a note sits in the chart's place, the same height, so a period page keeps its shape; on a page
+// where a chart has no data, don't render the card at all.
+// Server-safe: no hooks, so it wraps server sections and client plots alike (InfoButton is its own client
+// component).
 export function ChartCard({
   title,
   description,
   unit,
   terms = [],
+  info,
   caption,
   summary,
   empty,
@@ -26,13 +27,15 @@ export function ChartCard({
 }: {
   // "Speed": what is measured, sentence case, no unit.
   title: string;
-  // "How fast the car went through the drive, in km/h.": what it shows and how to read it.
+  // "Battery lost while parked. Lower is better.": one short sentence on what it shows.
   description: ReactNode;
-  // Like "kW" or "km/h". Picks the unit's plain words for the caption, when it has any.
+  // Like "kW" or "Wh/km". Its plain words go in the ⓘ popover, when it has any.
   unit?: string;
-  // Other glossary terms the chart uses, like "grade" or "regen", explained after the unit.
+  // Other glossary terms the chart or its tiles use, like "grade" or "regen", explained after the unit.
   terms?: string[];
-  // A footnote under the chart: where the data comes from, what a gap means.
+  // Method notes for the ⓘ popover: how a figure is worked out, what a mark or a gap means.
+  info?: ReactNode;
+  // One short line under the chart, only when needed ("Last 7 days").
   caption?: ReactNode;
   // Tiles or a headline value between the description and the chart.
   summary?: ReactNode;
@@ -43,28 +46,20 @@ export function ChartCard({
   className?: string;
   children?: ReactNode;
 }) {
-  const words = unitNotes([unit, ...terms]);
-  const footnote =
-    caption || words ? (
-      <>
-        {caption}
-        {caption && words ? " " : null}
-        {words}
-      </>
-    ) : null;
   return (
     <section className={cn("space-y-4", className)}>
       <div className="space-y-1">
-        <Heading className={cn("font-medium tracking-heading", Heading === "h2" ? "text-lg" : "text-base")}>{title}</Heading>
+        <div className="flex items-center gap-1.5">
+          <Heading className={cn("font-medium tracking-heading", Heading === "h2" ? "text-lg" : "text-base")}>{title}</Heading>
+          <InfoButton label={title} terms={[unit, ...terms]}>
+            {info}
+          </InfoButton>
+        </div>
         <p className="text-sm text-muted-foreground">{description}</p>
       </div>
       {summary}
-      {empty ? (
-        <EmptyChart>{empty}</EmptyChart>
-      ) : (
-        <Captioned caption={footnote}>{children}</Captioned>
-      )}
-      {empty && footnote && <p className="text-xs text-muted-foreground">{footnote}</p>}
+      {empty ? <EmptyChart>{empty}</EmptyChart> : <Captioned caption={caption}>{children}</Captioned>}
+      {empty && caption && <p className="text-xs text-muted-foreground">{caption}</p>}
     </section>
   );
 }

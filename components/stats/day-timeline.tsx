@@ -36,9 +36,14 @@ export function DayTimeline({ days: all7, now, title = "Your days", caption }: {
   return (
     <ChartCard
       title={title}
-      description={`What the car was doing ${days.length === 1 ? "through the day" : "through each day, one row a day"}, from midnight to midnight, India time. Hover or tap a stretch for its times.`}
+      description={`What the car was doing ${days.length === 1 ? "through the day" : "each day"}, India time.`}
+      info={
+        <>
+          <p>Midnight to midnight{days.length === 1 ? "" : ", one row a day"}.</p>
+          <p>Asleep shows only where a check found the car asleep; the rest of a parked stretch may have been asleep too.</p>
+        </>
+      }
       summary={caption && <p className="text-sm text-muted-foreground">{caption}</p>}
-      caption="Asleep shows only where a check found the car asleep; the rest of a parked stretch may have been asleep too."
     >
       <div className="space-y-4">
       <ol ref={list} className="chart-touch space-y-1.5" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>

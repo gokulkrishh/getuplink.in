@@ -16,10 +16,16 @@ export function BatteryPack({ trend, frame }: { trend: WeeklyPack[]; frame: Time
   return (
     <ChartCard
       title="Usable capacity by week"
-      description={`How much energy a full battery holds, as Uplink estimates it from the car's readings: the middle value of each week's estimates. The latest week is ${formatKwh(latest.kwh)}.`}
+      description={`Energy a full battery holds. Latest week ${formatKwh(latest.kwh)}.`}
       unit="kWh"
       terms={["capacity"]}
-      caption={["The scale starts near the readings, not at zero, so small changes show.", cut].filter(Boolean).join(" ")}
+      info={
+        <>
+          <p>Uplink estimates it from the car&apos;s readings: the middle value of each week&apos;s estimates.</p>
+          <p>The scale starts near the readings, not at zero, so small changes show.</p>
+        </>
+      }
+      caption={cut}
       empty={
         weeks.length < 2 &&
         (weeks.length === 1

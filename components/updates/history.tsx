@@ -66,7 +66,7 @@ function EmptyHistory() {
       <div className="space-y-1">
         <p className="text-sm">No versions yet</p>
         <p className="max-w-md text-xs text-muted-foreground">
-          Uplink records each software version the first time it sees the car online.
+          A version shows once Uplink sees the car online.
         </p>
       </div>
     </div>
@@ -137,8 +137,8 @@ export function VersionHistory({ history, notes, now, until }: { history: Versio
           <ChartCard
             as="h3"
             title="Software version"
-            description="The car's software version over time, oldest on the left. Each step up is a new version arriving; the line runs on to the latest check."
-            caption="Hover or tap the line for the version and the date Uplink first saw it."
+            description="Each step up is a new version arriving."
+            info="Oldest on the left. The line runs on to the latest check."
           >
             <VersionChart changes={[...history].reverse()} until={until} />
           </ChartCard>

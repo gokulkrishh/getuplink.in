@@ -35,14 +35,11 @@ export function DcCurves({ curves, frame, note }: { curves: (Curve & { serial?: 
     <section className="space-y-6">
       <ChartCard
         title="DC charging speed"
-        description="How fast DC chargers filled the battery as it got fuller: power in kW up the side, battery level along the bottom. Power drops as the battery fills."
+        description="Charging power by battery level. It drops as the battery fills."
         unit="kW"
         terms={["kWh", "DC"]}
-        caption={
-          curves.length > 0
-            ? `${frame.title}, from ${curves.length} DC ${curves.length === 1 ? "charge" : "charges"}. Each point is the middle value in a ${BAND}% step of battery level.`
-            : undefined
-        }
+        info={`Power up the side, battery level along the bottom. Each point is the middle value in a ${BAND}% step of battery level.`}
+        caption={curves.length > 0 ? `${frame.title}, ${curves.length} DC ${curves.length === 1 ? "charge" : "charges"}` : undefined}
         empty={curves.length === 0 ? `No DC charging curves ${frame.words}` : undefined}
       >
         <DcCurvePlot series={series} band={BAND} label={`Typical DC charging power against battery level, ${frame.title}`} />
@@ -98,7 +95,7 @@ export function ChargingMap({ pins, frame, note }: { pins: MapPin[]; frame: Time
       <div className="space-y-2">
         <h2 className="text-lg font-medium tracking-heading">Charging map</h2>
         <p className="text-sm text-muted-foreground">
-          {frame.title}. Each charge where it happened; bigger pins added more energy.
+          {frame.title}. Bigger pins added more energy.
         </p>
       </div>
       {pins.length > 0 ? (

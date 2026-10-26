@@ -30,7 +30,8 @@ export function ChargeHabits({ starts, title, words }: { starts: number[]; title
   return (
     <ChartCard
       title="When you charge"
-      description="When charges started, by weekday and 3-hour block of the day, India time. The darker a square, the more charges started then."
+      description="When charges started, India time. Darker is more."
+      info="By weekday and 3-hour block of the day, from the charges listed on this page."
       summary={
         <p className="text-sm tabular-nums">
           {max === 0 ? (
@@ -46,7 +47,7 @@ export function ChargeHabits({ starts, title, words }: { starts: number[]; title
           )}
         </p>
       }
-      caption={`${title}, from the charges listed on this page. Hover or tap a square for its count.`}
+      caption={title}
     >
       <div ref={grid} className="chart-touch relative space-y-1.5 bg-muted p-3 dark:bg-card" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
         {counts.map((row, d) => (

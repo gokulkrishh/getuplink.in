@@ -483,7 +483,7 @@ export function TripMap({
         )}
       </ul>
       <p className="text-xs text-muted-foreground">
-        {parts.length > 0 ? "Hover or tap a pin or the route for details." : "Hover or tap a pin for its details."} Map data © OpenStreetMap contributors, © CARTO.
+        Map data © OpenStreetMap contributors, © CARTO.
       </p>
     </div>
   );

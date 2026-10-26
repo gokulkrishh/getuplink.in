@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { hasCosts, hasStationNames, type Listed, OsmCredit, SessionHeader, SessionRow } from "@/components/session-row";
 import { ChartCard } from "@/components/chart-card";
 import { Bars } from "@/components/stats/bars";
-import { barsCaption } from "@/components/stats/chart-caption";
+import { barsSpan } from "@/components/stats/chart-caption";
 import { ChargeLevelChart } from "@/components/stats/charge-level";
 import { TripTable } from "@/components/stats/drive-list";
 import { hasBars, knownBar } from "@/components/stats/driving-sections";
@@ -71,7 +71,9 @@ export function ChargingSection({ frames, bills, listed, now }: { frames: HomeFr
       <ChartCard
         as="h3"
         title="Spend"
-        description={`${barsCaption("What charging cost", frame)}, from Tesla's Supercharger bills and the invoices you attached.`}
+        description="What charging cost."
+        info="From Tesla's Supercharger bills and the invoices you attached."
+        caption={barsSpan(frame)}
         empty={hasBars(bars) ? undefined : `No bills ${frame.words}`}
       >
         <Bars bars={bars} ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} fit />
@@ -112,7 +114,7 @@ export function DrivingSection({ frames, figures, drives, now }: { frames: HomeF
     const bars = frame.slots.map((slot, k) => knownBar(slot, driving ? (driving.bars[k]?.km ?? null) : null, number.format));
     const empty = !driving ? "Couldn't read the distance for these dates" : hasBars(bars) ? undefined : `No driving ${frame.words}`;
     return (
-      <ChartCard as="h3" title="Distance" description={`${barsCaption("Kilometres driven", frame)}. A taller bar is more driving.`} empty={empty}>
+      <ChartCard as="h3" title="Distance" description="Kilometres driven." caption={barsSpan(frame)} empty={empty}>
         <Bars bars={bars} ariaLabel={`Distance per ${frame.slotName} in km`} unit="km" labelEvery={frame.labelEvery} fit />
       </ChartCard>
     );
@@ -177,6 +179,8 @@ export function BatterySection({
                   parkedNow.watts !== null && { label: "Avg power", value: formatPower(parkedNow.watts) },
                   lost !== null && { label: "Lost", value: `${oneDecimal.format(lost)}%`, note: usually ? `Usually ${usually}` : undefined },
                 ]}
+                label="Parked now"
+                terms={parkedNow.watts !== null ? ["W"] : []}
               />
             </>
           )}
