@@ -1,10 +1,9 @@
 import { Zap } from "lucide-react";
 import { AutoRefresh } from "@/components/auto-refresh";
-import { formatKm, formatTimeToFull } from "@/lib/format";
+import { formatKw, formatRangeKm, formatTimeToFull } from "@/lib/format";
 import type { Snapshot } from "@/lib/server/dashboard";
 import { Measure } from "@/components/measure";
 
-const kw = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 
 export function BatteryGauge({ snapshot }: { snapshot: Snapshot }) {
   const level = Math.min(100, Math.max(0, snapshot.battery_level ?? 0));
@@ -22,7 +21,7 @@ export function BatteryGauge({ snapshot }: { snapshot: Snapshot }) {
           <Measure text={`${level}%`} size="tile" />
         </span>
         {snapshot.battery_range_km != null && (
-          <span className="text-sm text-muted-foreground tabular-nums">{formatKm(snapshot.battery_range_km)}</span>
+          <span className="text-sm text-muted-foreground tabular-nums">{formatRangeKm(snapshot.battery_range_km)}</span>
         )}
       </p>
       <div
@@ -46,7 +45,7 @@ export function BatteryGauge({ snapshot }: { snapshot: Snapshot }) {
         {charging && <Zap className="size-3" aria-hidden="true" />}
         {charging
           ? power !== null
-            ? `Charging at ${kw.format(power)} kW${level < target ? ` to ${target}%` : ""}`
+            ? `Charging at ${formatKw(power)}${level < target ? ` to ${target}%` : ""}`
             : `Charging to ${target}%`
           : limit != null
             ? `Limit ${limit}%`

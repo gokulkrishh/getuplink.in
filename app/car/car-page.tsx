@@ -11,7 +11,7 @@ import { type Figure, Figures } from "@/components/stats/figures";
 import { Vin } from "@/components/vin";
 import { odometerKm } from "@/lib/car";
 import { CAR_NOW_FIELDS, type CarNow, carNow } from "@/lib/car-now";
-import { formatAgo, formatClock, formatKm, formatShortDate } from "@/lib/format";
+import { formatAgo, formatClock, formatKm, formatKw, formatKwh, formatPercent, formatRangeKm, formatShortDate } from "@/lib/format";
 import { isStaleSync, lastSyncedText, newestTime } from "@/lib/last-synced";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type CarDetails, loadCarDetails } from "@/lib/server/car";
@@ -55,7 +55,6 @@ async function loadLive(id: string, vin: string | null): Promise<Live> {
   return { state, stream, now: vin ? carNow(stream, at, flags.tyres) : null, notices: flags.notices, at };
 }
 
-const kw = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 
 const shown = <T,>(rows: [string, T][]) => rows.filter((r): r is [string, NonNullable<T>] => r[1] !== null && r[1] !== undefined && r[1] !== false && r[1] !== "");
 
@@ -141,14 +140,14 @@ function nowFigures(state: Omit<CarState, "flags">, now: CarNow | null): Figure[
     const power = charging && s.charge_power_kw != null && s.charge_power_kw > 0 ? s.charge_power_kw : null;
     const note = charging
       ? power !== null
-        ? `Charging at ${kw.format(power)} kW`
+        ? `Charging at ${formatKw(power)}`
         : `Charging${s.charge_limit != null ? ` to ${s.charge_limit}%` : ""}`
       : s.charge_limit != null
         ? `Limit ${s.charge_limit}%`
         : undefined;
-    figures.push({ label: "Charge", value: `${Math.round(s.battery_level)}%`, note });
+    figures.push({ label: "Charge", value: formatPercent(s.battery_level), note });
   }
-  if (s?.battery_range_km != null) figures.push({ label: "Range", value: formatKm(s.battery_range_km) });
+  if (s?.battery_range_km != null) figures.push({ label: "Range", value: formatRangeKm(s.battery_range_km) });
   for (const [label, value] of now?.rows ?? []) {
     const [name, text] = NOW_WORDS[label]?.(value) ?? [label, value];
     figures.push({ label: name, value: /^-?\d/.test(text) ? text : <Words>{text}</Words> });
@@ -214,7 +213,7 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
             figures={[
               {
                 label: "Estimated full pack",
-                value: `${Math.round(car.battery.kwh)} kWh`,
+                value: formatKwh(car.battery.kwh),
                 note: `From ${car.battery.readings === 1 ? "1 reading" : `${car.battery.readings} readings`} in the week of ${formatShortDate(car.battery.weekStart)}`,
               },
             ]}
@@ -279,7 +278,7 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
         <Section title="Last AC charge" action={<MoreLink href={`/stats/charging/${ac.id}`}>See charge</MoreLink>}>
           <Figures
             figures={[
-              ac.kw !== null && { label: "Power", value: `${kw.format(ac.kw)} kW`, note: "Its typical draw" },
+              ac.kw !== null && { label: "Power", value: formatKw(ac.kw), note: "Its typical draw" },
               ...(ac.supply ? supplyFigures(ac.supply) : []),
             ]}
           />

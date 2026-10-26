@@ -4,7 +4,7 @@ import { ReleaseNotesList } from "@/components/release-notes";
 import { ShowMore } from "@/components/show-more";
 import { Tip, TipTrigger } from "@/components/tip";
 import { VersionChart } from "@/components/version-chart";
-import { formatDate, formatDuration, formatShortDate } from "@/lib/format";
+import { DECIMALS, formatDate, formatDuration, formatNumber, formatShortDate } from "@/lib/format";
 import { LIST_PREVIEW } from "@/lib/list";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import type { VersionChange } from "@/lib/server/dashboard";
@@ -15,7 +15,6 @@ function historyDate(value: string, now: number): string {
   return formatDate(value).endsWith(formatDate(now).slice(-4)) ? formatShortDate(value) : formatDate(value);
 }
 
-const km = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 
 // Received, installed and odometer cells of a history row.
 function HistoryCells({ change, now }: { change: VersionChange; now: number }) {
@@ -39,7 +38,7 @@ function HistoryCells({ change, now }: { change: VersionChange; now: number }) {
       )}
       <span className="text-right text-faint tabular-nums">{change.odometer_km != null && (
           <>
-            {km.format(change.odometer_km)}
+            {formatNumber(change.odometer_km, DECIMALS.km)}
             <span className="ml-0.5 text-xs">km</span>
           </>
         )}</span>

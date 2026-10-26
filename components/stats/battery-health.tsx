@@ -2,7 +2,7 @@ import { ChartCard } from "@/components/chart-card";
 import { type Figure, Figures } from "@/components/stats/figures";
 import { chargeEfficiency } from "@/lib/charge-sessions";
 import type { WeeklyRange } from "@/lib/charge-level";
-import { formatKm, formatKwh, formatShortDate } from "@/lib/format";
+import { formatKwh, formatRangeKm, formatShortDate } from "@/lib/format";
 import { within } from "@/lib/kept";
 import type { Timeframe } from "@/lib/periods";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
@@ -39,7 +39,7 @@ export function BatteryHealth({
   teslaPack: TeslaPack | null;
 }) {
   const capacity = vsBest(trend, (w) => w.kwh, formatKwh);
-  const full = vsBest(range, (w) => w.km, formatKm);
+  const full = vsBest(range, (w) => w.km, formatRangeKm);
   const finished = within(
     sessions.filter((s) => s.ended_at !== null && s.energy_added_kwh !== null),
     frame.span,

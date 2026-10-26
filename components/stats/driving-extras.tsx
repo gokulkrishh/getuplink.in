@@ -1,12 +1,11 @@
 import { ChartCard } from "@/components/chart-card";
 import { Bars } from "@/components/stats/bars";
 import { TripMap } from "@/components/stats/trip-map";
-import { formatDuration, formatShortDate } from "@/lib/format";
+import { apportion, DECIMALS, formatDuration, formatKm, formatNumber, formatShortDate } from "@/lib/format";
 import type { Band } from "@/lib/driving-insights";
 import type { DrivingExtras, NamedPlace } from "@/lib/server/driving-extra";
 import { Measure } from "@/components/measure";
 
-const oneDecimal = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 const TAGS = { home: "Home", work: "Work", favorite: "Favourite" } as const;
 const placeName = (p: NamedPlace, k: number) => (p.tag ? TAGS[p.tag] : (p.name ?? `Place ${k + 1}`));
 
@@ -19,14 +18,19 @@ const Note = ({ note }: { note?: string }) => (note ? <p className="text-xs text
 // How long you spend at each speed, after TeslaMate's speed histogram.
 export function SpeedBands({ bins, words = "last 30 days", note }: { bins: DrivingExtras["speed"] } & Covers) {
   if (bins.length === 0) return null;
+  // The shares are rounded together, so the bars add up to 100% as shown.
+  const shares = apportion(
+    bins.map((b) => b.share * 100),
+    DECIMALS.percent,
+  );
   const bars = bins.map((b, k) => ({
     key: String(b.from),
     // The tip names the band; the axis gives where it starts ("20"), like a histogram's, so all six fit
     // under their bars on a phone.
     label: b.to === null ? `${b.from}+ km/h` : `${b.from} to ${b.to} km/h`,
     axis: b.to === null ? `${b.from}+` : String(b.from),
-    value: Math.round(b.share * 100),
-    display: `${Math.round(b.share * 100)}`,
+    value: shares[k]!,
+    display: formatNumber(shares[k]!, DECIMALS.percent),
     isCurrent: b.share === Math.max(...bins.map((x) => x.share)) && k >= 0,
   }));
   return (
@@ -72,8 +76,8 @@ function BandTable({ title, bands }: { title: string; bands: Band[] }) {
                 {b.label}
               </th>
               <td className="py-3 pr-4 text-right font-mono">{b.drives}</td>
-              <td className="py-3 pr-4 text-right font-mono"><Measure text={`${Math.round(b.km)} km`} /></td>
-              <td className="py-3 text-right font-mono">{b.kmPerKwh !== null ? oneDecimal.format(b.kmPerKwh) : "Unknown"}</td>
+              <td className="py-3 pr-4 text-right font-mono"><Measure text={formatKm(b.km)} /></td>
+              <td className="py-3 text-right font-mono">{b.kmPerKwh !== null ? formatNumber(b.kmPerKwh, DECIMALS.kmPerKwh) : "Unknown"}</td>
             </tr>
           ))}
         </tbody>

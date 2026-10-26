@@ -1,7 +1,7 @@
 import { ShowMore } from "@/components/show-more";
 import { type TripRow, TripRows } from "@/components/stats/trip-rows";
 import type { Drive } from "@/lib/drives";
-import { groupTrips, type Trip } from "@/lib/trips";
+import { groupTrips, shownTrips, type Trip } from "@/lib/trips";
 import { formatClock, formatDayLabel, formatDuration, formatKm, formatKwh } from "@/lib/format";
 import { LIST_PREVIEW } from "@/lib/list";
 
@@ -35,9 +35,9 @@ export function TripTable({ trips, serialOf, now, header = true }: { trips: Trip
 // `all`, so a list cut to a range keeps each trip's number.
 export function DriveList({ drives, all = drives, now }: { drives: Drive[]; all?: Drive[]; now: number }) {
   if (drives.length === 0) return null;
-  const trips = groupTrips(drives);
+  // Each trip's km rounded with the total over them (see shownTrips), so the rows add up to it as shown.
+  const { trips, km: totalKm } = shownTrips(groupTrips(drives));
   const numbered = all === drives ? trips : groupTrips(all);
-  const totalKm = drives.reduce((sum, d) => sum + d.km, 0);
   const serialOf = (t: Trip) => numbered.length - numbered.findIndex((n) => n.start === t.start);
   return (
     <section className="space-y-6">

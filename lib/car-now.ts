@@ -1,4 +1,5 @@
 import { psi } from "@/lib/car";
+import { formatCelsius } from "@/lib/format";
 import type { Stream } from "@/lib/telemetry";
 
 // The car's state right now, from each field's latest streamed reading, in plain words. Pure, so tested.
@@ -49,7 +50,7 @@ function doors(value: unknown): string | null {
   return [doorsOpen && `${doorsOpen} ${doorsOpen === 1 ? "door" : "doors"} open`, ...named.map((n) => `${n} open`)].filter(Boolean).join(", ");
 }
 
-const temp = (v: unknown) => (typeof v === "number" ? `${Math.round(v * 10) / 10} °C` : null);
+const temp = (v: unknown) => (typeof v === "number" ? formatCelsius(v) : null);
 // The car streams tyre pressures in bar.
 const pressure = (v: unknown) => (typeof v === "number" && v > 0 ? psi(v) : null);
 

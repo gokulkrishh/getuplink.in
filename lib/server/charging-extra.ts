@@ -1,7 +1,7 @@
 import "server-only";
 import type { Owner } from "./data/owner";
 import type { MapPin } from "@/components/stats/trip-map";
-import { formatShortDate } from "@/lib/format";
+import { formatKwh, formatShortDate } from "@/lib/format";
 import { cappedFrom } from "@/lib/kept";
 import { num, type Reading } from "@/lib/telemetry-derive";
 import type { StreamChargeSession } from "./stream-charging";
@@ -54,7 +54,7 @@ export async function loadChargingExtras(owner: Owner, vin: string | null, sessi
           kind: "charge",
           // 24px for a top-up, up to 44px for a big charge (about 50 kWh).
           size: Math.min(44, 24 + Math.sqrt(kwh) * 2.8),
-          label: [s.station_name ?? "Charge", formatShortDate(s.started_at), `${Math.round(kwh * 10) / 10} kWh`].join(" · "),
+          label: [s.station_name ?? "Charge", formatShortDate(s.started_at), formatKwh(kwh)].join(" · "),
         };
       }),
     ),

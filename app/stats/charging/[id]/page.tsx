@@ -9,7 +9,7 @@ import { ChargeFees } from "@/components/stats/charge-fees";
 import { ChargeSupply } from "@/components/stats/charge-supply";
 import { Figures } from "@/components/stats/figures";
 import { splitSite } from "@/lib/charge-sessions";
-import { formatClock, formatDate, formatDuration, formatKwh, formatMoney, formatTempRange } from "@/lib/format";
+import { formatClock, formatDate, formatDuration, formatKw, formatKwh, formatLevels, formatMoney, formatTempRange } from "@/lib/format";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargeDetail, loadChargeDetail } from "@/lib/server/charge-curve";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -17,7 +17,6 @@ import { unitNotes } from "@/lib/unit-words";
 
 export const metadata: Metadata = { title: "Charge · Uplink" };
 
-const kwFormat = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 
 // Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx).
 async function loadDetail(id: number): Promise<ChargeDetail | null> {
@@ -56,7 +55,7 @@ function Charge({ detail }: { detail: ChargeDetail }) {
     {
       title: "Battery",
       rows: [
-        ["Charge level", s.start_level !== null && s.end_level !== null ? `${Math.round(s.start_level)}% to ${Math.round(s.end_level)}%` : null],
+        ["Charge level", s.start_level !== null && s.end_level !== null ? formatLevels(s.start_level, s.end_level) : null],
         ["Energy added", energy !== null ? formatKwh(energy) : null],
         ["Battery temperature", tempLow !== null && tempHigh !== null ? formatTempRange(tempLow, tempHigh) : null],
       ],
@@ -64,8 +63,8 @@ function Charge({ detail }: { detail: ChargeDetail }) {
     {
       title: "Power",
       rows: [
-        ["Peak power", peak ? `${kwFormat.format(peak)} kW` : null],
-        ["Average power", curve.avgKw ? `${kwFormat.format(curve.avgKw)} kW` : null],
+        ["Peak power", peak ? formatKw(peak) : null],
+        ["Average power", curve.avgKw ? formatKw(curve.avgKw) : null],
       ],
     },
     {

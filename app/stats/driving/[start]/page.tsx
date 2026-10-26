@@ -9,7 +9,8 @@ import { DriveTrace } from "@/components/stats/drive-lanes";
 import { type Figure, Figures } from "@/components/stats/figures";
 import { type MapFact, MapFacts, type MapPin, TripMap } from "@/components/stats/trip-map";
 import { TripTimeline } from "@/components/stats/trip-timeline";
-import { formatClock, formatDate, formatDuration, formatKm, formatKwh } from "@/lib/format";
+import { formatCelsius, formatClock, formatDate, formatDuration, formatKm, formatKw, formatNumber, formatKwh, formatLevels, formatRangeKm, formatSpeed } from "@/lib/format";
+import { shownTrip } from "@/lib/trips";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type DriveDetail, loadDriveDetail } from "@/lib/server/drive-detail";
@@ -19,7 +20,6 @@ import { unitNotes } from "@/lib/unit-words";
 
 export const metadata: Metadata = { title: "Trip · Uplink" };
 
-const oneDecimal = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 
 // Acceleration as speed gained or lost each second, which reads better than the car's m/s²: 1 m/s² is
 // 3.6 km/h each second.
@@ -43,7 +43,9 @@ async function loadDetail(start: number, leg: boolean): Promise<DriveDetail | nu
 // the route on a map with its start, stops and end, a timeline of legs and stops, then the battery and
 // speed across the whole trip.
 function Drive({ detail }: { detail: DriveDetail }) {
-  const { trip, battery, speed, rangeUsedKm, topKmh, outsideC, route, pins, accel, power, grade } = detail;
+  const { battery, speed, rangeUsedKm, topKmh, outsideC, route, pins, accel, power, grade } = detail;
+  // Shown with the legs rounded together with the totals, so the tiles, the legs and the timeline agree.
+  const trip = shownTrip(detail.trip);
   const drivingMs = trip.legs.reduce((sum, d) => sum + (d.end - d.start), 0);
   const stoppedMs = trip.end - trip.start - drivingMs;
   // The time it took, with the driving and stopped parts under it when there were stops.
@@ -54,12 +56,12 @@ function Drive({ detail }: { detail: DriveDetail }) {
     { label: "Took", value: took, note: split },
     ...(trip.kwh !== null ? [{ label: "Energy used", value: formatKwh(trip.kwh) }] : []),
     ...(trip.startLevel !== null && trip.endLevel !== null
-      ? [{ label: "Battery", value: `${Math.round(trip.startLevel)}% to ${Math.round(trip.endLevel)}%`, level: [trip.startLevel, trip.endLevel] as [number, number] }]
+      ? [{ label: "Battery", value: formatLevels(trip.startLevel, trip.endLevel), level: [trip.startLevel, trip.endLevel] as [number, number] }]
       : []),
-    ...(rangeUsedKm !== null ? [{ label: "Range used", value: `${Math.round(rangeUsedKm)} km` }] : []),
-    ...(drivingMs > 0 ? [{ label: "Average speed", value: `${Math.round(trip.km / (drivingMs / 3_600_000))} km/h`, note: trip.stops ? "while driving" : undefined }] : []),
-    ...(topKmh !== null ? [{ label: "Top speed", value: `${Math.round(topKmh)} km/h` }] : []),
-    ...(outsideC !== null ? [{ label: "Outside", value: `${oneDecimal.format(outsideC)} °C` }] : []),
+    ...(rangeUsedKm !== null ? [{ label: "Range used", value: formatRangeKm(rangeUsedKm) }] : []),
+    ...(drivingMs > 0 ? [{ label: "Average speed", value: formatSpeed(detail.trip.km / (drivingMs / 3_600_000)), note: trip.stops ? "while driving" : undefined }] : []),
+    ...(topKmh !== null ? [{ label: "Top speed", value: formatSpeed(topKmh) }] : []),
+    ...(outsideC !== null ? [{ label: "Outside", value: formatCelsius(outsideC) }] : []),
   ];
   // Every chart spans the drive and nothing else, so their time axes match and none runs past the end.
   const axis = { from: trip.start, to: trip.end, legs: trip.legs };
@@ -178,7 +180,7 @@ function Drive({ detail }: { detail: DriveDetail }) {
   );
 }
 
-const batteryWords = (a: number | null, b: number | null) => (a !== null && b !== null ? `Battery ${Math.round(a)}% to ${Math.round(b)}%` : null);
+const batteryWords = (a: number | null, b: number | null) => (a !== null && b !== null ? `Battery ${formatLevels(a, b)}` : null);
 
 // A stop where the battery came back up between legs was a charge: its pin says so, with the levels.
 function mapPins(pins: MapPin[], legs: DriveDetail["trip"]["legs"]): MapPin[] {
@@ -187,7 +189,7 @@ function mapPins(pins: MapPin[], legs: DriveDetail["trip"]["legs"]): MapPin[] {
     const k = Number(/^Stop (\d+)/.exec(p.label)?.[1] ?? 0) - 1;
     const [before, after] = [legs[k], legs[k + 1]];
     if (p.kind !== "stop" || k < 0 || !before || !after || before.endLevel === null || after.startLevel === null || after.startLevel <= before.endLevel) return p;
-    return { ...p, kind: "charge", note: `Charged ${Math.round(before.endLevel)}% to ${Math.round(after.startLevel)}%` };
+    return { ...p, kind: "charge", note: `Charged ${formatLevels(before.endLevel, after.startLevel)}` };
   });
 }
 
@@ -241,7 +243,7 @@ function Legs({ legs }: { legs: DriveDetail["trip"]["legs"] }) {
                 <td className="py-3 pr-4 text-right font-mono whitespace-nowrap"><Measure text={formatKm(d.km)} /></td>
                 <td className="py-3 pr-4 text-right font-mono whitespace-nowrap">{d.kwh !== null ? <Measure text={formatKwh(d.kwh)} /> : <span className="text-faint">—</span>}</td>
                 <td className="py-3 text-right whitespace-nowrap text-muted-foreground">
-                  {d.startLevel !== null && d.endLevel !== null ? `${Math.round(d.startLevel)}% to ${Math.round(d.endLevel)}%` : <span className="text-faint">—</span>}
+                  {d.startLevel !== null && d.endLevel !== null ? formatLevels(d.startLevel, d.endLevel) : <span className="text-faint">—</span>}
                 </td>
               </tr>
             ))}
@@ -262,10 +264,10 @@ function highlights(power: { t: number; v: number }[], accel: { t: number; v: nu
   // Acceleration tiles say "8.8 km/h" with "Gained in one second" under it: the full unit doesn't fit a
   // tile on a phone, and the note reads more plainly anyway.
   return {
-    power: [...figure("Most power", peak(power, 1), 1, (v) => `${Math.round(v)} kW`), ...figure("Most regen", peak(power, -1), -1, (v) => `${Math.round(v)} kW`)],
+    power: [...figure("Most power", peak(power, 1), 1, formatKw), ...figure("Most regen", peak(power, -1), -1, formatKw)],
     accel: [
-      ...figure("Hardest acceleration", peak(accel, 1), 1, (v) => `${oneDecimal.format(v)} km/h`, "Gained in one second, at"),
-      ...figure("Hardest braking", peak(accel, -1), -1, (v) => `${oneDecimal.format(v)} km/h`, "Lost in one second, at"),
+      ...figure("Hardest acceleration", peak(accel, 1), 1, (v) => `${formatNumber(v, 1)} km/h`, "Gained in one second, at"),
+      ...figure("Hardest braking", peak(accel, -1), -1, (v) => `${formatNumber(v, 1)} km/h`, "Lost in one second, at"),
     ],
   };
 }

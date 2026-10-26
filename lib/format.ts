@@ -53,8 +53,8 @@ export function formatDuration(seconds: number): string {
 // Power drawn while parked is small, so it reads in watts ("24 W", "4.5 W" under 10) and in kW only from
 // 1 kW ("1.2 kW").
 export function formatPower(watts: number): string {
-  if (Math.round(watts) >= 1000) return `${(watts / 1000).toFixed(1)} kW`;
-  return `${watts < 10 ? Math.round(watts * 10) / 10 : Math.round(watts)} W`;
+  if (Math.round(watts) >= 1000) return formatKw(watts / 1000);
+  return `${formatNumber(watts, watts < 10 ? 1 : 0)} W`;
 }
 
 // "Full in 1 h 5 min" while charging; under a minute left, "Almost full" (not "Full in 0 min").
@@ -62,11 +62,113 @@ export function formatTimeToFull(hours: number): string {
   return hours < 1 / 60 ? "Almost full" : `Full in ${formatDuration(hours * 3600)}`;
 }
 
-const km = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
+// Precision per unit: how many decimals each kind of figure shows, wherever it appears (see docs/charts.md,
+// "Precision"). Figures stay at full precision until they are shown; only these helpers round.
+export const DECIMALS = {
+  // Distance driven, from the odometer (read to a few metres) or the drives: "46.2 km".
+  km: 1,
+  // Range is the car's estimate, so tenths would be false precision: "287 km".
+  rangeKm: 0,
+  // Energy, from the car's counters and Tesla's bills: "11.1 kWh".
+  kWh: 1,
+  // Power: "7.2 kW". Small parked draw reads in watts (see formatPower).
+  kW: 1,
+  // A bill and anything summed from bills, in rupees and paise: "₹874.50".
+  money: 2,
+  // Battery level and shares of a whole: "66%".
+  percent: 0,
+  speed: 0,
+  whPerKm: 0,
+  kmPerKwh: 1,
+} as const;
 
-// "12,340 km" (Indian digit grouping: "1,23,400 km")
+const fixedFormats = new Map<number, Intl.NumberFormat>();
+
+// A number with exactly `decimals` decimals and Indian digit grouping ("1,23,400.5"), so a total and its
+// parts read at the same precision. Exactly zero reads "0", not "0.0": nothing at all, not a rounded crumb.
+export function formatNumber(value: number, decimals: number): string {
+  if (value === 0) return "0";
+  let fmt = fixedFormats.get(decimals);
+  if (!fmt) {
+    fmt = new Intl.NumberFormat("en-IN", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    fixedFormats.set(decimals, fmt);
+  }
+  // Rounded here, half up, with float noise snapped off first, so 1.15 (stored as 1.149999…) reads 1.2,
+  // as apportion rounds it; the formatter then only writes the digits.
+  const units = Math.round(Math.round(value * 10 ** decimals * 1e6) / 1e6);
+  const text = fmt.format(units / 10 ** decimals);
+  // A tiny negative that rounds to zero reads "0.0", not "-0.0".
+  return /^-0(\.0+)?$/.test(text) ? text.slice(1) : text;
+}
+
+// "46.2 km", "1,23,400.5 km": distance driven, to one decimal.
 export function formatKm(value: number): string {
-  return `${km.format(value)} km`;
+  return `${formatNumber(value, DECIMALS.km)} km`;
+}
+
+// "287 km": the car's range estimate, in whole kilometres.
+export function formatRangeKm(value: number): string {
+  return `${formatNumber(value, DECIMALS.rangeKm)} km`;
+}
+
+// "7.2 kW"
+export function formatKw(value: number): string {
+  return `${formatNumber(value, DECIMALS.kW)} kW`;
+}
+
+// "66%", or "1.4%" with decimals. Takes the percentage, not a share (66, not 0.66).
+export function formatPercent(value: number, decimals: number = DECIMALS.percent): string {
+  return `${formatNumber(value, decimals)}%`;
+}
+
+// "58% to 51%": a battery level before and after.
+export function formatLevels(from: number, to: number): string {
+  return `${formatPercent(from)} to ${formatPercent(to)}`;
+}
+
+// "92 km/h"
+export function formatSpeed(kmh: number): string {
+  return `${formatNumber(kmh, DECIMALS.speed)} km/h`;
+}
+
+// Rounds the parts of a whole for display so that, as shown, they add up to the whole rounded the same
+// way (largest remainder): days of 46.215, 7.416 and 46.377 km show as 46.2, 7.4 and 46.4, and their sum,
+// 100.008, as 100.0 (rounded alone they would read 46, 7 and 46 against 100). A part moves at most one
+// last digit from its own rounding, and only a part with something to round moves: an exact 0 stays 0.
+// Null (unknown, or ahead of now) stays null. `total` makes the parts add up to a total already shown
+// (a stacked bar's), when it is within a last digit or two of theirs.
+export function apportion(values: readonly (number | null)[], decimals: number, total?: number): (number | null)[] {
+  const scale = 10 ** decimals;
+  // Float noise is snapped off, so a value already at this precision has no remainder.
+  const scaled = values.map((v) => (v === null ? null : Math.round(v * scale * 1e6) / 1e6));
+  const units = scaled.map((v) => (v === null ? null : Math.floor(v)));
+  const target = total === undefined ? Math.round(scaled.reduce<number>((sum, v) => sum + (v ?? 0), 0)) : Math.round(total * scale);
+  let left = target - units.reduce<number>((sum, v) => sum + (v ?? 0), 0);
+  const order = scaled
+    .flatMap((v, k) => (v === null || v === units[k] ? [] : [{ k, rest: v - units[k]! }]))
+    .sort((a, b) => b.rest - a.rest || a.k - b.k);
+  for (const { k } of order) {
+    if (left <= 0) break;
+    units[k]! += 1;
+    left -= 1;
+  }
+  // A total below the parts' floors takes the excess back from the parts with the least to round.
+  for (const { k } of [...order].reverse()) {
+    if (left >= 0) break;
+    if (units[k]! > 0) {
+      units[k]! -= 1;
+      left += 1;
+    }
+  }
+  return units.map((u) => (u === null ? null : u / scale));
+}
+
+// The parts as shown and the total they add up to, from one apportion: show `total` as the headline and
+// `parts` as the bars, their tips and the rows, and they agree to the last digit.
+export function shownTotal(values: readonly (number | null)[], decimals: number): { parts: (number | null)[]; total: number } {
+  const parts = apportion(values, decimals);
+  const units = parts.reduce<number>((sum, v) => sum + Math.round((v ?? 0) * 10 ** decimals), 0);
+  return { parts, total: units / 10 ** decimals };
 }
 
 // "10:35 AM IST" when it was today (in IST), otherwise "21 Oct, 10:35 AM IST". `now` is passed in
@@ -102,12 +204,18 @@ export function formatTempRange(low: number, high: number): string {
   return `${celsius.format(low)} to ${celsius.format(high)} °C`;
 }
 
-// "32.4 kWh"
-export function formatKwh(value: number): string {
-  return `${value.toFixed(1)} kWh`;
+// "35.5 °C", "30 °C": up to one decimal, as the car reports temperatures. A temperature is never summed,
+// so it needn't hold a fixed number of decimals.
+export function formatCelsius(value: number): string {
+  return `${celsius.format(value)} °C`;
 }
 
-// "₹874.50" for INR (en-IN grouping)
+// "32.4 kWh"
+export function formatKwh(value: number): string {
+  return `${formatNumber(value, DECIMALS.kWh)} kWh`;
+}
+
+// "₹874.50" for INR (en-IN grouping): a bill, or a sum of bills, to the paisa.
 export function formatMoney(value: number, currency: string): string {
   let fmt = moneyFormats.get(currency);
   if (!fmt) {

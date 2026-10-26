@@ -1,11 +1,9 @@
 import { SessionLine, type SessionView } from "@/components/session-line";
 import { splitSite } from "@/lib/charge-sessions";
-import { formatClock, formatDayLabel, formatDuration, formatKwh, formatMoney, formatShortDate, formatTempRange } from "@/lib/format";
+import { formatClock, formatDayLabel, formatDuration, formatKw, formatKwh, formatLevels, formatMoney, formatShortDate, formatTempRange } from "@/lib/format";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { cn } from "@/lib/utils";
-
-const kwFormat = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 
 export function rate(cost: number, energy: number, currency: string): string | null {
   return energy > 0 ? `${formatMoney(cost / energy, currency)}/kWh` : null;
@@ -59,7 +57,7 @@ export function OsmCredit({ className }: { className?: string }) {
 }
 
 function levels(s: StreamChargeSession): string | null {
-  return s.start_level !== null && s.end_level !== null ? `${Math.round(s.start_level)}% to ${Math.round(s.end_level)}%` : null;
+  return s.start_level !== null && s.end_level !== null ? formatLevels(s.start_level, s.end_level) : null;
 }
 
 // The battery's warm-up on a fast charger, which explains a slow session. AC charger details live on the car page.
@@ -99,7 +97,8 @@ export function SessionHeader({ costs, wide = false, numbered = false }: { costs
 
 // `costs` comes from hasCosts over the whole list. The invoice download sits before the cost, so a row
 // without one leaves no gap and the last column stays flush right.
-export function SessionRow({ item, serial, now, costs }: { item: Listed; serial?: number; now?: number; costs: boolean }) {
+// `shownKwh` is the row's energy as rounded with the list's total (see apportion), so the rows add up to it.
+export function SessionRow({ item, serial, now, costs, shownKwh }: { item: Listed; serial?: number; now?: number; costs: boolean; shownKwh?: number | null }) {
   const { tesla: s, stream, invoice: attached } = item;
   const invoice = s?.invoices.find((i) => i.contentId);
   const { place, city } = s ? splitSite(s.site_name) : { place: stream ? streamTitle(stream) : "", city: null };
@@ -108,7 +107,7 @@ export function SessionRow({ item, serial, now, costs }: { item: Listed; serial?
   const durationText = durationMs > 0 ? formatDuration(durationMs / 1000) : null;
   const currency = s?.currency ?? "INR";
   const rateText = s && s.cost_total !== null && s.energy_kwh !== null ? rate(s.cost_total, s.energy_kwh, currency) : null;
-  const peakText = stream?.peak_power_kw ? `up to ${kwFormat.format(stream.peak_power_kw)} kW` : null;
+  const peakText = stream?.peak_power_kw ? `up to ${formatKw(stream.peak_power_kw)}` : null;
   const energy = s ? s.energy_kwh : (stream?.energy_added_kwh ?? null);
   const tempText = stream && batteryTemp(stream);
   // Sessions the car streamed open their power curve; the title link covers the whole row.
@@ -128,7 +127,7 @@ export function SessionRow({ item, serial, now, costs }: { item: Listed; serial?
     href,
     place,
     detail: detail.filter(Boolean).join(" · "),
-    energy: energy === null ? null : formatKwh(energy),
+    energy: energy === null ? null : formatKwh(shownKwh ?? energy),
     cost: !costs
       ? undefined
       : s && s.cost_total !== null

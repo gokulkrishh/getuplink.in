@@ -1,11 +1,10 @@
 "use client";
 
 import { LineChart } from "@/components/stats/line-chart";
-import { formatShortDate } from "@/lib/format";
+import { formatKwh, formatShortDate } from "@/lib/format";
 
 export type TrendPoint = { weekStart: number; kwh: number };
 
-const oneDecimal = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 
 // Weekly median of the estimated full pack. The axis hugs the data (2 kWh either side) instead of starting
 // at 0, since the pack moves by tenths of a kWh. Client-side, so the formatters never cross from the server.
@@ -18,11 +17,11 @@ export default function BatteryTrendPlot({ points }: { points: TrendPoint[] }) {
       series={[{ name: "Estimated full pack", className: "stroke-chart-accent", points: points.map((p) => ({ x: p.weekStart, y: p.kwh })) }]}
       formatX={(x) => `Week of ${formatShortDate(x)}`}
       formatTickX={formatShortDate}
-      formatY={(y) => `${oneDecimal.format(y)} kWh`}
+      formatY={(y) => formatKwh(y)}
       unit="kWh"
       yFrom={Math.floor(Math.min(...values) - 2)}
       yTo={Math.ceil(Math.max(...values) + 2)}
-      label={`Estimated full pack per week: ${oneDecimal.format(first.kwh)} kWh in the week of ${formatShortDate(first.weekStart)}, ${oneDecimal.format(last.kwh)} kWh in the week of ${formatShortDate(last.weekStart)}`}
+      label={`Estimated full pack per week: ${formatKwh(first.kwh)} in the week of ${formatShortDate(first.weekStart)}, ${formatKwh(last.kwh)} in the week of ${formatShortDate(last.weekStart)}`}
     />
   );
 }

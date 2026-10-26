@@ -53,6 +53,39 @@ One or two plain sentences saying what the chart shows and how to read it: what'
 
 Copy rules: plain sentences, sentence case, no arrows, no en-dash ranges ("58% to 51%", "8:18 AM to 8:48 AM"). Show only what is known: no guessed times or durations, and no projections presented as readings.
 
+## Precision
+
+Every figure shows the precision its data supports, the same everywhere it appears. The rules live in one place, `lib/format.ts` (`DECIMALS` and the `format*` helpers). Never write `toFixed`, `Math.round` or a new `Intl.NumberFormat` for a figure on a page; use the helper for its unit.
+
+| Unit | Shown | Helper | Why |
+| --- | --- | --- | --- |
+| Distance driven | 1 decimal: "46.2 km" | `formatKm` | The odometer reads to a few metres. Whole km lost up to 0.5 km a bar |
+| Odometer | 1 decimal: "3,434.7 km" | `formatKm` | The same reading |
+| Range (the car's estimate) | Whole: "287 km" | `formatRangeKm` | An estimate; tenths would be false precision |
+| Energy | 1 decimal: "11.1 kWh" | `formatKwh` | Counters and bills read to 0.001 kWh |
+| Power | 1 decimal: "7.2 kW"; under 1 kW in W: "24 W", "4.5 W" | `formatKw`, `formatPower` | |
+| Money | To the paisa: "₹874.50" | `formatMoney` | Bills are to the paisa. Axis ticks stay compact |
+| Battery level, shares | Whole: "66%", "58% to 51%" | `formatPercent`, `formatLevels` | Whole percent, as the car's screen shows it |
+| Rates of %: drain | 1 decimal: "1.4% a day" | `formatPercent(v, 1)` | Small numbers |
+| Speed | Whole: "92 km/h" | `formatSpeed` | |
+| Wh/km | Whole: "152 Wh/km" | `formatWhPerKm` (`lib/seasons.ts`) | |
+| km per kWh | 1 decimal | `formatNumber(v, DECIMALS.kmPerKwh)` | |
+| Temperature | Up to 1 decimal: "35.5 °C", "30 °C" | `formatCelsius`, `formatTempRange` | Reported in half degrees, never summed |
+
+Figures with a fixed precision keep their trailing zero ("100.0 km"), so a total and its parts read alike. Exactly zero reads "0".
+
+### Totals and their parts
+
+A total and its parts agree as shown, to the last digit:
+
+- Keep every figure at full precision in the data (`lib/driving-figures.ts`, `dailyDistance`, `groupTrips`, the MCP JSON in `lib/server/mcp-data.ts`). Round only to show it.
+- Round the parts and the total together with `shownTotal(values, decimals)` (or `apportion`). It uses the largest remainder: the total is the parts' raw sum rounded once, and each part moves at most one last digit from its own rounding so that they add up to it. Three days of 46.215, 7.416 and 46.377 km show as 46.2, 7.4 and 46.4, and the week as 100.0 km. Rounded alone, they read 46, 7 and 46 against 100.
+- Use the parts' sum as the headline, not a figure worked out apart. The bars share their edges, so the odometer's rise over a period is the same sum (`knownBars` in `driving-sections.tsx` builds both).
+- A stacked bar rounds twice: the columns to the headline, then each column's segments to its column (`apportion(values, decimals, total)`).
+- Use the same source for both. The Distance bars, Driving per day and the monthly table all read the odometer, merging the stream with the online polls by taking whichever was read later at each midnight: the later reading is closer to the boundary, so it puts each kilometre in the right day. The drives (`groupTrips`) are only the source for lists of trips and their own totals.
+- Rows under a total (trips, legs, charges, sessions) take their figures from the same `shownTotal`: `shownTrip`, `shownTrips`, `SessionRow`'s `shownKwh`.
+- A bar's tooltip shows its `display`, the rounded part, so the tip, the label and the headline agree.
+
 ## Units and the glossary
 
 Every unit or term a non-technical owner might not know gets a short plain explanation wherever it appears: a chart, a tile or a table. The words live in one place, `lib/unit-words.ts` (`UNIT_WORDS`, `unitWords(unit)`, `unitNotes([units])`). Charts get them through `ChartCard`'s `unit` and `terms`. Tiles and tables use `unitWords` or `unitNotes` in a tile `note` or in one line under the tiles, as the drive page does for kWh. Add new terms to the glossary rather than writing the words inline.

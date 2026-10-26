@@ -1,11 +1,9 @@
 import type { MonthRow } from "@/lib/monthly";
-import { formatDuration, formatMonth } from "@/lib/format";
+import { formatDuration, formatKm, formatKwh, formatMoney, formatMonth } from "@/lib/format";
 import { monthStart } from "@/lib/periods";
 import { Measure } from "@/components/measure";
 
-const number = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
-const oneDecimal = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
-const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
+const money = { format: (n: number) => formatMoney(n, "INR") };
 
 const COLUMNS = ["Month", "Driven", "Time driving", "Energy used", "Charges", "Energy added", "Spent"];
 
@@ -41,11 +39,11 @@ export function MonthlyTable({ rows, empty }: { rows: MonthRow[]; empty?: string
                   <th scope="row" className="py-3 pr-4 text-left font-normal whitespace-nowrap">
                     {formatMonth(monthStart(r.month))}
                   </th>
-                  <td className="py-3 pr-4 text-right font-mono"><Measure text={`${number.format(r.km)} km`} /></td>
+                  <td className="py-3 pr-4 text-right font-mono"><Measure text={formatKm(r.km)} /></td>
                   <td className="py-3 pr-4 text-right whitespace-nowrap">{r.drivingMs ? formatDuration(r.drivingMs / 1000) : "None"}</td>
-                  <td className="py-3 pr-4 text-right font-mono">{r.kwhUsed !== null ? <Measure text={`${oneDecimal.format(r.kwhUsed)} kWh`} /> : "Unknown"}</td>
+                  <td className="py-3 pr-4 text-right font-mono">{r.kwhUsed !== null ? <Measure text={formatKwh(r.kwhUsed)} /> : "Unknown"}</td>
                   <td className="py-3 pr-4 text-right font-mono">{r.charges}</td>
-                  <td className="py-3 pr-4 text-right font-mono"><Measure text={`${oneDecimal.format(r.kwhAdded)} kWh`} /></td>
+                  <td className="py-3 pr-4 text-right font-mono"><Measure text={formatKwh(r.kwhAdded)} /></td>
                   <td className="py-3 text-right">
                     <span className="font-mono">{money.format(r.spend)}</span>
                     {r.unbilled > 0 && <span className="block text-xs text-muted-foreground">{r.unbilled} without a bill</span>}
@@ -56,7 +54,7 @@ export function MonthlyTable({ rows, empty }: { rows: MonthRow[]; empty?: string
           </table>
         </div>
       )}
-      <p className="text-xs text-faint">Driving covers the last 90 days of drives. Spent counts only real bills: Tesla&apos;s and invoices you attached.</p>
+      <p className="text-xs text-faint">Driven is the odometer&apos;s distance, like the Distance bars. Time driving and energy used cover the last 90 days of drives. Spent counts only real bills: Tesla&apos;s and invoices you attached.</p>
     </section>
   );
 }

@@ -10,7 +10,8 @@ import { TripTable } from "@/components/stats/drive-list";
 import { type Figure, Figures } from "@/components/stats/figures";
 import { TripMap } from "@/components/stats/trip-map";
 import { buttonVariants } from "@/components/ui/button";
-import { formatClock, formatKwh, formatMoney } from "@/lib/format";
+import { DECIMALS, formatClock, formatKm, formatKwh, formatMoney, shownTotal } from "@/lib/format";
+import { shownTrips } from "@/lib/trips";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type DayDetail, loadDay } from "@/lib/server/day";
@@ -23,7 +24,6 @@ import { Measure } from "@/components/measure";
 export const metadata: Metadata = { title: "Day · Uplink" };
 
 const long = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
-const oneDecimal = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 
 // Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx).
 async function loadDetail(day: number): Promise<{ detail: DayDetail | null; now: number }> {
@@ -57,14 +57,19 @@ function DayNav({ detail }: { detail: DayDetail }) {
 
 // One day: what you drove and charged, when, and where. Previous and next step through the days.
 function DayView({ detail, now }: { detail: DayDetail; now: number }) {
-  const km = detail.trips.reduce((s, t) => s + t.km, 0);
-  const used = detail.trips.every((t) => t.kwh !== null) ? detail.trips.reduce((s, t) => s + (t.kwh ?? 0), 0) : null;
+  // The trips and the charges are rounded together with their totals (see shownTotal), so the rows below
+  // add up to the tiles as shown.
+  const { trips, km, kwh: used } = shownTrips(detail.trips);
   const charged = chargeTotals(detail.charges.map((c) => ({ kwh: c.session.energy_added_kwh, cost: c.cost })));
+  const chargedKwh = shownTotal(
+    detail.charges.map((c) => c.session.energy_added_kwh),
+    DECIMALS.kWh,
+  );
   // Spent is the same bills total as Stats > Charging; charges without a bill are noted under it.
   const tiles: Figure[] = [
-    { label: "Driven", value: `${oneDecimal.format(km)} km` },
+    { label: "Driven", value: formatKm(km) },
     { label: "Energy used", value: used !== null ? formatKwh(used) : "Unknown" },
-    { label: "Charged", value: charged.kwh !== null ? formatKwh(charged.kwh) : "Unknown" },
+    { label: "Charged", value: charged.kwh !== null ? formatKwh(chargedKwh.total) : "Unknown" },
     { label: "Spent", value: formatMoney(detail.spent, "INR"), note: charged.unbilled > 0 ? `${charged.unbilled} without a bill` : undefined },
   ];
   return (
@@ -90,14 +95,14 @@ function DayView({ detail, now }: { detail: DayDetail; now: number }) {
         {detail.trips.length > 0 && (
           <section className="space-y-4">
             <h2 className="text-lg font-medium tracking-heading">Trips</h2>
-            <TripTable trips={detail.trips} serialOf={(t) => detail.trips.length - detail.trips.indexOf(t)} now={now} />
+            <TripTable trips={trips} serialOf={(t) => trips.length - trips.indexOf(t)} now={now} />
           </section>
         )}
         {detail.charges.length > 0 && (
           <section className="space-y-4">
             <h2 className="text-lg font-medium tracking-heading">Charges</h2>
             <ul className="divide-y border-t text-sm tabular-nums">
-              {detail.charges.map(({ session: s, cost }) => (
+              {detail.charges.map(({ session: s, cost }, k) => (
                 <li key={s.id} className="relative flex cursor-pointer items-baseline justify-between gap-4 py-3 sm:-mx-3 sm:px-3 transition-colors duration-150 hover:bg-muted focus-within:bg-muted">
                   <span>
                     <Link href={`/stats/charging/${s.id}`} className="outline-none after:absolute after:inset-0">
@@ -107,7 +112,7 @@ function DayView({ detail, now }: { detail: DayDetail; now: number }) {
                     <span className="block text-xs text-muted-foreground">{[s.supercharger ? "Supercharger" : s.kind.toUpperCase(), s.station_name].filter(Boolean).join(" · ")}</span>
                   </span>
                   <span className="text-right font-mono">
-                    {s.energy_added_kwh !== null && <Measure text={formatKwh(s.energy_added_kwh)} />}
+                    {s.energy_added_kwh !== null && <Measure text={formatKwh(chargedKwh.parts[k] ?? s.energy_added_kwh)} />}
                     {cost !== null && <span className="block text-xs text-muted-foreground">{formatMoney(cost, "INR")}</span>}
                   </span>
                 </li>

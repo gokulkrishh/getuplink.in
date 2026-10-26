@@ -109,7 +109,8 @@ function figureReader(input: DrivingCounters, now: number) {
     const kwh = rise(counted(used), span, now);
     const streamedKm = streamedMiles === null ? 0 : streamedMiles * MILES_TO_KM;
     return {
-      km: miles === null ? null : Math.round(miles * MILES_TO_KM),
+      // Not rounded: the bars' kilometres add up to the span's only before rounding (see apportion).
+      km: miles === null ? null : miles * MILES_TO_KM,
       whPerKm: kwh !== null && kwh > 0 && streamedKm >= minKm ? (kwh * 1000) / streamedKm : null,
       kwh: kwh !== null && kwh > 0 && streamedKm >= minKm ? kwh : null,
       regenKwh: rise(counted(regen), span, now),
@@ -132,7 +133,7 @@ export function drivingFigures(input: DrivingCounters, now: number): DrivingFigu
   return {
     periods,
     since: odometer?.first?.at ?? null,
-    odometerKm: latest === null ? null : Math.round(latest * MILES_TO_KM),
+    odometerKm: latest === null ? null : latest * MILES_TO_KM,
   };
 }
 
