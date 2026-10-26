@@ -7,9 +7,9 @@ export const NAME_MAX = 60;
 
 export type LatLng = { lat: number; lng: number };
 
-// googlePlaceId: set when the name was a Google suggestion the owner confirmed. Google's terms keep its
-// names off non-Google maps, so such a tag is shown in lists but not on the map (see mapName).
-export type UserPlace = LatLng & { id: number; name: string; radiusM: number; googlePlaceId: string | null };
+// The name is always the owner's own (typed, or an OpenStreetMap suggestion they picked), so it shows
+// everywhere, map pins included.
+export type UserPlace = LatLng & { id: number; name: string; radiusM: number };
 
 // What a page needs to offer "Name this place" or a rename: the spot, and its tag when it has one.
 export type NameTarget = LatLng & { tag: { id: number; name: string } | null };
@@ -31,9 +31,6 @@ export function tagAt(tags: readonly UserPlace[], p: LatLng): UserPlace | null {
   }
   return best;
 }
-
-// The tag's name as the map may show it: Google-sourced names stay off our (non-Google) map.
-export const mapName = (tag: UserPlace | null): string | null => (tag && !tag.googlePlaceId ? tag.name : null);
 
 export function nameTarget(tags: readonly UserPlace[], p: LatLng): NameTarget {
   const tag = tagAt(tags, p);
@@ -59,9 +56,4 @@ export function parsePoint(lat: unknown, lng: unknown): LatLng | null {
 export function parseId(value: unknown): number | null {
   const n = typeof value === "string" && /^\d{1,15}$/.test(value) ? Number(value) : value;
   return typeof n === "number" && Number.isSafeInteger(n) && n > 0 ? n : null;
-}
-
-// Google place IDs are URL-safe text, usually 27 characters or more.
-export function parsePlaceId(value: unknown): string | null {
-  return typeof value === "string" && /^[A-Za-z0-9_-]{10,300}$/.test(value) ? value : null;
 }

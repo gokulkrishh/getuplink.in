@@ -1,11 +1,14 @@
-// Suggestions for "Name this place", and the parsers for Google's replies. Pure, so tested with fixtures;
-// lib/server/place-suggestions.ts makes the calls.
+// Suggestions for "Name this place", and the parsers for Google's and Nominatim's replies. Pure, so
+// tested with fixtures; lib/server/place-suggestions.ts makes the calls.
 //
-// source says where a suggestion came from: Google's need its attribution and stay off our map once kept
-// (see docs/place-names.md); OpenStreetMap's (a station from lib/station-data.ts, or the area name) need
-// the ODbL credit.
+// Google's are hints only: shown read-only with its attribution, never copied into a name (its terms
+// forbid saving its names). OpenStreetMap's (a station from lib/station-data.ts, or the area name) can be
+// tapped to fill the field, with the ODbL credit. See docs/place-names.md.
 export type SuggestionSource = "google" | "station" | "area";
-export type Suggestion = { name: string; detail: string | null; source: SuggestionSource; placeId: string | null };
+export type Suggestion = { name: string; detail: string | null; source: SuggestionSource };
+// hints: Google's, shown read-only. picks: OpenStreetMap's, which a tap copies into the field.
+export type Suggestions = { hints: Suggestion[]; picks: Suggestion[] };
+export const NO_SUGGESTIONS: Suggestions = { hints: [], picks: [] };
 
 const text = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null);
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -20,19 +23,18 @@ export function typeWords(type: unknown): string | null {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-// Places API (New) Nearby Search: places[] with id, displayName.text, primaryType and types (the field
-// mask in lib/server/place-suggestions.ts). Charging stations first, then
-// the rest in Google's order (nearest first, by rankPreference DISTANCE).
+// Places API (New) Nearby Search: places[] with displayName.text, primaryType and types (the field mask
+// in lib/server/place-suggestions.ts). Charging stations first, then the rest in Google's order (nearest
+// first, by rankPreference DISTANCE).
 export function parseNearby(body: unknown): Suggestion[] {
   const places = isRecord(body) && Array.isArray(body.places) ? body.places : [];
   const out: (Suggestion & { charging: boolean })[] = [];
   for (const p of places) {
     if (!isRecord(p)) continue;
     const name = text(isRecord(p.displayName) ? p.displayName.text : null);
-    const id = text(p.id);
-    if (!name || !id) continue;
+    if (!name) continue;
     const charging = p.primaryType === CHARGING || (Array.isArray(p.types) && p.types.includes(CHARGING));
-    out.push({ name, detail: charging ? "Charging station" : typeWords(p.primaryType), source: "google", placeId: id, charging });
+    out.push({ name, detail: charging ? "Charging station" : typeWords(p.primaryType), source: "google", charging });
   }
   return [...out.filter((p) => p.charging), ...out.filter((p) => !p.charging)].map(({ charging: _, ...s }) => s);
 }
@@ -46,12 +48,11 @@ export function parseReverse(body: unknown): Suggestion | null {
     const types = Array.isArray(r.types) ? r.types : [];
     if (types.includes("plus_code")) continue;
     const address = text(r.formatted_address);
-    const id = text(r.place_id);
-    if (!address || !id) continue;
+    if (!address) continue;
     const parts = address.split(",").map((s) => s.trim());
     const kept = parts.slice(0, -1).filter((s) => !/\d{6}/.test(s) && !/\+/.test(s));
     const name = (kept.length ? kept : parts).slice(0, 3).join(", ");
-    return { name, detail: "Street address", source: "google", placeId: id };
+    return { name, detail: "Street address", source: "google" };
   }
   return null;
 }
@@ -66,8 +67,7 @@ export function nominatimName(body: unknown): string | null {
   return [area, city].filter((x, k, all) => x && all.indexOf(x) === k).join(", ") || null;
 }
 
-// One list, best first: Google's charging stations and places, its address, then OpenStreetMap's station
-// and area name. The same name twice is shown once, from the first source.
+// One list, best first, each name once (the first source's), at most `max`.
 export function mergeSuggestions(lists: Suggestion[][], max = 8): Suggestion[] {
   const seen = new Set<string>();
   const out: Suggestion[] = [];

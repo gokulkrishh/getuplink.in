@@ -198,13 +198,13 @@ function mapPins(pins: MapPin[], legs: DriveDetail["trip"]["legs"]): MapPin[] {
 }
 
 // The trip's facts under its map, from the tiles above, with where it began and ended when known. They sit
-// on the map's card, so each end shows the name a map may show (SpotName.map), with "Name this place" or a
+// on the map's card, each end with its best name (see spotName), and "Name this place" or a
 // rename beside it.
 function endFact(label: string, end: SpotName | null): MapFact | null {
   if (!end) return null;
   const action = needsName(end.name) ? <NamePlace target={end.target} /> : end.target.tag ? <NamePlace target={end.target} compact /> : undefined;
-  if (!end.map && !action) return null;
-  return { label, value: end.map ?? "Unknown", extra: action };
+  if (!end.name && !action) return null;
+  return { label, value: end.name?.text ?? "Unknown", extra: action };
 }
 
 function mapFacts(from: SpotName | null, to: SpotName | null, tiles: { label: string; value: string }[]): MapFact[] {

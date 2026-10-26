@@ -291,6 +291,26 @@ export async function savePlaceName(key: string, name: string | null): Promise<v
   await db().from("place_names").upsert({ key, name, looked_up_at: new Date().toISOString() }, { onConflict: "key" });
 }
 
+// ---- Google Maps Platform calls, for Admin > Costs (google_usage) ----
+
+// Adds one call to this month's count for the SKU. Never throws: an uncounted call is better than a
+// failed lookup, and before the migration nothing is counted.
+export async function countGoogleCall(sku: string): Promise<void> {
+  try {
+    const { error } = await db().rpc("increment_google_usage", { p_sku: sku, p_n: 1 });
+    if (error && !["42P01", "PGRST205", "PGRST202", "42883"].includes(error.code)) console.warn("Counting a Google call failed:", error.message);
+  } catch (err) {
+    console.warn("Counting a Google call failed:", (err as Error).message);
+  }
+}
+
+// Each SKU's count for the month starting on `month` (YYYY-MM-01), or null before the migration.
+export async function googleUsageFor(month: string): Promise<Record<string, number> | null> {
+  const { data, error } = await db().from("google_usage").select("sku, count").eq("month", month);
+  if (error) return null;
+  return Object.fromEntries(((data ?? []) as { sku: string; count: number | string }[]).map((r) => [r.sku, Number(r.count)]));
+}
+
 // ---- Rollout: every car's versions, reduced to totals by lib/rollout ----
 
 const PAGE = 1000; // PostgREST's default row cap per request

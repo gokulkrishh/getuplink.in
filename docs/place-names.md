@@ -18,20 +18,31 @@ Where the name is only the area, or there is none, the page offers **Name this p
 
 ## Your places (`user_places`)
 
-- Migration: `supabase/migrations/20261101120000_user_places.sql`. Service role only (RLS on, no policies, privileges revoked). Index on `(user_id, lat, lng)`.
+- Migration: `supabase/migrations/20261101140000_user_places.sql` (with `google_usage`, below). Service role only (RLS on, no policies, privileges revoked). Index on `(user_id, lat, lng)`.
+- A tag is a name, a point and a radius. The name is always the owner's own: typed, or an OpenStreetMap suggestion they tapped. Nothing from Google is stored, so tags show everywhere, map pins included.
 - Every read and write goes through `ownerDb` (`lib/server/user-places.ts`), so it is the signed-in user's rows only. The actions in `app/places/actions.ts` re-check the session and validate every input. The radius is set on the server.
 - Before the migration runs, reads return no tags and saving says "Naming places isn't ready yet."
 - Delete my data removes them (`eraseOwnerRows`). Deleting the account cascades.
 - Matching is in memory: the owner's tags are read once per page (at most 500) and matched with `tagAt`.
 
-## Google (suggestions in the sheet)
+## The naming sheet
 
-The sheet asks for suggestions only when it opens, for that one spot. With `GOOGLE_MAPS_API_KEY` set it makes two calls:
+A full-screen sheet over an opaque backdrop (`components/name-place.tsx`), so the page and its map are hidden while it is open. It has:
 
-- **Places API (New) Nearby Search**, 150 m, ranked by distance, at most 8 results. Field mask `places.id,places.displayName,places.primaryType,places.types`. `displayName` puts it in Nearby Search Pro, the cheapest tier with a name. No Enterprise fields (ratings, hours, photos). Charging stations are listed first.
+- **The name field**, empty for a new place. The owner types the name. It can be the same words they see in a hint, typed by them.
+- **From OpenStreetMap**: mapped charging stations within 150 m and the kept area name. A tap fills the field (ODbL allows it), credited "© OpenStreetMap contributors".
+- **Nearby on Google Maps** (with `GOOGLE_MAPS_API_KEY`): read-only hints, credited "Google Maps". Tapping does nothing, and no Google name or ID is ever sent back to the server.
+
+Suggestions are asked for only when the sheet opens, for that one spot. Without the key there are no Google hints and no error. Demo mode uses made-up hints and calls nothing.
+
+## Google
+
+Each sheet open makes two calls, at most:
+
+- **Places API (New) Nearby Search**, 150 m, ranked by distance, at most 8 results. Field mask `places.displayName,places.primaryType,places.types`. `displayName` puts it in Nearby Search Pro, the cheapest tier with a name. No ids (nothing is kept) and no Enterprise fields (ratings, hours, photos). Charging stations are listed first.
 - **Geocoding API** reverse lookup, for the street address.
 
-Without the key the sheet shows OpenStreetMap's suggestions (nearby mapped stations, the kept area name) and the name field, with no error. Demo mode uses made-up suggestions and calls nothing.
+Each call that answers is counted in `google_usage` (UTC month, SKU: `nearbySearchPro`, `geocoding`) by `increment_google_usage`. Admin > Costs reads the month's counts (`googleUsage` in `lib/server/costs/usage.ts`) and prices them with `lib/costs.ts` `GOOGLE_SKUS`. Before the migration nothing is counted and the line reads "Not tracked yet".
 
 ### What the terms say, and what Uplink does
 
@@ -39,30 +50,10 @@ Sources: [Maps Platform Terms](https://cloud.google.com/maps-platform/terms), [S
 
 | Rule | What Uplink does |
 | --- | --- |
-| No use of Places or Geocoding content with a non-Google map (Service terms 6.2, 14.2). The main terms say not "with or near" one. Uplink's maps are MapLibre with CARTO tiles. | Google results appear only in the naming sheet. It always opens below its trigger, never flipped up over a map. No pin, chip or tooltip on a map ever shows a Google name (`SpotName.map`). **Still near a map: see open risks.** |
-| No caching except as allowed. Place IDs may be kept indefinitely. Places and Geocoding lat/lng may be cached for 30 days. Geocoding addresses may be cached only per end user, for that user's own feature. | Nothing from Google is cached. A confirmed suggestion keeps only its `place_id` (`user_places.google_place_id`). The sheet calls Google again each time it opens. |
-| Attribution: the Google Maps logo, or the text "Google Maps" where space is short. | The sheet shows "Google Maps" under the suggestions whenever one is Google's. |
-| No scraping: don't "copy and save business names, addresses". | **Open risk, see below.** |
-
-### Open risk: the sheet sits near our map
-
-The sheet doesn't cover a map, but it shares the screen with one. On Driving it opens from the Places table just under the Places map. On a trip it opens from the From and To facts in the map's own card. The main terms forbid using Google content "with or near a non-Google Map", and it isn't clear whether a popover under a map counts as near. Options: open the sheet as a full-screen dialog on its own, or offer it only where no map shows (Settings, a charge's page, the day page's charge rows).
-
-### Open risk: confirming a Google suggestion
-
-The owner asked for a tapped suggestion to become their tag. Tapping one fills the name field, and saving stores that text in `user_places` as the owner's name, with the `place_id` beside it. The terms forbid copying and saving business names or addresses (Maps Platform Terms 3.2.3(a)(iii)). They allow user-confirmed data replacing Google content in the Address Validation API only, and say nothing like it for Places or Geocoding. So storing a name that came from Google, unchanged, may break the terms. It isn't clearly allowed as user-generated content.
-
-What limits it now:
-
-- It is one name per spot, saved only when the owner taps Save, kept for that owner only, and never shown on a map. A tag with a `google_place_id` stays off map pins and falls back to OpenStreetMap's name there.
-- A name the owner edits, even slightly, is saved as their own (no `place_id`). Saved again unchanged, it stays Google's and keeps its `place_id`.
-- There is no per-spot `place_id` cache: an ID alone shows nothing without a Place Details call, so it would only add cost. IDs are kept only on confirmed tags.
-
-Safer options, for the owner to decide:
-
-1. Store only the `place_id` for a Google-sourced tag, and fetch the name (Place Details, IDs and name) when the tag is shown. That costs a call per view, which the "no bulk lookups" rule rules out for lists.
-2. Let Google suggestions only prefill the field, and require an edit before saving.
-3. Drop Google suggestions and keep OpenStreetMap's (the sheet works without the key).
+| No use of Places or Geocoding content with or near a non-Google map (Service terms 6.2, 14.2; Maps Platform Terms 3.2.3(e)). Uplink's maps are MapLibre with CARTO tiles. | Google hints appear only in the full-screen sheet, whose opaque backdrop hides the page and its map. No pin, chip or tooltip shows anything from Google. |
+| No scraping: don't "copy and save business names, addresses" (3.2.3(a)(iii)). | The owner decided: they type the name. Google hints can't be tapped into the field, and nothing from Google is saved. |
+| No caching except as allowed (place IDs indefinitely, lat/lng 30 days). | Nothing from Google is cached or stored, IDs included. The sheet asks again each time it opens. |
+| Attribution: the Google Maps logo, or the text "Google Maps" where space is short. | "Google Maps" right under the hints. |
 
 ### Pricing (India billing, checked by the owner on 26 Oct 2026)
 

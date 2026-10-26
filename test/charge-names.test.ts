@@ -56,21 +56,12 @@ describe("withCarFlag", () => {
 });
 
 describe("spotName", () => {
-  const typed: UserPlace = { id: 7, name: "Maple Court", lat: 10, lng: 20, radiusM: 75, googlePlaceId: null };
-  const fromGoogle: UserPlace = { ...typed, id: 8, name: "Orchard Lane Market", googlePlaceId: "ChIJmadeUpPlaceId0001" };
+  const typed: UserPlace = { id: 7, name: "Maple Court", lat: 10, lng: 20, radiusM: 75 };
 
-  test("a tag in range names the spot, on the map too", () => {
-    const named = spotName([typed], { lat: 10.0002, lng: 20 }, { place: "Hillgrove, Riverton" });
+  test("a tag in range names the spot, above a station there", () => {
+    const named = spotName([typed], { lat: 10.0002, lng: 20 }, { station: "Brightwell, Hillgrove", place: "Hillgrove, Riverton" });
     expect(named.name).toEqual({ text: "Maple Court", source: "tag" });
-    expect(named.map).toBe("Maple Court");
     expect(named.target.tag).toEqual({ id: 7, name: "Maple Court" });
-  });
-
-  test("a name taken from Google shows in lists but the map falls back", () => {
-    const named = spotName([fromGoogle], { lat: 10, lng: 20 }, { station: "Brightwell, Hillgrove", place: "Hillgrove, Riverton" });
-    expect(named.name?.text).toBe("Orchard Lane Market");
-    expect(named.map).toBe("Brightwell, Hillgrove");
-    expect(spotName([fromGoogle], { lat: 10, lng: 20 }).map).toBeNull();
   });
 
   test("out of range, the other sources in their order", () => {

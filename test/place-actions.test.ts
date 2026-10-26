@@ -1,6 +1,10 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Owner } from "@/lib/server/data/owner";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { FakeDb } from "./fake-db";
+
+const readFixture = (name: string) => readFileSync(join(import.meta.dir, "fixtures", name), "utf8");
 
 // The "Name this place" actions against two users' rows: each re-checks the session, and one user never
 // reads, renames or removes the other's tags.
@@ -35,7 +39,8 @@ mock.module("next/navigation", () => ({
   },
 }));
 // Any call out (Nominatim, Google) is recorded and answered empty.
-globalThis.fetch = (async (url: string | URL) => (fetched.push(String(url)), new Response("{}", { status: 200 }))) as unknown as typeof fetch;
+const answerEmpty = (async (url: string | URL) => (fetched.push(String(url)), new Response("{}", { status: 200 }))) as unknown as typeof fetch;
+globalThis.fetch = answerEmpty;
 
 const { asOwner } = await import("@/lib/server/data/owner");
 const { placeSuggestions, removePlace, savePlace } = await import("@/app/places/actions");
@@ -60,12 +65,13 @@ beforeEach(() => {
   missingTable = false;
   tagged.length = 0;
   fetched.length = 0;
+  globalThis.fetch = answerEmpty;
   delete process.env.GOOGLE_MAPS_API_KEY;
   process.env.OSM_LOOKUPS = "off";
   fake = new FakeDb({
     user_places: [
-      { id: 10, user_id: 1, name: "Maple Court", lat: 10, lng: 20, radius_m: 75, google_place_id: null, updated_at: "2026-10-20T00:00:00Z" },
-      { id: 20, user_id: 2, name: "Cedar Park", lat: 11, lng: 21, radius_m: 75, google_place_id: null, updated_at: "2026-10-20T00:00:00Z" },
+      { id: 10, user_id: 1, name: "Maple Court", lat: 10, lng: 20, radius_m: 75, updated_at: "2026-10-20T00:00:00Z" },
+      { id: 20, user_id: 2, name: "Cedar Park", lat: 11, lng: 21, radius_m: 75, updated_at: "2026-10-20T00:00:00Z" },
     ],
     place_names: [],
   });
@@ -93,21 +99,14 @@ describe("signed in as A", () => {
   test("a new tag is A's, with the server's radius", async () => {
     expect(await savePlace(null, form({ name: "  Elm   Yard ", lat: "12.5", lng: "22.5", radius_m: "5000" }))).toBeNull();
     const row = fake.rows("user_places").at(-1)!;
-    expect(row).toEqual(expect.objectContaining({ user_id: 1, name: "Elm Yard", lat: 12.5, lng: 22.5, radius_m: 75, google_place_id: null }));
+    expect(row).toEqual(expect.objectContaining({ user_id: 1, name: "Elm Yard", lat: 12.5, lng: 22.5, radius_m: 75 }));
     expect(tagged).toEqual(["owner-data"]);
   });
 
-  test("a confirmed Google suggestion keeps only its place id beside the name", async () => {
-    expect(await savePlace(null, form({ name: "Orchard Lane Market", lat: "12", lng: "22", placeId: "ChIJmadeUpOrchardMarket01" }))).toBeNull();
-    expect(fake.rows("user_places").at(-1)).toEqual(expect.objectContaining({ user_id: 1, google_place_id: "ChIJmadeUpOrchardMarket01" }));
-  });
-
-  test("a Google-sourced tag saved again unchanged keeps its place id; a new name drops it", async () => {
-    fake.rows("user_places")[0].google_place_id = "ChIJmadeUpOrchardMarket01";
-    expect(await savePlace(null, form({ id: "10", name: "Maple Court" }))).toBeNull();
-    expect(fake.rows("user_places")[0].google_place_id).toBe("ChIJmadeUpOrchardMarket01");
-    expect(await savePlace(null, form({ id: "10", name: "Maple Court East" }))).toBeNull();
-    expect(fake.rows("user_places")[0].google_place_id).toBeNull();
+  test("only the typed name is kept: nothing from Google rides along", async () => {
+    expect(await savePlace(null, form({ name: "Elm Yard", lat: "12", lng: "22", placeId: "ChIJmadeUpOrchardMarket01", google_place_id: "x" }))).toBeNull();
+    const row = fake.rows("user_places").at(-1)!;
+    expect(Object.keys(row).sort()).toEqual(["created_at", "lat", "lng", "name", "radius_m", "updated_at", "user_id"]);
   });
 
   test("renames and removes only A's own tags", async () => {
@@ -134,25 +133,38 @@ describe("signed in as A", () => {
     expect((await loadUserPlaces(B)).map((p) => p.name)).toEqual(["Cedar Park"]);
   });
 
-  test("without a Google key, suggestions never call Google", async () => {
+  test("without a Google key, suggestions never call or count Google", async () => {
     const result = await placeSuggestions(12, 22);
-    expect(result.google).toBe(false);
+    expect(result.hints).toEqual([]);
     expect(fetched.filter((u) => u.includes("googleapis"))).toEqual([]);
-    expect(await placeSuggestions(Number.NaN, 22)).toEqual({ items: [], google: false });
+    expect(fake.rpcs).toEqual([]);
+    expect(await placeSuggestions(Number.NaN, 22)).toEqual({ hints: [], picks: [] });
   });
 
-  test("with a key, one Nearby Search and one reverse lookup, with a minimal field mask", async () => {
+  test("with a key, one Nearby Search Pro and one Geocoding call, each counted under its SKU", async () => {
     process.env.GOOGLE_MAPS_API_KEY = "test-key";
     const masks: string[] = [];
     globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
       fetched.push(String(url));
       const mask = new Headers(init?.headers).get("X-Goog-FieldMask");
       if (mask) masks.push(mask);
-      return new Response("{}", { status: 200 });
+      const body = String(url).includes("geocode") ? readFixture("google-reverse.json") : readFixture("google-nearby.json");
+      return new Response(body, { status: 200 });
     }) as unknown as typeof fetch;
-    await placeSuggestions(12, 22);
+    const result = await placeSuggestions(12, 22);
     expect(fetched.filter((u) => u.includes("googleapis"))).toHaveLength(2);
-    expect(masks).toEqual(["places.id,places.displayName,places.primaryType,places.types"]);
+    expect(masks).toEqual(["places.displayName,places.primaryType,places.types"]);
+    expect(fake.rpcs.map((r) => r.args.p_sku).sort()).toEqual(["geocoding", "nearbySearchPro"]);
+    expect(fake.rpcs.every((r) => r.fn === "increment_google_usage" && r.args.p_n === 1)).toBe(true);
+    // Hints only: read-only names, nothing to keep.
+    expect(result.hints.map((h) => h.name)).toEqual(["Brightwell Charging Hub", "Orchard Lane Market", "Juniper Café", "14, Orchard Lane, Hillgrove"]);
+  });
+
+  test("a Google call that fails isn't counted", async () => {
+    process.env.GOOGLE_MAPS_API_KEY = "test-key";
+    globalThis.fetch = (async (url: string | URL) => (fetched.push(String(url)), new Response("denied", { status: 403 }))) as unknown as typeof fetch;
+    expect((await placeSuggestions(12, 22)).hints).toEqual([]);
+    expect(fake.rpcs).toEqual([]);
   });
 });
 

@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { mapName, metres, nameTarget, parseId, parseName, parsePlaceId, parsePoint, TAG_RADIUS_M, tagAt, type UserPlace } from "@/lib/user-places";
+import { metres, nameTarget, parseId, parseName, parsePoint, TAG_RADIUS_M, tagAt, type UserPlace } from "@/lib/user-places";
 
 // Made-up spots. 0.0001° of latitude is about 11.1 m.
-const HOME: UserPlace = { id: 1, name: "Maple Court", lat: 10, lng: 20, radiusM: TAG_RADIUS_M, googlePlaceId: null };
+const HOME: UserPlace = { id: 1, name: "Maple Court", lat: 10, lng: 20, radiusM: TAG_RADIUS_M };
 const north = (m: number) => ({ lat: HOME.lat + m / 111_195, lng: HOME.lng });
 
 describe("tagAt", () => {
@@ -26,12 +26,6 @@ describe("tagAt", () => {
 
   test("no tags, no match", () => {
     expect(tagAt([], north(0))).toBeNull();
-  });
-
-  test("a Google-sourced name stays off the map", () => {
-    expect(mapName(HOME)).toBe("Maple Court");
-    expect(mapName({ ...HOME, googlePlaceId: "ChIJmadeUpPlaceId0001" })).toBeNull();
-    expect(mapName(null)).toBeNull();
   });
 
   test("nameTarget carries the spot and its tag", () => {
@@ -59,13 +53,10 @@ describe("input checks", () => {
     expect(parsePoint(null, null)).toBeNull();
   });
 
-  test("ids and place ids", () => {
+  test("ids", () => {
     expect(parseId("12")).toBe(12);
     expect(parseId("0")).toBeNull();
     expect(parseId("1; drop table")).toBeNull();
     expect(parseId(-3)).toBeNull();
-    expect(parsePlaceId("ChIJmadeUpPlaceId0001")).toBe("ChIJmadeUpPlaceId0001");
-    expect(parsePlaceId("short")).toBeNull();
-    expect(parsePlaceId("has spaces in it here")).toBeNull();
   });
 });

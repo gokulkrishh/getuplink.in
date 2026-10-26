@@ -31,7 +31,7 @@ mock.module("server-only", () => ({}));
 mock.module("@/lib/server/supabase", () => ({
   db: () => {
     const client = fake.client();
-    return missing ? { ...client, from: (t: string) => (t.startsWith("cost_") ? missingTable() : client.from(t)) } : client;
+    return missing ? { ...client, from: (t: string) => (t.startsWith("cost_") || t === "google_usage" ? missingTable() : client.from(t)) } : client;
   },
 }));
 mock.module("@/lib/server/crypto", () => ({ encrypt: (s: string) => `enc:${s}`, decrypt: (s: string) => s.slice(4) }));
@@ -204,6 +204,22 @@ describe("the page's data", () => {
     expect(lines.google.state).toBe("not-tracked");
     for (const id of ["supabase", "fly", "domain"]) expect(lines[id].state).toBe("not-set");
     expect(fetched).toEqual([]);
+  });
+
+  test("Google is the naming sheet's counted calls this month, by SKU, past each free allowance", async () => {
+    fake.rows("google_usage").push(
+      { month: "2026-10-01", sku: "nearbySearchPro", count: 36_000 },
+      { month: "2026-10-01", sku: "geocoding", count: 120 },
+      // Last month's and unknown SKUs don't count.
+      { month: "2026-09-01", sku: "nearbySearchPro", count: 99_000 },
+      { month: "2026-10-01", sku: "somethingElse", count: 5 },
+    );
+    // 1,000 Nearby Search Pro calls past the 35,000 free, at $9.60 per 1,000; Geocoding is inside its 70,000.
+    expect((await byId()).google).toMatchObject({ state: "ok", amount: 9.6, source: "estimated" });
+  });
+
+  test("Google with no calls yet this month is tracked at zero", async () => {
+    expect((await byId()).google).toMatchObject({ state: "ok", amount: 0 });
   });
 
   test("Tesla is step 5's month-to-date estimate against the $10 credit, and not tracked before its migration", async () => {

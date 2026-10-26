@@ -13,12 +13,12 @@ export const MAX_TAGS = 500;
 
 // Made-up tags for the demo car's spots (see lib/server/demo), so its pages show names the owner gave.
 export const DEMO_TAGS: UserPlace[] = [
-  { id: 1, name: "Juniper Café", lat: 12.9784, lng: 77.6408, radiusM: TAG_RADIUS_M, googlePlaceId: null },
-  { id: 2, name: "Cedar Park", lat: 13.0358, lng: 77.597, radiusM: TAG_RADIUS_M, googlePlaceId: null },
+  { id: 1, name: "Juniper Café", lat: 12.9784, lng: 77.6408, radiusM: TAG_RADIUS_M },
+  { id: 2, name: "Cedar Park", lat: 13.0358, lng: 77.597, radiusM: TAG_RADIUS_M },
 ];
 
-type Row = { id: number; name: string; lat: number; lng: number; radius_m: number; google_place_id: string | null };
-const fromRow = (r: Row): UserPlace => ({ id: Number(r.id), name: r.name, lat: Number(r.lat), lng: Number(r.lng), radiusM: Number(r.radius_m), googlePlaceId: r.google_place_id ?? null });
+type Row = { id: number; name: string; lat: number; lng: number; radius_m: number };
+const fromRow = (r: Row): UserPlace => ({ id: Number(r.id), name: r.name, lat: Number(r.lat), lng: Number(r.lng), radiusM: Number(r.radius_m) });
 
 // The owner's tags, newest first. Never throws: before the migration, or on an error, there are none.
 export async function loadUserPlaces(owner: Owner): Promise<UserPlace[]> {
@@ -26,7 +26,7 @@ export async function loadUserPlaces(owner: Owner): Promise<UserPlace[]> {
   try {
     const { data, error } = await ownerDb(owner)
       .from("user_places")
-      .select("id, name, lat, lng, radius_m, google_place_id")
+      .select("id, name, lat, lng, radius_m")
       .order("updated_at", { ascending: false })
       .limit(MAX_TAGS);
     if (error) {
@@ -50,8 +50,8 @@ const failed = (error: { code?: string; message: string }): SaveResult => {
 };
 
 // A new tag at the point, or, with `id`, a new name for one of the owner's tags. The radius is set here,
-// never by the browser. googlePlaceId: the Google suggestion the name came from, else null.
-export type SaveInput = { name: string; googlePlaceId: string | null } & ({ kind: "new"; point: LatLng } | { kind: "rename"; id: number });
+// never by the browser. The name is the owner's own: typed, or an OpenStreetMap suggestion they picked.
+export type SaveInput = { name: string } & ({ kind: "new"; point: LatLng } | { kind: "rename"; id: number });
 
 export async function saveUserPlace(owner: Owner, input: SaveInput): Promise<SaveResult> {
   if (DEMO) return { ok: false, error: "The demo doesn't save names." };
@@ -59,13 +59,7 @@ export async function saveUserPlace(owner: Owner, input: SaveInput): Promise<Sav
   const scope = ownerDb(owner).from("user_places");
   if (input.kind === "rename") {
     // Filtered to the owner's rows, so another user's id finds nothing and changes nothing.
-    const read = await scope.select("name, google_place_id").eq("id", input.id).maybeSingle();
-    if (read.error) return failed(read.error);
-    const row = read.data as { name: string; google_place_id: string | null } | null;
-    if (!row) return { ok: false, error: "That place is gone." };
-    // A name saved again unchanged is still Google's: it keeps its place id, and stays off the map.
-    const googlePlaceId = input.googlePlaceId ?? (row.name === input.name ? row.google_place_id : null);
-    const { data, error } = await scope.update({ name: input.name, google_place_id: googlePlaceId, updated_at: now }).eq("id", input.id).select("id");
+    const { data, error } = await scope.update({ name: input.name, updated_at: now }).eq("id", input.id).select("id");
     if (error) return failed(error);
     return (data ?? []).length > 0 ? { ok: true } : { ok: false, error: "That place is gone." };
   }
@@ -74,7 +68,6 @@ export async function saveUserPlace(owner: Owner, input: SaveInput): Promise<Sav
     lat: input.point.lat,
     lng: input.point.lng,
     radius_m: TAG_RADIUS_M,
-    google_place_id: input.googlePlaceId,
     created_at: now,
     updated_at: now,
   });

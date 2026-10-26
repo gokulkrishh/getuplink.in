@@ -3,14 +3,17 @@ import {
   type CostLine,
   type GoogleCounts,
   googleEstimate,
+  GOOGLE_SKUS,
+  type GoogleSku,
   monthWindow,
   TESLA_MONTHLY_CREDIT_USD,
 } from "@/lib/costs";
+import { googleUsageFor } from "../data/system";
 import { accountKinds } from "../usage";
 
 // Tesla Fleet API and Google Maps Platform are billed on use, and Uplink counts its own calls. Tesla's
-// count is api_usage (docs/tesla-billing.md); Google's is still to come from the place lookups, so its
-// source returns null for now: "Not tracked yet".
+// count is api_usage (docs/tesla-billing.md); Google's is google_usage, from the place lookups
+// (docs/place-names.md).
 
 // ---- Tesla Fleet API ----
 
@@ -49,8 +52,15 @@ export function teslaLine(usage: TeslaUsage | null, now: number): CostLine {
 // its field mask bills: Place Details with only Essentials fields is placeDetailsEssentials, and so on.
 export type GoogleUsageSource = (monthStart: string) => Promise<GoogleCounts | null>;
 
-// Wire the lookup counter in here.
-export const googleUsage: GoogleUsageSource = async () => null;
+// The naming sheet's calls (lib/server/place-suggestions.ts), counted in google_usage per SKU: each open
+// makes one Nearby Search Pro call and one Geocoding call. Null before the migration: "Not tracked yet".
+export const googleUsage: GoogleUsageSource = async (monthStart) => {
+  const rows = await googleUsageFor(monthStart.slice(0, 10));
+  if (!rows) return null;
+  const counts: GoogleCounts = {};
+  for (const [sku, n] of Object.entries(rows)) if (sku in GOOGLE_SKUS) counts[sku as GoogleSku] = n;
+  return counts;
+};
 
 export const GOOGLE_BILLING_LINK = "https://console.cloud.google.com/billing";
 

@@ -96,8 +96,7 @@ export async function loadDay(owner: Owner, day: number, now: number): Promise<D
   });
   const spots = charges.flatMap((c) => (c.spot ? [{ ...c, spot: c.spot }] : []));
   const chargePins = spots.map(({ session: s, spot }): MapPin => {
-    // A map pin shows only the names a map may (see spotName).
-    const shown = spot.map ?? undefined;
+    const shown = spot.name?.text ?? undefined;
     return {
       lat: spot.target.lat,
       lng: spot.target.lng,

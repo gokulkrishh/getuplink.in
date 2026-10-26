@@ -8,8 +8,8 @@ import { Measure } from "@/components/measure";
 import { NamePlace } from "@/components/name-place";
 import { CAR_FLAGS, needsName, withCarFlag } from "@/lib/charge-names";
 
-// The map's label: names fit for a map pin, with the car's flag ("Koramangala, Bengaluru · Home").
-const pinName = (p: NamedPlace, k: number) => withCarFlag(p.map, p.tag) ?? `Place ${k + 1}`;
+// The map's label: the name with the car's flag ("Koramangala, Bengaluru · Home").
+const pinName = (p: NamedPlace, k: number) => withCarFlag(p.name?.text ?? null, p.tag) ?? `Place ${k + 1}`;
 
 // The table's name, then the car's flag as a small tag, then "Name this place" or a rename.
 function PlaceName({ place: p, k }: { place: NamedPlace; k: number }) {

@@ -77,7 +77,7 @@ export async function loadChargeSpots(owner: Owner, vin: string | null, sessions
 // What the charging page adds from the stream: the latest CURVES DC charges as power against battery level
 // (TeslaMate's DC charging curve), and where each of the latest PINNED charges happened, for the map.
 // `sessions` come newest first; see heldFrom for where each list stops. spots: each pinned charge's name by
-// session id, for the session list's rows; a pin shows only the names a map may (SpotName.map).
+// session id, for the session list's rows, and the same name on each pin.
 export type ChargingExtras = { curves: Curve[]; pins: MapPin[]; spots: Record<number, SpotName> };
 
 export async function loadChargingExtras(owner: Owner, vin: string | null, sessions: StreamChargeSession[], sources: NameSources): Promise<ChargingExtras> {
@@ -108,7 +108,7 @@ export async function loadChargingExtras(owner: Owner, vin: string | null, sessi
   ]);
   const pins = located.map(({ s, t, lat, lng }): MapPin => {
     const kwh = s.energy_added_kwh ?? 0;
-    const name = named.get(s.id)?.map ?? null;
+    const name = named.get(s.id)?.name?.text ?? null;
     return {
       lat,
       lng,

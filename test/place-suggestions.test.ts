@@ -10,9 +10,9 @@ const fixture = (name: string): unknown => JSON.parse(readFileSync(join(import.m
 describe("parseNearby", () => {
   test("charging stations first, then the rest in Google's order; incomplete entries skipped", () => {
     expect(parseNearby(fixture("google-nearby.json"))).toEqual([
-      { name: "Brightwell Charging Hub", detail: "Charging station", source: "google", placeId: "ChIJmadeUpBrightwellHub02" },
-      { name: "Orchard Lane Market", detail: "Shopping mall", source: "google", placeId: "ChIJmadeUpOrchardMarket01" },
-      { name: "Juniper Café", detail: null, source: "google", placeId: "ChIJmadeUpCafeNoType0003" },
+      { name: "Brightwell Charging Hub", detail: "Charging station", source: "google" },
+      { name: "Orchard Lane Market", detail: "Shopping mall", source: "google" },
+      { name: "Juniper Café", detail: null, source: "google" },
     ]);
   });
 
@@ -29,7 +29,6 @@ describe("parseReverse", () => {
       name: "14, Orchard Lane, Hillgrove",
       detail: "Street address",
       source: "google",
-      placeId: "ChIJmadeUpAddress0000002",
     });
   });
 
@@ -63,9 +62,9 @@ test("typeWords", () => {
 });
 
 test("mergeSuggestions keeps the first of each name, best source first", () => {
-  const google: Suggestion = { name: "Brightwell Charging Hub", detail: null, source: "google", placeId: "ChIJmadeUpBrightwellHub02" };
-  const osm: Suggestion = { name: "brightwell charging hub", detail: "Charging station", source: "station", placeId: null };
-  const area: Suggestion = { name: "Hillgrove, Riverton", detail: "Area", source: "area", placeId: null };
+  const google: Suggestion = { name: "Brightwell Charging Hub", detail: null, source: "google" };
+  const osm: Suggestion = { name: "brightwell charging hub", detail: "Charging station", source: "station" };
+  const area: Suggestion = { name: "Hillgrove, Riverton", detail: "Area", source: "area" };
   expect(mergeSuggestions([[google], [osm, area]])).toEqual([google, area]);
   expect(mergeSuggestions([[google, area]], 1)).toEqual([google]);
 });

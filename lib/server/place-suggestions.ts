@@ -1,26 +1,28 @@
 import "server-only";
+import type { GoogleSku } from "@/lib/costs";
 import { DEMO } from "@/lib/demo";
-import { mergeSuggestions, parseNearby, parseReverse, type Suggestion } from "@/lib/place-suggestions";
+import { mergeSuggestions, parseNearby, parseReverse, type Suggestion, type Suggestions } from "@/lib/place-suggestions";
 import { stationsNear } from "@/lib/stations";
 import type { LatLng } from "@/lib/user-places";
+import { countGoogleCall } from "./data/system";
 import { placeKey, placeNames } from "./place-names";
 
 // Suggestions for "Name this place", asked for only when the owner opens the sheet (one spot, never in
-// bulk). Google's Places API (New) Nearby Search and Geocoding API, with GOOGLE_MAPS_API_KEY, plus
-// OpenStreetMap's stations (in memory) and area name (place_names). Google's results are not cached: its
-// terms allow keeping only place IDs, which a confirmed name keeps (user_places.google_place_id). See
-// docs/place-names.md for the terms and the expected calls.
+// bulk). With GOOGLE_MAPS_API_KEY: Google's Places API (New) Nearby Search and Geocoding API, as read-only
+// hints; nothing from Google is kept. Always: OpenStreetMap's stations (in memory) and area name
+// (place_names), which can fill the name field. Each Google call that answers is counted in
+// google_usage under its SKU, for Admin > Costs. See docs/place-names.md.
 
 export const NEARBY_M = 150;
 const NEARBY_URL = "https://places.googleapis.com/v1/places:searchNearby";
 const GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json";
 // Only what the sheet shows. displayName puts the call in Nearby Search Pro (the cheapest tier that has a
-// name); no Enterprise fields (ratings, hours, photos). The type's words are made here from primaryType.
-export const FIELDS = "places.id,places.displayName,places.primaryType,places.types";
+// name); no Enterprise fields (ratings, hours, photos), and no ids, since nothing is kept.
+export const FIELDS = "places.displayName,places.primaryType,places.types";
+export const SKUS = { nearby: "nearbySearchPro", reverse: "geocoding" } as const satisfies Record<string, GoogleSku>;
 
 const googleKey = () => process.env.GOOGLE_MAPS_API_KEY?.trim() || null;
 
-export type Suggestions = { items: Suggestion[]; google: boolean };
 
 async function nearby(key: string, p: LatLng): Promise<Suggestion[]> {
   const res = await fetch(NEARBY_URL, {
@@ -39,6 +41,7 @@ async function nearby(key: string, p: LatLng): Promise<Suggestion[]> {
     console.warn("Google Nearby Search failed:", res.status);
     return [];
   }
+  await countGoogleCall(SKUS.nearby);
   return parseNearby(await res.json());
 }
 
@@ -49,26 +52,26 @@ async function reverse(key: string, p: LatLng): Promise<Suggestion[]> {
     console.warn("Google reverse geocoding failed:", res.status);
     return [];
   }
+  await countGoogleCall(SKUS.reverse);
   const hit = parseReverse(await res.json());
   return hit ? [hit] : [];
 }
 
-// Demo suggestions: made up, and no call leaves the server.
-const DEMO_SUGGESTIONS: Suggestion[] = [
-  { name: "Brightwell Charging Hub", detail: "Charging station", source: "google", placeId: "demo-place-brightwell-0001" },
-  { name: "Orchard Lane Market", detail: "Shopping mall", source: "google", placeId: "demo-place-orchard-00002" },
-  { name: "14, Orchard Lane, Hillgrove", detail: "Street address", source: "google", placeId: "demo-place-address-0003" },
+// Demo hints: made up, and no call leaves the server.
+const DEMO_HINTS: Suggestion[] = [
+  { name: "Brightwell Charging Hub", detail: "Charging station", source: "google" },
+  { name: "Orchard Lane Market", detail: "Shopping mall", source: "google" },
+  { name: "14, Orchard Lane, Hillgrove", detail: "Street address", source: "google" },
 ];
 
 export async function suggestionsAt(p: LatLng): Promise<Suggestions> {
-  const stations = stationsNear(p.lat, p.lng).map((name): Suggestion => ({ name, detail: "Charging station", source: "station", placeId: null }));
+  const stations = stationsNear(p.lat, p.lng).map((name): Suggestion => ({ name, detail: "Charging station", source: "station" }));
   const area = await placeNames([p]).catch(() => new Map<string, string>());
   const areaName = area.get(placeKey(p));
-  const osm = [...stations, ...(areaName ? [{ name: areaName, detail: "Area", source: "area", placeId: null } satisfies Suggestion] : [])];
-  if (DEMO) return { items: mergeSuggestions([DEMO_SUGGESTIONS, osm]), google: true };
+  const picks = mergeSuggestions([[...stations, ...(areaName ? [{ name: areaName, detail: "Area", source: "area" } satisfies Suggestion] : [])]], 4);
+  if (DEMO) return { hints: DEMO_HINTS, picks };
   const key = googleKey();
-  if (!key) return { items: mergeSuggestions([osm]), google: false };
+  if (!key) return { hints: [], picks };
   const [places, address] = await Promise.all([nearby(key, p).catch(() => []), reverse(key, p).catch(() => [])]);
-  const google = [...places, ...address];
-  return { items: mergeSuggestions([google, osm]), google: google.length > 0 };
+  return { hints: mergeSuggestions([places, address], 6), picks };
 }

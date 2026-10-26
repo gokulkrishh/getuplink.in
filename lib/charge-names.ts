@@ -1,5 +1,5 @@
 import { splitSite } from "@/lib/charge-sessions";
-import { type LatLng, mapName, type NameTarget, tagAt, type UserPlace } from "@/lib/user-places";
+import { type LatLng, type NameTarget, tagAt, type UserPlace } from "@/lib/user-places";
 
 // What to call a place (where a charge happened, where the car parked, where a trip began or ended), best
 // source first. Pure, so tested directly.
@@ -49,16 +49,14 @@ export function chargeName({ tag, station, invoice, site, place }: ChargeNamePar
   return null;
 }
 
-// A spot's name for lists, the name its map pin may show, and what "Name this place" needs. The owner's tag
-// within its radius comes first; one confirmed from a Google suggestion stays off the map (mapName), whose
-// pin falls back to the next source.
-export type SpotName = { name: ChargeName | null; map: string | null; target: NameTarget };
+// A spot's name and what "Name this place" needs. The owner's tag within its radius comes first. Every
+// source here may show on a map pin: none of them is Google's.
+export type SpotName = { name: ChargeName | null; target: NameTarget };
 
 export function spotName(tags: readonly UserPlace[], spot: LatLng, parts: Omit<ChargeNameParts, "tag"> = {}): SpotName {
   const tag = tagAt(tags, spot);
   return {
     name: chargeName({ ...parts, tag: tag?.name }),
-    map: chargeName({ ...parts, tag: mapName(tag) })?.text ?? null,
     target: { lat: spot.lat, lng: spot.lng, tag: tag ? { id: tag.id, name: tag.name } : null },
   };
 }

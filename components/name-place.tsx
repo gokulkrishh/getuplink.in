@@ -1,28 +1,26 @@
 "use client";
 
-import { Popover } from "@base-ui/react/popover";
-import { Pencil } from "lucide-react";
+import { Dialog } from "@base-ui/react/dialog";
+import { Pencil, X } from "lucide-react";
 import { useActionState, useState, useTransition } from "react";
 import { placeSuggestions, removePlace, savePlace } from "@/app/places/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { Suggestion } from "@/lib/place-suggestions";
+import { NO_SUGGESTIONS, type Suggestions } from "@/lib/place-suggestions";
 import { NAME_MAX, type NameTarget, TAG_RADIUS_M } from "@/lib/user-places";
 import { cn } from "@/lib/utils";
 
-type Loaded = { items: Suggestion[]; google: boolean } | null;
-
-// "Name this place": a small sheet with suggestions for the spot (asked for when it opens, never before)
-// and a name field. A tapped suggestion fills the field; saving keeps the name in Your places, for every
-// visit and charge within TAG_RADIUS_M. With a tag already, it renames or removes it. `compact` shows a
-// pencil instead of the words, for rows that already have a name.
+// "Name this place": a full-screen sheet over an opaque backdrop, so nothing from Google ever shows beside
+// our map (docs/place-names.md). The owner types the name. OpenStreetMap's suggestions (a station, the
+// area) fill the field with a tap; Google's are hints only, read-only, with its attribution. Suggestions
+// are asked for when the sheet opens, never before. Saving keeps the name in Your places, for every visit
+// and charge within TAG_RADIUS_M; with a tag already, it renames or removes it. `compact` shows a pencil
+// instead of the words, for rows that already have a name.
 export function NamePlace({ target, compact = false, className }: { target: NameTarget; compact?: boolean; className?: string }) {
   const [open, setOpen] = useState(false);
-  const [loaded, setLoaded] = useState<Loaded>(null);
+  const [loaded, setLoaded] = useState<Suggestions | null>(null);
   const [loading, startLoading] = useTransition();
   const [name, setName] = useState(target.tag?.name ?? "");
-  // The Google suggestion the field holds, while it's unchanged.
-  const [picked, setPicked] = useState<Suggestion | null>(null);
   const [saveError, save, saving] = useActionState(async (prev: string | null, form: FormData) => {
     const error = await savePlace(prev, form);
     if (!error) setOpen(false);
@@ -38,24 +36,18 @@ export function NamePlace({ target, compact = false, className }: { target: Name
     setOpen(next);
     if (next && loaded === null && !loading)
       startLoading(async () => {
-        setLoaded(await placeSuggestions(target.lat, target.lng).catch(() => ({ items: [], google: false })));
+        setLoaded(await placeSuggestions(target.lat, target.lng).catch(() => NO_SUGGESTIONS));
       });
   };
-  // The field holds at most NAME_MAX characters, so the kept suggestion is compared as cut.
-  const pick = (s: Suggestion) => {
-    const cut = { ...s, name: s.name.slice(0, NAME_MAX) };
-    setName(cut.name);
-    setPicked(cut.placeId ? cut : null);
-  };
   const title = target.tag ? "Rename this place" : "Name this place";
-  const shown = loaded?.items ?? [];
-  const google = shown.some((s) => s.source === "google");
-  const osm = shown.some((s) => s.source !== "google");
+  const picks = loaded?.picks ?? [];
+  const hints = loaded?.hints ?? [];
   const error = saveError ?? removeError;
+  const fieldId = `place-name-${target.lat}-${target.lng}`;
 
   return (
-    <Popover.Root open={open} onOpenChange={opened}>
-      <Popover.Trigger
+    <Dialog.Root open={open} onOpenChange={opened}>
+      <Dialog.Trigger
         aria-label={compact ? title : undefined}
         className={cn(
           compact
@@ -65,70 +57,27 @@ export function NamePlace({ target, compact = false, className }: { target: Name
         )}
       >
         {compact ? <Pencil className="size-3.5" aria-hidden="true" /> : "Name this place"}
-      </Popover.Trigger>
-      <Popover.Portal>
-        {/* Always below its trigger, never flipped up: Google's suggestions must not sit over our
-            (non-Google) map, which is above every trigger on its page. The page scrolls to the rest. */}
-        <Popover.Positioner
-          side="bottom"
-          align="start"
-          sideOffset={6}
-          collisionPadding={16}
-          collisionAvoidance={{ side: "none", align: "shift", fallbackAxisSide: "none" }}
-          className="z-50"
-        >
-          <Popover.Popup className="w-80 max-w-[calc(100vw-2rem)] space-y-3 border bg-popover p-3 text-sm text-popover-foreground shadow-md outline-none">
-            <Popover.Title className="font-medium">{title}</Popover.Title>
-            {loading && <p className="text-xs text-muted-foreground">Finding nearby names…</p>}
-            {shown.length > 0 && (
-              <div>
-              <ul className="-mx-1 max-h-40 overflow-y-auto sm:max-h-56" aria-label="Suggestions">
-                {shown.map((s) => (
-                  <li key={`${s.source}:${s.name}`}>
-                    <button
-                      type="button"
-                      onClick={() => pick(s)}
-                      aria-pressed={name === s.name}
-                      className="w-full rounded-md px-1 py-1.5 text-left transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none aria-pressed:bg-muted"
-                    >
-                      <span className="block truncate">{s.name}</span>
-                      {s.detail && <span className="block truncate text-xs text-muted-foreground">{s.detail}</span>}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              {/* Right under the suggestions, so it is always in view with them. */}
-              <p className="mt-1 text-[0.7rem] leading-4 text-faint">
-                {google && <span translate="no">Google Maps</span>}
-                {google && osm && " · "}
-                {osm && (
-                  <>
-                    ©{" "}
-                    <a href="https://www.openstreetmap.org/copyright" className="underline underline-offset-2 hover:text-foreground">
-                      OpenStreetMap contributors
-                    </a>
-                  </>
-                )}
-              </p>
-              </div>
-            )}
+      </Dialog.Trigger>
+      <Dialog.Portal>
+        {/* Opaque: the page, and its map, are hidden while the sheet is open. */}
+        <Dialog.Backdrop className="fixed inset-0 z-50 bg-background" />
+        <Dialog.Popup className="fixed inset-0 z-50 overflow-y-auto bg-background text-sm text-foreground outline-none">
+          <div className="mx-auto w-full max-w-md space-y-6 px-4 pt-6 pb-12 sm:pt-16">
+            <div className="flex items-center justify-between gap-4">
+              <Dialog.Title className="text-lg font-medium tracking-heading">{title}</Dialog.Title>
+              <Dialog.Close aria-label="Close" className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+                <X className="size-4" aria-hidden="true" />
+              </Dialog.Close>
+            </div>
+
             <form action={save} className="space-y-2">
               {target.tag ? <input type="hidden" name="id" value={target.tag.id} /> : null}
               <input type="hidden" name="lat" value={target.lat} />
               <input type="hidden" name="lng" value={target.lng} />
-              {picked && picked.name === name && picked.placeId ? <input type="hidden" name="placeId" value={picked.placeId} /> : null}
-              <label className="sr-only" htmlFor={`place-name-${target.lat}-${target.lng}`}>
+              <label className="sr-only" htmlFor={fieldId}>
                 Name
               </label>
-              <Input
-                id={`place-name-${target.lat}-${target.lng}`}
-                name="name"
-                value={name}
-                maxLength={NAME_MAX}
-                placeholder="Name"
-                autoComplete="off"
-                onChange={(e) => setName(e.target.value)}
-              />
+              <Input id={fieldId} name="name" value={name} maxLength={NAME_MAX} placeholder="Name" autoComplete="off" onChange={(e) => setName(e.target.value)} />
               <p className="text-xs text-muted-foreground">Used for every visit within {TAG_RADIUS_M} m.</p>
               {error && (
                 <p role="alert" className="text-xs text-destructive">
@@ -148,9 +97,55 @@ export function NamePlace({ target, compact = false, className }: { target: Name
                 </Button>
               </div>
             </form>
-          </Popover.Popup>
-        </Popover.Positioner>
-      </Popover.Portal>
-    </Popover.Root>
+
+            {loading && <p className="text-xs text-muted-foreground">Finding nearby names…</p>}
+
+            {picks.length > 0 && (
+              <section className="space-y-1">
+                <h3 className="text-xs text-faint">From OpenStreetMap</h3>
+                <ul className="-mx-1">
+                  {picks.map((s) => (
+                    <li key={`${s.source}:${s.name}`}>
+                      <button
+                        type="button"
+                        onClick={() => setName(s.name.slice(0, NAME_MAX))}
+                        aria-pressed={name === s.name.slice(0, NAME_MAX)}
+                        className="w-full rounded-md px-1 py-1.5 text-left transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none aria-pressed:bg-muted"
+                      >
+                        <span className="block truncate">{s.name}</span>
+                        {s.detail && <span className="block truncate text-xs text-muted-foreground">{s.detail}</span>}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-[0.7rem] leading-4 text-faint">
+                  ©{" "}
+                  <a href="https://www.openstreetmap.org/copyright" className="underline underline-offset-2 hover:text-foreground">
+                    OpenStreetMap contributors
+                  </a>
+                </p>
+              </section>
+            )}
+
+            {hints.length > 0 && (
+              <section className="space-y-1">
+                <h3 className="text-xs text-faint">Nearby on Google Maps</h3>
+                <ul className="-mx-1">
+                  {hints.map((s) => (
+                    <li key={s.name} className="px-1 py-1.5">
+                      <span className="block truncate">{s.name}</span>
+                      {s.detail && <span className="block truncate text-xs text-muted-foreground">{s.detail}</span>}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-[0.7rem] leading-4 text-faint" translate="no">
+                  Google Maps
+                </p>
+              </section>
+            )}
+          </div>
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
