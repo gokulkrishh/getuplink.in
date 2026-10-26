@@ -27,7 +27,7 @@ function demoView(done: boolean): SetupView {
     streamingCheckedAt: done ? at : null,
     configSentAt: null,
   };
-  return { cars: [car], canSend: true, checkedAt: at };
+  return { cars: [car], canSend: true, needsLocation: false, checkedAt: at };
 }
 
 const STEP_WORDS: Record<StepState, string> = { done: "Done", todo: "To do", waiting: "Next", unknown: "Not known yet" };
@@ -64,12 +64,12 @@ function keyWords(car: CarSetup): string {
   return "Not known yet";
 }
 
-function streamingWords(car: CarSetup, canSend: boolean): string {
+function streamingWords(car: CarSetup, canSend: boolean, needsLocation: boolean): string {
   if (car.streaming === "synced") return "Live";
   if (car.keyPaired !== true) return "Waiting for the key";
   if (car.streaming === "pending") return "Starts when the car is next online";
   if (car.streaming === "full") return "The car has no room for another app";
-  if (car.streaming === "none") return canSend ? "Turning on" : "Uplink will turn this on";
+  if (car.streaming === "none") return !canSend ? "Uplink will turn this on" : needsLocation ? "Needs location access" : "Turning on";
   return "Not known yet";
 }
 
@@ -134,7 +134,16 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
               ? "Once the key is on, Uplink turns on live data for you. The car starts sending the next time it's online."
               : "Once the key is on, Uplink will turn this on for you."}
           </p>
-          <CarList cars={cars} words={(car) => streamingWords(car, canSend)} />
+          {canSend && view.needsLocation && streaming !== "done" && (
+            <p className="text-sm">
+              Live data includes where your car is, which Tesla shares only if you allow location.{" "}
+              <a href="/api/auth/connect" className="underline decoration-border underline-offset-4 hover:decoration-foreground">
+                Sign in again
+              </a>{" "}
+              and allow it.
+            </p>
+          )}
+          <CarList cars={cars} words={(car) => streamingWords(car, canSend, view.needsLocation)} />
         </Step>
       </ol>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t pt-6">

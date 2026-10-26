@@ -17,7 +17,7 @@ import {
 import type { Owner } from "./data/owner";
 import { carSetups, carsWithoutSetup, markConfigSent, saveKeyStatus, saveStreaming, SetupSchemaMissing } from "./data/setup";
 import { canSendConfig, signedTelemetryConfig } from "./telemetry-config";
-import { fleetGetBody, fleetPost, NotConnectedError } from "./tesla";
+import { fleetGetBody, fleetPost, hasScope, LOCATION_SCOPE, NotConnectedError } from "./tesla";
 
 // A new owner's setup (app/setup): Uplink's virtual key on each car, then each car streaming to Uplink.
 // Tesla is asked as rarely as the answers allow (lib/setup-status.ts has the intervals):
@@ -97,6 +97,9 @@ async function refreshStreaming(owner: Owner, cars: CarSetup[], store: Store, no
   if (!store.persistent || !canSendConfig()) return;
   const due = cars.filter((car) => shouldSendConfig(car, now));
   if (due.length === 0) return;
+  // The config streams Location and other fields Tesla allows only with vehicle_location; without the
+  // scope Tesla would refuse it, so nothing is sent and /setup asks the owner to sign in again.
+  if (!(await hasScope(owner, LOCATION_SCOPE).catch(() => false))) return;
   let body: ReturnType<typeof signedTelemetryConfig>;
   try {
     body = signedTelemetryConfig(due.map((c) => c.vin), now);
@@ -166,7 +169,8 @@ export async function setupGate(owner: Owner, { admin = false, now = Date.now() 
   }
 }
 
-export type SetupView = { cars: CarSetup[]; canSend: boolean; checkedAt: string | null };
+// needsLocation: the owner's sign-in didn't allow location, so Uplink can't send the streaming config.
+export type SetupView = { cars: CarSetup[]; canSend: boolean; needsLocation: boolean; checkedAt: string | null };
 
 // Force: "Check again", at most every FORCE_MS per user so the button can't run up requests.
 const FORCE_MS = 30_000;
@@ -183,7 +187,8 @@ export async function loadSetup(owner: Owner, { force = false, now = Date.now() 
     return cars;
   });
   const times = cars.flatMap((c) => [c.keyCheckedAt, c.streamingCheckedAt]).filter((t): t is string => t !== null);
-  return { cars, canSend: canSendConfig(), checkedAt: times.sort().at(-1) ?? null };
+  const needsLocation = !(await hasScope(owner, LOCATION_SCOPE).catch(() => false));
+  return { cars, canSend: canSendConfig(), needsLocation, checkedAt: times.sort().at(-1) ?? null };
 }
 
 // The 6-hourly check: whatever is old, so a car paired while nobody had /setup open still gets its config.

@@ -104,7 +104,7 @@ const tokens = (userId: number) => ({
   access_token_enc: "enc:token",
   refresh_token_enc: "enc:refresh",
   expires_at: new Date(Date.now() + 8 * 3_600_000).toISOString(),
-  scope: null,
+  scope: "openid offline_access vehicle_device_data vehicle_location",
   refreshing_until: null,
 });
 const vehicle = (userId: number, vin: string): Row => ({ user_id: userId, id: userId * 100, vin, display_name: null, readings_until: null });
@@ -218,6 +218,15 @@ describe("/setup and the streaming config", () => {
     tesla.paired.add(NEW_VIN);
     await loadSetup(NEW_USER, { now: NOW });
     expect(asked("/api/1/vehicles/fleet_telemetry_config_jws")).toBe(0);
+  });
+
+  test("without the location scope nothing is sent (Tesla requires it for Location), and /setup says so", async () => {
+    fake.rows("user_tokens").find((r) => r.user_id === 2)!.scope = "openid offline_access vehicle_device_data";
+    tesla.paired.add(NEW_VIN);
+    const view = await loadSetup(NEW_USER, { now: NOW });
+    expect(view.needsLocation).toBe(true);
+    expect(asked("/api/1/vehicles/fleet_telemetry_config_jws")).toBe(0);
+    expect(carRow(NEW_VIN).telemetry_config_sent_at).toBeUndefined();
   });
 
   test("the 6-hourly check sends the config to a car paired while nobody had /setup open", async () => {
