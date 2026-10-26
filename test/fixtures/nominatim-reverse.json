@@ -1,0 +1,22 @@
+{
+  "place_id": 100000001,
+  "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+  "osm_type": "way",
+  "osm_id": 100000002,
+  "lat": "10.0000000",
+  "lon": "20.0000000",
+  "category": "highway",
+  "type": "residential",
+  "name": "Orchard Lane",
+  "display_name": "Orchard Lane, Hillgrove, Riverton, Riverton District, Karnataka, 560999, India",
+  "address": {
+    "road": "Orchard Lane",
+    "suburb": "Hillgrove",
+    "city": "Riverton",
+    "state_district": "Riverton District",
+    "state": "Karnataka",
+    "postcode": "560999",
+    "country": "India",
+    "country_code": "in"
+  }
+}

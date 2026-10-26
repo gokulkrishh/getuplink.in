@@ -61,6 +61,10 @@ beforeEach(() => {
       { user_id: 1, id: 1 },
       { user_id: 2, id: 2 },
     ],
+    user_places: [
+      { user_id: 1, id: 1, name: "Maple Court" },
+      { user_id: 2, id: 2, name: "Cedar Park" },
+    ],
     connector_token: [
       { user_id: 1, owner: "tesla", token_hash: "hash-a" },
       { user_id: 2, owner: "tesla", token_hash: "hash-b" },
@@ -136,6 +140,7 @@ describe("Delete my data", () => {
     expect(column("charge_receipts", "session_id")).toEqual([20]);
     expect(column("poll_runs", "user_id")).toEqual([2]);
     expect(column("connector_token", "user_id")).toEqual([2]);
+    expect(column("user_places", "name")).toEqual(["Cedar Park"]);
     expect(fake.removedFiles).toEqual(["10/a.pdf"]);
   });
 

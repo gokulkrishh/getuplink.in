@@ -102,6 +102,14 @@ describe("signed in as A", () => {
     expect(fake.rows("user_places").at(-1)).toEqual(expect.objectContaining({ user_id: 1, google_place_id: "ChIJmadeUpOrchardMarket01" }));
   });
 
+  test("a Google-sourced tag saved again unchanged keeps its place id; a new name drops it", async () => {
+    fake.rows("user_places")[0].google_place_id = "ChIJmadeUpOrchardMarket01";
+    expect(await savePlace(null, form({ id: "10", name: "Maple Court" }))).toBeNull();
+    expect(fake.rows("user_places")[0].google_place_id).toBe("ChIJmadeUpOrchardMarket01");
+    expect(await savePlace(null, form({ id: "10", name: "Maple Court East" }))).toBeNull();
+    expect(fake.rows("user_places")[0].google_place_id).toBeNull();
+  });
+
   test("renames and removes only A's own tags", async () => {
     expect(await savePlace(null, form({ id: "10", name: "Maple Court East" }))).toBeNull();
     expect(await savePlace(null, form({ id: "20", name: "Taken" }))).toBe("That place is gone.");

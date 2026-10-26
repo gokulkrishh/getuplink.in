@@ -39,10 +39,14 @@ Sources: [Maps Platform Terms](https://cloud.google.com/maps-platform/terms), [S
 
 | Rule | What Uplink does |
 | --- | --- |
-| No use of Places or Geocoding content with a non-Google map (Service terms 6.2, 14.2). The main terms say not "with or near" one. Uplink's maps are MapLibre with CARTO tiles. | Google results appear only in the naming sheet, a popover above the page. No pin, chip or tooltip on a map ever shows a Google name (`SpotName.map`). |
+| No use of Places or Geocoding content with a non-Google map (Service terms 6.2, 14.2). The main terms say not "with or near" one. Uplink's maps are MapLibre with CARTO tiles. | Google results appear only in the naming sheet. It always opens below its trigger, never flipped up over a map. No pin, chip or tooltip on a map ever shows a Google name (`SpotName.map`). **Still near a map: see open risks.** |
 | No caching except as allowed. Place IDs may be kept indefinitely. Places and Geocoding lat/lng may be cached for 30 days. Geocoding addresses may be cached only per end user, for that user's own feature. | Nothing from Google is cached. A confirmed suggestion keeps only its `place_id` (`user_places.google_place_id`). The sheet calls Google again each time it opens. |
 | Attribution: the Google Maps logo, or the text "Google Maps" where space is short. | The sheet shows "Google Maps" under the suggestions whenever one is Google's. |
 | No scraping: don't "copy and save business names, addresses". | **Open risk, see below.** |
+
+### Open risk: the sheet sits near our map
+
+The sheet doesn't cover a map, but it shares the screen with one. On Driving it opens from the Places table just under the Places map. On a trip it opens from the From and To facts in the map's own card. The main terms forbid using Google content "with or near a non-Google Map", and it isn't clear whether a popover under a map counts as near. Options: open the sheet as a full-screen dialog on its own, or offer it only where no map shows (Settings, a charge's page, the day page's charge rows).
 
 ### Open risk: confirming a Google suggestion
 
@@ -51,7 +55,8 @@ The owner asked for a tapped suggestion to become their tag. Tapping one fills t
 What limits it now:
 
 - It is one name per spot, saved only when the owner taps Save, kept for that owner only, and never shown on a map. A tag with a `google_place_id` stays off map pins and falls back to OpenStreetMap's name there.
-- A name the owner edits, even slightly, is saved as their own (no `place_id`).
+- A name the owner edits, even slightly, is saved as their own (no `place_id`). Saved again unchanged, it stays Google's and keeps its `place_id`.
+- There is no per-spot `place_id` cache: an ID alone shows nothing without a Place Details call, so it would only add cost. IDs are kept only on confirmed tags.
 
 Safer options, for the owner to decide:
 

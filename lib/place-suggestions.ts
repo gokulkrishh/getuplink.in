@@ -56,6 +56,16 @@ export function parseReverse(body: unknown): Suggestion | null {
   return null;
 }
 
+// Nominatim's reverse lookup (zoom 16) as an area name: the neighbourhood or suburb, then the city, each
+// once ("Hillgrove, Riverton").
+export function nominatimName(body: unknown): string | null {
+  if (!isRecord(body)) return null;
+  const a = isRecord(body.address) ? body.address : {};
+  const area = text(a.neighbourhood) ?? text(a.suburb) ?? text(a.quarter) ?? text(a.village) ?? text(a.road) ?? text(body.name);
+  const city = text(a.city) ?? text(a.town) ?? text(a.county) ?? text(a.state_district);
+  return [area, city].filter((x, k, all) => x && all.indexOf(x) === k).join(", ") || null;
+}
+
 // One list, best first: Google's charging stations and places, its address, then OpenStreetMap's station
 // and area name. The same name twice is shown once, from the first source.
 export function mergeSuggestions(lists: Suggestion[][], max = 8): Suggestion[] {

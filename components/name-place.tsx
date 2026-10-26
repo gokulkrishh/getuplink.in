@@ -41,9 +41,11 @@ export function NamePlace({ target, compact = false, className }: { target: Name
         setLoaded(await placeSuggestions(target.lat, target.lng).catch(() => ({ items: [], google: false })));
       });
   };
+  // The field holds at most NAME_MAX characters, so the kept suggestion is compared as cut.
   const pick = (s: Suggestion) => {
-    setName(s.name.slice(0, NAME_MAX));
-    setPicked(s.placeId ? s : null);
+    const cut = { ...s, name: s.name.slice(0, NAME_MAX) };
+    setName(cut.name);
+    setPicked(cut.placeId ? cut : null);
   };
   const title = target.tag ? "Rename this place" : "Name this place";
   const shown = loaded?.items ?? [];

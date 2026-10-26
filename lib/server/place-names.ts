@@ -1,5 +1,6 @@
 import "server-only";
 import { DEMO } from "@/lib/demo";
+import { nominatimName } from "@/lib/place-suggestions";
 import { placeNamesFor, savePlaceName } from "./data/system";
 
 // Names for parking spots, from OpenStreetMap's Nominatim, cached in place_names so each spot is looked
@@ -35,11 +36,7 @@ async function lookUp(p: { lat: number; lng: number }): Promise<string | null> {
   const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&lat=${p.lat}&lon=${p.lng}`;
   const res = await fetch(url, { headers: { "User-Agent": osmUserAgent(), "Accept-Language": "en" }, signal: AbortSignal.timeout(5000) });
   if (!res.ok) return null;
-  const body = (await res.json()) as { name?: string; address?: Record<string, string> };
-  const a = body.address ?? {};
-  const area = a.neighbourhood ?? a.suburb ?? a.quarter ?? a.village ?? a.road ?? body.name;
-  const city = a.city ?? a.town ?? a.county ?? a.state_district;
-  return [area, city].filter((x, k, all) => x && all.indexOf(x) === k).join(", ") || null;
+  return nominatimName(await res.json());
 }
 
 export async function placeNames(points: { lat: number; lng: number }[]): Promise<Map<string, string>> {

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { mergeSuggestions, parseNearby, parseReverse, type Suggestion, typeWords } from "@/lib/place-suggestions";
+import { mergeSuggestions, nominatimName, parseNearby, parseReverse, type Suggestion, typeWords } from "@/lib/place-suggestions";
 import { stationsNear } from "@/lib/stations";
 
 // Google's replies in their real shape, with made-up places (test/fixtures).
@@ -37,6 +37,22 @@ describe("parseReverse", () => {
     expect(parseReverse({ status: "ZERO_RESULTS", results: [] })).toBeNull();
     expect(parseReverse({ status: "REQUEST_DENIED", error_message: "x" })).toBeNull();
     expect(parseReverse("oops")).toBeNull();
+  });
+});
+
+describe("nominatimName", () => {
+  test("the suburb and the city from OpenStreetMap's reverse lookup", () => {
+    expect(nominatimName(fixture("nominatim-reverse.json"))).toBe("Hillgrove, Riverton");
+  });
+
+  test("a town stands in for a city, and a name isn't repeated", () => {
+    expect(nominatimName({ address: { village: "Elm Ford", town: "Elm Ford" } })).toBe("Elm Ford");
+    expect(nominatimName({ name: "Cedar Point", address: { county: "Riverton" } })).toBe("Cedar Point, Riverton");
+  });
+
+  test("nothing usable is no name", () => {
+    expect(nominatimName({ error: "Unable to geocode" })).toBeNull();
+    expect(nominatimName(null)).toBeNull();
   });
 });
 

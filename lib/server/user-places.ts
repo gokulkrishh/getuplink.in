@@ -58,8 +58,14 @@ export async function saveUserPlace(owner: Owner, input: SaveInput): Promise<Sav
   const now = new Date().toISOString();
   const scope = ownerDb(owner).from("user_places");
   if (input.kind === "rename") {
-    // Filtered to the owner's rows, so another user's id changes nothing.
-    const { data, error } = await scope.update({ name: input.name, google_place_id: input.googlePlaceId, updated_at: now }).eq("id", input.id).select("id");
+    // Filtered to the owner's rows, so another user's id finds nothing and changes nothing.
+    const read = await scope.select("name, google_place_id").eq("id", input.id).maybeSingle();
+    if (read.error) return failed(read.error);
+    const row = read.data as { name: string; google_place_id: string | null } | null;
+    if (!row) return { ok: false, error: "That place is gone." };
+    // A name saved again unchanged is still Google's: it keeps its place id, and stays off the map.
+    const googlePlaceId = input.googlePlaceId ?? (row.name === input.name ? row.google_place_id : null);
+    const { data, error } = await scope.update({ name: input.name, google_place_id: googlePlaceId, updated_at: now }).eq("id", input.id).select("id");
     if (error) return failed(error);
     return (data ?? []).length > 0 ? { ok: true } : { ok: false, error: "That place is gone." };
   }
