@@ -13,7 +13,7 @@ const config = {
 } satisfies ChartConfig;
 
 const kwFormat = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
-const tick = { fontSize: 11, fill: "var(--faint)" };
+const tick = { fontSize: 12, fill: "var(--faint)" };
 
 // Power in kW on the left axis and battery % on the right, against the time of day. Ticks are bare
 // numbers with each axis's unit titled above it, so they stay on one line; the right axis leaves room

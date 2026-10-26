@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { ChartCard } from "@/components/chart-card";
 import { ChartNote } from "@/components/stats/chart-note";
 import { Value } from "@/components/stats/figures";
 import { backTo } from "@/lib/kept";
@@ -23,8 +24,8 @@ function Placeholder() {
 const Plot = dynamic(() => import("./charge-level-plot"), { ssr: false, loading: Placeholder });
 
 // Battery level over the span of `frame`, as far back as the readings go, with charging shaded. One switch
-// drives every section, so it has none of its own. On home the chart stands alone with one line saying what
-// it is; with `heading` (the Battery page) it is a section with its title and the level now.
+// drives every section, so it has none of its own. On home it sits under the Battery section as an h3; with
+// `heading` (the Battery page) it is its own h2 section, with the level now above the chart.
 export function ChargeLevelChart({
   level,
   now,
@@ -46,34 +47,29 @@ export function ChargeLevelChart({
   // The readings kept start after the span does: "This year. Readings go back to 25 Sept." Home names the
   // window's start, as it always has; the Battery page names the first reading seen.
   const cut = heading ? backTo(frame.span, level.points[0].at, "Readings") : frame.span.from < level.from ? `Readings go back to ${formatShortDate(level.from)}.` : null;
-  const caption = `${frame.title}.${cut ? ` ${cut}` : ""}${charging.length > 0 ? " Shaded while charging." : ""}`;
-  if (!heading) {
-    return (
-      <div className="space-y-3">
-        {/* With no readings, the note sits in the chart's own box, so a switch doesn't move what follows. */}
-        {points.length >= 2 ? <Plot points={points} charging={charging} from={from} to={to} /> : <ChartNote>No readings {frame.words}.</ChartNote>}
-        <p className="text-xs text-faint">Charge level over time, 0 to 100%. {caption}</p>
-      </div>
-    );
-  }
+  const caption = `${frame.title}.${cut ? ` ${cut}` : ""}`;
   return (
-    <section className="space-y-6">
-      <div className="space-y-2">
-        <h2 className="text-lg font-medium tracking-heading">Charge level</h2>
-        {/* The latest level, whatever span is picked; the chart below follows the span. */}
-        <p className="flex flex-wrap items-baseline gap-x-2">
-          <span className="font-mono text-4xl font-medium tracking-tight tabular-nums">
-            <Value text={`${Math.round(latest.level)}%`} />
-          </span>
-          <span className="text-base text-muted-foreground">
-            latest reading, {formatShortDate(latest.at)}, {formatClock(latest.at)}
-          </span>
-        </p>
-      </div>
-      <div className="space-y-3">
-        {points.length >= 2 ? <Plot points={points} charging={charging} from={from} to={to} /> : <ChartNote>No readings {frame.words}.</ChartNote>}
-        <p className="text-xs text-faint">Charge level over time, 0 to 100%. {caption}</p>
-      </div>
-    </section>
+    <ChartCard
+      as={heading ? "h2" : "h3"}
+      title="Charge level"
+      description="How full the battery was over time, from 0 to 100%. Shaded stretches are when the car was charging."
+      summary={
+        heading && (
+          // The latest level, whatever span is picked; the chart below follows the span.
+          <p className="flex flex-wrap items-baseline gap-x-2">
+            <span className="font-mono text-4xl font-medium tracking-tight tabular-nums">
+              <Value text={`${Math.round(latest.level)}%`} />
+            </span>
+            <span className="text-base text-muted-foreground">
+              latest reading, {formatShortDate(latest.at)}, {formatClock(latest.at)}
+            </span>
+          </p>
+        )
+      }
+      caption={caption}
+    >
+      {/* With no readings, the note sits in the chart's own box, so a switch doesn't move what follows. */}
+      {points.length >= 2 ? <Plot points={points} charging={charging} from={from} to={to} /> : <ChartNote>No readings {frame.words}.</ChartNote>}
+    </ChartCard>
   );
 }

@@ -73,6 +73,10 @@ Current entries:
 | psi | tyre pressure |
 | grade | how steep the road is: 5% rises 5 metres for every 100 metres driven |
 | regen | the motor slowing the car and sending energy back into the battery |
+| V | the push behind the electricity; a home socket gives about 230 V |
+| A | how much current flowed; more amps at the same volts charges faster |
+| AC | slower charging from a wall charger or socket, through the car's own charger |
+| DC | fast charging, like a Supercharger, where the station feeds the battery directly |
 
 Where you can, prefer a unit people already understand. The drive page shows acceleration as km/h per second (the car's m/s² × 3.6) instead of m/s². Its tiles say "8.8 km/h" with the note "Gained in one second, at 8:27 AM", because the full unit doesn't fit a phone tile.
 

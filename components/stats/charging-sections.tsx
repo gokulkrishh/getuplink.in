@@ -1,5 +1,6 @@
 import { hasCosts, hasStationNames, type Listed, OsmCredit, SessionHeader, SessionRow } from "@/components/session-row";
 import { ShowMore } from "@/components/show-more";
+import { ChartCard } from "@/components/chart-card";
 import { Bars } from "@/components/stats/bars";
 import { Figures, Value } from "@/components/stats/figures";
 import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
@@ -14,6 +15,9 @@ import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { Measure } from "@/components/measure";
 
 // The Charging page's sections: spend, energy added by charger kind, and every session by month.
+
+// "each day", "every 3 hours": one bar of the period, for a chart's description.
+const eachSlot = ({ slotName }: Timeframe) => (slotName === "3 hours" ? "every 3 hours" : `each ${slotName}`);
 
 // What a month of the session list was billed: Tesla's bills and the invoices attached, as in Summary.
 function totals(rows: Listed[]) {
@@ -48,29 +52,36 @@ export function Summary({
   const bars = slots.map((slot, k) => ({ key: String(slot.id), label: slot.label, value: spend[k], display: compact.format(spend[k]), isCurrent: slot.isCurrent, blank: slot.ahead || undefined }));
   return (
     <section className="space-y-8">
+      <ChartCard
+        title="Spend"
+        description={`What you paid to charge ${eachSlot(frame)}, from Tesla's Supercharger bills and the invoices you attached.`}
+        summary={
+          <div className="space-y-2">
+            <p className="text-[0.8125rem] text-muted-foreground">Spent {frame.words}</p>
+            <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
+              <Value text={formatMoney(cost, "INR")} />
+            </p>
+          </div>
+        }
+        caption={`${barsCaption("Bills", frame)}.`}
+        empty={bars.some((b) => b.value > 0) ? undefined : `No bills ${frame.words}`}
+      >
+        <Bars bars={bars} ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} />
+      </ChartCard>
+      {/* What only some periods have (the rates, these lines) goes under the chart, so it stays put on a switch. */}
       <div className="space-y-2">
-        <p className="text-[0.8125rem] text-muted-foreground">Spent {frame.words}</p>
-        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
-          <Value text={formatMoney(cost, "INR")} />
+        <Figures
+          figures={[
+            { label: "Energy billed", value: formatKwh(kwh) },
+            { label: "Bills", value: count },
+            acPerKwh !== null && { label: "AC rate", value: `${formatMoney(acPerKwh, "INR")}/kWh`, note: "Slower charging" },
+            dcPerKwh !== null && { label: "DC rate", value: `${formatMoney(dcPerKwh, "INR")}/kWh`, note: "Fast charging" },
+          ]}
+        />
+        <p className="text-xs text-muted-foreground">
+          {unitNotes(["kWh", acPerKwh !== null || dcPerKwh !== null ? "₹/kWh" : undefined, acPerKwh !== null ? "AC" : undefined, dcPerKwh !== null ? "DC" : undefined])}
         </p>
       </div>
-      <Bars
-        bars={bars}
-        ariaLabel={`Spend per ${frame.slotName}`}
-        prefix="₹"
-        labelEvery={frame.labelEvery}
-        empty={`No bills ${frame.words}`}
-        caption={`${barsCaption("Charging bills", frame)}: Tesla's Supercharger bills and the invoices you attached.`}
-      />
-      {/* What only some periods have (the rates, these lines) goes under the chart, so it stays put on a switch. */}
-      <Figures
-        figures={[
-          { label: "Energy billed", value: formatKwh(kwh) },
-          { label: "Bills", value: count },
-          acPerKwh !== null && { label: "AC rate", value: `${formatMoney(acPerKwh, "INR")}/kWh` },
-          dcPerKwh !== null && { label: "DC rate", value: `${formatMoney(dcPerKwh, "INR")}/kWh` },
-        ]}
-      />
       {km !== null && km >= 10 && cost > 0 && missing === 0 && (
         <p className="text-sm text-muted-foreground tabular-nums">{formatMoney((cost / km) * 100, "INR")} per 100 km driven</p>
       )}
@@ -132,21 +143,24 @@ export function EnergyAdded({
   }
   return (
     <section className="space-y-8">
-      <div className="space-y-2">
-        <h2 className="text-lg font-medium tracking-heading">Energy added</h2>
-        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
-          <Value text={formatKwh(total)} />
-        </p>
-        <p className="text-sm text-muted-foreground">{frame.words}</p>
-      </div>
-      <StackedBars
-        bars={bars}
-        series={ENERGY_SERIES}
-        ariaLabel={`Energy added per ${frame.slotName}`}
-        labelEvery={frame.labelEvery}
-        empty={`No charging ${frame.words}`}
-        caption={`${barsCaption("Energy added to the battery", frame)}, split by charger type. ${unitNotes(["kWh"])}`}
-      />
+      <ChartCard
+        title="Energy added"
+        description={`How much energy went into the battery ${eachSlot(frame)}, split by charger: Superchargers, third-party DC fast chargers, and AC.`}
+        unit="kWh"
+        terms={["AC", "DC"]}
+        summary={
+          <div className="space-y-2">
+            <p className="text-[0.8125rem] text-muted-foreground">Added {frame.words}</p>
+            <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
+              <Value text={formatKwh(total)} />
+            </p>
+          </div>
+        }
+        caption={`${barsCaption("Energy added", frame)}. Tap a charger type to show or hide it.`}
+        empty={bars.some((b) => b.total > 0) ? undefined : `No charging ${frame.words}`}
+      >
+        <StackedBars bars={bars} series={ENERGY_SERIES} ariaLabel={`Energy added per ${frame.slotName}`} labelEvery={frame.labelEvery} />
+      </ChartCard>
       {charged.ac + charged.dc > 0 && (
         <Figures
           figures={[

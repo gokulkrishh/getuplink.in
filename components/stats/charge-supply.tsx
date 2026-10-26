@@ -1,3 +1,4 @@
+import { ChartCard } from "@/components/chart-card";
 import { type Figure, Figures } from "@/components/stats/figures";
 import { type AcSupply, acSupply, phasesLabel } from "@/lib/ac-charge";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
@@ -22,9 +23,13 @@ export function ChargeSupply({ session }: { session: StreamChargeSession }) {
   const supply = session.kind === "ac" ? acSupply(session) : null;
   if (!supply) return null;
   return (
-    <section className="space-y-4">
-      <h2 className="text-lg font-medium tracking-heading">Charger</h2>
+    <ChartCard
+      title="Charger"
+      description="How the AC charger supplied power, as the car reported it."
+      unit={supply.volts !== null ? "V" : undefined}
+      terms={supply.amps !== null ? ["A"] : []}
+    >
       <Figures figures={supplyFigures(supply)} />
-    </section>
+    </ChartCard>
   );
 }
