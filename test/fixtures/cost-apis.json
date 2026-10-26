@@ -12,6 +12,10 @@
       { "eventAction": "last update of RDAP database", "eventDate": "2026-10-26T06:48:35.439Z" }
     ]
   },
+  "rdapForbidden": {
+    "status": 403,
+    "body": { "errorCode": 403, "title": "Forbidden", "description": ["Access denied"] }
+  },
   "flyMachines": [
     { "id": "made-up-1", "state": "started", "region": "bom", "config": { "guest": { "cpu_kind": "shared", "cpus": 1, "memory_mb": 512 } } },
     { "id": "made-up-2", "state": "stopped", "region": "bom", "config": { "guest": { "cpu_kind": "shared", "cpus": 1, "memory_mb": 256 } } },

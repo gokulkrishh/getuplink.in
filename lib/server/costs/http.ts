@@ -27,18 +27,25 @@ export function providerError(what: string, status: FailureStatus): ProviderErro
   return err;
 }
 
-export async function getJson(what: string, url: string, headers: Record<string, string> = {}): Promise<unknown> {
+// `quiet` throws without logging, for a caller that tries more than one URL and logs once itself.
+export async function getJson(
+  what: string,
+  url: string,
+  headers: Record<string, string> = {},
+  { quiet = false, fetcher = fetch }: { quiet?: boolean; fetcher?: typeof fetch } = {},
+): Promise<unknown> {
+  const fail = (status: FailureStatus) => (quiet ? new ProviderError(what, status) : providerError(what, status));
   let res: Response;
   try {
-    res = await fetch(url, { headers: { Accept: "application/json", ...headers }, signal: AbortSignal.timeout(TIMEOUT_MS), cache: "no-store" });
+    res = await fetcher(url, { headers: { Accept: "application/json", ...headers }, signal: AbortSignal.timeout(TIMEOUT_MS), cache: "no-store" });
   } catch (err) {
     const name = err instanceof Error ? err.name : "";
-    throw providerError(what, name === "TimeoutError" || name === "AbortError" ? "timeout" : "network");
+    throw fail(name === "TimeoutError" || name === "AbortError" ? "timeout" : "network");
   }
-  if (!res.ok) throw providerError(what, res.status);
+  if (!res.ok) throw fail(res.status);
   try {
     return await res.json();
   } catch {
-    throw providerError(what, "body");
+    throw fail("body");
   }
 }

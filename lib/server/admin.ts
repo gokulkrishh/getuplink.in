@@ -9,8 +9,7 @@ import { missingEnv } from "./env";
 import { DEMO_OWNER, type Owner } from "./data/owner";
 import { ADMIN_ROLE, adminTotals, userRole } from "./data/system";
 import { COMPONENTS } from "./stream-health";
-import { accountKinds, type BudgetState, stateFor } from "./usage";
-import type { KindCount, Usage } from "@/lib/tesla-billing";
+import { accountKinds } from "./usage";
 
 const DAY = 86_400_000;
 export const RECENT_DAYS = 7;
@@ -25,13 +24,6 @@ export async function adminOwner(): Promise<Owner | null> {
   const owner = await currentOwner();
   if (!owner) return null;
   return (await userRole(owner.userId)) === ADMIN_ROLE ? owner : null;
-}
-
-// Whether a signed-in owner has the admin role, read fresh. For what a page shows, not for an action
-// (actions use adminOwner).
-export async function ownerIsAdmin(owner: Owner): Promise<boolean> {
-  if (DEMO) return true;
-  return (await userRole(owner.userId)) === ADMIN_ROLE;
 }
 
 export async function isAdmin(): Promise<boolean> {
@@ -50,9 +42,9 @@ export type AdminPage = {
   runs: { total: number; failed: number; lastFailedAt: string | null };
   // Checks that found a component down, per component, in the last RECENT_DAYS days.
   health: { component: string; down: number; total: number }[];
-  // This month's Fleet API requests per Uplink kind and streamed signals across the developer account, their
-  // estimated cost, and where that leaves the budget. counted is false before the api_usage migration.
-  api: { kinds: KindCount[]; signals: number; usage: Usage; counted: boolean; budget: BudgetState };
+  // This month's estimated Fleet API cost across the developer account; Costs has what it's made of.
+  // counted is false before the api_usage migration.
+  api: { costUsd: number; counted: boolean };
 };
 
 function spread(versions: (string | null)[]): Pick<AdminPage, "versions" | "noVersion"> {
@@ -84,8 +76,8 @@ export async function loadAdmin(now: number): Promise<AdminPage> {
   const recent = now - RECENT_DAYS * DAY;
   // health_daily works in IST days; the window starts on the day RECENT_DAYS - 1 days ago.
   const sinceDay = istDay(now - (RECENT_DAYS - 1) * DAY);
-  const usage = await accountKinds(now);
-  const api = { ...usage, budget: stateFor(usage.usage.costUsd) };
+  const { usage, counted } = await accountKinds(now);
+  const api = { costUsd: usage.costUsd, counted };
   if (DEMO) {
     const fleet = demoFleet();
     const failed = fleet.runs.filter((r) => !r.ok);

@@ -23,7 +23,7 @@ Stack: Bun, Next.js 16 (App Router), shadcn/ui, Geist, Recharts, Supabase Postgr
 | `/stats/charging`, `/stats/driving`, `/stats/battery` | One topic each, in depth: every session, drive and chart. The period carries over in `?period=`. Old `/stats?view=…` links redirect here (update stats to `/updates`). |
 | `/car`, `/settings` | The car's details and battery health; theme, importing past updates and the account. |
 | `/rollout` | India rollout tracker, pooled across every car: versions on Indian cars, when the first got each, cars on each now and the lag behind the global release (from a hand-kept list in `lib/rollout.ts`). Totals only, with a state map of where each version runs. |
-| `/admin` | For the admin only (`users.role = 'admin'`; 404 for anyone else): owners, cars, version spread, failed checks, health checks, and this month's Tesla API requests per kind and estimated cost. |
+| `/admin` | For the admin only (`users.role = 'admin'`; 404 for anyone else): owners, cars, version spread, failed checks, health checks, and this month's Tesla API estimate, linking to `/admin/costs` for its breakdown. |
 | `/admin/waitlist` | For the admin only: requests waiting, oldest first, with Approve and Decline; approved, suspended and declined accounts with Suspend and Restore. Approve and Restore are refused past `MAX_USERS`. |
 | `/waitlist` | Public: "You're on the waitlist. Sign in again later to check." |
 

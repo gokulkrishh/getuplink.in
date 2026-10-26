@@ -6,6 +6,8 @@ import {
   FLY_PRICES,
   flyEstimate,
   googleEstimate,
+  googleParts,
+  teslaParts,
   isStale,
   LEGACY_USD_INR,
   machineMonthly,
@@ -333,5 +335,35 @@ describe("what the owner types", () => {
     expect(parseBudget("")).toEqual({ ok: true, value: null });
     expect(parseBudget("5")).toEqual({ ok: true, value: 5 });
     expect(parseBudget("-1").ok).toBe(false);
+  });
+});
+
+describe("a usage row's breakdown", () => {
+  const NOW = Date.parse("2026-10-26T06:30:00Z");
+  const budget = { level: "normal" as const, budgetUsd: 10 };
+
+  test("Tesla: requests per kind, signals, and the check cadence", () => {
+    const parts = teslaParts({ kinds: [{ kind: "vehicle_data", count: 1200 }, { kind: "telemetry_config", count: 1 }], signals: 345_678, budget }, NOW);
+    expect(parts).toEqual([
+      { label: "Vehicle data", value: "1,200 requests" },
+      { label: "Streaming config", value: "1 request" },
+      { label: "Streamed signals", value: "3,45,678" },
+      { label: "Checks", value: "Every 6 hours", muted: true },
+    ]);
+  });
+
+  test("signals not counted yet read Counted daily, not 0; a budget past the credit and a pause are named", () => {
+    const parts = teslaParts({ kinds: [], signals: 0, budget: { level: "stopped", budgetUsd: 25 } }, NOW);
+    expect(parts).toEqual([
+      { label: "Streamed signals", value: "Counted daily", muted: true },
+      { label: "Checks", value: "Paused until 1 Nov, budget $25.00", muted: true },
+    ]);
+  });
+
+  test("Google: calls per SKU, most first, none left out", () => {
+    expect(googleParts({ geocoding: 1200, placeDetailsPro: 36_500, nearbySearchPro: 0 })).toEqual([
+      { label: "Place Details Pro", value: "36,500 calls" },
+      { label: "Geocoding", value: "1,200 calls" },
+    ]);
   });
 });

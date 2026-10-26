@@ -1,6 +1,8 @@
 // Tesla's Fleet API prices and Uplink's budget, as plain data and maths. Verified against Tesla's docs on
 // 26 Oct 2026: see docs/tesla-billing.md for the sources and what is ambiguous.
 
+import { formatShortDate } from "@/lib/format";
+
 // Tesla's pricing categories.
 export const CATEGORIES = ["data", "commands", "wakes", "signals"] as const;
 export type Category = (typeof CATEGORIES)[number];
@@ -153,3 +155,9 @@ const HOUR = 3_600_000;
 
 // How long after a check the next one is due, at each level. Stopped has none.
 export const CHECK_EVERY_MS: Record<Exclude<BudgetLevel, "stopped">, number> = { normal: 6 * HOUR, slow: 12 * HOUR };
+
+// How often checks run at this level, as words: "Every 6 hours", or "Paused until 1 Nov".
+export function checkCadence(level: BudgetLevel, resetsAt: string | number | Date): string {
+  if (level === "stopped") return `Paused until ${formatShortDate(resetsAt)}`;
+  return `Every ${CHECK_EVERY_MS[level] / HOUR} hours`;
+}

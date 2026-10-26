@@ -63,11 +63,13 @@ Code:
     - Remote entries don't survive a deploy: the key includes the build. So the first read after a deploy has no fallback.
     - The `snapshot:*` follow-up below would make this certain.
   - Each read carries `fetchedAt`. A read older than 7 hours (`isStale`) shows "Last read …".
-  - If a read fails with nothing cached, the loader catches it and the line reads "Unavailable". The domain is the exception: its price is a constant, so it stays counted, with "Renewal date unavailable".
+  - If a read fails with nothing cached, the loader catches it and the line reads "Unavailable".
+  - **The domain doesn't throw.** Its price is a constant, so a failed RDAP read only loses the renewal date: `readDomain` returns `{ kind: "error" }`, cached for 30 minutes (`cacheLife` is set after the read, per outcome), and the line stays counted with "Renewal date unavailable". A thrown error leaving a cache scope lands in Vercel's runtime error logs even when the loader catches it, which is what rdap.org's 403s did. The cost is that a failure can replace a good cached read; the date comes back on the next good read.
   - A missing token returns `connect`, cached for minutes, so setting the token shows up quickly.
 - **Vercel:** cached for an hour. A failure is cached for minutes. Each good read is saved to `cost_settings` (`snapshot:vercel`), and shown with "Last read …" when a later call fails.
 - **Logs:**
-  - "Costs read failed: Fly.io 401" (or "RDAP timeout"), logged by `providerError` in `http.ts` where the error is thrown. It is logged there because, under Next, an error leaving a cache scope is serialized and its message can be replaced in production.
+  - "Costs read failed: RDAP 403, 403": one warning when every RDAP base fails, with each one's status in order.
+  - "Costs read failed: Fly.io 401" (or "Supabase timeout"), logged by `providerError` in `http.ts` where the error is thrown. It is logged there because, under Next, an error leaving a cache scope is serialized and its message can be replaced in production.
   - The loader then logs only "Fly.io costs unavailable".
   - A token is never logged, never a cache argument and never returned.
   - No error's own text is logged, because it could carry a URL.
@@ -170,7 +172,8 @@ Prices from [Fly's pricing](https://docs.fly.io/about/pricing), for started Mach
 
 ### Domain: estimated, yearly
 
-- `GET https://rdap.org/domain/getuplink.in` (`Accept: application/rdap+json`) redirects to the .in registry's RDAP server (`https://rdap.nixiregistry.in/rdap/`, per the [IANA bootstrap](https://data.iana.org/rdap/dns.json)). It needs no account.
+- `GET https://rdap.nixiregistry.in/rdap/domain/getuplink.in`, the .in registry's RDAP server (per the [IANA bootstrap](https://data.iana.org/rdap/dns.json)), then `https://rdap.org/domain/getuplink.in` if that fails (it redirects to the same server). It needs no account.
+  - Both are sent `Accept: application/rdap+json` and `User-Agent: Uplink costs (+https://getuplink.in)`. Without a User-Agent, requests from Vercel were refused with a 403.
 - The response's `events` ([RFC 9083](https://www.rfc-editor.org/rfc/rfc9083)) include `expiration`, which is the renewal date (as an IST day), and `registration`, whose `eventActor` is `namecheap`.
 - **Price:** $11.98 a year, Namecheap's regular .in renewal, kept as `DOMAIN.renewalUsd` in `lib/costs.ts`.
   - Fetching Namecheap's own page was blocked (HTTP 403 to automated fetches). The figure is from the search-indexed [Namecheap .in page](https://www.namecheap.com/domains/registration/cctld/in), which lists renewal at $11.98 a year ($59.90 for 5), and [DomainOffer's 2026 listing](https://domainoffer.net/tld/in/namecheap) agrees.
@@ -181,7 +184,9 @@ Prices from [Fly's pricing](https://docs.fly.io/about/pricing), for started Mach
 ### Tesla Fleet API: estimated
 
 - Tesla gives a $10 monthly discount to support individual developers. Billing cycles are monthly and begin on the 1st. [Billing and limits](https://developer.tesla.com/docs/fleet-api/billing-and-limits).
-- Tesla has no usage or cost API. The line comes from Uplink's own count in `api_usage` (`docs/tesla-billing.md`), through `accountKinds(now)`: the same month-to-date figure as /admin's Tesla API total. Before the `api_usage` migration it reads "Not tracked yet".
+- Tesla has no usage or cost API. The line comes from Uplink's own count in `api_usage` (`docs/tesla-billing.md`), through `accountKinds(now)`: the same month-to-date figure as the "Tesla API this month" line on /admin, which links here. Before the `api_usage` migration it reads "Not tracked yet".
+- Its **Breakdown** (closed until opened, `teslaParts` in `lib/costs.ts`) lists the requests per kind, the streamed signals and the check cadence, with the budget when `TESLA_BUDGET_USD` isn't the $10 credit. The daily retention cron counts signals, so before its first run of the month they read "Counted daily" rather than 0.
+- Google's row has the same Breakdown: calls per SKU this month (`googleParts`).
 
 ### Google Maps Platform: estimated
 

@@ -3,8 +3,7 @@ import Link from "next/link";
 import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { Header } from "@/components/header";
-import { formatCount, formatDateTime, formatUsd } from "@/lib/format";
-import { type BudgetLevel, type Kind, KIND_NAMES } from "@/lib/tesla-billing";
+import { formatDateTime, formatUsd } from "@/lib/format";
 import { type AdminPage, isAdmin, loadAdmin, RECENT_DAYS } from "@/lib/server/admin";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -19,7 +18,6 @@ export const instant = false;
 
 const heading = "text-lg font-medium tracking-heading";
 const number = new Intl.NumberFormat("en-IN");
-const CHECKS: Record<BudgetLevel, string> = { normal: "every 6 hours", slow: "every 12 hours", stopped: "paused until the 1st" };
 
 async function loadAdminPage(): Promise<{ data: AdminPage; now: number }> {
   "use cache: private";
@@ -112,26 +110,21 @@ export default async function Page() {
           ))}
         </Group>
 
-        <Group
-          title="Tesla API this month"
-          note={
-            api.counted
-              ? `Uplink's own count, at Tesla's prices; Tesla's billing page is the source of truth. Checks: ${CHECKS[api.budget.level]}, budget ${formatUsd(api.budget.budgetUsd)}.`
-              : "Not counted yet: the api_usage migration isn't applied."
-          }
+        {/* The month's estimate only; Costs has what it's made of. */}
+        <Link
+          href="/admin/costs#cost-tesla"
+          prefetch={true}
+          className="flex items-baseline justify-between gap-4 border-y py-3 text-sm hover:bg-muted/50"
         >
+          <span className="text-muted-foreground underline decoration-border underline-offset-4">Tesla API this month</span>
           {api.counted ? (
-            <>
-              <Item label="Estimated cost" value={formatUsd(api.usage.costUsd)} />
-              {api.kinds.map((k) => (
-                <Item key={k.kind} label={KIND_NAMES[k.kind as Kind] ?? k.kind} value={`${formatCount(k.count)} ${k.count === 1 ? "request" : "requests"}`} />
-              ))}
-              <Item label="Streamed signals" value={formatCount(api.signals)} />
-            </>
+            <span className="font-mono font-medium tabular-nums">
+              <Measure text={formatUsd(api.costUsd)} />
+            </span>
           ) : (
-            <Item label="Requests" value="Not counted yet" muted />
+            <span className="text-faint">Not counted yet</span>
           )}
-        </Group>
+        </Link>
 
         <p className="text-xs text-faint">As of {formatDateTime(now)}</p>
       </div>

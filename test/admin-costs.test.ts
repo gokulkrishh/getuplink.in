@@ -97,7 +97,7 @@ function stubFetch(handler: (url: URL) => Response | Promise<Response>) {
 
 // The providers as documented, from the fixtures. Anything else fails, so no test reaches the network.
 function providers(url: URL): Response {
-  if (url.host === "rdap.org") return Response.json(apis.rdap);
+  if (url.host === "rdap.nixiregistry.in" || url.host === "rdap.org") return Response.json(apis.rdap);
   if (url.host === "api.machines.dev") {
     if (url.pathname.endsWith("/machines")) return Response.json(apis.flyMachines);
     if (url.pathname.endsWith("/volumes")) return Response.json(apis.flyVolumes);
@@ -232,7 +232,7 @@ describe("the page's data", () => {
     expect(lines.google.state).toBe("not-tracked");
     expect(lines.domain).toMatchObject({ state: "ok", source: "estimated" });
     // Only the public RDAP call: nothing is sent without a token.
-    expect(fetched.map((f) => new URL(f.url).host)).toEqual(["rdap.org"]);
+    expect(fetched.map((f) => new URL(f.url).host)).toEqual(["rdap.nixiregistry.in"]);
     expect(fetched[0].auth).toBeNull();
   });
 
@@ -243,17 +243,35 @@ describe("the page's data", () => {
 
   test("the domain: Namecheap's renewal a year, renewing on RDAP's expiry", async () => {
     expect((await byId()).domain).toMatchObject({ amount: 11.98, period: "yearly", resetsOn: "2028-10-21", source: "estimated", state: "ok", note: "getuplink.in" });
-    expect(fetched[0].url).toBe("https://rdap.org/domain/getuplink.in");
+    expect(fetched[0].url).toBe("https://rdap.nixiregistry.in/rdap/domain/getuplink.in");
   });
 
-  test("RDAP failing keeps the price and loses only the date; an answer without an expiry fails", async () => {
-    stubFetch((url) => (url.host === "rdap.org" ? new Response("rate limited", { status: 429 }) : providers(url)));
+  test("RDAP is asked with a User-Agent, the registry first, then rdap.org", async () => {
+    const asked: { host: string; accept: string | null; agent: string | null }[] = [];
+    globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      const headers = new Headers(init?.headers);
+      asked.push({ host: new URL(String(input)).host, accept: headers.get("accept"), agent: headers.get("user-agent") });
+      return asked.length === 1 ? new Response("down", { status: 503 }) : Response.json(apis.rdap);
+    }) as typeof fetch;
+    expect(await readDomain()).toMatchObject({ kind: "ok", expires: "2028-10-21" });
+    expect(asked.map((a) => a.host)).toEqual(["rdap.nixiregistry.in", "rdap.org"]);
+    for (const a of asked) expect(a).toMatchObject({ accept: "application/rdap+json", agent: "Uplink costs (+https://getuplink.in)" });
+  });
+
+  test("RDAP refused (403) by both: the price stays, the date is unavailable, one warning and nothing thrown", async () => {
+    const forbidden = () => Response.json(apis.rdapForbidden.body, { status: apis.rdapForbidden.status });
+    stubFetch((url) => (url.host.startsWith("rdap.") ? forbidden() : providers(url)));
+    expect(await logs(async () => expect(await readDomain()).toEqual({ kind: "error" }))).toEqual(["Costs read failed: RDAP 403, 403"]);
     const logged = await logs(async () =>
       expect((await byId()).domain).toMatchObject({ amount: 11.98, state: "ok", resetsOn: null, note: "getuplink.in. Renewal date unavailable" }),
     );
-    expect(logged).toEqual(["Costs read failed: RDAP 429", "Domain costs unavailable"]);
-    stubFetch((url) => (url.host === "rdap.org" ? Response.json({ objectClassName: "domain", events: [] }) : providers(url)));
-    await expect(readDomain()).rejects.toThrow("RDAP shape");
+    expect(logged.filter((l) => l.includes("RDAP") || l.startsWith("Domain"))).toEqual(["Costs read failed: RDAP 403, 403"]);
+  });
+
+  test("an answer without an expiry counts as a failure too", async () => {
+    stubFetch((url) => (url.host.startsWith("rdap.") ? Response.json({ objectClassName: "domain", events: [] }) : providers(url)));
+    const logged = await logs(async () => expect(await readDomain()).toEqual({ kind: "error" }));
+    expect(logged).toEqual(["Costs read failed: RDAP shape, shape"]);
   });
 
   test("old rows for Fly.io, Supabase and the domain are ignored; an old rupee row shows in dollars, marked ≈", async () => {

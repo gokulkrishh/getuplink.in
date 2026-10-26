@@ -219,17 +219,16 @@ describe("the budget", () => {
     expect(await budgetState(NOW)).toMatchObject({ level: "normal", known: false });
   });
 
-  test("a user sees their own share, an admin the account's too", async () => {
+  test("a user sees their own share; the budget runs on the account's total", async () => {
     usageRows = [
       { user_id: 1, kind: "vehicle_data", count: 500 },
       { user_id: 2, kind: "vehicle_data", count: 1000 },
     ];
-    const mine = await loadUsage(asOwner(1, "sub-1"), false, NOW);
+    const mine = await loadUsage(asOwner(1, "sub-1"), NOW);
     expect(mine.mine.costUsd).toBeCloseTo(1, 10);
-    expect(mine.account).toBeNull();
+    expect(mine.budget.spentUsd).toBeCloseTo(3, 10);
     expect(mine.resetsAt).toBe("2026-11-01T00:00:00.000Z");
-    const admin = await loadUsage(asOwner(1, "sub-1"), true, NOW);
-    expect(admin.account?.costUsd).toBeCloseTo(3, 10);
+    expect(mine).not.toHaveProperty("account");
   });
 });
 

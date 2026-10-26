@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatCount, formatDate, formatMoney } from "@/lib/format";
 import { istDay } from "@/lib/status";
-import { CREDIT_USD } from "@/lib/tesla-billing";
+import { type BudgetLevel, checkCadence, CREDIT_USD, type Kind, type KindCount, KIND_NAMES, nextReset } from "@/lib/tesla-billing";
 
 // What running Uplink costs, without the network or the database: the shape every provider returns, the
 // period maths, renewals, each provider's price table and estimate, and the checks on what the owner types
@@ -381,6 +381,34 @@ export function googleEstimate(counts: GoogleCounts): number {
 
 // Tesla Fleet API: a $10 monthly discount, with billing cycles starting on the 1st of the month.
 export const TESLA_MONTHLY_CREDIT_USD = CREDIT_USD;
+
+// ---- What a usage-billed row is made of ----
+
+// One line of a row's breakdown. `muted` is words, not a figure.
+export type Part = { label: string; value: string; muted?: boolean };
+
+const plural = (n: number, one: string, many: string) => `${formatCount(n)} ${n === 1 ? one : many}`;
+
+export type TeslaParts = { kinds: KindCount[]; signals: number; budget: { level: BudgetLevel; budgetUsd: number } };
+
+// Requests per kind, streamed signals, and the check cadence, with the budget when it isn't the credit.
+export function teslaParts(t: TeslaParts, now: number): Part[] {
+  const budget = t.budget.budgetUsd === CREDIT_USD ? "" : `, budget ${usd(t.budget.budgetUsd)}`;
+  return [
+    ...t.kinds.map((k) => ({ label: KIND_NAMES[k.kind as Kind] ?? k.kind, value: plural(k.count, "request", "requests") })),
+    // The daily retention cron counts signals, so a month reads 0 until its first run.
+    t.signals > 0 ? { label: "Streamed signals", value: formatCount(t.signals) } : { label: "Streamed signals", value: "Counted daily", muted: true },
+    { label: "Checks", value: `${checkCadence(t.budget.level, nextReset(now))}${budget}`, muted: true },
+  ];
+}
+
+// Calls per SKU this month, most first; SKUs with none are left out.
+export function googleParts(counts: GoogleCounts): Part[] {
+  return (Object.entries(counts) as [GoogleSku, number][])
+    .filter(([sku, n]) => sku in GOOGLE_SKUS && n > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([sku, n]) => ({ label: GOOGLE_SKUS[sku].name, value: plural(n, "call", "calls") }));
+}
 
 // Over budget: past the provider's allowance (Tesla) or the owner's budget (Google).
 export function overBudget(line: Pick<CostLine, "amount" | "allowance" | "budget">): boolean {

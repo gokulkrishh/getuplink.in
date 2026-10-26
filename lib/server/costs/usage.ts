@@ -9,7 +9,8 @@ import {
   TESLA_MONTHLY_CREDIT_USD,
 } from "@/lib/costs";
 import { googleUsageFor } from "../data/system";
-import { accountKinds } from "../usage";
+import type { KindCount } from "@/lib/tesla-billing";
+import { accountKinds, type BudgetState, stateFor } from "../usage";
 
 // Tesla Fleet API and Google Maps Platform are billed on use, and Uplink counts its own calls. Tesla's
 // count is api_usage (docs/tesla-billing.md); Google's is google_usage, from the place lookups
@@ -17,15 +18,16 @@ import { accountKinds } from "../usage";
 
 // ---- Tesla Fleet API ----
 
-// This calendar month's estimated cost in USD so far, before Tesla's monthly credit.
-export type TeslaUsage = { estimatedUsd: number };
+// This calendar month's estimated cost in USD so far, before Tesla's monthly credit, and what it's made of:
+// requests per kind, streamed signals, and where it leaves the budget (the check cadence).
+export type TeslaUsage = { estimatedUsd: number; kinds: KindCount[]; signals: number; budget: BudgetState };
 export type TeslaUsageSource = (now: number) => Promise<TeslaUsage | null>;
 
-// The developer account's month to date, the same figure as /admin's Tesla API total. Null before the
-// api_usage migration, when nothing is counted.
+// The developer account's month to date, the same figure as /admin's Tesla line. Null before the api_usage
+// migration, when nothing is counted.
 export const teslaUsage: TeslaUsageSource = async (now) => {
-  const { usage, counted } = await accountKinds(now);
-  return counted ? { estimatedUsd: usage.costUsd } : null;
+  const { kinds, signals, usage, counted } = await accountKinds(now);
+  return counted ? { estimatedUsd: usage.costUsd, kinds, signals, budget: stateFor(usage.costUsd) } : null;
 };
 
 export const TESLA_BILLING_LINK = "https://developer.tesla.com/dashboard";

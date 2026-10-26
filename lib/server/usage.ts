@@ -135,20 +135,18 @@ export type UsageView = {
   budget: BudgetState;
   // This user's requests and signals.
   mine: Usage;
-  // The developer account's, for an admin only.
-  account: Usage | null;
   // False before the migration: nothing is counted yet.
   counted: boolean;
 };
 
 const empty = priceUsage([], 0);
 
-// Settings > Tesla API usage. Everyone sees their own share; an admin also sees the account's total.
-export async function loadUsage(owner: Owner, admin: boolean, now = Date.now()): Promise<UsageView> {
+// Settings > Tesla API usage: everyone's own share, an admin's too. The account's total is on Costs.
+export async function loadUsage(owner: Owner, now = Date.now()): Promise<UsageView> {
   const base = { month: usageMonth(now), resetsAt: nextReset(now).toISOString(), creditUsd: CREDIT_USD };
   if (DEMO) {
     const demo = demoMonth(now);
-    return { ...base, budget: stateFor(demo.total.costUsd), mine: demo.mine, account: admin ? demo.total : null, counted: true };
+    return { ...base, budget: stateFor(demo.total.costUsd), mine: demo.mine, counted: true };
   }
   try {
     const month = await accountMonth(now);
@@ -158,16 +156,15 @@ export async function loadUsage(owner: Owner, admin: boolean, now = Date.now()):
       ...base,
       budget: stateFor(total.costUsd),
       mine: own ? priceUsage(own.kinds, own.signals) : empty,
-      account: admin ? total : null,
       counted: true,
     };
   } catch (err) {
     if (!(err instanceof MissingSchema)) console.warn("Reading Tesla API usage failed:", messageOf(err));
-    return { ...base, budget: { level: "normal", spentUsd: 0, budgetUsd: budgetUsd(), known: false }, mine: empty, account: admin ? empty : null, counted: false };
+    return { ...base, budget: { level: "normal", spentUsd: 0, budgetUsd: budgetUsd(), known: false }, mine: empty, counted: false };
   }
 }
 
-// Admin: this month's requests per kind across the account, and its signals.
+// Admin (/admin's Tesla line, the Costs row): this month's requests per kind across the account, and its signals.
 export async function accountKinds(now = Date.now()): Promise<{ kinds: KindCount[]; signals: number; usage: Usage; counted: boolean }> {
   if (DEMO) {
     const { kinds, signals, total } = demoMonth(now);

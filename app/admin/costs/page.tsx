@@ -11,11 +11,14 @@ import {
   costAlerts,
   daysUntil,
   formatDay,
+  googleParts,
   monthlyCharge,
   monthlyTotal,
   renews,
   renewsSoon,
   type Source,
+  type Part,
+  teslaParts,
   type Total,
   usd,
 } from "@/lib/costs";
@@ -123,7 +126,27 @@ const CONNECT: Record<string, ReactNode> = {
   ),
 };
 
-function Row({ line, edit, now, ready }: { line: CostLine; edit?: Editable; now: number; ready: boolean }) {
+// What a usage-billed row is made of (lib/costs.ts teslaParts, googleParts), closed until opened.
+function Breakdown({ name, parts }: { name: string; parts: Part[] }) {
+  return (
+    <details className="pt-1">
+      <summary className={cn("w-fit cursor-pointer list-none text-xs text-muted-foreground [&::-webkit-details-marker]:hidden", link)}>
+        Breakdown
+        <span className="sr-only"> of {name}</span>
+      </summary>
+      <dl className="mt-2 divide-y border-y text-sm">
+        {parts.map((p) => (
+          <div key={p.label} className="flex items-baseline justify-between gap-4 py-2">
+            <dt className="text-muted-foreground">{p.label}</dt>
+            <dd className={p.muted ? "text-right text-faint" : "font-mono tabular-nums"}>{p.muted ? p.value : <Measure text={p.value} />}</dd>
+          </div>
+        ))}
+      </dl>
+    </details>
+  );
+}
+
+function Row({ line, edit, parts, now, ready }: { line: CostLine; edit?: Editable; parts?: Part[]; now: number; ready: boolean }) {
   const text = amountText(line);
   const soon = renews(line) && line.amount !== null && renewsSoon(line.resetsOn, now);
   const lines = details(line, now);
@@ -163,6 +186,7 @@ function Row({ line, edit, now, ready }: { line: CostLine; edit?: Editable; now:
         </div>
       </div>
       {line.state === "connect" && CONNECT[line.id] && <p className="pt-1 text-xs text-muted-foreground">{CONNECT[line.id]}</p>}
+      {parts && parts.length > 0 && <Breakdown name={line.name} parts={parts} />}
       {edit && ready && (
         <details className="group pt-1">
           <summary className={cn("w-fit cursor-pointer list-none text-xs text-muted-foreground [&::-webkit-details-marker]:hidden", link)}>
@@ -207,6 +231,9 @@ export default async function Page() {
   const { data, now } = await loadPage();
   const total = monthlyTotal(data.lines);
   const alerts = costAlerts(data.lines, now);
+  const parts: Record<string, Part[]> = {};
+  if (data.tesla) parts.tesla = teslaParts(data.tesla, now);
+  if (data.google) parts.google = googleParts(data.google);
   return (
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
       <Header />
@@ -245,7 +272,7 @@ export default async function Page() {
           <h2 className={heading}>Services</h2>
           <ul className="divide-y border-t">
             {data.lines.map((line) => (
-              <Row key={line.id} line={line} edit={data.edit[line.id]} now={now} ready={data.ready} />
+              <Row key={line.id} line={line} edit={data.edit[line.id]} parts={parts[line.id]} now={now} ready={data.ready} />
             ))}
           </ul>
           {data.ready && (
