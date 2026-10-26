@@ -9,7 +9,7 @@ import { ChargeFees } from "@/components/stats/charge-fees";
 import { ChargeSupply } from "@/components/stats/charge-supply";
 import { Figures } from "@/components/stats/figures";
 import { splitSite } from "@/lib/charge-sessions";
-import { formatClock, formatDate, formatDuration, formatKwh, formatMoney } from "@/lib/format";
+import { formatClock, formatDate, formatDuration, formatKwh, formatMoney, formatTempRange } from "@/lib/format";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargeDetail, loadChargeDetail } from "@/lib/server/charge-curve";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -58,7 +58,7 @@ function Charge({ detail }: { detail: ChargeDetail }) {
     ["Cost", cost(tesla, invoice, energy, currency, s)],
     ["Energy billed", invoice?.kwhBilled ? formatKwh(invoice.kwhBilled) : null],
     ["GST", invoice?.gst ? formatMoney(invoice.gst, "INR") : null],
-    ["Battery temperature", tempLow !== null && tempHigh !== null ? `${Math.round(tempLow)} to ${Math.round(tempHigh)} °C` : null],
+    ["Battery temperature", tempLow !== null && tempHigh !== null ? formatTempRange(tempLow, tempHigh) : null],
   ];
   const shown = rows.filter((r): r is [string, string] => r[1] !== null);
   return (

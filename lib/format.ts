@@ -94,6 +94,14 @@ export function formatAgo(value: string | number | Date, now: number): string {
   return formatSeen(value, now);
 }
 
+const celsius = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
+
+// "30.5 to 35.5 °C": the car reports battery temperatures in half degrees, so whole numbers would show
+// 35.5 as 36, a degree the battery never reached.
+export function formatTempRange(low: number, high: number): string {
+  return `${celsius.format(low)} to ${celsius.format(high)} °C`;
+}
+
 // "32.4 kWh"
 export function formatKwh(value: number): string {
   return `${value.toFixed(1)} kWh`;

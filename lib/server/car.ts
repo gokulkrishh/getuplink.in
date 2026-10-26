@@ -183,9 +183,12 @@ async function loadLastAcCharge(owner: Owner, vin: string): Promise<LastAcCharge
     data = result.error ? null : result.data;
   }
   if (!data?.ended_at) return null;
-  // The typical draw over the session's window; the peak when there are too few readings.
-  const readings = await loadReadingsByField(owner, vin, ["ACChargingPower"], data.started_at, data.ended_at);
-  const kw = typicalChargeKw(readings?.ACChargingPower ?? []) ?? num(data.peak_power_kw);
+  // The typical draw over the session's window; the peak when no reading drew power. The first power
+  // reading can come just before the charge state says Charging (26 s on 25 Oct), so the window starts a
+  // minute early.
+  const from = new Date(Date.parse(data.started_at) - 60_000).toISOString();
+  const readings = await loadReadingsByField(owner, vin, ["ACChargingPower"], from, data.ended_at);
+  const kw = typicalChargeKw(readings?.ACChargingPower ?? [], Date.parse(data.ended_at)) ?? num(data.peak_power_kw);
   const supply = acSupply(data);
   const power = kw !== null && kw > 0 ? Math.round(kw * 10) / 10 : null;
   return power !== null || supply ? { id: data.id, endedAt: data.ended_at, kw: power, supply } : null;

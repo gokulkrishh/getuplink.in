@@ -11,6 +11,9 @@ const PAGE = 1000; // PostgREST returns at most 1000 rows per request
 const MAX_PAGES = 50;
 // Enough for the "All time" view; the stats page works out each period from this list.
 const LIST_LIMIT = 1000;
+// Long enough for the station check (every 15 minutes) or a page view to run a sync after the readings
+// that follow a session's end (SETTLE_MS) have arrived, short enough that an old session isn't reread.
+const RECOVER_MS = 2 * 60 * 60 * 1000;
 
 // Fields whose last value before the watermark still describes the car at the watermark.
 // The charge state is left out on purpose: replaying an old "Charging" would start a session late.
@@ -57,14 +60,19 @@ async function watermark(owner: Owner, vin: string): Promise<{ at: string; openS
   if (open.data) return { at: open.data.started_at as string, openStartedAt: open.data.started_at as string };
   const ended = await ownerDb(owner)
     .from("stream_charge_sessions")
-    .select("ended_at")
+    .select("started_at, ended_at")
     .eq("vin", vin)
     .not("ended_at", "is", null)
     .order("ended_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (ended.error) throw new Error(ended.error.message);
-  if (ended.data?.ended_at) return { at: ended.data.ended_at as string, openStartedAt: null };
+  if (ended.data?.ended_at) {
+    // A session that ended lately is rebuilt from its start, so the readings sent after its end (the
+    // counter's last count, the settled level; see buildSessions) still reach it. Same start, same row.
+    const recent = Date.now() - Date.parse(ended.data.ended_at as string) < RECOVER_MS;
+    return { at: (recent ? ended.data.started_at : ended.data.ended_at) as string, openStartedAt: null };
+  }
   return { at: new Date(Date.now() - FIRST_SYNC_DAYS * DAY).toISOString(), openStartedAt: null };
 }
 

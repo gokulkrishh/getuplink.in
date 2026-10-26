@@ -1,5 +1,6 @@
 // One charging session's power and battery level over time, from the readings streamed while it ran.
 // Pure (no database); lib/server/charge-curve.ts does the reading.
+import { nearestToEnd } from "@/lib/charge-sessions";
 import { num, type Reading } from "@/lib/telemetry-derive";
 
 export type CurvePoint = { t: number; kw: number | null; level: number | null };
@@ -52,6 +53,16 @@ function merge(power: Sample[], level: Sample[]): CurvePoint[] {
     points.push({ t, kw, level: pct });
   }
   return points;
+}
+
+// Battery level readings up to the end, and the first one after it when the session's end level is that
+// one (nearestToEnd, as buildSessions picks it). Kept at its own time, so the line ends where the figure does.
+export function levelThroughEnd(readings: Reading[], end: number): Reading[] {
+  const timed = readings.map((r) => ({ r, t: Date.parse(r.at) }));
+  const upTo = timed.filter((x) => x.t <= end);
+  const after = timed.find((x) => x.t > end) ?? null;
+  const pick = nearestToEnd(upTo.at(-1) ?? null, after, end);
+  return pick && pick === after ? [...upTo.map((x) => x.r), after.r] : upTo.map((x) => x.r);
 }
 
 export function chargeCurve(input: { power: Reading[]; level: Reading[]; tempMin: Reading[]; tempMax: Reading[]; end: number }): ChargeCurve {

@@ -20,6 +20,8 @@ export const STREAM_FIELDS = [
   "ACChargingPower",
   "DCChargingPower",
   "TimeToFullCharge",
+  // Which charger the car is on, so a third-party DC charge leaves out the car's time-to-full estimate.
+  "FastChargerType",
 ];
 
 // Each field's last reading strictly before `before` (an ISO time, or LATEST for the newest of all), in one
