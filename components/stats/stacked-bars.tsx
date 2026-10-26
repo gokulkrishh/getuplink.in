@@ -63,7 +63,7 @@ export function StackedBars({
   // A segment that shows as 0.0 kWh is neither drawn nor listed, as a column is (see showsZero).
   const shows = (v: number) => v > 0 && !showsZero(kwh.format(v));
   const breakdown = (b: StackedBar) =>
-    series.map((s, i) => (shows(b.segments[i]) && !hidden.has(i) ? `${s.label} ${formatKwh(b.segments[i])}` : null)).filter(Boolean);
+    series.flatMap((s, i) => (shows(b.segments[i]) && !hidden.has(i) ? [{ label: s.label, value: formatKwh(b.segments[i]) }] : []));
   const toggle = (i: number) =>
     setHidden((prev) => {
       const next = new Set(prev);
@@ -94,8 +94,8 @@ export function StackedBars({
         const opens = barOpens(b.days, view);
         return (
           <li key={b.key} className="group relative">
-            <BarTip lines={[`${formatKwh(total)} in total`, ...breakdown(b)]} title={barTitle(b)} opens={opens} />
-            <Column opens={opens} words={[barTitle(b), formatKwh(total), ...breakdown(b)].join(", ")}>
+            <BarTip lines={[{ label: "Total", value: formatKwh(total) }, ...breakdown(b)]} title={barTitle(b)} opens={opens} />
+            <Column opens={opens} words={[barTitle(b), `Total ${formatKwh(total)}`, ...breakdown(b).map((r) => `${r.label} ${r.value}`)].join(", ")}>
               {dense ? <span className="h-4" /> : <ValueLabel display={kwh.format(total)} unit="kWh" />}
               <div className="flex h-20 w-full items-end justify-center">
                 {total > 0 && (

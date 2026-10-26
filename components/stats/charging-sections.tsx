@@ -1,15 +1,17 @@
+import type { TipRow } from "@/components/stats/bar-parts";
 import { hasCosts, hasStationNames, type Listed, OsmCredit, SessionHeader, SessionRow } from "@/components/session-row";
 import { ShowMore } from "@/components/show-more";
 import { ChartCard } from "@/components/chart-card";
 import { Bars } from "@/components/stats/bars";
-import { Figures, Value } from "@/components/stats/figures";
+import { Figures } from "@/components/stats/figures";
 import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
 import { chargeEfficiency } from "@/lib/charge-sessions";
-import { type Bill, billsBySlot, billsIn, spendBreakdown } from "@/lib/charging-figures";
+import { type Bill, billsBySlot, billsIn, energyIn, spendBreakdown } from "@/lib/charging-figures";
+import { comparedWith, headline } from "@/lib/dashboard-summary";
 import { DECIMALS, formatDuration, formatKwh, formatMoney, formatMonth, formatNumber, formatPercent, showsZero, sumKnown } from "@/lib/format";
-import { hasBars, knownBars } from "@/components/stats/driving-sections";
+import { hasBars, Headline, knownBars } from "@/components/stats/driving-sections";
 import { LIST_PREVIEW } from "@/lib/list";
-import { inSpan, type Slot, type Timeframe } from "@/lib/periods";
+import { inSpan, type Slot, type Span, type Timeframe } from "@/lib/periods";
 import { barsSpan, EACH_HOUR } from "@/components/stats/chart-caption";
 import { InfoButton } from "@/components/info-button";
 import type { ChargingSession } from "@/lib/server/charging";
@@ -31,42 +33,57 @@ function totals(rows: Listed[]) {
   };
 }
 
-// Spend from real bills only: Tesla's for Superchargers, attached invoices for other chargers. Then
-// ₹/kWh by charger kind and time on the charger (`charged`, ms by kind, see chargingTime) in one row of
-// tiles, ₹ per 100 km driven in the same period, and how many charges had no
-// bill, so a cheap-looking month isn't mistaken for one.
+// The span a charging figure is compared with, when charging tracking (the first session, billed or
+// streamed) began before it: later, the figure there would be part of one. Null otherwise, as on home.
+export function trackedBefore(frame: Pick<Timeframe, "previous">, chargingSince: number | null): Span | null {
+  const before = frame.previous;
+  return before !== null && chargingSince !== null && chargingSince <= before.from ? before : null;
+}
+
+// Spend from real bills only: Tesla's for Superchargers, attached invoices for other chargers, against the
+// span before where tracking covers it (`chargingSince`, see trackedBefore). Then ₹/kWh by charger kind
+// and time on the charger (`charged`, ms by kind, see chargingTime) in one row of tiles, ₹ per 100 km
+// driven in the same period, and how many charges had no bill, so a cheap-looking month isn't mistaken
+// for one.
 export function Summary({
   bills,
   unbilled,
   charged,
   km,
   frame,
+  chargingSince,
 }: {
   bills: Bill[];
   unbilled: { started_at: string }[];
   charged: { ac: number; dc: number };
   km: number | null;
   frame: Timeframe;
+  chargingSince: number | null;
 }) {
   const { span, slots } = frame;
   const { kwh, count, acPerKwh, dcPerKwh } = billsIn(bills, span);
+  const before = trackedBefore(frame, chargingSince);
+  const money = (n: number) => formatMoney(n, "INR");
   const missing = unbilled.filter((s) => inSpan(Date.parse(s.started_at), span)).length;
   // A bar ahead of now (the rest of this year or of today) is blank, not ₹0. To the paisa, rounded with
   // the headline (see knownBars), so the bars add up to it as shown.
   const { bars: plain, total: cost } = knownBars(slots, billsBySlot(bills, slots), DECIMALS.money, (n) => formatMoney(n, "INR"));
   // Each bar's tip adds what the chart can't show: how many bills, the energy they billed and the rates.
-  const detail = (slot: Slot): string[] => {
+  const detail = (slot: Slot): TipRow[] => {
     const inSlot = billsIn(bills, slot);
     if (inSlot.count === 0) return [];
     return [
-      `${inSlot.count} ${inSlot.count === 1 ? "bill" : "bills"}${inSlot.kwh > 0 ? `, ${formatKwh(inSlot.kwh)}` : ""}`,
-      ...(inSlot.acPerKwh !== null ? [`${formatMoney(inSlot.acPerKwh, "INR")}/kWh on AC`] : []),
-      ...(inSlot.dcPerKwh !== null ? [`${formatMoney(inSlot.dcPerKwh, "INR")}/kWh on DC`] : []),
+      { label: "Bills", value: String(inSlot.count) },
+      ...(inSlot.kwh > 0 ? [{ label: "Energy", value: formatKwh(inSlot.kwh) }] : []),
+      ...(inSlot.acPerKwh !== null ? [{ label: "AC rate", value: `${formatMoney(inSlot.acPerKwh, "INR")}/kWh` }] : []),
+      ...(inSlot.dcPerKwh !== null ? [{ label: "DC rate", value: `${formatMoney(inSlot.dcPerKwh, "INR")}/kWh` }] : []),
     ];
   };
   const bars = plain.map((b, k) => ({ ...b, tip: detail(slots[k]) }));
   const ac = acPerKwh !== null || charged.ac > 0;
   const dc = dcPerKwh !== null || charged.dc > 0;
+  // "Spent on charging this month, ₹310 less than 1 to 26 Sept": less or more, as money reads plainest.
+  const compared = comparedWith(cost, before && billsIn(bills, before).cost, money, frame.previousLabel, { decimals: DECIMALS.money });
   return (
     <section className="space-y-8">
       <ChartCard
@@ -74,20 +91,11 @@ export function Summary({
         description={`What you paid to charge ${eachSlot(frame)}.`}
         info="From Tesla's Supercharger bills and the invoices you attached."
         // With no bills, the empty line says so alone; a ₹0.00 headline over it would say it twice.
-        summary={
-          hasBars(bars) ? (
-            <div className="space-y-2">
-              <p className="text-[0.8125rem] text-muted-foreground">Spent {frame.words}</p>
-              <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
-                <Value text={formatMoney(cost, "INR")} />
-              </p>
-            </div>
-          ) : undefined
-        }
+        summary={hasBars(bars) ? <Headline value={money(cost)}>{headline(`Spent on charging ${frame.words}`, compared)}</Headline> : undefined}
         caption={barsSpan(frame)}
         empty={hasBars(bars) ? undefined : `No bills ${frame.words}.`}
       >
-        <Bars bars={bars} ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} fit view="charging" />
+        <Bars bars={bars} valueLabel="Spent" ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} fit view="charging" />
       </ChartCard>
       {/* What only some periods have (the rates, these lines) goes under the chart, so it stays put on a switch.
           With no bill and no time on a charger, the empty line above says it all. */}
@@ -170,18 +178,22 @@ const ENERGY_SERIES = [
   { label: "AC", className: "bg-charge/35" },
 ];
 
-// Energy added per bar of the period or range (see Timeframe), split by charger kind. Supercharger energy is
-// Tesla's billed figure; the other two come from the car's own readings.
+// Energy added per bar of the period or range (see Timeframe), split by charger kind, against the span
+// before where tracking covers it (see trackedBefore). Supercharger energy is Tesla's billed figure; the
+// other two come from the car's own readings.
 export function EnergyAdded({
   sessions,
   streamOnly,
   frame,
+  chargingSince,
 }: {
   sessions: ChargingSession[];
   streamOnly: StreamChargeSession[];
   frame: Timeframe;
+  chargingSince: number | null;
 }) {
   const { span, slots } = frame;
+  const before = trackedBefore(frame, chargingSince);
   // Supercharger, third-party DC and AC energy per slot.
   const energy = slots.map(() => [0, 0, 0]);
   let total = 0;
@@ -204,6 +216,7 @@ export function EnergyAdded({
   const efficiency = chargeEfficiency(streamOnly.filter((s) => s.kind === "ac" && inSpan(Date.parse(s.started_at), span)));
   // Any column that shows above 0.0 kWh; without one, the empty line stands alone, as on Spend.
   const charged = bars.some((b) => b.total > 0 && !showsZero(b.display));
+  const compared = comparedWith(total, before && energyIn(sessions, streamOnly, before), "kWh", frame.previousLabel, { decimals: DECIMALS.kWh });
   return (
     <section className="space-y-8">
       <ChartCard
@@ -212,16 +225,7 @@ export function EnergyAdded({
         info="Supercharger energy is from Tesla's bills; third-party DC and AC are from the car's own readings."
         unit="kWh"
         terms={["AC", "DC"]}
-        summary={
-          charged ? (
-            <div className="space-y-2">
-              <p className="text-[0.8125rem] text-muted-foreground">Added {frame.words}</p>
-              <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
-                <Value text={formatKwh(total)} />
-              </p>
-            </div>
-          ) : undefined
-        }
+        summary={charged ? <Headline value={formatKwh(total)}>{headline(`Added ${frame.words}`, compared)}</Headline> : undefined}
         caption={barsSpan(frame)}
         empty={charged ? undefined : `No charging ${frame.words}.`}
       >

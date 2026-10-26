@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { eachFrame } from "@/components/home/frames";
 import { DriveList } from "@/components/stats/drive-list";
 import { SeasonEfficiency } from "@/components/stats/season-efficiency";
-import { Distance, DriveStatsSection, EnergyUse } from "@/components/stats/driving-sections";
+import { Distance, DriveStatsSection } from "@/components/stats/driving-sections";
 import { customScope, type HomePeriod, PERIODS } from "@/components/stats/periods";
 import { driveStats, withDriveEfficiency } from "@/lib/drive-stats";
 import { type Day, stripsBetween } from "@/lib/day-timeline";
@@ -16,7 +16,7 @@ import { withGoogleNames } from "@/lib/server/google-place-names";
 import { AWAKE_DAYS, loadPresence } from "@/lib/server/awake";
 import { loadStreamSessions } from "@/lib/server/stream-charging";
 import { DRIVE_DAYS } from "@/lib/drives";
-import { type CustomFrame, fromSince, periodFrames } from "@/lib/frames";
+import { type CustomFrame, type Frame, fromSince, periodFrames } from "@/lib/frames";
 import {
   clipSpan,
   customQuery,
@@ -44,6 +44,12 @@ import { istDay, istDayStart } from "@/lib/telemetry-derive";
 export const metadata: Metadata = { title: "Driving" };
 
 const DAY = 86_400_000;
+
+// A span long enough for a season comparison or a speed profile to say something: Year, All, or a range
+// picked by date of LONG_DAYS or more (a period's span runs to Infinity, so only a range is measured). On
+// a day, a week or a month those sections stay out of the way.
+const LONG_DAYS = 90;
+const isLong = ({ key, frame }: Pick<Frame, "key" | "frame">) => key === "year" || key === "all" || (key === "custom" && (frame.span.to - frame.span.from) / DAY >= LONG_DAYS);
 
 // What one choice of the switch draws besides its driving figures: the insights over its newest days
 // (`insights`: cut to the drives kept, and to INSIGHT_DAYS, so the read stays whole), and its days as strips
@@ -136,14 +142,10 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
         <div className="space-y-12">
           {eachFrame(frames, (f) => {
             const { frame, driving: figures_ } = fromSince(f, figures.since, now);
-            return <Distance frame={frame} driving={figures_} drives={{ list: driving.drives, from: tripsFrom }} />;
+            return <Distance frame={frame} driving={figures_} />;
           })}
-          {eachFrame(frames, (f) => {
-            const { frame, driving: figures_ } = fromSince(f, figures.since, now);
-            return <EnergyUse frame={frame} driving={figures_} />;
-          })}
-          {/* Seasons are compared across the year, so no single period changes them. */}
-          <SeasonEfficiency {...seasons} />
+          {/* Seasons are compared across the year, so no single period changes them; they show on the long spans only (see isLong). */}
+          {eachFrame(frames, (f) => (isLong(f) ? <SeasonEfficiency {...seasons} /> : null))}
           {eachFrame(frames, ({ key, frame }) => (
             <DayTimeline
               days={byFrame[key]?.days ?? []}
@@ -151,9 +153,7 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
               caption={`${frame.title}.${partial(frame.span, stripsFrom) ? ` Days cover only the last ${AWAKE_DAYS} days.` : ""}`}
             />
           ))}
-          {eachFrame(frames, ({ key, frame }) => (
-            <SpeedBands bins={byFrame[key]?.extras.speed ?? []} words={frame.words} note={insightsNote(key, frame.span)} />
-          ))}
+          {eachFrame(frames, (f) => (isLong(f) ? <SpeedBands bins={byFrame[f.key]?.extras.speed ?? []} words={f.frame.words} note={insightsNote(f.key, f.frame.span)} /> : null))}
           {eachFrame(frames, ({ key, frame }) => (
             <EfficiencyBands byTemp={byFrame[key]?.extras.byTemp ?? []} bySpeed={byFrame[key]?.extras.bySpeed ?? []} words={frame.words} note={insightsNote(key, frame.span)} />
           ))}

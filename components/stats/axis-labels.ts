@@ -94,9 +94,10 @@ export function useValueLabels(box: RefObject<HTMLElement | null>) {
   });
 }
 
-// Puts each column's tip (marked data-bar-tip, laid out hidden) centred over its column, nudged inside the
-// chart at either end so a tip on the first or last day isn't cut off, measured in the browser like the
-// labels. Runs again when the chart resizes.
+// Puts each column's tip (marked data-bar-tip, laid out hidden) beside its column, never over it, so the
+// bar being read stays in view: on the right of a column in the chart's left half, on the left in its right
+// half, kept inside the chart where it can't fit. Measured in the browser like the labels; runs again when
+// the chart resizes.
 export function useBarTips(box: RefObject<HTMLElement | null>) {
   useLayoutEffect(() => {
     const el = box.current;
@@ -107,8 +108,14 @@ export function useBarTips(box: RefObject<HTMLElement | null>) {
       for (const tip of el.querySelectorAll<HTMLElement>("[data-bar-tip]")) {
         const column = tip.parentElement!.getBoundingClientRect();
         const w = tip.offsetWidth;
-        const left = Math.max(0, Math.min(width - w, column.left - origin + column.width / 2 - w / 2));
-        tip.style.left = `${left - (column.left - origin)}px`;
+        const start = column.left - origin;
+        const centre = start + column.width / 2;
+        // The bar is at most 48px (BAR_MAX), centred in its column: the tip clears the bar, not the column.
+        const half = Math.min(column.width, 48) / 2;
+        const gap = 6;
+        const wanted = centre < width / 2 ? centre + half + gap : centre - half - gap - w;
+        const left = Math.max(0, Math.min(width - w, wanted));
+        tip.style.left = `${left - start}px`;
       }
     };
     layout();

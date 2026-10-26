@@ -1,3 +1,4 @@
+import { MIN_EFFICIENCY_KM } from "@/lib/dashboard-summary";
 import { DRIVE_DAYS, type Drive } from "@/lib/drives";
 import { groupTrips } from "@/lib/trips";
 import type { DrivingFigure, DrivingFigures, DrivingPeriod } from "@/lib/driving-figures";
@@ -52,6 +53,19 @@ export function driveEnergy(drives: Drive[], span: Span): { kwh: number | null; 
   }
   if (!any) return { kwh: null, whPerKm: null };
   return { kwh, whPerKm: km >= 1 ? (kwh * 1000) / km : null };
+}
+
+// How far back the owner's own consumption is averaged for the real-world range estimate.
+export const CONSUMPTION_DAYS = 30;
+
+// The owner's average consumption over the last CONSUMPTION_DAYS of driving (see driveEnergy), with the
+// distance it rests on. Null under MIN_EFFICIENCY_KM, where a figure would be mostly noise, or with no
+// drive that has an energy figure. Never guessed from a rated figure.
+export function recentConsumption(drives: Drive[], now: number): { whPerKm: number; km: number } | null {
+  const span = { from: now - CONSUMPTION_DAYS * DAY, to: now };
+  const km = drives.reduce((sum, d) => sum + (d.kwh === null ? 0 : driveKmIn(d, span)), 0);
+  const { whPerKm } = driveEnergy(drives, span);
+  return whPerKm === null || km < MIN_EFFICIENCY_KM ? null : { whPerKm, km };
 }
 
 // Energy used driving, and efficiency, from the drives wherever they cover the whole span (they reach

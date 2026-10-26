@@ -122,11 +122,11 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
           {(bills.length > 0 || unbilled.length > 0 || sessions.length > 0) &&
             eachFrame(frames, (f) => {
               const { frame, driving } = fromSince(f, chargingSince, now);
-              return <Summary bills={bills} unbilled={unbilled} charged={chargingTime(sessions, streamOnly, frame.span)} km={driving?.current.km ?? null} frame={frame} />;
+              return <Summary bills={bills} unbilled={unbilled} charged={chargingTime(sessions, streamOnly, frame.span)} km={driving?.current.km ?? null} frame={frame} chargingSince={chargingSince} />;
             })}
           {bills.some((b) => b.parts) && eachFrame(frames, (f) => <PaidFor bills={bills} frame={fromSince(f, chargingSince, now).frame} />)}
           {streamSessions.length > 0 &&
-            eachFrame(frames, (f) => <EnergyAdded sessions={sessions} streamOnly={streamOnly} frame={fromSince(f, chargingSince, now).frame} />)}
+            eachFrame(frames, (f) => <EnergyAdded sessions={sessions} streamOnly={streamOnly} frame={fromSince(f, chargingSince, now).frame} chargingSince={chargingSince} />)}
           {eachFrame(frames, ({ frame }) => <ChargeHabits starts={starts(frame.span)} title={frame.title} words={frame.words} />)}
           {streamSessions.length > 0 &&
             eachFrame(frames, ({ frame }) => (

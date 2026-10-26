@@ -61,6 +61,10 @@ export async function loadHome(owner: Owner, scenario: DemoScenario, now: number
     ]);
     const after = (s: { started_at: string }) => demoSince === undefined || Date.parse(s.started_at) >= demoSince;
     const shownStream = streamSessions.filter(after);
+    // The header's state wins: a car it shows charging isn't "parked now", even before the stations job has
+    // built its session from the readings (every 15 minutes).
+    const charging = cars.find((c) => c.vehicle.id === primary?.id)?.lastOnline?.charging_state === "Charging";
+    const driving = charging ? { ...window.driving, parkedNow: null } : window.driving;
     // Names for the latest charges' spots, which the home list shows a few of (the owner's tag first).
     const spots = await loadChargeSpots(owner, primary?.vin ?? null, shownStream.slice(0, NAMED_CHARGES), { tesla: sessions, invoices, now }).catch(() => ({}));
     return {
@@ -70,7 +74,7 @@ export async function loadHome(owner: Owner, scenario: DemoScenario, now: number
       figures,
       sessions: sessions.filter(after),
       streamSessions: shownStream,
-      window: { ...window, driving: { ...window.driving, drives: window.driving.drives.filter((d) => demoSince === undefined || d.start >= demoSince) } },
+      window: { ...window, driving: { ...driving, drives: driving.drives.filter((d) => demoSince === undefined || d.start >= demoSince) } },
       invoices,
       spots,
     };

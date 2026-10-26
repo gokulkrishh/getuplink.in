@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import { useAxisLabels, useBarTips, useValueLabels } from "@/components/stats/axis-labels";
-import { AxisLabel, type Bar, BAR_MAX, barOpens, BarTip, barTitle, Column, MIN_COLUMN_PX, MIN_COLUMNS, tipLines, ValueLabel, withUnit } from "@/components/stats/bar-parts";
+import { AxisLabel, type Bar, BAR_MAX, barOpens, BarTip, barTitle, Column, MIN_COLUMN_PX, MIN_COLUMNS, rowWords, type TipRow, tipLines, ValueLabel, withUnit } from "@/components/stats/bar-parts";
 import type { View } from "@/components/stats/periods";
 import { ScrollEnd } from "@/components/stats/scroll-end";
 import { TapColumns } from "@/components/stats/tap-columns";
@@ -24,6 +24,7 @@ export function BarColumns({
   labelEvery,
   unit,
   valueWords,
+  valueLabel,
   fit = false,
   view,
 }: {
@@ -33,6 +34,8 @@ export function BarColumns({
   labelEvery?: number;
   unit?: string;
   valueWords?: string;
+  // Names the bar's own figure in its tip, like "Distance"; without it the figure is a plain line.
+  valueLabel?: string;
   fit?: boolean;
   view?: View;
 }) {
@@ -43,7 +46,8 @@ export function BarColumns({
   const first = bars.findIndex((b) => b.value > 0);
   const hidden = (b: Bar, k: number) => (b.blank ?? k < first) || showsZero(b.display);
   // The tip's first line: "46.2 km", or "20% of driving time".
-  const value = (b: Bar) => (valueWords ? `${withUnit(b.display, unit)} ${valueWords}` : withUnit(b.display, unit));
+  const figure = (b: Bar) => (valueWords ? `${withUnit(b.display, unit)} ${valueWords}` : withUnit(b.display, unit));
+  const value = (b: Bar): TipRow => (valueLabel ? { label: valueLabel, value: figure(b) } : figure(b));
   // Labels show as many as fit, never fewer apart than labelEvery (see useAxisLabels); tips sit over their bars.
   const box = useRef<HTMLDivElement>(null);
   useAxisLabels(box, labelEvery);
@@ -69,7 +73,7 @@ export function BarColumns({
         ) : (
           <li key={b.key} className="group relative">
             <BarTip lines={[value(b), ...tipLines(b.tip)]} title={barTitle(b)} opens={barOpens(b.days, view)} />
-            <Column opens={barOpens(b.days, view)} words={[barTitle(b), value(b), ...tipLines(b.tip)].join(", ")}>
+            <Column opens={barOpens(b.days, view)} words={[barTitle(b), value(b), ...tipLines(b.tip)].map(rowWords).join(", ")}>
               {dense ? <span className="h-4" /> : <ValueLabel display={b.display} unit={unit} />}
               <div className="flex h-20 w-full items-end justify-center">
                 {b.value > 0 && (

@@ -4,6 +4,7 @@ import { ChartCard } from "@/components/chart-card";
 import { Bars } from "@/components/stats/bars";
 import { barsSpan } from "@/components/stats/chart-caption";
 import { ChargeLevelChart } from "@/components/stats/charge-level";
+import { trackedBefore } from "@/components/stats/charging-sections";
 import { TripTable } from "@/components/stats/drive-list";
 import { hasBars, knownBars } from "@/components/stats/driving-sections";
 import { Figures } from "@/components/stats/figures";
@@ -11,10 +12,11 @@ import type { View } from "@/components/stats/periods";
 import { DRIVE_DAYS, type Drive, drainSummary, type ParkedNow, type ParkedPeriod } from "@/lib/drives";
 import { backTo, overlapping } from "@/lib/kept";
 import { groupTrips } from "@/lib/trips";
-import { type Bill, billsBySlot } from "@/lib/charging-figures";
+import { type Bill, billsBySlot, billsIn } from "@/lib/charging-figures";
 import type { ChargeLevel } from "@/lib/charge-level";
+import { comparedWith, headline } from "@/lib/dashboard-summary";
 import type { DrivingFigures } from "@/lib/driving-figures";
-import { DECIMALS, formatDuration, formatMoney, formatPercent, formatPower } from "@/lib/format";
+import { DECIMALS, formatDuration, formatKm, formatMoney, formatPercent, formatPower } from "@/lib/format";
 import { inSpan } from "@/lib/periods";
 import { fromSince } from "@/lib/frames";
 import { eachFrame, type HomeFrame } from "./frames";
@@ -55,6 +57,12 @@ function Quiet({ children }: { children: ReactNode }) {
   return <p className="text-sm text-muted-foreground">{children}</p>;
 }
 
+// A chart's opening sentence on home: the period's figure and how it compares (see headline). The tiles
+// above carry the big number, so here it is one line.
+function Opening({ children }: { children: string }) {
+  return <p className="text-sm text-muted-foreground tabular-nums">{children}</p>;
+}
+
 // Spend per bar from real bills (Tesla's and the invoices attached, as in Spent and on Charging), then the
 // newest sessions in the period. A period with neither is one line ("No charging today."), so the
 // sections aren't held open to a chart's height (no `steady`).
@@ -67,10 +75,15 @@ export function ChargingSection({ frames, bills, listed, chargingSince, now }: {
     const { frame } = fromSince(f, chargingSince, now);
     // A slot ahead of now is blank, never ₹0; those before the first bill are hidden by Bars itself. To the
     // paisa and rounded together, so the bars add up to Spent above as shown.
-    const { bars } = knownBars(frame.slots, billsBySlot(bills, frame.slots), DECIMALS.money, (n) => formatMoney(n, currency));
+    const money = (n: number) => formatMoney(n, currency);
+    const { bars, total } = knownBars(frame.slots, billsBySlot(bills, frame.slots), DECIMALS.money, money);
     const shown = listed.filter((item) => inSpan(Date.parse(item.started_at), f.frame.span)).slice(0, ROWS);
     if (!hasBars(bars) && shown.length === 0) return <Quiet>No charging {f.frame.words}.</Quiet>;
     const costs = hasCosts(shown);
+    // "₹1,240.00 on charging this month, ₹310.00 less than 1 to 26 Sept", where tracking covers the span
+    // before (see trackedBefore), as the Spent tile compares.
+    const before = trackedBefore(frame, chargingSince);
+    const compared = comparedWith(total, before && billsIn(bills, before).cost, money, frame.previousLabel, { decimals: DECIMALS.money });
     return (
       <div className="space-y-6">
         <ChartCard
@@ -78,10 +91,11 @@ export function ChargingSection({ frames, bills, listed, chargingSince, now }: {
           title="Spend"
           description="What charging cost."
           info="From Tesla's Supercharger bills and the invoices you attached."
+          summary={hasBars(bars) ? <Opening>{headline(`${money(total)} on charging ${frame.words}`, compared)}</Opening> : undefined}
           caption={barsSpan(frame)}
           empty={hasBars(bars) ? undefined : `No bills ${frame.words}.`}
         >
-          <Bars bars={bars} view="charging" ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} fit />
+          <Bars bars={bars} view="charging" valueLabel="Spent" ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} fit />
         </ChartCard>
         {shown.length === 0 ? (
           <Quiet>No charging sessions {f.frame.words}.</Quiet>
@@ -117,17 +131,26 @@ export function DrivingSection({ frames, figures, drives, now }: { frames: HomeF
     const { frame, driving } = fromSince(f, figures.since, now);
     // A slot with no reading (before tracking began, or ahead of now) is blank, never 0 km.
     // Rounded together like the headline's Driven, so they add up to it as shown.
-    const { bars } = knownBars(frame.slots, frame.slots.map((_, k) => (driving ? (driving.bars[k]?.km ?? null) : null)), DECIMALS.km);
+    const { bars, total } = knownBars(frame.slots, frame.slots.map((_, k) => (driving ? (driving.bars[k]?.km ?? null) : null)), DECIMALS.km);
     const shown = trips.filter((t) => inSpan(t.start, f.frame.span)).slice(0, ROWS);
     // Tracking began before the trips' window and the period reaches back past it.
     const partial = f.frame.span.from < tripsFrom && (figures.since === null || figures.since < tripsFrom);
     // A period with no distance and no trips is one line, as in ChargingSection.
     if (driving && !hasBars(bars) && shown.length === 0) return <Quiet>No driving {f.frame.words}.</Quiet>;
     const empty = !driving ? "Couldn't read the distance for these dates." : hasBars(bars) ? undefined : `No driving ${frame.words}.`;
+    // "130.6 km in the last 7 days, 21.7 km more than the 7 days before", as the Driven tile compares.
+    const compared = comparedWith(total, driving?.previous?.km ?? null, "km", frame.previousLabel, { decimals: DECIMALS.km });
     return (
       <div className="space-y-6">
-        <ChartCard as="h3" title="Distance" description="Kilometres driven." caption={barsSpan(frame)} empty={empty}>
-          <Bars bars={bars} view="driving" ariaLabel={`Distance per ${frame.slotName} in km`} unit="km" labelEvery={frame.labelEvery} fit />
+        <ChartCard
+          as="h3"
+          title="Distance"
+          description="Kilometres driven."
+          summary={!empty ? <Opening>{headline(`${formatKm(total)} ${frame.words}`, compared)}</Opening> : undefined}
+          caption={barsSpan(frame)}
+          empty={empty}
+        >
+          <Bars bars={bars} view="driving" valueLabel="Distance" ariaLabel={`Distance per ${frame.slotName} in km`} unit="km" labelEvery={frame.labelEvery} fit />
         </ChartCard>
         {drives.length > 0 && (
           <div className="space-y-3">

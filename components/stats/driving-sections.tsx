@@ -1,21 +1,24 @@
+import type { TipRow } from "@/components/stats/bar-parts";
 import type { ReactNode } from "react";
 import { ChartCard } from "@/components/chart-card";
 import { type Bar, Bars } from "@/components/stats/bars";
 import { barsSpan } from "@/components/stats/chart-caption";
 import { Figures, Value } from "@/components/stats/figures";
+import { comparedWith, headline } from "@/lib/dashboard-summary";
 import { type DriveStats } from "@/lib/drive-stats";
-import { DRIVE_DAYS, type Drive } from "@/lib/drives";
+import { DRIVE_DAYS } from "@/lib/drives";
+import type { DrivingFigure, DrivingPeriod } from "@/lib/driving-figures";
 import { DECIMALS, formatDuration, formatKm, formatKwh, formatNumber, showsZero, sumKnown } from "@/lib/format";
 import type { Frame } from "@/lib/frames";
-import { inSpan, type Slot } from "@/lib/periods";
-import { Measure } from "@/components/measure";
+import type { Slot } from "@/lib/periods";
 
-// The Driving page's sections: distance and energy use with regen for the period, and drive stats.
+// The Driving page's sections: distance for the period, with the energy it took under the chart, and drive stats.
 
 const compactNumber = new Intl.NumberFormat("en-IN");
 
-// The big number above a chart, and the line under it saying what it covers.
-function Headline({ value, children }: { value: string; children: ReactNode }) {
+// The big number above a chart, and one sentence under it saying what it covers and how it compares with
+// the span before (see headline): "Driven in the last 7 days, 21.7 km more than the 7 days before."
+export function Headline({ value, children }: { value: string; children: ReactNode }) {
   return (
     <div className="space-y-1">
       <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
@@ -26,11 +29,11 @@ function Headline({ value, children }: { value: string; children: ReactNode }) {
   );
 }
 
-// Distance for the period or range, with a bar per slot of it (see Timeframe). With `drives` (the drives
-// kept, from `from`), each bar's tip adds how many drives it holds and how long they took, for the bars
-// the kept drives cover whole.
-export function Distance({ frame, driving, drives }: Pick<Frame, "frame" | "driving"> & { drives?: { list: Drive[]; from: number } }) {
-  const description = "Kilometres driven.";
+// Distance for the period or range, with a bar per slot of it (see Timeframe), and the energy it took: each
+// bar's tip adds its kWh and Wh/km (see energyLines), and the one line under the chart sums the period's
+// energy and regen (see energyCaption). One chart says what three (Distance, Energy use, Regen) did.
+export function Distance({ frame, driving }: Pick<Frame, "frame" | "driving">) {
+  const description = "Kilometres driven, and the energy it took.";
   // The counters couldn't be read for a range picked by date: say so in the chart's place rather than show 0 km.
   if (!driving) return <ChartCard title="Distance" description={description} empty={`Couldn't read the car's counters ${frame.words}.`} />;
   // A period without driving still shows, at 0 km with a note in place of the chart, so picking Day before
@@ -38,26 +41,55 @@ export function Distance({ frame, driving, drives }: Pick<Frame, "frame" | "driv
   // ahead of now) is blank, never 0 km; a tracked day without driving is a real 0. The headline is the
   // bars' raw sum (the odometer's rise over the span is the same sum: the bars share their edges).
   const { bars: plain, total } = knownBars(frame.slots, driving.bars.map((b) => b.km), DECIMALS.km);
-  const detail = (slot: Slot): string[] => {
-    if (!drives || slot.from < drives.from) return [];
-    const inSlot = drives.list.filter((d) => inSpan(d.start, slot));
-    if (inSlot.length === 0) return [];
-    const seconds = inSlot.reduce((sum, d) => sum + (d.end - d.start), 0) / 1000;
-    return [`${inSlot.length} ${inSlot.length === 1 ? "drive" : "drives"}`, `${formatDuration(seconds)} driving`];
-  };
-  const bars = plain.map((b, k) => ({ ...b, tip: detail(frame.slots[k]) }));
+  const bars = plain.map((b, k) => ({ ...b, tip: energyLines(driving.bars[k]) }));
+  // Against the span before, where the counters covered it (see DrivingPeriod.previous).
+  const compared = comparedWith(total, driving.previous?.km ?? null, "km", frame.previousLabel, { decimals: DECIMALS.km });
   return (
     <ChartCard
       title="Distance"
       description={description}
-      caption={barsSpan(frame)}
+      // The energy line is the chart's one caption; without an energy reading, the bars' span is.
+      caption={energyCaption(driving, frame.previousLabel) ?? barsSpan(frame)}
       // With nothing driven, the empty line says so alone; a 0.0 km headline over it would say it twice.
-      summary={hasBars(bars) ? <Headline value={formatKm(total)}>Driven {frame.words}</Headline> : undefined}
+      summary={hasBars(bars) ? <Headline value={formatKm(total)}>{headline(`Driven ${frame.words}`, compared)}</Headline> : undefined}
       empty={hasBars(bars) ? undefined : `No driving ${frame.words}.`}
     >
-      <Bars bars={bars} ariaLabel={`Distance per ${frame.slotName}`} unit="km" labelEvery={frame.labelEvery} fit view="driving" />
+      <Bars bars={bars} valueLabel="Distance" ariaLabel={`Distance per ${frame.slotName}`} unit="km" labelEvery={frame.labelEvery} fit view="driving" />
     </ChartCard>
   );
+}
+
+// A bar's energy, for its tip under the kilometres: Energy "1.4 kWh" and Efficiency "106 Wh/km", each where the bar has
+// one (both need drives of at least 1 km, see DrivingFigure).
+export function energyLines(figure: DrivingFigure | undefined): TipRow[] {
+  const lines: TipRow[] = [];
+  if (figure?.kwh != null && figure.kwh > 0) lines.push({ label: "Energy", value: formatKwh(figure.kwh) });
+  if (figure?.whPerKm != null) lines.push({ label: "Efficiency", value: `${formatNumber(figure.whPerKm, DECIMALS.whPerKm)} Wh/km` });
+  return lines;
+}
+
+// The line under the Distance chart: "14.5 kWh used, 2.6 kWh won back with regen, 111 Wh/km, 4 Wh/km
+// better than the 7 days before." Only the parts known: energy used is the bars' raw sum (see knownBars;
+// a bar with no figure and no driving used nothing), regen only when it won any, Wh/km where the span has
+// one. The comparison is of Wh/km, lower the better, where both spans have one (more kWh over more km isn't
+// worse); else of the energy itself. Null when the energy counter has no reading for a span with driving in
+// it, or there is nothing to say (then the chart's caption names its bars instead).
+export function energyCaption(driving: DrivingPeriod, previousLabel: string | null): string | null {
+  const { current, previous, bars } = driving;
+  // No reading with no driving is nothing used; with driving it's unknown.
+  if ((current.kwh ?? (current.km ? null : 0)) === null) return null;
+  const used = sumKnown(bars.map((v) => v?.kwh ?? (v?.km === 0 ? 0 : null)));
+  const regen = sumKnown(bars.map((v) => v?.regenKwh ?? null));
+  const parts: string[] = [];
+  if (used > 0) parts.push(`${formatKwh(used)} used`);
+  if (regen > 0) parts.push(`${formatKwh(regen)} won back with regen`);
+  if (current.whPerKm !== null) parts.push(`${formatNumber(current.whPerKm, DECIMALS.whPerKm)} Wh/km`);
+  if (parts.length === 0) return null;
+  const compared =
+    current.whPerKm !== null && previous?.whPerKm != null
+      ? comparedWith(current.whPerKm, previous.whPerKm, "Wh/km", previousLabel, { decimals: DECIMALS.whPerKm, lowerIsBetter: true })
+      : comparedWith(used, previous?.kwh ?? null, "kWh", previousLabel, { decimals: DECIMALS.kWh });
+  return headline(parts.join(", "), compared);
 }
 
 // One bar from a slot's figure: blank when the figure is unknown (null) or the slot lies ahead of now.
@@ -82,66 +114,6 @@ export function knownBars(
 // Whether a bar chart has anything to draw; without, its card shows a note in the chart's place.
 // A bar that shows as 0.0 draws nothing (see showsZero), so it doesn't count.
 export const hasBars = (bars: Bar[]) => bars.some((b) => b.value > 0 && !showsZero(b.display));
-
-// Energy used driving in the period and each bar, in kWh: from the streamed lifetime energy counter, or
-// from the drives where the counter has no reading from before the span (see withDriveEfficiency). Then
-// what regen won back, when it won any.
-export function EnergyUse({ frame, driving }: Pick<Frame, "frame" | "driving">) {
-  if (!driving) return null;
-  const { current, bars: values } = driving;
-  // No reading with no driving is nothing used; with driving it's unknown, so the section stays out of the way.
-  if ((current.kwh ?? (current.km ? null : 0)) === null) return null;
-  const slots = frame.slots;
-  // Like the total: no figure with no driving is nothing used, with driving it is unknown and left blank.
-  // Each headline is its bars' raw sum (see knownBars).
-  const { bars: plain, total: used } = knownBars(slots, values.map((v) => v?.kwh ?? (v?.km === 0 ? 0 : null)), DECIMALS.kWh);
-  // Each bar's tip adds its Wh/km, where the bar has one (drives of at least 1 km).
-  const bars = plain.map((b, k) => {
-    const whPerKm = values[k]?.whPerKm;
-    return whPerKm === null || whPerKm === undefined ? b : { ...b, tip: `${formatNumber(whPerKm, DECIMALS.whPerKm)} Wh/km` };
-  });
-  const { bars: regenBars, total: regenTotal } = knownBars(slots, values.map((v) => v?.regenKwh ?? null), DECIMALS.kWh);
-  const km = sumKnown(values.map((v) => v?.km));
-  return (
-    <div className="space-y-12">
-      <ChartCard
-        title="Energy use"
-        description="Energy the car used driving."
-        unit="kWh"
-        caption={barsSpan(frame)}
-        summary={
-          hasBars(bars) ? (
-            <Headline value={formatKwh(used)}>
-              Used {frame.words}
-              {km ? ` · ${formatKm(km)}` : ""}
-            </Headline>
-          ) : undefined
-        }
-        empty={hasBars(bars) ? undefined : `No driving ${frame.words}.`}
-      >
-        <Bars bars={bars} ariaLabel={`Energy used per ${frame.slotName} in kWh`} unit="kWh" labelEvery={frame.labelEvery} fit view="driving" />
-      </ChartCard>
-      {regenTotal > 0 && (
-        <ChartCard
-          as="h3"
-          title="Regen"
-          description="Energy won back as the car slowed."
-          unit="kWh"
-          terms={["regen"]}
-          caption={barsSpan(frame)}
-          summary={
-            <p className="text-sm">
-              Won back <span className="font-mono font-medium tabular-nums"><Measure text={formatKwh(regenTotal)} /></span>{" "}
-              <span className="text-muted-foreground">{frame.words}</span>
-            </p>
-          }
-        >
-          <Bars bars={regenBars} ariaLabel={`Energy won back by regen per ${frame.slotName} in kWh`} unit="kWh" labelEvery={frame.labelEvery} fit view="driving" />
-        </ChartCard>
-      )}
-    </div>
-  );
-}
 
 // Drive stats for the period or range, after TeslaMate's: how many drives, how long they usually are, the
 // longest, time at the wheel and distance a day. Counted, never projected. `spanDays` is how long the span

@@ -170,8 +170,7 @@ Where you can, prefer a unit people already understand. The drive page shows acc
 
 | File | Chart | What it shows |
 | --- | --- | --- |
-| `components/stats/driving-sections.tsx` | Distance | Bars: km per slot of the period |
-| `components/stats/driving-sections.tsx` | Energy use and regen | Bars: kWh used per slot, then kWh won back by regen |
+| `components/stats/driving-sections.tsx` | Distance | Bars: km per slot of the period; each tip adds the bar's kWh and Wh/km, and the caption sums the period's kWh, regen and Wh/km |
 | `components/stats/driving-sections.tsx` | Driving per day | Bars: km per day, last 90 days |
 | `components/stats/driving-extras.tsx` | Time at each speed | Bars: time spent in each speed band |
 | `components/stats/driving-extras.tsx` | Efficiency | Wh/km figures |

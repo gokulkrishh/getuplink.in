@@ -65,7 +65,9 @@ async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "sear
     <StatsFrame view="battery" custom={customScope(custom?.range ?? null, now)} periodSwitch={enough}>
       {enough ? (
         <div className="space-y-12">
-          {eachFrame(frames, ({ frame }) => <BatteryHealth trend={trend} range={range} sessions={sessions} frame={frame} teslaPack={extras.teslaPack} />)}
+          {eachFrame(frames, ({ frame }) => (
+            <BatteryHealth trend={trend} range={range} sessions={sessions} frame={frame} teslaPack={extras.teslaPack} drives={driving.drives} now={now} />
+          ))}
           {/* The id sits outside the periods' copies, so it is on the page once. */}
           <div id="battery">{eachFrame(frames, ({ frame }) => <BatteryPack trend={trend} frame={frame} />)}</div>
           {eachFrame(frames, ({ frame }) => <TeslaPackByWeek pack={extras.teslaPack} frame={frame} />)}

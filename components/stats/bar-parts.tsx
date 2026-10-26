@@ -15,13 +15,17 @@ import { cn } from "@/lib/utils";
 // start boundary, with a tick, instead of centred under it: for blocks of hours, where "6 AM" under the
 // 6 AM to 9 AM bar reads as "at 6 AM" (see Slot). `days` is the day, month or year the bar covers, when it
 // covers one: the tip's title in full ("Sun, 26 Oct") and what the column opens (see barOpens).
-export type Bar = { key: string; label: string; value: number; display: string; isCurrent: boolean; blank?: boolean; tip?: string | string[]; axis?: string; edge?: boolean; days?: SlotDays };
+export type Bar = { key: string; label: string; value: number; display: string; isCurrent: boolean; blank?: boolean; tip?: TipRow | TipRow[]; axis?: string; edge?: boolean; days?: SlotDays };
 
 // The tip's title: the bar's days in full where it covers a day, a month or a year, else its label.
 export const barTitle = (b: Pick<Bar, "label" | "days">) => b.days?.title ?? b.label;
 
 // The tip's extra lines, as given.
-export const tipLines = (tip: string | string[] | undefined): string[] => (tip === undefined ? [] : Array.isArray(tip) ? tip : [tip]);
+// A row of a bar's tip: a labelled figure ("Energy", "1.0 kWh"), set as a two-column list, or a plain line.
+export type TipRow = string | { label: string; value: string };
+export const tipLines = (tip: TipRow | TipRow[] | undefined): TipRow[] => (tip === undefined ? [] : Array.isArray(tip) ? tip : [tip]);
+// A row as screen readers hear it: "Energy 1.0 kWh".
+export const rowWords = (row: TipRow) => (typeof row === "string" ? row : `${row.label} ${row.value}`);
 
 // Where a column leads, and the words for it in the tip: a bar of one day opens that day's page; a bar of a
 // month or a year opens the same days on `view`'s Stats page as a range picked by date. A bar of hours leads
@@ -130,7 +134,7 @@ export function ValueLabel({ display, unit }: { display: string; unit?: string }
 // the same from each column's sr-only text. With `opens`, it ends with a link to where the column leads: on
 // a phone the first tap shows the tip, and this link is the way on. Hidden, the tip is invisible, not just
 // transparent, so the link takes no tap from the column under it.
-export function BarTip({ title, lines, opens = null }: { title: string; lines: (string | null | false)[]; opens?: Opens | null }) {
+export function BarTip({ title, lines, opens = null }: { title: string; lines: (TipRow | null | false)[]; opens?: Opens | null }) {
   return (
     <span
       aria-hidden="true"
@@ -141,11 +145,23 @@ export function BarTip({ title, lines, opens = null }: { title: string; lines: (
       )}
     >
       <span className="text-muted-foreground">{title}</span>
-      {lines.filter(Boolean).map((line) => (
-        <span key={line as string} className="block font-mono tabular-nums">
-          <Measure text={line as string} />
-        </span>
-      ))}
+      {/* Labels on the left, figures right-aligned in a column of their own, so the numbers line up. */}
+      <span className="mt-1 grid grid-cols-[auto_auto] gap-x-4 gap-y-0.5">
+        {(lines.filter(Boolean) as TipRow[]).map((row) =>
+          typeof row === "string" ? (
+            <span key={row} className="col-span-2 font-mono tabular-nums">
+              <Measure text={row} />
+            </span>
+          ) : (
+            <span key={row.label} className="contents">
+              <span className="text-muted-foreground">{row.label}</span>
+              <span className="text-right font-mono tabular-nums">
+                <Measure text={row.value} />
+              </span>
+            </span>
+          ),
+        )}
+      </span>
       {opens && (
         // Not in the Tab order: the column itself is the link a keyboard follows.
         <Link href={opens.href} prefetch={false} tabIndex={-1} data-tip-link className="pointer-events-auto mt-0.5 block py-0.5 underline decoration-border decoration-dotted underline-offset-4 hover:decoration-foreground">

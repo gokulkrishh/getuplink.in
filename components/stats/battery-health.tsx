@@ -2,7 +2,9 @@ import { ChartCard } from "@/components/chart-card";
 import { type Figure, Figures } from "@/components/stats/figures";
 import { chargeEfficiency } from "@/lib/charge-sessions";
 import type { WeeklyRange } from "@/lib/charge-level";
-import { formatKwh, formatRangeKm, formatShortDate } from "@/lib/format";
+import { CONSUMPTION_DAYS, recentConsumption } from "@/lib/drive-stats";
+import type { Drive } from "@/lib/drives";
+import { DECIMALS, formatKwh, formatNumber, formatRangeKm, formatShortDate } from "@/lib/format";
 import { within } from "@/lib/kept";
 import type { Timeframe } from "@/lib/periods";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
@@ -25,21 +27,29 @@ function vsBest<T>(weeks: T[], value: (w: T) => number, format: (n: number) => s
 // 100% are the latest week's, against the best week seen, whatever span is picked; the energy charged, charge
 // cycles and charging efficiency are the span's. Tesla's own full-pack figure is its latest report, next to
 // the estimate as it is: the two may count the pack differently, so neither is measured against the other.
+// Range at 100% is Tesla's rated range; the real-world range beside it is the latest usable capacity over
+// the owner's own consumption in the last CONSUMPTION_DAYS of drives (`drives`, see recentConsumption),
+// only when both are known.
 export function BatteryHealth({
   trend,
   range,
   sessions,
   frame,
   teslaPack,
+  drives,
+  now,
 }: {
   trend: WeeklyPack[];
   range: WeeklyRange[];
   sessions: StreamChargeSession[];
   frame: Timeframe;
   teslaPack: TeslaPack | null;
+  drives: Drive[];
+  now: number;
 }) {
   const capacity = vsBest(trend, (w) => w.kwh, formatKwh);
   const full = vsBest(range, (w) => w.km, formatRangeKm);
+  const usage = recentConsumption(drives, now);
   const finished = within(
     sessions.filter((s) => s.ended_at !== null && s.energy_added_kwh !== null),
     frame.span,
@@ -56,6 +66,13 @@ export function BatteryHealth({
   if (capacity) figures.push({ label: "Usable capacity now", value: capacity.now, note: capacity.note });
   if (teslaPack) figures.push({ label: "Full pack now, per Tesla", value: formatKwh(teslaPack.kwh), note: `Last reported ${formatShortDate(teslaPack.at)}` });
   if (full) figures.push({ label: "Range at 100% now", value: `≈ ${full.now}`, note: full.note });
+  if (latestKwh && usage) {
+    figures.push({
+      label: "Real range at 100%",
+      value: `≈ ${formatRangeKm((latestKwh * 1000) / usage.whPerKm)}`,
+      note: `At your ${formatNumber(usage.whPerKm, DECIMALS.whPerKm)} Wh/km over the last ${CONSUMPTION_DAYS} days of driving`,
+    });
+  }
   // The span's tiles are the same in every period (an empty span says so in the tile), so the section keeps
   // one height and the page below doesn't sit under a gap. Efficiency tiles show when any charge of that
   // kind has ever been measured.
@@ -73,7 +90,12 @@ export function BatteryHealth({
       description="What the pack holds now, against its best week."
       unit="kWh"
       terms={["usable capacity", ...(teslaPack ? ["full pack, per Tesla"] : []), "range at 100%", "charge cycles", "charging efficiency", "AC and DC"]}
-      info="Uplink compares with the best week it has seen, not with a new pack: it only knows what the car has reported since you connected it."
+      info={
+        <>
+          <p>Uplink compares with the best week it has seen, not with a new pack: it only knows what the car has reported since you connected it.</p>
+          <p>Range at 100% is Tesla&apos;s rated range. Real range is the usable capacity divided by your own average consumption over the last {CONSUMPTION_DAYS} days of drives.</p>
+        </>
+      }
     >
       <Figures figures={figures} />
     </ChartCard>

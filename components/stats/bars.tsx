@@ -32,6 +32,7 @@ export function Bars({
   fit = false,
   xUnit,
   valueWords,
+  valueLabel,
   view,
 }: {
   bars: Bar[];
@@ -51,6 +52,8 @@ export function Bars({
   xUnit?: string;
   // Words after the value in the tip, like "of driving time".
   valueWords?: string;
+  // Names each bar's figure in its tip, like "Distance" (see BarColumns).
+  valueLabel?: string;
   // The Stats page a bar of a month or a year opens, as a range picked by date (see barOpens). A bar of
   // one day opens the day's page on any chart.
   view?: View;
@@ -60,7 +63,7 @@ export function Bars({
   return (
     <Captioned caption={caption}>
       <ChartFrame max={max} prefix={prefix} unit={unit} xUnit={xUnit}>
-        <BarColumns bars={bars} max={max} ariaLabel={ariaLabel} labelEvery={labelEvery} unit={unit} valueWords={valueWords} fit={fit} view={view} />
+        <BarColumns bars={bars} max={max} ariaLabel={ariaLabel} labelEvery={labelEvery} unit={unit} valueWords={valueWords} valueLabel={valueLabel} fit={fit} view={view} />
       </ChartFrame>
     </Captioned>
   );
