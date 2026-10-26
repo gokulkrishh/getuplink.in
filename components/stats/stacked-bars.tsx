@@ -27,6 +27,7 @@ export function StackedBars({
   empty,
   labelEvery,
   caption,
+  fit = false,
 }: {
   bars: StackedBar[];
   series: StackedSeries[];
@@ -34,6 +35,8 @@ export function StackedBars({
   empty?: string;
   labelEvery?: number;
   caption?: string;
+  // Squeeze every column into the panel's width instead of scrolling sideways, as in Bars.
+  fit?: boolean;
 }) {
   const [hidden, setHidden] = useState<ReadonlySet<number>>(new Set());
   // Labels show as many as fit, never fewer apart than labelEvery (see useAxisLabels).
@@ -61,7 +64,7 @@ export function StackedBars({
   const columns = labelEvery ? bars.length : Math.max(bars.length, MIN_COLUMNS);
   const list = (
     <TapColumns
-      className={cn("grid items-end", labelEvery ? "gap-0.5" : dense ? "gap-1" : "gap-3")}
+      className={cn("grid items-end", fit && columns > 31 ? "gap-px" : labelEvery ? "gap-0.5" : dense ? "gap-1" : "gap-3")}
       style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
       aria-label={ariaLabel}
     >
@@ -105,7 +108,7 @@ export function StackedBars({
       <ChartFrame max={max} unit="kWh">
         {/* As in BarColumns: too many columns to fit, it scrolls sideways from its newest end. */}
         <ScrollEnd label={ariaLabel}>
-          <div ref={box} style={{ minWidth: columns * MIN_COLUMN_PX }}>
+          <div ref={box} style={fit ? undefined : { minWidth: columns * MIN_COLUMN_PX }}>
             {list}
           </div>
         </ScrollEnd>

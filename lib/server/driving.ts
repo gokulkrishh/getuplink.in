@@ -4,7 +4,8 @@ import { analyseDriving, DRIVE_DAYS, type Driving } from "@/lib/drives";
 import { type DayKm, dailyDistance, istDay, istDayStart, num, type WeeklyPack } from "@/lib/telemetry-derive";
 import { DEMO } from "@/lib/demo";
 import { type DrivingCounters, type DrivingFigures, drivingFigures, type DrivingPeriod, drivingTimeframe, figureInstants, timeframeInstants } from "@/lib/driving-figures";
-import type { Timeframe } from "@/lib/periods";
+import { PRESENCE_FIELDS } from "@/lib/awake";
+import { isHourSlot, type Timeframe } from "@/lib/periods";
 import { seasonEfficiency, type SeasonEfficiency, seasonTimeframe } from "@/lib/seasons";
 import type { Drive } from "@/lib/drives";
 import { batteryTrend, trendWindow } from "./battery";
@@ -36,25 +37,29 @@ async function loadPolledOdometers(owner: Owner, bounds: string[]): Promise<Coun
 const FIGURE_FIELDS = ["Odometer", "LifetimeEnergyUsed", "LifetimeEnergyGainedRegen"];
 
 // Distance, energy use and regen for every period (see drivingFigures), in two requests: the streamed
-// counters and the polled odometer, each at every instant the figures need. `demoSince` is the demo's
-// First week cut (see demoFirstWeekStart); it does nothing outside demo mode.
+// counters and the polled odometer, each at every instant the figures need. Day's hourly bars need the
+// presence fields too, read in the same request, to tell an hour asleep from one parked. `demoSince` is
+// the demo's First week cut (see demoFirstWeekStart); it does nothing outside demo mode.
 export async function loadDrivingFigures(owner: Owner, vin: string | null, now: number, demoSince?: number): Promise<DrivingFigures> {
-  return drivingFigures(await loadFigureCounters(owner, vin, figureInstants(now), demoSince), now);
+  return drivingFigures(await loadFigureCounters(owner, vin, figureInstants(now), true, demoSince), now);
 }
 
 // The same figures for one timeframe, like a range picked by date, read at its own instants.
 export async function loadTimeframeDriving(owner: Owner, vin: string | null, frame: Timeframe, now: number, demoSince?: number): Promise<DrivingPeriod> {
-  return drivingTimeframe(await loadFigureCounters(owner, vin, timeframeInstants([frame], now), demoSince), frame, now);
+  return drivingTimeframe(await loadFigureCounters(owner, vin, timeframeInstants([frame], now), frame.slots.some(isHourSlot), demoSince), frame, now);
 }
 
-async function loadFigureCounters(owner: Owner, vin: string | null, instants: number[], demoSince?: number): Promise<DrivingCounters> {
+async function loadFigureCounters(owner: Owner, vin: string | null, instants: number[], hourly = false, demoSince?: number): Promise<DrivingCounters> {
   const bounds = instants.map((t) => (t === Infinity ? LATEST : new Date(t).toISOString()));
+  const fields = hourly ? [...FIGURE_FIELDS, ...PRESENCE_FIELDS.filter((f) => !FIGURE_FIELDS.includes(f))] : FIGURE_FIELDS;
   const [counters, polledOdometer] = await Promise.all([
-    !vin ? null : DEMO && demoSince !== undefined ? demoCounters(FIGURE_FIELDS, instants, demoSince) : loadCounters(owner, vin, FIGURE_FIELDS, bounds),
+    !vin ? null : DEMO && demoSince !== undefined ? demoCounters(fields, instants, demoSince) : loadCounters(owner, vin, fields, bounds),
     loadPolledOdometers(owner, bounds),
   ]);
   const column = (field: string) => counters?.get(field) ?? null;
-  return { instants, odometer: column("Odometer"), used: column("LifetimeEnergyUsed"), regen: column("LifetimeEnergyGainedRegen"), polledOdometer };
+  // The odometer is sent on every wake too, so it counts as a sign of the car being awake.
+  const presence = hourly && counters ? ["Odometer", ...PRESENCE_FIELDS].map(column).filter((c): c is CounterColumn => c !== null) : null;
+  return { instants, odometer: column("Odometer"), used: column("LifetimeEnergyUsed"), regen: column("LifetimeEnergyGainedRegen"), polledOdometer, presence };
 }
 
 export const DRIVING_DAYS = 90;

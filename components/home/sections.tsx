@@ -15,6 +15,7 @@ import type { ChargeLevel } from "@/lib/charge-level";
 import type { DrivingFigures } from "@/lib/driving-figures";
 import { formatDuration, formatPower } from "@/lib/format";
 import { inSpan } from "@/lib/periods";
+import { fromSince } from "@/lib/frames";
 import { eachFrame, type HomeFrame } from "./frames";
 import { MoreLink } from "./more-link";
 
@@ -52,11 +53,13 @@ function Rows({ header, children }: { header?: ReactNode; children: ReactNode })
 
 // Spend per bar from real bills (Tesla's and the invoices attached, as in Spent and on Charging), then the
 // newest sessions in the period.
-export function ChargingSection({ frames, bills, listed, now }: { frames: HomeFrame[]; bills: Bill[]; listed: Listed[]; now: number }) {
+// The chart starts at the first charge's day (`chargingSince`, see fromSince).
+export function ChargingSection({ frames, bills, listed, chargingSince, now }: { frames: HomeFrame[]; bills: Bill[]; listed: Listed[]; chargingSince: number | null; now: number }) {
   if (listed.length === 0) return null;
   const currency = listed.find((item) => item.tesla?.currency)?.tesla?.currency ?? "INR";
   const compact = new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 });
-  const chart = ({ frame }: HomeFrame) => {
+  const chart = (f: HomeFrame) => {
+    const { frame } = fromSince(f, chargingSince, now);
     const spend = billsBySlot(bills, frame.slots);
     // A slot ahead of now is blank, never ₹0; those before the first bill are hidden by Bars itself.
     const bars = frame.slots.map((slot, k) => ({
@@ -109,7 +112,9 @@ export function DrivingSection({ frames, figures, drives, now }: { frames: HomeF
   if (!figures.periods.all.current.km && drives.length === 0) return null;
   const trips = groupTrips(drives);
   const tripsFrom = now - DRIVE_DAYS * 86_400_000;
-  const chart = ({ frame, driving }: HomeFrame) => {
+  const chart = (f: HomeFrame) => {
+    // The bars start at the first odometer reading's day (see fromSince).
+    const { frame, driving } = fromSince(f, figures.since, now);
     // A slot with no reading (before tracking began, or ahead of now) is blank, never 0 km.
     const bars = frame.slots.map((slot, k) => knownBar(slot, driving ? (driving.bars[k]?.km ?? null) : null, number.format));
     const empty = !driving ? "Couldn't read the distance for these dates" : hasBars(bars) ? undefined : `No driving ${frame.words}`;

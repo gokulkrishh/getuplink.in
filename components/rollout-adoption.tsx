@@ -12,6 +12,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { formatShortDate } from "@/lib/format";
 import { compareVersions } from "@/lib/rollout";
 import { type Adoption, ADOPTION_SLOTS, type AdoptionGrain, share } from "@/lib/rollout-adoption";
 
@@ -34,7 +35,10 @@ export function RolloutAdoption({ adoption }: { adoption: Record<AdoptionGrain, 
   const version = versions.includes(picked) ? picked : versions[0];
   if (!version) return null;
 
-  const { slots, versions: series } = adoption[grain];
+  const { slots, versions: series, since } = adoption[grain];
+  // Cut short where no car's version was known yet: "each day, since 3 Oct".
+  const spanWords = since === null ? SPAN_WORDS[grain] : `each ${grain}, since ${formatShortDate(since + 43_200_000)}`;
+  const labelEvery = slots.length <= 7 ? 1 : slots.length <= 14 ? Math.min(2, LABEL_EVERY[grain]) : LABEL_EVERY[grain];
   const on = series.find((s) => s.version === version)?.on ?? [];
   const bars: Bar[] = slots.map((slot, k) => ({
     key: slot.key,
@@ -51,7 +55,7 @@ export function RolloutAdoption({ adoption }: { adoption: Record<AdoptionGrain, 
   return (
     <ChartCard
       title="Adoption over time"
-      description={`The share of Indian cars on the picked version at the end of ${SPAN_WORDS[grain]}. A taller bar means more cars had it.`}
+      description={`The share of Indian cars on the picked version at the end of ${spanWords}. A taller bar means more cars had it.`}
       unit="%"
       summary={
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -84,7 +88,7 @@ export function RolloutAdoption({ adoption }: { adoption: Record<AdoptionGrain, 
       empty={bars.some((b) => b.value > 0) ? undefined : `No cars ran ${version} in these ${words}`}
       caption="Out of the cars whose version Uplink had seen by then, each counted from its first recorded version, never before. Hover or tap a bar for the count."
     >
-      <Bars bars={bars} ariaLabel={`Share of cars on ${version}, ${SPAN_WORDS[grain]}`} labelEvery={LABEL_EVERY[grain]} unit="%" />
+      <Bars bars={bars} ariaLabel={`Share of cars on ${version}, ${spanWords}`} labelEvery={labelEvery} unit="%" fit />
     </ChartCard>
   );
 }

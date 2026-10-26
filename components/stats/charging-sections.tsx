@@ -9,15 +9,15 @@ import { type Bill, billsBySlot, billsIn } from "@/lib/charging-figures";
 import { formatDuration, formatKwh, formatMoney, formatMonth } from "@/lib/format";
 import { LIST_PREVIEW } from "@/lib/list";
 import { inSpan, type Timeframe } from "@/lib/periods";
-import { barsCaption, EACH_HOURS, unitNotes } from "@/components/stats/chart-caption";
+import { barsCaption, EACH_HOUR, unitNotes } from "@/components/stats/chart-caption";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { Measure } from "@/components/measure";
 
 // The Charging page's sections: spend, energy added by charger kind, and every session by month.
 
-// "each day", "in each 3-hour block": one bar of the period, for a chart's description.
-const eachSlot = ({ slotName }: Timeframe) => (slotName === "3 hours" ? EACH_HOURS : `each ${slotName}`);
+// "each day", "each hour": one bar of the period, for a chart's description.
+const eachSlot = ({ slotName }: Timeframe) => (slotName === "hour" ? EACH_HOUR : `each ${slotName}`);
 
 // What a month of the session list was billed: Tesla's bills and the invoices attached, as in Summary.
 function totals(rows: Listed[]) {
@@ -66,7 +66,7 @@ export function Summary({
         caption={`${barsCaption("Bills", frame)}.`}
         empty={bars.some((b) => b.value > 0) ? undefined : `No bills ${frame.words}`}
       >
-        <Bars bars={bars} ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} />
+        <Bars bars={bars} ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} fit />
       </ChartCard>
       {/* What only some periods have (the rates, these lines) goes under the chart, so it stays put on a switch. */}
       <div className="space-y-2">
@@ -159,7 +159,7 @@ export function EnergyAdded({
         caption={`${barsCaption("Energy added", frame)}. Tap a charger type to show or hide it.`}
         empty={bars.some((b) => b.total > 0) ? undefined : `No charging ${frame.words}`}
       >
-        <StackedBars bars={bars} series={ENERGY_SERIES} ariaLabel={`Energy added per ${frame.slotName}`} labelEvery={frame.labelEvery} />
+        <StackedBars bars={bars} series={ENERGY_SERIES} ariaLabel={`Energy added per ${frame.slotName}`} labelEvery={frame.labelEvery} fit />
       </ChartCard>
       {charged.ac + charged.dc > 0 && (
         <Figures

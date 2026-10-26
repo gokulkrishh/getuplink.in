@@ -15,9 +15,9 @@ import { eachFrame } from "@/components/home/frames";
 import { customScope } from "@/components/stats/periods";
 import { NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/components/stats/stats-frame";
 import { matchSessions } from "@/lib/charge-sessions";
-import { chargingBills } from "@/lib/charging-figures";
+import { chargingBills, firstStartedAt } from "@/lib/charging-figures";
 import type { DrivingFigures } from "@/lib/driving-figures";
-import { type CustomFrame, periodFrames } from "@/lib/frames";
+import { type CustomFrame, fromSince, periodFrames } from "@/lib/frames";
 import { backTo, serials } from "@/lib/kept";
 import { customQuery, type CustomQuery, customRange, inSpan, rangeTimeframe, type Span } from "@/lib/periods";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
@@ -86,6 +86,8 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
   const unbilled = streamOnly.filter((s) => s.ended_at !== null && !invoices.has(s.id));
   // Each period, and the range picked by date; only the distance driven in each is read here.
   const frames = periodFrames(figures, custom, [], now);
+  // The charging charts start at the first charge's day (see fromSince).
+  const chargingSince = firstStartedAt(sessions, streamSessions);
   const startedIn = (span: Span) => (s: { started_at: string }) => inSpan(Date.parse(s.started_at), span);
   // One number per charge, counted from the oldest, so a charge has the same number in every list here.
   const serial = serials(listed, (l) => l.key);
@@ -109,8 +111,16 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
       ) : (
         <div className="space-y-12">
           {(bills.length > 0 || unbilled.length > 0) &&
-            eachFrame(frames, ({ frame, driving }) => <Summary bills={bills} unbilled={unbilled} km={driving?.current.km ?? null} frame={frame} />, { steady: true })}
-          {streamSessions.length > 0 && eachFrame(frames, ({ frame }) => <EnergyAdded sessions={sessions} streamOnly={streamOnly} frame={frame} />, { steady: true })}
+            eachFrame(
+              frames,
+              (f) => {
+                const { frame, driving } = fromSince(f, chargingSince, now);
+                return <Summary bills={bills} unbilled={unbilled} km={driving?.current.km ?? null} frame={frame} />;
+              },
+              { steady: true },
+            )}
+          {streamSessions.length > 0 &&
+            eachFrame(frames, (f) => <EnergyAdded sessions={sessions} streamOnly={streamOnly} frame={fromSince(f, chargingSince, now).frame} />, { steady: true })}
           {eachFrame(frames, ({ frame }) => <ChargeHabits starts={starts(frame.span)} title={frame.title} words={frame.words} />, { steady: true })}
           {streamSessions.length > 0 &&
             eachFrame(frames, ({ frame }) => (

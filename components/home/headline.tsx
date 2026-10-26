@@ -5,7 +5,7 @@ import { type Bill, billsBySlot, billsIn, energyBySlot, energyIn } from "@/lib/c
 import { type Change, changeToPrevious, compareToPrevious } from "@/lib/dashboard-summary";
 import type { DrivingPeriod } from "@/lib/driving-figures";
 import { formatDate, formatShortDate } from "@/lib/format";
-import { type Slot, type Timeframe, trackingGap } from "@/lib/periods";
+import { fromTracking, type Slot, type Timeframe, trackingGap } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { barsCaption, unitNotes } from "@/components/stats/chart-caption";
@@ -142,9 +142,18 @@ export function Headline({
   // a month or a year by its label, which for hours is their whole span ("6 AM to 9 AM"); nothing for a
   // slot with nothing known.
   const slotTitle = (slot: Slot) => (frame.slotName === "day" ? formatShortDate(slot.from + 12 * 3_600_000) : slot.label);
-  const spark = (kind: Spark["kind"], values: (number | null)[], format: (n: number) => string): Spark => {
-    const shown = upToNow(values);
-    return { kind, values: shown, current: currentSlot, tips: shown.map((v, k) => (v === null ? null : { title: slotTitle(slots[k]), value: format(v) })) };
+  // Each sparkline starts at its own data's first day (see fromTracking): driving at the first odometer
+  // reading, charging at the first session. `skip` is how many bars before it are left out.
+  const driveSkip = fromTracking(frame, since, now).skip;
+  const chargeSkip = fromTracking(frame, chargingSince, now).skip;
+  const spark = (kind: Spark["kind"], values: (number | null)[], format: (n: number) => string, skip: number): Spark => {
+    const shown = upToNow(values).slice(skip);
+    return {
+      kind,
+      values: shown,
+      current: currentSlot < 0 ? -1 : currentSlot - skip,
+      tips: shown.map((v, k) => (v === null ? null : { title: slotTitle(slots[k + skip]), value: format(v) })),
+    };
   };
 
   // `lowerIsBetter` colours the delta and words the sentence better or worse: "₹171 worse than the 7 days before".
@@ -168,6 +177,7 @@ export function Headline({
             "bars",
             bars.map((b) => b.km),
             (n) => `${number.format(n)} km`,
+            driveSkip,
           )}
         />
         <Cell
@@ -181,6 +191,7 @@ export function Headline({
             // Like the Driving page: no figure with no driving is nothing used, with driving it is unknown.
             bars.map((b) => b.kwh ?? (b.km === 0 ? 0 : null)),
             (n) => `${oneDecimalKwh.format(n)} kWh`,
+            driveSkip,
           )}
         />
         <Cell
@@ -189,14 +200,14 @@ export function Headline({
           value={number.format(energy)}
           unit="kWh"
           {...delta(energy, energyBefore, "kWh")}
-          spark={spark("bars", charged(energyBySlot(sessions, streamOnly, slots)), (n) => `${number.format(n)} kWh`)}
+          spark={spark("bars", charged(energyBySlot(sessions, streamOnly, slots)), (n) => `${number.format(n)} kWh`, chargeSkip)}
         />
         <Cell
           view="charging"
           label="Spent"
           value={money.format(spend)}
           {...delta(spend, spendBefore, (n) => money.format(n), true)}
-          spark={spark("bars", charged(billsBySlot(bills, slots)), (n) => money.format(n))}
+          spark={spark("bars", charged(billsBySlot(bills, slots)), (n) => money.format(n), chargeSkip)}
         />
       </div>
       {/* One line in every period, so the strip keeps its height (see ByPeriod's steady). */}

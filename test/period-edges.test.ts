@@ -41,15 +41,19 @@ describe("slots ahead of now", () => {
     const ahead = slotsFor("year", now).map((s) => s.ahead);
     expect(ahead).toEqual([false, false, false, false, false, false, false, false, false, false, true, true]);
   });
-  test("day: the 3-hour slots after this one are ahead", () => {
-    expect(slotsFor("day", now).map((s) => s.ahead)).toEqual([false, false, false, false, false, true, true, true]);
+  test("day: the hours after this one are ahead", () => {
+    const ahead = slotsFor("day", now).map((s) => s.ahead);
+    expect(ahead).toEqual([...Array(15).fill(false), ...Array(9).fill(true)]);
   });
-  test("week, month and all end with now's slot, so none is ahead", () => {
-    for (const period of ["week", "month", "all"] as const) expect(slotsFor(period, now).some((s) => s.ahead)).toBe(false);
+  test("month: the days after today are ahead", () => {
+    expect(slotsFor("month", now).filter((s) => s.ahead)).toHaveLength(9);
+  });
+  test("week and all end with now's slot, so none is ahead", () => {
+    for (const period of ["week", "all"] as const) expect(slotsFor(period, now).some((s) => s.ahead)).toBe(false);
   });
   test("a range reaching today: only the hours after now", () => {
     const { slots } = rangeSlots({ from: isoDay("2026-10-21")!, to: isoDay("2026-10-22")! }, now);
-    expect(slots.filter((s) => s.ahead)).toHaveLength(3);
+    expect(slots.filter((s) => s.ahead)).toHaveLength(9);
   });
   test("seasons stop at this month", () => {
     expect(seasonTimeframe(now).slots.some((s) => s.ahead)).toBe(false);

@@ -17,7 +17,9 @@ export type AdoptionSlot = { key: string; label: string; of: number };
 // Cars on one version at the end of each slot, in slot order.
 export type AdoptionSeries = { version: string; on: number[] };
 
-export type Adoption = { grain: AdoptionGrain; slots: AdoptionSlot[]; versions: AdoptionSeries[] }; // versions newest first
+// versions newest first. `since`: when the bars start later than the full run, the first one's start,
+// because no car's version was known before it.
+export type Adoption = { grain: AdoptionGrain; slots: AdoptionSlot[]; versions: AdoptionSeries[]; since: number | null };
 
 type Point = { at: number; version: string };
 
@@ -72,8 +74,13 @@ export function buildAdoption(cars: RolloutCar[], changes: RolloutChange[], now:
     return { key: `${grain}-${last}`, label, of };
   });
 
-  const versions = [...totals].map(([version, on]) => ({ version, on })).sort((a, b) => compareVersions(b.version, a.version));
-  return { grain, slots, versions };
+  // The chart starts where the data does: slots before any car's version was known are left out.
+  const first = slots.findIndex((s) => s.of > 0);
+  const skip = first > 0 ? first : 0;
+  const versions = [...totals]
+    .map(([version, on]) => ({ version, on: on.slice(skip) }))
+    .sort((a, b) => compareVersions(b.version, a.version));
+  return { grain, slots: slots.slice(skip), versions, since: skip > 0 ? istDayStart(ends[skip] - step + 1) : null };
 }
 
 // A whole-number percentage of `of`, 0 when nothing is known.

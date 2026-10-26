@@ -28,10 +28,13 @@ describe("buildAdoption", () => {
   test("counts a car only from its first recorded row", () => {
     const cars: RolloutCar[] = [{ car: "a", version: "2026.40.2" }];
     const changes = [change("a", "2026.38.5.1", null, 5), change("a", "2026.40.2", "2026.38.5.1", 2)];
-    const { slots, versions } = buildAdoption(cars, changes, NOW, "day");
-    // Before its first sight five days ago nothing is known, not even the version it came from.
-    expect(slots.at(-7)!.of).toBe(0);
-    expect(slots.at(-6)!.of).toBe(1);
+    const { slots, versions, since } = buildAdoption(cars, changes, NOW, "day");
+    // Before its first sight five days ago nothing is known, not even the version it came from, so the
+    // chart starts that day.
+    expect(slots).toHaveLength(6);
+    expect(slots[0].of).toBe(1);
+    expect(slots[0].label).toBe("20 Oct");
+    expect(since).toBe(Date.parse("2026-10-20T00:00:00+05:30"));
     expect(versions.map((v) => v.version)).toEqual(["2026.40.2", "2026.38.5.1"]);
     expect(versions[1].on.slice(-6)).toEqual([1, 1, 1, 0, 0, 0]);
     expect(versions[0].on.slice(-6)).toEqual([0, 0, 0, 1, 1, 1]);
@@ -71,9 +74,11 @@ describe("buildAdoption", () => {
 
   test("a week ends on its last day, so a change later that week counts in the next", () => {
     const changes = [change("a", "2026.40.2", null, 8)];
-    const { slots, versions } = buildAdoption([], changes, NOW, "week");
-    expect(slots.at(-2)!.of).toBe(1);
-    expect(slots.at(-3)!.of).toBe(0);
+    const { slots, versions, since } = buildAdoption([], changes, NOW, "week");
+    // The week to 18 Oct is the first with it; the weeks before have nothing known and are left out.
+    expect(slots).toHaveLength(2);
+    expect(slots[0]).toMatchObject({ label: "18 Oct", of: 1 });
+    expect(since).toBe(Date.parse("2026-10-12T00:00:00+05:30"));
     expect(versions[0].on.at(-1)).toBe(1);
   });
 

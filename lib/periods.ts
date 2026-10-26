@@ -103,10 +103,15 @@ export function previousLabel(period: Period, now: number): string | null {
 export type Slot = { id: number; label: string; from: number; to: number; isCurrent: boolean; ahead: boolean; axis?: string; edge?: boolean };
 
 const HOUR_MS = 3_600_000;
-export const SLOT_HOURS = 3;
+// Hours per bar on a chart of one or two days: every bar is one hour, from an IST hour boundary.
+export const SLOT_HOURS = 1;
 
-// The k-th 3-hour block of the day that starts at `dayStart`, labelled by its span. `day` ("Sat") leads
-// the label when the chart covers more than one day, and names the axis at that day's first boundary.
+// Whether a slot is a block of hours (Day, a range of up to 2 days), not a day or longer.
+export const isHourSlot = (slot: Pick<Slot, "from" | "to">) => slot.to - slot.from <= SLOT_HOURS * HOUR_MS;
+
+// The k-th hour of the day that starts at `dayStart`, labelled by its span. Built from the IST day's
+// start, never by rounding an instant down to a UTC hour: IST hours start at half past one. `day` ("Sat")
+// leads the label when the chart covers more than one day, and names the axis at that day's first boundary.
 function hourSlot(dayStart: number, k: number, now: number, day?: string): Slot {
   const from = dayStart + k * SLOT_HOURS * HOUR_MS;
   const to = from + SLOT_HOURS * HOUR_MS;
@@ -123,8 +128,8 @@ function hourSlot(dayStart: number, k: number, now: number, day?: string): Slot 
   };
 }
 
-// The bars a period draws: the last 7 days (Week), the last 6 months (Month, so the half-year shape stays),
-// the 12 months of this year (Year), or 6 years (All).
+// The bars a period draws: today's 24 hours (Day), the last 7 days (Week), the days of this month (Month),
+// the 12 months of this year (Year), or 6 years (All). Hours, days and months still to come are `ahead`.
 export function slotsFor(period: Period, now: number): Slot[] {
   const cur = monthIndex(now);
   const month = (index: number): Slot => ({
@@ -136,7 +141,7 @@ export function slotsFor(period: Period, now: number): Slot[] {
     ahead: monthStart(index) > now,
   });
   if (period === "day") {
-    // Today in 3-hour slots: when you drove or charged.
+    // Today hour by hour: when you drove or charged.
     const start = istDayStart(istDay(now));
     return Array.from({ length: 24 / SLOT_HOURS }, (_, k) => hourSlot(start, k, now));
   }
@@ -147,6 +152,15 @@ export function slotsFor(period: Period, now: number): Slot[] {
       return { id: istDayStart(day), label: weekday.format(istDayStart(day) + DAY_MS / 2), from: istDayStart(day), to: istDayStart(day + 1), isCurrent: day === today, ahead: false };
     });
   }
+  if (period === "month") {
+    const first = istDay(monthStart(cur));
+    const today = istDay(now);
+    return Array.from({ length: istDay(monthStart(cur + 1)) - first }, (_, k) => {
+      const day = first + k;
+      const from = istDayStart(day);
+      return { id: from, label: formatShortDate(from + DAY_MS / 2), from, to: istDayStart(day + 1), isCurrent: day === today, ahead: from > now };
+    });
+  }
   if (period === "year") return Array.from({ length: 12 }, (_, m) => month(yearOf(cur) * 12 + m));
   if (period === "all") {
     return Array.from({ length: 6 }, (_, k) => {
@@ -154,7 +168,7 @@ export function slotsFor(period: Period, now: number): Slot[] {
       return { id: monthStart(year * 12), label: String(year), from: monthStart(year * 12), to: monthStart((year + 1) * 12), isCurrent: year === yearOf(cur), ahead: false };
     });
   }
-  return Array.from({ length: 6 }, (_, k) => month(cur - 5 + k));
+  throw new Error(`No bars for ${period satisfies never}`);
 }
 
 // Totals of dated items per slot, in slot order. Items outside every slot are left out.
@@ -166,6 +180,24 @@ export function sumBySlot<T>(items: T[], slots: Slot[], at: (item: T) => number,
     if (k >= 0) sums[k] += value(item);
   }
   return sums;
+}
+
+// Bar values rounded to `decimals` so the rounded bars add up to their rounded sum, the total shown above
+// the chart: each is rounded down, and the units left over go to those cut the most (largest remainder).
+// 24 hourly bars of 0.4 km each would otherwise read 0 km while the total says 10. Null stays null.
+export function roundToTotal(values: (number | null)[], decimals: number): (number | null)[] {
+  const scale = 10 ** decimals;
+  const known = values.flatMap((v, k) => (v === null ? [] : [{ k, scaled: v * scale }]));
+  const target = Math.round(known.reduce((sum, v) => sum + v.scaled, 0));
+  const out = values.map((v) => v) as (number | null)[];
+  const floors = known.map(({ k, scaled }) => ({ k, floor: Math.floor(scaled + 1e-9), rest: scaled - Math.floor(scaled + 1e-9) }));
+  let left = target - floors.reduce((sum, f) => sum + f.floor, 0);
+  for (const f of [...floors].sort((a, b) => b.rest - a.rest)) {
+    const up = left > 0 ? 1 : 0;
+    left -= up;
+    out[f.k] = (f.floor + up) / scale;
+  }
+  return out;
 }
 
 // ---- Words ----
@@ -180,7 +212,10 @@ export const PERIOD_WORDS: Record<Period, string> = {
 };
 
 // What one bar of slotsFor covers, for screen readers: "Spend per day".
-export const SLOT_NAMES: Record<Period, string> = { day: "3 hours", week: "day", month: "month", year: "month", all: "year" };
+export const SLOT_NAMES: Record<Period, string> = { day: "hour", week: "day", month: "day", year: "month", all: "year" };
+
+// The fewest columns apart a period's x-axis labels sit: a month's days a week apart, like a long range's.
+const LABEL_EVERY: Partial<Record<Period, number>> = { month: 7 };
 
 // When some figure has nothing to compare with because its tracking began after the span before started
 // (`starts`: when each kind of tracking began, null for none), the earliest such start; else null. All has
@@ -206,7 +241,30 @@ export type Timeframe = {
   title: string;
   words: string;
   labelEvery?: number;
+  // Set by fromTracking when the bars start later than the span, at the day tracking began.
+  trimmed?: boolean;
 };
+
+// A timeframe whose bars start where the data does: bars that end before the IST day tracking began
+// (`since`) are left out, so a chart with four days of data draws four bars, not 30 with 26 empty. The
+// bars still run to the period's end, those ahead of now blank. `skip` is how many were left out, to
+// slice values worked out over every bar. When any were, the frame reads "since 23 Oct". The span is
+// left alone: nothing was read before tracking began, so its totals are the same.
+export function fromTracking(frame: Timeframe, since: number | null, now: number): { frame: Timeframe; skip: number } {
+  if (since === null) return { frame, skip: 0 };
+  const cut = istDayStart(istDay(since));
+  const skip = frame.slots.findIndex((s) => s.to > cut);
+  // Nothing before it, or every bar before it (a range picked before tracking): drawn as it is.
+  if (skip <= 0) return { frame, skip: 0 };
+  const date = yearOf(monthIndex(cut)) === yearOf(monthIndex(now)) ? formatShortDate(cut + DAY_MS / 2) : formatDate(cut + DAY_MS / 2);
+  const slots = frame.slots.slice(skip);
+  // Fewer bars need less thinning, as rangeSlots thins days: every label up to 7, every other up to 14.
+  // Under MIN_COLUMNS (see Bars) a labelEvery of 1 draws just these columns, so the newest bar stays at
+  // the right edge instead of padding the chart with empty columns.
+  const labelEvery =
+    slots.length < 6 ? 1 : frame.labelEvery === undefined ? undefined : slots.length <= 7 ? 1 : slots.length <= 14 ? Math.min(2, frame.labelEvery) : frame.labelEvery;
+  return { frame: { ...frame, slots, labelEvery, title: `Since ${date}`, words: `since ${date}`, trimmed: true }, skip };
+}
 
 const PERIOD_TITLES: Record<Period, string> = { day: "Today", week: "Last 7 days", month: "This month", year: "This year", all: "All time" };
 
@@ -219,6 +277,7 @@ export function periodTimeframe(period: Period, now: number): Timeframe {
     slotName: SLOT_NAMES[period],
     title: PERIOD_TITLES[period],
     words: PERIOD_WORDS[period],
+    labelEvery: LABEL_EVERY[period],
   };
 }
 
@@ -278,7 +337,7 @@ export function daysLabel(from: number, to: number, now: number): string {
   return from === to ? day(from) : `${day(from)} to ${day(to)}`;
 }
 
-// The bars a range draws, sized to it: 3-hour slots for up to 2 days, days up to 45, months up to 3 years,
+// The bars a range draws, sized to it: hours for up to 2 days (24 or 48 bars), days up to 45, months up to 3 years,
 // then years. A month or year cut by the range covers only its part of it.
 export function rangeSlots(range: DayRange, now: number): { slots: Slot[]; slotName: string; labelEvery?: number } {
   const span = rangeSpan(range, now);
@@ -287,12 +346,12 @@ export function rangeSlots(range: DayRange, now: number): { slots: Slot[]; slotN
   const slot = (from: number, to: number, label: string): Slot => ({ id: from, label, from, to, isCurrent: now >= from && now < to, ahead: from > now });
   if (days <= 2) {
     const perDay = 24 / SLOT_HOURS;
-    // With two days, each bar names its day too ("Sat, 6 AM to 9 AM"), and each midnight is named for it.
+    // With two days, each bar names its day too ("Sat, 6 AM to 7 AM"), and each midnight is named for it.
     const slots = Array.from({ length: days * perDay }, (_, k) => {
       const dayStart = istDayStart(range.from + Math.floor(k / perDay));
       return hourSlot(dayStart, k % perDay, now, days === 2 ? weekday.format(dayStart + DAY_MS / 2) : undefined);
     });
-    return { slots, slotName: "3 hours" };
+    return { slots, slotName: "hour" };
   }
   if (days <= 45) {
     const slots = Array.from({ length: days }, (_, k) => {

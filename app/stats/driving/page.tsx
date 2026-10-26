@@ -15,7 +15,7 @@ import { type DrivingExtras, INSIGHT_DAYS, loadDrivingExtras } from "@/lib/serve
 import { AWAKE_DAYS, loadPresence } from "@/lib/server/awake";
 import { loadStreamSessions } from "@/lib/server/stream-charging";
 import { DRIVE_DAYS } from "@/lib/drives";
-import { type CustomFrame, periodFrames } from "@/lib/frames";
+import { type CustomFrame, fromSince, periodFrames } from "@/lib/frames";
 import { clipSpan, customQuery, type CustomQuery, customRange, daysLabel, inSpan, reachesBefore, rangeTimeframe, recentSpan, type Span } from "@/lib/periods";
 import { byRange, NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/components/stats/stats-frame";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
@@ -113,11 +113,11 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
     <StatsFrame view="driving" custom={customScope(custom?.range ?? null, now)} periodSwitch={hasDriving}>
       {hasDriving ? (
         <div className="space-y-12">
-          {eachFrame(frames, (f) => <Distance {...f} />, { steady: true })}
+          {eachFrame(frames, (f) => <Distance {...fromSince(f, figures.since, now)} />, { steady: true })}
           {byRange(range, <DailyDriving days={days} />, ({ frame }) => (
             <DailyDriving days={days} frame={frame} partial={days.length > 0 && partial(days[0].start)} />
           ))}
-          {eachFrame(frames, (f) => <EnergyUse {...f} />, { steady: true })}
+          {eachFrame(frames, (f) => <EnergyUse {...fromSince(f, figures.since, now)} />, { steady: true })}
           <SeasonEfficiency {...seasons} />
           {byRange(range, <DayTimeline days={dayStripsData} now={now} />, ({ frame }) => (
             <DayTimeline

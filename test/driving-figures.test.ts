@@ -41,7 +41,10 @@ describe("drivingFigures", () => {
   test("week: the last 7 days against the 7 before", () => {
     expect(figures.periods.week.current.km).toBe(km(70));
     expect(figures.periods.week.previous?.km).toBe(km(70));
-    expect(figures.periods.week.bars.map((b) => b.km)).toEqual(Array(7).fill(km(10)));
+    // 7 days of 16.09 km: whole km that add up to the 113 km shown, not 7 × 16 = 112.
+    const bars = figures.periods.week.bars.map((b) => b.km!);
+    expect(bars.every((v) => v === 16 || v === 17)).toBe(true);
+    expect(bars.reduce((a, b) => a + b, 0)).toBe(figures.periods.week.current.km!);
   });
   test("month: to date against the same days of last month", () => {
     // 1–22 Oct at 14:00 has 22 noon readings; so does 1–22 Sept.
