@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { buildRollout, type RolloutCar } from "@/lib/rollout";
-import { buildArriving, type OfferedCar, pendingUpdate, yourCar } from "@/lib/rollout-arriving";
+import { buildArriving, type OfferedCar, pendingUpdate, withOwnOffer, yourCar } from "@/lib/rollout-arriving";
 
 // `count` cars named prefix0.. on `version`, each with `offered` pending as `status`.
 function group(prefix: string, count: number, version: string, offered: string | null = null, status: string | null = offered && "available") {
@@ -75,5 +75,25 @@ describe("yourCar", () => {
   });
   test("no version reported, no line", () => {
     expect(yourCar({ version: null, status: null, offered: null }, india)).toBeNull();
+  });
+});
+
+describe("withOwnOffer", () => {
+  // 23 Oct 2026: every check found the car offline, so its last online check offered nothing, while the
+  // stream showed 2026.38.3.2 downloaded and waiting.
+  const checks: OfferedCar[] = [
+    { car: "own", version: "2026.38.3.1", status: null, offered: null },
+    { car: "other", version: "2026.38.3.1", status: "available", offered: "2026.38.3.2" },
+  ];
+  const own: OfferedCar = { car: "own", version: "2026.38.3.1", status: "available", offered: "2026.38.3.2" };
+
+  test("Arriving now counts the owner's car as Your car does", () => {
+    expect(buildArriving(checks)).toEqual([{ version: "2026.38.3.2", offered: 1, on: 0 }]);
+    expect(buildArriving(withOwnOffer(checks, own))).toEqual([{ version: "2026.38.3.2", offered: 2, on: 0 }]);
+  });
+
+  test("a car that isn't in the list isn't added, and no owner's car changes nothing", () => {
+    expect(withOwnOffer(checks, { ...own, car: "elsewhere" })).toEqual(checks);
+    expect(withOwnOffer(checks, null)).toBe(checks);
   });
 });

@@ -6,6 +6,13 @@ const time = new Intl.DateTimeFormat("en-US", { timeZone: IST, hour: "numeric", 
 const date = new Intl.DateTimeFormat("en-GB", { timeZone: IST, day: "numeric", month: "short", year: "numeric" });
 const shortDate = new Intl.DateTimeFormat("en-GB", { timeZone: IST, day: "numeric", month: "short" });
 
+// An hour of the day as the app writes times: "12 AM", "6 AM", "12 PM", "9 PM". For chart axes and slots,
+// in place of shortcuts like "6a".
+export function formatHour(hour: number): string {
+  const h = ((hour % 24) + 24) % 24;
+  return `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? "AM" : "PM"}`;
+}
+
 // "9:15 AM IST"
 export function formatTime(value: string | number | Date): string {
   return `${time.format(new Date(value))} IST`;
@@ -55,16 +62,6 @@ export function formatTimeToFull(hours: number): string {
   return hours < 1 / 60 ? "Almost full" : `Full in ${formatDuration(hours * 3600)}`;
 }
 
-// "About 30 min left" while installing. Tesla's expected duration is for the whole install and doesn't count
-// down, so the time left is the share still to go, as the Tesla app shows it. The percentage moves in coarse
-// steps, so over 10 minutes it's rounded to 5 rather than claiming a precision it doesn't have.
-export function formatInstallLeft(expectedSeconds: number, percent: number): string {
-  const minutes = (expectedSeconds / 60) * (1 - Math.min(100, Math.max(0, percent)) / 100);
-  if (minutes < 1) return "Almost done";
-  const rounded = minutes >= 10 ? Math.round(minutes / 5) * 5 : Math.round(minutes);
-  return `About ${formatDuration(rounded * 60)} left`;
-}
-
 const km = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 
 // "12,340 km" (Indian digit grouping: "1,23,400 km")
@@ -95,6 +92,14 @@ export function formatAgo(value: string | number | Date, now: number): string {
   if (minutes < 24 * 60) return relative.format(-Math.round(minutes / 60), "hour");
   if (minutes < 7 * 24 * 60) return relative.format(-Math.floor(minutes / (24 * 60)), "day");
   return formatSeen(value, now);
+}
+
+const celsius = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
+
+// "30.5 to 35.5 °C": the car reports battery temperatures in half degrees, so whole numbers would show
+// 35.5 as 36, a degree the battery never reached.
+export function formatTempRange(low: number, high: number): string {
+  return `${celsius.format(low)} to ${celsius.format(high)} °C`;
 }
 
 // "32.4 kWh"

@@ -49,8 +49,8 @@ function CarUpdates({ car, notes, label, range, now }: { car: UpdatesCar; notes:
   const { vehicle, latest, lastOnline, history, streamAt, updates, awake } = car;
   // A car that streamed in the last few minutes is awake: keep the page fresh so new data shows up on its own.
   const isAwake = streamAt !== null && now - Date.parse(streamAt) < AWAKE_MS;
-  const pending = isPending(lastOnline);
   const version = currentVersion(vehicle.current_version, lastOnline && { version: lastOnline.car_version, at: lastOnline.polled_at });
+  const pending = isPending(lastOnline, version);
   const hasStats = updateStats(updates, now) !== null;
   return (
     <section className="space-y-12">

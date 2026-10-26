@@ -1,130 +1,181 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { formatClock } from "@/lib/format";
-import { unitNotes } from "./chart-caption";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Measure } from "@/components/measure";
+import { formatClock } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
-export type Lane = {
-  name: string;
+type Point = { t: number; v: number };
+
+const MIN = 60_000;
+const IST = 330 * MIN; // clock ticks fall on round IST minutes, like formatClock
+const STEPS = [1, 2, 5, 10, 15, 20, 30, 60, 120, 180, 360].map((m) => m * MIN);
+const LABEL_PX = 64; // room one clock label ("10:04 PM") needs, with a gap
+// The y-axis end: the data's reach rounded up to a step finer than the bar charts' niceMax, so a 54 kW
+// peak tops out at 60, not 100.
+const NICE = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
+function niceTop(value: number): number {
+  const step = 10 ** Math.floor(Math.log10(value));
+  return (NICE.find((m) => value <= m * step) ?? 10) * step;
+}
+const axisNumber = new Intl.NumberFormat("en-IN", { notation: "compact", maximumFractionDigits: 1 });
+
+// One measure streamed during a drive (speed, power, …) over the drive's own time, `from` to `to`, in the
+// chart panel: a y axis with its unit above it, the line, and clock times along the bottom. Every trace on a
+// page shares `from` and `to` and the same gutter, so their time axes line up when stacked. The axes are
+// HTML, so their text stays the same size on a phone and a desktop; the SVG draws only the line, stretched
+// to the plot. The line breaks between `legs` (the stops of a trip), as there are no readings there.
+// Hover, tap or drag for the time and value of the nearest reading; a vertical swipe still scrolls the page,
+// and a tap elsewhere hides it. Never wider than its column, so it never scrolls sideways.
+export function DriveTrace({
+  label,
+  points,
+  from,
+  to,
+  unit,
+  signed = false,
+  max,
+  digits = 0,
+  legs,
+}: {
+  // "Speed", for screen readers.
+  label: string;
+  points: Point[];
+  from: number;
+  to: number;
   unit: string;
-  points: { t: number; v: number }[];
-  // Values either side of zero (power, acceleration, grade): the lane is centred on a zero line.
+  // Values either side of zero (power, acceleration, grade): a solid zero line, the axis reaching below it.
   signed?: boolean;
   // A fixed top, like 100 for battery %.
   max?: number;
-};
-
-const W = 420;
-const PAD = { top: 4, right: 6, bottom: 20, left: 34 };
-const LANE = 64; // a lane's plot height
-const TITLE = 24; // room above each lane for its name, clear of the lane above
-
-// Everything streamed during a drive (speed, power, acceleration, road grade, battery) as one chart: a
-// lane each on its own scale, since km/h, kW and m/s² can't share an axis, over one shared time axis.
-// Hover, tap or drag anywhere for one line through every lane and one tooltip with each value at that
-// moment, so a spike in one lane can be read against the others. On a touch screen a vertical swipe
-// still scrolls the page, and a tap elsewhere hides the tooltip.
-export function DriveLanes({ lanes: all, from, to }: { lanes: Lane[]; from: number; to: number }) {
+  // Decimals in the tooltip.
+  digits?: number;
+  legs?: { start: number; end: number }[];
+}) {
+  const plot = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
   const [at, setAt] = useState<number | null>(null);
-  const box = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = plot.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => setWidth(el.clientWidth));
+    observer.observe(el);
+    setWidth(el.clientWidth);
+    return () => observer.disconnect();
+  }, []);
   useEffect(() => {
     if (at === null) return;
     const away = (e: PointerEvent) => {
-      if (!box.current?.contains(e.target as Node)) setAt(null);
+      if (!plot.current?.contains(e.target as Node)) setAt(null);
     };
     document.addEventListener("pointerdown", away);
     return () => document.removeEventListener("pointerdown", away);
   }, [at]);
 
-  const lanes = all.filter((l) => l.points.length >= 2);
-  if (lanes.length === 0 || to <= from) return null;
-  const H = PAD.top + lanes.length * (TITLE + LANE) + PAD.bottom;
-  const x = (t: number) => PAD.left + ((t - from) / (to - from)) * (W - PAD.left - PAD.right);
-  const pick = (clientX: number, rect: DOMRect) => {
-    const t = from + ((((clientX - rect.left) / rect.width) * W - PAD.left) / (W - PAD.left - PAD.right)) * (to - from);
-    setAt(Math.max(from, Math.min(to, t)));
+  const shown = points.filter((p) => p.t >= from && p.t <= to);
+  if (shown.length < 2 || to <= from) return null;
+  const vs = shown.map((p) => p.v);
+  const top = Math.max(0, ...vs);
+  const bottom = Math.min(0, ...vs);
+  const hi = max ?? (top > 0 ? niceTop(top) : signed ? 0 : 1);
+  const lo = signed && bottom < 0 ? -niceTop(-bottom) : 0;
+  const span = hi - lo || 1;
+  const ticks = lo < 0 && hi > 0 ? [hi, 0, lo] : lo < 0 ? [0, lo / 2, lo] : [hi, hi / 2, 0];
+  const xPct = (t: number) => ((t - from) / (to - from)) * 100;
+  const yPct = (v: number) => ((hi - v) / span) * 100;
+
+  // One subpath per leg, so a stop between legs is a gap and not a made-up straight line.
+  const leg = (t: number) => legs?.findIndex((l) => t >= l.start && t <= l.end) ?? 0;
+  const path = shown
+    .map((p, k) => `${k === 0 || leg(p.t) !== leg(shown[k - 1].t) ? "M" : "L"}${(xPct(p.t) * 10).toFixed(1)},${yPct(p.v).toFixed(2)}`)
+    .join(" ");
+
+  // Round clock times between the ends, as many as fit at this width. The end labels sit flush with the
+  // plot's edges, so a centred label in between keeps one and a half labels clear of each end.
+  const step = width > 0 ? STEPS.find((s) => (s / (to - from)) * width >= LABEL_PX * 1.25) : undefined;
+  const between: number[] = [];
+  if (step) {
+    for (let t = Math.ceil((from + IST) / step) * step - IST; t < to; t += step) {
+      const px = (xPct(t) / 100) * width;
+      if (px >= LABEL_PX * 1.5 && px <= width - LABEL_PX * 1.5) between.push(t);
+    }
+  }
+
+  // Close enough to count: within 2% of the drive, so a stop says it has no reading.
+  const near = at === null ? null : shown.reduce((a, p) => (Math.abs(p.t - at) < Math.abs(a.t - at) ? p : a));
+  const hit = near && at !== null && Math.abs(near.t - at) <= (to - from) * 0.02 ? near : null;
+  const cursor = hit?.t ?? at;
+  const value = (v: number) => `${v.toLocaleString("en-IN", { minimumFractionDigits: digits, maximumFractionDigits: digits })} ${unit}`;
+  const pick = (clientX: number) => {
+    const rect = plot.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0) return;
+    setAt(from + Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)) * (to - from));
   };
-  // Close enough to count: within 2% of the drive's length, so a lane without a reading near there says so.
-  const reach = (to - from) * 0.02;
-  const drawn = lanes.map((lane, k) => {
-    const vs = lane.points.map((p) => p.v);
-    const span = Math.max(1e-9, ...vs.map(Math.abs)) * 1.1;
-    const hi = lane.max ?? (lane.signed ? span : Math.max(1e-9, ...vs) * 1.1);
-    const lo = lane.signed ? -hi : 0;
-    const top = PAD.top + k * (TITLE + LANE) + TITLE;
-    const y = (v: number) => top + ((hi - v) / (hi - lo)) * LANE;
-    const near = at === null ? null : lane.points.reduce((a, p) => (Math.abs(p.t - at) < Math.abs(a.t - at) ? p : a));
-    return { lane, hi, lo, top, y, hit: near && Math.abs(near.t - at!) <= reach ? near : null };
-  });
-  const fmt = (v: number) => (Math.abs(v) < 10 ? (Math.round(v * 10) / 10).toString() : Math.round(v).toString());
 
   return (
-    <figure className="space-y-2">
-    <div ref={box} className="chart-touch relative">
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        className="w-full touch-pan-y bg-muted dark:bg-card"
-        role="img"
-        aria-label={`${lanes.map((l) => l.name).join(", ")} from ${formatClock(from)} to ${formatClock(to)}`}
-        onPointerMove={(e) => pick(e.clientX, e.currentTarget.getBoundingClientRect())}
-        onPointerDown={(e) => pick(e.clientX, e.currentTarget.getBoundingClientRect())}
-        onPointerLeave={(e) => e.pointerType === "mouse" && setAt(null)}
-      >
-        {drawn.map(({ lane, hi, lo, top, y }) => (
-          <g key={lane.name}>
-            <text x={PAD.left} y={top - 7} className="fill-muted-foreground text-[11px]">
-              {lane.name} <tspan className="fill-faint">{lane.unit}</tspan>
-            </text>
-            {(lane.signed ? [hi, 0, lo] : [hi, lo]).map((v) => (
-              <g key={v}>
-                <line x1={PAD.left} x2={W - PAD.right} y1={y(v)} y2={y(v)} className="stroke-border" strokeDasharray={v === lo && !lane.signed ? undefined : "3 3"} />
-                <text x={PAD.left - 4} y={y(v) + 3.5} textAnchor="end" className="fill-faint font-mono text-[11px]">
-                  {fmt(v)}
-                </text>
-              </g>
-            ))}
-            <path
-              d={lane.points.map((p, k) => `${k ? "L" : "M"}${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ")}
-              fill="none"
-              className="stroke-chart-accent"
-              strokeWidth={1.25}
-            />
-          </g>
-        ))}
-        <text x={PAD.left} y={H - 5} className="fill-faint text-[11px]">
-          {formatClock(from)}
-        </text>
-        <text x={W - PAD.right} y={H - 5} textAnchor="end" className="fill-faint text-[11px]">
-          {formatClock(to)}
-        </text>
-        {at !== null && (
-          <>
-            <line x1={x(at)} x2={x(at)} y1={PAD.top} y2={H - PAD.bottom} className="stroke-muted-foreground" />
-            {drawn.map(({ lane, y, hit }) => hit && <circle key={lane.name} cx={x(hit.t)} cy={y(hit.v)} r={3} className="fill-chart-accent" />)}
-          </>
-        )}
-      </svg>
-      {at !== null && (
-        <div
-          className="pointer-events-none absolute top-1 z-10 border bg-background px-2 py-1 text-xs whitespace-nowrap tabular-nums shadow-sm"
-          style={{ left: `${(x(at) / W) * 100}%`, transform: `translateX(${x(at) / W > 0.5 ? "calc(-100% - 8px)" : "8px"})` }}
-          aria-live="polite"
-        >
-          <span className="block text-muted-foreground">{formatClock(at)}</span>
-          {drawn.map(({ lane, hit }) => (
-            <span key={lane.name} className="flex justify-between gap-3">
-              <span className="text-muted-foreground">{lane.name}</span>
-              <span className="font-mono">{hit ? <Measure text={`${fmt(hit.v)} ${lane.unit}`} /> : "No reading"}</span>
+    <div className="chart-touch relative bg-muted pt-8 pr-4 pb-2 pl-2 dark:bg-card">
+      <span className="absolute top-1.5 left-2 font-mono text-xs text-faint" aria-hidden="true">
+        {unit}
+      </span>
+      <div className="flex gap-2">
+        <div className="relative h-28 w-8 shrink-0 text-right font-mono text-xs whitespace-nowrap text-faint tabular-nums" aria-hidden="true">
+          {ticks.map((v) => (
+            <span key={v} className="absolute right-0 -translate-y-1/2" style={{ top: `${yPct(v)}%` }}>
+              {axisNumber.format(v)}
             </span>
           ))}
         </div>
-      )}
+        <div
+          ref={plot}
+          className="relative h-28 min-w-0 flex-1 touch-pan-y"
+          role="img"
+          aria-label={`${label} from ${formatClock(from)} to ${formatClock(to)}, between ${axisNumber.format(Math.min(...vs))} and ${axisNumber.format(Math.max(...vs))} ${unit}`}
+          onPointerMove={(e) => pick(e.clientX)}
+          onPointerDown={(e) => pick(e.clientX)}
+          onPointerLeave={(e) => e.pointerType === "mouse" && setAt(null)}
+        >
+          {ticks.map((v) => (
+            <div
+              key={v}
+              className={cn("absolute inset-x-0 border-t", v === 0 ? "border-muted-foreground/40" : "border-dashed border-border")}
+              style={{ top: `${yPct(v)}%` }}
+              aria-hidden="true"
+            />
+          ))}
+          <svg viewBox="0 0 1000 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible" aria-hidden="true">
+            <path d={path} fill="none" className="stroke-chart-accent" strokeWidth={1.5} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+          </svg>
+          {cursor !== null && (
+            <>
+              <div className="pointer-events-none absolute inset-y-0 w-px bg-muted-foreground" style={{ left: `${xPct(cursor)}%` }} aria-hidden="true" />
+              {hit && (
+                <div
+                  className="pointer-events-none absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-chart-accent ring-2 ring-background"
+                  style={{ left: `${xPct(hit.t)}%`, top: `${yPct(hit.v)}%` }}
+                  aria-hidden="true"
+                />
+              )}
+              <div
+                className="pointer-events-none absolute top-0 z-10 border bg-background px-2 py-1 text-xs whitespace-nowrap tabular-nums shadow-sm"
+                style={{ left: `${xPct(cursor)}%`, transform: `translateX(${xPct(cursor) > 50 ? "calc(-100% - 8px)" : "8px"})` }}
+                aria-live="polite"
+              >
+                <span className="block text-muted-foreground">{formatClock(cursor)}</span>
+                <span className="block font-mono">{hit ? <Measure text={value(hit.v)} /> : <span className="font-sans text-muted-foreground">No reading here</span>}</span>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+      <div className="relative mt-2 ml-10 h-4 text-xs whitespace-nowrap text-faint tabular-nums" aria-hidden="true">
+        <span className="absolute left-0">{formatClock(from)}</span>
+        {between.map((t) => (
+          <span key={t} className="absolute -translate-x-1/2" style={{ left: `${xPct(t)}%` }}>
+            {formatClock(t)}
+          </span>
+        ))}
+        <span className="absolute right-0">{formatClock(to)}</span>
+      </div>
     </div>
-      <figcaption className="text-xs text-muted-foreground">
-        Over the drive, from {formatClock(from)} to {formatClock(to)}: {lanes.map((l) => `${l.name.toLowerCase()} in ${l.unit}`).join(", ")}. Each lane has its own
-        scale. Hover or tap for every value at one moment. {unitNotes(lanes.map((l) => l.unit))}
-      </figcaption>
-    </figure>
   );
 }

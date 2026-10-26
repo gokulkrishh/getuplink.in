@@ -1,19 +1,20 @@
 import type { ReactNode } from "react";
 import { hasCosts, hasStationNames, type Listed, OsmCredit, SessionHeader, SessionRow } from "@/components/session-row";
+import { ChartCard } from "@/components/chart-card";
 import { Bars } from "@/components/stats/bars";
 import { barsCaption } from "@/components/stats/chart-caption";
 import { ChargeLevelChart } from "@/components/stats/charge-level";
 import { TripTable } from "@/components/stats/drive-list";
+import { hasBars, knownBar } from "@/components/stats/driving-sections";
 import { Figures } from "@/components/stats/figures";
 import type { View } from "@/components/stats/periods";
 import { DRIVE_DAYS, type Drive, type DrainSummary, type ParkedNow } from "@/lib/drives";
 import { groupTrips } from "@/lib/trips";
-import { spendBySlot } from "@/lib/charging-figures";
+import { type Bill, billsBySlot } from "@/lib/charging-figures";
 import type { ChargeLevel } from "@/lib/charge-level";
 import type { DrivingFigures } from "@/lib/driving-figures";
 import { formatDuration, formatPower } from "@/lib/format";
 import { inSpan } from "@/lib/periods";
-import type { ChargingSession } from "@/lib/server/charging";
 import { eachFrame, type HomeFrame } from "./frames";
 import { MoreLink } from "./more-link";
 
@@ -49,23 +50,32 @@ function Rows({ header, children }: { header?: ReactNode; children: ReactNode })
   );
 }
 
-// Spend per bar (Tesla's Supercharger bill, as in Spent), then the newest sessions in the period.
-export function ChargingSection({ frames, sessions, listed, now }: { frames: HomeFrame[]; sessions: ChargingSession[]; listed: Listed[]; now: number }) {
+// Spend per bar from real bills (Tesla's and the invoices attached, as in Spent and on Charging), then the
+// newest sessions in the period.
+export function ChargingSection({ frames, bills, listed, now }: { frames: HomeFrame[]; bills: Bill[]; listed: Listed[]; now: number }) {
   if (listed.length === 0) return null;
-  const currency = sessions.find((s) => s.currency)?.currency ?? "INR";
+  const currency = listed.find((item) => item.tesla?.currency)?.tesla?.currency ?? "INR";
   const compact = new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 });
   const chart = ({ frame }: HomeFrame) => {
-    const spend = spendBySlot(sessions, frame.slots);
-    const bars = frame.slots.map((slot, k) => ({ key: String(slot.id), label: slot.label, value: spend[k], display: compact.format(spend[k]), isCurrent: slot.isCurrent }));
+    const spend = billsBySlot(bills, frame.slots);
+    // A slot ahead of now is blank, never ₹0; those before the first bill are hidden by Bars itself.
+    const bars = frame.slots.map((slot, k) => ({
+      key: String(slot.id),
+      label: slot.label,
+      value: slot.ahead ? 0 : spend[k],
+      display: slot.ahead ? "" : compact.format(spend[k]),
+      isCurrent: slot.isCurrent,
+      blank: slot.ahead || undefined,
+    }));
     return (
-      <Bars
-        bars={bars}
-        ariaLabel={`Spend per ${frame.slotName}`}
-        prefix="₹"
-        labelEvery={frame.labelEvery}
-        empty={`No charging spend ${frame.words}`}
-        caption={barsCaption("Spent on Supercharger bills", frame)}
-      />
+      <ChartCard
+        as="h3"
+        title="Spend"
+        description={`${barsCaption("What charging cost", frame)}, from Tesla's Supercharger bills and the invoices you attached.`}
+        empty={hasBars(bars) ? undefined : `No bills ${frame.words}`}
+      >
+        <Bars bars={bars} ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} fit />
+      </ChartCard>
     );
   };
   const rows = ({ frame }: HomeFrame) => {
@@ -98,20 +108,13 @@ export function DrivingSection({ frames, figures, drives, now }: { frames: HomeF
   const trips = groupTrips(drives);
   const tripsFrom = now - DRIVE_DAYS * 86_400_000;
   const chart = ({ frame, driving }: HomeFrame) => {
-    const bars = frame.slots.map((slot, k) => {
-      const value = driving?.bars[k]?.km ?? 0;
-      return { key: String(slot.id), label: slot.label, value, display: number.format(value), isCurrent: slot.isCurrent };
-    });
-    const empty = driving ? `No driving ${frame.words}` : "Couldn't read the distance for these dates";
+    // A slot with no reading (before tracking began, or ahead of now) is blank, never 0 km.
+    const bars = frame.slots.map((slot, k) => knownBar(slot, driving ? (driving.bars[k]?.km ?? null) : null, number.format));
+    const empty = !driving ? "Couldn't read the distance for these dates" : hasBars(bars) ? undefined : `No driving ${frame.words}`;
     return (
-      <Bars
-        bars={bars}
-        ariaLabel={`Distance per ${frame.slotName} in km`}
-        unit="km"
-        labelEvery={frame.labelEvery}
-        empty={empty}
-        caption={barsCaption("Kilometres driven", frame)}
-      />
+      <ChartCard as="h3" title="Distance" description={`${barsCaption("Kilometres driven", frame)}. A taller bar is more driving.`} empty={empty}>
+        <Bars bars={bars} ariaLabel={`Distance per ${frame.slotName} in km`} unit="km" labelEvery={frame.labelEvery} fit />
+      </ChartCard>
     );
   };
   const rows = ({ frame }: HomeFrame) => {

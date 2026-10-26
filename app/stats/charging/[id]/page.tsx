@@ -9,10 +9,11 @@ import { ChargeFees } from "@/components/stats/charge-fees";
 import { ChargeSupply } from "@/components/stats/charge-supply";
 import { Figures } from "@/components/stats/figures";
 import { splitSite } from "@/lib/charge-sessions";
-import { formatClock, formatDate, formatDuration, formatKwh, formatMoney } from "@/lib/format";
+import { formatClock, formatDate, formatDuration, formatKwh, formatMoney, formatTempRange } from "@/lib/format";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargeDetail, loadChargeDetail } from "@/lib/server/charge-curve";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
+import { unitNotes } from "@/lib/unit-words";
 
 export const metadata: Metadata = { title: "Charge · Uplink" };
 
@@ -50,38 +51,67 @@ function Charge({ detail }: { detail: ChargeDetail }) {
   // The stored temperatures can carry over from long before an AC charge, so only DC falls back to them.
   const tempLow = curve.tempMinC ?? (s.kind === "dc" ? s.temp_start_c : null);
   const tempHigh = curve.tempMaxC ?? (s.kind === "dc" ? s.temp_max_c : null);
-  const rows: [string, string | null][] = [
-    ["Peak power", peak ? `${kwFormat.format(peak)} kW` : null],
-    ["Average power", curve.avgKw ? `${kwFormat.format(curve.avgKw)} kW` : null],
-    ["Battery", s.start_level !== null && s.end_level !== null ? `${Math.round(s.start_level)}% to ${Math.round(s.end_level)}%` : null],
-    ["Energy added", energy !== null ? formatKwh(energy) : null],
-    ["Cost", cost(tesla, invoice, energy, currency, s)],
-    ["Energy billed", invoice?.kwhBilled ? formatKwh(invoice.kwhBilled) : null],
-    ["GST", invoice?.gst ? formatMoney(invoice.gst, "INR") : null],
-    ["Battery temperature", tempLow !== null && tempHigh !== null ? `${Math.round(tempLow)} to ${Math.round(tempHigh)} °C` : null],
+  // Related figures sit together: what the battery did, how fast it charged, and what it cost.
+  const groups: { title: string; rows: [string, string | null][] }[] = [
+    {
+      title: "Battery",
+      rows: [
+        ["Charge level", s.start_level !== null && s.end_level !== null ? `${Math.round(s.start_level)}% to ${Math.round(s.end_level)}%` : null],
+        ["Energy added", energy !== null ? formatKwh(energy) : null],
+        ["Battery temperature", tempLow !== null && tempHigh !== null ? formatTempRange(tempLow, tempHigh) : null],
+      ],
+    },
+    {
+      title: "Power",
+      rows: [
+        ["Peak power", peak ? `${kwFormat.format(peak)} kW` : null],
+        ["Average power", curve.avgKw ? `${kwFormat.format(curve.avgKw)} kW` : null],
+      ],
+    },
+    {
+      title: "Bill",
+      rows: [
+        ["Cost", cost(tesla, invoice, energy, currency, s)],
+        ["Energy billed", invoice?.kwhBilled ? formatKwh(invoice.kwhBilled) : null],
+        ["GST", invoice?.gst ? formatMoney(invoice.gst, "INR") : null],
+      ],
+    },
   ];
-  const shown = rows.filter((r): r is [string, string] => r[1] !== null);
+  const sections = groups
+    .map((g) => ({ title: g.title, rows: g.rows.filter((r): r is [string, string] => r[1] !== null) }))
+    .filter((g) => g.rows.length > 0);
+  const shown = sections.flatMap((g) => g.rows);
   return (
     <>
       <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">{place}</h1>
       <p className="mt-2 mb-12 text-sm text-muted-foreground tabular-nums">{[city, formatDate(s.started_at), span].filter(Boolean).join(" · ")}</p>
       <div className="space-y-12">
-        {curve.points.length > 0 && (
-          <section className="space-y-4">
-            <h2 className="text-lg font-medium tracking-heading">Power and battery</h2>
-            <ChargeCurve points={curve.points} />
-          </section>
-        )}
+        {curve.points.length >= 2 && <ChargeCurve points={curve.points} />}
         {shown.length > 0 && (
-          <section className="space-y-4">
+          <section className="space-y-6">
             <h2 className="text-lg font-medium tracking-heading">Session</h2>
-            {/* "₹450 · ₹18/kWh" shows the amount as the figure and the rate under it. */}
-            <Figures
-              figures={shown.map(([label, value]) => {
-                const [main, ...rest] = value.split(" · ");
-                return { label, value: main, note: rest.join(" · ") || undefined };
-              })}
-            />
+            {sections.map((g) => (
+              <div key={g.title} className="space-y-3">
+                <h3 className="text-base font-medium tracking-heading">{g.title}</h3>
+                {/* "₹450 · ₹18/kWh" shows the amount as the figure and the rate under it. */}
+                <Figures
+                  figures={g.rows.map(([label, value]) => {
+                    const [main, ...rest] = value.split(" · ");
+                    return { label, value: main, note: rest.join(" · ") || undefined };
+                  })}
+                />
+              </div>
+            ))}
+            {/* The units the tiles use, in plain words, and what kind of charge this was. The chart above
+                already explains kW when it shows. */}
+            <p className="text-xs text-muted-foreground">
+              {unitNotes([
+                curve.points.length < 2 && shown.some(([label]) => label.endsWith("power")) ? "kW" : undefined,
+                shown.some(([label]) => label.startsWith("Energy")) ? "kWh" : undefined,
+                shown.some(([, value]) => value.includes("/kWh")) ? "₹/kWh" : undefined,
+                s.kind === "dc" ? "DC" : "AC",
+              ])}
+            </p>
           </section>
         )}
         <ChargeFees fees={detail.fees} currency={currency} />

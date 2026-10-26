@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRef } from "react";
+import { ChartCard } from "@/components/chart-card";
 import { FloatTip, useActiveMark } from "@/components/stats/float-tip";
 import { type Day, type DayKind, dayParam } from "@/lib/day-timeline";
 import { formatClock, formatDayLabel, formatDuration } from "@/lib/format";
@@ -33,12 +34,13 @@ export function DayTimeline({ days: all7, now, title = "Your days", caption }: {
   const describe = (s: (typeof all)[number]) => `${style[s.kind].label} · ${formatClock(s.start)} to ${formatClock(s.end)} · ${formatDuration((s.end - s.start) / 1000)}`;
 
   return (
-    <section className="space-y-4">
-      <div className="space-y-1">
-        <h2 className="text-lg font-medium tracking-heading">{title}</h2>
-        {caption && <p className="text-sm text-muted-foreground">{caption}</p>}
-        <p className="text-sm text-muted-foreground">Asleep shows only where a check found the car asleep; the rest of a parked stretch may have been asleep too.</p>
-      </div>
+    <ChartCard
+      title={title}
+      description={`What the car was doing ${days.length === 1 ? "through the day" : "through each day, one row a day"}, from midnight to midnight, India time. Hover or tap a stretch for its times.`}
+      summary={caption && <p className="text-sm text-muted-foreground">{caption}</p>}
+      caption="Asleep shows only where a check found the car asleep; the rest of a parked stretch may have been asleep too."
+    >
+      <div className="space-y-4">
       <ol ref={list} className="chart-touch space-y-1.5" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
         {[...days].reverse().map((d) => (
           <li key={d.day} className="flex items-center gap-3">
@@ -98,9 +100,7 @@ export function DayTimeline({ days: all7, now, title = "Your days", caption }: {
           </li>
         ))}
       </ul>
-      <p className="text-xs text-muted-foreground">
-        {days.length === 1 ? "The day" : "Each row is a day"}, midnight to midnight, India time, coloured by what the car was doing. Hover or tap a stretch for its times.
-      </p>
-    </section>
+      </div>
+    </ChartCard>
   );
 }

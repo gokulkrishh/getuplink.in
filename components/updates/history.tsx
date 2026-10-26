@@ -1,4 +1,5 @@
 import { ChevronRight } from "lucide-react";
+import { ChartCard } from "@/components/chart-card";
 import { ReleaseNotesList } from "@/components/release-notes";
 import { ShowMore } from "@/components/show-more";
 import { Tip, TipTrigger } from "@/components/tip";
@@ -133,7 +134,14 @@ export function VersionHistory({ history, notes, now, until }: { history: Versio
         <EmptyHistory />
       ) : (
         <>
-          <VersionChart changes={[...history].reverse()} until={until} />
+          <ChartCard
+            as="h3"
+            title="Software version"
+            description="The car's software version over time, oldest on the left. Each step up is a new version arriving; the line runs on to the latest check."
+            caption="Hover or tap the line for the version and the date Uplink first saw it."
+          >
+            <VersionChart changes={[...history].reverse()} until={until} />
+          </ChartCard>
           {/* On phones the table keeps its columns and scrolls sideways. */}
           <div className="max-sm:-mx-1 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:px-1 pt-6">
             <div className="max-sm:min-w-xl">

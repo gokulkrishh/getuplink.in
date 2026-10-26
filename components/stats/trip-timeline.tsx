@@ -38,6 +38,10 @@ export function TripTimeline({ legs }: { legs: Drive[] }) {
   const shown = active && segments[active.key];
 
   return (
+    <div className="space-y-4">
+    <p className="text-sm text-muted-foreground">
+      The trip from start to finish. Each solid block is a drive and each striped gap a stop, as wide as the time it took. Hover or tap one for its details.
+    </p>
     <div ref={box} className="chart-touch space-y-2" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
       <div className="relative h-12">
         {segments.map((s, k) => {
@@ -82,9 +86,8 @@ export function TripTimeline({ legs }: { legs: Drive[] }) {
           Stopped
         </span>
       </div>
-      <p className="text-xs text-muted-foreground">
-        The trip from start to finish. Each block is a drive and each striped gap a stop, as wide as the time it took. Hover or tap one for its details.
-      </p>
+    </div>
+    <p className="text-xs text-muted-foreground">A block wide enough to hold it shows the drive&apos;s distance or the stop&apos;s length.</p>
     </div>
   );
 }

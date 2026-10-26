@@ -1,4 +1,4 @@
-import { formatDate, formatShortDate } from "@/lib/format";
+import { formatDate, formatHour, formatShortDate } from "@/lib/format";
 import { istDay, istDayStart } from "@/lib/telemetry-derive";
 
 // Pure period maths for the home page and the Stats pages: which instants a period covers, the bars it
@@ -83,8 +83,9 @@ export function previousLabel(period: Period, now: number): string | null {
   if (!span) return null;
   if (period === "week") return "the 7 days before";
   if (period === "day") return "yesterday";
-  // The span ends just before `to`; on the 1st it is that one day.
-  const last = span.to - 1;
+  // The span ends just before `to`; on the 1st it is that one day, and so at exactly IST midnight on the
+  // 1st, when it is still empty.
+  const last = Math.max(span.from, span.to - 1);
   if (istDay(last) === istDay(span.from)) return period === "month" ? formatShortDate(span.from) : formatDate(span.from);
   const firstDay = formatShortDate(span.from).split(" ")[0];
   if (period === "month") return `${firstDay} to ${formatShortDate(last)}`;
@@ -93,8 +94,10 @@ export function previousLabel(period: Period, now: number): string | null {
 
 // ---- Bars ----
 
-// One bar: the instants it covers and its label. Its id is its start, unique within a period.
-export type Slot = { id: number; label: string; from: number; to: number; isCurrent: boolean };
+// One bar: the instants it covers and its label. Its id is its start, unique within a period. `ahead` says
+// it starts after now (the rest of this year, the rest of today), so nothing is known about it yet: drawn
+// blank, never as zero.
+export type Slot = { id: number; label: string; from: number; to: number; isCurrent: boolean; ahead: boolean };
 
 // The bars a period draws: the last 7 days (Week), the last 6 months (Month, so the half-year shape stays),
 // the 12 months of this year (Year), or 6 years (All).
@@ -106,28 +109,28 @@ export function slotsFor(period: Period, now: number): Slot[] {
     from: monthStart(index),
     to: monthStart(index + 1),
     isCurrent: index === cur,
+    ahead: monthStart(index) > now,
   });
   if (period === "day") {
     // Today in 3-hour slots: when you drove or charged.
     const start = istDayStart(istDay(now));
-    const hour = (h: number) => (h === 0 ? "12a" : h < 12 ? `${h}a` : h === 12 ? "12p" : `${h - 12}p`);
     return Array.from({ length: 8 }, (_, k) => {
       const from = start + k * 3 * 3_600_000;
-      return { id: from, label: hour(k * 3), from, to: from + 3 * 3_600_000, isCurrent: now >= from && now < from + 3 * 3_600_000 };
+      return { id: from, label: formatHour(k * 3), from, to: from + 3 * 3_600_000, isCurrent: now >= from && now < from + 3 * 3_600_000, ahead: from > now };
     });
   }
   if (period === "week") {
     const today = istDay(now);
     return Array.from({ length: WEEK_DAYS }, (_, k) => {
       const day = today - WEEK_DAYS + 1 + k;
-      return { id: istDayStart(day), label: weekday.format(istDayStart(day) + DAY_MS / 2), from: istDayStart(day), to: istDayStart(day + 1), isCurrent: day === today };
+      return { id: istDayStart(day), label: weekday.format(istDayStart(day) + DAY_MS / 2), from: istDayStart(day), to: istDayStart(day + 1), isCurrent: day === today, ahead: false };
     });
   }
   if (period === "year") return Array.from({ length: 12 }, (_, m) => month(yearOf(cur) * 12 + m));
   if (period === "all") {
     return Array.from({ length: 6 }, (_, k) => {
       const year = yearOf(cur) - 5 + k;
-      return { id: monthStart(year * 12), label: String(year), from: monthStart(year * 12), to: monthStart((year + 1) * 12), isCurrent: year === yearOf(cur) };
+      return { id: monthStart(year * 12), label: String(year), from: monthStart(year * 12), to: monthStart((year + 1) * 12), isCurrent: year === yearOf(cur), ahead: false };
     });
   }
   return Array.from({ length: 6 }, (_, k) => month(cur - 5 + k));
@@ -207,10 +210,13 @@ const EARLIEST_DAY = Date.UTC(2012, 0, 1) / DAY_MS;
 // "2026-10-25" for an IST day, as a date input holds it. An IST day's number is its date's UTC day number.
 export const dayIso = (day: number) => new Date(day * DAY_MS).toISOString().slice(0, 10);
 
+// The IST day a date input's "2026-10-25" names; null when it isn't a real date. Date.parse rolls a day
+// past the month's end over ("2026-02-30" is 2 March), so the day must name the same date back.
 export function isoDay(value: string | string[] | undefined): number | null {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const ms = Date.parse(`${value}T00:00:00Z`);
-  return Number.isNaN(ms) ? null : ms / DAY_MS;
+  if (Number.isNaN(ms)) return null;
+  return dayIso(ms / DAY_MS) === value ? ms / DAY_MS : null;
 }
 
 // The last 30 days, today included: what Custom opens on.
@@ -257,13 +263,12 @@ export function rangeSlots(range: DayRange, now: number): { slots: Slot[]; slotN
   const span = rangeSpan(range, now);
   const end = Math.min(span.to, istDayStart(range.to + 1));
   const days = rangeDays(range);
-  const slot = (from: number, to: number, label: string): Slot => ({ id: from, label, from, to, isCurrent: now >= from && now < to });
+  const slot = (from: number, to: number, label: string): Slot => ({ id: from, label, from, to, isCurrent: now >= from && now < to, ahead: from > now });
   if (days <= 2) {
-    const hour = (h: number) => (h === 0 ? "12a" : h < 12 ? `${h}a` : h === 12 ? "12p" : `${h - 12}p`);
     const slots = Array.from({ length: days * 8 }, (_, k) => {
       const from = span.from + k * 3 * 3_600_000;
       // With two days, each day's first bar is named for its day.
-      const label = days === 2 && k % 8 === 0 ? weekday.format(from + DAY_MS / 2) : hour((k % 8) * 3);
+      const label = days === 2 && k % 8 === 0 ? weekday.format(from + DAY_MS / 2) : formatHour((k % 8) * 3);
       return slot(from, from + 3 * 3_600_000, label);
     });
     return { slots, slotName: "3 hours" };

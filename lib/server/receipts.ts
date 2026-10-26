@@ -1,4 +1,5 @@
 import "server-only";
+import { parseInvoiceTime, parseRangeEnd } from "@/lib/mcp-ranges";
 import { createHash } from "node:crypto";
 import { type Invoice, invoiceProblem, matchInvoice, pickedSessionFits, type ReceiptSession } from "@/lib/charge-receipts";
 import { loadDrivingFigures } from "./driving";
@@ -19,11 +20,6 @@ const MAX_FILE_BYTES = 3 * 1024 * 1024;
 export function istIso(value: string | number): string {
   const ms = typeof value === "number" ? value : Date.parse(value);
   return new Date(ms + IST_MS).toISOString().replace(/\.\d{3}Z$/, "+05:30");
-}
-
-// A time from the AI: with an offset or Z as given, without one as IST wall-clock time.
-export function parseInvoiceTime(value: string): number {
-  return Date.parse(/(?:Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : `${value}+05:30`);
 }
 
 type ReceiptRow = {
@@ -85,10 +81,10 @@ function describe(s: ReceiptSession, receipt: ReceiptRow | undefined) {
 }
 
 export async function listChargingSessions(owner: Owner, { from, to, withoutInvoice }: { from?: string; to?: string; withoutInvoice?: boolean }) {
-  const end = to ? parseInvoiceTime(to) : Date.now();
+  const end = to ? parseRangeEnd(to) : Date.now();
   const start = from ? parseInvoiceTime(from) : end - 30 * DAY;
   if (!Number.isFinite(start) || !Number.isFinite(end)) return { error: "from and to must be dates like 2026-10-21 or 2026-10-21T19:10." };
-  const sessions = await sessionsBetween(owner, start, end + DAY);
+  const sessions = await sessionsBetween(owner, start, end);
   const receipts = await receiptsFor(owner, sessions.map((s) => s.id));
   const listed = sessions
     .filter((s) => !withoutInvoice || (!s.supercharger && s.ended_at != null && !receipts.has(s.id)))
@@ -287,18 +283,25 @@ export async function drivingSummary(owner: Owner) {
   };
 }
 
-// The invoice amount for each of these sessions that has one, for Charging stats. Never fails the page:
-// a read error (or a database without the table yet) shows as no invoices.
-export async function invoicesBySession(owner: Owner, ids: number[]): Promise<Map<number, { amount: number; kwhBilled: number | null; network: string }>> {
+// The invoice for each of these sessions that has one, for every spend figure and session row. hasFile:
+// the invoice's file is stored, so the row can offer it. Never fails the page: a read error (or a
+// database without the table yet) shows as no invoices.
+export type SessionInvoiceAmount = { amount: number; kwhBilled: number | null; network: string; hasFile: boolean };
+
+export async function invoicesBySession(owner: Owner, ids: number[]): Promise<Map<number, SessionInvoiceAmount>> {
   if (DEMO) {
     const { demoInvoices } = await import("./demo");
     const all = demoInvoices();
-    return new Map(ids.flatMap((id) => (all.has(id) ? [[id, all.get(id)!] as const] : [])));
+    // The demo stores no files (the invoice route answers 404 there).
+    return new Map(ids.flatMap((id) => {
+      const i = all.get(id);
+      return i ? [[id, { amount: i.amount, kwhBilled: i.kwhBilled, network: i.network, hasFile: false }] as const] : [];
+    }));
   }
   if (ids.length === 0) return new Map();
   try {
     const rows = await receiptsFor(owner, ids);
-    return new Map([...rows].map(([id, r]) => [id, { amount: Number(r.amount_total), kwhBilled: r.kwh_billed == null ? null : Number(r.kwh_billed), network: r.network }]));
+    return new Map([...rows].map(([id, r]) => [id, { amount: Number(r.amount_total), kwhBilled: r.kwh_billed == null ? null : Number(r.kwh_billed), network: r.network, hasFile: Boolean(r.invoice_path) }]));
   } catch (err) {
     if (!/charge_receipts/.test(String(err))) console.warn("Invoices unavailable:", (err as Error).message);
     return new Map();

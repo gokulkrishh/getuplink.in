@@ -23,12 +23,12 @@ export function withUnit(value: string, unit?: string): string {
   return unit ? `${value}${unit.startsWith("%") ? "" : " "}${unit}` : value;
 }
 
-// A column's x-axis label: "Jan" rather than "January" on a dense chart. Which labels show is measured in
-// the browser (useAxisLabels), so they start hidden and never collide.
-export function AxisLabel({ label, dense, current }: { label: string; dense: boolean; current?: boolean }) {
+// A column's x-axis label, written out in full ("6 AM", "Sept", "25 Oct"), never cut short: which labels
+// show is measured in the browser (useAxisLabels), so they start hidden and never collide.
+export function AxisLabel({ label, current }: { label: string; current?: boolean }) {
   return (
     <span data-axis-label className={cn("invisible h-4 text-xs whitespace-nowrap", current ? "text-foreground" : "text-faint")}>
-      {dense ? label.slice(0, 3) : label}
+      {label}
     </span>
   );
 }

@@ -27,6 +27,7 @@ export function Bars({
   unit,
   empty,
   caption,
+  fit = false,
 }: {
   bars: Bar[];
   ariaLabel: string;
@@ -39,6 +40,8 @@ export function Bars({
   empty?: string;
   // Like "Kilometres driven each month, May to Oct".
   caption?: string;
+  // Squeeze every column into the panel's width instead of scrolling sideways (see BarColumns).
+  fit?: boolean;
   // "start" for categories (speed bands), "end" for time, opening on the newest.
 }) {
   if (empty && !bars.some((b) => b.value > 0)) return <EmptyChart caption={caption}>{empty}</EmptyChart>;
@@ -46,14 +49,14 @@ export function Bars({
   return (
     <Captioned caption={caption}>
       <ChartFrame max={max} prefix={prefix} unit={unit}>
-        <BarColumns bars={bars} max={max} ariaLabel={ariaLabel} labelEvery={labelEvery} unit={unit} />
+        <BarColumns bars={bars} max={max} ariaLabel={ariaLabel} labelEvery={labelEvery} unit={unit} fit={fit} />
       </ChartFrame>
     </Captioned>
   );
 }
 
 // A chart with its caption underneath, or just the chart.
-export function Captioned({ caption, children }: { caption?: string; children: React.ReactNode }) {
+export function Captioned({ caption, children }: { caption?: React.ReactNode; children: React.ReactNode }) {
   if (!caption) return children;
   return (
     <figure className="space-y-2">

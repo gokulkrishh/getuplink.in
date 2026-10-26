@@ -2,6 +2,7 @@
 
 import { Bell } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { ChartCard } from "@/components/chart-card";
 import { VersionChart } from "@/components/version-chart";
 
 // Real Tesla versions (from Tesla's release list); dates are illustrative.
@@ -60,7 +61,9 @@ export function DashboardPreview() {
         </div>
         {/* The dashboard's own history chart, so hovering shows each version and date. */}
         <div className="mt-8">
-          <VersionChart changes={PREVIEW_HISTORY} until="2026-10-21T04:00:00Z" />
+          <ChartCard as="h3" title="Software version" description="Each step up is a new version arriving. Hover or tap for the version and date.">
+            <VersionChart changes={PREVIEW_HISTORY} until="2026-10-21T04:00:00Z" />
+          </ChartCard>
         </div>
       </div>
     </div>

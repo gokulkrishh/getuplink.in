@@ -18,6 +18,7 @@ import { type CarDetails, loadCarDetails } from "@/lib/server/car";
 import { type CarState, loadCarState, OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadPrimaryVehicle, loadStream } from "@/lib/server/telemetry";
 import { loadTyreArrivals } from "@/lib/server/telemetry-window";
+import { unitNotes } from "@/lib/unit-words";
 import type { Stream } from "@/lib/telemetry";
 import { cn } from "@/lib/utils";
 import { currentVersion } from "@/lib/versions";
@@ -217,18 +218,23 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
           <Figures
             figures={[
               {
-                label: "Estimated full pack",
+                label: "Usable capacity",
                 value: `${Math.round(car.battery.kwh)} kWh`,
                 note: `From ${car.battery.readings === 1 ? "1 reading" : `${car.battery.readings} readings`} in the week of ${formatShortDate(car.battery.weekStart)}`,
               },
             ]}
           />
+          <p className="text-xs text-muted-foreground">{unitNotes(["kWh", "usable capacity"])}</p>
         </Section>
       )}
 
       {figures.length > 0 && (
         <Section title="Car now">
           <Figures figures={figures} />
+          {/* The charge tile's note gives the power in kW while charging. */}
+          {state.lastOnline?.charging_state === "Charging" && (state.lastOnline.charge_power_kw ?? 0) > 0 && (
+            <p className="text-xs text-muted-foreground">{unitNotes(["kW"])}</p>
+          )}
         </Section>
       )}
 
@@ -250,7 +256,10 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
               ),
             }))}
           />
-          {car.tyrePressure && <p className="text-xs text-muted-foreground">Recommended {car.tyrePressure}</p>}
+          <p className="text-xs text-muted-foreground">
+            {car.tyrePressure && `Recommended ${car.tyrePressure}. `}
+            {unitNotes(["psi"])}
+          </p>
           {/* A warning not shown on a tile: one that doesn't say which tyre, or a tyre with no reading. */}
           {now?.tyreWarning && !tyres.some((t) => t.alert) && <p className="text-sm text-destructive">{now.tyreWarning}</p>}
         </section>
@@ -267,6 +276,7 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
               </div>
             ))}
           </dl>
+          {tyres.length === 0 && car.tyrePressure && <p className="text-xs text-muted-foreground">{unitNotes(["psi"])}</p>}
         </Section>
       )}
 
@@ -279,7 +289,7 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
             ]}
           />
           <p className="text-xs text-muted-foreground tabular-nums">
-            Ended {formatShortDate(ac.endedAt)}, {formatClock(ac.endedAt)}
+            Ended {formatShortDate(ac.endedAt)}, {formatClock(ac.endedAt)}. {unitNotes(["kW", "V", "A"])}
           </p>
         </Section>
       )}

@@ -7,7 +7,7 @@ import { Suspense } from "react";
 import { Header } from "@/components/header";
 import { DayTimeline } from "@/components/stats/day-timeline";
 import { TripTable } from "@/components/stats/drive-list";
-import { Figures } from "@/components/stats/figures";
+import { type Figure, Figures } from "@/components/stats/figures";
 import { TripMap } from "@/components/stats/trip-map";
 import { buttonVariants } from "@/components/ui/button";
 import { formatClock, formatKwh, formatMoney } from "@/lib/format";
@@ -15,7 +15,9 @@ import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type DayDetail, loadDay } from "@/lib/server/day";
 import { dayParam } from "@/lib/day-timeline";
-import { istDay, istDayStart } from "@/lib/telemetry-derive";
+import { chargeTotals } from "@/lib/charging-figures";
+import { isoDay } from "@/lib/periods";
+import { istDayStart } from "@/lib/telemetry-derive";
 import { Measure } from "@/components/measure";
 
 export const metadata: Metadata = { title: "Day · Uplink" };
@@ -57,13 +59,13 @@ function DayNav({ detail }: { detail: DayDetail }) {
 function DayView({ detail, now }: { detail: DayDetail; now: number }) {
   const km = detail.trips.reduce((s, t) => s + t.km, 0);
   const used = detail.trips.every((t) => t.kwh !== null) ? detail.trips.reduce((s, t) => s + (t.kwh ?? 0), 0) : null;
-  const added = detail.charges.reduce((s, c) => s + (c.session.energy_added_kwh ?? 0), 0);
-  const spent = detail.charges.reduce((s, c) => s + (c.cost ?? 0), 0);
-  const tiles: [string, string][] = [
-    ["Driven", `${oneDecimal.format(km)} km`],
-    ["Energy used", used !== null ? formatKwh(used) : "Unknown"],
-    ["Charged", formatKwh(added)],
-    ["Spent", formatMoney(spent, "INR")],
+  const charged = chargeTotals(detail.charges.map((c) => ({ kwh: c.session.energy_added_kwh, cost: c.cost })));
+  // Spent is the same bills total as Stats > Charging; charges without a bill are noted under it.
+  const tiles: Figure[] = [
+    { label: "Driven", value: `${oneDecimal.format(km)} km` },
+    { label: "Energy used", value: used !== null ? formatKwh(used) : "Unknown" },
+    { label: "Charged", value: charged.kwh !== null ? formatKwh(charged.kwh) : "Unknown" },
+    { label: "Spent", value: formatMoney(detail.spent, "INR"), note: charged.unbilled > 0 ? `${charged.unbilled} without a bill` : undefined },
   ];
   return (
     <>
@@ -77,7 +79,7 @@ function DayView({ detail, now }: { detail: DayDetail; now: number }) {
         <DayNav detail={detail} />
       </div>
       <div className="mt-12 space-y-12">
-        <Figures figures={tiles.map(([label, value]) => ({ label, value }))} />
+        <Figures figures={tiles} />
         <DayTimeline days={[detail.strip]} now={now} title="Timeline" />
         {detail.route.length >= 2 && (
           <section className="space-y-4">
@@ -121,9 +123,9 @@ function DayView({ detail, now }: { detail: DayDetail; now: number }) {
 
 async function DayLoader({ params }: { params: Promise<{ date: string }> }) {
   const { date } = await params;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) notFound();
-  const day = istDay(Date.parse(`${date}T12:00:00+05:30`));
-  if (!Number.isFinite(day)) notFound();
+  // Only a real date: "2026-02-30" would otherwise roll over to 2 March.
+  const day = isoDay(date);
+  if (day === null) notFound();
   const { detail, now } = await loadDetail(day);
   if (!detail) notFound();
   return <DayView detail={detail} now={now} />;

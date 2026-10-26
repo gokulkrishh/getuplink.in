@@ -1,8 +1,7 @@
 "use client";
 
-import { unitNotes } from "@/components/stats/chart-caption";
-import { ChartNote } from "@/components/stats/chart-note";
-import { LineChart } from "@/components/stats/line-chart";
+import { ChartCard } from "@/components/chart-card";
+import { DcCurvePlot } from "@/components/stats/dc-curve-plot";
 import { type MapPin, TripMap } from "@/components/stats/trip-map";
 import { formatShortDate } from "@/lib/format";
 import type { Timeframe } from "@/lib/periods";
@@ -29,39 +28,35 @@ function typical(curves: Curve[]): { x: number; y: number }[] {
 // curves go, when only the latest few are kept.
 export function DcCurves({ curves, frame, note }: { curves: (Curve & { serial?: number })[]; frame: Timeframe; note: string | null }) {
   const series = [
-    { name: "Superchargers", className: "stroke-chart-accent", points: typical(curves.filter((c) => c.supercharger)) },
-    { name: "Other DC chargers", className: "stroke-positive", points: typical(curves.filter((c) => !c.supercharger)) },
+    { name: "Superchargers", stroke: "stroke-chart-accent", swatch: "bg-chart-accent", points: typical(curves.filter((c) => c.supercharger)) },
+    { name: "Other DC chargers", stroke: "stroke-muted-foreground", swatch: "bg-muted-foreground", points: typical(curves.filter((c) => !c.supercharger)) },
   ];
   return (
     <section className="space-y-6">
-      <div className="space-y-2">
-        <h2 className="text-lg font-medium tracking-heading">DC charging speed</h2>
-        <p className="text-sm text-muted-foreground">
-          {frame.title}.{" "}
-          {curves.length > 0
-            ? `Typical power as the battery fills, from ${curves.length} DC ${curves.length === 1 ? "charge" : "charges"}. Power drops as the battery gets fuller.`
-            : "Power as the battery fills, for each DC charge."}
-        </p>
-      </div>
-      {curves.length === 0 && <ChartNote>No DC charging curves {frame.words}.</ChartNote>}
+      <ChartCard
+        title="DC charging speed"
+        description="How fast DC chargers filled the battery as it got fuller: power in kW up the side, battery level along the bottom. Power drops as the battery fills."
+        unit="kW"
+        terms={["kWh", "DC"]}
+        caption={
+          curves.length > 0
+            ? `${frame.title}, from ${curves.length} DC ${curves.length === 1 ? "charge" : "charges"}. Each point is the middle value in a ${BAND}% step of battery level.`
+            : undefined
+        }
+        empty={curves.length === 0 ? `No DC charging curves ${frame.words}` : undefined}
+      >
+        <DcCurvePlot series={series} band={BAND} label={`Typical DC charging power against battery level, ${frame.title}`} />
+      </ChartCard>
       {curves.length > 0 && (
         <>
-          <LineChart
-            series={series}
-            formatX={(x) => `${Math.round(x)}%`}
-            formatY={(y) => `${Math.round(y)} kW`}
-            label="Typical DC charging power against battery level"
-            yFrom={0}
-            caption={`Charging power, up the side, against battery level from 0 to 100%, along the bottom: the middle value in each ${BAND}% step. DC is fast charging. ${unitNotes(["kW"])}`}
-          />
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-md table-fixed text-sm tabular-nums">
+          <div>
+            <table className="w-full table-fixed text-sm tabular-nums">
               <colgroup>
-                <col className="w-10" />
-                <col className="w-24" />
+                <col className="w-8 sm:w-10" />
+                <col className="w-20 sm:w-24" />
                 <col />
-                <col className="w-20" />
-                <col className="w-20" />
+                <col className="w-16 sm:w-20" />
+                <col className="w-16 sm:w-20" />
               </colgroup>
               <thead>
                 <tr className="border-b text-left text-xs text-faint">
@@ -107,7 +102,7 @@ export function ChargingMap({ pins, frame, note }: { pins: MapPin[]; frame: Time
         </p>
       </div>
       {pins.length > 0 ? (
-        <TripMap pins={pins} label={`${pins.length} charges on a map`} />
+        <TripMap pins={pins} label={`${pins.length} charges on a map`} legend="A charge; bigger pins added more energy" />
       ) : (
         // The map's box, so the page keeps its shape from one period to the next.
         <p className="flex h-72 w-full items-center justify-center border bg-muted dark:bg-card p-4 text-center text-sm text-muted-foreground sm:h-96">

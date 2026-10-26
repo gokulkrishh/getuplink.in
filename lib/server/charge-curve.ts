@@ -1,7 +1,7 @@
 import "server-only";
 import { type SessionInvoice, sessionInvoice } from "./receipts";
-import { type ChargeCurve, chargeCurve } from "@/lib/charge-curve";
-import { matchSessions } from "@/lib/charge-sessions";
+import { type ChargeCurve, chargeCurve, levelThroughEnd } from "@/lib/charge-curve";
+import { matchSessions, SETTLE_MS } from "@/lib/charge-sessions";
 import { DEMO } from "@/lib/demo";
 import type { Reading } from "@/lib/telemetry-derive";
 import { type FeeLines, feeLines } from "@/lib/charge-fees";
@@ -45,19 +45,21 @@ export async function loadChargeDetail(owner: Owner, id: number, now: number): P
   if (!session) return null;
   const end = session.ended_at ? Date.parse(session.ended_at) : now;
   const from = new Date(Date.parse(session.started_at) - LEAD_MS).toISOString();
-  // The 0 kW reading that closes a session can land just after its end.
-  const to = new Date(end + MIN).toISOString();
+  // The 0 kW reading that closes a session can land just after its end; the battery level that settles it
+  // up to one 5-minute interval after (see levelThroughEnd).
+  const cut = end + MIN;
+  const to = new Date(Math.max(cut, end + SETTLE_MS)).toISOString();
   const powerField = session.kind === "dc" ? "DCChargingPower" : "ACChargingPower";
   const [byField, tesla, invoice] = await Promise.all([
     loadReadingsByField(owner, session.vin, [powerField, "BatteryLevel", "ModuleTempMin", "ModuleTempMax"], from, to),
     loadChargingSessions(owner),
     session.supercharger ? null : sessionInvoice(owner, session.id),
   ]);
-  const read = (field: string) => byField?.[field] ?? [];
+  const read = (field: string) => (byField?.[field] ?? []).filter((r) => Date.parse(r.at) <= cut);
   const twin = matchSessions(tesla, [session], now).pairs.find((p) => p.stream)?.tesla ?? null;
   const curve = chargeCurve({
     power: fromStart(read(powerField), session.started_at, false),
-    level: fromStart(read("BatteryLevel"), session.started_at, true),
+    level: fromStart(levelThroughEnd(byField?.BatteryLevel ?? [], end), session.started_at, true),
     tempMin: fromStart(read("ModuleTempMin"), session.started_at, true),
     tempMax: fromStart(read("ModuleTempMax"), session.started_at, true),
     end,

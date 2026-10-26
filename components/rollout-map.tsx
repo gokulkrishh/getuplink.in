@@ -115,6 +115,24 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
         </span>
       )}
       </div>
+      {/* What the shades mean: the lightest is the fewest cars, the darkest the most. */}
+      <ul className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-muted-foreground tabular-nums">
+        <li className="flex items-center gap-1.5">
+          <span className="block size-3 border bg-muted" aria-hidden="true" />
+          No cars on this version
+        </li>
+        {groups.length > 0 && (
+          <li className="flex items-center gap-1.5">
+            {most > 1 && <span>{cars(Math.min(...groups.map((g) => g.cars)))}</span>}
+            <span
+              className="block h-3 w-16"
+              style={{ background: most > 1 ? "linear-gradient(to right, color-mix(in srgb, var(--chart-accent) 30%, transparent), color-mix(in srgb, var(--chart-accent) 90%, transparent))" : "color-mix(in srgb, var(--chart-accent) 90%, transparent)" }}
+              aria-hidden="true"
+            />
+            <span>{cars(most)}</span>
+          </li>
+        )}
+      </ul>
       {groups.length > 0 && (
         <ul className="divide-y border-t text-sm">
           <li className="flex gap-4 py-2 text-xs text-faint">

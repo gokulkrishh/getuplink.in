@@ -10,7 +10,9 @@ import { cn } from "@/lib/utils";
 // Bars' columns, drawn in the browser from the bars themselves: a page sends a few numbers and labels per
 // column instead of each column's markup, which a 90-day chart in every period made the bulk of a page.
 // `max` is the axis top Bars worked out; see Bars for the rest.
-export function BarColumns({ bars, max, ariaLabel, labelEvery, unit }: { bars: Bar[]; max: number; ariaLabel: string; labelEvery?: number; unit?: string }) {
+// With `fit`, the columns share the panel's width however many there are, so the chart never scrolls
+// sideways; a chart with very many (90 days) gets hairline gaps so its bars keep some width.
+export function BarColumns({ bars, max, ariaLabel, labelEvery, unit, fit = false }: { bars: Bar[]; max: number; ariaLabel: string; labelEvery?: number; unit?: string; fit?: boolean }) {
   const dense = bars.length > 6;
   // Slots before the first value (before the history starts) keep their column and label but draw nothing,
   // not even a tip: nothing is known about them.
@@ -20,14 +22,12 @@ export function BarColumns({ bars, max, ariaLabel, labelEvery, unit }: { bars: B
   const box = useRef<HTMLDivElement>(null);
   useAxisLabels(box, labelEvery);
   const columns = labelEvery ? bars.length : Math.max(bars.length, MIN_COLUMNS);
-  // A label only shortens to a month's three letters on a 12-month chart, not on a chart of days.
-  const short = dense && !labelEvery;
   // Too many columns to fit at MIN_COLUMN_PX each, the chart scrolls sideways from its newest end.
   return (
     <ScrollEnd label={ariaLabel}>
-    <div ref={box} style={{ minWidth: columns * MIN_COLUMN_PX }}>
+    <div ref={box} style={fit ? undefined : { minWidth: columns * MIN_COLUMN_PX }}>
     <TapColumns
-      className={cn("grid items-end", labelEvery ? "gap-0.5" : dense ? "gap-1" : "gap-3")}
+      className={cn("grid items-end", fit && columns > 31 ? "gap-px" : labelEvery ? "gap-0.5" : dense ? "gap-1" : "gap-3")}
       style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
       aria-label={ariaLabel}
     >
@@ -36,7 +36,7 @@ export function BarColumns({ bars, max, ariaLabel, labelEvery, unit }: { bars: B
           <li key={b.key} aria-hidden="true" className="flex flex-col items-center gap-2">
             <span className="h-4" />
             <div className="h-20" />
-            <AxisLabel label={b.axis ?? b.label} dense={short} />
+            <AxisLabel label={b.axis ?? b.label} />
           </li>
         ) : (
           <li key={b.key} className="group relative flex flex-col items-center gap-2">
@@ -51,7 +51,7 @@ export function BarColumns({ bars, max, ariaLabel, labelEvery, unit }: { bars: B
               )}
             </div>
             {/* The label is as wide as its text and may spill over the neighbouring columns. */}
-            <AxisLabel label={b.axis ?? b.label} dense={short} current={b.isCurrent} />
+            <AxisLabel label={b.axis ?? b.label} current={b.isCurrent} />
             {(dense || b.tip) && <span className="sr-only">{[dense && withUnit(b.display, unit), b.tip].filter(Boolean).join(", ")}</span>}
           </li>
         ),

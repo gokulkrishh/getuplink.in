@@ -39,7 +39,11 @@ export function efficiencyBands(drives: Drive[], temps: TimedValue[]): { byTemp:
     const kwh = list.reduce((s, d) => s + d.kwh!, 0);
     return { label, drives: list.length, km, kmPerKwh: kwh > 0 ? km / kwh : null };
   };
-  const tempOf = (d: Drive) => median(temps.filter((p) => p.t >= d.start - 10 * 60_000 && p.t <= d.end).map((p) => p.v));
+  // The reading in force when the drive started (within 30 minutes), then those during it, like the drive page.
+  const tempOf = (d: Drive) => {
+    const atStart = temps.findLast((p) => p.t <= d.start && p.t >= d.start - 30 * 60_000);
+    return median([...(atStart ? [atStart.v] : []), ...temps.filter((p) => p.t > d.start && p.t <= d.end).map((p) => p.v)]);
+  };
   const speedOf = (d: Drive) => d.km / ((d.end - d.start) / 3_600_000);
   const group = (edges: number[], unit: string, value: (d: Drive) => number | null): Band[] =>
     edges

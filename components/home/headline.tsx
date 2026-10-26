@@ -1,14 +1,14 @@
 import { ChevronRight } from "lucide-react";
 import { PeriodLink } from "@/components/home/more-link";
 import type { View } from "@/components/stats/periods";
-import { energyBySlot, energyIn, spendBySlot, spendIn } from "@/lib/charging-figures";
+import { type Bill, billsBySlot, billsIn, energyBySlot, energyIn } from "@/lib/charging-figures";
 import { type Change, changeToPrevious, compareToPrevious } from "@/lib/dashboard-summary";
 import type { DrivingPeriod } from "@/lib/driving-figures";
-import { formatDate, formatShortDate } from "@/lib/format";
+import { formatDate, formatHour, formatShortDate } from "@/lib/format";
 import { type Slot, type Timeframe, trackingGap } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
-import { barsCaption } from "@/components/stats/chart-caption";
+import { barsCaption, unitNotes } from "@/components/stats/chart-caption";
 import { type Spark, Sparkline } from "./sparkline";
 
 // Energy used driving, in kWh like every other energy figure.
@@ -98,6 +98,7 @@ export function Headline({
   now,
   sessions,
   streamOnly,
+  bills,
   chargingSince,
 }: {
   // A period or a range picked by date, and the primary car's driving figures for it (null when they
@@ -109,6 +110,8 @@ export function Headline({
   // Tesla's sessions, and the streamed ones Tesla didn't bill (see matchSessions).
   sessions: ChargingSession[];
   streamOnly: StreamChargeSession[];
+  // Every real bill: Tesla's and the invoices attached (see chargingBills), as Charging counts spend.
+  bills: Bill[];
   // The first charging session, billed or streamed (see firstStartedAt).
   chargingSince: number | null;
 }) {
@@ -124,19 +127,21 @@ export function Headline({
   const none = { km: null, whPerKm: null, kwh: null, regenKwh: null };
   const { current, previous, bars } = driving ?? { current: none, previous: null, bars: slots.map(() => none) };
 
-  const spend = spendIn(sessions, span);
-  const spendBefore = before && chargingTracked ? spendIn(sessions, before).cost : null;
+  const spend = billsIn(bills, span).cost;
+  const spendBefore = before && chargingTracked ? billsIn(bills, before).cost : null;
   const energy = energyIn(sessions, streamOnly, span);
   const energyBefore = before && chargingTracked ? energyIn(sessions, streamOnly, before) : null;
-  const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: spend.currency, maximumFractionDigits: 0 });
+  const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: sessions.find((s) => s.currency)?.currency ?? "INR", maximumFractionDigits: 0 });
 
   const currentSlot = slots.findIndex((slot) => slot.isCurrent);
   // Slots ahead of now (the rest of this year) are drawn empty, not as zero.
-  const upToNow = (values: (number | null)[]): (number | null)[] => values.map((v, k) => (slots[k].from > now ? null : v));
+  const upToNow = (values: (number | null)[]): (number | null)[] => values.map((v, k) => (slots[k].ahead ? null : v));
+  // Charging is known from its first session on: a slot that ends before it is empty, not ₹0 or 0 kWh.
+  const charged = (values: number[]): (number | null)[] => values.map((v, k) => (chargingSince === null || slots[k].to <= chargingSince ? null : v));
   // Each slot's tip: a day by its date ("23 Oct", where a week's bars are labelled by weekday), 3 hours by
   // when they start and end, a month or year by its label; nothing for a slot with nothing known.
   const slotTitle = (slot: Slot, k: number) =>
-    frame.slotName === "day" ? formatShortDate(slot.from + 12 * 3_600_000) : frame.slotName === "3 hours" ? `${slot.label} to ${slots[k + 1]?.label ?? "12a"}` : slot.label;
+    frame.slotName === "day" ? formatShortDate(slot.from + 12 * 3_600_000) : frame.slotName === "3 hours" ? `${slot.label} to ${slots[k + 1]?.label ?? formatHour(0)}` : slot.label;
   const spark = (kind: Spark["kind"], values: (number | null)[], format: (n: number) => string): Spark => {
     const shown = upToNow(values);
     return { kind, values: shown, current: currentSlot, tips: shown.map((v, k) => (v === null ? null : { title: slotTitle(slots[k], k), value: format(v) })) };
@@ -173,7 +178,8 @@ export function Headline({
           {...delta(current.kwh, previous?.kwh ?? null, (n) => `${oneDecimalKwh.format(n)} kWh`)}
           spark={spark(
             "bars",
-            bars.map((b) => b.kwh ?? 0),
+            // Like the Driving page: no figure with no driving is nothing used, with driving it is unknown.
+            bars.map((b) => b.kwh ?? (b.km === 0 ? 0 : null)),
             (n) => `${oneDecimalKwh.format(n)} kWh`,
           )}
         />
@@ -183,18 +189,20 @@ export function Headline({
           value={number.format(energy)}
           unit="kWh"
           {...delta(energy, energyBefore, "kWh")}
-          spark={spark("bars", energyBySlot(sessions, streamOnly, slots), (n) => `${number.format(n)} kWh`)}
+          spark={spark("bars", charged(energyBySlot(sessions, streamOnly, slots)), (n) => `${number.format(n)} kWh`)}
         />
         <Cell
           view="charging"
           label="Spent"
-          value={money.format(spend.cost)}
-          {...delta(spend.cost, spendBefore, (n) => money.format(n), true)}
-          spark={spark("bars", spendBySlot(sessions, slots), (n) => money.format(n))}
+          value={money.format(spend)}
+          {...delta(spend, spendBefore, (n) => money.format(n), true)}
+          spark={spark("bars", charged(billsBySlot(bills, slots)), (n) => money.format(n))}
         />
       </div>
       {/* One line in every period, so the strip keeps its height (see ByPeriod's steady). */}
-      <p className="text-xs text-muted-foreground">{barsCaption("Small bars: the amount", frame)}. Hover or tap one for its value.</p>
+      <p className="text-xs text-muted-foreground">
+        {barsCaption("Small bars: the amount", frame)}. Hover or tap one for its value. {unitNotes(["kWh"])}
+      </p>
       {gapText && <p className="text-xs text-muted-foreground">Tracking since {gapText} · no earlier period to compare</p>}
     </div>
   );

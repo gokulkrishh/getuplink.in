@@ -2,10 +2,12 @@ import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { DEMO } from "@/lib/demo";
 import { messageOf } from "@/lib/errors";
+import { isoDay } from "@/lib/periods";
 import type { Owner } from "@/lib/server/auth";
 import { verifyConnectorToken } from "@/lib/server/connector-token";
 import { batteryStatus, carNowStatus, chargingInsights, daySummary, drivingInsights, getTrip, listTrips, monthlySummary } from "@/lib/server/mcp-data";
-import { attachInvoice, chargingSummary, drivingSummary, listChargingSessions, parseInvoiceTime } from "@/lib/server/receipts";
+import { parseInvoiceTime, parseRangeEnd } from "@/lib/mcp-ranges";
+import { attachInvoice, chargingSummary, drivingSummary, listChargingSessions } from "@/lib/server/receipts";
 
 // The Uplink MCP connector, for any AI the owner connects (a Grok bot, Claude, ChatGPT). proxy.ts lets
 // it through without a session; the token from Settings → Integrations is checked here instead.
@@ -105,7 +107,8 @@ const handlerFor = (owner: Owner) =>
       },
       ({ from, to }) =>
         run(() => {
-          const end = to ? parseInvoiceTime(to) + DAY : Date.now() + DAY;
+          // A date alone takes in that whole day; a time ends there.
+          const end = to ? parseRangeEnd(to) : Date.now() + DAY;
           return listTrips(owner, from ? parseInvoiceTime(from) : Date.now() - 7 * DAY, end);
         }),
     );
@@ -125,7 +128,8 @@ const handlerFor = (owner: Owner) =>
       {
         title: "Get a day",
         description: "One day (IST): a timeline of driving, charging, parked and asleep, with that day's trips and charges.",
-        inputSchema: z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("YYYY-MM-DD, e.g. 2026-10-23") }),
+        // A real date only: "2026-02-30" would roll over to 2 March.
+        inputSchema: z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((d) => isoDay(d) !== null, "date must be a real date like 2026-10-23").describe("YYYY-MM-DD, e.g. 2026-10-23") }),
         annotations: ro,
       },
       ({ date }) => run(() => daySummary(owner, date)),
