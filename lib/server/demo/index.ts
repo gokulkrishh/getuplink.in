@@ -101,7 +101,9 @@ function scenarioReadings(scenario: DemoScenario): Record<string, unknown> {
         SoftwareUpdateInProgress: true,
       };
     default:
-      return {};
+      // The one state the demo shows: charging, with an update downloading, so the home page and Updates
+      // both have something live to show.
+      return { ...scenarioReadings("charging"), ...scenarioReadings("updating") };
   }
 }
 
