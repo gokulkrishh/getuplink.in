@@ -12,6 +12,10 @@ export const UNIT_WORDS: Record<string, string> = {
   psi: "psi (pounds per square inch) is tyre pressure",
   grade: "Road grade is how steep the road is: 5% rises 5 metres for every 100 metres driven",
   regen: "Regen is the motor slowing the car and sending energy back into the battery",
+  V: "V (volts) is the push behind the electricity; a home socket in India gives about 230 V",
+  A: "A (amps) is how much current flowed; more amps at the same volts charges faster",
+  AC: "AC is slower charging from a wall charger or socket, where the car's own charger fills the battery",
+  DC: "DC is fast charging, like a Supercharger, where the station feeds the battery directly",
 };
 
 // The words for one unit or term, or null when it needs none.

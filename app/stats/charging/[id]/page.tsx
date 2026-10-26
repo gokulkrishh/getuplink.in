@@ -13,6 +13,7 @@ import { formatClock, formatDate, formatDuration, formatKwh, formatMoney, format
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargeDetail, loadChargeDetail } from "@/lib/server/charge-curve";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
+import { unitNotes } from "@/lib/unit-words";
 
 export const metadata: Metadata = { title: "Charge · Uplink" };
 
@@ -66,12 +67,7 @@ function Charge({ detail }: { detail: ChargeDetail }) {
       <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">{place}</h1>
       <p className="mt-2 mb-12 text-sm text-muted-foreground tabular-nums">{[city, formatDate(s.started_at), span].filter(Boolean).join(" · ")}</p>
       <div className="space-y-12">
-        {curve.points.length > 0 && (
-          <section className="space-y-4">
-            <h2 className="text-lg font-medium tracking-heading">Power and battery</h2>
-            <ChargeCurve points={curve.points} />
-          </section>
-        )}
+        {curve.points.length >= 2 && <ChargeCurve points={curve.points} />}
         {shown.length > 0 && (
           <section className="space-y-4">
             <h2 className="text-lg font-medium tracking-heading">Session</h2>
@@ -82,6 +78,16 @@ function Charge({ detail }: { detail: ChargeDetail }) {
                 return { label, value: main, note: rest.join(" · ") || undefined };
               })}
             />
+            {/* The units the tiles use, in plain words, and what kind of charge this was. The chart above
+                already explains kW when it shows. */}
+            <p className="text-xs text-muted-foreground">
+              {unitNotes([
+                curve.points.length < 2 && shown.some(([label]) => label.endsWith("power")) ? "kW" : undefined,
+                shown.some(([label]) => label.startsWith("Energy")) ? "kWh" : undefined,
+                shown.some(([, value]) => value.includes("/kWh")) ? "₹/kWh" : undefined,
+                s.kind === "dc" ? "DC" : "AC",
+              ])}
+            </p>
           </section>
         )}
         <ChargeFees fees={detail.fees} currency={currency} />

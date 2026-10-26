@@ -52,7 +52,7 @@ export default function ChargeLevelPlot({ points, charging, from, to }: { points
                 tickLine={false}
                 axisLine={{ stroke: "var(--border)" }}
                 minTickGap={48}
-                tick={{ fontSize: 11, fill: "var(--faint)" }}
+                tick={{ fontSize: 12, fill: "var(--faint)" }}
               />
               <YAxis
                 domain={[0, 100]}
@@ -60,7 +60,7 @@ export default function ChargeLevelPlot({ points, charging, from, to }: { points
                 width={32}
                 tickLine={false}
                 axisLine={{ stroke: "var(--border)" }}
-                tick={{ fontSize: 11, fill: "var(--faint)" }}
+                tick={{ fontSize: 12, fill: "var(--faint)" }}
               />
               {charging.map((c) => (
                 <ReferenceArea key={c.start} x1={c.start} x2={c.end} ifOverflow="hidden" fill="var(--muted-foreground)" fillOpacity={0.12} strokeOpacity={0} />
