@@ -30,7 +30,10 @@ export type MapLeg = { start: number; end: number; note: string };
 export type MapFact = { label: string; value: string };
 
 const NEAR_M = 60; // pins closer than this share one marker (a round trip's start and end)
-const GAP_MS = 4 * 60_000; // a longer gap between route points starts a new line, so no jump is drawn
+// A longer gap between route points starts a new line, so no jump is drawn: between legs and trips on a
+// journey; between drives on a map of everywhere visited, whose points are sparser.
+const GAP_MS = 4 * 60_000;
+const VISITED_GAP_MS = 20 * 60_000;
 const SPEED_WITHIN_MS = 30_000;
 
 function metres(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
@@ -73,11 +76,11 @@ function fade(hex: string, alpha: number) {
 }
 
 // The route split where readings stop for a while: between legs, between trips, between days.
-function segments(route: MapPoint[]): MapPoint[][] {
+function segments(route: MapPoint[], gap: number): MapPoint[][] {
   const out: MapPoint[][] = [];
   for (const p of route) {
     const last = out.at(-1);
-    if (last && p.t - last.at(-1)!.t <= GAP_MS) last.push(p);
+    if (last && p.t - last.at(-1)!.t <= gap) last.push(p);
     else out.push([p]);
   }
   return out.filter((s) => s.length >= 2);
@@ -168,8 +171,9 @@ function RouteLines({ parts, journey, colors, onHover }: { parts: MapPoint[][]; 
       map.getCanvas().style.cursor = "";
       onHover(null);
     };
-    // A tap off the route closes its tip; a tap on it shows one.
-    const click = (e: { point: { x: number; y: number } }) => {
+    // A tap off the route closes its tip; a tap on it shows one. A tap on a pin is the pin's alone.
+    const click = (e: { point: { x: number; y: number }; originalEvent: MouseEvent }) => {
+      if ((e.originalEvent.target as Element | null)?.closest?.(".maplibregl-marker")) return onHover(null);
       const on = map.queryRenderedFeatures([e.point.x, e.point.y], { layers: [hit] }).length > 0;
       onHover(on ? nearest(e) : null);
     };
@@ -317,7 +321,7 @@ export function TripMap({
   const colors = useThemeColors();
   const [hovered, setHovered] = useState<Hovered | null>(null);
   const journey = pins.some((p) => p.kind === "start" || p.kind === "end");
-  const parts = useMemo(() => segments(route), [route]);
+  const parts = useMemo(() => segments(route, journey ? GAP_MS : VISITED_GAP_MS), [route, journey]);
   // One journey (a drive or a trip) has one start; a day can have several.
   const single = pins.filter((p) => p.kind === "start").length <= 1;
 
@@ -485,17 +489,29 @@ export function TripMap({
   );
 }
 
+const FACT_COLUMNS = ["", "sm:grid-cols-1", "sm:grid-cols-2", "sm:grid-cols-3", "sm:grid-cols-4"];
+const FACT_SPAN = ["", "", "sm:col-span-2", "sm:col-span-3"];
+
 // A few facts right under a map, joined to its frame: where from and to, how far, how long, the battery.
 export function MapFacts({ facts }: { facts: MapFact[] }) {
   if (facts.length === 0) return null;
+  const columns = facts.length <= 4 ? facts.length : 3;
+  const left = facts.length % columns;
   return (
-    <dl className="grid grid-cols-2 gap-px border-x border-b bg-border sm:grid-cols-3 dark:border-transparent dark:bg-background">
-      {facts.map((f) => (
-        <div key={f.label} className="min-w-0 bg-background px-3 py-2 dark:bg-card">
+    // Two a row on a phone, up to four wider; the last cell of a short row stretches, so no row ends in
+    // an empty cell. A long place name wraps.
+    <dl className={cn("grid grid-cols-2 gap-px border-x border-b bg-border dark:border-transparent dark:bg-background", FACT_COLUMNS[columns])}>
+      {facts.map((f, k) => (
+        <div
+          key={f.label}
+          className={cn(
+            "min-w-0 bg-background px-3 py-2 dark:bg-card",
+            k === facts.length - 1 && facts.length % 2 === 1 && "max-sm:col-span-2",
+            k === facts.length - 1 && left > 0 && FACT_SPAN[columns - left + 1],
+          )}
+        >
           <dt className="text-xs text-muted-foreground">{f.label}</dt>
-          <dd className="truncate text-sm tabular-nums" title={f.value}>
-            {f.value}
-          </dd>
+          <dd className="text-sm text-balance tabular-nums">{f.value}</dd>
         </div>
       ))}
     </dl>
