@@ -1,0 +1,115 @@
+"use client";
+
+import { useActionState, useId } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import type { EntryValues } from "@/lib/costs";
+
+type Action = (previous: string | null, form: FormData) => Promise<string | null>;
+
+const label = "flex flex-col gap-1 text-xs text-muted-foreground";
+const select =
+  "h-8 max-sm:h-10 w-full rounded-lg border border-input bg-transparent px-2 text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30";
+
+function Message({ message }: { message: string | null }) {
+  if (!message) return null;
+  return (
+    <p role="alert" className="text-xs text-destructive">
+      {message}
+    </p>
+  );
+}
+
+// One cost's fields. A built-in service (fixedName) keeps its own name, period and link.
+export function EntryForm({
+  action,
+  remove,
+  values,
+  fixedName,
+  fixedPeriod,
+  submitLabel = "Save",
+}: {
+  action: Action;
+  remove?: Action;
+  values: EntryValues | null;
+  fixedName: boolean;
+  fixedPeriod?: "monthly" | "yearly";
+  submitLabel?: string;
+}) {
+  const [message, formAction, pending] = useActionState(action, null);
+  const [removeMessage, removeAction, removing] = useActionState(remove ?? (async () => null), null);
+  const id = useId();
+  return (
+    <div className="space-y-2 pt-2">
+      <form action={formAction} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {!fixedName && (
+          <label className={`${label} col-span-2`} htmlFor={`${id}-name`}>
+            Name
+            <Input id={`${id}-name`} name="name" defaultValue={values?.name ?? ""} required maxLength={80} />
+          </label>
+        )}
+        <label className={label} htmlFor={`${id}-amount`}>
+          Amount
+          <Input id={`${id}-amount`} name="amount" inputMode="decimal" defaultValue={values?.amount ?? ""} required />
+        </label>
+        <label className={label} htmlFor={`${id}-currency`}>
+          Currency
+          <select id={`${id}-currency`} name="currency" defaultValue={values?.currency ?? "USD"} className={select}>
+            <option value="USD">$ USD</option>
+            <option value="INR">₹ INR</option>
+          </select>
+        </label>
+        {fixedPeriod ? null : (
+          <label className={label} htmlFor={`${id}-period`}>
+            Billed
+            <select id={`${id}-period`} name="period" defaultValue={values?.period ?? "monthly"} className={select}>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </label>
+        )}
+        <label className={label} htmlFor={`${id}-renews`}>
+          Renews on
+          <Input id={`${id}-renews`} name="renewsOn" type="date" defaultValue={values?.renewsOn ?? ""} />
+        </label>
+        {!fixedName && (
+          <label className={`${label} col-span-2 sm:col-span-4`} htmlFor={`${id}-link`}>
+            Billing link
+            <Input id={`${id}-link`} name="link" type="url" placeholder="https://" defaultValue={values?.link ?? ""} />
+          </label>
+        )}
+        <div className="col-span-2 flex items-center gap-2 sm:col-span-4">
+          <Button type="submit" size="sm" disabled={pending}>
+            {pending ? "Saving…" : submitLabel}
+          </Button>
+          {remove && (
+            <Button type="submit" size="sm" variant="outline" formAction={removeAction} disabled={removing}>
+              {removing ? "Removing…" : "Remove"}
+            </Button>
+          )}
+        </div>
+      </form>
+      <Message message={message ?? removeMessage} />
+    </div>
+  );
+}
+
+// A single number: the rate or the budget.
+export function NumberForm({ action, name, label: text, defaultValue, placeholder }: { action: Action; name: string; label: string; defaultValue: string; placeholder?: string }) {
+  const [message, formAction, pending] = useActionState(action, null);
+  const id = useId();
+  return (
+    <form action={formAction} className="space-y-1">
+      <label htmlFor={id} className={label}>
+        {text}
+      </label>
+      <div className="flex items-center gap-2">
+        <Input id={id} name={name} inputMode="decimal" defaultValue={defaultValue} placeholder={placeholder} className="max-w-[12ch]" />
+        <Button type="submit" size="sm" variant="outline" disabled={pending}>
+          {pending ? "Saving…" : "Save"}
+        </Button>
+      </div>
+      <Message message={message} />
+    </form>
+  );
+}
