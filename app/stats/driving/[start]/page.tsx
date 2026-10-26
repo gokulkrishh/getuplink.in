@@ -10,7 +10,6 @@ import { type Figure, Figures } from "@/components/stats/figures";
 import { type MapFact, MapFacts, type MapPin, TripMap } from "@/components/stats/trip-map";
 import { TripTimeline } from "@/components/stats/trip-timeline";
 import { formatCelsius, formatClock, formatDate, formatDuration, formatKm, formatKw, formatNumber, formatKwh, formatLevels, formatRangeKm, formatSpeed } from "@/lib/format";
-import { shownTrip } from "@/lib/trips";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type DriveDetail, loadDriveDetail } from "@/lib/server/drive-detail";
@@ -43,8 +42,8 @@ async function loadDetail(start: number, leg: boolean): Promise<DriveDetail | nu
 // speed across the whole trip.
 function Drive({ detail }: { detail: DriveDetail }) {
   const { battery, speed, rangeUsedKm, topKmh, outsideC, route, pins, accel, power, grade } = detail;
-  // Shown with the legs rounded together with the totals, so the tiles, the legs and the timeline agree.
-  const trip = shownTrip(detail.trip);
+  // The trip's totals are its legs' raw sums, each rounded on its own when shown.
+  const { trip } = detail;
   const drivingMs = trip.legs.reduce((sum, d) => sum + (d.end - d.start), 0);
   const stoppedMs = trip.end - trip.start - drivingMs;
   // The time it took, with the driving and stopped parts under it when there were stops.

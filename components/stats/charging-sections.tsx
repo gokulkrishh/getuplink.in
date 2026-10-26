@@ -6,7 +6,7 @@ import { Figures, Value } from "@/components/stats/figures";
 import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
 import { chargeEfficiency } from "@/lib/charge-sessions";
 import { type Bill, billsBySlot, billsIn } from "@/lib/charging-figures";
-import { apportion, DECIMALS, formatDuration, formatKwh, formatMoney, formatMonth, formatNumber, formatPercent, shownTotal } from "@/lib/format";
+import { DECIMALS, formatDuration, formatKwh, formatMoney, formatMonth, formatNumber, formatPercent, sumKnown } from "@/lib/format";
 import { knownBars } from "@/components/stats/driving-sections";
 import { LIST_PREVIEW } from "@/lib/list";
 import { inSpan, type Timeframe } from "@/lib/periods";
@@ -126,17 +126,12 @@ export function EnergyAdded({
   };
   for (const s of sessions) add(s.started_at, 0, s.energy_kwh);
   for (const s of streamOnly) add(s.started_at, s.supercharger ? 0 : s.kind === "dc" ? 1 : 2, s.energy_added_kwh);
-  // Rounded for display in two steps, so everything adds up as shown: the columns to the headline, then
-  // each column's chargers to its column (see apportion).
-  const shown = shownTotal(
-    energy.map((e, k) => (slots[k].ahead ? null : e.reduce((a, b) => a + b, 0))),
-    DECIMALS.kWh,
-  );
-  total = shown.total;
+  // The headline is the columns' raw sum, and each column its chargers' raw sum; every figure is rounded
+  // on its own when shown.
+  total = sumKnown(energy.map((e, k) => (slots[k].ahead ? null : sumKnown(e))));
   const bars: StackedBar[] = slots.map((slot, k) => {
-    const sum = shown.parts[k] ?? 0;
-    const segments = apportion(energy[k], DECIMALS.kWh, sum).map((v) => v ?? 0);
-    return { key: String(slot.id), label: slot.label, axis: slot.axis, edge: slot.edge, total: sum, display: formatNumber(sum, DECIMALS.kWh), isCurrent: slot.isCurrent, segments, blank: slot.ahead || undefined };
+    const sum = sumKnown(energy[k]);
+    return { key: String(slot.id), label: slot.label, axis: slot.axis, edge: slot.edge, total: sum, display: formatNumber(sum, DECIMALS.kWh), isCurrent: slot.isCurrent, segments: energy[k], blank: slot.ahead || undefined };
   });
   const efficiency = chargeEfficiency(streamOnly.filter((s) => s.kind === "ac" && inSpan(Date.parse(s.started_at), span)));
   // Time on the charger by kind, after TeslaMate's AC/DC duration: Superchargers from Tesla's times, the
@@ -195,13 +190,8 @@ export function SessionList({ sessions, all = sessions }: { sessions: Listed[]; 
   // Sessions arrive newest first, so each month's group is in order too. Numbers count from the first
   // charge, so the newest has the highest.
   const serial = new Map(all.map((s, i) => [s.key, all.length - i]));
-  // Every row's energy, rounded with the total over them (see shownTotal), so the rows add up to it as shown.
-  const energy = shownTotal(
-    sessions.map((s) => (s.tesla ? s.tesla.energy_kwh : s.stream?.energy_added_kwh) ?? null),
-    DECIMALS.kWh,
-  );
-  const energyTotal = energy.total;
-  const shownKwh = new Map(sessions.map((s, k) => [s.key, energy.parts[k]]));
+  // The total is the rows' raw energy added up, rounded once when shown, like each row.
+  const energyTotal = sumKnown(sessions.map((s) => (s.tesla ? s.tesla.energy_kwh : s.stream?.energy_added_kwh)));
   const costs = hasCosts(sessions);
   const groups = new Map<string, Listed[]>();
   for (const s of sessions) {
@@ -231,14 +221,14 @@ export function SessionList({ sessions, all = sessions }: { sessions: Listed[]; 
               <SessionHeader costs={costs} numbered />
               <ul className="divide-y border-t">
                 {rows.slice(0, LIST_PREVIEW).map((s) => (
-                  <SessionRow key={s.key} item={s} serial={serial.get(s.key) ?? 0} costs={costs} shownKwh={shownKwh.get(s.key)} />
+                  <SessionRow key={s.key} item={s} serial={serial.get(s.key) ?? 0} costs={costs} />
                 ))}
               </ul>
               {rows.length > LIST_PREVIEW && (
                 <ShowMore count={rows.length - LIST_PREVIEW}>
                   <ul className="divide-y border-t">
                     {rows.slice(LIST_PREVIEW).map((s) => (
-                      <SessionRow key={s.key} item={s} serial={serial.get(s.key) ?? 0} costs={costs} shownKwh={shownKwh.get(s.key)} />
+                      <SessionRow key={s.key} item={s} serial={serial.get(s.key) ?? 0} costs={costs} />
                     ))}
                   </ul>
                 </ShowMore>

@@ -5,7 +5,7 @@ import { barsSpan } from "@/components/stats/chart-caption";
 import { Figures, Value } from "@/components/stats/figures";
 import { type DriveStats } from "@/lib/drive-stats";
 import { DRIVE_DAYS } from "@/lib/drives";
-import { apportion, DECIMALS, formatDuration, formatKm, formatKwh, formatNumber, formatShortDate, shownTotal } from "@/lib/format";
+import { DECIMALS, formatDuration, formatKm, formatKwh, formatNumber, formatShortDate, sumKnown } from "@/lib/format";
 import type { Frame } from "@/lib/frames";
 import { inSpan, type Slot, type Timeframe } from "@/lib/periods";
 import type { DayKm } from "@/lib/telemetry-derive";
@@ -35,8 +35,7 @@ export function Distance({ frame, driving }: Frame) {
   // A period without driving still shows, at 0 km with a note in place of the chart, so picking Day before
   // the first drive of the day doesn't leave a blank gap. A bar with no reading (before tracking began, or
   // ahead of now) is blank, never 0 km; a tracked day without driving is a real 0. The headline is the
-  // bars' sum, rounded with them, so the two agree as shown (the odometer's rise over the span is the same
-  // sum: the bars share their edges).
+  // bars' raw sum (the odometer's rise over the span is the same sum: the bars share their edges).
   const { bars, total } = knownBars(frame.slots, driving.bars.map((b) => b.km), DECIMALS.km);
   return (
     <ChartCard
@@ -57,19 +56,17 @@ export function knownBar(slot: Slot, value: number | null, format: (n: number) =
   return { key: String(slot.id), label: slot.label, axis: slot.axis, edge: slot.edge, value: blank ? 0 : value, display: blank ? "" : format(value), isCurrent: slot.isCurrent, blank };
 }
 
-// A bar per slot and the total they add up to as shown: every value rounded once, together, to
-// `decimals` (see shownTotal), so the headline, each bar's label and its tip agree to the last digit.
+// A bar per slot and their total, from the same values: the total is their raw sum (see sumKnown). Each bar
+// and the total are rounded on their own when shown, so a bar reads the same digits as the same figure
+// anywhere else, and the shown bars can add up to a last digit off the shown total.
 export function knownBars(
   slots: Slot[],
   values: (number | null)[],
   decimals: number,
   format: (n: number) => string = (n) => formatNumber(n, decimals),
 ): { bars: Bar[]; total: number } {
-  const { parts, total } = shownTotal(
-    slots.map((slot, k) => (slot.ahead ? null : (values[k] ?? null))),
-    decimals,
-  );
-  return { bars: slots.map((slot, k) => knownBar(slot, parts[k], format)), total };
+  const known = slots.map((slot, k) => (slot.ahead ? null : (values[k] ?? null)));
+  return { bars: slots.map((slot, k) => knownBar(slot, known[k], format)), total: sumKnown(known) };
 }
 
 // Whether a bar chart has anything to draw; without, its card shows a note in the chart's place.
@@ -85,10 +82,10 @@ export function EnergyUse({ frame, driving }: Frame) {
   if ((current.kwh ?? (current.km ? null : 0)) === null) return null;
   const slots = frame.slots;
   // Like the total: no figure with no driving is nothing used, with driving it is unknown and left blank.
-  // Each headline is its bars' sum, rounded with them (see knownBars), so they agree as shown.
+  // Each headline is its bars' raw sum (see knownBars).
   const { bars, total: used } = knownBars(slots, values.map((v) => v?.kwh ?? (v?.km === 0 ? 0 : null)), DECIMALS.kWh);
   const { bars: regenBars, total: regenTotal } = knownBars(slots, values.map((v) => v?.regenKwh ?? null), DECIMALS.kWh);
-  const km = shownTotal(values.map((v) => v?.km ?? null), DECIMALS.km).total;
+  const km = sumKnown(values.map((v) => v?.km));
   return (
     <div className="space-y-12">
       <ChartCard
@@ -141,17 +138,13 @@ export function DailyDriving({ days: all, frame, partial = false }: { days: DayK
   const days = frame ? all.filter((d) => inSpan(d.start, frame.span)) : all;
   // One day of readings has nothing to compare against, so the section waits for a second.
   if (days.filter((d) => d.km !== null).length < 2) return null;
-  // The days the total line counts are rounded together (see shownTotal), so those bars add up to it as
-  // shown; the earlier days of a 90-day run are rounded as a group of their own.
-  const counted = frame ? days.length : Math.min(PHONE_DAYS, days.length);
-  const earlier = apportion(days.slice(0, days.length - counted).map((d) => d.km), DECIMALS.km);
-  const { parts, total } = shownTotal(days.slice(days.length - counted).map((d) => d.km), DECIMALS.km);
-  const shown = [...earlier, ...parts];
+  // The total line is the raw sum of the days it counts, the same days the bars show.
+  const total = sumKnown((frame ? days : days.slice(-PHONE_DAYS)).map((d) => d.km));
   const bars = days.map((d, k) => ({
     key: String(d.day),
     label: formatShortDate(d.start),
-    value: shown[k] ?? 0,
-    display: formatNumber(shown[k] ?? 0, DECIMALS.km),
+    value: d.km ?? 0,
+    display: formatNumber(d.km ?? 0, DECIMALS.km),
     isCurrent: k === days.length - 1,
     blank: d.km === null,
   }));

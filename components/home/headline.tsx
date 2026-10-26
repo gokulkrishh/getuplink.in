@@ -4,7 +4,7 @@ import type { View } from "@/components/stats/periods";
 import { type Bill, billsBySlot, billsIn, energyBySlot, energyIn } from "@/lib/charging-figures";
 import { type Change, changeToPrevious, compareToPrevious } from "@/lib/dashboard-summary";
 import type { DrivingPeriod } from "@/lib/driving-figures";
-import { DECIMALS, formatDate, formatKm, formatKwh, formatMoney, formatNumber, formatShortDate, shownTotal } from "@/lib/format";
+import { DECIMALS, formatDate, formatKm, formatKwh, formatMoney, formatNumber, formatShortDate, sumKnown } from "@/lib/format";
 import { type Slot, type Timeframe, trackingGap } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
@@ -140,14 +140,14 @@ export function Headline({
   // a month or a year by its label, which for hours is their whole span ("6 AM to 9 AM"); nothing for a
   // slot with nothing known.
   const slotTitle = (slot: Slot) => (frame.slotName === "day" ? formatShortDate(slot.from + 12 * 3_600_000) : slot.label);
-  // A cell's number and its sparkline's tips, rounded together (see shownTotal) so the tips add up to the
-  // number as shown. The bars cover the span, so their sum is the span's figure; with no bar known, the
-  // span's own figure (`whole`) stands, or none.
+  // A cell's number and its sparkline's tips, from the same values: the number is the bars' raw sum (they
+  // cover the span, so it is the span's figure), and each is rounded on its own when shown. With no bar
+  // known, the span's own figure (`whole`) stands, or none.
   const figure = (values: (number | null)[], whole: number | null, decimals: number, format: (n: number) => string): { value: number | null; spark: Spark } => {
-    const { parts, total } = shownTotal(upToNow(values), decimals);
+    const parts = upToNow(values);
     const known = parts.some((v) => v !== null);
     return {
-      value: whole === null ? null : known ? total : whole,
+      value: whole === null ? null : known ? sumKnown(parts) : whole,
       spark: { kind: "bars", values: parts, current: currentSlot, tips: parts.map((v, k) => (v === null ? null : { title: slotTitle(slots[k]), value: format(v) })) },
     };
   };

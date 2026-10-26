@@ -105,8 +105,7 @@ export function SessionHeader({ costs, wide = false, numbered = false }: { costs
 
 // `costs` comes from hasCosts over the whole list. The invoice download sits before the cost, so a row
 // without one leaves no gap and the last column stays flush right.
-// `shownKwh` is the row's energy as rounded with the list's total (see apportion), so the rows add up to it.
-export function SessionRow({ item, serial, now, costs, shownKwh }: { item: Listed; serial?: number; now?: number; costs: boolean; shownKwh?: number | null }) {
+export function SessionRow({ item, serial, now, costs }: { item: Listed; serial?: number; now?: number; costs: boolean }) {
   const { tesla: s, stream, invoice: attached } = item;
   const invoice = s?.invoices.find((i) => i.contentId);
   const named = !s && stream ? streamName(stream, attached) : null;
@@ -136,7 +135,7 @@ export function SessionRow({ item, serial, now, costs, shownKwh }: { item: Liste
     href,
     place,
     detail: detail.filter(Boolean).join(" · "),
-    energy: energy === null ? null : formatKwh(shownKwh ?? energy),
+    energy: energy === null ? null : formatKwh(energy),
     cost: !costs
       ? undefined
       : s && s.cost_total !== null

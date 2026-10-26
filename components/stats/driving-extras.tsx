@@ -1,7 +1,7 @@
 import { ChartCard } from "@/components/chart-card";
 import { Bars } from "@/components/stats/bars";
 import { TripMap } from "@/components/stats/trip-map";
-import { apportion, DECIMALS, formatDuration, formatKm, formatNumber, formatShortDate } from "@/lib/format";
+import { DECIMALS, formatDuration, formatKm, formatNumber, formatShortDate } from "@/lib/format";
 import type { Band } from "@/lib/driving-insights";
 import type { DrivingExtras, NamedPlace } from "@/lib/server/driving-extra";
 import { Measure } from "@/components/measure";
@@ -20,19 +20,16 @@ const Note = ({ note }: { note?: string }) => (note ? <p className="text-xs text
 // How long you spend at each speed, after TeslaMate's speed histogram.
 export function SpeedBands({ bins, words = "last 30 days", note }: { bins: DrivingExtras["speed"] } & Covers) {
   if (bins.length === 0) return null;
-  // The shares are rounded together, so the bars add up to 100% as shown.
-  const shares = apportion(
-    bins.map((b) => b.share * 100),
-    DECIMALS.percent,
-  );
+  // Each band's share is rounded on its own, so the shown shares can add up to a point off 100%.
+  const shares = bins.map((b) => b.share * 100);
   const bars = bins.map((b, k) => ({
     key: String(b.from),
     // The tip names the band; the axis gives where it starts ("20"), like a histogram's, so all six fit
     // under their bars on a phone.
     label: b.to === null ? `${b.from}+ km/h` : `${b.from} to ${b.to} km/h`,
     axis: b.to === null ? `${b.from}+` : String(b.from),
-    value: shares[k]!,
-    display: formatNumber(shares[k]!, DECIMALS.percent),
+    value: shares[k],
+    display: formatNumber(shares[k], DECIMALS.percent),
     isCurrent: b.share === Math.max(...bins.map((x) => x.share)) && k >= 0,
   }));
   return (

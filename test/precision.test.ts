@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import { MILES_TO_KM } from "@/lib/car";
 import { type CounterColumn, drivingFigures, figureInstants } from "@/lib/driving-figures";
 import {
-  apportion,
   DECIMALS,
   formatCelsius,
   formatKm,
@@ -15,46 +14,47 @@ import {
   formatPower,
   formatRangeKm,
   formatSpeed,
-  shownTotal,
+  sumKnown,
 } from "@/lib/format";
 import type { Drive } from "@/lib/drives";
 import { monthlyRows } from "@/lib/monthly";
 import { dailyDistance, dayBounds } from "@/lib/telemetry-derive";
-import { groupTrips, shownTrip, shownTrips } from "@/lib/trips";
+import { groupTrips } from "@/lib/trips";
 
-// The numbers a reader would add up: "46.2 km" is 46.2, "₹1,234.50" is 1234.5.
+// The number a reader sees: "46.2 km" is 46.2, "₹1,234.50" is 1234.5.
 const read = (text: string) => Number(text.replace(/[^0-9.-]/g, ""));
-// Adds shown figures in whole last-digit units, so the sum itself has no float noise.
-const sumShown = (texts: string[], decimals: number) => texts.reduce((sum, t) => sum + Math.round(read(t) * 10 ** decimals), 0) / 10 ** decimals;
 
 describe("format rules per unit", () => {
-  test("distance driven: one decimal, Indian grouping, the trailing zero kept", () => {
+  test("distance: always one decimal, the trailing zero and zero itself included", () => {
     expect(formatKm(46.215)).toBe("46.2 km");
+    expect(formatKm(46)).toBe("46.0 km");
     expect(formatKm(100.008)).toBe("100.0 km");
     expect(formatKm(123_400.46)).toBe("1,23,400.5 km");
-    expect(formatKm(0)).toBe("0 km");
+    expect(formatKm(0)).toBe("0.0 km");
   });
   test("range is the car's estimate: whole km", () => {
     expect(formatRangeKm(287.4)).toBe("287 km");
   });
-  test("energy: one decimal", () => {
+  test("energy: always one decimal", () => {
     expect(formatKwh(11.056)).toBe("11.1 kWh");
     expect(formatKwh(1234.56)).toBe("1,234.6 kWh");
-    expect(formatKwh(0)).toBe("0 kWh");
+    expect(formatKwh(0)).toBe("0.0 kWh");
   });
   test("power: one decimal in kW, watts below 1 kW", () => {
     expect(formatKw(7.24)).toBe("7.2 kW");
-    expect(formatKw(150)).toBe("150.0 kW");
+    expect(formatKw(7)).toBe("7.0 kW");
     expect(formatPower(24.4)).toBe("24 W");
     expect(formatPower(4.46)).toBe("4.5 W");
     expect(formatPower(1234)).toBe("1.2 kW");
   });
   test("money: to the paisa", () => {
     expect(formatMoney(874.5, "INR")).toBe("₹874.50");
+    expect(formatMoney(0, "INR")).toBe("₹0.00");
     expect(formatMoney(1234.567, "INR")).toBe("₹1,234.57");
   });
   test("battery level and shares: whole percent; drain to one decimal", () => {
     expect(formatPercent(66.4)).toBe("66%");
+    expect(formatPercent(0)).toBe("0%");
     expect(formatPercent(1.44, 1)).toBe("1.4%");
     expect(formatLevels(58.4, 51.2)).toBe("58% to 51%");
   });
@@ -70,65 +70,37 @@ describe("format rules per unit", () => {
   });
 });
 
-describe("apportion and shownTotal", () => {
-  // A week of days by the odometer: no reading on the first two, three days of driving.
-  const week = [null, null, 0, 46.215, 0, 7.416, 46.377];
-
-  test("a week with three drives: the days add up to the week as shown", () => {
-    const { parts, total } = shownTotal(week, DECIMALS.km);
-    expect(parts).toEqual([null, null, 0, 46.2, 0, 7.4, 46.4]);
-    expect(total).toBe(100);
-    expect(formatKm(total)).toBe("100.0 km");
-    // Rounded alone, to whole km, the same days read 46 + 7 + 46 = 99 against 100.
-    expect(Math.round(46.215) + Math.round(7.416) + Math.round(46.377)).toBe(99);
+describe("one quantity, one reading", () => {
+  test("a value reads the same digits wherever it is shown: never nudged to make a sum match", () => {
+    // The same day's distance on its bar, its tip, its trip row and its month: one formatter, one result.
+    const day = 41.0705;
+    expect(new Set([formatKm(day), formatKm(day), formatKm(day)])).toEqual(new Set(["41.1 km"]));
   });
 
-  test("the case plain rounding gets wrong: three thirds", () => {
-    const parts = apportion([1 / 3, 1 / 3, 1 / 3], 1);
-    expect(parts.reduce((a, b) => a! + b!, 0)).toBeCloseTo(1, 10);
-    expect(apportion([33.4, 33.3, 33.3], 0)).toEqual([34, 33, 33]);
+  test("a total is the raw sum of the same parts, rounded once", () => {
+    // A week with three drives, as the odometer read it.
+    const week = [null, null, 0, 46.215, 0, 7.416, 46.377];
+    expect(week.map((v) => (v === null ? "" : formatKm(v)))).toEqual(["", "", "0.0 km", "46.2 km", "0.0 km", "7.4 km", "46.4 km"]);
+    expect(formatKm(sumKnown(week))).toBe("100.0 km");
   });
 
-  test("zero stays zero, null stays null, an empty list totals 0", () => {
-    expect(apportion([0, null, 0.06, 0.06], 1)).toEqual([0, null, 0.1, 0]);
-    expect(shownTotal([], 1)).toEqual({ parts: [], total: 0 });
-    expect(shownTotal([null, null], 1)).toEqual({ parts: [null, null], total: 0 });
+  test("shown parts can sit a last digit off the shown total; both stay honest", () => {
+    const parts = [0.35, 0.35, 0.35];
+    expect(parts.map(formatKm)).toEqual(["0.4 km", "0.4 km", "0.4 km"]);
+    expect(formatKm(sumKnown(parts))).toBe("1.1 km");
+    // Rounded alone, each part is never more than half a last digit from its value.
+    for (const v of [0.35, 46.215, 7.416, 1234.56]) expect(Math.abs(read(formatKm(v)) - v)).toBeLessThanOrEqual(0.05 + 1e-9);
   });
 
-  test("a part's own value already at the precision is never moved", () => {
-    expect(apportion([1.2, 3.4, 0.05, 0.05], 1)).toEqual([1.2, 3.4, 0.1, 0]);
-  });
-
-  test("a stacked column's segments add up to the column as shown", () => {
-    // Three chargers in one column, the column already rounded to 12.1 with its neighbours.
-    const segments = apportion([4.04, 4.04, 4.04], 1, 12.1);
-    expect(sumShown(segments.map((v) => formatKwh(v!)), 1)).toBe(12.1);
-    expect(apportion([4.06, 4.06, 4.06], 1, 12.1)).toEqual([4.1, 4, 4]);
-  });
-
-  test("for any values, the shown parts add up to the shown total, each within a last digit", () => {
-    let seed = 7;
-    const random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
-    for (let run = 0; run < 500; run++) {
-      const decimals = run % 3;
-      const values = Array.from({ length: 1 + Math.floor(random() * 30) }, () => (random() < 0.1 ? null : random() < 0.1 ? 0 : random() * 500));
-      const { parts, total } = shownTotal(values, decimals);
-      const shown = parts.flatMap((v) => (v === null ? [] : [formatNumber(v, decimals)]));
-      expect(sumShown(shown, decimals)).toBe(read(formatNumber(total, decimals)));
-      const raw = values.reduce<number>((a, v) => a + (v ?? 0), 0);
-      expect(Math.abs(total - raw)).toBeLessThanOrEqual(0.5 * 10 ** -decimals + 1e-9);
-      parts.forEach((v, k) => {
-        if (values[k] === null) expect(v).toBeNull();
-        else expect(Math.abs(v! - values[k]!)).toBeLessThan(10 ** -decimals + 1e-9);
-        if (values[k] === 0) expect(v).toBe(0);
-      });
-    }
+  test("sumKnown skips unknown parts", () => {
+    expect(sumKnown([null, undefined, 1.5, 2])).toBe(3.5);
+    expect(sumKnown([])).toBe(0);
   });
 });
 
 const ist = (local: string) => Date.parse(`${local}+05:30`);
 
-describe("Distance: the bars add up to the headline as shown", () => {
+describe("Distance: the headline and the bars come from one source", () => {
   // The odometer (miles) of a week with three drives, read once at each change, as the stream sends it.
   const now = ist("2026-03-16T09:30:00");
   const instants = figureInstants(now);
@@ -142,24 +114,16 @@ describe("Distance: the bars add up to the headline as shown", () => {
     const sorted = rows.map(([at, value]) => ({ at, value }));
     return { first: sorted[0], bounds: instants.map((t) => sorted.findLast((r) => r.at < t) ?? null) };
   };
-  const figures = drivingFigures({ instants, odometer: column(readings), used: null, regen: null, polledOdometer: null }, now);
-  const week = figures.periods.week;
+  const week = drivingFigures({ instants, odometer: column(readings), used: null, regen: null, polledOdometer: null }, now).periods.week;
 
   test("kilometres are kept unrounded", () => {
     expect(week.current.km).toBeCloseTo((2134.166569195353 - 2072.0244760504906) * MILES_TO_KM, 9);
   });
 
-  test("the headline is the sum of the bars, rounded with them", () => {
-    const { parts, total } = shownTotal(
-      week.bars.map((b) => b.km),
-      DECIMALS.km,
-    );
-    const shown = parts.flatMap((v) => (v === null ? [] : [formatKm(v)]));
-    expect(shown.filter((s) => s !== "0 km")).toEqual(["46.2 km", "7.4 km", "46.4 km"]);
-    expect(formatKm(total)).toBe("100.0 km");
-    expect(sumShown(shown, 1)).toBe(read(formatKm(total)));
-    // The bars share their edges, so their raw sum is the period's own figure.
-    expect(week.bars.reduce((s, b) => s + (b.km ?? 0), 0)).toBeCloseTo(week.current.km!, 9);
+  test("the bars' raw sum is the period's figure, and each reads its own rounding", () => {
+    expect(sumKnown(week.bars.map((b) => b.km))).toBeCloseTo(week.current.km!, 9);
+    expect(week.bars.flatMap((b) => (b.km ? [formatKm(b.km)] : []))).toEqual(["46.2 km", "7.4 km", "46.4 km"]);
+    expect(formatKm(sumKnown(week.bars.map((b) => b.km)))).toBe("100.0 km");
   });
 });
 
@@ -177,13 +141,12 @@ describe("dailyDistance", () => {
     expect(bounds[3]).toBe(ist("2026-03-16T00:00:00"));
     // The poll read at 11:50 PM on the third day is newer than the stream's last reading of it.
     const polled = bounds.map((_, k) => (k === 3 ? { at: ist("2026-03-15T23:50:00"), value: 2105.349236 } : null));
-    const days = dailyDistance(streamed, { at: ist("2026-03-12T10:00:00"), value: 2072.0244760504906 }, now, 4, polled);
-    const km = days.map((d) => d.km);
+    const km = dailyDistance(streamed, { at: ist("2026-03-12T10:00:00"), value: 2072.0244760504906 }, now, 4, polled).map((d) => d.km);
     expect(km[0]).toBeCloseTo((2100.7411470637076 - 2072.0244760504906) * MILES_TO_KM, 9);
     expect(km[1]).toBe(0);
     expect(km[2]).toBeCloseTo((2105.349236 - 2100.7411470637076) * MILES_TO_KM, 9);
     expect(km[3]).toBeCloseTo((2134.166569195353 - 2105.349236) * MILES_TO_KM, 9);
-    expect(shownTotal(km, 1).parts).toEqual([46.2, 0, 7.4, 46.4]);
+    expect(km.map((v) => formatKm(v!))).toEqual(["46.2 km", "0.0 km", "7.4 km", "46.4 km"]);
   });
 
   test("before the first reading a day is blank; after it a day without one is 0", () => {
@@ -202,22 +165,13 @@ const drive = (start: string, minutes: number, km: number, kwh: number | null): 
   endLevel: 70,
 });
 
-describe("trips: the legs and rows add up to their totals as shown", () => {
+describe("trips: a trip's totals are its legs' raw sums", () => {
   test("a trip with three legs", () => {
     const [trip] = groupTrips([drive("2026-03-13T08:00:00", 20, 12.35, 2.05), drive("2026-03-13T08:30:00", 20, 12.35, 2.05), drive("2026-03-13T09:00:00", 20, 12.35, 2.05)]);
+    expect(trip.km).toBeCloseTo(37.05, 9);
     expect(formatKm(trip.km)).toBe("37.1 km");
-    const shown = shownTrip(trip);
-    expect(formatKm(shown.km)).toBe("37.1 km");
-    expect(sumShown(shown.legs.map((d) => formatKm(d.km)), 1)).toBe(37.1);
-    expect(sumShown(shown.legs.map((d) => formatKwh(d.kwh!)), 1)).toBe(read(formatKwh(shown.kwh!)));
-  });
-
-  test("a list of trips and its total", () => {
-    const trips = groupTrips([drive("2026-03-13T08:00:00", 20, 0.35, 0.1), drive("2026-03-13T12:00:00", 20, 0.35, 0.1), drive("2026-03-13T16:00:00", 20, 0.35, null)]);
-    const shown = shownTrips(trips);
-    expect(formatKm(shown.km)).toBe("1.1 km");
-    expect(sumShown(shown.trips.map((t) => formatKm(t.km)), 1)).toBe(1.1);
-    expect(shown.kwh).toBeNull();
+    expect(trip.legs.map((d) => formatKm(d.km))).toEqual(["12.4 km", "12.4 km", "12.4 km"]);
+    expect(formatKwh(trip.kwh!)).toBe("6.2 kWh");
   });
 });
 

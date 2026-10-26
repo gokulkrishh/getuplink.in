@@ -81,19 +81,17 @@ Every figure shows the precision its data supports, the same everywhere it appea
 | km per kWh | 1 decimal | `formatNumber(v, DECIMALS.kmPerKwh)` | |
 | Temperature | Up to 1 decimal: "35.5 °C", "30 °C" | `formatCelsius`, `formatTempRange` | Reported in half degrees, never summed |
 
-Figures with a fixed precision keep their trailing zero ("100.0 km"), so a total and its parts read alike. Exactly zero reads "0".
+A unit with decimals always shows all of them, the trailing zero included: "46.0 km", never "46 km" in one place and "46.0 km" in another. Zero reads "0.0 km" and "0.0 kWh" too. Only the whole-number units (%, km/h, Wh/km, range) show no decimals.
 
-### Totals and their parts
+### One quantity, one reading
 
-A total and its parts agree as shown, to the last digit:
+The same number always shows the same digits: on its bar, in the bar's tooltip, in a trip row, on the day page and in the monthly table. Each figure is rounded on its own by its unit's helper, and nothing is nudged to make a sum come out even.
 
 - Keep every figure at full precision in the data (`lib/driving-figures.ts`, `dailyDistance`, `groupTrips`, the MCP JSON in `lib/server/mcp-data.ts`). Round only to show it.
-- Round the parts and the total together with `shownTotal(values, decimals)` (or `apportion`). It uses the largest remainder: the total is the parts' raw sum rounded once, and each part moves at most one last digit from its own rounding so that they add up to it. Three days of 46.215, 7.416 and 46.377 km show as 46.2, 7.4 and 46.4, and the week as 100.0 km. Rounded alone, they read 46, 7 and 46 against 100.
-- Use the parts' sum as the headline, not a figure worked out apart. The bars share their edges, so the odometer's rise over a period is the same sum (`knownBars` in `driving-sections.tsx` builds both).
-- A stacked bar rounds twice: the columns to the headline, then each column's segments to its column (`apportion(values, decimals, total)`).
-- Use the same source for both. The Distance bars, Driving per day and the monthly table all read the odometer, merging the stream with the online polls by taking whichever was read later at each midnight: the later reading is closer to the boundary, so it puts each kilometre in the right day. The drives (`groupTrips`) are only the source for lists of trips and their own totals.
-- Rows under a total (trips, legs, charges, sessions) take their figures from the same `shownTotal`: `shownTrip`, `shownTrips`, `SessionRow`'s `shownKwh`.
-- A bar's tooltip shows its `display`, the rounded part, so the tip, the label and the headline agree.
+- A total and its parts come from the same values: the headline is the raw sum of the bars or rows under it (`sumKnown`, or `knownBars` in `driving-sections.tsx`, which builds both), never a figure worked out apart. The bars share their edges, so the odometer's rise over a period is the same sum.
+- Shown parts can then add up to a last digit off the shown total. Three days of 46.215, 7.416 and 46.377 km read 46.2, 7.4 and 46.4 against 100.0 km, but 0.35 + 0.35 + 0.35 reads 0.4 + 0.4 + 0.4 against 1.1. Both are the honest values, so leave them; never change a part's digits to match the total.
+- Use one source for one quantity. The Distance bars, Driving per day and the monthly table all read the odometer, merging the stream with the online polls by taking whichever was read later at each midnight: the later reading is closer to the boundary, so it puts each kilometre on the right day. Trips, legs and drive stats come from the drives the stream shows, so a day's trips can come to up to about 0.1 km less than its odometer bar. Both are shown as read, with no note.
+- A bar's tooltip shows its `display`, so the tip and the label read the same digits.
 
 ## The info popover
 

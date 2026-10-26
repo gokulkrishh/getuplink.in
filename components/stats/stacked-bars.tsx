@@ -14,8 +14,7 @@ import { cn } from "@/lib/utils";
 export type StackedBar = { key: string; label: string; total: number; display: string; isCurrent: boolean; segments: number[]; blank?: boolean; axis?: string; edge?: boolean };
 export type StackedSeries = { label: string; className: string };
 
-// Segments arrive rounded for display (see apportion), so a column's total, its tip's lines and the
-// chart's headline add up as shown.
+// Each segment, column total and tip line is rounded on its own, to the energy rule (see lib/format.ts).
 const kwh = { format: (n: number) => formatNumber(n, DECIMALS.kWh) };
 
 // Same look as Bars, with each column split into series (first series at the bottom). Tones tell the

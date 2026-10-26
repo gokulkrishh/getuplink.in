@@ -90,17 +90,16 @@ export const DECIMALS = {
 
 const fixedFormats = new Map<number, Intl.NumberFormat>();
 
-// A number with exactly `decimals` decimals and Indian digit grouping ("1,23,400.5"), so a total and its
-// parts read at the same precision. Exactly zero reads "0", not "0.0": nothing at all, not a rounded crumb.
+// A number with exactly `decimals` decimals, trailing zeros kept ("46.0", "0.0"), and Indian digit
+// grouping ("1,23,400.5"), so a figure reads the same digits wherever it appears.
 export function formatNumber(value: number, decimals: number): string {
-  if (value === 0) return "0";
   let fmt = fixedFormats.get(decimals);
   if (!fmt) {
     fmt = new Intl.NumberFormat("en-IN", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
     fixedFormats.set(decimals, fmt);
   }
-  // Rounded here, half up, with float noise snapped off first, so 1.15 (stored as 1.149999…) reads 1.2,
-  // as apportion rounds it; the formatter then only writes the digits.
+  // Rounded here, half up, with float noise snapped off first, so 1.15 (stored as 1.149999…) reads 1.2;
+  // the formatter then only writes the digits.
   const units = Math.round(Math.round(value * 10 ** decimals * 1e6) / 1e6);
   const text = fmt.format(units / 10 ** decimals);
   // A tiny negative that rounds to zero reads "0.0", not "-0.0".
@@ -137,44 +136,14 @@ export function formatSpeed(kmh: number): string {
   return `${formatNumber(kmh, DECIMALS.speed)} km/h`;
 }
 
-// Rounds the parts of a whole for display so that, as shown, they add up to the whole rounded the same
-// way (largest remainder): days of 46.215, 7.416 and 46.377 km show as 46.2, 7.4 and 46.4, and their sum,
-// 100.008, as 100.0 (rounded alone they would read 46, 7 and 46 against 100). A part moves at most one
-// last digit from its own rounding, and only a part with something to round moves: an exact 0 stays 0.
-// Null (unknown, or ahead of now) stays null. `total` makes the parts add up to a total already shown
-// (a stacked bar's), when it is within a last digit or two of theirs.
-export function apportion(values: readonly (number | null)[], decimals: number, total?: number): (number | null)[] {
-  const scale = 10 ** decimals;
-  // Float noise is snapped off, so a value already at this precision has no remainder.
-  const scaled = values.map((v) => (v === null ? null : Math.round(v * scale * 1e6) / 1e6));
-  const units = scaled.map((v) => (v === null ? null : Math.floor(v)));
-  const target = total === undefined ? Math.round(scaled.reduce<number>((sum, v) => sum + (v ?? 0), 0)) : Math.round(total * scale);
-  let left = target - units.reduce<number>((sum, v) => sum + (v ?? 0), 0);
-  const order = scaled
-    .flatMap((v, k) => (v === null || v === units[k] ? [] : [{ k, rest: v - units[k]! }]))
-    .sort((a, b) => b.rest - a.rest || a.k - b.k);
-  for (const { k } of order) {
-    if (left <= 0) break;
-    units[k]! += 1;
-    left -= 1;
-  }
-  // A total below the parts' floors takes the excess back from the parts with the least to round.
-  for (const { k } of [...order].reverse()) {
-    if (left >= 0) break;
-    if (units[k]! > 0) {
-      units[k]! -= 1;
-      left += 1;
-    }
-  }
-  return units.map((u) => (u === null ? null : u / scale));
-}
-
-// The parts as shown and the total they add up to, from one apportion: show `total` as the headline and
-// `parts` as the bars, their tips and the rows, and they agree to the last digit.
-export function shownTotal(values: readonly (number | null)[], decimals: number): { parts: (number | null)[]; total: number } {
-  const parts = apportion(values, decimals);
-  const units = parts.reduce<number>((sum, v) => sum + Math.round((v ?? 0) * 10 ** decimals), 0);
-  return { parts, total: units / 10 ** decimals };
+// The total of a chart's or a list's parts, from the parts themselves (unknown ones add nothing), so the
+// headline and the bars or rows come from one source. Add the raw values and round only to show the sum:
+// each part and the total are rounded on their own, so the same quantity reads the same digits everywhere.
+// Shown parts can then add up to a last digit off the shown total (46.215 + 7.416 + 46.377 = 100.008 km
+// reads 46.2 + 7.4 + 46.4 against 100.0 here, but 0.35 + 0.35 + 0.35 reads 0.4 + 0.4 + 0.4 against 1.1);
+// both are the honest values, so neither is adjusted to match.
+export function sumKnown(values: readonly (number | null | undefined)[]): number {
+  return values.reduce<number>((sum, v) => sum + (v ?? 0), 0);
 }
 
 // "10:35 AM IST" when it was today (in IST), otherwise "21 Oct, 10:35 AM IST". `now` is passed in
