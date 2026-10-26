@@ -7,7 +7,7 @@ import { DEMO } from "@/lib/demo";
 import { currentOwner, type Owner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { createConnectorToken, revokeConnectorToken } from "@/lib/server/connector-token";
-import { deleteMyData, disconnectTesla, revokeAllSessions } from "@/lib/server/tesla";
+import { deleteAccount, deleteMyData, disconnectTesla, revokeAllSessions } from "@/lib/server/tesla";
 import { messageOf } from "@/lib/errors";
 import { clearSession, requestHost } from "@/lib/session";
 
@@ -65,6 +65,20 @@ export async function deleteEverything(_: string | null, form: FormData): Promis
   } catch (err) {
     console.error("Delete failed:", messageOf(err));
     return "Couldn't delete your data. Try again in a moment.";
+  }
+  await endHere();
+  return null;
+}
+
+export async function deleteWholeAccount(_: string | null, form: FormData): Promise<string | null> {
+  const owner = await requireSession();
+  if (String(form.get("confirm") ?? "").trim().toLowerCase() !== "delete account") return "Type delete account to confirm.";
+  if (DEMO) redirect("/settings");
+  try {
+    await deleteAccount(owner);
+  } catch (err) {
+    console.error("Deleting the account failed:", messageOf(err));
+    return "Couldn't delete your account. Try again in a moment.";
   }
   await endHere();
   return null;
