@@ -47,7 +47,7 @@ function lagWords(days: number): string {
 // The owner's car against India, in one line.
 function yourCarWords(car: YourCar): string {
   if (car.kind === "waiting") return `${car.version} is waiting on your car`;
-  if (car.kind === "newest") return "You're on the newest version in India";
+  if (car.kind === "newest") return "You're on the newest version";
   return `You're ${car.versions} ${car.versions === 1 ? "version" : "versions"} behind: ${car.newest} is on ${cars(car.cars)}`;
 }
 
@@ -119,7 +119,7 @@ async function Rollout() {
   return (
     <div className="space-y-12">
       <header className="space-y-1">
-        <h2 className="text-sm text-muted-foreground">Newest in India</h2>
+        <h2 className="text-sm text-muted-foreground">Newest version</h2>
         {headline ? (
           <>
             <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{headline.version}</p>
@@ -164,7 +164,7 @@ async function Rollout() {
 
       <ChartCard
         title="Versions"
-        description="Every version Indian cars run, newest first."
+        description="Every version seen, newest first."
       >
         <ul className="divide-y border-t">
           <li className="flex gap-4 py-2 text-xs text-faint" aria-hidden="true">
@@ -180,7 +180,7 @@ async function Rollout() {
 
       <div className="space-y-2 text-xs text-faint">
         <p>
-          Pooled across every car Uplink tracks in India. Totals only, never a single car. An offer counts from
+          Pooled across every car Uplink tracks. Totals only, never a single car. An offer counts from
           each car&apos;s last check while it was awake.
         </p>
         <p>

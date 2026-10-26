@@ -55,7 +55,7 @@ await browser.close();
 ```
 
 Handles that hold in this app:
-- Page tabs and header links: `getByRole("link", { name: "Charging" })`, `"Updates"`, `"Rollout"`. The account menu: `getByRole("button", { name: "Account menu" })`.
+- Page tabs and header links: `getByRole("link", { name: "Charging" })`; the header's `"Home"`, `"Stats"`, `"Car"`, `"Updates"` (scope to `getByRole("navigation", { name: "Main" })`, as pages repeat some names). The account menu: `getByRole("button", { name: "Account menu" })`, holding Settings, Rollout (`getByRole("menuitem", { name: "Rollout" })`), Admin and Sign out.
 - Period switch: buttons with `aria-pressed`, named `Day`, `Week`, `Month`, `Year`, `All`, `Custom`. Their accessible name repeats the label (`DayDay`), so match with `{ name: /^Week/ }`. Pages open on Day; any other period adds `?period=<value>`.
 - Sections: `page.locator("section", { has: page.getByRole("heading", { name: "Trips" }) })`.
 - Whole-row links (trips, legs, charges, sessions): the first `link` inside the row.

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { cacheLife } from "next/cache";
-import { LogOut, Settings, ShieldCheck } from "lucide-react";
+import { LogOut, RadioTower, Settings, ShieldCheck } from "lucide-react";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
@@ -20,11 +20,12 @@ import { setupGate } from "@/lib/server/setup";
 import { DEMO } from "@/lib/demo";
 import { cn } from "@/lib/utils";
 
-export type Section = "updates" | "rollout" | "settings";
+export type Section = "stats" | "car" | "updates" | "rollout" | "settings";
 
 const NAV: { section: Section; href: string; label: string }[] = [
+  { section: "stats", href: "/stats/driving", label: "Stats" },
+  { section: "car", href: "/car", label: "Car" },
   { section: "updates", href: "/updates", label: "Updates" },
-  { section: "rollout", href: "/rollout", label: "Rollout" },
 ];
 
 // The session decides it, so it streams in behind its own Suspense: the header itself stays in the static shell.
@@ -83,25 +84,25 @@ async function SetupGate() {
   );
 }
 
-// The same header on every signed-in page; `current` marks the page's own link. The Stats pages open from
-// the home page's sections and the car page from the car's name there, so they have none. `setup={false}`
-// leaves out the setup gate: Settings (sign out, disconnect, delete), the admin pages and /setup itself.
+// The same header on every signed-in page; `current` marks the page's own link (Stats for every /stats page).
+// The logo is the way home. Rollout sits in the account menu.
+// `setup={false}` leaves out the setup gate: Settings (sign out, disconnect, delete), the admin pages and /setup itself.
 export function Header({ current, setup = true }: { current?: Section; setup?: boolean }) {
   return (
     <>
     <header className="mb-16 flex items-center justify-between gap-4 text-sm">
-      <Link href="/" prefetch={true} className="flex shrink-0 items-center gap-2.5 font-medium">
+      <Link href="/" prefetch={true} className="tap-target flex shrink-0 items-center gap-2.5 font-medium">
         <Logo className="size-5" />
         Uplink
       </Link>
-      <nav aria-label="Main" className="flex items-center gap-3 text-muted-foreground sm:gap-4">
+      <nav aria-label="Main" className="flex items-center gap-4 whitespace-nowrap text-muted-foreground">
         {NAV.map((item) => (
           <Link
             key={item.section}
             href={item.href}
             prefetch={true}
             aria-current={current === item.section ? "page" : undefined}
-            className={cn("hover:text-foreground", current === item.section && "text-foreground")}
+            className={cn("tap-target hover:text-foreground", current === item.section && "text-foreground")}
           >
             {item.label}
           </Link>
@@ -122,6 +123,10 @@ export function Header({ current, setup = true }: { current?: Section; setup?: b
             <DropdownMenuItem render={<Link href="/settings" prefetch={true} />}>
               <Settings aria-hidden />
               Settings
+            </DropdownMenuItem>
+            <DropdownMenuItem render={<Link href="/rollout" prefetch={true} aria-current={current === "rollout" ? "page" : undefined} />}>
+              <RadioTower aria-hidden />
+              Rollout
             </DropdownMenuItem>
             <Suspense>
               <AdminItem />

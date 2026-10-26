@@ -55,7 +55,7 @@ export function RolloutAdoption({ adoption }: { adoption: Record<AdoptionGrain, 
   return (
     <ChartCard
       title="Adoption over time"
-      description="Share of Indian cars on the picked version."
+      description="Share of cars on the picked version."
       unit="%"
       info={`Each bar is the share at the end of ${spanWords}, out of the cars whose version Uplink had seen by then. Each car counts from its first recorded version, never before.`}
       summary={

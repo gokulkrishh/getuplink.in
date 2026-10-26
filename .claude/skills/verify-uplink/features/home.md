@@ -12,7 +12,7 @@ The signed-in landing page: the car's state (battery, range, charging, software)
 
 ## How to get to it (user POV)
 
-Open the app; it's `/`. The "Uplink" logo in the header returns here.
+Open the app; it's `/`. The header's "Home" link and the logo return here.
 
 ## Driving it with Playwright
 

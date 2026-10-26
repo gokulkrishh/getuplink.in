@@ -27,7 +27,7 @@ function Headline({ value, children }: { value: string; children: ReactNode }) {
 }
 
 // Distance for the period or range, with a bar per slot of it (see Timeframe).
-export function Distance({ frame, driving }: Frame) {
+export function Distance({ frame, driving }: Pick<Frame, "frame" | "driving">) {
   const description = "Kilometres driven.";
   // The counters couldn't be read for a range picked by date: say so in the chart's place rather than show 0 km.
   if (!driving) return <ChartCard title="Distance" description={description} empty={`Couldn't read the car's counters ${frame.words}`} />;
@@ -75,7 +75,7 @@ export const hasBars = (bars: Bar[]) => bars.some((b) => b.value > 0 && !showsZe
 // Energy used driving in the period and each bar, in kWh: from the streamed lifetime energy counter, or
 // from the drives where the counter has no reading from before the span (see withDriveEfficiency). Then
 // what regen won back, when it won any.
-export function EnergyUse({ frame, driving }: Frame) {
+export function EnergyUse({ frame, driving }: Pick<Frame, "frame" | "driving">) {
   if (!driving) return null;
   const { current, bars: values } = driving;
   // No reading with no driving is nothing used; with driving it's unknown, so the section stays out of the way.

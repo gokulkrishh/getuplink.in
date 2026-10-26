@@ -12,7 +12,7 @@ Everything about drives for a period: Distance, Energy use and Regen bars, Effic
 
 ## How to get to it (user POV)
 
-Home → "See all trips", or the header's Stats tabs → "Driving". Direct: `/stats/driving`.
+The header's "Stats" link, Home → "See all trips", or the Stats tabs → "Driving". Direct: `/stats/driving`.
 
 ## Driving it with Playwright
 

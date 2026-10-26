@@ -340,7 +340,7 @@ function CarSkeleton() {
 export function CarPage({ id }: { id: Promise<string | null> }) {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
-      <Header />
+      <Header current="car" />
       <Suspense fallback={<CarSkeleton />}>
         <CarContent id={id} />
       </Suspense>

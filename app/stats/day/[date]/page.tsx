@@ -146,7 +146,7 @@ async function DayLoader({ params }: { params: Promise<{ date: string }> }) {
 export default function Page({ params }: PageProps<"/stats/day/[date]">) {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
-      <Header />
+      <Header current="stats" />
       <Suspense fallback={<div role="status" aria-busy="true" className="h-64 bg-muted motion-safe:animate-pulse"><span className="sr-only">Loading…</span></div>}>
         <DayLoader params={params} />
       </Suspense>

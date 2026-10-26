@@ -327,7 +327,7 @@ function DriveSkeleton() {
 export default function Page({ params, searchParams }: PageProps<"/stats/driving/[start]">) {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
-      <Header />
+      <Header current="stats" />
       <Suspense fallback={<DriveSkeleton />}>
         <DriveLoader params={params} searchParams={searchParams} />
       </Suspense>
