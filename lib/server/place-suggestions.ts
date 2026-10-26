@@ -55,7 +55,7 @@ async function reverse(key: string, p: LatLng): Promise<Suggestion[]> {
 
 // Demo suggestions: made up, and no call leaves the server.
 const DEMO_SUGGESTIONS: Suggestion[] = [
-  { name: "Brightwell Charging Hub", detail: "Electric vehicle charging station", source: "google", placeId: "demo-place-brightwell-0001" },
+  { name: "Brightwell Charging Hub", detail: "Charging station", source: "google", placeId: "demo-place-brightwell-0001" },
   { name: "Orchard Lane Market", detail: "Shopping mall", source: "google", placeId: "demo-place-orchard-00002" },
   { name: "14, Orchard Lane, Hillgrove", detail: "Street address", source: "google", placeId: "demo-place-address-0003" },
 ];

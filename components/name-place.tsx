@@ -65,12 +65,22 @@ export function NamePlace({ target, compact = false, className }: { target: Name
         {compact ? <Pencil className="size-3.5" aria-hidden="true" /> : "Name this place"}
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Positioner side="bottom" align="start" sideOffset={6} collisionPadding={16} className="z-50">
+        {/* Always below its trigger, never flipped up: Google's suggestions must not sit over our
+            (non-Google) map, which is above every trigger on its page. The page scrolls to the rest. */}
+        <Popover.Positioner
+          side="bottom"
+          align="start"
+          sideOffset={6}
+          collisionPadding={16}
+          collisionAvoidance={{ side: "none", align: "shift", fallbackAxisSide: "none" }}
+          className="z-50"
+        >
           <Popover.Popup className="w-80 max-w-[calc(100vw-2rem)] space-y-3 border bg-popover p-3 text-sm text-popover-foreground shadow-md outline-none">
             <Popover.Title className="font-medium">{title}</Popover.Title>
             {loading && <p className="text-xs text-muted-foreground">Finding nearby names…</p>}
             {shown.length > 0 && (
-              <ul className="-mx-1 max-h-56 overflow-y-auto" aria-label="Suggestions">
+              <div>
+              <ul className="-mx-1 max-h-40 overflow-y-auto sm:max-h-56" aria-label="Suggestions">
                 {shown.map((s) => (
                   <li key={`${s.source}:${s.name}`}>
                     <button
@@ -85,6 +95,20 @@ export function NamePlace({ target, compact = false, className }: { target: Name
                   </li>
                 ))}
               </ul>
+              {/* Right under the suggestions, so it is always in view with them. */}
+              <p className="mt-1 text-[0.7rem] leading-4 text-faint">
+                {google && <span translate="no">Google Maps</span>}
+                {google && osm && " · "}
+                {osm && (
+                  <>
+                    ©{" "}
+                    <a href="https://www.openstreetmap.org/copyright" className="underline underline-offset-2 hover:text-foreground">
+                      OpenStreetMap contributors
+                    </a>
+                  </>
+                )}
+              </p>
+              </div>
             )}
             <form action={save} className="space-y-2">
               {target.tag ? <input type="hidden" name="id" value={target.tag.id} /> : null}
@@ -122,20 +146,6 @@ export function NamePlace({ target, compact = false, className }: { target: Name
                 </Button>
               </div>
             </form>
-            {(google || osm) && (
-              <p className="text-[0.7rem] leading-4 text-faint">
-                {google && <span translate="no">Google Maps</span>}
-                {google && osm && " · "}
-                {osm && (
-                  <>
-                    ©{" "}
-                    <a href="https://www.openstreetmap.org/copyright" className="underline underline-offset-2 hover:text-foreground">
-                      OpenStreetMap contributors
-                    </a>
-                  </>
-                )}
-              </p>
-            )}
           </Popover.Popup>
         </Popover.Positioner>
       </Popover.Portal>

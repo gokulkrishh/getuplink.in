@@ -51,6 +51,9 @@ Every variable is listed in [`.env.example`](.env.example). In Vercel: **Project
 | `TESLA_LOCATION_SCOPE` | Optional. `1` asks Tesla for `vehicle_location` at sign-in, so the 6-hourly check can work out the car's home state (only the state is kept). Enable Vehicle Location in the Tesla developer app first, then sign in again. Unset: the state comes from Supercharger history. |
 | `SIGNUP_MODE` | Optional. `closed` (default): only approved accounts sign in. `waitlist`: an unknown Tesla account in Tesla's NA/APAC region joins the waitlist. `open` acts as `waitlist` for now. |
 | `MAX_USERS` | Optional. How many accounts can be approved at once, the admin included. Default 25. |
+| `GOOGLE_MAPS_API_KEY` | Optional. Server-side key with Places API (New) and Geocoding API enabled, for the suggestions in "Name this place". Unset, the sheet offers OpenStreetMap's names and typing one. See `docs/place-names.md`. |
+| `OSM_CONTACT` | Optional. An email or URL for OpenStreetMap's operators, sent in the Nominatim User-Agent. |
+| `OSM_LOOKUPS` | Optional. `off` stops every Nominatim lookup (names already kept still show). |
 
 The admin isn't an env var: it's `users.role`. Set it once in the Supabase SQL editor: `update users set role = 'admin' where tesla_sub = '<tesla sub>';`. Demo mode always shows `/admin`.
 

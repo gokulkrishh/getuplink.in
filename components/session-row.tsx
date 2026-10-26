@@ -65,7 +65,7 @@ export function hasStationNames(items: Listed[]): boolean {
 export function OsmCredit({ className }: { className?: string }) {
   return (
     <p className={cn("text-xs text-faint", className)}>
-      Station names ©{" "}
+      Place names ©{" "}
       <a href="https://www.openstreetmap.org/copyright" className="underline underline-offset-2 hover:text-foreground">
         OpenStreetMap contributors
       </a>
