@@ -20,20 +20,16 @@ function Message({ message }: { message: string | null }) {
   );
 }
 
-// One cost's fields. A built-in service (fixedName) keeps its own name, period and link.
+// One added cost's fields, in dollars.
 export function EntryForm({
   action,
   remove,
   values,
-  fixedName,
-  fixedPeriod,
   submitLabel = "Save",
 }: {
   action: Action;
   remove?: Action;
   values: EntryValues | null;
-  fixedName: boolean;
-  fixedPeriod?: "monthly" | "yearly";
   submitLabel?: string;
 }) {
   const [message, formAction, pending] = useActionState(action, null);
@@ -42,42 +38,29 @@ export function EntryForm({
   return (
     <div className="space-y-2 pt-2">
       <form action={formAction} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {!fixedName && (
-          <label className={`${label} col-span-2`} htmlFor={`${id}-name`}>
-            Name
-            <Input id={`${id}-name`} name="name" defaultValue={values?.name ?? ""} required maxLength={80} />
-          </label>
-        )}
+        <label className={`${label} col-span-2`} htmlFor={`${id}-name`}>
+          Name
+          <Input id={`${id}-name`} name="name" defaultValue={values?.name ?? ""} required maxLength={80} />
+        </label>
         <label className={label} htmlFor={`${id}-amount`}>
-          Amount
+          Amount, $
           <Input id={`${id}-amount`} name="amount" inputMode="decimal" defaultValue={values?.amount ?? ""} required />
         </label>
-        <label className={label} htmlFor={`${id}-currency`}>
-          Currency
-          <select id={`${id}-currency`} name="currency" defaultValue={values?.currency ?? "USD"} className={select}>
-            <option value="USD">$ USD</option>
-            <option value="INR">₹ INR</option>
+        <label className={label} htmlFor={`${id}-period`}>
+          Billed
+          <select id={`${id}-period`} name="period" defaultValue={values?.period ?? "monthly"} className={select}>
+            <option value="monthly">Monthly</option>
+            <option value="yearly">Yearly</option>
           </select>
         </label>
-        {fixedPeriod ? null : (
-          <label className={label} htmlFor={`${id}-period`}>
-            Billed
-            <select id={`${id}-period`} name="period" defaultValue={values?.period ?? "monthly"} className={select}>
-              <option value="monthly">Monthly</option>
-              <option value="yearly">Yearly</option>
-            </select>
-          </label>
-        )}
-        <label className={label} htmlFor={`${id}-renews`}>
+        <label className={`${label} col-span-2 sm:col-span-1`} htmlFor={`${id}-renews`}>
           Renews on
           <Input id={`${id}-renews`} name="renewsOn" type="date" defaultValue={values?.renewsOn ?? ""} />
         </label>
-        {!fixedName && (
-          <label className={`${label} col-span-2 sm:col-span-4`} htmlFor={`${id}-link`}>
-            Billing link
-            <Input id={`${id}-link`} name="link" type="url" placeholder="https://" defaultValue={values?.link ?? ""} />
-          </label>
-        )}
+        <label className={`${label} col-span-2 sm:col-span-3`} htmlFor={`${id}-link`}>
+          Billing link
+          <Input id={`${id}-link`} name="link" type="url" placeholder="https://" defaultValue={values?.link ?? ""} />
+        </label>
         <div className="col-span-2 flex items-center gap-2 sm:col-span-4">
           <Button type="submit" size="sm" disabled={pending}>
             {pending ? "Saving…" : submitLabel}
@@ -94,7 +77,7 @@ export function EntryForm({
   );
 }
 
-// A single number: the rate or the budget.
+// A single number: the budget.
 export function NumberForm({ action, name, label: text, defaultValue, placeholder }: { action: Action; name: string; label: string; defaultValue: string; placeholder?: string }) {
   const [message, formAction, pending] = useActionState(action, null);
   const id = useId();

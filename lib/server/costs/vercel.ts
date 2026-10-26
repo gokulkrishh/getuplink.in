@@ -86,7 +86,7 @@ export type VercelSnapshot = { amount: number; plan: string | null; fetchedAt: s
 // The line: the live amount, or on failure the last one read (stale), or Unavailable.
 export function vercelLine(read: VercelRead, last: VercelSnapshot | null, now: number): CostLine {
   const { resetsOn } = monthWindow(now);
-  const base = { id: "vercel", name: "Vercel", currency: "USD", period: "monthly", resetsOn, source: "live", link: VERCEL_BILLING_LINK } as const;
+  const base = { id: "vercel", name: "Vercel", period: "monthly", resetsOn, source: "live", link: VERCEL_BILLING_LINK } as const;
   if (read.kind === "connect") return { ...base, amount: null, state: "connect" };
   if (read.kind === "ok") return { ...base, amount: read.amount, state: "ok", note: read.plan ? PLANS[read.plan] ?? read.plan : undefined };
   if (last) return { ...base, amount: last.amount, state: "stale", asOf: last.fetchedAt, note: last.plan ? PLANS[last.plan] ?? last.plan : undefined };

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { ExternalLink } from "lucide-react";
+import type { ReactNode } from "react";
 import { Header } from "@/components/header";
 import { Measure } from "@/components/measure";
 import { Figures } from "@/components/stats/figures";
@@ -12,15 +13,18 @@ import {
   formatDay,
   monthlyCharge,
   monthlyTotal,
+  renews,
   renewsSoon,
   type Source,
+  type Total,
+  usd,
 } from "@/lib/costs";
-import { formatDate, formatDateTime, formatMoney, formatSeen } from "@/lib/format";
+import { formatDateTime, formatSeen } from "@/lib/format";
 import { isAdmin } from "@/lib/server/admin";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
-import { COSTS_TAG, type CostsPage, type Editable, loadCosts, type Rate } from "@/lib/server/costs";
+import { COSTS_TAG, type CostsPage, type Editable, loadCosts } from "@/lib/server/costs";
 import { cn } from "@/lib/utils";
-import { removeEntry, saveBudget, saveEntry, saveRate } from "./actions";
+import { removeEntry, saveBudget, saveEntry } from "./actions";
 import { EntryForm, NumberForm } from "./forms";
 
 export const metadata: Metadata = { title: "Costs · Admin · Uplink" };
@@ -30,10 +34,11 @@ export const instant = false;
 
 const heading = "text-lg font-medium tracking-heading";
 const muted = "text-sm text-faint";
+const link = "underline decoration-border underline-offset-4 hover:decoration-foreground";
 
 // The admin check, and the clock (reading it while rendering blocks prerendering). Every save checks the
 // admin again itself (actions.ts). The costs are read outside this private cache, because the live calls
-// have their own hour-long remote cache (lib/server/costs/vercel.ts), which can't nest inside a private one.
+// have their own remote caches (lib/server/costs/*), which can't nest inside a private one.
 async function checkAdmin(): Promise<number> {
   "use cache: private";
   cacheTag(COSTS_TAG);
@@ -54,12 +59,11 @@ function Badge({ source }: { source: Source }) {
   return <span className="rounded-md border px-1.5 py-px text-[0.6875rem] leading-4 text-muted-foreground">{SOURCE[source]}</span>;
 }
 
-const money = (amount: number, line: Pick<CostLine, "currency">) => formatMoney(amount, line.currency);
-
 // The figure on the right, or why there isn't one.
 function amountText(line: CostLine): string | null {
   if (line.amount === null) return null;
-  return line.period === "yearly" ? `${money(line.amount, line)} a year` : money(line.amount, line);
+  const figure = `${line.approx ? "≈ " : ""}${usd(line.amount)}`;
+  return line.period === "yearly" ? `${figure} a year` : figure;
 }
 
 const MISSING: Record<string, string> = {
@@ -74,44 +78,57 @@ function details(line: CostLine, now: number): string[] {
   const out: string[] = [];
   if (line.note) out.push(line.note);
   if (line.state === "stale" && line.asOf) out.push(`Last read ${formatSeen(line.asOf, now)}`);
-  if (line.amount !== null && line.period === "yearly") out.push(`${money(monthlyCharge(line)!, line)} a month`);
+  if (line.amount !== null && line.period === "yearly") out.push(`${usd(monthlyCharge(line)!)} a month`);
   if (line.allowance !== undefined) {
     const charged = monthlyCharge(line);
-    out.push(
-      charged === null
-        ? `${money(line.allowance, line)} monthly credit`
-        : `${money(line.allowance, line)} credit, ${money(charged, line)} charged`,
-    );
+    out.push(charged === null ? `${usd(line.allowance)} monthly credit` : `${usd(line.allowance)} credit, ${usd(charged)} charged`);
   }
-  if (line.budget) out.push(`Budget ${money(line.budget, line)}`);
+  if (line.budget) out.push(`Budget ${usd(line.budget)}`);
   if (line.resetsOn) {
-    const soon = line.source === "fixed" && renewsSoon(line.resetsOn, now);
-    const verb = line.source === "fixed" ? "Renews" : "Resets";
-    out.push(soon && daysUntil(line.resetsOn, now) <= 1 ? `${verb} ${daysUntil(line.resetsOn, now) === 0 ? "today" : "tomorrow"}` : `${verb} ${formatDay(line.resetsOn)}`);
+    const verb = renews(line) ? "Renews" : "Resets";
+    const days = daysUntil(line.resetsOn, now);
+    const soon = renews(line) && renewsSoon(line.resetsOn, now) && days <= 1;
+    out.push(soon ? `${verb} ${days === 0 ? "today" : "tomorrow"}` : `${verb} ${formatDay(line.resetsOn)}`);
   }
   return out;
 }
 
-function ConnectVercel() {
-  return (
-    <div className="space-y-1 pt-1 text-xs text-muted-foreground">
-      <p>
-        Create a team token at{" "}
-        <a href="https://vercel.com/account/settings/tokens" target="_blank" rel="noreferrer" className="underline decoration-border underline-offset-4 hover:decoration-foreground">
-          Vercel&apos;s account tokens
-        </a>
-        , then set VERCEL_API_TOKEN and VERCEL_TEAM_ID and redeploy.
-      </p>
-    </div>
-  );
-}
+const Code = ({ children }: { children: ReactNode }) => <code className="rounded bg-muted px-1 py-px font-mono text-[0.6875rem] break-words">{children}</code>;
+
+const Out = ({ href, children }: { href: string; children: ReactNode }) => (
+  <a href={href} target="_blank" rel="noreferrer" className={link}>
+    {children}
+  </a>
+);
+
+// How to connect a service whose token isn't set. Full steps are in docs/costs.md.
+const CONNECT: Record<string, ReactNode> = {
+  vercel: (
+    <>
+      Create a team token at <Out href="https://vercel.com/account/settings/tokens">Vercel&apos;s account tokens</Out>, then set{" "}
+      <Code>VERCEL_API_TOKEN</Code> and <Code>VERCEL_TEAM_ID</Code> and redeploy.
+    </>
+  ),
+  supabase: (
+    <>
+      Create a scoped token at <Out href="https://supabase.com/dashboard/account/tokens">Supabase&apos;s access tokens</Out> for
+      this org, with Read on Projects, Organization Settings and Add-ons. Set <Code>SUPABASE_ACCESS_TOKEN</Code> and redeploy.
+    </>
+  ),
+  fly: (
+    <>
+      Run <Code>fly tokens create readonly --org personal --name &quot;Uplink costs&quot; --expiry 8760h</Code>, set <Code>FLY_API_TOKEN</Code> to
+      what it prints and redeploy.
+    </>
+  ),
+};
 
 function Row({ line, edit, now, ready }: { line: CostLine; edit?: Editable; now: number; ready: boolean }) {
   const text = amountText(line);
-  const soon = line.source === "fixed" && line.state === "ok" && renewsSoon(line.resetsOn, now);
+  const soon = renews(line) && line.amount !== null && renewsSoon(line.resetsOn, now);
   const lines = details(line, now);
   return (
-    <li className={cn("py-3", soon && "-mx-3 rounded-lg bg-muted px-3 dark:bg-card")}>
+    <li id={`cost-${line.id}`} className={cn("scroll-mt-6 py-3", soon && "-mx-3 rounded-lg bg-muted px-3 dark:bg-card")}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 space-y-0.5">
           <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
@@ -137,7 +154,7 @@ function Row({ line, edit, now, ready }: { line: CostLine; edit?: Editable; now:
             <span className={muted}>{MISSING[line.state] ?? "Unavailable"}</span>
           )}
           {line.link && (
-            <a href={line.link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground underline decoration-border underline-offset-4 hover:decoration-foreground">
+            <a href={line.link} target="_blank" rel="noreferrer" className={cn("inline-flex items-center gap-1 text-xs text-muted-foreground", link)}>
               Billing
               <ExternalLink aria-hidden className="size-3" />
               <span className="sr-only">for {line.name}, opens in a new tab</span>
@@ -145,42 +162,50 @@ function Row({ line, edit, now, ready }: { line: CostLine; edit?: Editable; now:
           )}
         </div>
       </div>
-      {line.id === "vercel" && line.state === "connect" && <ConnectVercel />}
+      {line.state === "connect" && CONNECT[line.id] && <p className="pt-1 text-xs text-muted-foreground">{CONNECT[line.id]}</p>}
       {edit && ready && (
         <details className="group pt-1">
-          <summary className="w-fit cursor-pointer list-none text-xs text-muted-foreground underline decoration-border underline-offset-4 hover:decoration-foreground [&::-webkit-details-marker]:hidden">
-            {edit.values ? "Edit" : "Set"}
+          <summary className={cn("w-fit cursor-pointer list-none text-xs text-muted-foreground [&::-webkit-details-marker]:hidden", link)}>
+            Edit
             <span className="sr-only"> {line.name}</span>
           </summary>
-          <EntryForm
-            action={saveEntry.bind(null, edit.target)}
-            remove={edit.removable ? removeEntry.bind(null, edit.target) : undefined}
-            values={edit.values}
-            fixedName={edit.fixedName}
-            fixedPeriod={edit.fixedName ? line.period : undefined}
-          />
+          <EntryForm action={saveEntry.bind(null, edit.target)} remove={removeEntry.bind(null, edit.target)} values={edit.values} />
         </details>
       )}
     </li>
   );
 }
 
-function rateNote(rate: Rate): string {
-  if (rate.from === "saved" && rate.setAt) return `Set ${formatDate(rate.setAt)}`;
-  if (rate.from === "env") return "From USD_INR";
-  return "Default rate";
-}
-
-function totalNote(yearly: number, uncounted: number): string | undefined {
-  const parts: string[] = [];
-  if (yearly > 0) parts.push(yearly === 1 ? "A yearly cost counts as a twelfth" : "Yearly costs count as a twelfth");
-  if (uncounted > 0) parts.push(`${uncounted} not counted`);
-  return parts.length ? parts.join(". ") : undefined;
+// Under the total: which services it leaves out, each linking to its row, and how yearly costs count.
+function totalNote(total: Total): ReactNode {
+  const parts: ReactNode[] = [];
+  if (total.missing.length > 0) {
+    parts.push(
+      <span key="missing">
+        Not counted:{" "}
+        {total.missing.map((m, k) => (
+          <span key={m.id}>
+            {k > 0 && ", "}
+            <a href={`#cost-${m.id}`} className={link}>
+              {m.name}
+            </a>
+          </span>
+        ))}
+      </span>,
+    );
+  }
+  if (total.yearly > 0) parts.push(<span key="yearly">{total.yearly === 1 ? "A yearly cost counts as a twelfth" : "Yearly costs count as a twelfth"}</span>);
+  if (parts.length === 0) return undefined;
+  return parts.map((p, k) => (
+    <span key={k} className="block">
+      {p}
+    </span>
+  ));
 }
 
 export default async function Page() {
   const { data, now } = await loadPage();
-  const total = monthlyTotal(data.lines, data.rate.value);
+  const total = monthlyTotal(data.lines);
   const alerts = costAlerts(data.lines, now);
   return (
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
@@ -189,18 +214,15 @@ export default async function Page() {
         <header className="space-y-1">
           <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">Costs</h1>
           <p className="text-sm text-muted-foreground">
-            What running Uplink costs this month.
+            What running Uplink costs this month, in dollars.
             {data.simulated && " Demo mode: sample figures."}
-            {!data.simulated && !data.ready && " Apply the costs migration to save entries."}
+            {!data.simulated && !data.ready && " Apply the costs migration to add your own."}
           </p>
         </header>
 
         <Figures
-          figures={[
-            { label: "This month", value: formatMoney(total.inr, "INR"), note: totalNote(total.yearly, total.uncounted) },
-            { label: "In dollars", value: formatMoney(total.usd, "USD") },
-            { label: "Dollar rate", value: formatMoney(data.rate.value, "INR"), note: rateNote(data.rate) },
-          ]}
+          figures={[{ label: "This month", value: usd(total.usd), note: totalNote(total) }]}
+          info="Estimated lines are list prices for what each provider's API reports, refreshed every 6 hours."
         />
 
         {alerts.length > 0 && (
@@ -228,19 +250,16 @@ export default async function Page() {
           </ul>
           {data.ready && (
             <details className="pt-2">
-              <summary className="w-fit cursor-pointer list-none text-sm underline decoration-border underline-offset-4 hover:decoration-foreground [&::-webkit-details-marker]:hidden">
-                Add a cost
-              </summary>
-              <EntryForm action={saveEntry.bind(null, "new")} values={null} fixedName={false} submitLabel="Add" />
+              <summary className={cn("w-fit cursor-pointer list-none text-sm [&::-webkit-details-marker]:hidden", link)}>Add a cost</summary>
+              <EntryForm action={saveEntry.bind(null, "new")} values={null} submitLabel="Add" />
             </details>
           )}
         </section>
 
         {data.ready && (
           <section className="space-y-4">
-            <h2 className={heading}>Rate and budget</h2>
-            <div className="grid gap-6 border-t pt-4 sm:grid-cols-2">
-              <NumberForm action={saveRate} name="rate" label="Rupees to a dollar" defaultValue={String(data.rate.value)} />
+            <h2 className={heading}>Budget</h2>
+            <div className="border-t pt-4">
               <NumberForm
                 action={saveBudget}
                 name="googleBudget"
