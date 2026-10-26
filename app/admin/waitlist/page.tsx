@@ -131,7 +131,6 @@ export default async function Page() {
   const readOnly = data.simulated;
   return (
     <AdminPage
-      tab="access"
       description={
         <p className="flex items-center gap-1">
           {placesLine(data.used, data.max)}.{readOnly && " Demo: read-only."}

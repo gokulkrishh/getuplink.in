@@ -54,7 +54,7 @@ export default async function Page() {
   const { data, now } = await loadAdminPage();
   const { runs } = data;
   return (
-    <AdminFrame tab="overview" description={`Totals across every owner. ${data.simulated ? "Demo: simulated." : "No VINs or names."}`}>
+    <AdminFrame description={`Totals across every owner. ${data.simulated ? "Demo: simulated." : "No VINs or names."}`}>
       {/* The headline counts as tiles, like the figures on every other screen; the lists below stay lists. */}
       <section className="space-y-3">
         <h2 className={heading}>Owners and cars</h2>
