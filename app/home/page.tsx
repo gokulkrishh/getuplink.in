@@ -6,10 +6,10 @@ import { DashboardPreview } from "@/components/dashboard-preview";
 import { AssistantMock } from "@/components/home/assistant-mock";
 import { CarGlanceMock } from "@/components/home/car-glance-mock";
 import { HistoryMock } from "@/components/home/history-mock";
+import { InviteOnly } from "@/components/home/invite-only";
 import { SessionCta } from "@/components/home/session-cta";
 import { LoginError } from "@/components/login-error";
 import { Logo } from "@/components/logo";
-import { SignInButton } from "@/components/sign-in-button";
 import { buttonVariants } from "@/components/ui/button";
 import { DEMO_URL } from "@/lib/demo";
 import { HOME_URL, OPEN_GRAPH, TAGLINE, TWITTER } from "@/lib/site";
@@ -127,14 +127,16 @@ export default function HomePage() {
             Software updates, charging spend, battery and kilometres driven.
           </p>
           <div className="mt-10 flex flex-wrap items-center gap-3">
-            <Suspense fallback={<SignInButton />}>
-              <SessionCta />
+            {/* Signed in: Dashboard. Signed out: nothing here; sign-up is by invite link (InviteOnly). */}
+            <Suspense>
+              <SessionCta dashboardOnly />
             </Suspense>
-            <a href={DEMO_URL} className={buttonVariants({ variant: "secondary", size: "xl" })}>
+            <a href={DEMO_URL} className={buttonVariants({ size: "xl" })}>
               See the demo
             </a>
           </div>
-          <p className="mt-4 text-xs text-faint">Read-only · Never wakes your car · Revoke access any time</p>
+          <InviteOnly className="mt-8" />
+          <p className="mt-6 text-xs text-faint">Read-only · Never wakes your car · Revoke access any time</p>
           {/* Renders nothing (and takes no space) unless sign-in failed, so the page doesn't shift. */}
           <Suspense>
             <LoginError className="mt-4" />
@@ -231,14 +233,18 @@ export default function HomePage() {
 
       <section className="flex flex-col items-start gap-8 py-28">
         <h2 className="max-w-3xl text-5xl leading-display font-semibold tracking-tight text-balance sm:text-6xl">
-          Start tracking in two minutes.
+          Invited? Set up in two minutes.
         </h2>
-        <div>
-          <Suspense fallback={<SignInButton label="Get started" />}>
-            <SessionCta label="Get started" />
+        <p className="-mt-4 max-w-md text-lg text-muted-foreground">Open your invite link to sign in with Tesla.</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <Suspense>
+            <SessionCta dashboardOnly />
           </Suspense>
-          <p className="mt-4 text-xs text-faint">Read-only. Revoke access any time.</p>
+          <a href={DEMO_URL} className={buttonVariants({ variant: "secondary", size: "xl" })}>
+            See the demo
+          </a>
         </div>
+        <InviteOnly />
       </section>
 
       <footer className="mt-auto flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 py-8 text-xs text-faint">

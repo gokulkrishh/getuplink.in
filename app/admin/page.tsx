@@ -63,7 +63,7 @@ export default async function Page() {
           </p>
           <p className="text-sm">
             <Link href="/admin/waitlist" prefetch={true} className="underline decoration-border underline-offset-4 hover:decoration-foreground">
-              Waitlist
+              Access
             </Link>
             <span aria-hidden className="mx-1.5 text-faint">
               ·
