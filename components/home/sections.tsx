@@ -98,7 +98,7 @@ export function ChargingSection({ frames, bills, listed, now }: { frames: HomeFr
   return (
     <Section title="Charging" view="charging" more="See all sessions">
       {eachFrame(frames, chart, { steady: true })}
-      {eachFrame(frames, rows, { steady: true })}
+      {eachFrame(frames, rows)}
     </Section>
   );
 }
@@ -138,7 +138,7 @@ export function DrivingSection({ frames, figures, drives, now }: { frames: HomeF
   return (
     <Section title="Driving" view="driving" more="See all trips">
       {eachFrame(frames, chart, { steady: true })}
-      {eachFrame(frames, rows, { steady: true })}
+      {eachFrame(frames, rows)}
     </Section>
   );
 }
