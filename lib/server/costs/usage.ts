@@ -54,7 +54,8 @@ export function teslaLine(usage: TeslaUsage | null, now: number): CostLine {
 export type GoogleUsageSource = (monthStart: string) => Promise<GoogleCounts | null>;
 
 // The naming sheet's calls (lib/server/place-suggestions.ts), counted in google_usage per SKU: each open
-// makes one Nearby Search Pro call and one Geocoding call. Null before the migration: "Not tracked yet".
+// makes one Nearby Search Pro call, and each search one Autocomplete call. Null before the migration: "Not
+// tracked yet".
 export const googleUsage: GoogleUsageSource = async (monthStart) => {
   const rows = await googleUsageFor(monthStart.slice(0, 10));
   if (!rows) return null;

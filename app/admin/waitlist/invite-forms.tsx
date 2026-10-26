@@ -3,6 +3,7 @@
 import { Check, Copy, Share } from "lucide-react";
 import { useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { NO_AUTOFILL } from "@/lib/no-autofill";
 import type { LinkResult } from "./actions";
 
 const field =
@@ -66,7 +67,7 @@ export function CreateInvite({ action }: { action: (previous: LinkResult, form: 
             minLength={6}
             maxLength={6}
             pattern="[A-Za-z0-9]{6}"
-            autoComplete="off"
+            {...NO_AUTOFILL}
             autoCapitalize="characters"
             spellCheck={false}
             placeholder="A12345"
@@ -75,7 +76,7 @@ export function CreateInvite({ action }: { action: (previous: LinkResult, form: 
         </label>
         <label className="space-y-1">
           <span className="text-xs text-muted-foreground">Label (optional)</span>
-          <input name="label" maxLength={60} autoComplete="off" placeholder="Arun's Model Y" className={field} />
+          <input name="label" maxLength={60} {...NO_AUTOFILL} placeholder="Arun's Model Y" className={field} />
         </label>
         <Button type="submit" disabled={pending} className="h-9">
           {pending ? "Creating…" : "Create invite link"}

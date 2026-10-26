@@ -149,8 +149,8 @@ export default function PrivacyPage() {
             <Out href="https://www.tesla.com/legal/privacy">Tesla&apos;s Privacy Notice</Out>.
           </li>
           <li>
-            Google Maps, when you open Name this place: the spot&apos;s coordinates, to suggest nearby places and the street
-            address. If you pick one, Uplink keeps only its ID and asks Google for the name each time a page shows it.{" "}
+            Google Maps, when you use Name this place: the spot&apos;s coordinates, to suggest nearby places, and what you type
+            in its search. If you pick one, Uplink keeps only its ID and asks Google for the name each time a page shows it.{" "}
             <Out href="https://policies.google.com/privacy">Google&apos;s Privacy Policy</Out> applies.
           </li>
           <li>OpenStreetMap&apos;s Nominatim: a spot&apos;s coordinates, with nothing about you, to look up the area name.</li>
