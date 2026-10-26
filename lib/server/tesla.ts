@@ -1,6 +1,8 @@
 import "server-only";
 import { cache } from "react";
 import { DEMO } from "@/lib/demo";
+import { sandboxOn } from "@/lib/sandbox/flag";
+import { sandboxTesla } from "@/lib/sandbox/tesla";
 import { decrypt, encrypt } from "./crypto";
 import { demoData } from "./demo";
 import { env, fleetApiBase, maxUsers, signupMode } from "./env";
@@ -34,6 +36,8 @@ import {
 } from "./data/system";
 
 export const AUTHORIZE_URL = "https://auth.tesla.com/oauth2/v3/authorize";
+// The local sandbox's stand-in for Tesla's sign-in page (app/sandbox/tesla-login).
+export const SANDBOX_AUTHORIZE_PATH = "/sandbox/tesla-login";
 export const TOKEN_URL = "https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token";
 // A token from before a scope was added lacks it until the next sign-in.
 // The owner keeps everything Tesla shares, so sign-in asks for every read scope enabled in the developer
@@ -67,18 +71,24 @@ export class NotConnectedError extends Error {
   }
 }
 
+// How every Tesla request leaves: fetch, or the local sandbox's fake Tesla (lib/sandbox/tesla.ts), which
+// answers from made-up accounts so the code below runs unchanged. Read per request; off in production.
+const send = (input: string, init: RequestInit): Promise<Response> => (sandboxOn() ? sandboxTesla(input, init) : fetch(input, init));
+
 // Every request Uplink sends the Fleet API goes through here, so each is counted (lib/server/usage.ts) under
 // its user, or UNATTRIBUTED before there is one. Tesla bills every answer below 500, so that's what counts,
 // once per attempt: a 401 and its retry are two. No answer (a network error) isn't billed or counted.
 async function teslaFetch(userId: number, path: string, init: { method?: string; token: string }): Promise<Response> {
   const method = init.method ?? "GET";
-  const res = await fetch(`${fleetApiBase()}${path}`, { method, headers: { Authorization: `Bearer ${init.token}` }, cache: "no-store" });
+  const res = await send(`${fleetApiBase()}${path}`, { method, headers: { Authorization: `Bearer ${init.token}` }, cache: "no-store" });
   if (isBillable(res.status)) await countRequest(userId, kindOf(method, path));
   return res;
 }
 
+// Absolute, or in the sandbox a path on this app: callers resolve it against the request's origin.
 export function authorizeUrl(state: string): string {
-  const url = new URL(AUTHORIZE_URL);
+  const sandbox = sandboxOn();
+  const url = new URL(sandbox ? `http://sandbox.invalid${SANDBOX_AUTHORIZE_PATH}` : AUTHORIZE_URL);
   url.search = new URLSearchParams({
     response_type: "code",
     client_id: env("TESLA_CLIENT_ID"),
@@ -87,12 +97,12 @@ export function authorizeUrl(state: string): string {
     state,
     prompt_missing_scopes: "true",
   }).toString();
-  return url.toString();
+  return sandbox ? url.pathname + url.search : url.toString();
 }
 
 async function tokenRequest(params: Record<string, string>): Promise<TokenResponse> {
   if (DEMO) throw new Error("Tesla is off in demo mode");
-  const res = await fetch(TOKEN_URL, {
+  const res = await send(TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams(params),

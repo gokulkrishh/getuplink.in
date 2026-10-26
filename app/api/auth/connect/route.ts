@@ -1,14 +1,17 @@
 import { randomBytes } from "node:crypto";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { DEMO } from "@/lib/demo";
-import { STATE_COOKIE } from "@/lib/session";
+import { requestHost, STATE_COOKIE } from "@/lib/session";
 import { authorizeUrl } from "@/lib/server/tesla";
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   // Demo mode has no Tesla to sign in with.
   if (DEMO) return NextResponse.redirect(new URL("/", request.url));
   const state = randomBytes(24).toString("base64url");
-  const res = NextResponse.redirect(authorizeUrl(state));
+  // Tesla's page, or in the local sandbox its stand-in on this host (a path, resolved against the host the
+  // browser used, as the callback does, so the state cookie comes back with it).
+  const origin = `${request.nextUrl.protocol}//${requestHost(request.headers) ?? request.nextUrl.host}`;
+  const res = NextResponse.redirect(new URL(authorizeUrl(state), origin));
   res.cookies.set(STATE_COOKIE, state, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

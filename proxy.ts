@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { DEMO } from "@/lib/demo";
+import { sandboxOn } from "@/lib/sandbox/flag";
 import { EXPIRE_HOST_ONLY_SESSION, isValidSession, requestHost, SESSION_COOKIE, sessionCookieDomain, sessionCookieValues } from "@/lib/session";
 import { METADATA_PATHS } from "@/lib/site";
 import { statsRedirect } from "@/lib/stats-redirect";
@@ -62,10 +63,11 @@ export async function proxy(request: NextRequest) {
     // The status page's "home" link points at /home.
     return NextResponse.redirect(homeOrigin(request.nextUrl) + (pathname === "/home" ? "/" : pathname + search), 308);
   }
-  // Demo mode serves the app on any host, so plain localhost:3000 works.
-  const marketing = !DEMO && Boolean(host && MARKETING_HOSTS.has(host));
+  // Demo mode and the local sandbox serve the app on any host, so plain localhost:3000 works.
+  const sandbox = sandboxOn();
+  const marketing = !DEMO && !sandbox && Boolean(host && MARKETING_HOSTS.has(host));
   // Footer Status links, on the home page or in the app, land on the status subdomain.
-  if (pathname === "/status" && !DEMO) return NextResponse.redirect(statusOrigin(request.nextUrl), 308);
+  if (pathname === "/status" && !DEMO && !sandbox) return NextResponse.redirect(statusOrigin(request.nextUrl), 308);
   // "Open app" on the home page: the dashboard root on the app host.
   if (pathname === "/app") {
     return NextResponse.redirect(marketing ? appOrigin(request.nextUrl) + "/" : new URL("/", request.url));
@@ -88,6 +90,8 @@ export async function proxy(request: NextRequest) {
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
   // Invite links (/invite/<token>): opened by someone without an account yet. The page checks the token itself.
   if (pathname.startsWith("/invite/")) return NextResponse.next();
+  // The sandbox's stand-in for Tesla's sign-in page. Off the sandbox it is a 404 for everyone.
+  if (sandbox && pathname === "/sandbox/tesla-login") return NextResponse.next();
 
   if (DEMO) return NextResponse.next();
   const sent = sessionCookieValues(request.headers.get("cookie"));

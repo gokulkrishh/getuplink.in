@@ -1,6 +1,7 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 import { type CostLine, isStale, type SupabaseAddon, type SupabaseProject, supabaseEstimate } from "@/lib/costs";
+import { envValue } from "@/lib/sandbox/flag";
 import { getJson, PROVIDER_COSTS_TAG, providerError } from "./http";
 
 // Supabase: the org's plan and each project's add-ons from the Management API, priced at Supabase's list
@@ -17,7 +18,7 @@ const MAX_PROJECTS = 20;
 export type SupabaseRead = { kind: "ok"; usd: number | null; note: string; fetchedAt: string } | { kind: "connect" } | { kind: "error" };
 
 // The project ref from SUPABASE_URL (https://<ref>.supabase.co), or Uplink's own.
-export function projectRef(url = process.env.SUPABASE_URL): string {
+export function projectRef(url = envValue("SUPABASE_URL")): string {
   try {
     const host = new URL(url ?? "").hostname;
     const ref = host.endsWith(".supabase.co") ? host.split(".")[0] : "";
@@ -34,7 +35,7 @@ type Project = { ref?: unknown; organization_slug?: unknown; status?: unknown };
 export async function readSupabase(): Promise<SupabaseRead> {
   "use cache: remote";
   cacheTag(PROVIDER_COSTS_TAG);
-  const token = process.env.SUPABASE_ACCESS_TOKEN?.trim();
+  const token = envValue("SUPABASE_ACCESS_TOKEN")?.trim();
   if (!token) {
     cacheLife("minutes");
     return { kind: "connect" };

@@ -1,4 +1,8 @@
 import type { NextConfig } from "next";
+import { assertSandboxAllowed } from "./lib/sandbox/flag";
+
+// The local sandbox (UPLINK_SANDBOX=1) refuses a production build or server and any Vercel build.
+assertSandboxAllowed();
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
