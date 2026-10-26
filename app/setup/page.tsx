@@ -76,7 +76,7 @@ function streamingWords(car: CarSetup, canSend: boolean, needsLocation: boolean)
 // A solid key (Heroicons, MIT): lucide's key is an outline, and filling it reads oddly.
 function SolidKey() {
   return (
-    <svg aria-hidden viewBox="0 0 24 24" fill="currentColor" className="size-5">
+    <svg aria-hidden viewBox="0 0 24 24" fill="currentColor" className="size-4">
       <path
         fillRule="evenodd"
         clipRule="evenodd"
@@ -127,15 +127,13 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
       <ol>
         <Step n={1} title="Add Uplink's key" state={key}>
           {key !== "done" && (
-            <p className="text-sm text-muted-foreground">
-              Open this link on the phone with the Tesla app, then approve the key in the app or on the car&apos;s screen.
-            </p>
-          )}
-          {key !== "done" && (
-            <a href={KEY_PAIRING_URL} className={cn(buttonVariants({ size: "lg" }), "h-11 w-full gap-2 px-4 text-base sm:w-auto")}>
-              <SolidKey />
-              Add the key in the Tesla app
-            </a>
+            <div className="space-y-2">
+              <a href={KEY_PAIRING_URL} className={cn(buttonVariants(), "gap-2")}>
+                <SolidKey />
+                Add key
+              </a>
+              <p className="text-xs text-muted-foreground">Opens the Tesla app on your phone. Approve the key there or on the car&apos;s screen.</p>
+            </div>
           )}
           <p className="text-sm text-muted-foreground">
             The key lets your car send its data to Uplink. Uplink sends your car no commands, and you can remove the key in the car&apos;s Locks
