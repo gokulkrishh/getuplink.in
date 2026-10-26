@@ -33,7 +33,7 @@ export default function PrivacyPage() {
     <PlainPage
       title="Privacy"
       intro="What Uplink stores about you and your car, and how to delete it."
-      meta="Last updated 25 October 2026"
+      meta="Last updated 26 October 2026"
       current="privacy"
     >
       <PlainSection title="Who we are">
@@ -46,6 +46,10 @@ export default function PrivacyPage() {
       <PlainSection title="Signing in">
         <p>
           You sign in on Tesla&apos;s own page. Uplink never sees your Tesla password.
+        </p>
+        <p>
+          On the waitlist, Uplink keeps only your Tesla account id and when you asked. No sign-in tokens, no email
+          and nothing about your car until you&apos;re approved and sign in again.
         </p>
       </PlainSection>
 
