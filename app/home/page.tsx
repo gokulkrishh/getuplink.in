@@ -112,7 +112,7 @@ export default function HomePage() {
           Uplink
         </Link>
         <Suspense>
-          <SessionCta size="sm" dashboardOnly />
+          <SessionCta size="sm" signInLink />
         </Suspense>
       </header>
 
@@ -127,15 +127,15 @@ export default function HomePage() {
             Software updates, charging spend, battery and kilometres driven.
           </p>
           <div className="mt-10 flex flex-wrap items-center gap-3">
-            {/* Signed in: Dashboard. Signed out: nothing here; sign-up is by invite link (InviteOnly). */}
+            {/* Signed in: Dashboard. Signed out: nothing here; sign-up is by invite link, sign-in is in the header. */}
             <Suspense>
               <SessionCta dashboardOnly />
             </Suspense>
             <a href={DEMO_URL} className={buttonVariants({ size: "xl" })}>
               See the demo
             </a>
+            <InviteOnly />
           </div>
-          <InviteOnly className="mt-8" />
           <p className="mt-6 text-xs text-faint">Read-only · Never wakes your car · Revoke access any time</p>
           {/* Renders nothing (and takes no space) unless sign-in failed, so the page doesn't shift. */}
           <Suspense>
@@ -243,8 +243,8 @@ export default function HomePage() {
           <a href={DEMO_URL} className={buttonVariants({ variant: "secondary", size: "xl" })}>
             See the demo
           </a>
+          <InviteOnly />
         </div>
-        <InviteOnly />
       </section>
 
       <footer className="mt-auto flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 py-8 text-xs text-faint">

@@ -12,13 +12,16 @@ export async function SessionCta({
   label,
   className,
   dashboardOnly = false,
+  signInLink = false,
 }: {
   size?: "sm" | "xl";
   // Text for the signed-out button; defaults to "Sign in with Tesla".
   label?: string;
   className?: string;
-  // The header shows nothing to signed-out visitors; sign-in lives in the page itself.
+  // Signed out, show nothing (sign-up is by invite link only).
   dashboardOnly?: boolean;
+  // Signed out, a quiet "Sign in" text link instead, for accounts that already have access (the header).
+  signInLink?: boolean;
 }) {
   // The session check reads the clock, so render this only at request time, never ahead of it.
   await connection();
@@ -28,6 +31,13 @@ export async function SessionCta({
     return (
       <a href="/app" className={cn(buttonVariants({ size }), className)}>
         Dashboard
+      </a>
+    );
+  }
+  if (signInLink) {
+    return (
+      <a href="/api/auth/connect" className={cn("text-muted-foreground transition-colors duration-150 hover:text-foreground", className)}>
+        Sign in
       </a>
     );
   }
