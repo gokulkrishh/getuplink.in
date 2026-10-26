@@ -1,4 +1,5 @@
 import "server-only";
+import { parseInvoiceTime, parseRangeEnd } from "@/lib/mcp-ranges";
 import { createHash } from "node:crypto";
 import { type Invoice, invoiceProblem, matchInvoice, pickedSessionFits, type ReceiptSession } from "@/lib/charge-receipts";
 import { loadDrivingFigures } from "./driving";
@@ -19,11 +20,6 @@ const MAX_FILE_BYTES = 3 * 1024 * 1024;
 export function istIso(value: string | number): string {
   const ms = typeof value === "number" ? value : Date.parse(value);
   return new Date(ms + IST_MS).toISOString().replace(/\.\d{3}Z$/, "+05:30");
-}
-
-// A time from the AI: with an offset or Z as given, without one as IST wall-clock time.
-export function parseInvoiceTime(value: string): number {
-  return Date.parse(/(?:Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : `${value}+05:30`);
 }
 
 type ReceiptRow = {
@@ -85,10 +81,10 @@ function describe(s: ReceiptSession, receipt: ReceiptRow | undefined) {
 }
 
 export async function listChargingSessions(owner: Owner, { from, to, withoutInvoice }: { from?: string; to?: string; withoutInvoice?: boolean }) {
-  const end = to ? parseInvoiceTime(to) : Date.now();
+  const end = to ? parseRangeEnd(to) : Date.now();
   const start = from ? parseInvoiceTime(from) : end - 30 * DAY;
   if (!Number.isFinite(start) || !Number.isFinite(end)) return { error: "from and to must be dates like 2026-10-21 or 2026-10-21T19:10." };
-  const sessions = await sessionsBetween(owner, start, end + DAY);
+  const sessions = await sessionsBetween(owner, start, end);
   const receipts = await receiptsFor(owner, sessions.map((s) => s.id));
   const listed = sessions
     .filter((s) => !withoutInvoice || (!s.supercharger && s.ended_at != null && !receipts.has(s.id)))

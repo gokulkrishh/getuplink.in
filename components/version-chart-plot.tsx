@@ -7,7 +7,8 @@ import { formatDate, formatShortDate } from "@/lib/format";
 
 const config = { step: { label: "Version", color: "var(--chart-accent)" } } satisfies ChartConfig;
 
-type Point = { at: number; step: number; version: string };
+// `latest` marks the added end point: the latest check, not a new version.
+type Point = { at: number; step: number; version: string; latest?: boolean };
 
 // A quiet step line: each rise is a new version, the last segment runs to the latest check.
 export default function VersionChartPlot({
@@ -31,7 +32,7 @@ export default function VersionChartPlot({
   const data = useMemo(() => {
     const points: Point[] = changes.map((c, i) => ({ at: new Date(c.detected_at).getTime(), step: i, version: c.version }));
     const last = points.at(-1);
-    if (last && until) points.push({ ...last, at: Math.max(new Date(until).getTime(), last.at) });
+    if (last && until) points.push({ ...last, at: Math.max(new Date(until).getTime(), last.at), latest: true });
     return points;
   }, [changes, until]);
   if (data.length === 0) return null;
@@ -54,17 +55,17 @@ export default function VersionChartPlot({
           tickLine={false}
           axisLine={{ stroke: "var(--border)" }}
           minTickGap={48}
-          tick={{ fontSize: 11, fill: "var(--faint)" }}
+          tick={{ fontSize: 12, fill: "var(--faint)" }}
         />
         {/* The first and latest versions label the y axis; the steps between are one update each. */}
         <YAxis
           domain={[-0.5, "dataMax + 0.5"]}
           ticks={[...new Set([0, data.at(-1)!.step])]}
           tickFormatter={(step: number) => data.find((p) => p.step === step)?.version ?? ""}
-          width={84}
+          width={92}
           tickLine={false}
           axisLine={{ stroke: "var(--border)" }}
-          tick={{ fontSize: 11, fill: "var(--faint)", fontFamily: "var(--font-mono)" }}
+          tick={{ fontSize: 12, fill: "var(--faint)", fontFamily: "var(--font-mono)" }}
         />
         <ChartTooltip
           cursor={{ stroke: "var(--border)" }}
@@ -72,9 +73,11 @@ export default function VersionChartPlot({
             const point = active ? (payload?.[0]?.payload as Point | undefined) : undefined;
             if (!point) return null;
             return (
-              <div className="border bg-background px-2 py-1 text-xs">
-                <span className="font-mono">{point.version}</span>
-                <span className="ml-2 text-muted-foreground">{formatDate(point.at)}</span>
+              <div className="border bg-background px-2 py-1 text-xs whitespace-nowrap tabular-nums shadow-sm">
+                <span className="block font-mono">{point.version}</span>
+                <span className="block text-muted-foreground">
+                  {point.latest ? "Latest check" : "From"} {formatDate(point.at)}
+                </span>
               </div>
             );
           }}

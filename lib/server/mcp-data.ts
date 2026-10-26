@@ -6,6 +6,7 @@ import { billedCharges } from "@/lib/charging-figures";
 import { dayStrips } from "@/lib/day-timeline";
 import { monthlyRows } from "@/lib/monthly";
 import { DRIVE_DAYS } from "@/lib/drives";
+import { dayBounds, seasonsPeriod } from "@/lib/mcp-ranges";
 import { monthStart } from "@/lib/periods";
 import { topStations } from "@/lib/top-stations";
 import { groupTrips } from "@/lib/trips";
@@ -16,7 +17,7 @@ import { loadCarFlags } from "./car-flags";
 import { loadChargingSessions } from "./charging";
 import { loadChargingExtras } from "./charging-extra";
 import { loadDriveDetail } from "./drive-detail";
-import { loadDrivingExtras } from "./driving-extra";
+import { INSIGHT_DAYS, loadDrivingExtras } from "./driving-extra";
 import { loadDrivingFigures, loadSeasonEfficiency, loadWindowStats } from "./driving";
 import { seasonMonths, seasonName } from "@/lib/seasons";
 import { invoicesBySession, istIso } from "./receipts";
@@ -208,7 +209,9 @@ export async function drivingInsights(owner: Owner) {
   const [x, seasons] = await Promise.all([loadDrivingExtras(owner, vin, window.driving.drives, now), loadSeasonEfficiency(owner, vin, window.driving.drives, now)]);
   const TAG = { home: "Home", work: "Work", favorite: "Favourite" } as const;
   return {
-    period: "last 30 days",
+    // The seasons reach back a year, further than the rest, so they carry their own span.
+    period: `last ${INSIGHT_DAYS} days`,
+    wh_per_km_by_season_period: seasonsPeriod(seasons.seasons),
     time_at_speed: x.speed.map((b) => ({ kmh: b.to === null ? `${b.from}+` : `${b.from}-${b.to}`, share_pct: Math.round(b.share * 100) })),
     km_per_kwh_by_outside_temp: x.byTemp.map((b) => ({ band: b.label, drives: b.drives, km: Math.round(b.km), km_per_kwh: r1(b.kmPerKwh) })),
     // The last four Indian seasons (IST months): Winter Dec-Feb, Summer Mar-May, Monsoon Jun-Sep, Post-monsoon Oct-Nov.
@@ -230,11 +233,11 @@ export async function drivingInsights(owner: Owner) {
 // One IST day: when the car drove, charged, parked or was seen asleep, its trips and its charges.
 export async function daySummary(owner: Owner, date: string) {
   const now = Date.now();
-  const start = Date.parse(`${date}T00:00:00+05:30`);
-  if (!Number.isFinite(start)) return { error: "date must look like 2026-10-23" };
+  const bounds = dayBounds(date, now);
+  if ("error" in bounds) return bounds;
+  const { start, end, days } = bounds;
   const { vehicle, vin } = await car(owner);
   const [window, presence, figures, sessions] = await Promise.all([loadWindowStats(owner, vin, now), loadPresence(owner, vehicle, now), loadDrivingFigures(owner, vin, now), loadStreamSessions(owner)]);
-  const days = Math.max(1, istDay(now) - istDay(start) + 1);
   const day = dayStrips(
     days,
     {
@@ -245,7 +248,6 @@ export async function daySummary(owner: Owner, date: string) {
     figures.since,
     now,
   )[0];
-  const end = istDayStart(istDay(start) + 1);
   const trips = await listTrips(owner, start, end);
   return {
     date,

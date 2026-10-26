@@ -2,6 +2,7 @@
 
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { ChartCard } from "@/components/chart-card";
 import { Segmented } from "@/components/segmented";
 import { type Bar, Bars } from "@/components/stats/bars";
 import {
@@ -46,42 +47,44 @@ export function RolloutAdoption({ adoption }: { adoption: Record<AdoptionGrain, 
     tip: `${on[k] ?? 0} of ${cars(slot.of)}`,
   }));
 
+  const words = grain === "day" ? "days" : "weeks";
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span id="adoption-version" className="text-sm text-muted-foreground">
-            Version
-          </span>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              aria-labelledby="adoption-version"
-              className="flex h-8 cursor-pointer items-center gap-2 border bg-background px-3 font-mono text-sm tabular-nums hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none data-popup-open:bg-muted"
-            >
-              {version}
-              <ChevronDown className="size-3.5 text-muted-foreground" aria-hidden />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-48">
-              <DropdownMenuRadioGroup value={version} onValueChange={(value) => setPicked(value as string)}>
-                {versions.map((v) => (
-                  <DropdownMenuRadioItem key={v} value={v} className="font-mono tabular-nums">
-                    {v}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+    <ChartCard
+      title="Adoption over time"
+      description={`The share of Indian cars on the picked version at the end of ${SPAN_WORDS[grain]}. A taller bar means more cars had it.`}
+      unit="%"
+      summary={
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span id="adoption-version" className="text-sm text-muted-foreground">
+              Version
+            </span>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-labelledby="adoption-version"
+                className="flex h-8 cursor-pointer items-center gap-2 border bg-background px-3 font-mono text-sm tabular-nums hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none data-popup-open:bg-muted"
+              >
+                {version}
+                <ChevronDown className="size-3.5 text-muted-foreground" aria-hidden />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuRadioGroup value={version} onValueChange={(value) => setPicked(value as string)}>
+                  {versions.map((v) => (
+                    <DropdownMenuRadioItem key={v} value={v} className="font-mono tabular-nums">
+                      {v}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <Segmented label="Group by" options={GRAINS} value={grain} onChange={setGrain} />
         </div>
-        <Segmented label="Group by" options={GRAINS} value={grain} onChange={setGrain} />
-      </div>
-      <Bars
-        bars={bars}
-        ariaLabel={`Share of cars on ${version}, ${SPAN_WORDS[grain]}`}
-        labelEvery={LABEL_EVERY[grain]}
-        unit="%"
-        empty={`No cars ran ${version} in these ${grain === "day" ? "days" : "weeks"}`}
-        caption={`Share of cars on ${version} at the end of ${SPAN_WORDS[grain]}, out of the cars whose version Uplink had seen by then. Hover or tap a bar for the count.`}
-      />
-    </div>
+      }
+      empty={bars.some((b) => b.value > 0) ? undefined : `No cars ran ${version} in these ${words}`}
+      caption="Out of the cars whose version Uplink had seen by then, each counted from its first recorded version, never before. Hover or tap a bar for the count."
+    >
+      <Bars bars={bars} ariaLabel={`Share of cars on ${version}, ${SPAN_WORDS[grain]}`} labelEvery={LABEL_EVERY[grain]} unit="%" />
+    </ChartCard>
   );
 }
