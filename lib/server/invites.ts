@@ -81,11 +81,6 @@ export function allowInviteLookup(address: string, now: number): boolean {
   return seen.count <= LOOKUP_LIMIT;
 }
 
-// The local sandbox's Reset starts the counts afresh: its private windows all share one address.
-export function resetInviteLookups(): void {
-  lookups.clear();
-}
-
 // The caller's address, from the headers Vercel sets.
 export function clientAddress(headers: { get(name: string): string | null }): string {
   return headers.get("x-forwarded-for")?.split(",")[0]?.trim() || headers.get("x-real-ip") || "unknown";

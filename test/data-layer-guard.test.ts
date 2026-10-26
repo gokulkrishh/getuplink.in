@@ -55,32 +55,6 @@ describe("database access", () => {
     expect(violations()).toEqual([]);
   });
 
-  // The local sandbox's database and fake Tesla stand in for the real ones only through the two switches
-  // that check sandboxOn(): db() and the Tesla transport. Reset (app/sandbox/actions.ts) reseeds it.
-  test("only the sandbox's own switches reach its database and fake Tesla", () => {
-    const SANDBOX_IMPORTS: [RegExp, RegExp[]][] = [
-      [/["'](?:@\/lib\/sandbox|\.)\/db["']/, [/^lib\/server\/supabase\.ts$/, /^app\/sandbox\/actions\.ts$/]],
-      [/["'](?:@\/lib\/sandbox|\.)\/tesla["']/, [/^lib\/server\/tesla\.ts$/]],
-      [/["'](?:@\/lib\/sandbox|\.)\/fake-db["']/, [/^lib\/sandbox\/db\.ts$/]],
-    ];
-    const out: string[] = [];
-    for (const file of SCANNED.flatMap(files)) {
-      const path = relative(ROOT, file).split("\\").join("/");
-      const source = code(readFileSync(file, "utf8"));
-      for (const [re, allowed] of SANDBOX_IMPORTS) {
-        // Inside lib/sandbox, "./db" and "./tesla" are its own modules; elsewhere only the @/ form names them.
-        const local = path.startsWith("lib/sandbox/");
-        const hit = local ? re.test(source) : re.test(source.replace(/["']\.\/(db|tesla|fake-db)["']/g, '""'));
-        if (hit && !allowed.some((a) => a.test(path))) out.push(`${path} imports ${re.source}`);
-      }
-      // Nothing in the sandbox talks to the real database.
-      if (path.startsWith("lib/sandbox/") || path.startsWith("app/sandbox/")) {
-        for (const [what, re] of RULES) if (re.test(source)) out.push(`${path} ${what}`);
-      }
-    }
-    expect(out).toEqual([]);
-  });
-
   test("the rules catch each way around the layer", () => {
     const hits = (source: string) => RULES.filter(([, re]) => re.test(code(source))).map(([what]) => what);
     expect(hits('import { db } from "@/lib/server/supabase";')).toEqual(["imports the Supabase client module"]);

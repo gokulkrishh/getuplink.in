@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { SandboxBanner } from "@/components/sandbox-banner";
-import { sandboxOn } from "@/lib/sandbox/flag";
 import { OPEN_GRAPH, SITE_URL, TAGLINE, TWITTER } from "@/lib/site";
 import { THEME_SCRIPT } from "@/lib/theme";
 import "./globals.css";
@@ -45,8 +43,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body className="flex min-h-full flex-col">
-        {/* Local sandbox only (bun run sandbox): always false in a production build. */}
-        {sandboxOn() && <SandboxBanner />}
         <main className="flex w-full flex-1 flex-col">{children}</main>
       </body>
     </html>

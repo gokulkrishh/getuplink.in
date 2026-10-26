@@ -1,6 +1,4 @@
 // Shared by proxy.ts, route handlers and server actions, so it sticks to Web Crypto.
-import { envValue } from "@/lib/sandbox/flag";
-
 export const SESSION_COOKIE = "tiu_session";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 30;
 export const STATE_COOKIE = "tiu_oauth_state";
@@ -51,7 +49,7 @@ const encoder = new TextEncoder();
 // that key signs everyone out (and makes stored Tesla tokens unreadable). The context string names the
 // cookie's format: v3 cookies (no user) don't verify as v4, so the move to v4 signed everyone out once.
 async function sign(payload: string): Promise<string> {
-  const secret = envValue("TOKEN_ENCRYPTION_KEY");
+  const secret = process.env.TOKEN_ENCRYPTION_KEY;
   if (!secret) throw new Error("Missing env var TOKEN_ENCRYPTION_KEY");
   const key = await crypto.subtle.importKey("raw", encoder.encode(`session:${secret}`), { name: "HMAC", hash: "SHA-256" }, false, [
     "sign",
