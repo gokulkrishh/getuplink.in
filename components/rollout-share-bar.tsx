@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { formatPercent } from "@/lib/format";
 
 // One version's share of the counted cars, as a bar the width of the row. Hovering, focusing or tapping
 // it shows the share and the count above it, in the chart tooltips' style; Escape or a tap elsewhere
@@ -8,8 +9,8 @@ import { useEffect, useRef, useState } from "react";
 export function ShareBar({ on, of }: { on: number; of: number }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLButtonElement>(null);
-  const pct = of ? Math.round((on / of) * 100) : 0;
-  const words = `${pct}% of cars, ${on} of ${of}`;
+  const pct = formatPercent(of ? (on / of) * 100 : 0);
+  const words = `${pct} of cars, ${on} of ${of}`;
 
   useEffect(() => {
     if (!open) return;
@@ -39,7 +40,7 @@ export function ShareBar({ on, of }: { on: number; of: number }) {
           aria-hidden="true"
           className="pointer-events-none absolute bottom-full left-0 z-10 mb-2 border bg-background px-2 py-1 text-left text-xs whitespace-nowrap tabular-nums shadow-sm"
         >
-          <span className="block font-mono">{pct}%</span>
+          <span className="block font-mono">{pct} of cars</span>
           <span className="block text-muted-foreground">
             {on} of {of} cars
           </span>

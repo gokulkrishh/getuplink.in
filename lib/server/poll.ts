@@ -2,6 +2,9 @@ import "server-only";
 import { DEMO } from "@/lib/demo";
 import { type Owner, ownerDb } from "./data/owner";
 import { accountOwners, closeStaleRuns, finishRun, startRun } from "./data/system";
+import { claimCheckNow, claimScheduledCheck, lastRunStartedAt, MissingSchema, releaseCheck, type Schedule, schedules } from "./data/usage";
+import { budgetState } from "./usage";
+import { CHECK_EVERY_MS } from "@/lib/tesla-billing";
 import { fleetGet, hasScope, LOCATION_SCOPE, NotConnectedError, TeslaError } from "./tesla";
 import { syncChargingHistory } from "./charging";
 import { syncStreamSessionsSafely } from "./stream-charging";
@@ -201,43 +204,153 @@ async function pollVehicle(owner: Owner, vehicle: FleetVehicle, now: string, loc
   ]);
 }
 
-export type PollResult = { ok: boolean; vehicles: number; error?: string; skipped?: boolean };
+export type PollResult = { ok: boolean; vehicles: number; users?: number; error?: string; skipped?: string };
 
-export async function pollAll(): Promise<PollResult> {
-  if (DEMO) return { ok: true, vehicles: 0, skipped: true };
-  await closeStaleRuns(new Date(Date.now() - STALE_RUN_MS).toISOString());
-  // poll_runs allows one unfinished row (poll_runs_one_running_idx): inserting is taking the lock.
-  const run = await startRun(UNIQUE_VIOLATION);
-  if (run === null) return { ok: true, vehicles: 0, skipped: true };
-  const now = new Date().toISOString();
+// How many users one cron run checks, one after another, and when it stops starting another: the route
+// has 60 s (maxDuration). Users not reached stay due for the next run, 15 minutes later.
+export const BATCH = 4;
+const RUN_BUDGET_MS = 40_000;
+// A user's lock outlives a check that crashed by this long, then frees itself.
+const LOCK_MS = 2 * 60_000;
+// The on-demand check (after a sign-in) runs at most this often per user.
+export const CHECK_NOW_GAP_MS = 5 * 60_000;
+
+// Which users a cron run checks: the approved, connected ones that are due (next_check_at passed or never
+// set) and not held by another check, soonest first, at most `limit`. Pure, so it can be tested.
+export function dueUsers(owners: Owner[], plan: Schedule[], now: number, limit = BATCH): Owner[] {
+  const at = new Map(plan.map((s) => [s.id, s]));
+  const due = (s: Schedule | undefined) =>
+    (!s?.next_check_at || Date.parse(s.next_check_at) <= now) && (!s?.check_lock_until || Date.parse(s.check_lock_until) < now);
+  const when = (o: Owner) => {
+    const next = at.get(o.userId)?.next_check_at;
+    return next ? Date.parse(next) : -Infinity;
+  };
+  return owners
+    .filter((o) => due(at.get(o.userId)))
+    .sort((a, b) => when(a) - when(b) || a.userId - b.userId)
+    .slice(0, limit);
+}
+
+// One user's check under their poll_runs lock. Null when another check holds it.
+async function runCheck(owner: Owner, now: string): Promise<{ vehicles: number; errors: string[] } | null> {
+  const run = await startRun(owner, UNIQUE_VIOLATION);
+  if (run === null) return null;
   const errors: string[] = [];
   let vehicles = 0;
-
   try {
-    const owners = await accountOwners();
-    // No account yet fails the check the way a missing token does.
-    if (owners.length === 0) throw new NotConnectedError();
-    // One account after another, each with its own token; one failing can't stop the next.
-    for (const owner of owners) {
-      try {
-        vehicles += await pollOwner(owner, now, errors);
-      } catch (err) {
-        errors.push(messageOf(err));
-      }
-    }
+    vehicles = await pollOwner(owner, now, errors);
   } catch (err) {
     errors.push(messageOf(err));
   }
-
-  const result: PollResult = { ok: errors.length === 0, vehicles, error: errors.join("; ") || undefined };
+  const ok = errors.length === 0;
   // The row is the lock: whatever happens to the full update, release it so the next check can run.
   try {
-    await finishRun(run, { ok: result.ok, vehicles_seen: result.vehicles, error: result.error ?? null });
+    await finishRun(run, { ok, vehicles_seen: vehicles, error: errors.join("; ") || null });
   } catch (err) {
     await finishRun(run, { ok: false, error: messageOf(err) }).catch(() => {});
     throw err;
   }
-  return result;
+  return { vehicles, errors };
+}
+
+// The 15-minute cron: checks the users who are due, a few at a time, each about every 6 hours. From the
+// Tesla budget's first cut point a user is next due in 12 hours; past the budget nobody is checked until
+// the month resets. Streaming is never touched.
+export async function checkDue(clock: () => number = Date.now): Promise<PollResult> {
+  if (DEMO) return { ok: true, vehicles: 0, skipped: "demo" };
+  const started = clock();
+  await closeStaleRuns(new Date(started - STALE_RUN_MS).toISOString());
+  const budget = await budgetState(started);
+  if (budget.level === "stopped") {
+    console.info(`Checks paused: the Tesla API estimate is past the budget this month`);
+    return { ok: true, vehicles: 0, skipped: "budget" };
+  }
+  const every = CHECK_EVERY_MS[budget.level];
+  const owners = await accountOwners();
+  // No account yet fails the check the way a missing token does.
+  if (owners.length === 0) return { ok: false, vehicles: 0, error: new NotConnectedError().message };
+
+  let plan: Schedule[] | null;
+  try {
+    plan = await schedules();
+  } catch (err) {
+    if (!(err instanceof MissingSchema)) throw err;
+    plan = null;
+  }
+  // Before the migration there's no schedule: check everyone together, as the 6-hourly cron did, once the
+  // newest check is `every` old. Otherwise this cron, every 15 minutes, would check 24 times as often.
+  if (plan === null) {
+    const last = await lastRunStartedAt();
+    if (last && started - Date.parse(last) < every) return { ok: true, vehicles: 0, skipped: "not due" };
+    return checkEach(owners, clock, started, null);
+  }
+  const due = dueUsers(owners, plan, started);
+  if (due.length === 0) return { ok: true, vehicles: 0, skipped: "not due" };
+  return checkEach(due, clock, started, every);
+}
+
+// Checks each owner in turn until the run's time is up. With `every`, each is first claimed (and their next
+// check moved on by `every`); a claim another run got first is skipped. Null: no schedule to claim.
+async function checkEach(owners: Owner[], clock: () => number, started: number, every: number | null): Promise<PollResult> {
+  const errors: string[] = [];
+  let vehicles = 0;
+  let users = 0;
+  for (const owner of owners) {
+    if (clock() - started > RUN_BUDGET_MS) break;
+    const at = clock();
+    const now = new Date(at).toISOString();
+    let claimed = every === null;
+    try {
+      // A claim that fails is that user's error, never the whole run's.
+      if (every !== null) claimed = await claimScheduledCheck(owner.userId, now, new Date(at + every).toISOString(), new Date(at + LOCK_MS).toISOString());
+      if (!claimed) continue;
+      const result = await runCheck(owner, now);
+      if (result === null) {
+        // Another check holds the user's lock: due again at the next run.
+        if (every !== null) await releaseCheck(owner.userId, now).catch(() => {});
+        continue;
+      }
+      users++;
+      vehicles += result.vehicles;
+      errors.push(...result.errors);
+    } catch (err) {
+      errors.push(messageOf(err));
+    } finally {
+      // Only a user this run claimed: never a lock another run holds.
+      if (every !== null && claimed) await releaseCheck(owner.userId).catch(() => {});
+    }
+  }
+  return { ok: errors.length === 0, vehicles, users, error: errors.join("; ") || undefined };
+}
+
+// The check after a sign-in: only the user who signed in, at most once per CHECK_NOW_GAP_MS, not while
+// another check holds them, and not once the Tesla budget is spent. Their next scheduled check moves on.
+export async function checkNow(owner: Owner, clock: () => number = Date.now): Promise<PollResult> {
+  if (DEMO) return { ok: true, vehicles: 0, skipped: "demo" };
+  const at = clock();
+  const now = new Date(at).toISOString();
+  const budget = await budgetState(at);
+  if (budget.level === "stopped") return { ok: true, vehicles: 0, skipped: "budget" };
+  await closeStaleRuns(new Date(at - STALE_RUN_MS).toISOString());
+  let scheduled = true;
+  try {
+    const since = new Date(at - CHECK_NOW_GAP_MS).toISOString();
+    const nextAt = new Date(at + CHECK_EVERY_MS[budget.level]).toISOString();
+    if (!(await claimCheckNow(owner.userId, now, since, nextAt, new Date(at + LOCK_MS).toISOString()))) {
+      return { ok: true, vehicles: 0, skipped: "too soon" };
+    }
+  } catch (err) {
+    if (!(err instanceof MissingSchema)) throw err;
+    // Before the migration: no limit to keep; the poll_runs lock still stops a second check at once.
+    scheduled = false;
+  }
+  try {
+    const result = await runCheck(owner, now);
+    if (result === null) return { ok: true, vehicles: 0, skipped: "running" };
+    return { ok: result.errors.length === 0, vehicles: result.vehicles, users: 1, error: result.errors.join("; ") || undefined };
+  } finally {
+    if (scheduled) await releaseCheck(owner.userId).catch(() => {});
+  }
 }
 
 // One account's check: every car on its Tesla account. Errors per car go to `errors`; returns how many

@@ -2,11 +2,11 @@
 
 import { useRef, useState } from "react";
 import { ChartFrame, EmptyChart, niceMax } from "@/components/stats/bars";
-import { useAxisLabels } from "@/components/stats/axis-labels";
-import { AxisLabel, BAR_MAX, BarTip, MIN_COLUMN_PX, MIN_COLUMNS } from "@/components/stats/bar-parts";
+import { useAxisLabels, useValueLabels } from "@/components/stats/axis-labels";
+import { AxisLabel, BAR_MAX, BarTip, MIN_COLUMN_PX, MIN_COLUMNS, ValueLabel } from "@/components/stats/bar-parts";
 import { ScrollEnd } from "@/components/stats/scroll-end";
 import { TapColumns } from "@/components/stats/tap-columns";
-import { DECIMALS, formatKwh, formatNumber } from "@/lib/format";
+import { DECIMALS, formatKwh, formatNumber, showsZero } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 // `blank` draws the column empty with no tip (a slot ahead of now); without it, columns before the first
@@ -44,7 +44,8 @@ export function StackedBars({
   // Labels show as many as fit, never fewer apart than labelEvery (see useAxisLabels).
   const box = useRef<HTMLDivElement>(null);
   useAxisLabels(box, labelEvery);
-  if (empty && !all.some((b) => b.total > 0)) return <EmptyChart caption={caption}>{empty}</EmptyChart>;
+  useValueLabels(box);
+  if (empty && !all.some((b) => b.total > 0 && !showsZero(kwh.format(b.total)))) return <EmptyChart caption={caption}>{empty}</EmptyChart>;
   const dense = all.length > 6;
   const used = series.map((s, i) => ({ ...s, i })).filter(({ i }) => all.some((b) => b.segments[i] > 0));
   const shownTotal = (b: StackedBar) => b.segments.reduce((sum, v, i) => sum + (hidden.has(i) ? 0 : v), 0);
@@ -52,8 +53,10 @@ export function StackedBars({
   // Slots before the history starts keep their column and label, with nothing drawn.
   const first = bars.findIndex((b) => b.total > 0);
   const max = niceMax(Math.max(1, ...bars.map(shownTotal)));
+  // A segment that shows as 0.0 kWh is neither drawn nor listed, as a column is (see showsZero).
+  const shows = (v: number) => v > 0 && !showsZero(kwh.format(v));
   const breakdown = (b: StackedBar) =>
-    series.map((s, i) => (b.segments[i] > 0 && !hidden.has(i) ? `${s.label} ${formatKwh(b.segments[i])}` : null)).filter(Boolean);
+    series.map((s, i) => (shows(b.segments[i]) && !hidden.has(i) ? `${s.label} ${formatKwh(b.segments[i])}` : null)).filter(Boolean);
   const toggle = (i: number) =>
     setHidden((prev) => {
       const next = new Set(prev);
@@ -83,12 +86,12 @@ export function StackedBars({
         return (
           <li key={b.key} className="group relative flex flex-col items-center gap-2">
             <BarTip at={k} of={bars.length} lines={[`${formatKwh(total)} in total`, ...breakdown(b)]} title={b.label} />
-            <span className="h-4 font-mono text-xs text-muted-foreground tabular-nums">{dense ? "" : kwh.format(total)}</span>
+            {dense ? <span className="h-4" /> : <ValueLabel display={kwh.format(total)} unit="kWh" />}
             <div className="flex h-20 w-full items-end justify-center">
-              {total > 0 && (
+              {total > 0 && !showsZero(kwh.format(total)) && (
                 <div className={cn("flex w-full flex-col-reverse gap-0.5", BAR_MAX)} style={{ height: `${Math.max(4, (total / max) * 100)}%` }}>
                   {series.map((s, i) =>
-                    b.segments[i] > 0 && !hidden.has(i) ? (
+                    shows(b.segments[i]) && !hidden.has(i) ? (
                       <div key={s.label} className={cn("min-h-px", s.className)} style={{ flex: `${b.segments[i]} 1 0%` }} />
                     ) : null,
                   )}
@@ -97,7 +100,7 @@ export function StackedBars({
             </div>
             <AxisLabel label={b.axis ?? b.label} current={b.isCurrent} edge={b.edge} first={k === 0} />
             <span className="sr-only">
-              {dense && `${kwh.format(total)} kWh. `}
+              {`${formatKwh(total)}. `}
               {breakdown(b).join(", ")}
             </span>
           </li>

@@ -66,12 +66,12 @@ function buildStatus(daily: DailyCheck[], latest: LatestCheck[], now: number): S
 
 // Records a check unless one landed in the last 5 minutes. Visitors, the cron and the bot all feed the
 // same history, so the page never checks more than about that often. Warn-only.
-export async function recordIfStale(): Promise<void> {
+export async function recordIfStale(every = RECORD_EVERY_MS): Promise<void> {
   if (DEMO) return;
   try {
     const at = await lastHealthCheckAt();
     const last = at ? Date.parse(at) : 0;
-    if (Date.now() - last < RECORD_EVERY_MS) return;
+    if (Date.now() - last < every) return;
     await recordHealth();
   } catch (err) {
     console.warn("Recording health failed:", err);

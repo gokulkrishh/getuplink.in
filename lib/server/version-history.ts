@@ -18,9 +18,9 @@ export async function check<T>(query: PromiseLike<{ data: T; error: { message: s
 export const STALE_RUN_MS = 5 * 60 * 1000;
 export const UNIQUE_VIOLATION = "23505";
 
-// True while a poll holds the lock (poll_runs allows one unfinished row, see poll_runs_one_running_idx).
-export function pollInProgress(): Promise<boolean> {
-  return runInProgress(new Date(Date.now() - STALE_RUN_MS).toISOString());
+// True while a check holds the owner's lock (poll_runs allows one unfinished row per user).
+export function pollInProgress(owner: Owner): Promise<boolean> {
+  return runInProgress(owner, new Date(Date.now() - STALE_RUN_MS).toISOString());
 }
 
 // The newest recorded version, so a retry after a failed later write doesn't record a change twice.

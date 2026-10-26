@@ -13,7 +13,7 @@ The owner's decisions are final:
 | 2. `users` migration | Applied |
 | 3. Multi-user code, sign-up closed | Built, merged here, not deployed |
 | 4. Remove the single-owner table and keys | Not started. Do before approving anyone but the owner |
-| 5. Scale and limits | `MAX_USERS` done. Cron batching and the API budget not started |
+| 5. Scale and limits | Built here, not deployed: `MAX_USERS`, per-user checks, API usage counts and the budget guard. Migration written, not applied |
 | 6. Waitlist | Built here, not deployed: waitlist sign-up, region check, `/admin/waitlist`, admin role. Copy for more than one owner and the rollout opt-out not started |
 
 ## Done
@@ -55,7 +55,7 @@ Applied to production after step 1 was deployed. `owner_settings` never existed 
 - `lastReadingAt` reads by the owner's VINs. `charging.ts` `lastAttempt` and the in-instance refresh dedupe in `tesla.ts` are per user.
 - **Unchanged, on purpose:**
   - Retention prunes by field age across all readings. A loop over users would delete the same rows.
-  - The check lock (`poll_runs`) is still one run for everyone; step 5 makes it per user.
+  - The check lock (`poll_runs`) is still one run for everyone; step 5 makes it per user (built).
   - The Fly receiver still writes readings with the default `legacy_owner_id()`.
 
 **Deploy notes for step 3.** Deploy at a quiet hour, and don't roll back after it: the cutover empties `oauth_tokens`' pair, so the old code would come back "not connected" and need a sign-in. The owner is signed out and signs in again. A fresh database (local dev, a new project) needs its owner seeded by hand, since nobody can claim it by signing in:
@@ -94,12 +94,33 @@ Until this step, two users can't track the same car: the old global keys refuse 
 
    `fly/telemetry/worker.ts` is the one writer outside the app: it posts straight to PostgREST with the service-role key.
 4. Drop the old RPC signatures. `prune_telemetry_readings`: the near-charge check joins on `user_id` as well as `vin`.
-5. `poll_runs_one_running_idx` → unique on `(user_id) where finished_at is null` (with step 5).
+5. `poll_runs_one_running_idx` → unique on `(user_id) where finished_at is null`: done in step 5's migration.
 
 ## Step 5: scale and limits
 
-- **Cron:** `vercel.json` poll every 15 minutes. Each run takes the users due (`users.next_check_at <= now()`, about every 6 hours each), a few at a time (start with 4, within `maxDuration = 60`). It sets `next_check_at` and takes a per-user lock: `check_lock_until` claimed with a conditional update, or the per-user `poll_runs` index. The `accountOwners()` loop in `pollAll`/`checkStations` is where this goes.
-- **Budget:** count Fleet API calls per user per day (a small `api_usage` table written next to `fleetFetch`). Skip optional calls (Supercharger history, release notes, the station check) past a per-user cap. Admin shows the totals (`api.kind` is `checks` today).
+Built here, not deployed. Prices, the credit, the reset rule and what's ambiguous: `docs/tesla-billing.md`.
+
+**Migration** `supabase/migrations/20261101120000_api_usage.sql`, not applied. Checked in a throwaway PGlite over every earlier migration.
+- `api_usage (user_id, month, kind, count)` and `increment_api_usage()`, an atomic upsert-increment. user_id 0 is unattributed: a sign-up's region check, and deleted accounts' counts (`fold_api_usage()`, so a deletion doesn't take its spend out of the month). No foreign key, for that reason.
+- `telemetry_signal_days (vin, day, signals)` and `count_telemetry_signals()`. Delete my data calls `fold_signal_days()`, which moves the cars' days into a VIN-less row, so the VINs go and the month's total stays.
+- `users.next_check_at`, `check_lock_until` and `check_now_at`, and `claim_scheduled_check()` / `claim_check_now()`: each claim is one conditional update.
+- The check lock becomes one per user: `poll_runs_one_running_per_user_idx` replaces `poll_runs_one_running_idx` (step 4's item 5, done here).
+
+**Apply it before deploying this code.** It is safe under the deployed code (checked in PGlite). The code also runs without it: it counts nothing (it logs once), every check is "normal", and the 15-minute cron checks everyone together only once the newest `poll_runs` row is 6 hours old, as today. But an instance that found the table missing stops counting until it restarts, so applying it after the deploy loses counts for a while.
+
+- **Counting:** every Fleet API request goes through `teslaFetch` in `lib/server/tesla.ts` and is counted under its user and kind (`lib/tesla-billing.ts` `kindOf`). That includes the vehicle list, vehicle_data, charging history, invoices, release notes, the streaming config (GET and DELETE) and errors, and the sign-up region check. Answers below 500 count, once per attempt, as Tesla bills them. A count that fails never fails the call. Uplink has no wake call, and a test checks the source for one.
+- **Streaming signals:** counted once a day in the retention cron, before it prunes, from `telemetry_readings` rows per VIN per UTC day. The last 3 days are recounted and set each run. The Fly receiver is unchanged. Why this over a receiver counter: see `docs/tesla-billing.md`.
+- **Cron:** `vercel.json` polls every 15 minutes (`checkDue` in `lib/server/poll.ts`).
+  - Each run takes up to 4 users who are due (`next_check_at` passed or unset, lock free), soonest first, one after another, and stops starting new ones after 40 s.
+  - Each is claimed with a conditional update that moves `next_check_at` on and sets `check_lock_until`. The per-user `poll_runs` row is the check's lock, as before.
+  - A user another check holds is put back as due for the next run.
+- **Budget:** the developer account's month-to-date estimate (every user's requests, the unattributed ones and the signals) against `TESLA_BUDGET_USD` (default $10, the credit).
+  - From 80%: a check makes the user due again in 12 hours, not 6.
+  - From 100%: no checks until the 1st. The station check's Tesla call and the Charging page's history sync are skipped. Streaming, health checks, invoices and Disconnect carry on.
+  - Unreadable usage never throttles.
+- **On-demand check:** the check after a sign-in is now that user's only (`checkNow`), at most once per 5 minutes (`check_now_at`), and skipped past the budget. There is no Check now button; this is the only on-demand check.
+- **Health checks:** the poll cron records one only when none landed in the last 20 minutes, so the 15-minute cron doesn't add 2 Fleet API calls a run. The health check reuses Tesla's streaming config and errors for an hour, stored in `tesla_answer_cache` (same migration), so the bot's 15-minute calls ask Tesla at most once an hour. The other checks stay live, and the JSON's `config.fetched_at` says when Tesla was last asked. Delete my data removes the stored answer (it carries the user whose token asked), and Delete account cascades.
+- **Settings > Tesla API usage:** this month's estimate against the $10 credit, a meter, requests and signals by category, and "Resets 1 Nov". An admin sees the developer account's total and the check state; everyone else sees their own share. The Live data row says when checks are slowed or paused. `/admin` lists this month's requests per kind.
 - **`MAX_USERS`** (env, default 25): done. Approved users, admins included, are capped. Approve and Restore are refused past it, in the UI and again on the server.
   - A suspended account doesn't hold a place.
   - The cap is a count then a conditional update (`decide` in `lib/server/waitlist.ts`). With one admin deciding by hand, two approvals racing for the last place isn't worth a lock.

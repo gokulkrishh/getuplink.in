@@ -14,7 +14,8 @@ import { Measure } from "@/components/measure";
 // "12 AM" is wider than a column there.
 const AXIS = Array.from({ length: 8 }, (_, k) => formatHour(k * 3));
 
-const describe = (day: number, slot: number, count: number) => `${WEEKDAYS[day]}, ${slotLabel(slot)} · ${count} ${count === 1 ? "charge" : "charges"}`;
+const charges = (n: number) => `${n} ${n === 1 ? "charge" : "charges"}`;
+const describe = (day: number, slot: number, count: number) => `${WEEKDAYS[day]}, ${slotLabel(slot)} · ${charges(count)}`;
 
 // When charges start, by weekday and time of day (IST), after TeslaMate's charge heatmap. Hover, focus
 // or tap a cell for a tooltip with its count; the line above names the busiest slot. `title` names the
@@ -32,7 +33,7 @@ export function ChargeHabits({ starts, title, words }: { starts: number[]; title
   return (
     <ChartCard
       title="When you charge"
-      description="When charges started, India time. Darker is more."
+      description="When charges started, India time."
       info="By weekday and 3-hour block of the day, from the charges listed on this page."
       summary={
         <p className="text-sm tabular-nums">
@@ -92,6 +93,24 @@ export function ChargeHabits({ starts, title, words }: { starts: number[]; title
             </span>
           ))}
         </div>
+        {/* What the shades mean: an empty square had none, the lightest one charge, the darkest the most. */}
+        {max > 0 && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-xs text-faint">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2.5 bg-background" aria-hidden="true" />
+              None
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              {max > 1 && <span>{charges(1)}</span>}
+              <span
+                className="h-2.5 w-12"
+                aria-hidden="true"
+                style={{ background: max > 1 ? "linear-gradient(to right, color-mix(in srgb, var(--chart-accent) 25%, transparent), var(--chart-accent))" : "var(--chart-accent)" }}
+              />
+              <span>{charges(max)}</span>
+            </span>
+          </div>
+        )}
       </div>
     </ChartCard>
   );

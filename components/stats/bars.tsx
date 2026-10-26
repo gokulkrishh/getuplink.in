@@ -1,5 +1,6 @@
 import { BarColumns } from "@/components/stats/bar-columns";
 import { type Bar } from "@/components/stats/bar-parts";
+import { showsZero } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export { AxisLabel, type Bar, BAR_MAX, BarTip, MIN_COLUMNS, withUnit } from "@/components/stats/bar-parts";
@@ -28,6 +29,8 @@ export function Bars({
   empty,
   caption,
   fit = false,
+  xUnit,
+  valueWords,
 }: {
   bars: Bar[];
   ariaLabel: string;
@@ -42,14 +45,17 @@ export function Bars({
   caption?: string;
   // Squeeze every column into the panel's width instead of scrolling sideways (see BarColumns).
   fit?: boolean;
-  // "start" for categories (speed bands), "end" for time, opening on the newest.
+  // The x axis's unit when it isn't time, like "km/h" under speed bands.
+  xUnit?: string;
+  // Words after the value in the tip, like "of driving time".
+  valueWords?: string;
 }) {
-  if (empty && !bars.some((b) => b.value > 0)) return <EmptyChart caption={caption}>{empty}</EmptyChart>;
+  if (empty && !bars.some((b) => b.value > 0 && !showsZero(b.display))) return <EmptyChart caption={caption}>{empty}</EmptyChart>;
   const max = niceMax(Math.max(1, ...bars.map((b) => b.value)));
   return (
     <Captioned caption={caption}>
-      <ChartFrame max={max} prefix={prefix} unit={unit}>
-        <BarColumns bars={bars} max={max} ariaLabel={ariaLabel} labelEvery={labelEvery} unit={unit} fit={fit} />
+      <ChartFrame max={max} prefix={prefix} unit={unit} xUnit={xUnit}>
+        <BarColumns bars={bars} max={max} ariaLabel={ariaLabel} labelEvery={labelEvery} unit={unit} valueWords={valueWords} fit={fit} />
       </ChartFrame>
     </Captioned>
   );
@@ -89,13 +95,25 @@ const axisNumber = new Intl.NumberFormat("en-IN", { notation: "compact", maximum
 // axis lines up with the bars' h-20 area: below the value row (h-4 plus the gap, kept blank on a dense
 // chart) and above the x-axis labels. The bottom gridline is the x axis. `unit` sits above the axis, in
 // the top padding. One geometry for every chart, 160px tall like EmptyChart, so periods with 6, 8 or 12
-// columns, or none, keep the same box. The y-axis gutter is a fixed w-8.
-export function ChartFrame({ max, prefix = "", unit, children }: { max: number; prefix?: string; unit?: string; children: React.ReactNode }) {
+// columns, or none, keep the same box. The y-axis gutter is a fixed w-8. `xUnit` titles an x axis that
+// isn't time ("km/h" under speed bands), in the gutter's bottom corner, level with the x-axis labels.
+export function ChartFrame({ max, prefix = "", unit, xUnit, children }: { max: number; prefix?: string; unit?: string; xUnit?: string; children: React.ReactNode }) {
   return (
     <div className="chart-touch relative flex gap-2 bg-muted dark:bg-card pt-5 pr-4 pb-3 pl-2">
       {unit && (
         <span className="absolute top-1 left-2 font-mono text-xs text-faint" aria-hidden="true">
           {unit}
+        </span>
+      )}
+      {unit && (
+        // Shown by useValueLabels only when the values above the bars are bare numbers, so they read "km 17.0 15.7".
+        <span data-value-unit className="absolute top-5 left-2 hidden h-4 w-8 text-right font-sans text-[0.625rem] leading-4 text-faint" aria-hidden="true">
+          {unit}
+        </span>
+      )}
+      {xUnit && (
+        <span className="absolute bottom-3 left-2 h-4 w-8 text-right font-mono text-xs leading-4 text-faint" aria-hidden="true">
+          {xUnit}
         </span>
       )}
       <div className="relative my-6 w-8 shrink-0" aria-hidden="true">

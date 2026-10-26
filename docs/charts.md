@@ -22,9 +22,11 @@ Notes for agents. Every chart in the app goes inside `ChartCard` (`components/ch
 
 The card renders the title with an ⓘ beside it, the description, the summary, the chart and then the caption. The ⓘ shows only when `unit`, `terms` or `info` has something to say. The card has no hooks, so server sections and client plots can both use it (the ⓘ is its own client component).
 
-- **Unit**: the chart draws its unit once, above the y axis (`ChartFrame`, `DriveTrace`). Don't repeat it in the title or the description. The `unit` prop only picks the popover words.
+- **Unit**: the chart draws its unit once, above the y axis (`ChartFrame`, `DriveTrace`). Don't repeat it in the title or the description. The `unit` prop only picks the popover words. See "Units on every axis and value" below.
 - **No data**: on a page about one thing (a drive, a charge), don't render the card at all. Check `points.length >= 2` in the parent, because a parent can't tell that a child rendered nothing. On a period page (Day, Week, Month), pass `empty` so switching periods doesn't change the page's shape.
-- **Panel**: the plot sits in `bg-muted dark:bg-card` (the lit panel in dark mode) and uses one data hue, `chart-accent`. Charging is the one exception: charge pins on every map, their legend swatch and the charging bands on the charge level chart use `charge` (green, `--charge` in `app/globals.css`). Routes and every other mark stay `chart-accent`. Gridlines are dashed `border-border`. A zero line is solid `muted-foreground/40`.
+- **Panel**: the plot sits in `bg-muted dark:bg-card` (the lit panel in dark mode) and uses one data hue, `chart-accent`. Charging is the one exception: charge pins on every map, their legend swatch, the charging bands on the charge level chart and the charging stretches on the day timeline use `charge` (green, `--charge` in `app/globals.css`). Routes and every other mark stay `chart-accent`. Gridlines are dashed `border-border`. A zero line is solid `muted-foreground/40`.
+- **Charging bands**: wherever charging is shaded behind a line, a legend under the chart names both marks ("Battery level", "Charging", `ChargeLegend`), each band is at least 3px wide at `charge` 40%, and hovering or tapping one names it: "Charging · 25 Oct, 9:25 PM to 9:55 PM · 46% to 70%" (`chargeTip`). The line keeps its own tooltip elsewhere.
+- **Zero bars**: a bar is drawn only when its figure shows a non-zero digit at its unit's precision (`showsZero` in `lib/format.ts`). 0.04 km reads "0.0" and draws nothing, never a sliver over "0.0". The same holds for stacked segments and sparkline bars.
 - **Tooltip**: every chart has one, opened by hover and by tap, showing the time or label and the value with its unit. A tap outside closes it. Where there's no reading near the pointer it says "No reading here". It must never show a far-off value.
 - **Width**: a chart never scrolls sideways. Draw text in HTML, not inside a scaled SVG `viewBox`, so it stays 12px on a 390px phone. `DriveTrace` shows the pattern: HTML axes, and an SVG with `preserveAspectRatio="none"` and `vectorEffect="non-scaling-stroke"` that draws only the line.
 - **X axis**: the axis covers only the data's own span, such as the drive's start to its end, and never pads out to a later reading. Charts stacked on one page share `from` and `to` so their axes line up. Clock labels are measured to fit, with none colliding.
@@ -34,6 +36,16 @@ The card renders the title with an ⓘ beside it, the description, the summary, 
 - **Totals**: the headline is the raw sum of the bars under it (see Precision). For a Year that starts before the 90-day drive window, recent bars take energy from the drives and older ones from the lifetime counter, so its energy total is the raw sum of those bars too.
 - **Start where the data starts**: a chart's bars begin at the later of the period's start and the day its data begins: the first odometer reading for driving, the first session for charging (`fromTracking`, `fromSince`). Bars still run to the period's end, with those ahead of now blank. When the bars are cut short, the words say "since 23 Oct". A chart with 4 days of data draws 4 bars and is never padded to 30 or 90.
 - **Blocks of hours**: a bar or square that covers hours (Day's hourly bars, a custom range of 2 days or less, the charge heatmap) says its whole span wherever it is named: "7 AM to 8 AM" in the tooltip and for screen readers (`formatHours`), never just its start, which reads as "at 7 AM". The caption says what each bar covers ("Kilometres driven each hour today"). The axis writes the start hour on the block's start boundary under a tick (a slot's `axis` and `edge`, see `Slot`), like a clock axis, not centred under the bar. Labels thin to every 2, 3, 6, 12 or 24 hours, so midnight always shows.
+
+## Units on every axis and value
+
+Every axis and value carries its unit, unless it's a time axis (hours, days, months, clock times).
+
+- **Y axis**: the unit sits once above it (`unit` on `Bars`, `ChartFrame`, `LineChart`, `DriveTrace`), or on every tick when the unit is a sign before the number ("₹500"). A second y axis titles its own side (the charge curve's "%").
+- **X axis that isn't time**: say what it is. Category bands are labelled on their boundaries under ticks, like a histogram ("0", "20" … "100+"), with the unit titled in the y gutter's bottom corner (`xUnit="km/h"` on `Bars`), so the first bar reads as 0 to 20. A numeric axis writes the unit on its ticks ("20%", "3,434.7 km").
+- **Values above bars**: they carry their unit ("25%", "46.2 km", "₹243.52", "6.1 kWh") when every column's fits. Where they don't (six columns of "17.0 km" on a phone), they fall back to bare numbers under the axis's unit, then to none. `useValueLabels` measures this in the browser. Charts with more than 6 columns show no values above their bars.
+- **Tooltips** always give the value with its unit, and the whole band or span it covers: "40 to 60 km/h", then "20% of driving time" (`valueWords` on `Bars` says what a share is of).
+- **Shade**: a heatmap or a shaded map has a legend that says what the shade counts ("1 charge" to "6 charges", with an empty square for none).
 
 ## Title
 
@@ -52,7 +64,7 @@ The owner's rule, for every page: too much text is worse than too little. Keep t
 
 1. **Description**: one short sentence, ideally under about 12 words, saying what the chart shows. Not how to read the axes, and no "hover or tap".
 2. **Units and method go behind the ⓘ.** Glossary words and method notes (how a figure is worked out, what a mark, a gap or a symbol means) go in the info popover, never inline.
-3. **Caption**: at most one short line, only when needed, such as the span ("Last 7 days", "Each day, last 7 days") or a data cut-off ("Readings go back to 25 Sept."). Drop sentences that repeat the title or description.
+3. **Caption**: at most one short line, only when needed, such as the span ("Last 7 days", "Each day, last 7 days") or a data cut-off ("Readings go back to 25 Sept"), with no trailing period. Drop sentences that repeat the title or description.
 4. **Advice** (like "Sentry Mode keeps the car awake"): keep it only when it's actionable and fits on one short line. Otherwise move it into the popover.
 5. **Tables**: short column headers. Explanations of columns ("Seen awake is a minimum", "≥ means parked since before the first reading") go in the popover.
 6. **No interaction hints**, anywhere: no "Hover or tap for its value", "Tap a pin", "Click…", not even in the popover. People know how to hover. Screen-reader text and `aria-label`s are fine. A map footer keeps only its attribution.
@@ -78,6 +90,8 @@ Every figure shows the precision its data supports, the same everywhere it appea
 | Energy | 1 decimal: "11.1 kWh" | `formatKwh` | Counters and bills read to 0.001 kWh |
 | Power | 1 decimal: "7.2 kW"; under 1 kW in W: "24 W", "4.5 W" | `formatKw`, `formatPower` | |
 | Money | To the paisa: "₹874.50" | `formatMoney` | Bills are to the paisa. Axis ticks stay compact |
+| Tesla API cost | To the cent, in dollars: "$3.12" | `formatUsd` | Tesla bills in dollars; no exchange rate is known, so no rupees |
+| Requests, signals | Whole: "1,23,456" | `formatCount` | |
 | Battery level, shares | Whole: "66%", "58% to 51%" | `formatPercent`, `formatLevels` | Whole percent, as the car's screen shows it |
 | Rates of %: drain | 1 decimal: "1.4% a day" | `formatPercent(v, 1)` | Small numbers |
 | Speed | Whole: "92 km/h" | `formatSpeed` | |
