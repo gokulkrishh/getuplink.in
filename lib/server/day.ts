@@ -2,15 +2,18 @@ import "server-only";
 import type { Owner } from "./data/owner";
 import type { MapPin, MapPoint } from "@/components/stats/trip-map";
 import { type Day, dayStrips } from "@/lib/day-timeline";
+import { chargeName, chargeSpot, chargeType } from "@/lib/charge-names";
 import { matchSessions } from "@/lib/charge-sessions";
 import { billsIn, chargingBills } from "@/lib/charging-figures";
 import { DRIVE_DAYS } from "@/lib/drives";
+import { formatClock, formatKwh } from "@/lib/format";
 import { istDay, istDayStart } from "@/lib/telemetry-derive";
 import { tripRoute } from "@/lib/trip-route";
 import { groupTrips, type Trip } from "@/lib/trips";
 import { loadPresence } from "./awake";
 import { loadChargingSessions } from "./charging";
 import { loadDrivingFigures, loadWindowStats } from "./driving";
+import { cachedPlaceNames, placeKey } from "./place-names";
 import { invoicesBySession } from "./receipts";
 import { loadStreamSessions, type StreamChargeSession } from "./stream-charging";
 import { loadPrimaryVehicle } from "./telemetry";
@@ -23,7 +26,8 @@ export type DayDetail = {
   strip: Day;
   trips: Trip[]; // newest first
   // Each charge's real bill: Tesla's for a Supercharger, the attached invoice for the rest, else null.
-  charges: { session: StreamChargeSession; cost: number | null }[];
+  // name: the station's, the invoice's or the Supercharger site's, when one is known (see chargeName).
+  charges: { session: StreamChargeSession; cost: number | null; name: string | null }[];
   // The day's spend from real bills, counted as Charging counts it (see chargingBills).
   spent: number;
   route: MapPoint[];
@@ -66,18 +70,44 @@ export async function loadDay(owner: Owner, day: number, now: number): Promise<D
   // Paired over every session, as Charging pairs them, so a charge near midnight finds its bill.
   const { pairs, streamOnly } = matchSessions(tesla, sessions, now);
   const teslaBill = new Map(pairs.flatMap((p) => (p.stream && p.tesla.cost_total !== null ? [[p.stream.id, p.tesla.cost_total] as const] : [])));
+  const sites = new Map(pairs.flatMap((p) => (p.stream ? [[p.stream.id, p.tesla.site_name] as const] : [])));
   const invoices = await invoicesBySession(owner, dayCharges.filter((s) => !s.supercharger).map((s) => s.id));
   // Where the car went: each trip's route and its start, stops and end, from one read of the day.
   const located = vin ? ((await loadReadingsByField(owner, vin, ["Location"], new Date(start - 30 * 60_000).toISOString(), new Date(Math.min(end + 30 * 60_000, now)).toISOString()))?.Location ?? []) : [];
   const routes = [...trips].reverse().map((t) => tripRoute(t, located));
+  const charges = dayCharges.map((session) => {
+    const invoice = invoices.get(session.id);
+    const name = chargeName({ station: session.supercharger ? null : session.station_name, invoice: invoice ? { network: invoice.network, station: invoice.station } : null, site: sites.get(session.id) });
+    return { session, cost: teslaBill.get(session.id) ?? invoice?.amount ?? null, name: name?.text ?? null };
+  });
+  // Each charge where it started, named like the charging map's pins: the area name only when nothing
+  // better is known, from the names already kept.
+  const spots = charges.flatMap((c) => {
+    const spot = chargeSpot(located, Date.parse(c.session.started_at));
+    return spot ? [{ ...c, spot }] : [];
+  });
+  const places = await cachedPlaceNames(spots.filter((c) => !c.name).map((c) => c.spot)).catch(() => new Map<string, string>());
+  const chargePins = spots.map(({ session: s, name, spot }): MapPin => {
+    const shown = name ?? places.get(placeKey(spot)) ?? undefined;
+    return {
+      ...spot,
+      t: Date.parse(s.started_at),
+      kind: "charge",
+      name: shown,
+      label: shown ?? chargeType(s),
+      note: [s.ended_at ? `${formatClock(s.started_at)} to ${formatClock(s.ended_at)}` : `From ${formatClock(s.started_at)}`, s.energy_added_kwh !== null ? `${formatKwh(s.energy_added_kwh)} added` : null]
+        .filter(Boolean)
+        .join(" · "),
+    };
+  });
   return {
     day,
     strip,
     trips,
-    charges: dayCharges.map((session) => ({ session, cost: teslaBill.get(session.id) ?? invoices.get(session.id)?.amount ?? null })),
+    charges,
     spent: billsIn(chargingBills(tesla, streamOnly.filter(inDay), invoices), { from: start, to: end }).cost,
     route: routes.flatMap((r) => r.route),
-    pins: routes.flatMap((r) => r.pins),
+    pins: [...routes.flatMap((r) => r.pins), ...chargePins],
     prev: day - 1 >= first ? day - 1 : null,
     next: day + 1 <= today ? day + 1 : null,
   };

@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 import { ChartCard } from "@/components/chart-card";
 import { type Bar, Bars } from "@/components/stats/bars";
-import { barsCaption } from "@/components/stats/chart-caption";
+import { barsSpan } from "@/components/stats/chart-caption";
 import { Figures, Value } from "@/components/stats/figures";
 import { type DriveStats } from "@/lib/drive-stats";
 import { DRIVE_DAYS } from "@/lib/drives";
-import { formatDuration, formatKwh, formatShortDate } from "@/lib/format";
+import { DECIMALS, formatDuration, formatKm, formatKwh, formatNumber, formatShortDate, sumKnown } from "@/lib/format";
 import type { Frame } from "@/lib/frames";
 import { inSpan, type Slot, type Timeframe } from "@/lib/periods";
 import type { DayKm } from "@/lib/telemetry-derive";
@@ -29,19 +29,20 @@ function Headline({ value, children }: { value: string; children: ReactNode }) {
 
 // Distance for the period or range, with a bar per slot of it (see Timeframe).
 export function Distance({ frame, driving }: Frame) {
-  const description = `${barsCaption("Kilometres driven", frame)}. A taller bar is more driving.`;
+  const description = "Kilometres driven.";
   // The counters couldn't be read for a range picked by date: say so in the chart's place rather than show 0 km.
   if (!driving) return <ChartCard title="Distance" description={description} empty={`Couldn't read the car's counters ${frame.words}`} />;
-  const { current, bars: values } = driving;
   // A period without driving still shows, at 0 km with a note in place of the chart, so picking Day before
   // the first drive of the day doesn't leave a blank gap. A bar with no reading (before tracking began, or
-  // ahead of now) is blank, never 0 km; a tracked day without driving is a real 0.
-  const bars = frame.slots.map((slot, k) => knownBar(slot, values[k]?.km ?? null, compactNumber.format));
+  // ahead of now) is blank, never 0 km; a tracked day without driving is a real 0. The headline is the
+  // bars' raw sum (the odometer's rise over the span is the same sum: the bars share their edges).
+  const { bars, total } = knownBars(frame.slots, driving.bars.map((b) => b.km), DECIMALS.km);
   return (
     <ChartCard
       title="Distance"
       description={description}
-      summary={<Headline value={`${compactNumber.format(current.km ?? 0)} km`}>Driven {frame.words}</Headline>}
+      caption={barsSpan(frame)}
+      summary={<Headline value={formatKm(total)}>Driven {frame.words}</Headline>}
       empty={hasBars(bars) ? undefined : `No driving ${frame.words}`}
     >
       <Bars bars={bars} ariaLabel={`Distance per ${frame.slotName}`} unit="km" labelEvery={frame.labelEvery} fit />
@@ -55,6 +56,19 @@ export function knownBar(slot: Slot, value: number | null, format: (n: number) =
   return { key: String(slot.id), label: slot.label, axis: slot.axis, edge: slot.edge, value: blank ? 0 : value, display: blank ? "" : format(value), isCurrent: slot.isCurrent, blank };
 }
 
+// A bar per slot and their total, from the same values: the total is their raw sum (see sumKnown). Each bar
+// and the total are rounded on their own when shown, so a bar reads the same digits as the same figure
+// anywhere else, and the shown bars can add up to a last digit off the shown total.
+export function knownBars(
+  slots: Slot[],
+  values: (number | null)[],
+  decimals: number,
+  format: (n: number) => string = (n) => formatNumber(n, decimals),
+): { bars: Bar[]; total: number } {
+  const known = slots.map((slot, k) => (slot.ahead ? null : (values[k] ?? null)));
+  return { bars: slots.map((slot, k) => knownBar(slot, known[k], format)), total: sumKnown(known) };
+}
+
 // Whether a bar chart has anything to draw; without, its card shows a note in the chart's place.
 export const hasBars = (bars: Bar[]) => bars.some((b) => b.value > 0);
 
@@ -65,23 +79,24 @@ export function EnergyUse({ frame, driving }: Frame) {
   if (!driving) return null;
   const { current, bars: values } = driving;
   // No reading with no driving is nothing used; with driving it's unknown, so the section stays out of the way.
-  const used = current.kwh ?? (current.km ? null : 0);
-  if (used === null) return null;
+  if ((current.kwh ?? (current.km ? null : 0)) === null) return null;
   const slots = frame.slots;
   // Like the total: no figure with no driving is nothing used, with driving it is unknown and left blank.
-  const bars = slots.map((slot, k) => knownBar(slot, values[k]?.kwh ?? (values[k]?.km === 0 ? 0 : null), oneDecimal.format));
-  const regenBars = slots.map((slot, k) => knownBar(slot, values[k]?.regenKwh ?? null, oneDecimal.format));
-  const regenTotal = current.regenKwh ?? 0;
+  // Each headline is its bars' raw sum (see knownBars).
+  const { bars, total: used } = knownBars(slots, values.map((v) => v?.kwh ?? (v?.km === 0 ? 0 : null)), DECIMALS.kWh);
+  const { bars: regenBars, total: regenTotal } = knownBars(slots, values.map((v) => v?.regenKwh ?? null), DECIMALS.kWh);
+  const km = sumKnown(values.map((v) => v?.km));
   return (
     <div className="space-y-12">
       <ChartCard
         title="Energy use"
-        description={`${barsCaption("Energy the car used driving", frame)}, in kWh. A taller bar used more.`}
+        description="Energy the car used driving."
         unit="kWh"
+        caption={barsSpan(frame)}
         summary={
           <Headline value={formatKwh(used)}>
             Used {frame.words}
-            {current.km ? ` · ${compactNumber.format(current.km)} km` : ""}
+            {km ? ` · ${formatKm(km)}` : ""}
           </Headline>
         }
         empty={hasBars(bars) ? undefined : `No driving ${frame.words}`}
@@ -92,8 +107,11 @@ export function EnergyUse({ frame, driving }: Frame) {
         <ChartCard
           as="h3"
           title="Regen"
-          description={`${barsCaption("Energy won back as the car slowed down", frame)}, in kWh. It goes back into the battery, so it makes up for part of the energy used.`}
+          description="Energy won back as the car slowed."
+          unit="kWh"
           terms={["regen"]}
+          info="It goes back into the battery, making up for part of the energy used."
+          caption={barsSpan(frame)}
           summary={
             <p className="text-sm">
               Won back <span className="font-mono font-medium tabular-nums"><Measure text={formatKwh(regenTotal)} /></span>{" "}
@@ -107,6 +125,8 @@ export function EnergyUse({ frame, driving }: Frame) {
     </div>
   );
 }
+
+const upper = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 // The phone shows the last PHONE_DAYS of a longer run of days, so its bars stay wide enough to tap.
 const PHONE_DAYS = 30;
@@ -123,12 +143,11 @@ export function DailyDriving({ days: all, frame, partial = false }: { days: DayK
   if (days.filter((d) => d.km !== null).length < 2) return null;
   // Cut short at the first reading: the days start later than the window or the range does.
   const since = first > 0 ? `since ${formatShortDate(days[0].start)}` : null;
-  const sum = (list: DayKm[]) => list.reduce((s, d) => s + (d.km ?? 0), 0);
   const bars = days.map((d, k) => ({
     key: String(d.day),
     label: formatShortDate(d.start),
     value: d.km ?? 0,
-    display: compactNumber.format(d.km ?? 0),
+    display: formatNumber(d.km ?? 0, DECIMALS.km),
     isCurrent: k === days.length - 1,
     blank: d.km === null,
   }));
@@ -139,22 +158,15 @@ export function DailyDriving({ days: all, frame, partial = false }: { days: DayK
   const phoneSpan = frame ? `${bars[bars.length - PHONE_DAYS]?.label} to ${bars[bars.length - 1].label}` : `last ${PHONE_DAYS} days`;
   // Few days need little thinning: every label up to a week, every other up to two.
   const every = (n: number) => (n <= 7 ? 1 : n <= 14 ? 2 : 7);
-  // The headline counts the same days the description names, on a phone as on a wide screen.
+  // The total line counts the same days the caption names, on a phone as on a wide screen: the raw sum
+  // of those days (see sumKnown).
   const total = (list: DayKm[], words: string) =>
-    `${compactNumber.format(sum(list))} km ${words.startsWith("last") ? `in the ${words}` : /^\d/.test(words) ? `from ${words}` : words}`;
+    `${formatKm(sumKnown(list.map((d) => d.km)))} ${words.startsWith("last") ? `in the ${words}` : /^\d/.test(words) ? `from ${words}` : words}`;
   return (
     <ChartCard
       title="Driving per day"
-      description={
-        split ? (
-          <>
-            Kilometres driven each day, <span className="max-sm:hidden">{whole}</span>
-            <span className="sm:hidden">{phoneSpan}</span>. A taller bar is a longer day of driving.
-          </>
-        ) : (
-          `Kilometres driven each day, ${whole}. A taller bar is a longer day of driving.`
-        )
-      }
+      description="Kilometres driven each day."
+      info="A day without an odometer reading is left blank."
       summary={
         <div className="space-y-1">
           <p className="text-sm text-muted-foreground tabular-nums">
@@ -170,7 +182,16 @@ export function DailyDriving({ days: all, frame, partial = false }: { days: DayK
           {partial && <p className="text-xs text-faint">Days cover only the last {all.length} days.</p>}
         </div>
       }
-      caption="A day without an odometer reading is left blank."
+      caption={
+        split ? (
+          <>
+            <span className="max-sm:hidden">{upper(whole)}</span>
+            <span className="sm:hidden">{upper(phoneSpan)}</span>
+          </>
+        ) : (
+          upper(whole)
+        )
+      }
     >
       {split ? (
         <>
@@ -188,8 +209,6 @@ export function DailyDriving({ days: all, frame, partial = false }: { days: DayK
   );
 }
 
-const oneDecimal = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
-
 // Drive stats for the last 90 days (or since tracking began), after TeslaMate's: how many drives, how
 // long they usually are, the longest, time at the wheel and distance a day. Counted, never projected.
 // With `title` (a range picked by date), it names the range instead, and `partial` says the drives reach
@@ -198,12 +217,12 @@ export function DriveStatsSection({ stats, title, partial = false }: { stats: Dr
   if (!stats) return null;
   const covers = `${Math.max(1, Math.round(stats.days))} ${Math.round(stats.days) === 1 ? "day" : "days"}`;
   const figures = [
-    { label: "Distance", value: `${compactNumber.format(Math.round(stats.km))} km` },
+    { label: "Distance", value: formatKm(stats.km) },
     { label: "Trips", value: compactNumber.format(stats.trips), note: `${compactNumber.format(stats.drives)} ${stats.drives === 1 ? "drive" : "drives"}` },
-    { label: "Typical drive", value: `${oneDecimal.format(stats.medianKm)} km`, note: "The median" },
-    { label: "Longest drive", value: `${oneDecimal.format(stats.longestKm)} km` },
+    { label: "Typical drive", value: formatKm(stats.medianKm), note: "The median" },
+    { label: "Longest drive", value: formatKm(stats.longestKm) },
     { label: "Time driving", value: formatDuration(stats.hours * 3600) },
-    { label: "Per day", value: `${oneDecimal.format(stats.kmPerDay)} km`, note: "On average" },
+    { label: "Per day", value: formatKm(stats.kmPerDay), note: "On average" },
   ];
   return (
     <section className="space-y-4">

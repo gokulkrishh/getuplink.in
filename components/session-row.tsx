@@ -1,18 +1,18 @@
 import { SessionLine, type SessionView } from "@/components/session-line";
+import { type ChargeName, chargeName, chargeType } from "@/lib/charge-names";
 import { splitSite } from "@/lib/charge-sessions";
-import { formatClock, formatDayLabel, formatDuration, formatKwh, formatMoney, formatShortDate, formatTempRange } from "@/lib/format";
+import { formatClock, formatDayLabel, formatDuration, formatKw, formatKwh, formatLevels, formatMoney, formatShortDate, formatTempRange } from "@/lib/format";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { cn } from "@/lib/utils";
-
-const kwFormat = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 
 export function rate(cost: number, energy: number, currency: string): string | null {
   return energy > 0 ? `${formatMoney(cost / energy, currency)}/kWh` : null;
 }
 
 // An invoice attached to a session the car reported (see invoicesBySession). hasFile: its file is stored.
-export type RowInvoice = { amount: number; kwhBilled: number | null; hasFile: boolean };
+// network and station as printed, for the session's name when nothing better is known.
+export type RowInvoice = { amount: number; kwhBilled: number | null; hasFile: boolean; network?: string; station?: string | null };
 
 // One row of the list: a Tesla Supercharger session (with cost and invoice), or one the car reported
 // itself, with the invoice attached to it when there is one. A Tesla session that the car also reported
@@ -32,17 +32,23 @@ export function listSessions(
   ].sort((a, b) => Date.parse(b.started_at) - Date.parse(a.started_at));
 }
 
-// The station's name from OpenStreetMap when the station check found one (shown whole: it is
-// "Operator, Area", not Tesla's "City, Site" that splitSite reads).
-export function streamTitle(s: StreamChargeSession): string {
-  if (s.supercharger) return "Supercharger";
-  if (s.station_name) return s.station_name;
-  return s.kind === "dc" ? "Third-party charger" : "AC charging";
+type InvoiceNames = { network?: string; station?: string | null } | null | undefined;
+
+// What a session the car reported is called, best source first (see chargeName): the station's name from
+// OpenStreetMap (shown whole: it is "Operator, Area", not Tesla's "City, Site" that splitSite reads), the
+// invoice's network and station, then the cached area name when the page knows the spot.
+export function streamName(s: StreamChargeSession, invoice?: InvoiceNames, place?: string | null): ChargeName | null {
+  return chargeName({ station: s.supercharger ? null : s.station_name, invoice: invoice?.network ? { network: invoice.network, station: invoice.station } : null, place });
+}
+
+// The session's name, or its kind when no name is known.
+export function streamTitle(s: StreamChargeSession, invoice?: InvoiceNames, place?: string | null): string {
+  return streamName(s, invoice, place)?.text ?? chargeType(s);
 }
 
 // Whether any shown row is named from OpenStreetMap, so the page credits it.
 export function hasStationNames(items: Listed[]): boolean {
-  return items.some((item) => !item.tesla && item.stream?.station_name && !item.stream.supercharger);
+  return items.some((item) => !item.tesla && item.stream && streamName(item.stream, item.invoice)?.source === "station");
 }
 
 // ODbL asks for the credit wherever OpenStreetMap's names show.
@@ -59,7 +65,7 @@ export function OsmCredit({ className }: { className?: string }) {
 }
 
 function levels(s: StreamChargeSession): string | null {
-  return s.start_level !== null && s.end_level !== null ? `${Math.round(s.start_level)}% to ${Math.round(s.end_level)}%` : null;
+  return s.start_level !== null && s.end_level !== null ? formatLevels(s.start_level, s.end_level) : null;
 }
 
 // The battery's warm-up on a fast charger, which explains a slow session. AC charger details live on the car page.
@@ -102,20 +108,21 @@ export function SessionHeader({ costs, wide = false, numbered = false }: { costs
 export function SessionRow({ item, serial, now, costs }: { item: Listed; serial?: number; now?: number; costs: boolean }) {
   const { tesla: s, stream, invoice: attached } = item;
   const invoice = s?.invoices.find((i) => i.contentId);
-  const { place, city } = s ? splitSite(s.site_name) : { place: stream ? streamTitle(stream) : "", city: null };
+  const named = !s && stream ? streamName(stream, attached) : null;
+  const { place, city } = s ? splitSite(s.site_name) : { place: stream ? (named?.text ?? chargeType(stream)) : "", city: null };
   const stoppedAt = s ? s.stopped_at : (stream?.ended_at ?? null);
   const durationMs = stoppedAt ? Date.parse(stoppedAt) - Date.parse(item.started_at) : 0;
   const durationText = durationMs > 0 ? formatDuration(durationMs / 1000) : null;
   const currency = s?.currency ?? "INR";
   const rateText = s && s.cost_total !== null && s.energy_kwh !== null ? rate(s.cost_total, s.energy_kwh, currency) : null;
-  const peakText = stream?.peak_power_kw ? `up to ${kwFormat.format(stream.peak_power_kw)} kW` : null;
+  const peakText = stream?.peak_power_kw ? `up to ${formatKw(stream.peak_power_kw)}` : null;
   const energy = s ? s.energy_kwh : (stream?.energy_added_kwh ?? null);
   const tempText = stream && batteryTemp(stream);
   // Sessions the car streamed open their power curve; the title link covers the whole row.
   const href = stream ? `/stats/charging/${stream.id}` : null;
   const detail = s
     ? [city, durationText, peakText, tempText]
-    : [stream?.station_name && !stream.supercharger && stream.kind.toUpperCase(), stream && levels(stream), stoppedAt ? durationText : "In progress", peakText, tempText];
+    : [named && stream && chargeType(stream), stream && levels(stream), stoppedAt ? durationText : "In progress", peakText, tempText];
   const view: SessionView = {
     className: cn(
       columns(now !== undefined, costs, serial !== undefined),

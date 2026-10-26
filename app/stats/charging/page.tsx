@@ -3,7 +3,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { SyncChargingSessions } from "@/components/background-sync";
-import { listSessions } from "@/components/session-row";
+import { listSessions, streamName } from "@/components/session-row";
 import { ChargeHabits } from "@/components/stats/charge-habits";
 import { ChargeRange } from "@/components/stats/charge-range";
 import { ChargingMap, DcCurves } from "@/components/stats/charging-extras";
@@ -66,8 +66,8 @@ async function loadCharging(query: CustomQuery | null): Promise<{
   ]);
   const invoices = await invoicesBySession(owner, streamSessions.filter((s) => !s.supercharger).map((s) => s.id));
   const [extras, rangeExtras] = await Promise.all([
-    loadChargingExtras(owner, vin, streamSessions),
-    frame ? loadChargingExtras(owner, vin, streamSessions.filter((s) => inSpan(Date.parse(s.started_at), frame.span))) : null,
+    loadChargingExtras(owner, vin, streamSessions, { tesla: sessions, invoices, now }),
+    frame ? loadChargingExtras(owner, vin, streamSessions.filter((s) => inSpan(Date.parse(s.started_at), frame.span)), { tesla: sessions, invoices, now }) : null,
   ]);
   const custom =
     range && frame && rangeExtras
@@ -97,7 +97,8 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
       ...sessions.filter(startedIn(span)).map((s) => ({ name: s.site_name, kwh: s.energy_kwh, cost: s.cost_total })),
       ...streamOnly
         .filter((s) => s.ended_at !== null && startedIn(span)(s))
-        .map((s) => ({ name: s.station_name, kwh: s.energy_added_kwh, cost: invoices.get(s.id)?.amount ?? null })),
+        // Named by the station check or the invoice; an area name is a place, not a station.
+        .map((s) => ({ name: streamName(s, invoices.get(s.id))?.text ?? null, kwh: s.energy_added_kwh, cost: invoices.get(s.id)?.amount ?? null })),
     ]);
   const starts = (span: Span) => [...sessions, ...streamOnly].filter(startedIn(span)).map((s) => Date.parse(s.started_at));
   // The curves and pins are of the latest charges only (the range's own, for a range): each frame draws

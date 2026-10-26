@@ -151,6 +151,9 @@ describe("weeklyFullRange", () => {
     // 21 Oct 2026 19:30 IST: RatedRange came without BatteryLevel; the level either side was 61.07%.
     const range = rows([["2026-10-21T19:34:00", 164.5]]);
     const level = rows([["2026-10-21T19:29:35", 61.07], ["2026-10-21T19:53:35", 61.07]]);
-    expect(weeklyFullRange(range, level)).toEqual([{ weekStart: Date.parse(at("2026-10-19T00:00:00")), km: Math.round((164.5 * 1.609344) / 0.6107) }]);
+    // Kept unrounded; the page shows it in whole km (formatRangeKm).
+    const weeks = weeklyFullRange(range, level);
+    expect(weeks.map((w) => w.weekStart)).toEqual([Date.parse(at("2026-10-19T00:00:00"))]);
+    expect(weeks[0].km).toBeCloseTo((164.5 * 1.609344) / 0.6107, 9);
   });
 });

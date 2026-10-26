@@ -20,7 +20,8 @@ function daily(from: number, start: number, perDay: number): [number, number][] 
   return out;
 }
 
-const km = (miles: number) => Math.round(miles * MILES_TO_KM);
+// Kilometres are kept unrounded; only the display rounds.
+const km = (miles: number) => miles * MILES_TO_KM;
 
 describe("figureInstants", () => {
   test("sorted, without duplicates, ending with Infinity for the latest reading", () => {
@@ -39,26 +40,23 @@ describe("drivingFigures", () => {
   const figures = drivingFigures({ instants, odometer, used, regen: null, polledOdometer: null }, now);
 
   test("week: the last 7 days against the 7 before", () => {
-    expect(figures.periods.week.current.km).toBe(km(70));
-    expect(figures.periods.week.previous?.km).toBe(km(70));
-    // 7 days of 16.09 km: whole km that add up to the 113 km shown, not 7 × 16 = 112.
-    const bars = figures.periods.week.bars.map((b) => b.km!);
-    expect(bars.every((v) => v === 16 || v === 17)).toBe(true);
-    expect(bars.reduce((a, b) => a + b, 0)).toBe(figures.periods.week.current.km!);
+    expect(figures.periods.week.current.km).toBeCloseTo(km(70));
+    expect(figures.periods.week.previous?.km).toBeCloseTo(km(70));
+    expect(figures.periods.week.bars.map((b) => b.km)).toEqual(Array(7).fill(km(10)));
   });
   test("month: to date against the same days of last month", () => {
     // 1–22 Oct at 14:00 has 22 noon readings; so does 1–22 Sept.
-    expect(figures.periods.month.current.km).toBe(km(220));
-    expect(figures.periods.month.previous?.km).toBe(km(220));
+    expect(figures.periods.month.current.km).toBeCloseTo(km(220));
+    expect(figures.periods.month.previous?.km).toBeCloseTo(km(220));
   });
   test("Wh/km from the energy counter over the streamed distance", () => {
     expect(figures.periods.month.current.whPerKm).toBeCloseTo((1.5 * 1000) / (10 * MILES_TO_KM), 6);
   });
   test("all: everything since the first reading, with nothing to compare", () => {
-    expect(figures.periods.all.current.km).toBe(km(10 * (daily(start, 0, 1).length - 1)));
+    expect(figures.periods.all.current.km).toBeCloseTo(km(10 * (daily(start, 0, 1).length - 1)));
     expect(figures.periods.all.previous).toBeNull();
     expect(figures.since).toBe(start);
-    expect(figures.odometerKm).toBe(km(1000 + 10 * (daily(start, 0, 1).length - 1)));
+    expect(figures.odometerKm).toBeCloseTo(km(1000 + 10 * (daily(start, 0, 1).length - 1)));
   });
   test("year: no comparison before tracking began", () => {
     expect(figures.periods.year.previous?.km).toBeNull();
@@ -67,7 +65,7 @@ describe("drivingFigures", () => {
   test("a car tracked for 3 days: figures count from the first reading, nothing is compared", () => {
     const from = ist("2026-10-19T12:00:00");
     const recent = drivingFigures({ instants, odometer: column(daily(from, 5000, 20)), used: null, regen: null, polledOdometer: null }, now);
-    expect(recent.periods.week.current.km).toBe(km(60));
+    expect(recent.periods.week.current.km).toBeCloseTo(km(60));
     expect(recent.periods.week.previous?.km).toBeNull();
     expect(recent.since).toBe(from);
   });
@@ -77,7 +75,7 @@ describe("drivingFigures", () => {
     const polled = column(daily(ist("2026-08-01T12:00:00"), 2000, 10));
     const streamed = column(daily(ist("2026-10-01T12:30:00"), 2000 + 10 * 61, 10));
     const merged = drivingFigures({ instants, odometer: streamed, used: null, regen: null, polledOdometer: polled }, now);
-    expect(merged.periods.month.previous?.km).toBe(km(220));
+    expect(merged.periods.month.previous?.km).toBeCloseTo(km(220));
     expect(merged.since).toBe(ist("2026-08-01T12:00:00"));
   });
 

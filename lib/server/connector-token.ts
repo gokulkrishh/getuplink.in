@@ -39,7 +39,7 @@ export async function createConnectorToken(owner: Owner): Promise<string> {
   const token = `upl_${randomBytes(32).toString("base64url")}`;
   const { error } = await ownerDb(owner)
     .from("connector_token")
-    .upsert({ token_hash: hash(token), created_at: new Date().toISOString(), used_at: null }, { onConflict: "owner" });
+    .upsert({ token_hash: hash(token), created_at: new Date().toISOString(), used_at: null }, { onConflict: "user_id" });
   if (error) throw new Error(`Creating the connector token failed: ${error.message}`);
   return token;
 }
@@ -49,12 +49,14 @@ export async function revokeConnectorToken(owner: Owner): Promise<void> {
   if (error && !MISSING.includes(error.code)) throw new Error(`Revoking the connector token failed: ${error.message}`);
 }
 
-// The account a Bearer token belongs to, when it is the current one; null otherwise. Compares hashes in
-// constant time. Every MCP tool then reads and writes as that account.
+// The approved account a Bearer token belongs to, when it is a current one; null otherwise. Looks the
+// token up by its hash and compares again in constant time. Every MCP tool then reads and writes as that
+// account.
 export async function verifyConnectorToken(token: string | null): Promise<Owner | null> {
   if (DEMO || !token) return null;
-  const row = await connectorTokenAccount();
-  if (!row || !safeEqual(hash(token), row.tokenHash)) return null;
+  const tokenHash = hash(token);
+  const row = await connectorTokenAccount(tokenHash);
+  if (!row || !safeEqual(tokenHash, row.tokenHash)) return null;
   if (Date.now() - (row.usedAt ? Date.parse(row.usedAt) : 0) > USED_EVERY_MS) {
     const { error } = await ownerDb(row.owner).from("connector_token").update({ used_at: new Date().toISOString() });
     if (error) console.warn("Recording connector token use failed:", error.message);

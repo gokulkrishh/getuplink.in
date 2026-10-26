@@ -6,10 +6,12 @@ import { Figures, Value } from "@/components/stats/figures";
 import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
 import { chargeEfficiency } from "@/lib/charge-sessions";
 import { type Bill, billsBySlot, billsIn } from "@/lib/charging-figures";
-import { formatDuration, formatKwh, formatMoney, formatMonth } from "@/lib/format";
+import { DECIMALS, formatDuration, formatKwh, formatMoney, formatMonth, formatNumber, formatPercent, sumKnown } from "@/lib/format";
+import { knownBars } from "@/components/stats/driving-sections";
 import { LIST_PREVIEW } from "@/lib/list";
 import { inSpan, type Timeframe } from "@/lib/periods";
-import { barsCaption, EACH_HOUR, unitNotes } from "@/components/stats/chart-caption";
+import { barsSpan, EACH_HOUR } from "@/components/stats/chart-caption";
+import { InfoButton } from "@/components/info-button";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { Measure } from "@/components/measure";
@@ -44,17 +46,17 @@ export function Summary({
   frame: Timeframe;
 }) {
   const { span, slots } = frame;
-  const { cost, kwh, count, acPerKwh, dcPerKwh } = billsIn(bills, span);
+  const { kwh, count, acPerKwh, dcPerKwh } = billsIn(bills, span);
   const missing = unbilled.filter((s) => inSpan(Date.parse(s.started_at), span)).length;
-  const spend = billsBySlot(bills, slots);
-  const compact = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
-  // A bar ahead of now (the rest of this year or of today) is blank, not ₹0.
-  const bars = slots.map((slot, k) => ({ key: String(slot.id), label: slot.label, axis: slot.axis, edge: slot.edge, value: spend[k], display: compact.format(spend[k]), isCurrent: slot.isCurrent, blank: slot.ahead || undefined }));
+  // A bar ahead of now (the rest of this year or of today) is blank, not ₹0. To the paisa, rounded with
+  // the headline (see knownBars), so the bars add up to it as shown.
+  const { bars, total: cost } = knownBars(slots, billsBySlot(bills, slots), DECIMALS.money, (n) => formatMoney(n, "INR"));
   return (
     <section className="space-y-8">
       <ChartCard
         title="Spend"
-        description={`What you paid to charge ${eachSlot(frame)}, from Tesla's Supercharger bills and the invoices you attached.`}
+        description={`What you paid to charge ${eachSlot(frame)}.`}
+        info="From Tesla's Supercharger bills and the invoices you attached."
         summary={
           <div className="space-y-2">
             <p className="text-[0.8125rem] text-muted-foreground">Spent {frame.words}</p>
@@ -63,7 +65,7 @@ export function Summary({
             </p>
           </div>
         }
-        caption={`${barsCaption("Bills", frame)}.`}
+        caption={barsSpan(frame)}
         empty={bars.some((b) => b.value > 0) ? undefined : `No bills ${frame.words}`}
       >
         <Bars bars={bars} ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} fit />
@@ -77,24 +79,21 @@ export function Summary({
             acPerKwh !== null && { label: "AC rate", value: `${formatMoney(acPerKwh, "INR")}/kWh`, note: "Slower charging" },
             dcPerKwh !== null && { label: "DC rate", value: `${formatMoney(dcPerKwh, "INR")}/kWh`, note: "Fast charging" },
           ]}
+          label="bills"
+          terms={["kWh", acPerKwh !== null || dcPerKwh !== null ? "₹/kWh" : undefined, acPerKwh !== null ? "AC" : undefined, dcPerKwh !== null ? "DC" : undefined]}
         />
-        <p className="text-xs text-muted-foreground">
-          {unitNotes(["kWh", acPerKwh !== null || dcPerKwh !== null ? "₹/kWh" : undefined, acPerKwh !== null ? "AC" : undefined, dcPerKwh !== null ? "DC" : undefined])}
-        </p>
       </div>
       {km !== null && km >= 10 && cost > 0 && missing === 0 && (
         <p className="text-sm text-muted-foreground tabular-nums">{formatMoney((cost / km) * 100, "INR")} per 100 km driven</p>
       )}
       {missing > 0 && (
         <p className="text-xs text-faint">
-          {missing} {missing === 1 ? "charge has" : "charges have"} no bill yet (home charging, or no invoice attached), so {missing === 1 ? "it isn't" : "they aren't"} counted.
+          {missing} {missing === 1 ? "charge has" : "charges have"} no bill yet, so {missing === 1 ? "it isn't" : "they aren't"} counted.
         </p>
       )}
     </section>
   );
 }
-
-const kwhCompact = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 
 // Tones from the foreground down, so the series read apart without colour.
 const ENERGY_SERIES = [
@@ -127,9 +126,12 @@ export function EnergyAdded({
   };
   for (const s of sessions) add(s.started_at, 0, s.energy_kwh);
   for (const s of streamOnly) add(s.started_at, s.supercharger ? 0 : s.kind === "dc" ? 1 : 2, s.energy_added_kwh);
+  // The headline is the columns' raw sum, and each column its chargers' raw sum; every figure is rounded
+  // on its own when shown.
+  total = sumKnown(energy.map((e, k) => (slots[k].ahead ? null : sumKnown(e))));
   const bars: StackedBar[] = slots.map((slot, k) => {
-    const sum = energy[k].reduce((a, b) => a + b, 0);
-    return { key: String(slot.id), label: slot.label, axis: slot.axis, edge: slot.edge, total: sum, display: kwhCompact.format(sum), isCurrent: slot.isCurrent, segments: energy[k], blank: slot.ahead || undefined };
+    const sum = sumKnown(energy[k]);
+    return { key: String(slot.id), label: slot.label, axis: slot.axis, edge: slot.edge, total: sum, display: formatNumber(sum, DECIMALS.kWh), isCurrent: slot.isCurrent, segments: energy[k], blank: slot.ahead || undefined };
   });
   const efficiency = chargeEfficiency(streamOnly.filter((s) => s.kind === "ac" && inSpan(Date.parse(s.started_at), span)));
   // Time on the charger by kind, after TeslaMate's AC/DC duration: Superchargers from Tesla's times, the
@@ -145,7 +147,8 @@ export function EnergyAdded({
     <section className="space-y-8">
       <ChartCard
         title="Energy added"
-        description={`How much energy went into the battery ${eachSlot(frame)}, split by charger: Superchargers, third-party DC fast chargers, and AC.`}
+        description="Energy into the battery, by charger type."
+        info="Supercharger energy is from Tesla's bills; third-party DC and AC are from the car's own readings."
         unit="kWh"
         terms={["AC", "DC"]}
         summary={
@@ -156,7 +159,7 @@ export function EnergyAdded({
             </p>
           </div>
         }
-        caption={`${barsCaption("Energy added", frame)}. Tap a charger type to show or hide it.`}
+        caption={barsSpan(frame)}
         empty={bars.some((b) => b.total > 0) ? undefined : `No charging ${frame.words}`}
       >
         <StackedBars bars={bars} series={ENERGY_SERIES} ariaLabel={`Energy added per ${frame.slotName}`} labelEvery={frame.labelEvery} fit />
@@ -170,14 +173,12 @@ export function EnergyAdded({
         />
       )}
       {efficiency !== null && (
-        <div className="space-y-1">
-          <p className="text-sm">
-            AC charging efficiency <span className="font-mono font-medium tabular-nums"><Measure text={`${Math.round(efficiency * 100)}%`} /></span>
-          </p>
-          <p className="text-xs text-muted-foreground">
-            How much of the energy from the charger ended up in the battery, estimated from the car&apos;s own readings.
-          </p>
-        </div>
+        <p className="flex items-center gap-1.5 text-sm">
+          AC charging efficiency <span className="font-mono font-medium tabular-nums"><Measure text={formatPercent(efficiency * 100)} /></span>
+          <InfoButton label="AC charging efficiency" terms={["charging efficiency"]}>
+            Estimated from the car&apos;s own readings.
+          </InfoButton>
+        </p>
       )}
     </section>
   );
@@ -189,7 +190,8 @@ export function SessionList({ sessions, all = sessions }: { sessions: Listed[]; 
   // Sessions arrive newest first, so each month's group is in order too. Numbers count from the first
   // charge, so the newest has the highest.
   const serial = new Map(all.map((s, i) => [s.key, all.length - i]));
-  const energyTotal = sessions.reduce((sum, s) => sum + ((s.tesla ? s.tesla.energy_kwh : s.stream?.energy_added_kwh) ?? 0), 0);
+  // The total is the rows' raw energy added up, rounded once when shown, like each row.
+  const energyTotal = sumKnown(sessions.map((s) => (s.tesla ? s.tesla.energy_kwh : s.stream?.energy_added_kwh)));
   const costs = hasCosts(sessions);
   const groups = new Map<string, Listed[]>();
   for (const s of sessions) {

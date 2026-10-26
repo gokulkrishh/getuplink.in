@@ -168,25 +168,38 @@ export function weeklyPack(estimates: PackEstimate[]): WeeklyPack[] {
 // `before` is the last reading (miles) from before the window, so the first day has something to count from.
 export type DayKm = { day: number; start: number; km: number | null };
 
-export function dailyDistance(readings: Reading[], before: number | null, now: number, days: number): DayKm[] {
-  const lastOfDay = new Map<number, number>();
-  for (const r of readings) {
-    const miles = num(r.value);
-    if (miles !== null) lastOfDay.set(istDay(Date.parse(r.at)), miles);
-  }
-  const today = istDay(now);
-  let previous = before;
+// The midnights (IST) dailyDistance reads the odometer at: each day's start, then the end of today.
+export const dayBounds = (now: number, days: number) => Array.from({ length: days + 1 }, (_, k) => istDayStart(istDay(now) - days + 1 + k));
+
+// `polled` is the online polls' odometer (miles) at each day's start, the window's first day first and one
+// more for the end of today (see dayBounds): at a midnight where a poll was read after the last streamed
+// reading, the poll's value counts, the way the Distance bars merge the two (see drivingFigures), so a
+// day here reads the same kilometres as its bar there. Km are not rounded: only the display rounds.
+export type Miles = { at: number; value: number };
+
+export function dailyDistance(readings: Reading[], before: Miles | null, now: number, days: number, polled: (Miles | null)[] | null = null): DayKm[] {
+  const streamed = readings
+    .map((r) => ({ at: Date.parse(r.at), value: num(r.value) }))
+    .filter((r): r is Miles => r.value !== null && Number.isFinite(r.at))
+    .sort((a, b) => a.at - b.at);
+  const first = istDay(now) - days + 1;
+  let next = 0;
+  let last: Miles | null = before;
+  // The odometer at a day's start: the last streamed reading before it, or the poll when it was read later.
+  const at = (k: number) => {
+    const bound = istDayStart(first + k);
+    while (next < streamed.length && streamed[next].at < bound) last = streamed[next++];
+    const poll = polled?.[k] ?? null;
+    return (poll && (!last || poll.at > last.at) ? poll.value : last?.value) ?? null;
+  };
+  let previous = at(0);
   const result: DayKm[] = [];
-  for (let day = today - days + 1; day <= today; day++) {
-    const miles = lastOfDay.get(day);
-    let km: number | null = null;
-    if (miles !== undefined) {
-      if (previous !== null) km = Math.max(0, Math.round((miles - previous) * MILES_TO_KM));
-      previous = miles;
-    } else if (previous !== null) {
-      km = 0;
-    }
-    result.push({ day, start: istDayStart(day), km });
+  for (let k = 0; k < days; k++) {
+    const end = at(k + 1);
+    // Before the first reading the day is blank; after it, a day without a reading is 0.
+    const km = previous === null || end === null ? null : Math.max(0, (end - previous) * MILES_TO_KM);
+    if (end !== null) previous = end;
+    result.push({ day: first + k, start: istDayStart(first + k), km });
   }
   return result;
 }

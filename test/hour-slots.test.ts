@@ -4,8 +4,8 @@ import { MILES_TO_KM } from "@/lib/car";
 import { driveEnergy, driveKmIn, timeframeEfficiency } from "@/lib/drive-stats";
 import { type CounterColumn, drivingTimeframe, timeframeInstants } from "@/lib/driving-figures";
 import { type Drive, hourKm, istHourStart } from "@/lib/drives";
-import { formatHours } from "@/lib/format";
-import { fromTracking, isoDay, periodTimeframe, rangeSlots, rangeTimeframe, roundToTotal } from "@/lib/periods";
+import { formatHours, sumKnown } from "@/lib/format";
+import { fromTracking, isoDay, periodTimeframe, rangeSlots, rangeTimeframe } from "@/lib/periods";
 
 const ist = (local: string) => Date.parse(`${local}+05:30`);
 
@@ -125,26 +125,15 @@ describe("a drive split across the hours it ran through", () => {
     expect(frame.slots[14].isCurrent).toBe(true);
   });
 
-  test("the 7 AM and 8 AM bars split the drive, and the bars add up to the day's total", () => {
-    expect(km[7]).toBe(Math.round(pieces[0].km));
-    expect(km[8]).toBe(Math.round(pieces[1].km));
-    const sum = km.reduce<number>((a, b) => a + (b ?? 0), 0);
-    expect(sum).toBe(day.current.km!);
+  test("the 7 AM and 8 AM bars split the drive, and their raw sum is the day's distance", () => {
+    expect(km[7]).toBeCloseTo(pieces[0].km, 9);
+    expect(km[8]).toBeCloseTo(pieces[1].km, 9);
+    expect(sumKnown(km)).toBeCloseTo(day.current.km!, 9);
   });
 
   test("without the presence fields, nothing is blanked on a guess", () => {
     const unknown = drivingTimeframe(counters, frame, now);
     expect(unknown.bars.slice(1, 6).map((b) => b.km)).toEqual([0, 0, 0, 0, 0]);
-  });
-});
-
-describe("bars that add up to the total", () => {
-  test("rounded by largest remainder to the rounded sum", () => {
-    expect(roundToTotal([0.4, 0.4, 0.4], 0)).toEqual([1, 0, 0]);
-    expect(roundToTotal([0.5, 0.5], 0)).toEqual([1, 0]);
-    expect(roundToTotal([16.09, 16.09, 16.09, 16.09, 16.09, 16.09, 16.09], 0).reduce((a, b) => a! + b!, 0)).toBe(113);
-    expect(roundToTotal([1.26, null, 2.24], 1)).toEqual([1.3, null, 2.2]);
-    expect(roundToTotal([0.05, 0.05, 0.05], 1).reduce((a, b) => a! + b!, 0)).toBeCloseTo(0.2, 9);
   });
 });
 

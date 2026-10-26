@@ -14,10 +14,17 @@ async function deleteIn(owner: Owner, table: OwnerTable, column: string, keys: (
   }
 }
 
+// The rest of a table's rows of the owner's (ownerDb filters every delete to user_id).
+async function deleteRest(owner: Owner, table: OwnerTable, optional = false) {
+  const { error } = await ownerDb(owner).from(table).delete();
+  if (error && !(optional && MISSING_TABLE.includes(error.code))) throw new Error(`Deleting ${table} failed: ${error.message}`);
+}
+
 // Delete my data's database half (lib/server/tesla.ts stops streaming first and forgets the tokens after):
 // the owner's invoices and their files, the connector token, the cars (which cascade to snapshots and
-// version history), their charging sessions and streamed readings. Everything goes by the owner's own keys
-// (see ownedRows). Release notes and place names are shared, not the owner's.
+// version history), their charging sessions, streamed readings and check log. Every delete is the owner's
+// own rows (user_id, see ownerKeys), so another account's can't go with them. Release notes and place
+// names are shared, not the owner's.
 export async function eraseOwnerRows(owner: Owner): Promise<void> {
   const scope = ownerDb(owner);
   const keys = await ownedRows(owner);
@@ -25,33 +32,17 @@ export async function eraseOwnerRows(owner: Owner): Promise<void> {
   // Invoices point at the charging sessions, which can't go while one does.
   const paths = keys.receipts.flatMap((r) => (r.invoice_path ? [r.invoice_path] : []));
   if (paths.length) await scope.invoices().remove(paths);
-  await deleteIn(owner, "charge_receipts", "session_id", keys.receipts.map((r) => r.session_id), true);
+  await deleteRest(owner, "charge_receipts", true);
 
   const token = await scope.from("connector_token").delete();
   if (token.error && !MISSING_TABLE.includes(token.error.code)) throw new Error(`Revoking the connector token failed: ${token.error.message}`);
 
   await deleteIn(owner, "vehicles", "id", keys.vehicleIds);
-  await deleteIn(owner, "charging_sessions", "vehicle_vin", keys.vins, true);
-  await deleteIn(owner, "stream_charge_sessions", "vin", keys.vins, true);
+  await deleteRest(owner, "charging_sessions", true);
+  await deleteRest(owner, "stream_charge_sessions", true);
+  // Readings by VIN first, which the (vin, field, created_at) index serves; then any left under the owner
+  // for a VIN no car row names any more (streaming that didn't stop after an earlier delete).
   await deleteIn(owner, "telemetry_readings", "vin", keys.vins);
-
-  // Only while no other account exists: the check log, and rows for a VIN no car row names any more (a
-  // car removed from the account, streaming that didn't stop after an earlier delete). Invoices first.
-  if (keys.unclaimed) {
-    const left = await scope.from("charge_receipts").select("invoice_path");
-    if (left.error && !MISSING_TABLE.includes(left.error.code)) throw new Error(`Reading invoices failed: ${left.error.message}`);
-    const files = ((left.data ?? []) as { invoice_path: string | null }[]).flatMap((r) => (r.invoice_path ? [r.invoice_path] : []));
-    if (files.length) await scope.invoices().remove(files);
-    for (const [table, column] of [
-      ["charge_receipts", "session_id"],
-      ["charging_sessions", "session_id"],
-      ["stream_charge_sessions", "vin"],
-      ["telemetry_readings", "vin"],
-      ["poll_runs", "id"],
-    ] as const) {
-      const { error } = await scope.from(table).delete().not(column, "is", null);
-      const optional = table === "charge_receipts" || table === "charging_sessions" || table === "stream_charge_sessions";
-      if (error && !(optional && MISSING_TABLE.includes(error.code))) throw new Error(`Deleting ${table} failed: ${error.message}`);
-    }
-  }
+  await deleteRest(owner, "telemetry_readings");
+  await deleteRest(owner, "poll_runs");
 }

@@ -1,7 +1,8 @@
 import { DRIVE_DAYS, type Drive } from "@/lib/drives";
 import { groupTrips } from "@/lib/trips";
 import type { DrivingFigure, DrivingFigures, DrivingPeriod } from "@/lib/driving-figures";
-import { inSpan, type Period, periodTimeframe, roundToTotal, type Span, type Timeframe } from "@/lib/periods";
+import { sumKnown } from "@/lib/format";
+import { inSpan, type Period, periodTimeframe, type Span, type Timeframe } from "@/lib/periods";
 import { median } from "@/lib/telemetry-derive";
 
 // Drive stats after TeslaMate's dashboard, from the drives Uplink rebuilt (the last 90 days). Counts and
@@ -73,21 +74,16 @@ export function timeframeEfficiency(p: DrivingPeriod, frame: Timeframe, drives: 
     return { ...f, whPerKm: f.whPerKm ?? fromDrives.whPerKm, kwh: f.kwh ?? fromDrives.kwh };
   };
   const bars = p.bars.map((b, k) => (frame.slots[k] ? fill(b, frame.slots[k]) : b));
-  // Rounded as shown (one decimal), so the bars add up to the total above them.
-  const kwh = roundToTotal(
-    bars.map((b) => b.kwh),
-    1,
-  );
   // A span older than the drives (a Year from before the window) mixes sources: its recent bars come
   // from the drives and its older ones from the lifetime counter, which counts parked use too. Its total
-  // is then the bars' sum, so the two agree, when every bar with driving has a figure.
+  // is then the raw sum of its bars, as every headline is, when every bar with driving has a figure.
   const current = fill(p.current, frame.span);
-  const whole = bars.every((b, k) => kwh[k] !== null || !b.km);
-  if (!covered(frame.span) && whole && kwh.some((v) => v !== null)) current.kwh = kwh.reduce<number>((sum, v) => sum + (v ?? 0), 0);
+  const whole = bars.every((b) => b.kwh !== null || !b.km);
+  if (!covered(frame.span) && whole && bars.some((b) => b.kwh !== null)) current.kwh = sumKnown(bars.map((b) => b.kwh));
   return {
     ...p,
     current,
     previous: p.previous && frame.previous ? fill(p.previous, frame.previous) : p.previous,
-    bars: bars.map((b, k) => ({ ...b, kwh: kwh[k] })),
+    bars,
   };
 }

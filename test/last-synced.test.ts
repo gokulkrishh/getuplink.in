@@ -66,12 +66,12 @@ describe("currentVersion", () => {
 });
 
 describe("odometerKm", () => {
-  test("the newer of the check's and the streamed reading, miles to km", () => {
+  test("the newer of the check's and the streamed reading, miles to km, unrounded", () => {
     const check = { miles: 10_000, at: "2026-10-23T00:00:00Z" };
     const streamed = { miles: 10_100, at: "2026-10-25T00:00:00Z" };
-    expect(odometerKm(check, streamed)).toBe(16_254);
-    expect(odometerKm(streamed, check)).toBe(16_254);
-    expect(odometerKm(check, undefined)).toBe(16_093);
+    expect(odometerKm(check, streamed)).toBeCloseTo(16_254.3744, 6);
+    expect(odometerKm(streamed, check)).toBeCloseTo(16_254.3744, 6);
+    expect(odometerKm(check, undefined)).toBeCloseTo(16_093.44, 6);
   });
   test("non-numbers and zero are ignored", () => {
     expect(odometerKm({ miles: "123", at: AT }, null)).toBeNull();

@@ -154,7 +154,7 @@ async function Rollout() {
         <section className="space-y-3">
           <div className="space-y-1">
             <h2 className={heading}>Where it runs</h2>
-            <p className="text-sm text-muted-foreground">The states each version runs in, darker for more cars. Hover or tap a state for its count.</p>
+            <p className="text-sm text-muted-foreground">States each version runs in. Darker is more cars.</p>
           </div>
           <RolloutMap versions={states} />
         </section>
@@ -164,7 +164,8 @@ async function Rollout() {
 
       <ChartCard
         title="Versions"
-        description={`Every version Indian cars run, newest first. Each bar is the version's share of the ${cars(counted)} Uplink counts; hover or tap it for the share.`}
+        description="Every version Indian cars run, newest first."
+        info={`Each bar is the version's share of the ${cars(counted)} Uplink counts.`}
       >
         <ul className="divide-y border-t">
           <li className="flex gap-4 py-2 text-xs text-faint" aria-hidden="true">

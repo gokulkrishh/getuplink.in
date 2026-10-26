@@ -4,7 +4,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { Line, LineChart, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import type { CurvePoint } from "@/lib/charge-curve";
-import { formatClock } from "@/lib/format";
+import { formatClock, formatKw } from "@/lib/format";
 import { Measure } from "@/components/measure";
 
 const config = {
@@ -48,7 +48,7 @@ export default function ChargeCurvePlot({ points }: { points: CurvePoint[] }) {
         ref={box}
         className="h-40 w-full"
         role="img"
-        aria-label={`Charging power from ${formatClock(first.t)} to ${formatClock(last.t)}, up to ${kwFormat.format(peak)} kW${levelText}.`}
+        aria-label={`Charging power from ${formatClock(first.t)} to ${formatClock(last.t)}, up to ${formatKw(peak)}${levelText}.`}
       >
         {width === 0 ? (
           <div className="h-full w-full bg-background/60 motion-safe:animate-pulse" aria-busy="true" aria-label="Loading chart" />
@@ -85,7 +85,7 @@ export default function ChargeCurvePlot({ points }: { points: CurvePoint[] }) {
                     <div className="border bg-background px-2 py-1 text-xs">
                       {point.kw !== null && (
                         <span className="font-mono tabular-nums">
-                          <Measure text={`${kwFormat.format(point.kw)} kW`} />
+                          <Measure text={formatKw(point.kw)} />
                         </span>
                       )}
                       {point.level !== null && (

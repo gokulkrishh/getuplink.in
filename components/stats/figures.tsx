@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { InfoButton } from "@/components/info-button";
+import { hasWords } from "@/lib/unit-words";
 import { Measure } from "@/components/measure";
 import { cn } from "@/lib/utils";
 
@@ -16,13 +18,32 @@ const SM_SPAN = ["", "", "sm:col-span-2", "sm:col-span-3"];
 // value large with its unit small, and a line of context under it. Two columns on a phone; wider, one row
 // of up to four, and rows of three past that. No cell is left empty: on a phone an odd first tile takes
 // the whole row, and wider the last tile fills out its row.
-export function Figures({ figures, className }: { figures: (Figure | null | false)[]; className?: string }) {
+// `terms` and `info` add an ⓘ in the top-right corner that opens the glossary words for the tiles' units
+// and any method notes (see docs/charts.md); `label` names the group for screen readers. Tiles inside a
+// ChartCard's `summary` put their terms on the card's ⓘ instead, so a card has one.
+export function Figures({
+  figures,
+  terms,
+  info,
+  label = "these figures",
+  className,
+}: {
+  figures: (Figure | null | false)[];
+  terms?: (string | undefined)[];
+  info?: ReactNode;
+  label?: string;
+  className?: string;
+}) {
   const shown = figures.filter((f): f is Figure => Boolean(f));
   if (shown.length === 0) return null;
   const columns = shown.length <= 4 ? shown.length : 3;
   const left = shown.length % columns;
-  return (
-    <dl className={cn("grid grid-cols-2 gap-px border bg-border bg-clip-padding dark:border-transparent dark:bg-background", SM_COLUMNS[columns], className)}>
+  const button = Boolean(info) || hasWords(terms);
+  // A lone tile stays tile-sized (half the width) instead of stretching across the page. With an ⓘ, the
+  // wrapper takes that width instead, so the ⓘ stays in the tile's corner rather than the page's.
+  const lone = shown.length === 1 && "sm:w-1/2";
+  const grid = (
+    <dl className={cn("grid grid-cols-2 gap-px border bg-border bg-clip-padding dark:border-transparent dark:bg-background", SM_COLUMNS[columns], !button && lone, className)}>
       {shown.map((f, k) => (
         <div
           key={f.label}
@@ -33,7 +54,7 @@ export function Figures({ figures, className }: { figures: (Figure | null | fals
           )}
         >
           {/* A long label ("Hardest acceleration") wraps rather than cutting off on a phone. */}
-          <dt className="flex items-center gap-1.5 text-[0.8125rem] text-muted-foreground">
+          <dt className={cn("flex items-center gap-1.5 text-[0.8125rem] text-muted-foreground", button && k < Math.max(columns, 2) && "pr-6")}>
             {f.key}
             {f.label}
           </dt>
@@ -45,5 +66,14 @@ export function Figures({ figures, className }: { figures: (Figure | null | fals
         </div>
       ))}
     </dl>
+  );
+  if (!button) return grid;
+  return (
+    <div className={cn("relative", lone)}>
+      {grid}
+      <InfoButton label={label} terms={terms} className="absolute top-2 right-2 sm:top-3 sm:right-3">
+        {info}
+      </InfoButton>
+    </div>
   );
 }

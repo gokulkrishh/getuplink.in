@@ -3,21 +3,21 @@ import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
-import { OsmCredit, rate, streamTitle } from "@/components/session-row";
+import { OsmCredit, rate, streamName } from "@/components/session-row";
+import { chargeType } from "@/lib/charge-names";
 import { ChargeCurve } from "@/components/stats/charge-curve";
 import { ChargeFees } from "@/components/stats/charge-fees";
 import { ChargeSupply } from "@/components/stats/charge-supply";
 import { Figures } from "@/components/stats/figures";
 import { splitSite } from "@/lib/charge-sessions";
-import { formatClock, formatDate, formatDuration, formatKwh, formatMoney, formatTempRange } from "@/lib/format";
+import { formatClock, formatDate, formatDuration, formatKw, formatKwh, formatLevels, formatMoney, formatTempRange } from "@/lib/format";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargeDetail, loadChargeDetail } from "@/lib/server/charge-curve";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
-import { unitNotes } from "@/lib/unit-words";
+import { InfoButton } from "@/components/info-button";
 
 export const metadata: Metadata = { title: "Charge · Uplink" };
 
-const kwFormat = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 
 // Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx).
 async function loadDetail(id: number): Promise<ChargeDetail | null> {
@@ -40,7 +40,10 @@ function cost(tesla: ChargeDetail["tesla"], invoice: ChargeDetail["invoice"], en
 
 function Charge({ detail }: { detail: ChargeDetail }) {
   const { session: s, tesla, invoice, curve } = detail;
-  const { place, city } = tesla ? splitSite(tesla.site_name) : { place: streamTitle(s), city: null };
+  // Tesla's site for a Supercharger it billed; otherwise the best name known, with the kind of charge
+  // under it, or the kind alone.
+  const named = tesla ? null : streamName(s, invoice, detail.place);
+  const { place, city } = tesla ? splitSite(tesla.site_name) : { place: named?.text ?? chargeType(s), city: named ? chargeType(s) : null };
   const stoppedAt = tesla?.stopped_at ?? s.ended_at;
   const span = stoppedAt
     ? `${formatClock(s.started_at)} to ${formatClock(stoppedAt)} · ${formatDuration((Date.parse(stoppedAt) - Date.parse(s.started_at)) / 1000)}`
@@ -56,7 +59,7 @@ function Charge({ detail }: { detail: ChargeDetail }) {
     {
       title: "Battery",
       rows: [
-        ["Charge level", s.start_level !== null && s.end_level !== null ? `${Math.round(s.start_level)}% to ${Math.round(s.end_level)}%` : null],
+        ["Charge level", s.start_level !== null && s.end_level !== null ? formatLevels(s.start_level, s.end_level) : null],
         ["Energy added", energy !== null ? formatKwh(energy) : null],
         ["Battery temperature", tempLow !== null && tempHigh !== null ? formatTempRange(tempLow, tempHigh) : null],
       ],
@@ -64,8 +67,8 @@ function Charge({ detail }: { detail: ChargeDetail }) {
     {
       title: "Power",
       rows: [
-        ["Peak power", peak ? `${kwFormat.format(peak)} kW` : null],
-        ["Average power", curve.avgKw ? `${kwFormat.format(curve.avgKw)} kW` : null],
+        ["Peak power", peak ? formatKw(peak) : null],
+        ["Average power", curve.avgKw ? formatKw(curve.avgKw) : null],
       ],
     },
     {
@@ -89,7 +92,20 @@ function Charge({ detail }: { detail: ChargeDetail }) {
         {curve.points.length >= 2 && <ChargeCurve points={curve.points} />}
         {shown.length > 0 && (
           <section className="space-y-6">
-            <h2 className="text-lg font-medium tracking-heading">Session</h2>
+            {/* The units the tiles use, in plain words, and what kind of charge this was. The chart above
+                already explains kW when it shows. */}
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-lg font-medium tracking-heading">Session</h2>
+              <InfoButton
+                label="this session"
+                terms={[
+                  curve.points.length < 2 && shown.some(([label]) => label.endsWith("power")) ? "kW" : undefined,
+                  shown.some(([label]) => label.startsWith("Energy")) ? "kWh" : undefined,
+                  shown.some(([, value]) => value.includes("/kWh")) ? "₹/kWh" : undefined,
+                  s.kind === "dc" ? "DC" : "AC",
+                ]}
+              />
+            </div>
             {sections.map((g) => (
               <div key={g.title} className="space-y-3">
                 <h3 className="text-base font-medium tracking-heading">{g.title}</h3>
@@ -102,16 +118,6 @@ function Charge({ detail }: { detail: ChargeDetail }) {
                 />
               </div>
             ))}
-            {/* The units the tiles use, in plain words, and what kind of charge this was. The chart above
-                already explains kW when it shows. */}
-            <p className="text-xs text-muted-foreground">
-              {unitNotes([
-                curve.points.length < 2 && shown.some(([label]) => label.endsWith("power")) ? "kW" : undefined,
-                shown.some(([label]) => label.startsWith("Energy")) ? "kWh" : undefined,
-                shown.some(([, value]) => value.includes("/kWh")) ? "₹/kWh" : undefined,
-                s.kind === "dc" ? "DC" : "AC",
-              ])}
-            </p>
           </section>
         )}
         <ChargeFees fees={detail.fees} currency={currency} />
@@ -122,7 +128,7 @@ function Charge({ detail }: { detail: ChargeDetail }) {
           {invoice.network} invoice
         </a>
       )}
-      {!tesla && !s.supercharger && s.station_name && <OsmCredit className="mt-8" />}
+      {(named?.source === "station" || named?.source === "place") && <OsmCredit className="mt-8" />}
     </>
   );
 }

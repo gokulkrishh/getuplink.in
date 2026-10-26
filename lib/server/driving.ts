@@ -1,7 +1,7 @@
 import "server-only";
 import { type ChargeLevel, type WeeklyRange } from "@/lib/charge-level";
 import { analyseDriving, DRIVE_DAYS, type Driving } from "@/lib/drives";
-import { type DayKm, dailyDistance, istDay, istDayStart, num, type WeeklyPack } from "@/lib/telemetry-derive";
+import { type DayKm, dailyDistance, dayBounds, istDay, istDayStart, num, type WeeklyPack } from "@/lib/telemetry-derive";
 import { DEMO } from "@/lib/demo";
 import { type DrivingCounters, type DrivingFigures, drivingFigures, type DrivingPeriod, drivingTimeframe, figureInstants, timeframeInstants } from "@/lib/driving-figures";
 import { PRESENCE_FIELDS } from "@/lib/awake";
@@ -79,18 +79,23 @@ export async function loadWindowStats(owner: Owner, vin: string | null, now: num
   const dailyFrom = new Date(istDayStart(istDay(now) - DRIVING_DAYS + 1)).toISOString();
   const driveFrom = now - DRIVE_DAYS * 86_400_000;
   const from = new Date(Math.min(Date.parse(dailyFrom), driveFrom, trendWindow(now).from)).toISOString();
-  const [readings, before] = await Promise.all([
+  const bounds = dayBounds(now, DRIVING_DAYS);
+  const [readings, before, polled] = await Promise.all([
     loadReadingsByField(owner, vin, WINDOW_FIELDS, from, new Date(now).toISOString()),
     // The last odometer reading before the daily window, so the first day has something to count from.
     DEMO
-      ? { data: { value: demoCounter("Odometer", dailyFrom) }, error: null }
-      : ownerDb(owner).from("telemetry_readings").select("value").eq("vin", vin).eq("field", "Odometer").lt("created_at", dailyFrom).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      ? { data: { value: demoCounter("Odometer", dailyFrom), created_at: dailyFrom }, error: null }
+      : ownerDb(owner).from("telemetry_readings").select("value, created_at").eq("vin", vin).eq("field", "Odometer").lt("created_at", dailyFrom).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    // The polls' odometer at each midnight, merged with the stream's as the Distance bars merge them.
+    loadPolledOdometers(owner, bounds.map((t) => new Date(t).toISOString())),
   ]);
   if (!readings) return empty;
   const since = (field: string, ms: number) => readings[field].filter((r) => Date.parse(r.at) >= ms);
   const [gear, odometer, battery, energy, lifetime, range, charge] = WINDOW_FIELDS.map((field) => since(field, driveFrom));
+  const beforeMiles = num(before.data?.value);
+  const start = beforeMiles === null ? null : { at: Date.parse(before.data!.created_at), value: beforeMiles };
   return {
-    days: before.error ? [] : dailyDistance(since("Odometer", Date.parse(dailyFrom)), num(before.data?.value), now, DRIVING_DAYS),
+    days: before.error ? [] : dailyDistance(since("Odometer", Date.parse(dailyFrom)), start, now, DRIVING_DAYS, polled?.bounds ?? null),
     driving: analyseDriving({ gear, odometer, battery, energy, lifetime, range, charge }, now),
     trend: batteryTrend(readings.EnergyRemaining, readings.BatteryLevel, now),
     level: chargeLevel(readings.BatteryLevel, readings.DetailedChargeState, now),

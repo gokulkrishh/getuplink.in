@@ -6,23 +6,35 @@ let events: string[];
 let carState: string;
 let fleetPaths: string[];
 
-const TOKENS = { access_token_enc: "enc:token", refresh_token_enc: "enc:refresh", expires_at: new Date(Date.now() + 8 * 3_600_000).toISOString(), owner_sub: "owner" };
+const USER = { id: 1, tesla_sub: "owner", status: "approved" };
+const TOKENS = {
+  user_id: 1,
+  access_token_enc: "enc:token",
+  refresh_token_enc: "enc:refresh",
+  expires_at: new Date(Date.now() + 8 * 3_600_000).toISOString(),
+  scope: null,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+};
 
 // A supabase-js query builder: any chain of filters, then the rows each read needs.
 function query(table: string) {
   let op = "select";
+  let onlyDisconnected = false; // .is("access_token_enc", null): the user has none
   const builder: Record<string, unknown> = {};
   const settle = (single: boolean) => {
     events.push(`${op} ${table}`);
     if (table === "poll_runs" && op === "insert") return { data: { id: 1 }, error: null };
-    if (table === "oauth_tokens") return { data: single ? TOKENS : [TOKENS], error: null };
+    if (table === "users") return { data: single ? USER : [USER], error: null };
+    if (table === "user_tokens" && !onlyDisconnected) return { data: single ? TOKENS : [TOKENS], error: null };
     return { data: single ? null : [], error: null, count: 0 };
   };
   const chain = new Proxy(builder, {
     get(_, key: string) {
       if (key === "then") return (resolve: (v: unknown) => void) => resolve(settle(false));
       if (key === "single" || key === "maybeSingle") return async () => settle(true);
-      return (..._args: unknown[]) => {
+      return (...args: unknown[]) => {
+        if (key === "is" && args[1] === null) onlyDisconnected = true;
         if (["insert", "upsert", "update", "delete"].includes(key) && op === "select") op = key;
         return chain;
       };

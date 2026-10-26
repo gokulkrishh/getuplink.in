@@ -1,8 +1,7 @@
 import type { StationRow } from "@/lib/top-stations";
 import { Measure } from "@/components/measure";
+import { formatKwh, formatMoney } from "@/lib/format";
 
-const oneDecimal = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
-const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
 
 // Where you charge most in the span, by energy, with how often and what the bills came to, ranked from 1.
 // `title` names the span and `words` ends "No named stations …" for a span without any.
@@ -45,9 +44,9 @@ export function TopStations({ rows, title, words }: { rows: StationRow[]; title:
                     {r.name}
                   </th>
                   <td className="py-3 pr-4 text-right font-mono">{r.charges}</td>
-                  <td className="py-3 pr-4 text-right font-mono"><Measure text={`${oneDecimal.format(r.kwh)} kWh`} /></td>
+                  <td className="py-3 pr-4 text-right font-mono"><Measure text={formatKwh(r.kwh)} /></td>
                   <td className="py-3 text-right">
-                    <span className="font-mono">{r.billed ? money.format(r.spend) : "No bills"}</span>
+                    <span className="font-mono">{r.billed ? formatMoney(r.spend, "INR") : "No bills"}</span>
                     {r.billed > 0 && r.billed < r.charges && <span className="block text-xs text-muted-foreground">{r.charges - r.billed} without a bill</span>}
                   </td>
                 </tr>

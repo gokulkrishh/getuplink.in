@@ -41,7 +41,9 @@ export async function GET(request: NextRequest) {
     console.error(err);
     return done("/home", "failed");
   }
-  if (result === "not-owner") return done("/home", "not-owner");
+  // No session, no stored tokens and no check for anyone but an approved user.
+  if (result === "waitlist") return done("/waitlist");
+  if (result === "not-owner" || result === "not-approved" || result === "region") return done("/home", result);
 
   // Check with the new tokens right away rather than waiting for the cron: on a first sign-in this records
   // the first snapshot, and after a sign-in that replaced refused tokens it clears the failed run's
@@ -50,7 +52,7 @@ export async function GET(request: NextRequest) {
 
   const res = done("/");
   const domain = sessionCookieDomain(requestHost(request.headers));
-  res.cookies.set(SESSION_COOKIE, await createSession(), {
+  res.cookies.set(SESSION_COOKIE, await createSession(result.userId), {
     domain,
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

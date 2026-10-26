@@ -25,6 +25,7 @@ export function istIso(value: string | number): string {
 type ReceiptRow = {
   session_id: number;
   network: string;
+  station: string | null;
   amount_total: number;
   gst: number | null;
   kwh_billed: number | null;
@@ -40,7 +41,7 @@ async function receiptsFor(owner: Owner, ids: number[]): Promise<Map<number, Rec
   for (let i = 0; i < ids.length; i += IDS_PER_READ) {
     const { data, error } = await ownerDb(owner)
       .from("charge_receipts")
-      .select("session_id, network, amount_total, gst, kwh_billed, invoice_number, invoice_path")
+      .select("session_id, network, station, amount_total, gst, kwh_billed, invoice_number, invoice_path")
       .in("session_id", ids.slice(i, i + IDS_PER_READ));
     if (error) throw new Error(`Reading invoices failed: ${error.message}`);
     for (const r of data as ReceiptRow[]) out.set(Number(r.session_id), r);
@@ -286,7 +287,7 @@ export async function drivingSummary(owner: Owner) {
 // The invoice for each of these sessions that has one, for every spend figure and session row. hasFile:
 // the invoice's file is stored, so the row can offer it. Never fails the page: a read error (or a
 // database without the table yet) shows as no invoices.
-export type SessionInvoiceAmount = { amount: number; kwhBilled: number | null; network: string; hasFile: boolean };
+export type SessionInvoiceAmount = { amount: number; kwhBilled: number | null; network: string; station: string | null; hasFile: boolean };
 
 export async function invoicesBySession(owner: Owner, ids: number[]): Promise<Map<number, SessionInvoiceAmount>> {
   if (DEMO) {
@@ -295,20 +296,20 @@ export async function invoicesBySession(owner: Owner, ids: number[]): Promise<Ma
     // The demo stores no files (the invoice route answers 404 there).
     return new Map(ids.flatMap((id) => {
       const i = all.get(id);
-      return i ? [[id, { amount: i.amount, kwhBilled: i.kwhBilled, network: i.network, hasFile: false }] as const] : [];
+      return i ? [[id, { amount: i.amount, kwhBilled: i.kwhBilled, network: i.network, station: i.station, hasFile: false }] as const] : [];
     }));
   }
   if (ids.length === 0) return new Map();
   try {
     const rows = await receiptsFor(owner, ids);
-    return new Map([...rows].map(([id, r]) => [id, { amount: Number(r.amount_total), kwhBilled: r.kwh_billed == null ? null : Number(r.kwh_billed), network: r.network, hasFile: Boolean(r.invoice_path) }]));
+    return new Map([...rows].map(([id, r]) => [id, { amount: Number(r.amount_total), kwhBilled: r.kwh_billed == null ? null : Number(r.kwh_billed), network: r.network, station: r.station ?? null, hasFile: Boolean(r.invoice_path) }]));
   } catch (err) {
     if (!/charge_receipts/.test(String(err))) console.warn("Invoices unavailable:", (err as Error).message);
     return new Map();
   }
 }
 
-export type SessionInvoice = { network: string; amountTotal: number; gst: number | null; kwhBilled: number | null; hasFile: boolean };
+export type SessionInvoice = { network: string; station: string | null; amountTotal: number; gst: number | null; kwhBilled: number | null; hasFile: boolean };
 
 // The invoice attached to one session, for its page. Never fails the page: a read error (or a
 // database without the table yet) shows as no invoice.
@@ -316,9 +317,9 @@ export async function sessionInvoice(owner: Owner, sessionId: number): Promise<S
   if (DEMO) {
     const { demoInvoices } = await import("./demo");
     const i = demoInvoices().get(sessionId);
-    return i ? { network: i.network, amountTotal: i.amount, gst: i.gst, kwhBilled: i.kwhBilled, hasFile: false } : null;
+    return i ? { network: i.network, station: i.station, amountTotal: i.amount, gst: i.gst, kwhBilled: i.kwhBilled, hasFile: false } : null;
   }
-  const { data, error } = await ownerDb(owner).from("charge_receipts").select("network, amount_total, gst, kwh_billed, invoice_path").eq("session_id", sessionId).maybeSingle();
+  const { data, error } = await ownerDb(owner).from("charge_receipts").select("network, station, amount_total, gst, kwh_billed, invoice_path").eq("session_id", sessionId).maybeSingle();
   if (error) {
     if (!["42P01", "PGRST205"].includes(error.code)) console.warn("Invoice unavailable:", error.message);
     return null;
@@ -326,6 +327,7 @@ export async function sessionInvoice(owner: Owner, sessionId: number): Promise<S
   if (!data) return null;
   return {
     network: data.network as string,
+    station: (data.station as string | null) ?? null,
     amountTotal: Number(data.amount_total),
     gst: data.gst == null ? null : Number(data.gst),
     kwhBilled: data.kwh_billed == null ? null : Number(data.kwh_billed),

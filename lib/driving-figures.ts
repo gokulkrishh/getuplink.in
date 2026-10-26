@@ -1,6 +1,6 @@
 import { MILES_TO_KM } from "@/lib/car";
 import { MIN_EFFICIENCY_KM } from "@/lib/dashboard-summary";
-import { isHourSlot, type Period, PERIOD_ORDER, periodTimeframe, roundToTotal, type Slot, type Span, type Timeframe } from "@/lib/periods";
+import { isHourSlot, type Period, PERIOD_ORDER, periodTimeframe, type Slot, type Span, type Timeframe } from "@/lib/periods";
 import { MIN_ENERGY_KM } from "@/lib/telemetry-derive";
 
 // Distance, energy use and regen for every period, its comparison span and its bars, from cumulative
@@ -119,6 +119,7 @@ function figureReader(input: DrivingCounters, now: number) {
     const kwh = rise(counted(used), span, now);
     const streamedKm = streamedMiles === null ? 0 : streamedMiles * MILES_TO_KM;
     return {
+      // Not rounded: the bars' raw kilometres add up to the span's; only the display rounds.
       km: miles === null ? null : miles * MILES_TO_KM,
       whPerKm: kwh !== null && kwh > 0 && streamedKm >= minKm ? (kwh * 1000) / streamedKm : null,
       kwh: kwh !== null && kwh > 0 && streamedKm >= minKm ? kwh : null,
@@ -132,24 +133,11 @@ function figureReader(input: DrivingCounters, now: number) {
     if (!isHourSlot(slot) || f.km === null || f.km > 0 || awake(slot)) return f;
     return { km: null, whPerKm: null, kwh: null, regenKwh: null };
   };
-  const whole = (f: DrivingFigure): DrivingFigure => ({ ...f, km: f.km === null ? null : Math.round(f.km) });
-  const period = (frame: Timeframe, minKm: number): DrivingPeriod => {
-    const bars = frame.slots.map((slot) => bar(slot, minKm));
-    // Rounded as shown, whole km and regen to one decimal, so the bars add up to the total above them.
-    const km = roundToTotal(
-      bars.map((b) => b.km),
-      0,
-    );
-    const regenKwh = roundToTotal(
-      bars.map((b) => b.regenKwh),
-      1,
-    );
-    return {
-      current: whole(figure(frame.span, minKm)),
-      previous: frame.previous && whole(figure(frame.previous, minKm, true)),
-      bars: bars.map((b, k) => ({ ...b, km: km[k], regenKwh: regenKwh[k] })),
-    };
-  };
+  const period = (frame: Timeframe, minKm: number): DrivingPeriod => ({
+    current: figure(frame.span, minKm),
+    previous: frame.previous && figure(frame.previous, minKm, true),
+    bars: frame.slots.map((slot) => bar(slot, minKm)),
+  });
   return { odometer, period };
 }
 
@@ -162,7 +150,7 @@ export function drivingFigures(input: DrivingCounters, now: number): DrivingFigu
   return {
     periods,
     since: odometer?.first?.at ?? null,
-    odometerKm: latest === null ? null : Math.round(latest * MILES_TO_KM),
+    odometerKm: latest === null ? null : latest * MILES_TO_KM,
   };
 }
 

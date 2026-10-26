@@ -2,7 +2,7 @@ import { ChartCard } from "@/components/chart-card";
 import { type Figure, Figures } from "@/components/stats/figures";
 import { chargeEfficiency } from "@/lib/charge-sessions";
 import type { WeeklyRange } from "@/lib/charge-level";
-import { formatKm, formatKwh, formatShortDate } from "@/lib/format";
+import { formatKwh, formatRangeKm, formatShortDate } from "@/lib/format";
 import { within } from "@/lib/kept";
 import type { Timeframe } from "@/lib/periods";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
@@ -39,7 +39,7 @@ export function BatteryHealth({
   teslaPack: TeslaPack | null;
 }) {
   const capacity = vsBest(trend, (w) => w.kwh, formatKwh);
-  const full = vsBest(range, (w) => w.km, formatKm);
+  const full = vsBest(range, (w) => w.km, formatRangeKm);
   const finished = within(
     sessions.filter((s) => s.ended_at !== null && s.energy_added_kwh !== null),
     frame.span,
@@ -50,18 +50,19 @@ export function BatteryHealth({
   const ac = chargeEfficiency(finished.filter((s) => s.kind === "ac"));
   const dc = chargeEfficiency(finished.filter((s) => s.kind === "dc"));
 
-  const efficiency = `Charger's energy that reached the pack, ${frame.words}`;
+  const words = frame.words.charAt(0).toUpperCase() + frame.words.slice(1);
+  const efficiency = words;
   const figures: Figure[] = [];
   if (capacity) figures.push({ label: "Usable capacity now", value: capacity.now, note: capacity.note });
   if (teslaPack) figures.push({ label: "Full pack now, per Tesla", value: formatKwh(teslaPack.kwh), note: `Last reported ${formatShortDate(teslaPack.at)}` });
-  if (full) figures.push({ label: "Range at 100% now", value: `≈ ${full.now}`, note: <>Estimated from rated range and charge level<span className="block">{full.note}</span></> });
+  if (full) figures.push({ label: "Range at 100% now", value: `≈ ${full.now}`, note: full.note });
   // The span's tiles are the same in every period (an empty span says so in the tile), so the section keeps
   // one height and the page below doesn't sit under a gap. Efficiency tiles show when any charge of that
   // kind has ever been measured.
   const ever = sessions.filter((s) => s.ended_at !== null && s.energy_added_kwh !== null);
   const none = `No finished charges ${frame.words}`;
   figures.push({ label: "Energy charged", value: formatKwh(added), note: added > 0 ? `${finished.length} ${finished.length === 1 ? "charge" : "charges"} ${frame.words}` : none });
-  if (latestKwh) figures.push({ label: "Charge cycles", value: (added / latestKwh).toFixed(1), note: `Energy charged divided by usable capacity, ${frame.words}` });
+  if (latestKwh) figures.push({ label: "Charge cycles", value: (added / latestKwh).toFixed(1), note: words });
   if (chargeEfficiency(ever.filter((s) => s.kind === "ac")) !== null) figures.push({ label: "AC efficiency", value: ac !== null ? percent(ac) : "—", note: ac !== null ? efficiency : `No AC charge to measure ${frame.words}` });
   if (chargeEfficiency(ever.filter((s) => s.kind === "dc")) !== null) figures.push({ label: "DC efficiency", value: dc !== null ? percent(dc) : "—", note: dc !== null ? efficiency : `No DC charge to measure ${frame.words}` });
   if (figures.length === 0) return null;
@@ -69,14 +70,10 @@ export function BatteryHealth({
   return (
     <ChartCard
       title="Battery health"
-      description="How much the battery holds and how far it goes when full, against the best week Uplink has seen, then how much you charged and how much of it reached the battery."
+      description="What the pack holds now, against its best week."
       unit="kWh"
       terms={["usable capacity", ...(teslaPack ? ["full pack, per Tesla"] : []), "range at 100%", "charge cycles", "charging efficiency", "AC and DC"]}
-      caption={
-        <>
-          Uplink compares with the best week it has seen, not with a new pack: it only knows what the car has reported since you connected it.
-        </>
-      }
+      info="Uplink compares with the best week it has seen, not with a new pack: it only knows what the car has reported since you connected it."
     >
       <Figures figures={figures} />
     </ChartCard>

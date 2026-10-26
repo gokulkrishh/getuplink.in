@@ -3,7 +3,7 @@
 import { ChartCard } from "@/components/chart-card";
 import { Figures } from "@/components/stats/figures";
 import { LineChart } from "@/components/stats/line-chart";
-import { formatClock, formatShortDate } from "@/lib/format";
+import { formatCelsius, formatClock, formatKm, formatKwh, formatShortDate } from "@/lib/format";
 import { backTo, weeksIn, within } from "@/lib/kept";
 import type { Timeframe } from "@/lib/periods";
 import type { BatteryExtras, Point } from "@/lib/server/battery-extra";
@@ -13,7 +13,6 @@ const DAY = 24 * HOUR;
 // Readings further apart than this break the line: the car was asleep or out of reach, not reading.
 const GAP = 3 * HOUR;
 const when = (t: number) => `${formatShortDate(t)}, ${formatClock(t)}`;
-const oneDecimal = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 const number = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 const inFrame = (points: Point[], frame: Timeframe) => within(points, frame.span, (p) => p.x);
 // The first reading held across the series, for the note on how far back they go.
@@ -44,7 +43,8 @@ export function Temperatures({ temps, frame }: { temps: BatteryExtras["temps"]; 
   return (
     <ChartCard
       title="Temperatures"
-      description="How warm the battery, the cabin and the air outside were, in °C. A higher line is warmer."
+      description="Battery, cabin and outside temperatures."
+      info={drawn ? GAPS : undefined}
       summary={
         drawn && (
           <div className="space-y-2">
@@ -52,21 +52,21 @@ export function Temperatures({ temps, frame }: { temps: BatteryExtras["temps"]; 
             <Figures
               figures={series.map((s) => {
                 const v = s.points.at(-1)?.y;
-                return v !== undefined && { label: s.name, value: `${oneDecimal.format(v)} °C` };
+                return v !== undefined && { label: s.name, value: formatCelsius(v) };
               })}
             />
-            <p className="text-xs text-faint">Latest reading {frame.words}, {when(last)}.</p>
+            <p className="text-xs text-faint">Latest reading, {when(last)}</p>
           </div>
         )
       }
-      caption={[cut, drawn && GAPS].filter(Boolean).join(" ")}
+      caption={cut}
       empty={!drawn && `No temperature readings ${frame.words}.`}
     >
       <LineChart
         series={series}
         formatX={when}
         formatTickX={timeTicks(series.flatMap((s) => s.points))}
-        formatY={(y) => `${oneDecimal.format(y)} °C`}
+        formatY={(y) => formatCelsius(y)}
         unit="°C"
         gap={GAP}
         label={`Battery, inside and outside temperature, ${frame.title}`}
@@ -89,23 +89,24 @@ export function CellBalance({ spread, frame }: { spread: BatteryExtras["cellSpre
   return (
     <ChartCard
       title="Cell balance"
-      description="How far apart the battery's highest and lowest cell voltages were, at each reading, in mV. Lower is better: the cells are evenly balanced."
+      description="Gap between the highest and lowest cell. Lower is better."
       unit="mV"
       terms={["cell"]}
-      summary={
-        <div className="space-y-2">
-          <Figures
-            figures={[
-              { label: "Gap now", value: mv(now.y), note: `Latest reading, ${when(now.x)}` },
-              widest && { label: "Widest", value: mv(widest.y), note: `${frame.title}, ${when(widest.x)}` },
-            ]}
-          />
-          <p className="text-xs text-muted-foreground">
-            The gap widens while driving and charging hard, and settles back at rest. A gap that keeps growing over months is worth a service check.
-          </p>
-        </div>
+      info={
+        <>
+          <p>The gap widens while driving and charging hard, and settles back at rest. A gap that keeps growing over months is worth a service check.</p>
+          {shown.length >= 2 && <p>{GAPS}</p>}
+        </>
       }
-      caption={[cut, shown.length >= 2 && GAPS].filter(Boolean).join(" ")}
+      summary={
+        <Figures
+          figures={[
+            { label: "Gap now", value: mv(now.y), note: `Latest reading, ${when(now.x)}` },
+            widest && { label: "Widest", value: mv(widest.y), note: `${frame.title}, ${when(widest.x)}` },
+          ]}
+        />
+      }
+      caption={cut}
       empty={shown.length < 2 && `No cell voltage readings ${frame.words}.`}
     >
       <LineChart
@@ -133,18 +134,19 @@ export function CapacityByKm({ points, frame }: { points: BatteryExtras["capacit
       description="Usable capacity each week, against the odometer."
       unit="kWh"
       terms={["usable capacity"]}
+      info="A line that falls means the pack holds less."
       caption={backTo(frame.span, points[0].weekStart, "Weekly estimates")}
       empty={
         shown.length < 2 &&
         (shown.length === 1
-          ? `Week of ${formatShortDate(shown[0].weekStart)}: ${oneDecimal.format(shown[0].y)} kWh at ${number.format(shown[0].x)} km. A line needs two weeks.`
+          ? `Week of ${formatShortDate(shown[0].weekStart)}: ${formatKwh(shown[0].y)} at ${formatKm(shown[0].x)}. A line needs two weeks.`
           : `No weekly estimate ${frame.words}.`)
       }
     >
       <LineChart
         series={[{ name: "Capacity", className: "stroke-chart-accent", points: shown }]}
-        formatX={(x) => `${number.format(x)} km`}
-        formatY={(y) => `${oneDecimal.format(y)} kWh`}
+        formatX={(x) => formatKm(x)}
+        formatY={(y) => formatKwh(y)}
         unit="kWh"
         label={`Usable capacity against the odometer, ${frame.title}`}
       />
@@ -162,16 +164,20 @@ export function TeslaPackByWeek({ pack, frame }: { pack: BatteryExtras["teslaPac
   return (
     <ChartCard
       title="Full pack by week, per Tesla"
-      description="How much energy a full battery holds, as the car itself reports it: the middle value of each week's reports. A line that falls means the pack holds less."
+      description="Full-pack energy, as the car reports it."
       unit="kWh"
-      terms={["capacity"]}
-      caption={["The car only sends this figure when it changes, so a week with no new figure has no point.", backTo(frame.span, weeks[0].weekStart, "Weekly reports")]
-        .filter(Boolean)
-        .join(" ")}
+      terms={["full pack, per Tesla"]}
+      info={
+        <>
+          <p>The middle value of each week&apos;s reports. A line that falls means the pack holds less.</p>
+          <p>The car only sends this figure when it changes, so a week with no new figure has no point.</p>
+        </>
+      }
+      caption={backTo(frame.span, weeks[0].weekStart, "Weekly reports")}
       empty={
         shown.length < 2 &&
         (shown.length === 1
-          ? `Week of ${formatShortDate(shown[0].weekStart)}: ${oneDecimal.format(shown[0].kwh)} kWh. A line needs two weeks.`
+          ? `Week of ${formatShortDate(shown[0].weekStart)}: ${formatKwh(shown[0].kwh)}. A line needs two weeks.`
           : `No new figure from Tesla ${frame.words}.`)
       }
     >
@@ -179,7 +185,7 @@ export function TeslaPackByWeek({ pack, frame }: { pack: BatteryExtras["teslaPac
         series={[{ name: "Full pack", className: "stroke-chart-accent", points: shown.map((w) => ({ x: w.weekStart, y: w.kwh })) }]}
         formatX={(x) => `Week of ${formatShortDate(x)}`}
         formatTickX={formatShortDate}
-        formatY={(y) => `${oneDecimal.format(y)} kWh`}
+        formatY={(y) => formatKwh(y)}
         unit="kWh"
         label={`Tesla's full-pack figure by week, ${frame.title}`}
       />

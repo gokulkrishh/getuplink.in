@@ -3,7 +3,9 @@ export const LOGIN_ERRORS = {
   denied: "Sign-in was cancelled. Sign in again to continue.",
   expired: "Sign-in expired. Try again.",
   failed: "Couldn't sign you in with Tesla. Try again.",
-  "not-owner": "This dashboard belongs to another Tesla account. Sign in with the account that set up Uplink.",
+  "not-owner": "Sign-up is closed. Only approved Tesla accounts can sign in.",
+  "not-approved": "Not approved.",
+  region: "Uplink is for Tesla accounts in India and Asia-Pacific only.",
 } as const;
 
 export type LoginErrorCode = keyof typeof LOGIN_ERRORS;

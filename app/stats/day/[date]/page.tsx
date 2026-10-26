@@ -10,11 +10,12 @@ import { TripTable } from "@/components/stats/drive-list";
 import { type Figure, Figures } from "@/components/stats/figures";
 import { TripMap } from "@/components/stats/trip-map";
 import { buttonVariants } from "@/components/ui/button";
-import { formatClock, formatKwh, formatMoney } from "@/lib/format";
+import { formatClock, formatKm, formatKwh, formatMoney, sumKnown } from "@/lib/format";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type DayDetail, loadDay } from "@/lib/server/day";
 import { dayParam } from "@/lib/day-timeline";
+import { chargeType } from "@/lib/charge-names";
 import { chargeTotals } from "@/lib/charging-figures";
 import { isoDay } from "@/lib/periods";
 import { istDayStart } from "@/lib/telemetry-derive";
@@ -23,7 +24,6 @@ import { Measure } from "@/components/measure";
 export const metadata: Metadata = { title: "Day · Uplink" };
 
 const long = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
-const oneDecimal = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 
 // Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx).
 async function loadDetail(day: number): Promise<{ detail: DayDetail | null; now: number }> {
@@ -57,12 +57,15 @@ function DayNav({ detail }: { detail: DayDetail }) {
 
 // One day: what you drove and charged, when, and where. Previous and next step through the days.
 function DayView({ detail, now }: { detail: DayDetail; now: number }) {
-  const km = detail.trips.reduce((s, t) => s + t.km, 0);
-  const used = detail.trips.every((t) => t.kwh !== null) ? detail.trips.reduce((s, t) => s + (t.kwh ?? 0), 0) : null;
+  // The tiles add up the same trips and charges the rows below show, from their raw values, and each figure
+  // is rounded on its own when shown.
+  const trips = detail.trips;
+  const km = sumKnown(trips.map((t) => t.km));
+  const used = trips.every((t) => t.kwh !== null) ? sumKnown(trips.map((t) => t.kwh)) : null;
   const charged = chargeTotals(detail.charges.map((c) => ({ kwh: c.session.energy_added_kwh, cost: c.cost })));
   // Spent is the same bills total as Stats > Charging; charges without a bill are noted under it.
   const tiles: Figure[] = [
-    { label: "Driven", value: `${oneDecimal.format(km)} km` },
+    { label: "Driven", value: formatKm(km) },
     { label: "Energy used", value: used !== null ? formatKwh(used) : "Unknown" },
     { label: "Charged", value: charged.kwh !== null ? formatKwh(charged.kwh) : "Unknown" },
     { label: "Spent", value: formatMoney(detail.spent, "INR"), note: charged.unbilled > 0 ? `${charged.unbilled} without a bill` : undefined },
@@ -90,21 +93,21 @@ function DayView({ detail, now }: { detail: DayDetail; now: number }) {
         {detail.trips.length > 0 && (
           <section className="space-y-4">
             <h2 className="text-lg font-medium tracking-heading">Trips</h2>
-            <TripTable trips={detail.trips} serialOf={(t) => detail.trips.length - detail.trips.indexOf(t)} now={now} />
+            <TripTable trips={trips} serialOf={(t) => trips.length - trips.indexOf(t)} now={now} />
           </section>
         )}
         {detail.charges.length > 0 && (
           <section className="space-y-4">
             <h2 className="text-lg font-medium tracking-heading">Charges</h2>
             <ul className="divide-y border-t text-sm tabular-nums">
-              {detail.charges.map(({ session: s, cost }) => (
+              {detail.charges.map(({ session: s, cost, name }) => (
                 <li key={s.id} className="relative flex cursor-pointer items-baseline justify-between gap-4 py-3 sm:-mx-3 sm:px-3 transition-colors duration-150 hover:bg-muted focus-within:bg-muted">
                   <span>
                     <Link href={`/stats/charging/${s.id}`} className="outline-none after:absolute after:inset-0">
                       {formatClock(s.started_at)}
                       {s.ended_at ? ` to ${formatClock(s.ended_at)}` : ", charging"}
                     </Link>
-                    <span className="block text-xs text-muted-foreground">{[s.supercharger ? "Supercharger" : s.kind.toUpperCase(), s.station_name].filter(Boolean).join(" · ")}</span>
+                    <span className="block text-xs text-muted-foreground">{[chargeType(s), name].filter(Boolean).join(" · ")}</span>
                   </span>
                   <span className="text-right font-mono">
                     {s.energy_added_kwh !== null && <Measure text={formatKwh(s.energy_added_kwh)} />}

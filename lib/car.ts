@@ -93,7 +93,7 @@ export function odometerKm(...readings: ({ miles: unknown; at: string } | null |
   const newest = readings
     .filter((r): r is { miles: number; at: string } => typeof r?.miles === "number" && r.miles > 0 && Number.isFinite(Date.parse(r.at)))
     .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0];
-  return newest ? Math.round(newest.miles * MILES_TO_KM) : null;
+  return newest ? newest.miles * MILES_TO_KM : null;
 }
 
 const PSI_PER_BAR = 14.5038;

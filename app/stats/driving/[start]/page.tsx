@@ -9,17 +9,15 @@ import { DriveTrace } from "@/components/stats/drive-lanes";
 import { type Figure, Figures } from "@/components/stats/figures";
 import { type MapFact, MapFacts, type MapPin, TripMap } from "@/components/stats/trip-map";
 import { TripTimeline } from "@/components/stats/trip-timeline";
-import { formatClock, formatDate, formatDuration, formatKm, formatKwh } from "@/lib/format";
+import { formatCelsius, formatClock, formatDate, formatDuration, formatKm, formatKw, formatNumber, formatKwh, formatLevels, formatRangeKm, formatSpeed } from "@/lib/format";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type DriveDetail, loadDriveDetail } from "@/lib/server/drive-detail";
 import { placeKey, placeNames } from "@/lib/server/place-names";
 import { Measure } from "@/components/measure";
-import { unitNotes } from "@/lib/unit-words";
 
 export const metadata: Metadata = { title: "Trip · Uplink" };
 
-const oneDecimal = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 
 // Acceleration as speed gained or lost each second, which reads better than the car's m/s²: 1 m/s² is
 // 3.6 km/h each second.
@@ -43,7 +41,9 @@ async function loadDetail(start: number, leg: boolean): Promise<DriveDetail | nu
 // the route on a map with its start, stops and end, a timeline of legs and stops, then the battery and
 // speed across the whole trip.
 function Drive({ detail }: { detail: DriveDetail }) {
-  const { trip, battery, speed, rangeUsedKm, topKmh, outsideC, route, pins, accel, power, grade } = detail;
+  const { battery, speed, rangeUsedKm, topKmh, outsideC, route, pins, accel, power, grade } = detail;
+  // The trip's totals are its legs' raw sums, each rounded on its own when shown.
+  const { trip } = detail;
   const drivingMs = trip.legs.reduce((sum, d) => sum + (d.end - d.start), 0);
   const stoppedMs = trip.end - trip.start - drivingMs;
   // The time it took, with the driving and stopped parts under it when there were stops.
@@ -54,12 +54,12 @@ function Drive({ detail }: { detail: DriveDetail }) {
     { label: "Took", value: took, note: split },
     ...(trip.kwh !== null ? [{ label: "Energy used", value: formatKwh(trip.kwh) }] : []),
     ...(trip.startLevel !== null && trip.endLevel !== null
-      ? [{ label: "Battery", value: `${Math.round(trip.startLevel)}% to ${Math.round(trip.endLevel)}%`, level: [trip.startLevel, trip.endLevel] as [number, number] }]
+      ? [{ label: "Battery", value: formatLevels(trip.startLevel, trip.endLevel), level: [trip.startLevel, trip.endLevel] as [number, number] }]
       : []),
-    ...(rangeUsedKm !== null ? [{ label: "Range used", value: `${Math.round(rangeUsedKm)} km` }] : []),
-    ...(drivingMs > 0 ? [{ label: "Average speed", value: `${Math.round(trip.km / (drivingMs / 3_600_000))} km/h`, note: trip.stops ? "while driving" : undefined }] : []),
-    ...(topKmh !== null ? [{ label: "Top speed", value: `${Math.round(topKmh)} km/h` }] : []),
-    ...(outsideC !== null ? [{ label: "Outside", value: `${oneDecimal.format(outsideC)} °C` }] : []),
+    ...(rangeUsedKm !== null ? [{ label: "Range used", value: formatRangeKm(rangeUsedKm) }] : []),
+    ...(drivingMs > 0 ? [{ label: "Average speed", value: formatSpeed(detail.trip.km / (drivingMs / 3_600_000)), note: trip.stops ? "while driving" : undefined }] : []),
+    ...(topKmh !== null ? [{ label: "Top speed", value: formatSpeed(topKmh) }] : []),
+    ...(outsideC !== null ? [{ label: "Outside", value: formatCelsius(outsideC) }] : []),
   ];
   // Every chart spans the drive and nothing else, so their time axes match and none runs past the end.
   const axis = { from: trip.start, to: trip.end, legs: trip.legs };
@@ -87,8 +87,9 @@ function Drive({ detail }: { detail: DriveDetail }) {
                 </div>
               ),
             }))}
+            label={trip.stops ? "this trip" : "this drive"}
+            terms={trip.kwh !== null ? ["kWh"] : []}
           />
-          {trip.kwh !== null && <p className="mt-2 text-xs text-muted-foreground">{unitNotes(["kWh"])}</p>}
         </section>
         <section className="space-y-4">
           <h2 className="text-lg font-medium tracking-heading">Map</h2>
@@ -120,12 +121,11 @@ function Drive({ detail }: { detail: DriveDetail }) {
             <div className="space-y-1">
               <h2 className="text-lg font-medium tracking-heading">Over the drive</h2>
               <p className="text-sm text-muted-foreground">
-                What the car sent from {formatClock(trip.start)} to {formatClock(trip.end)}, one chart per measure. Hover or tap a chart for the time and value.
-                {trip.stops > 0 && " Gaps in a line are stops."}
+                What the car sent, {formatClock(trip.start)} to {formatClock(trip.end)}.{trip.stops > 0 && " Gaps are stops."}
               </p>
             </div>
             {speed.length >= 2 && (
-              <ChartCard as="h3" title="Speed" description="How fast the car went through the drive, in km/h.">
+              <ChartCard as="h3" title="Speed" description="How fast the car went.">
                 <DriveTrace label="Speed" points={speed} unit="km/h" {...axis} />
               </ChartCard>
             )}
@@ -133,8 +133,9 @@ function Drive({ detail }: { detail: DriveDetail }) {
               <ChartCard
                 as="h3"
                 title="Power"
-                description="How hard the car drew on the battery. Below zero is regen: energy going back into the battery as the car slows."
+                description="Power drawn from the battery. Below zero is regen."
                 unit="kW"
+                terms={["regen"]}
                 summary={<Figures figures={peaks.power} />}
               >
                 <DriveTrace label="Power" points={power} unit="kW" signed {...axis} />
@@ -144,7 +145,7 @@ function Drive({ detail }: { detail: DriveDetail }) {
               <ChartCard
                 as="h3"
                 title="Acceleration"
-                description="How quickly the car sped up or slowed down. Above zero is speeding up, below zero is braking."
+                description="Speeding up above zero, braking below."
                 unit={ACCEL_UNIT}
                 summary={<Figures figures={peaks.accel} />}
               >
@@ -155,7 +156,7 @@ function Drive({ detail }: { detail: DriveDetail }) {
               <ChartCard
                 as="h3"
                 title="Road grade"
-                description="How steep the road was, as the car estimated it. Above zero is uphill, below zero is downhill."
+                description="Uphill above zero, downhill below."
                 terms={["grade"]}
               >
                 <DriveTrace label="Road grade" points={grade} unit="%" signed digits={1} {...axis} />
@@ -164,21 +165,21 @@ function Drive({ detail }: { detail: DriveDetail }) {
             {/* Battery barely moves on a short drive, and the Battery tile above already says "70% to 69%". A flat
                 line adds nothing, so the chart only shows when the level fell by BATTERY_CHART_POINTS or more. */}
             {batteryShown.length >= 2 && (
-              <ChartCard as="h3" title="Battery level" description="How much charge was left as the drive went on, from 0 to 100%.">
+              <ChartCard as="h3" title="Battery level" description="Charge left as the drive went on.">
                 <DriveTrace label="Battery level" points={batteryShown} unit="%" max={100} {...axis} />
               </ChartCard>
             )}
           </section>
         )}
         {(topKmh === null || outsideC === null || accel.length < 2) && (
-          <p className="text-xs text-faint">Speed, acceleration and outside temperature show here for drives after your car starts streaming them.</p>
+          <p className="text-xs text-faint">Speed, acceleration and outside temperature show once your car streams them.</p>
         )}
       </div>
     </>
   );
 }
 
-const batteryWords = (a: number | null, b: number | null) => (a !== null && b !== null ? `Battery ${Math.round(a)}% to ${Math.round(b)}%` : null);
+const batteryWords = (a: number | null, b: number | null) => (a !== null && b !== null ? `Battery ${formatLevels(a, b)}` : null);
 
 // A stop where the battery came back up between legs was a charge: its pin says so, with the levels.
 function mapPins(pins: MapPin[], legs: DriveDetail["trip"]["legs"]): MapPin[] {
@@ -187,7 +188,7 @@ function mapPins(pins: MapPin[], legs: DriveDetail["trip"]["legs"]): MapPin[] {
     const k = Number(/^Stop (\d+)/.exec(p.label)?.[1] ?? 0) - 1;
     const [before, after] = [legs[k], legs[k + 1]];
     if (p.kind !== "stop" || k < 0 || !before || !after || before.endLevel === null || after.startLevel === null || after.startLevel <= before.endLevel) return p;
-    return { ...p, kind: "charge", note: `Charged ${Math.round(before.endLevel)}% to ${Math.round(after.startLevel)}%` };
+    return { ...p, kind: "charge", note: `Charged ${formatLevels(before.endLevel, after.startLevel)}` };
   });
 }
 
@@ -241,7 +242,7 @@ function Legs({ legs }: { legs: DriveDetail["trip"]["legs"] }) {
                 <td className="py-3 pr-4 text-right font-mono whitespace-nowrap"><Measure text={formatKm(d.km)} /></td>
                 <td className="py-3 pr-4 text-right font-mono whitespace-nowrap">{d.kwh !== null ? <Measure text={formatKwh(d.kwh)} /> : <span className="text-faint">—</span>}</td>
                 <td className="py-3 text-right whitespace-nowrap text-muted-foreground">
-                  {d.startLevel !== null && d.endLevel !== null ? `${Math.round(d.startLevel)}% to ${Math.round(d.endLevel)}%` : <span className="text-faint">—</span>}
+                  {d.startLevel !== null && d.endLevel !== null ? formatLevels(d.startLevel, d.endLevel) : <span className="text-faint">—</span>}
                 </td>
               </tr>
             ))}
@@ -262,10 +263,10 @@ function highlights(power: { t: number; v: number }[], accel: { t: number; v: nu
   // Acceleration tiles say "8.8 km/h" with "Gained in one second" under it: the full unit doesn't fit a
   // tile on a phone, and the note reads more plainly anyway.
   return {
-    power: [...figure("Most power", peak(power, 1), 1, (v) => `${Math.round(v)} kW`), ...figure("Most regen", peak(power, -1), -1, (v) => `${Math.round(v)} kW`)],
+    power: [...figure("Most power", peak(power, 1), 1, formatKw), ...figure("Most regen", peak(power, -1), -1, formatKw)],
     accel: [
-      ...figure("Hardest acceleration", peak(accel, 1), 1, (v) => `${oneDecimal.format(v)} km/h`, "Gained in one second, at"),
-      ...figure("Hardest braking", peak(accel, -1), -1, (v) => `${oneDecimal.format(v)} km/h`, "Lost in one second, at"),
+      ...figure("Hardest acceleration", peak(accel, 1), 1, (v) => `${formatNumber(v, 1)} km/h`, "Gained in one second, at"),
+      ...figure("Hardest braking", peak(accel, -1), -1, (v) => `${formatNumber(v, 1)} km/h`, "Lost in one second, at"),
     ],
   };
 }

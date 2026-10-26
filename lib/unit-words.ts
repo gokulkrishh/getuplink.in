@@ -1,5 +1,5 @@
-// Plain words for the units and terms an owner may not read at a glance, in one place, so a chart's
-// caption and a tile's note say the same thing. Obvious units (km, km/h, %, °C, ₹, min) have no entry
+// Plain words for the units and terms an owner may not read at a glance, in one place, so every ⓘ popover
+// (components/info-button.tsx) says the same thing. Obvious units (km, km/h, %, °C, ₹, min) have no entry
 // and are never explained. Each entry is one sentence, without its full stop.
 export const UNIT_WORDS: Record<string, string> = {
   kWh: "kWh (kilowatt-hours) is energy, the same unit as on an electricity bill",
@@ -36,4 +36,9 @@ export function unitWords(unit: string | undefined): string | null {
 // "kWh (kilowatt-hours) is energy, …." for each unit or term given that has words, in order, once each.
 export function unitNotes(units: (string | undefined)[]): string {
   return [...new Set(units)].flatMap((u) => (u && UNIT_WORDS[u] ? [`${UNIT_WORDS[u]}.`] : [])).join(" ");
+}
+
+// Whether any of these has words, so an ⓘ (components/info-button.tsx) is worth drawing.
+export function hasWords(units: (string | undefined)[] = []): boolean {
+  return units.some((u) => Boolean(u && UNIT_WORDS[u]));
 }

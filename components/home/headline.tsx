@@ -4,17 +4,14 @@ import type { View } from "@/components/stats/periods";
 import { type Bill, billsBySlot, billsIn, energyBySlot, energyIn } from "@/lib/charging-figures";
 import { type Change, changeToPrevious, compareToPrevious } from "@/lib/dashboard-summary";
 import type { DrivingPeriod } from "@/lib/driving-figures";
-import { formatDate, formatShortDate } from "@/lib/format";
+import { DECIMALS, formatDate, formatKm, formatKwh, formatMoney, formatNumber, formatShortDate, sumKnown } from "@/lib/format";
 import { fromTracking, type Slot, type Timeframe, trackingGap } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
-import { barsCaption, unitNotes } from "@/components/stats/chart-caption";
+import { barsCaption } from "@/components/stats/chart-caption";
+import { InfoButton } from "@/components/info-button";
 import { type Spark, Sparkline } from "./sparkline";
 
-// Energy used driving, in kWh like every other energy figure.
-const oneDecimalKwh = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
-
-const number = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 // The change carries its sign in the text ("+22 km", "−3 kWh"), never an arrow. It is coloured by meaning,
 // not direction; a change that is neither (more driving, more charging, or the same) stays muted. Screen
 // readers hear better or worse in the sentence instead.
@@ -131,7 +128,8 @@ export function Headline({
   const spendBefore = before && chargingTracked ? billsIn(bills, before).cost : null;
   const energy = energyIn(sessions, streamOnly, span);
   const energyBefore = before && chargingTracked ? energyIn(sessions, streamOnly, before) : null;
-  const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: sessions.find((s) => s.currency)?.currency ?? "INR", maximumFractionDigits: 0 });
+  const currency = sessions.find((s) => s.currency)?.currency ?? "INR";
+  const money = (n: number) => formatMoney(n, currency);
 
   const currentSlot = slots.findIndex((slot) => slot.isCurrent);
   // Slots ahead of now (the rest of this year) are drawn empty, not as zero.
@@ -143,26 +141,54 @@ export function Headline({
   // slot with nothing known.
   const slotTitle = (slot: Slot) => (frame.slotName === "day" ? formatShortDate(slot.from + 12 * 3_600_000) : slot.label);
   // Each sparkline starts at its own data's first day (see fromTracking): driving at the first odometer
-  // reading, charging at the first session. `skip` is how many bars before it are left out.
+  // reading, charging at the first session. `skip` is how many bars before it are left out of the drawing;
+  // nothing was read in them, so the number is the same.
   const driveSkip = fromTracking(frame, since, now).skip;
   const chargeSkip = fromTracking(frame, chargingSince, now).skip;
-  const spark = (kind: Spark["kind"], values: (number | null)[], format: (n: number) => string, skip: number): Spark => {
-    const shown = upToNow(values).slice(skip);
+  // A cell's number and its sparkline's tips, from the same values: the number is the bars' raw sum (they
+  // cover the span, so it is the span's figure), and each is rounded on its own when shown. With no bar
+  // known, the span's own figure (`whole`) stands, or none.
+  const figure = (values: (number | null)[], whole: number | null, decimals: number, format: (n: number) => string, skip: number): { value: number | null; spark: Spark } => {
+    const parts = upToNow(values);
+    const known = parts.some((v) => v !== null);
+    const shown = parts.slice(skip);
     return {
-      kind,
-      values: shown,
-      current: currentSlot < 0 ? -1 : currentSlot - skip,
-      tips: shown.map((v, k) => (v === null ? null : { title: slotTitle(slots[k + skip]), value: format(v) })),
+      value: whole === null ? null : known ? sumKnown(parts) : whole,
+      spark: {
+        kind: "bars",
+        values: shown,
+        current: currentSlot < 0 ? -1 : currentSlot - skip,
+        tips: shown.map((v, k) => (v === null ? null : { title: slotTitle(slots[k + skip]), value: format(v) })),
+      },
     };
   };
+  const driven = figure(
+    bars.map((b) => b.km),
+    current.km,
+    DECIMALS.km,
+    formatKm,
+    driveSkip,
+  );
+  // Like the Driving page: no figure with no driving is nothing used, with driving it is unknown.
+  const used = figure(
+    bars.map((b) => b.kwh ?? (b.km === 0 ? 0 : null)),
+    current.kwh,
+    DECIMALS.kWh,
+    formatKwh,
+    driveSkip,
+  );
+  const added = figure(charged(energyBySlot(sessions, streamOnly, slots)), energy, DECIMALS.kWh, formatKwh, chargeSkip);
+  const spent = figure(charged(billsBySlot(bills, slots)), spend, DECIMALS.money, money, chargeSkip);
 
   // `lowerIsBetter` colours the delta and words the sentence better or worse: "₹171 worse than the 7 days before".
-  // Nothing yet this period (no figure, or zero) has nothing to compare, so the delta stays blank.
-  const delta = (value: number | null, earlier: number | null, unit: string | ((n: number) => string), lowerIsBetter = false) => ({
-    change: !value ? null : changeToPrevious(value, earlier, unit, { lowerIsBetter }),
-    sentence: !value ? null : (compareToPrevious(value, earlier, unit, label, { lowerIsBetter })?.text ?? null),
+  // Nothing yet this period (no figure, or zero) has nothing to compare, so the delta stays blank. The change
+  // is rounded to the figure's own precision, so "+22.4 km" sits under "100.0 km".
+  const delta = (value: number | null, earlier: number | null, unit: (n: number) => string, decimals: number, lowerIsBetter = false) => ({
+    change: !value ? null : changeToPrevious(value, earlier, unit, { lowerIsBetter, decimals }),
+    sentence: !value ? null : (compareToPrevious(value, earlier, unit, label, { lowerIsBetter, decimals })?.text ?? null),
     span: shortLabel,
   });
+  const number = (decimals: number) => (n: number | null) => (n === null ? "—" : formatNumber(n, decimals));
 
   return (
     <div className="space-y-3">
@@ -170,51 +196,42 @@ export function Headline({
         <Cell
           view="driving"
           label="Driven"
-          value={current.km === null ? "—" : number.format(current.km)}
+          value={number(DECIMALS.km)(driven.value)}
           unit="km"
-          {...delta(current.km, previous?.km ?? null, "km")}
-          spark={spark(
-            "bars",
-            bars.map((b) => b.km),
-            (n) => `${number.format(n)} km`,
-            driveSkip,
-          )}
+          {...delta(driven.value, previous?.km ?? null, formatKm, DECIMALS.km)}
+          spark={driven.spark}
         />
         <Cell
           view="driving"
           label="Energy used"
-          value={current.kwh === null ? "—" : oneDecimalKwh.format(current.kwh)}
+          value={number(DECIMALS.kWh)(used.value)}
           unit="kWh"
-          {...delta(current.kwh, previous?.kwh ?? null, (n) => `${oneDecimalKwh.format(n)} kWh`)}
-          spark={spark(
-            "bars",
-            // Like the Driving page: no figure with no driving is nothing used, with driving it is unknown.
-            bars.map((b) => b.kwh ?? (b.km === 0 ? 0 : null)),
-            (n) => `${oneDecimalKwh.format(n)} kWh`,
-            driveSkip,
-          )}
+          {...delta(used.value, previous?.kwh ?? null, formatKwh, DECIMALS.kWh)}
+          spark={used.spark}
         />
         <Cell
           view="charging"
           label="Energy added"
-          value={number.format(energy)}
+          value={number(DECIMALS.kWh)(added.value)}
           unit="kWh"
-          {...delta(energy, energyBefore, "kWh")}
-          spark={spark("bars", charged(energyBySlot(sessions, streamOnly, slots)), (n) => `${number.format(n)} kWh`, chargeSkip)}
+          {...delta(added.value, energyBefore, formatKwh, DECIMALS.kWh)}
+          spark={added.spark}
         />
         <Cell
           view="charging"
           label="Spent"
-          value={money.format(spend)}
-          {...delta(spend, spendBefore, (n) => money.format(n), true)}
-          spark={spark("bars", charged(billsBySlot(bills, slots)), (n) => money.format(n), chargeSkip)}
+          value={money(spent.value ?? 0)}
+          {...delta(spent.value, spendBefore, money, DECIMALS.money, true)}
+          spark={spent.spark}
         />
       </div>
       {/* One line in every period, so the strip keeps its height (see ByPeriod's steady). */}
-      <p className="text-xs text-muted-foreground">
-        {barsCaption("Small bars: the amount", frame)}. Hover or tap one for its value. {unitNotes(["kWh"])}
+      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <InfoButton label="these figures" terms={["kWh"]}>
+          {`${barsCaption("Small bars: the amount", frame)}.`}
+        </InfoButton>
+        {gapText && <span>Tracking since {gapText}</span>}
       </p>
-      {gapText && <p className="text-xs text-muted-foreground">Tracking since {gapText} · no earlier period to compare</p>}
     </div>
   );
 }

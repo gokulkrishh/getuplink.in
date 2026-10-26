@@ -63,7 +63,7 @@ export default function ChargeLevelPlot({ points, charging, from, to }: { points
                 tick={{ fontSize: 12, fill: "var(--faint)" }}
               />
               {charging.map((c) => (
-                <ReferenceArea key={c.start} x1={c.start} x2={c.end} ifOverflow="hidden" fill="var(--muted-foreground)" fillOpacity={0.12} strokeOpacity={0} />
+                <ReferenceArea key={c.start} x1={c.start} x2={c.end} ifOverflow="hidden" fill="var(--charge)" fillOpacity={0.22} strokeOpacity={0} />
               ))}
               <ChartTooltip
                 cursor={{ stroke: "var(--border)" }}

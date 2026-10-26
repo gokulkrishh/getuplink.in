@@ -30,3 +30,9 @@ export function barsCaption(what: string, { slots, slotName, title, words, span,
     trimmed || first.from === span.from ? title.charAt(0).toLowerCase() + title.slice(1) : first === last ? first.label : `${first.label} to ${last.label}`;
   return `${what} ${each}, ${where}`;
 }
+
+// "Each day, last 7 days": the bars and their span alone, the one short caption a bar chart needs.
+export function barsSpan(frame: Bars): string {
+  const text = barsCaption("", frame).trim();
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}

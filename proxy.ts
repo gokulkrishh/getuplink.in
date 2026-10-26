@@ -18,6 +18,7 @@ const PUBLIC_PATHS = new Set([
   "/favicon.ico",
   "/icon.svg",
   "/home", // public marketing page, served on getuplink.in via the rewrite below
+  "/waitlist", // where a sign-in that's waiting for approval lands; says the same to everyone
   "/privacy", // public legal pages, served on both hosts
   "/terms",
   "/status", // public status page, served on status.getuplink.in via the rewrite below

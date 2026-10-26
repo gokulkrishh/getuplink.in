@@ -46,7 +46,7 @@ async function AccountAvatar() {
   return <AvatarBlob seed={await accountSeed()} />;
 }
 
-// Only admins (ADMIN_ACCOUNTS) see the Admin item; for everyone else /admin is a 404.
+// Only the admin (users.role = 'admin') sees the Admin item; for everyone else /admin is a 404.
 async function AdminItem() {
   if (!(await adminSession())) return null;
   return (

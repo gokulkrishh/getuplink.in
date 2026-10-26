@@ -99,11 +99,22 @@ export async function loadPrimaryVehicle(owner: Owner): Promise<{ id: string; vi
 }
 
 // When the owner's newest streamed reading arrived, or null when there are none (or the query fails).
+// Read by the owner's VINs, which the (vin, field, created_at) index serves; telemetry_readings has no
+// index on user_id.
 export async function lastReadingAt(owner: Owner): Promise<string | null> {
   if (DEMO) return demoLastReadingAt();
-  const { data, error } = await ownerDb(owner)
+  const scope = ownerDb(owner);
+  const cars = await scope.from("vehicles").select("vin").not("vin", "is", null);
+  if (cars.error) {
+    console.warn("Last reading unavailable:", cars.error.message);
+    return null;
+  }
+  const vins = (cars.data ?? []).map((c) => c.vin as string);
+  if (vins.length === 0) return null;
+  const { data, error } = await scope
     .from("telemetry_readings")
     .select("created_at")
+    .in("vin", vins)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();

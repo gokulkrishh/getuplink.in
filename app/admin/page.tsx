@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { Header } from "@/components/header";
@@ -60,6 +61,11 @@ export default async function Page() {
           <p className="text-sm text-muted-foreground">
             Totals across every owner. {data.simulated ? "Demo mode: every figure here is simulated." : "No VINs or names."}
           </p>
+          <p className="text-sm">
+            <Link href="/admin/waitlist" prefetch={true} className="underline decoration-border underline-offset-4 hover:decoration-foreground">
+              Waitlist
+            </Link>
+          </p>
         </header>
 
         {/* The headline counts as tiles, like the figures on every other screen; the lists below stay lists. */}
@@ -74,7 +80,7 @@ export default async function Page() {
           />
         </section>
 
-        <Group title="Versions" note={data.noVersion > 0 ? `${data.noVersion} more not seen online yet, so no version.` : undefined}>
+        <Group title="Versions" note={data.noVersion > 0 ? `${data.noVersion} more not seen online yet.` : undefined}>
           {data.versions.length === 0 ? (
             <Item label="No car has reported a version yet" value="—" muted />
           ) : (
@@ -106,7 +112,7 @@ export default async function Page() {
         ) : (
           <Group
             title={`Tesla API, last ${USAGE_DAYS} days`}
-            note="Fleet API requests aren't counted yet. Each check makes a few requests, so the number of checks is a lower bound, not a request count."
+            note="Requests aren't counted yet. Each check makes a few, so checks run is a lower bound."
           >
             <Item label="Requests" value="Not tracked yet" muted />
             <Item label="Cost" value="Not tracked yet" muted />

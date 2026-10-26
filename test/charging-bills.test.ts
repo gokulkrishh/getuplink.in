@@ -29,8 +29,8 @@ const stream = (id: number, local: string, kind: "ac" | "dc", supercharger: bool
   energy_added_kwh: kwh,
 });
 
-// October: a Supercharger charge Tesla billed (and the car streamed), the IndianOil e-Charge session
-// at a third-party DC station with its invoice, a third-party DC charge with no invoice, and home AC.
+// October: a Supercharger charge Tesla billed (and the car streamed), a third-party
+// session with its invoice, a third-party DC charge with no invoice, and home AC.
 const teslaSessions = [tesla("t1", "2026-10-10T10:00:00", 1012)];
 const streamed = [
   stream(1, "2026-10-10T10:01:00", "dc", true, 40.5),

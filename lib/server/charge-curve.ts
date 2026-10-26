@@ -1,12 +1,14 @@
 import "server-only";
 import { type SessionInvoice, sessionInvoice } from "./receipts";
 import { type ChargeCurve, chargeCurve, fromStart, levelThroughEnd } from "@/lib/charge-curve";
+import { chargeSpot, SPOT_WITHIN_MS } from "@/lib/charge-names";
 import { matchSessions, SETTLE_MS } from "@/lib/charge-sessions";
 import { DEMO } from "@/lib/demo";
 import type { Reading } from "@/lib/telemetry-derive";
 import { type FeeLines, feeLines } from "@/lib/charge-fees";
 import { type ChargingSession, loadChargingFees, loadChargingSessions } from "./charging";
 import { demoStreamSessions } from "./demo";
+import { cachedPlaceNames, placeKey } from "./place-names";
 import { selectSessions, type StreamChargeSession, toStreamSession } from "./stream-charging";
 import { type Owner, ownerDb } from "./data/owner";
 import { loadReadingsByField } from "./telemetry-window";
@@ -16,8 +18,17 @@ const MIN = 60 * 1000;
 const LEAD_MS = 60 * MIN;
 
 // invoice: a third-party invoice attached through the MCP connector (lib/server/receipts.ts). fees: the
-// matching Supercharger bill's fee lines, when Tesla sent any it could read.
-export type ChargeDetail = { session: StreamChargeSession; tesla: ChargingSession | null; invoice: SessionInvoice | null; curve: ChargeCurve; fees: FeeLines | null };
+// matching Supercharger bill's fee lines, when Tesla sent any it could read. spot: where the car was when
+// it started, and place: that spot's area name, from the names already kept.
+export type ChargeDetail = {
+  session: StreamChargeSession;
+  tesla: ChargingSession | null;
+  invoice: SessionInvoice | null;
+  curve: ChargeCurve;
+  fees: FeeLines | null;
+  spot: { lat: number; lng: number } | null;
+  place: string | null;
+};
 
 async function loadStreamSession(owner: Owner, id: number): Promise<StreamChargeSession | null> {
   if (DEMO) return demoStreamSessions().find((s) => s.id === id) ?? null;
@@ -60,14 +71,21 @@ export async function loadChargeSeries(owner: Owner, session: StreamChargeSessio
 export async function loadChargeDetail(owner: Owner, id: number, now: number): Promise<ChargeDetail | null> {
   const session = await loadStreamSession(owner, id);
   if (!session) return null;
-  const [series, tesla, invoice] = await Promise.all([
+  const start = Date.parse(session.started_at);
+  const [series, tesla, invoice, located] = await Promise.all([
     loadChargeSeries(owner, session, now),
     loadChargingSessions(owner),
     session.supercharger ? null : sessionInvoice(owner, session.id),
+    // Where the car was when it started, for the area name when nothing better names the charge.
+    loadReadingsByField(owner, session.vin, ["Location"], new Date(start - SPOT_WITHIN_MS).toISOString(), new Date(start + SPOT_WITHIN_MS).toISOString()),
   ]);
   const twin = matchSessions(tesla, [session], now).pairs.find((p) => p.stream)?.tesla ?? null;
   const end = session.ended_at ? Date.parse(session.ended_at) : now;
   const curve = chargeCurve(series ?? { power: [], level: [], tempMin: [], tempMax: [], end });
-  const fees = twin ? feeLines(await loadChargingFees(owner, twin.session_id), twin.cost_total) : null;
-  return { session, tesla: twin, invoice, curve, fees };
+  const spot = chargeSpot(located?.Location ?? [], start);
+  const [fees, places] = await Promise.all([
+    twin ? loadChargingFees(owner, twin.session_id).then((f) => feeLines(f, twin.cost_total)) : null,
+    spot ? cachedPlaceNames([spot]).catch(() => new Map<string, string>()) : new Map<string, string>(),
+  ]);
+  return { session, tesla: twin, invoice, curve, fees, spot, place: spot ? (places.get(placeKey(spot)) ?? null) : null };
 }

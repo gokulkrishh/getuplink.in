@@ -63,8 +63,7 @@ export function OwnerNotices({ data, count, failedRun }: { data: OwnerGate | { k
       {data.kind === "disconnected" && (
         <Notice title="Connect your Tesla account">
           <p>
-            Uplink needs read-only access to your car&apos;s data. It never wakes the car, so a version appears once the car
-            is seen online.
+            Uplink needs read-only access. It never wakes the car, so a version shows once the car is online.
           </p>
           <SignInButton />
         </Notice>
@@ -77,7 +76,7 @@ export function OwnerNotices({ data, count, failedRun }: { data: OwnerGate | { k
           </Notice>
         ) : (
           <EmptyState icon={<CarFront className="size-7 text-faint" aria-hidden="true" />} title="No vehicles yet">
-            Your Tesla account is connected, but no cars were found on it yet.
+            No cars found on your Tesla account yet.
           </EmptyState>
         )
       )}

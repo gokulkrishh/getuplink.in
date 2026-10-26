@@ -182,24 +182,6 @@ export function sumBySlot<T>(items: T[], slots: Slot[], at: (item: T) => number,
   return sums;
 }
 
-// Bar values rounded to `decimals` so the rounded bars add up to their rounded sum, the total shown above
-// the chart: each is rounded down, and the units left over go to those cut the most (largest remainder).
-// 24 hourly bars of 0.4 km each would otherwise read 0 km while the total says 10. Null stays null.
-export function roundToTotal(values: (number | null)[], decimals: number): (number | null)[] {
-  const scale = 10 ** decimals;
-  const known = values.flatMap((v, k) => (v === null ? [] : [{ k, scaled: v * scale }]));
-  const target = Math.round(known.reduce((sum, v) => sum + v.scaled, 0));
-  const out = values.map((v) => v) as (number | null)[];
-  const floors = known.map(({ k, scaled }) => ({ k, floor: Math.floor(scaled + 1e-9), rest: scaled - Math.floor(scaled + 1e-9) }));
-  let left = target - floors.reduce((sum, f) => sum + f.floor, 0);
-  for (const f of [...floors].sort((a, b) => b.rest - a.rest)) {
-    const up = left > 0 ? 1 : 0;
-    left -= up;
-    out[f.k] = (f.floor + up) / scale;
-  }
-  return out;
-}
-
 // ---- Words ----
 
 // "this month", for "Spent this month" and the headline figures' captions.

@@ -27,6 +27,7 @@ import { DRIVE_DAYS } from "@/lib/drives";
 //   loadChargingExtras (charging-extra.ts)              DCChargingPower, BatteryLevel                     forever: last 8 DC charges,
 //                                                                                                         or any picked range
 //   loadChargingExtras pins (charging-extra.ts)         Location                                          ±10 min of any session start
+//   loadChargeDetail spot (charge-curve.ts)             Location                                          ±10 min of the session start
 //   loadLastAcCharge (car.ts)                           ACChargingPower                                   forever: the last AC charge
 //   withTimelines (dashboard.ts)                        Version, SoftwareUpdateVersion,                   forever: oldest version in
 //                                                       SoftwareUpdateDownload/InstallationPercent-       history, minus 14 days

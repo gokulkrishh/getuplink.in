@@ -1,12 +1,11 @@
 import { ChartCard } from "@/components/chart-card";
 import { Bars } from "@/components/stats/bars";
 import { TripMap } from "@/components/stats/trip-map";
-import { formatDuration, formatShortDate } from "@/lib/format";
+import { DECIMALS, formatDuration, formatKm, formatNumber, formatShortDate } from "@/lib/format";
 import type { Band } from "@/lib/driving-insights";
 import type { DrivingExtras, NamedPlace } from "@/lib/server/driving-extra";
 import { Measure } from "@/components/measure";
 
-const oneDecimal = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 const TAGS = { home: "Home", work: "Work", favorite: "Favourite" } as const;
 const placeName = (p: NamedPlace, k: number) => (p.tag ? TAGS[p.tag] : (p.name ?? `Place ${k + 1}`));
 
@@ -14,27 +13,32 @@ const placeName = (p: NamedPlace, k: number) => (p.tag ? TAGS[p.tag] : (p.name ?
 // to 30 Sept"); `note` says when that range reaches back past the readings kept.
 type Covers = { words?: string; note?: string };
 
+const upper = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
 const Note = ({ note }: { note?: string }) => (note ? <p className="text-xs text-faint">{note}</p> : null);
 
 // How long you spend at each speed, after TeslaMate's speed histogram.
 export function SpeedBands({ bins, words = "last 30 days", note }: { bins: DrivingExtras["speed"] } & Covers) {
   if (bins.length === 0) return null;
+  // Each band's share is rounded on its own, so the shown shares can add up to a point off 100%.
+  const shares = bins.map((b) => b.share * 100);
   const bars = bins.map((b, k) => ({
     key: String(b.from),
     // The tip names the band; the axis gives where it starts ("20"), like a histogram's, so all six fit
     // under their bars on a phone.
     label: b.to === null ? `${b.from}+ km/h` : `${b.from} to ${b.to} km/h`,
     axis: b.to === null ? `${b.from}+` : String(b.from),
-    value: Math.round(b.share * 100),
-    display: `${Math.round(b.share * 100)}`,
+    value: shares[k],
+    display: formatNumber(shares[k], DECIMALS.percent),
     isCurrent: b.share === Math.max(...bins.map((x) => x.share)) && k >= 0,
   }));
   return (
     <ChartCard
       title="Time at each speed"
-      description={`Share of your driving time spent in each speed band, ${words}. A taller bar is more time at that speed.`}
+      description="Share of driving time at each speed."
+      info="Each bar is a 20 km/h band, labelled by the speed it starts at. The band you drive in most is highlighted."
       summary={<Note note={note} />}
-      caption="Each bar is a 20 km/h band, labelled by the speed it starts at. The band you drive in most is highlighted."
+      caption={upper(words)}
     >
       <Bars bars={bars} ariaLabel="Share of driving time by speed in km/h" unit="%" fit />
     </ChartCard>
@@ -72,8 +76,8 @@ function BandTable({ title, bands }: { title: string; bands: Band[] }) {
                 {b.label}
               </th>
               <td className="py-3 pr-4 text-right font-mono">{b.drives}</td>
-              <td className="py-3 pr-4 text-right font-mono"><Measure text={`${Math.round(b.km)} km`} /></td>
-              <td className="py-3 text-right font-mono">{b.kmPerKwh !== null ? oneDecimal.format(b.kmPerKwh) : "Unknown"}</td>
+              <td className="py-3 pr-4 text-right font-mono"><Measure text={formatKm(b.km)} /></td>
+              <td className="py-3 text-right font-mono">{b.kmPerKwh !== null ? formatNumber(b.kmPerKwh, DECIMALS.kmPerKwh) : "Unknown"}</td>
             </tr>
           ))}
         </tbody>
@@ -87,9 +91,10 @@ export function EfficiencyBands({ byTemp, bySpeed, words = "last 30 days", note 
   return (
     <ChartCard
       title="Efficiency"
-      description={`How far each kWh took you, by outside temperature and by average speed, ${words}. A higher km per kWh is better.`}
+      description="How far each kWh took you. Higher is better."
       unit="kWh"
       summary={<Note note={note} />}
+      caption={upper(words)}
     >
       <div className="space-y-6">
         <BandTable title="Outside" bands={byTemp} />
@@ -115,7 +120,7 @@ export function Places({ places, visited, words = "last 30 days", note }: { plac
     <section className="space-y-6">
       <div className="space-y-2">
         <h2 className="text-lg font-medium tracking-heading">Places</h2>
-        <p className="text-sm text-muted-foreground">Where you went and where the car parked, {words}.</p>
+        <p className="text-sm text-muted-foreground">Where you went and parked, {words}.</p>
         <Note note={note} />
       </div>
       {(pins.length > 0 || visited.length >= 2) && <TripMap route={visited} pins={pins} label="Everywhere the car went, with where it parked" legend="A place it parked; bigger pins had more visits" />}

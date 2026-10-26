@@ -2,10 +2,10 @@ import type { ReactNode } from "react";
 import { hasCosts, hasStationNames, type Listed, OsmCredit, SessionHeader, SessionRow } from "@/components/session-row";
 import { ChartCard } from "@/components/chart-card";
 import { Bars } from "@/components/stats/bars";
-import { barsCaption } from "@/components/stats/chart-caption";
+import { barsSpan } from "@/components/stats/chart-caption";
 import { ChargeLevelChart } from "@/components/stats/charge-level";
 import { TripTable } from "@/components/stats/drive-list";
-import { hasBars, knownBar } from "@/components/stats/driving-sections";
+import { hasBars, knownBars } from "@/components/stats/driving-sections";
 import { Figures } from "@/components/stats/figures";
 import type { View } from "@/components/stats/periods";
 import { DRIVE_DAYS, type Drive, type DrainSummary, type ParkedNow } from "@/lib/drives";
@@ -13,7 +13,7 @@ import { groupTrips } from "@/lib/trips";
 import { type Bill, billsBySlot } from "@/lib/charging-figures";
 import type { ChargeLevel } from "@/lib/charge-level";
 import type { DrivingFigures } from "@/lib/driving-figures";
-import { formatDuration, formatPower } from "@/lib/format";
+import { DECIMALS, formatDuration, formatMoney, formatPercent, formatPower } from "@/lib/format";
 import { inSpan } from "@/lib/periods";
 import { fromSince } from "@/lib/frames";
 import { eachFrame, type HomeFrame } from "./frames";
@@ -23,8 +23,6 @@ import { MoreLink } from "./more-link";
 // else is on its Stats page, one tap away. Every section follows the one switch at the top (see frames.tsx).
 
 const ROWS = 3;
-const number = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
-const oneDecimal = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 
 function Section({ title, view, more, children }: { title: string; view: View; more: string; children: ReactNode }) {
   return (
@@ -57,26 +55,19 @@ function Rows({ header, children }: { header?: ReactNode; children: ReactNode })
 export function ChargingSection({ frames, bills, listed, chargingSince, now }: { frames: HomeFrame[]; bills: Bill[]; listed: Listed[]; chargingSince: number | null; now: number }) {
   if (listed.length === 0) return null;
   const currency = listed.find((item) => item.tesla?.currency)?.tesla?.currency ?? "INR";
-  const compact = new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 });
   const chart = (f: HomeFrame) => {
+    // The bars start at the first charge's day (see fromSince).
     const { frame } = fromSince(f, chargingSince, now);
-    const spend = billsBySlot(bills, frame.slots);
-    // A slot ahead of now is blank, never ₹0; those before the first bill are hidden by Bars itself.
-    const bars = frame.slots.map((slot, k) => ({
-      key: String(slot.id),
-      label: slot.label,
-      axis: slot.axis,
-      edge: slot.edge,
-      value: slot.ahead ? 0 : spend[k],
-      display: slot.ahead ? "" : compact.format(spend[k]),
-      isCurrent: slot.isCurrent,
-      blank: slot.ahead || undefined,
-    }));
+    // A slot ahead of now is blank, never ₹0; those before the first bill are hidden by Bars itself. To the
+    // paisa and rounded together, so the bars add up to Spent above as shown.
+    const { bars } = knownBars(frame.slots, billsBySlot(bills, frame.slots), DECIMALS.money, (n) => formatMoney(n, currency));
     return (
       <ChartCard
         as="h3"
         title="Spend"
-        description={`${barsCaption("What charging cost", frame)}, from Tesla's Supercharger bills and the invoices you attached.`}
+        description="What charging cost."
+        info="From Tesla's Supercharger bills and the invoices you attached."
+        caption={barsSpan(frame)}
         empty={hasBars(bars) ? undefined : `No bills ${frame.words}`}
       >
         <Bars bars={bars} ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} fit />
@@ -116,10 +107,11 @@ export function DrivingSection({ frames, figures, drives, now }: { frames: HomeF
     // The bars start at the first odometer reading's day (see fromSince).
     const { frame, driving } = fromSince(f, figures.since, now);
     // A slot with no reading (before tracking began, or ahead of now) is blank, never 0 km.
-    const bars = frame.slots.map((slot, k) => knownBar(slot, driving ? (driving.bars[k]?.km ?? null) : null, number.format));
+    // Rounded together like the headline's Driven, so they add up to it as shown.
+    const { bars } = knownBars(frame.slots, frame.slots.map((_, k) => (driving ? (driving.bars[k]?.km ?? null) : null)), DECIMALS.km);
     const empty = !driving ? "Couldn't read the distance for these dates" : hasBars(bars) ? undefined : `No driving ${frame.words}`;
     return (
-      <ChartCard as="h3" title="Distance" description={`${barsCaption("Kilometres driven", frame)}. A taller bar is more driving.`} empty={empty}>
+      <ChartCard as="h3" title="Distance" description="Kilometres driven." caption={barsSpan(frame)} empty={empty}>
         <Bars bars={bars} ariaLabel={`Distance per ${frame.slotName} in km`} unit="km" labelEvery={frame.labelEvery} fit />
       </ChartCard>
     );
@@ -165,7 +157,7 @@ export function BatterySection({
   const hasLevel = (level?.points.length ?? 0) >= 2;
   if (!hasLevel && !parkedNow && !drain) return null;
   // The usual loss a day is context for what this stretch has lost; with no loss to show it stands alone.
-  const usually = drain && `${oneDecimal.format(drain.percentPerDay)}% a day`;
+  const usually = drain && `${formatPercent(drain.percentPerDay, 1)} a day`;
   const lost = parkedNow?.lostPercent ?? null;
   return (
     <Section title="Battery" view="battery" more="See battery details">
@@ -182,8 +174,10 @@ export function BatterySection({
                     note: parkedNow.fromFirstReading ? "Since Uplink's first reading" : undefined,
                   },
                   parkedNow.watts !== null && { label: "Avg power", value: formatPower(parkedNow.watts) },
-                  lost !== null && { label: "Lost", value: `${oneDecimal.format(lost)}%`, note: usually ? `Usually ${usually}` : undefined },
+                  lost !== null && { label: "Lost", value: formatPercent(lost, 1), note: usually ? `Usually ${usually}` : undefined },
                 ]}
+                label="Parked now"
+                terms={parkedNow.watts !== null ? ["W"] : []}
               />
             </>
           )}

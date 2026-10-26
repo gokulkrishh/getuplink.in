@@ -45,4 +45,15 @@ export async function placeNames(points: { lat: number; lng: number }[]): Promis
   return names;
 }
 
+// Only the names already kept: no lookups and no writes, for pages that read what exists.
+export async function cachedPlaceNames(points: { lat: number; lng: number }[]): Promise<Map<string, string>> {
+  const names = new Map<string, string>();
+  if (points.length === 0) return names;
+  if (DEMO) return placeNames(points);
+  const { data, error } = await placeNamesFor([...new Set(points.map(key))]);
+  if (error) return names;
+  for (const r of data as { key: string; name: string | null }[]) if (r.name) names.set(r.key, r.name);
+  return names;
+}
+
 export const placeKey = key;
