@@ -93,7 +93,7 @@ function Totals({ home, custom, now }: { home: Extract<Home, { kind: "ready" }>;
       </section>
       <DrivingSection frames={frames} figures={figures} drives={window.driving.drives} now={now} />
       <ChargingSection frames={frames} bills={bills} listed={withSpots(listSessions(pairs, streamOnly, home.invoices), home.spots)} chargingSince={chargingSince} now={now} />
-      <BatterySection frames={frames} level={window.level} drain={window.driving.drain} parkedNow={window.driving.parkedNow} now={now} />
+      <BatterySection frames={frames} level={window.level} parked={window.driving.parked} parkedNow={window.driving.parkedNow} now={now} />
       {eachFrame(frames, ({ frame }) => (
         <MonthlyTable rows={monthsIn(frame)} />
       ))}

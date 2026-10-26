@@ -6,7 +6,7 @@ import { ChartNote } from "@/components/stats/chart-note";
 import { Value } from "@/components/stats/figures";
 import type { ChargeLevel, ChargeStretch, LevelPoint } from "@/lib/charge-level";
 import { formatClock, formatLevels, formatPercent, formatShortDate } from "@/lib/format";
-import type { Timeframe } from "@/lib/periods";
+import { sinceWords, type Timeframe } from "@/lib/periods";
 
 const HOUR = 3_600_000;
 const when = (t: number) => `${formatShortDate(t)}, ${formatClock(t)}`;
@@ -79,10 +79,10 @@ export function ChargeLevelChart({
     .filter((c) => c.end > from && c.start < to)
     .map((c) => ({ start: Math.max(c.start, from), end: Math.min(c.end, to), tip: chargeTip(c, level.points) }));
   const latest = level.points[level.points.length - 1];
-  // The readings kept start after the span does: "Since 25 Sept", else the span ("This month"). Home names
-  // the window's start, as it always has; the Battery page names the first reading seen.
+  // The readings kept start after the span does: "This month, since 25 Sept", else the span ("This month").
+  // Home names the window's start, as it always has; the Battery page names the first reading seen.
   const since = heading ? level.points[0].at : level.from;
-  const caption = since > frame.span.from ? `Since ${formatShortDate(since)}` : frame.title;
+  const caption = since > frame.span.from ? sinceWords(frame, formatShortDate(since)).title : frame.title;
   return (
     <ChartCard
       as={heading ? "h2" : "h3"}

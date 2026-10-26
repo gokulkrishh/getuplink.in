@@ -223,6 +223,8 @@ export type Timeframe = {
   title: string;
   words: string;
   labelEvery?: number;
+  // The period it is, for a period's frame; a range picked by date has none.
+  period?: Period;
   // Set by fromTracking when the bars start later than the span, at the day tracking began.
   trimmed?: boolean;
 };
@@ -230,8 +232,10 @@ export type Timeframe = {
 // A timeframe whose bars start where the data does: bars that end before the IST day tracking began
 // (`since`) are left out, so a chart with four days of data draws four bars, not 30 with 26 empty. The
 // bars still run to the period's end, those ahead of now blank. `skip` is how many were left out, to
-// slice values worked out over every bar. When any were, the frame reads "since 23 Oct". The span is
-// left alone: nothing was read before tracking began, so its totals are the same.
+// slice values worked out over every bar. When any were, the frame reads "this month, since 23 Oct", so
+// each period still says which it is when they all start at the same day; All and a range picked by date
+// read "since 23 Oct". The span is left alone: nothing was read before tracking began, so its totals are
+// the same.
 export function fromTracking(frame: Timeframe, since: number | null, now: number): { frame: Timeframe; skip: number } {
   if (since === null) return { frame, skip: 0 };
   const cut = istDayStart(istDay(since));
@@ -245,7 +249,15 @@ export function fromTracking(frame: Timeframe, since: number | null, now: number
   // the right edge instead of padding the chart with empty columns.
   const labelEvery =
     slots.length < 6 ? 1 : frame.labelEvery === undefined ? undefined : slots.length <= 7 ? 1 : slots.length <= 14 ? Math.min(2, frame.labelEvery) : frame.labelEvery;
-  return { frame: { ...frame, slots, labelEvery, title: `Since ${date}`, words: `since ${date}`, trimmed: true }, skip };
+  return { frame: { ...frame, slots, labelEvery, ...sinceWords(frame, date), trimmed: true }, skip };
+}
+
+// A frame's title and words when what it draws starts later, at `date`: "This month, since 23 Oct" and
+// "this month, since 23 Oct", so a period still says which it is. All and a range picked by date say
+// only "Since 23 Oct": All has no start of its own, and the picker already shows the range.
+export function sinceWords(frame: Pick<Timeframe, "period" | "title" | "words">, date: string): { title: string; words: string } {
+  if (frame.period === undefined || frame.period === "all") return { title: `Since ${date}`, words: `since ${date}` };
+  return { title: `${frame.title}, since ${date}`, words: `${frame.words}, since ${date}` };
 }
 
 const PERIOD_TITLES: Record<Period, string> = { day: "Today", week: "Last 7 days", month: "This month", year: "This year", all: "All time" };
@@ -260,6 +272,7 @@ export function periodTimeframe(period: Period, now: number): Timeframe {
     title: PERIOD_TITLES[period],
     words: PERIOD_WORDS[period],
     labelEvery: LABEL_EVERY[period],
+    period,
   };
 }
 

@@ -8,7 +8,8 @@ import { TripTable } from "@/components/stats/drive-list";
 import { hasBars, knownBars } from "@/components/stats/driving-sections";
 import { Figures } from "@/components/stats/figures";
 import type { View } from "@/components/stats/periods";
-import { DRIVE_DAYS, type Drive, type DrainSummary, type ParkedNow } from "@/lib/drives";
+import { DRIVE_DAYS, type Drive, drainSummary, type ParkedNow, type ParkedPeriod } from "@/lib/drives";
+import { backTo, overlapping } from "@/lib/kept";
 import { groupTrips } from "@/lib/trips";
 import { type Bill, billsBySlot } from "@/lib/charging-figures";
 import type { ChargeLevel } from "@/lib/charge-level";
@@ -140,50 +141,64 @@ export function DrivingSection({ frames, figures, drives, now }: { frames: HomeF
   );
 }
 
-// What the car loses parked, now and usually, which no period changes, then its charge level over the period.
+// What the car loses parked over the period: the stretch it is parked in now, while the period reaches now,
+// and the usual loss a day over the stretches in the period (their median, once there are two, as on the
+// Battery page). Then its charge level over the period.
 export function BatterySection({
   frames,
   level,
-  drain,
+  parked,
   parkedNow,
   now,
 }: {
   frames: HomeFrame[];
   level: ChargeLevel | null;
-  drain: DrainSummary | null;
+  parked: ParkedPeriod[];
   parkedNow: ParkedNow | null;
   now: number;
 }) {
   const hasLevel = (level?.points.length ?? 0) >= 2;
-  if (!hasLevel && !parkedNow && !drain) return null;
-  // The usual loss a day is context for what this stretch has lost; with no loss to show it stands alone.
-  const usually = drain && `${formatPercent(drain.percentPerDay, 1)} a day`;
-  const lost = parkedNow?.lostPercent ?? null;
+  if (!hasLevel && !parkedNow && parked.length === 0) return null;
+  const drain = ({ frame }: HomeFrame) => {
+    const { span } = frame;
+    const ongoing = parkedNow && parkedNow.start < span.to && parkedNow.end >= span.from ? parkedNow : null;
+    const finished = overlapping(parked, span, (p) => p.start, (p) => p.end);
+    // The usual loss a day is context for what this stretch has lost; with no loss to show it stands alone.
+    const summary = drainSummary(finished);
+    // "a day this month"; All's "in total" would read wrong after "a day", so it says only "a day".
+    const usually = summary && `${formatPercent(summary.percentPerDay, 1)} a day${frame.period === "all" ? "" : ` ${frame.words}`}`;
+    const lost = ongoing?.lostPercent ?? null;
+    if (!ongoing && !usually) return null;
+    // Stretches are kept for DRAIN_DAYS, so a longer period says how far back the usual loss reaches.
+    const cut = usually && backTo(span, parked[0]?.start, "Stretches");
+    return (
+      <div className="space-y-3">
+        {ongoing && (
+          <>
+            <h3 className="text-sm font-medium">Parked now</h3>
+            <Figures
+              figures={[
+                {
+                  label: "Parked for",
+                  value: `${ongoing.fromFirstReading ? "≥ " : ""}${formatDuration(ongoing.hours * 3600)}`,
+                  note: ongoing.fromFirstReading ? "Since Uplink's first reading" : undefined,
+                },
+                ongoing.watts !== null && { label: "Avg power", value: formatPower(ongoing.watts) },
+                lost !== null && { label: "Lost", value: formatPercent(lost, 1), note: usually ? `Usually ${usually}` : undefined },
+              ]}
+              label="Parked now"
+              terms={ongoing.watts !== null ? ["W"] : []}
+            />
+          </>
+        )}
+        {usually && lost === null && <p className="text-sm text-muted-foreground tabular-nums">Usually loses {usually} parked</p>}
+        {cut && <p className="text-xs text-faint">{cut}.</p>}
+      </div>
+    );
+  };
   return (
     <Section title="Battery" view="battery" more="See battery details">
-      {(parkedNow || usually) && (
-        <div className="space-y-3">
-          {parkedNow && (
-            <>
-              <h3 className="text-sm font-medium">Parked now</h3>
-              <Figures
-                figures={[
-                  {
-                    label: "Parked for",
-                    value: `${parkedNow.fromFirstReading ? "≥ " : ""}${formatDuration(parkedNow.hours * 3600)}`,
-                    note: parkedNow.fromFirstReading ? "Since Uplink's first reading" : undefined,
-                  },
-                  parkedNow.watts !== null && { label: "Avg power", value: formatPower(parkedNow.watts) },
-                  lost !== null && { label: "Lost", value: formatPercent(lost, 1), note: usually ? `Usually ${usually}` : undefined },
-                ]}
-                label="Parked now"
-                terms={parkedNow.watts !== null ? ["W"] : []}
-              />
-            </>
-          )}
-          {usually && lost === null && <p className="text-sm text-muted-foreground tabular-nums">Usually loses {usually} parked</p>}
-        </div>
-      )}
+      {(parkedNow || parked.length > 0) && eachFrame(frames, drain, { steady: true })}
       {hasLevel && eachFrame(frames, ({ frame }) => <ChargeLevelChart level={level} now={now} frame={frame} />, { steady: true })}
     </Section>
   );

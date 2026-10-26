@@ -5,13 +5,12 @@ import { barsSpan } from "@/components/stats/chart-caption";
 import { Figures, Value } from "@/components/stats/figures";
 import { type DriveStats } from "@/lib/drive-stats";
 import { DRIVE_DAYS } from "@/lib/drives";
-import { DECIMALS, formatDuration, formatKm, formatKwh, formatNumber, formatShortDate, showsZero, sumKnown } from "@/lib/format";
+import { DECIMALS, formatDuration, formatKm, formatKwh, formatNumber, showsZero, sumKnown } from "@/lib/format";
 import type { Frame } from "@/lib/frames";
-import { inSpan, type Slot, type Timeframe } from "@/lib/periods";
-import type { DayKm } from "@/lib/telemetry-derive";
+import type { Slot } from "@/lib/periods";
 import { Measure } from "@/components/measure";
 
-// The Driving page's sections: distance per month and per day, and energy use with regen.
+// The Driving page's sections: distance and energy use with regen for the period, and drive stats.
 
 const compactNumber = new Intl.NumberFormat("en-IN");
 
@@ -126,96 +125,14 @@ export function EnergyUse({ frame, driving }: Frame) {
   );
 }
 
-const upper = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
-
-// The phone shows the last PHONE_DAYS of a longer run of days, so its bars stay wide enough to tap.
-const PHONE_DAYS = 30;
-
-// Kilometres per day for the last 90 days, from the streamed odometer, squeezed to fit the panel: all of
-// them on a wide screen, the last 30 on a phone. It starts at the first day with a reading, so four days
-// of tracking draw four bars, and says "since 23 Oct". With `frame` (a range picked by date), only its
-// days, and a note when it starts before the kept days.
-export function DailyDriving({ days: all, frame, partial = false }: { days: DayKm[]; frame?: Timeframe; partial?: boolean }) {
-  const inFrame = frame ? all.filter((d) => inSpan(d.start, frame.span)) : all;
-  const first = inFrame.findIndex((d) => d.km !== null);
-  const days = first < 0 ? [] : inFrame.slice(first);
-  // One day of readings has nothing to compare against, so the section waits for a second.
-  if (days.filter((d) => d.km !== null).length < 2) return null;
-  // Cut short at the first reading: the days start later than the window or the range does.
-  const since = first > 0 ? `since ${formatShortDate(days[0].start)}` : null;
-  const bars = days.map((d, k) => ({
-    key: String(d.day),
-    label: formatShortDate(d.start),
-    value: d.km ?? 0,
-    display: formatNumber(d.km ?? 0, DECIMALS.km),
-    isCurrent: k === days.length - 1,
-    blank: d.km === null,
-  }));
-  const split = bars.length > PHONE_DAYS;
-  // The words for every day drawn: "since 23 Oct" when cut short, the range's own words, or the window.
-  const whole = since ?? (frame ? frame.words : `last ${days.length} days`);
-  // A picked range may end before today, so its phone bars are named by their own dates.
-  const phoneSpan = frame ? `${bars[bars.length - PHONE_DAYS]?.label} to ${bars[bars.length - 1].label}` : `last ${PHONE_DAYS} days`;
-  // Few days need little thinning: every label up to a week, every other up to two.
-  const every = (n: number) => (n <= 7 ? 1 : n <= 14 ? 2 : 7);
-  // The total line counts the same days the caption names, on a phone as on a wide screen: the raw sum
-  // of those days (see sumKnown).
-  const total = (list: DayKm[], words: string) =>
-    `${formatKm(sumKnown(list.map((d) => d.km)))} ${words.startsWith("last") ? `in the ${words}` : /^\d/.test(words) ? `from ${words}` : words}`;
-  return (
-    <ChartCard
-      title="Driving per day"
-      description="Kilometres driven each day."
-      info="A day without an odometer reading is left blank."
-      summary={
-        <div className="space-y-1">
-          <p className="text-sm text-muted-foreground tabular-nums">
-            {split ? (
-              <>
-                <span className="max-sm:hidden">{total(days, whole)}</span>
-                <span className="sm:hidden">{total(days.slice(-PHONE_DAYS), phoneSpan)}</span>
-              </>
-            ) : (
-              total(days, whole)
-            )}
-          </p>
-          {partial && <p className="text-xs text-faint">Days cover only the last {all.length} days.</p>}
-        </div>
-      }
-      caption={
-        split ? (
-          <>
-            <span className="max-sm:hidden">{upper(whole)}</span>
-            <span className="sm:hidden">{upper(phoneSpan)}</span>
-          </>
-        ) : (
-          upper(whole)
-        )
-      }
-    >
-      {split ? (
-        <>
-          <div className="max-sm:hidden">
-            <Bars bars={bars} ariaLabel="Distance per day" labelEvery={7} unit="km" fit />
-          </div>
-          <div className="sm:hidden">
-            <Bars bars={bars.slice(-PHONE_DAYS)} ariaLabel="Distance per day" labelEvery={7} unit="km" fit />
-          </div>
-        </>
-      ) : (
-        <Bars bars={bars} ariaLabel="Distance per day" labelEvery={every(bars.length)} unit="km" fit />
-      )}
-    </ChartCard>
-  );
-}
-
-// Drive stats for the last 90 days (or since tracking began), after TeslaMate's: how many drives, how
-// long they usually are, the longest, time at the wheel and distance a day. Counted, never projected.
-// With `title` (a range picked by date), it names the range instead, and `partial` says the drives reach
-// back only DRIVE_DAYS.
-export function DriveStatsSection({ stats, title, partial = false }: { stats: DriveStats | null; title?: string; partial?: boolean }) {
+// Drive stats for the period or range, after TeslaMate's: how many drives, how long they usually are, the
+// longest, time at the wheel and distance a day. Counted, never projected. `spanDays` is how long the span
+// has run; when the stats cover fewer days (tracking began later, or the drives kept stop short), the
+// caption says how many. `partial` says the drives reach back only DRIVE_DAYS.
+export function DriveStatsSection({ stats, title, spanDays, partial = false }: { stats: DriveStats | null; title: string; spanDays: number; partial?: boolean }) {
   if (!stats) return null;
   const covers = `${Math.max(1, Math.round(stats.days))} ${Math.round(stats.days) === 1 ? "day" : "days"}`;
+  const short = Math.round(stats.days) < Math.round(spanDays);
   const figures = [
     { label: "Distance", value: formatKm(stats.km) },
     { label: "Trips", value: compactNumber.format(stats.trips), note: `${compactNumber.format(stats.drives)} ${stats.drives === 1 ? "drive" : "drives"}` },
@@ -229,7 +146,7 @@ export function DriveStatsSection({ stats, title, partial = false }: { stats: Dr
       <div className="space-y-1">
         <h2 className="text-lg font-medium tracking-heading">Drive stats</h2>
         <p className="text-sm text-muted-foreground">
-          {title ? `${title}, ${covers}` : stats.days >= 89 ? "Last 90 days" : `Since tracking began, ${covers}`}.
+          {short ? `${title}, ${covers}` : title}.
         </p>
         {partial && <p className="text-xs text-faint">Drives cover only the last {DRIVE_DAYS} days.</p>}
       </div>

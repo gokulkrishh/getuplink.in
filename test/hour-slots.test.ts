@@ -145,8 +145,13 @@ describe("charts start where the data starts", () => {
     expect(skip).toBe(22);
     expect(frame.slots[0].from).toBe(ist("2026-10-23T00:00:00"));
     expect(frame.slots).toHaveLength(9);
-    expect(frame.words).toBe("since 23 Oct");
-    expect(barsCaption("Kilometres driven", frame)).toBe("Kilometres driven each day, since 23 Oct");
+    // The period is still named, so Week and Month don't read the same when both start at tracking.
+    expect(frame.words).toBe("this month, since 23 Oct");
+    expect(barsCaption("Kilometres driven", frame)).toBe("Kilometres driven each day this month, since 23 Oct");
+    const week = fromTracking(periodTimeframe("week", now), ist("2026-10-23T10:15:00"), now).frame;
+    expect(barsCaption("", week).trim()).toBe("each day in the last 7 days, since 23 Oct");
+    // All has no start of its own to name.
+    expect(fromTracking(periodTimeframe("all", now), ist("2026-10-23T10:15:00"), now).frame.words).toBe("since 23 Oct");
   });
 
   test("a period inside tracking is left alone", () => {
