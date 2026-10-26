@@ -60,10 +60,9 @@ export function hasPresence(strips: DayStrip[]): boolean {
 
 export const PRESENCE_LABEL: Record<Presence, string> = { online: "Online", asleep: "Asleep", offline: "Offline", unknown: "No data" };
 
-// "7:12–7:40 PM", or "11:30 AM–6:05 PM" across AM and PM: the shared AM or PM is said once.
+// "7:12 PM to 7:40 PM", "11:30 AM to 6:05 PM": both ends in full, like every span of time in the app.
 function clockRange(start: number, end: number): string {
-  const [from, to] = [formatClock(start), formatClock(end)];
-  return `${from.slice(-2) === to.slice(-2) ? from.slice(0, -3) : from} to ${to}`;
+  return `${formatClock(start)} to ${formatClock(end)}`;
 }
 
 // Times seen close together (see STEADY_GAP_MS) as [first, last] spans.

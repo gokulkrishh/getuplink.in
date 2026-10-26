@@ -13,6 +13,12 @@ export function formatHour(hour: number): string {
   return `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? "AM" : "PM"}`;
 }
 
+// A block of the day by its whole span, both ends written out: "6 AM to 9 AM", "9 PM to 12 AM". A bar
+// or square that covers hours says so, never just its start, which reads as "at 6 AM".
+export function formatHours(from: number, to: number): string {
+  return `${formatHour(from)} to ${formatHour(to)}`;
+}
+
 // "9:15 AM IST"
 export function formatTime(value: string | number | Date): string {
   return `${time.format(new Date(value))} IST`;
