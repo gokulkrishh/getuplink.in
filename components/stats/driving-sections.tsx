@@ -129,6 +129,8 @@ export function DailyDriving({ days: all, frame, partial = false }: { days: DayK
   }));
   const split = bars.length > PHONE_DAYS;
   const span = (n: number) => (frame && n === days.length ? frame.words : `last ${n} days`);
+  // A picked range may end before today, so its phone bars are named by their own dates.
+  const phoneSpan = frame && split ? `${bars[bars.length - PHONE_DAYS].label} to ${bars[bars.length - 1].label}` : `last ${PHONE_DAYS} days`;
   return (
     <ChartCard
       title="Driving per day"
@@ -136,7 +138,7 @@ export function DailyDriving({ days: all, frame, partial = false }: { days: DayK
         split ? (
           <>
             Kilometres driven each day, <span className="max-sm:hidden">{span(days.length)}</span>
-            <span className="sm:hidden">last {PHONE_DAYS} days</span>. A taller bar is a longer day of driving.
+            <span className="sm:hidden">{phoneSpan}</span>. A taller bar is a longer day of driving.
           </>
         ) : (
           `Kilometres driven each day, ${span(days.length)}. A taller bar is a longer day of driving.`
