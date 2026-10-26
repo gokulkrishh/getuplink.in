@@ -16,6 +16,7 @@ import { type DriveDetail, loadDriveDetail } from "@/lib/server/drive-detail";
 import { placeKey, placeNames } from "@/lib/server/place-names";
 import { loadUserPlaces } from "@/lib/server/user-places";
 import { NamePlace } from "@/components/name-place";
+import { RowChevron } from "@/components/row-chevron";
 import { nameAction, type SpotName, spotName } from "@/lib/charge-names";
 import { stationAt } from "@/lib/stations";
 import type { UserPlace } from "@/lib/user-places";
@@ -256,12 +257,13 @@ function Legs({ legs }: { legs: DriveDetail["trip"]["legs"] }) {
               <th scope="col" className="py-2 pr-4 font-normal">Leg</th>
               <th scope="col" className="py-2 pr-4 text-right font-normal">Distance</th>
               <th scope="col" className="py-2 pr-4 text-right font-normal">Energy</th>
-              <th scope="col" className="py-2 text-right font-normal">Battery</th>
+              <th scope="col" className="py-2 pr-3 text-right font-normal">Battery</th>
+              <th scope="col" className="w-8 py-2" />
             </tr>
           </thead>
           <tbody className="divide-y">
             {legs.map((d, k) => (
-              <tr key={d.start} className="relative cursor-pointer transition-colors duration-150 hover:bg-muted focus-within:bg-muted">
+              <tr key={d.start} className="group/row relative cursor-pointer transition-colors duration-150 hover:bg-muted focus-within:bg-muted">
                 <td className="py-3 pr-3 font-mono text-xs text-faint">{k + 1}</td>
                 <th scope="row" className="py-3 pr-4 text-left font-normal whitespace-nowrap">
                   <Link href={`/stats/driving/${d.start}?leg`} className="outline-none after:absolute after:inset-0">
@@ -270,8 +272,11 @@ function Legs({ legs }: { legs: DriveDetail["trip"]["legs"] }) {
                 </th>
                 <td className="py-3 pr-4 text-right font-mono whitespace-nowrap"><Measure text={formatKm(d.km)} /></td>
                 <td className="py-3 pr-4 text-right font-mono whitespace-nowrap">{d.kwh !== null ? <Measure text={formatKwh(d.kwh)} /> : <span className="text-faint">—</span>}</td>
-                <td className="py-3 text-right whitespace-nowrap text-muted-foreground">
+                <td className="py-3 pr-3 text-right whitespace-nowrap text-muted-foreground">
                   {d.startLevel !== null && d.endLevel !== null ? formatLevels(d.startLevel, d.endLevel) : <span className="text-faint">—</span>}
+                </td>
+                <td className="py-3 text-right">
+                  <RowChevron className="inline-block" />
                 </td>
               </tr>
             ))}

@@ -109,6 +109,7 @@ export function SessionHeader({ costs, wide = false, numbered = false }: { costs
       <span>Session</span>
       <span className="text-right">Energy</span>
       {costs && <span className="text-right">Cost</span>}
+      <span />
     </div>
   );
 }
@@ -142,7 +143,7 @@ export function SessionRow({ item, serial, now, costs }: { item: Listed; serial?
     className: cn(
       columns(now !== undefined, costs, serial !== undefined),
       "grid items-start gap-x-4 py-4 text-sm",
-      href && "relative cursor-pointer transition-colors sm:-mx-3 sm:px-3 duration-150 hover:bg-muted focus-within:bg-muted",
+      href && "group/row relative cursor-pointer transition-colors sm:-mx-3 sm:px-3 duration-150 hover:bg-muted focus-within:bg-muted",
     ),
     serial,
     date: now === undefined ? formatShortDate(item.started_at) : formatDayLabel(item.started_at, now),

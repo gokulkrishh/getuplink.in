@@ -4,6 +4,7 @@ import { Download } from "lucide-react";
 import Link from "next/link";
 import { GoogleMapsCredit } from "@/components/google-maps-credit";
 import { Measure } from "@/components/measure";
+import { RowChevron } from "@/components/row-chevron";
 import { Tip } from "@/components/tip";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -67,6 +68,8 @@ export function SessionLine({ view }: { view: SessionView }) {
         ) : (
           <p className="text-right text-faint">—</p>
         ))}
+      {/* The column stays in rows that open nothing, so the columns line up. */}
+      {view.href ? <RowChevron className="self-center" /> : <span />}
     </li>
   );
 }
