@@ -1,230 +1,212 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import type { OwnedRows } from "@/lib/server/data/owned";
 import type { Owner } from "@/lib/server/data/owner";
+import { FakeDb } from "./fake-db";
 
-// Two accounts' rows in one database, behind enough of supabase-js for the data layer, so a test can
-// tell "the owner's rows" from "every row". Today there is only ever one account; these pin down that
-// Delete my data, disconnect and sign out everywhere already act on the owner's own rows, by their keys.
+// Two users' rows in one database, so a test can tell "the owner's rows" from "every row": one user never
+// reads, changes or deletes the other's.
 
-type Row = Record<string, unknown>;
-let tables: Record<string, Row[]>;
-// Every query that ran: its table, what it did, and its filters.
-let calls: { table: string; op: string; filters: string[] }[];
-let removedFiles: string[];
-let clients: number;
-
-class Query {
-  private op = "select";
-  private patch: Row | null = null;
-  private rows: Row[] = [];
-  private filters: [string, (r: Row) => boolean][] = [];
-  constructor(private table: string) {}
-  select() {
-    return this;
-  }
-  insert(rows: Row | Row[]) {
-    this.op = "insert";
-    this.rows = Array.isArray(rows) ? rows : [rows];
-    return this;
-  }
-  upsert(rows: Row | Row[]) {
-    this.op = "upsert";
-    this.rows = Array.isArray(rows) ? rows : [rows];
-    return this;
-  }
-  update(patch: Row) {
-    this.op = "update";
-    this.patch = patch;
-    return this;
-  }
-  delete() {
-    this.op = "delete";
-    return this;
-  }
-  eq(column: string, value: unknown) {
-    this.filters.push([`${column} = ${value}`, (r) => r[column] === value]);
-    return this;
-  }
-  in(column: string, values: unknown[]) {
-    this.filters.push([`${column} in (${values.join(",")})`, (r) => values.includes(r[column])]);
-    return this;
-  }
-  not(column: string, op: string, value: unknown) {
-    if (op !== "is" || value !== null) throw new Error(`Unexpected not(${column}, ${op})`);
-    this.filters.push([`${column} is not null`, (r) => r[column] !== null && r[column] !== undefined]);
-    return this;
-  }
-  order() {
-    return this;
-  }
-  limit() {
-    return this;
-  }
-  private run() {
-    calls.push({ table: this.table, op: this.op, filters: this.filters.map(([d]) => d) });
-    const all = (tables[this.table] ??= []);
-    const hit = (r: Row) => this.filters.every(([, f]) => f(r));
-    if (this.op === "insert" || this.op === "upsert") {
-      all.push(...this.rows);
-      return { data: this.rows, error: null };
-    }
-    const matched = all.filter(hit);
-    if (this.op === "delete") tables[this.table] = all.filter((r) => !hit(r));
-    if (this.op === "update") for (const r of matched) Object.assign(r, this.patch);
-    return { data: matched.map((r) => ({ ...r })), error: null };
-  }
-  async maybeSingle() {
-    const { data } = this.run();
-    return { data: data[0] ?? null, error: null };
-  }
-  then<T>(resolve: (value: { data: Row[]; error: null }) => T, reject?: (err: unknown) => T) {
-    return Promise.resolve(this.run()).then(resolve, reject);
-  }
-}
+let fake: FakeDb;
 
 mock.module("server-only", () => ({}));
-mock.module("@/lib/server/supabase", () => ({
-  db: () => {
-    clients++;
-    return {
-      from: (table: string) => new Query(table),
-      storage: { from: () => ({ remove: async (paths: string[]) => (removedFiles.push(...paths), { data: null, error: null }) }) },
-    };
-  },
-}));
+mock.module("@/lib/server/supabase", () => ({ db: () => fake.client() }));
 mock.module("@/lib/server/crypto", () => ({ encrypt: (s: string) => `enc:${s}`, decrypt: (s: string) => s.slice(4) }));
-
-// What the owner has, as ownedRows would find it once each account's rows carry their user. Today
-// ownedRows reads every car, since one account owns them all.
-const A = { sub: "tesla-a" } as Owner;
-let owned: OwnedRows;
-mock.module("@/lib/server/data/owned", () => ({ ownedRows: async () => owned }));
 
 // Stopping the stream asks Tesla; nothing here needs it to succeed.
 globalThis.fetch = (async () => new Response("{}", { status: 200 })) as unknown as typeof fetch;
 
-const { ownerDb } = await import("@/lib/server/data/owner");
+const { asOwner, ownerDb } = await import("@/lib/server/data/owner");
 const { eraseOwnerRows } = await import("@/lib/server/data/erase");
-const { deleteMyData, disconnectTesla, revokeAllSessions } = await import("@/lib/server/tesla");
+const system = await import("@/lib/server/data/system");
+const { deleteAccount, deleteMyData, disconnectTesla, isConnected, revokeAllSessions } = await import("@/lib/server/tesla");
+
+const A: Owner = asOwner(1, "tesla-a");
+const B: Owner = asOwner(2, "tesla-b");
+const later = () => new Date(Date.now() + 3_600_000).toISOString();
 
 beforeEach(() => {
-  calls = [];
-  removedFiles = [];
-  clients = 0;
-  tables = {
-    oauth_tokens: [
-      { provider: "tesla", owner_sub: "tesla-a", access_token_enc: "enc:a", refresh_token_enc: "enc:ra", expires_at: new Date(Date.now() + 3_600_000).toISOString(), sessions_valid_after: "-infinity" },
-      { provider: "tesla", owner_sub: "tesla-b", access_token_enc: "enc:b", refresh_token_enc: "enc:rb", expires_at: new Date(Date.now() + 3_600_000).toISOString(), sessions_valid_after: "-infinity" },
+  fake = new FakeDb({
+    users: [
+      { id: 1, tesla_sub: "tesla-a", status: "approved", sessions_valid_after: "-infinity", created_at: "2026-10-01T00:00:00Z" },
+      { id: 2, tesla_sub: "tesla-b", status: "approved", sessions_valid_after: "-infinity", created_at: "2026-10-02T00:00:00Z" },
     ],
+    user_tokens: [
+      { user_id: 1, access_token_enc: "enc:a", refresh_token_enc: "enc:ra", expires_at: later(), updated_at: "2026-10-20T00:00:00Z" },
+      { user_id: 2, access_token_enc: "enc:b", refresh_token_enc: "enc:rb", expires_at: later(), updated_at: "2026-10-20T00:00:00Z" },
+    ],
+    // Already moved at cutover: owner_sub kept, no pair.
+    oauth_tokens: [{ provider: "tesla", owner_sub: "tesla-a", access_token_enc: null, refresh_token_enc: null }],
     vehicles: [
-      { id: "1", vin: "VIN_A" },
-      { id: "2", vin: "VIN_B" },
+      { user_id: 1, id: "1", vin: "VIN_A" },
+      { user_id: 2, id: "2", vin: "VIN_B" },
     ],
     charging_sessions: [
-      { session_id: "s1", vehicle_vin: "VIN_A" },
-      { session_id: "s2", vehicle_vin: "VIN_B" },
+      { user_id: 1, session_id: "s1", vehicle_vin: "VIN_A" },
+      { user_id: 2, session_id: "s2", vehicle_vin: "VIN_B" },
     ],
     stream_charge_sessions: [
-      { id: 10, vin: "VIN_A" },
-      { id: 20, vin: "VIN_B" },
+      { user_id: 1, id: 10, vin: "VIN_A" },
+      { user_id: 2, id: 20, vin: "VIN_B" },
     ],
     charge_receipts: [
-      { session_id: 10, invoice_path: "10/a.pdf" },
-      { session_id: 20, invoice_path: "20/b.pdf" },
+      { user_id: 1, session_id: 10, invoice_path: "10/a.pdf" },
+      { user_id: 2, session_id: 20, invoice_path: "20/b.pdf" },
     ],
     telemetry_readings: [
-      { id: 1, vin: "VIN_A", field: "Soc" },
-      { id: 2, vin: "VIN_B", field: "Soc" },
-      { id: 3, vin: "VIN_GONE", field: "Soc" },
+      { user_id: 1, id: 1, vin: "VIN_A", field: "Soc" },
+      { user_id: 2, id: 2, vin: "VIN_B", field: "Soc" },
+      // A's, for a VIN no car row of A's names any more.
+      { user_id: 1, id: 3, vin: "VIN_GONE", field: "Soc" },
     ],
-    poll_runs: [{ id: 1 }],
-    connector_token: [{ owner: "tesla", token_hash: "h" }],
-  };
-  owned = { vehicleIds: ["1"], vins: ["VIN_A"], receipts: [{ session_id: 10, invoice_path: "10/a.pdf" }], unclaimed: false };
+    poll_runs: [
+      { user_id: 1, id: 1 },
+      { user_id: 2, id: 2 },
+    ],
+    connector_token: [
+      { user_id: 1, owner: "tesla", token_hash: "hash-a" },
+      { user_id: 2, owner: "tesla", token_hash: "hash-b" },
+    ],
+  });
 });
 
-const vins = (table: string, column = "vin") => (tables[table] ?? []).map((r) => r[column]);
+const column = (table: string, name: string) => fake.rows(table).map((r) => r[name]);
 
 describe("ownerDb", () => {
   test("reaches the database only when a query is built", () => {
     const scope = ownerDb(A);
     scope.from("vehicles");
-    expect(clients).toBe(0);
+    expect(fake.clients).toBe(0);
     scope.from("vehicles").select("vin");
-    expect(clients).toBe(1);
+    expect(fake.clients).toBe(1);
   });
 
-  test("scopes the account table to the owner on every read, update and delete", async () => {
-    const { data } = await ownerDb(A).from("oauth_tokens").select("owner_sub");
-    expect(data).toEqual([expect.objectContaining({ owner_sub: "tesla-a" })]);
-    await ownerDb(A).from("oauth_tokens").update({ scope: "x" });
-    expect(tables.oauth_tokens.map((r) => r.scope)).toEqual(["x", undefined]);
-    expect(calls.every((c) => c.filters.includes("owner_sub = tesla-a") && c.filters.includes("provider = tesla"))).toBe(true);
+  test("one user never reads, changes or deletes the other's rows", async () => {
+    for (const table of ["vehicles", "charging_sessions", "stream_charge_sessions", "charge_receipts", "poll_runs", "connector_token", "user_tokens"] as const) {
+      const { data } = await ownerDb(A).from(table).select("*");
+      expect(data!.length).toBeGreaterThan(0);
+      expect(data!.every((r) => r.user_id === 1)).toBe(true);
+    }
+    await ownerDb(B).from("vehicles").update({ display_name: "B's" });
+    expect(column("vehicles", "display_name")).toEqual([undefined, "B's"]);
+    await ownerDb(B).from("telemetry_readings").delete().in("vin", ["VIN_A", "VIN_B"]);
+    expect(column("telemetry_readings", "id")).toEqual([1, 3]);
+    expect(fake.calls.every((c) => c.filters.some((f) => /^user_id = [12]$/.test(f)))).toBe(true);
   });
 
-  test("stamps the owner's key on what it writes", async () => {
-    await ownerDb(A).from("connector_token").upsert({ token_hash: "new" });
-    expect(tables.connector_token.at(-1)).toEqual({ token_hash: "new", owner: "tesla" });
+  test("stamps the owner's user on what it writes", async () => {
+    await ownerDb(B).from("connector_token").upsert({ token_hash: "new" }, { onConflict: "user_id" });
+    expect(fake.rows("connector_token").find((r) => r.user_id === 2)?.token_hash).toBe("new");
+    expect(fake.rows("connector_token").find((r) => r.user_id === 1)?.token_hash).toBe("hash-a");
+    await ownerDb(B).from("snapshots").insert([{ vehicle_id: "2" }]);
+    expect(fake.rows("snapshots")).toEqual([{ vehicle_id: "2", user_id: 2 }]);
+  });
+
+  test("calls the per-car functions for the owner's user", async () => {
+    await ownerDb(B).rpc("counter_values_at", { p_vin: "VIN_B", p_fields: [], p_at: [], p_user_id: 1 });
+    expect(fake.rpcs).toEqual([{ fn: "counter_values_at", args: { p_vin: "VIN_B", p_fields: [], p_at: [], p_user_id: 2 } }]);
   });
 });
 
 describe("account actions touch only the owner's account", () => {
   test("sign out everywhere", async () => {
     await revokeAllSessions(A);
-    const [a, b] = tables.oauth_tokens;
+    const [a, b] = fake.rows("users");
     expect(a.sessions_valid_after).not.toBe("-infinity");
     expect(b.sessions_valid_after).toBe("-infinity");
   });
 
-  test("disconnect", async () => {
+  test("disconnect keeps the token row, empty, and leaves the other user connected", async () => {
     await disconnectTesla(A);
-    const [a, b] = tables.oauth_tokens;
-    expect(a.access_token_enc).toBeNull();
-    expect(a.refresh_token_enc).toBeNull();
+    const [a, b] = fake.rows("user_tokens");
+    expect(a).toEqual(expect.objectContaining({ user_id: 1, access_token_enc: null, refresh_token_enc: null }));
     expect(b.access_token_enc).toBe("enc:b");
-    expect(b.sessions_valid_after).toBe("-infinity");
+    expect(fake.rows("users")[1].sessions_valid_after).toBe("-infinity");
+    expect(await isConnected(A)).toBe(false);
+    expect(await isConnected(B)).toBe(true);
   });
 });
 
 describe("Delete my data", () => {
-  test("deletes the owner's rows and files, and leaves another account's", async () => {
+  test("deletes the owner's rows and files, and leaves another user's", async () => {
     await eraseOwnerRows(A);
-    expect(vins("vehicles")).toEqual(["VIN_B"]);
-    expect(vins("charging_sessions", "vehicle_vin")).toEqual(["VIN_B"]);
-    expect(vins("stream_charge_sessions")).toEqual(["VIN_B"]);
-    expect(vins("telemetry_readings")).toEqual(["VIN_B", "VIN_GONE"]);
-    expect(vins("charge_receipts", "session_id")).toEqual([20]);
-    expect(removedFiles).toEqual(["10/a.pdf"]);
-    // With another account, rows that name no owner yet stay.
-    expect(tables.poll_runs).toHaveLength(1);
+    expect(column("vehicles", "vin")).toEqual(["VIN_B"]);
+    expect(column("charging_sessions", "vehicle_vin")).toEqual(["VIN_B"]);
+    expect(column("stream_charge_sessions", "vin")).toEqual(["VIN_B"]);
+    // VIN_GONE was A's too.
+    expect(column("telemetry_readings", "vin")).toEqual(["VIN_B"]);
+    expect(column("charge_receipts", "session_id")).toEqual([20]);
+    expect(column("poll_runs", "user_id")).toEqual([2]);
+    expect(column("connector_token", "user_id")).toEqual([2]);
+    expect(fake.removedFiles).toEqual(["10/a.pdf"]);
   });
 
-  test("never deletes every row of a table while another account exists", async () => {
+  test("every delete is bound to the owner's user", async () => {
     await eraseOwnerRows(A);
-    const deletes = calls.filter((c) => c.op === "delete");
+    const deletes = fake.calls.filter((c) => c.op === "delete");
     expect(deletes.length).toBeGreaterThan(0);
-    // Each delete is bound by the owner's keys (the connector token by its single-row key until step 3).
-    for (const d of deletes) {
-      expect(d.filters.some((f) => / in \(/.test(f) || f === "owner = tesla")).toBe(true);
-      expect(d.filters.some((f) => f.endsWith("is not null"))).toBe(false);
-    }
+    for (const d of deletes) expect(d.filters).toContain("user_id = 1");
   });
 
-  test("as the only account, also clears the rows that name no owner", async () => {
-    owned = { ...owned, unclaimed: true };
-    await eraseOwnerRows(A);
-    expect(tables.poll_runs).toEqual([]);
-    expect(tables.telemetry_readings).toEqual([]);
-    expect(tables.charge_receipts).toEqual([]);
-    expect(removedFiles.sort()).toEqual(["10/a.pdf", "20/b.pdf"]);
-  });
-
-  test("the whole action keeps the other account signed in and connected", async () => {
+  test("the whole action keeps the other user signed in and connected", async () => {
     await deleteMyData(A);
-    const [a, b] = tables.oauth_tokens;
-    expect(a.owner_sub).toBe("tesla-a"); // kept, so nobody else can claim the dashboard
+    const [a, b] = fake.rows("user_tokens");
     expect(a.access_token_enc).toBeNull();
-    expect(b).toEqual(expect.objectContaining({ owner_sub: "tesla-b", access_token_enc: "enc:b", sessions_valid_after: "-infinity" }));
-    expect(vins("vehicles")).toEqual(["VIN_B"]);
+    expect(b).toEqual(expect.objectContaining({ user_id: 2, access_token_enc: "enc:b" }));
+    expect(fake.rows("users").map((u) => u.id)).toEqual([1, 2]);
+    expect(fake.rows("users")[1].sessions_valid_after).toBe("-infinity");
+    expect(column("vehicles", "vin")).toEqual(["VIN_B"]);
+  });
+});
+
+describe("Delete account", () => {
+  test("deletes the owner's data and users row, and nothing of the other user's", async () => {
+    await deleteAccount(A);
+    expect(fake.rows("users").map((u) => u.id)).toEqual([2]);
+    expect(column("vehicles", "vin")).toEqual(["VIN_B"]);
+    expect(column("telemetry_readings", "vin")).toEqual(["VIN_B"]);
+    expect(fake.rows("user_tokens").find((r) => r.user_id === 2)?.access_token_enc).toBe("enc:b");
+    expect(fake.calls.filter((c) => c.table === "users" && c.op === "delete")).toEqual([{ table: "users", op: "delete", filters: ["id = 1"] }]);
+    // The single-owner row keeps naming its Tesla account (legacy_owner_id), with no tokens.
+    expect(fake.rows("oauth_tokens")[0]).toEqual(expect.objectContaining({ owner_sub: "tesla-a", refresh_token_enc: null }));
+  });
+});
+
+describe("fleet-wide reads", () => {
+  test("the crons check approved users, except one who disconnected", async () => {
+    fake.rows("users").push(
+      { id: 3, tesla_sub: "tesla-c", status: "waitlist" },
+      { id: 4, tesla_sub: "tesla-d", status: "approved" }, // no token row yet
+      { id: 5, tesla_sub: "tesla-e", status: "suspended" },
+    );
+    fake.rows("user_tokens")[1].access_token_enc = null;
+    expect((await system.accountOwners()).map((o) => o.userId)).toEqual([1, 4]);
+  });
+
+  test("a connector token opens only its own approved user", async () => {
+    expect((await system.connectorTokenAccount("hash-b"))?.owner).toEqual(B);
+    expect(await system.connectorTokenAccount("hash-x")).toBeNull();
+    fake.rows("users")[1].status = "suspended";
+    expect(await system.connectorTokenAccount("hash-b")).toBeNull();
+  });
+
+  test("the health check asks about a car with its own user's token", async () => {
+    fake.tables.vehicles = [{ user_id: 2, id: "2", vin: "VIN_B" }];
+    expect(await system.healthCheckCar()).toEqual({ owner: B, vin: "VIN_B" });
+  });
+
+  test("a car two users track counts once", async () => {
+    fake.tables.vehicles = [
+      { user_id: 2, id: "7", vin: "VIN_SHARED", current_version: "2026.38" },
+      { user_id: 1, id: "7", vin: "VIN_SHARED", current_version: "2026.38" },
+      { user_id: 2, id: "8", vin: "VIN_B", current_version: "2026.32" },
+    ];
+    fake.tables.version_history = [
+      { user_id: 1, car: "7", version: "2026.38" },
+      { user_id: 2, car: "7", version: "2026.38" },
+      { user_id: 2, car: "8", version: "2026.32" },
+    ];
+    const cars = await system.fleetCars();
+    expect(cars.map((c) => c.vin)).toEqual(["VIN_SHARED", "VIN_B"]);
+    expect(cars.every((c) => !("user_id" in c))).toBe(true);
+    expect((await system.fleetVersionChanges()).map((c) => c.car)).toEqual(["7", "8"]);
   });
 });

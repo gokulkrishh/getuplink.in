@@ -50,6 +50,11 @@ type VehicleData = {
 // How many located checks decide a car's home state (the column's check allows up to this many).
 const RECENT_STATES = 30;
 
+// A car row is the owner's copy of the car: the upsert matches on (user_id, id), never on the id alone,
+// so it can't take over another user's row. Until step 4 makes that the key, another user's copy of the
+// same car is refused (the old id key).
+const CAR_KEY = { onConflict: "user_id,id" };
+
 // The state the car is in now, from drive_state, which is then dropped from `data`: the coordinates are
 // never stored, logged or passed on. Null when Tesla sent no location or it is outside India.
 function homeStateFrom(data: VehicleData): string | null {
@@ -90,7 +95,7 @@ async function pollVehicle(owner: Owner, vehicle: FleetVehicle, now: string, loc
 
   // Never wake the car: vehicle_data is only requested when it is already online.
   if (vehicle.state !== "online") {
-    await check(scope.from("vehicles").upsert(base));
+    await check(scope.from("vehicles").upsert(base, CAR_KEY));
     await check(scope.from("snapshots").insert({ vehicle_id: id, polled_at: now, state: vehicle.state }));
     return;
   }
@@ -113,7 +118,7 @@ async function pollVehicle(owner: Owner, vehicle: FleetVehicle, now: string, loc
   } catch (err) {
     // 408: the car fell asleep between the list call and this one.
     if (err instanceof TeslaError && err.status === 408) {
-      await check(scope.from("vehicles").upsert({ ...base, last_state: "asleep" }));
+      await check(scope.from("vehicles").upsert({ ...base, last_state: "asleep" }, CAR_KEY));
       await check(
         scope.from("snapshots").insert({
           vehicle_id: id,
@@ -145,7 +150,7 @@ async function pollVehicle(owner: Owner, vehicle: FleetVehicle, now: string, loc
     // A retry after a failed later write would see the same change again; don't record it twice.
     if ((await latestRecordedVersion(owner, id)) !== version) {
       // version_history references the vehicle, so a car seen for the first time needs its row first.
-      if (!existing) await check(scope.from("vehicles").upsert(base));
+      if (!existing) await check(scope.from("vehicles").upsert(base, CAR_KEY));
       await insertVersionChange(owner, {
         vehicleId: id,
         version,
@@ -167,7 +172,7 @@ async function pollVehicle(owner: Owner, vehicle: FleetVehicle, now: string, loc
         ...(config.car_type
           ? { model: modelName(config.car_type), exterior_color: colorName(config.exterior_color), trim_badging: config.trim_badging ?? null }
           : {}),
-      }),
+      }, CAR_KEY),
   );
   await check(
     scope.from("snapshots").insert({

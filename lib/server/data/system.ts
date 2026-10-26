@@ -13,81 +13,145 @@ function check<T>(result: { data: T; error: { message: string } | null }): T {
   return result.data;
 }
 
-// ---- Accounts ----
+// ---- Accounts: one users row per Tesla login ----
 
-export type AccountRow = {
-  owner_sub: string | null;
-  access_token_enc: string | null;
-  created_at: string;
-  updated_at: string;
+// Only an approved user can sign in, be checked by the crons or use a connector token.
+export const APPROVED = "approved";
+
+export type UserRow = {
+  id: number;
+  tesla_sub: string;
+  status: string;
   sessions_valid_after: string;
+  created_at: string;
 };
 
-// The one account Uplink has today (oauth_tokens' single row), or null before the first sign-in. The
-// session cookie names no account, so a current session is this account's. Step 3: the cookie carries
-// the user and this goes.
-export async function legacyAccount(): Promise<AccountRow | null> {
-  const { data, error } = await db()
-    .from("oauth_tokens")
-    .select("access_token_enc, created_at, updated_at, sessions_valid_after, owner_sub")
-    .eq("provider", "tesla")
-    .maybeSingle();
+const USER_COLUMNS = "id, tesla_sub, status, sessions_valid_after, created_at";
+
+export const ownerOf = (user: Pick<UserRow, "id" | "tesla_sub">): Owner => asOwner(Number(user.id), user.tesla_sub);
+
+// The user a session cookie names, or null when there is none (deleted account).
+export async function userById(id: number): Promise<UserRow | null> {
+  const { data, error } = await db().from("users").select(USER_COLUMNS).eq("id", id).maybeSingle();
   if (error) throw new Error(`Reading account failed: ${error.message}`);
-  return data as AccountRow | null;
+  return data ? { ...(data as UserRow), id: Number(data.id) } : null;
 }
 
-export type ClaimResult = "claimed" | "owner" | "not-owner";
-
-// Sign in with Tesla: the first account to sign in becomes the owner, and only that account can sign in
-// afterwards. Makes sure the row exists without touching an existing one, then claims it with a single
-// conditional update: of two first sign-ins racing, only one can match "no owner or me".
-export async function claimAccount(sub: string, tokens: Record<string, unknown>): Promise<ClaimResult> {
-  const { error: insertError } = await db()
-    .from("oauth_tokens")
-    .upsert({ provider: "tesla" }, { onConflict: "provider", ignoreDuplicates: true });
-  if (insertError) throw new Error(`Saving tokens failed: ${insertError.message}`);
-  const { data: before, error: readError } = await db().from("oauth_tokens").select("owner_sub").eq("provider", "tesla").maybeSingle();
-  if (readError) throw new Error(`Reading owner failed: ${readError.message}`);
-  const quoted = `"${sub.replace(/[\\"]/g, "\\$&")}"`;
-  const { data: updated, error } = await db()
-    .from("oauth_tokens")
-    .update({ owner_sub: sub, ...tokens })
-    .eq("provider", "tesla")
-    .or(`owner_sub.is.null,owner_sub.eq.${quoted}`)
-    .select("provider");
-  if (error) throw new Error(`Saving tokens failed: ${error.message}`);
-  if (!updated?.length) return "not-owner";
-  return before?.owner_sub ? "owner" : "claimed";
+// The user a Tesla sign-in is for, or null for a Tesla account Uplink doesn't know.
+export async function userBySub(sub: string): Promise<UserRow | null> {
+  const { data, error } = await db().from("users").select(USER_COLUMNS).eq("tesla_sub", sub).maybeSingle();
+  if (error) throw new Error(`Reading account failed: ${error.message}`);
+  return data ? { ...(data as UserRow), id: Number(data.id) } : null;
 }
 
-// Every account that has signed in, connected or not: whom the crons check (a disconnected one fails its
-// check with "not connected", as it always has). One at most today.
+// "Sign out everywhere" and disconnect: the user's sessions issued before `at` stop working.
+export async function revokeUserSessions(owner: Owner, at: string): Promise<void> {
+  check(await db().from("users").update({ sessions_valid_after: at, updated_at: at }).eq("id", owner.userId));
+}
+
+// Delete account: the users row, which cascades to every per-user table with a foreign key to it (all but
+// telemetry_readings, which the caller deletes first).
+export async function deleteUser(owner: Owner): Promise<void> {
+  check(await db().from("users").delete().eq("id", owner.userId));
+}
+
+// Whom the crons check: every approved user, except one who disconnected (a user_tokens row with no
+// tokens). An approved user with no user_tokens row yet is checked: for the owner at cutover, that first
+// check is what copies the tokens over (see lib/server/tesla.ts); for anyone else it fails with "not
+// connected", as a missing token always has.
 export async function accountOwners(): Promise<Owner[]> {
-  const { data, error } = await db().from("oauth_tokens").select("owner_sub").not("owner_sub", "is", null);
-  if (error) throw new Error(`Reading accounts failed: ${error.message}`);
-  return (data ?? []).map((r) => asOwner(r.owner_sub as string));
+  const [users, disconnected] = await Promise.all([
+    db().from("users").select("id, tesla_sub").eq("status", APPROVED).order("id"),
+    db().from("user_tokens").select("user_id").is("access_token_enc", null),
+  ]);
+  if (users.error) throw new Error(`Reading accounts failed: ${users.error.message}`);
+  if (disconnected.error) throw new Error(`Reading accounts failed: ${disconnected.error.message}`);
+  const off = new Set((disconnected.data ?? []).map((r) => Number(r.user_id)));
+  return (users.data ?? []).filter((u) => !off.has(Number(u.id))).map((u) => ownerOf(u as UserRow));
 }
 
-// How many accounts exist (signed in at least once). Admin's total, and Delete my data's test for rows
-// that carry no owner yet (see ownedRows).
+// How many users exist, whatever their status. Admin's total.
 export async function accountCount(): Promise<number> {
-  const { count, error } = await db().from("oauth_tokens").select("provider", { count: "exact", head: true }).not("owner_sub", "is", null);
+  const { count, error } = await db().from("users").select("id", { count: "exact", head: true });
   if (error) throw new Error(error.message);
   return count ?? 0;
 }
 
-// The MCP connector's token and the account it belongs to (there is one of each today), or null when
-// none is set up. The caller compares the hash.
-export async function connectorTokenAccount(): Promise<{ owner: Owner; tokenHash: string; usedAt: string | null } | null> {
-  const { data, error } = await db().from("connector_token").select("token_hash, used_at").eq("owner", "tesla").maybeSingle();
+// The MCP connector token with this hash and the approved user it belongs to, or null when there is none.
+// The caller compares the hash again in constant time.
+export async function connectorTokenAccount(tokenHash: string): Promise<{ owner: Owner; tokenHash: string; usedAt: string | null } | null> {
+  const { data, error } = await db().from("connector_token").select("user_id, token_hash, used_at").eq("token_hash", tokenHash).limit(1).maybeSingle();
   if (error) {
     if (!MISSING_TABLE.includes(error.code)) console.warn("Connector token unavailable:", error.message);
     return null;
   }
   if (!data) return null;
-  const account = await legacyAccount();
-  if (!account?.owner_sub) return null;
-  return { owner: asOwner(account.owner_sub), tokenHash: data.token_hash as string, usedAt: (data.used_at as string | null) ?? null };
+  const user = await userById(Number(data.user_id));
+  if (user?.status !== APPROVED) return null;
+  return { owner: ownerOf(user), tokenHash: data.token_hash as string, usedAt: (data.used_at as string | null) ?? null };
+}
+
+// ---- The single-owner token row (oauth_tokens), read only at the token cutover ----
+// Until step 4 drops it, oauth_tokens holds the pair the old code used. lib/server/tesla.ts copies it to
+// user_tokens once, under the refresh lease, then empties it here. owner_sub stays: legacy_owner_id(),
+// the default user_id of every streamed reading, still reads it.
+
+export type LegacyTokens = {
+  access_token_enc: string;
+  refresh_token_enc: string;
+  expires_at: string | null;
+  scope: string | null;
+  refreshing_until: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+// The pair still in oauth_tokens for this Tesla account, or null when it is empty or someone else's.
+export async function legacyTokens(sub: string): Promise<LegacyTokens | null> {
+  const { data, error } = await db()
+    .from("oauth_tokens")
+    .select("access_token_enc, refresh_token_enc, expires_at, scope, refreshing_until, created_at, updated_at")
+    .eq("provider", "tesla")
+    .eq("owner_sub", sub)
+    .maybeSingle();
+  if (error) {
+    if (MISSING_TABLE.includes(error.code)) return null;
+    throw new Error(`Reading tokens failed: ${error.message}`);
+  }
+  return data?.access_token_enc && data.refresh_token_enc ? (data as LegacyTokens) : null;
+}
+
+// Takes the refresh lease on the pair we read, so neither a refresh nor another copy can run on it. The
+// lease must be free: never taken, released, or run out before `freeBefore`.
+export async function claimLegacyLease(sub: string, refreshTokenEnc: string, until: string, freeBefore: string): Promise<boolean> {
+  const { data, error } = await db()
+    .from("oauth_tokens")
+    .update({ refreshing_until: until })
+    .eq("provider", "tesla")
+    .eq("owner_sub", sub)
+    .eq("refresh_token_enc", refreshTokenEnc)
+    .or(`refreshing_until.is.null,refreshing_until.lt.${freeBefore}`)
+    .select("provider");
+  if (error) throw new Error(`Claiming the token copy failed: ${error.message}`);
+  return data?.length === 1;
+}
+
+// Gives the lease back after a copy that failed, so the next try needn't wait for it to run out.
+export async function releaseLegacyLease(sub: string, refreshTokenEnc: string): Promise<void> {
+  await db().from("oauth_tokens").update({ refreshing_until: null }).eq("provider", "tesla").eq("owner_sub", sub).eq("refresh_token_enc", refreshTokenEnc);
+}
+
+// Empties the pair (keeping owner_sub), so nothing can present it to Tesla again. With refreshTokenEnc,
+// only while it still holds that pair.
+export async function retireLegacyTokens(sub: string, refreshTokenEnc?: string): Promise<void> {
+  let query = db()
+    .from("oauth_tokens")
+    .update({ access_token_enc: null, refresh_token_enc: null, expires_at: null, refreshing_until: null, updated_at: new Date().toISOString() })
+    .eq("provider", "tesla")
+    .eq("owner_sub", sub);
+  if (refreshTokenEnc) query = query.eq("refresh_token_enc", refreshTokenEnc);
+  const { error } = await query;
+  if (error && !MISSING_TABLE.includes(error.code)) throw new Error(`Clearing the old tokens failed: ${error.message}`);
 }
 
 // ---- The check lock (poll_runs) ----
@@ -161,38 +225,54 @@ export async function savePlaceName(key: string, name: string | null): Promise<v
 
 const PAGE = 1000; // PostgREST's default row cap per request
 
+// A car two users both track has a copy of its rows under each. Fleet totals count it once: every row of
+// a car comes from one user's copy, the lowest user id that has it, and the other copies are dropped.
+export function oneCopyPerCar<T>(rows: T[], car: (row: T) => string, user: (row: T) => number): T[] {
+  const keeper = new Map<string, number>();
+  for (const row of rows) {
+    const key = car(row);
+    const id = user(row);
+    const kept = keeper.get(key);
+    if (kept === undefined || id < kept) keeper.set(key, id);
+  }
+  return rows.filter((row) => keeper.get(car(row)) === user(row));
+}
+
+const withoutUser = <T extends { user_id: unknown }>({ user_id: _, ...row }: T): Omit<T, "user_id"> => row;
+
 export type FleetChange = { car: string; version: string; previous: string | null; at: string; source: string };
 
-// Every version_history row across all cars, in pages of PAGE.
+// Every version_history row across all cars, in pages of PAGE, one copy per car.
 export async function fleetVersionChanges(): Promise<FleetChange[]> {
-  const rows: FleetChange[] = [];
+  const rows: (FleetChange & { user_id: number })[] = [];
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await db()
       .from("version_history")
-      .select("car:vehicle_id::text, version, previous:previous_version, at:detected_at, source")
+      .select("car:vehicle_id::text, version, previous:previous_version, at:detected_at, source, user_id")
       .order("id")
       .range(from, from + PAGE - 1);
     if (error) throw new Error(error.message);
-    rows.push(...(data as FleetChange[]));
-    if (data.length < PAGE) return rows;
+    rows.push(...(data as (FleetChange & { user_id: number })[]));
+    if (data.length < PAGE) break;
   }
+  return oneCopyPerCar(rows, (r) => r.car, (r) => Number(r.user_id)).map(withoutUser);
 }
 
 export type FleetOffer = { car: string; version: string | null; status: string | null; offered: string | null };
 
-// Every car's version and the update its last online check saw offered.
+// Every car's version and the update its last online check saw offered, one copy per car.
 export async function fleetOffers(): Promise<FleetOffer[]> {
   const { data, error } = await db()
     .from("vehicles")
     // Named key: once the users migration adds (user_id, vehicle_id), PostgREST sees two links between the
     // tables and refuses an embed that doesn't say which one.
-    .select("car:id::text, version:current_version, snapshots!snapshots_vehicle_id_fkey(status:update_status, offered:update_version)")
+    .select("car:id::text, user_id, version:current_version, snapshots!snapshots_vehicle_id_fkey(status:update_status, offered:update_version)")
     .eq("snapshots.state", "online")
     .order("polled_at", { referencedTable: "snapshots", ascending: false })
     .limit(1, { referencedTable: "snapshots" });
   if (error) throw new Error(error.message);
-  type Row = { car: string; version: string | null; snapshots: { status: string | null; offered: string | null }[] };
-  return (data as unknown as Row[]).map(({ car, version, snapshots }) => ({
+  type Row = { car: string; user_id: number; version: string | null; snapshots: { status: string | null; offered: string | null }[] };
+  return oneCopyPerCar(data as unknown as Row[], (r) => r.car, (r) => Number(r.user_id)).map(({ car, version, snapshots }) => ({
     car,
     version,
     status: snapshots[0]?.status ?? null,
@@ -206,32 +286,38 @@ const MISSING_STATE = ["42703", ...MISSING_TABLE];
 
 export type FleetCar = { id: string; vin: string | null; current_version: string | null; home_state?: string | null };
 
-// Every car with its version and home state.
+// A car by its VIN, or its id before a check has seen the VIN.
+const carKey = (r: { vin: string | null; id?: string }) => r.vin ?? `id:${r.id}`;
+
+// Every car with its version and home state, one copy per car.
 export async function fleetCars(): Promise<FleetCar[]> {
-  let vehicles = await db().from("vehicles").select("id:id::text, vin, current_version, home_state");
+  let vehicles = await db().from("vehicles").select("id:id::text, vin, current_version, home_state, user_id");
   if (vehicles.error && MISSING_STATE.includes(vehicles.error.code)) {
-    vehicles = await db().from("vehicles").select("id:id::text, vin, current_version");
+    vehicles = await db().from("vehicles").select("id:id::text, vin, current_version, user_id");
   }
   if (vehicles.error) throw new Error(vehicles.error.message);
-  return vehicles.data as FleetCar[];
+  return oneCopyPerCar(vehicles.data as (FleetCar & { user_id: number })[], carKey, (r) => Number(r.user_id)).map(withoutUser);
 }
 
-// Every Supercharger visit's site per VIN, oldest first (the fallback for a car's home state).
+// Every Supercharger visit's site per VIN, oldest first (the fallback for a car's home state), one copy
+// per car.
 export async function fleetSuperchargerSites(): Promise<{ vehicle_vin: string | null; site_name: string | null }[] | null> {
-  const out: { vehicle_vin: string | null; site_name: string | null }[] = [];
+  type Row = { vehicle_vin: string | null; site_name: string | null; user_id: number };
+  const out: Row[] = [];
+  const done = () => oneCopyPerCar(out, (r) => r.vehicle_vin ?? "", (r) => Number(r.user_id)).map(withoutUser);
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await db()
       .from("charging_sessions")
-      .select("vehicle_vin, site_name")
+      .select("vehicle_vin, site_name, user_id")
       .order("started_at")
       .order("session_id")
       .range(from, from + PAGE - 1);
     if (error) {
-      if (MISSING_STATE.includes(error.code)) return out;
+      if (MISSING_STATE.includes(error.code)) return done();
       throw new Error(error.message);
     }
-    out.push(...data);
-    if (data.length < PAGE) return out;
+    out.push(...(data as Row[]));
+    if (data.length < PAGE) return done();
   }
 }
 
@@ -244,8 +330,8 @@ function count(result: { count: number | null; error: { message: string } | null
 
 export async function adminTotals(since: string, usageSince: string, healthSince: string) {
   const [owners, vehicles, runs, failed, lastFailed, health, checks] = await Promise.all([
-    db().from("oauth_tokens").select("provider", { count: "exact", head: true }).not("owner_sub", "is", null),
-    db().from("vehicles").select("current_version, last_seen_at"),
+    db().from("users").select("id", { count: "exact", head: true }).eq("status", APPROVED),
+    db().from("vehicles").select("id:id::text, vin, current_version, last_seen_at, user_id"),
     db().from("poll_runs").select("id", { count: "exact", head: true }).gte("started_at", since),
     db().from("poll_runs").select("id", { count: "exact", head: true }).gte("started_at", since).eq("ok", false),
     db().from("poll_runs").select("started_at").eq("ok", false).gte("started_at", since).order("started_at", { ascending: false }).limit(1).maybeSingle(),
@@ -254,7 +340,11 @@ export async function adminTotals(since: string, usageSince: string, healthSince
   ]);
   return {
     owners: count(owners),
-    cars: check(vehicles) as { current_version: string | null; last_seen_at: string | null }[],
+    cars: oneCopyPerCar(
+      check(vehicles) as { id: string; vin: string | null; current_version: string | null; last_seen_at: string | null; user_id: number }[],
+      carKey,
+      (r) => Number(r.user_id),
+    ).map(({ current_version, last_seen_at }) => ({ current_version, last_seen_at })),
     runs: count(runs),
     failed: count(failed),
     lastFailedAt: ((check(lastFailed) as { started_at: string } | null)?.started_at as string | undefined) ?? null,
@@ -304,14 +394,15 @@ export async function fleetLastReadingAt(): Promise<string | null> {
   return (data?.created_at as string | undefined) ?? null;
 }
 
-// The car whose streaming config the health check asks Tesla about, and whose token asks: the first car
-// with a VIN. Null when there is none; owner is null when no account has signed in.
+// The car whose streaming config the health check asks Tesla about, and the user whose token asks: the
+// first car with a VIN, with its own user. Null when there is none; owner is null when its user isn't
+// approved, so nobody else's token ever asks about it.
 export async function healthCheckCar(): Promise<{ owner: Owner | null; vin: string } | null> {
-  const { data, error } = await db().from("vehicles").select("vin").not("vin", "is", null).limit(1).maybeSingle();
+  const { data, error } = await db().from("vehicles").select("vin, user_id").not("vin", "is", null).order("user_id").limit(1).maybeSingle();
   if (error) throw new Error(error.message);
   if (!data?.vin) return null;
-  const [owner] = await accountOwners();
-  return { owner: owner ?? null, vin: data.vin as string };
+  const user = await userById(Number(data.user_id));
+  return { owner: user?.status === APPROVED ? ownerOf(user) : null, vin: data.vin as string };
 }
 
 // ---- Telemetry retention ----

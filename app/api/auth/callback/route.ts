@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
 
   const res = done("/");
   const domain = sessionCookieDomain(requestHost(request.headers));
-  res.cookies.set(SESSION_COOKIE, await createSession(), {
+  res.cookies.set(SESSION_COOKIE, await createSession(result.userId), {
     domain,
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
