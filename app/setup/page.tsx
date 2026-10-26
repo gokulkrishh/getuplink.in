@@ -129,13 +129,15 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
       <ol>
         <Step n={1} title="Add Uplink's key" state={key}>
           {key !== "done" && (
-            <div className="space-y-2">
-              <a href={KEY_PAIRING_URL} className={cn(buttonVariants({ size: "lg" }), "h-11 w-full gap-2 px-4 text-base sm:w-auto")}>
-                <SolidKey />
-                Add key
-              </a>
-              <p className="text-xs text-muted-foreground">Opens the Tesla app. Approve it there or on the car.</p>
-            </div>
+            <p className="text-sm text-muted-foreground">
+              Open this link on the phone with the Tesla app, then approve the key in the app or on the car&apos;s screen.
+            </p>
+          )}
+          {key !== "done" && (
+            <a href={KEY_PAIRING_URL} className={cn(buttonVariants({ size: "lg" }), "h-11 w-full gap-2 px-4 text-base sm:w-auto")}>
+              <SolidKey />
+              Add the key in the Tesla app
+            </a>
           )}
           <p className="text-sm text-muted-foreground">
             The key lets your car send its data to Uplink. Uplink sends your car no commands, and you can remove the key in the car&apos;s Locks
