@@ -11,8 +11,8 @@ const at = (month: number, day: number) => Date.UTC(2026, month, day, 6, 30);
 
 describe("backTo", () => {
   test("names the first item held when the span starts before it", () => {
-    expect(backTo(periodSpan("year", NOW), at(8, 25), "Readings")).toMatch(/^Readings go back to 25 Sept?\.$/);
-    expect(backTo(periodSpan("all", NOW), at(8, 25), "Stretches")).toMatch(/^Stretches go back to 25 Sept?\.$/);
+    expect(backTo(periodSpan("year", NOW), at(8, 25), "Readings")).toMatch(/^Readings go back to 25 Sept?$/);
+    expect(backTo(periodSpan("all", NOW), at(8, 25), "Stretches")).toMatch(/^Stretches go back to 25 Sept?$/);
   });
   test("says nothing when the span starts after the first item", () => {
     expect(backTo(periodSpan("week", NOW), at(8, 25), "Readings")).toBeNull();

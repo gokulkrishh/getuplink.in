@@ -12,7 +12,7 @@ const WEEK = 7 * 86_400_000;
 // can't claim readings from before tracking began.
 export function backTo(span: Span, first: number | null | undefined, what: string): string | null {
   if (first === null || first === undefined || !Number.isFinite(first) || first <= span.from) return null;
-  return `${what} go back to ${formatShortDate(first)}.`;
+  return `${what} go back to ${formatShortDate(first)}`;
 }
 
 // The items dated in the span, in their order.

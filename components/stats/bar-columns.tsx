@@ -72,7 +72,7 @@ export function BarColumns({
             </div>
             {/* The label is as wide as its text and may spill over the neighbouring columns. */}
             <AxisLabel label={b.axis ?? b.label} current={b.isCurrent} edge={b.edge} first={k === 0} />
-            <span className="sr-only">{[withUnit(b.display, unit), valueWords, b.tip].filter(Boolean).join(", ")}</span>
+            <span className="sr-only">{[valueWords ? `${withUnit(b.display, unit)} ${valueWords}` : withUnit(b.display, unit), b.tip].filter(Boolean).join(", ")}</span>
           </li>
         ),
       )}

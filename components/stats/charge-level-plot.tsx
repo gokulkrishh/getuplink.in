@@ -7,6 +7,7 @@ import type { ChargeStretch, LevelPoint } from "@/lib/charge-level";
 import { formatClock, formatLevels, formatPercent, formatShortDate } from "@/lib/format";
 import { Measure } from "@/components/measure";
 import { FloatTip, useActiveMark } from "@/components/stats/float-tip";
+import { cn } from "@/lib/utils";
 
 // A charge as drawn: its clipped span and its tip's words (see chargeTip).
 export type ChargeBand = ChargeStretch & { tip: string };
@@ -119,12 +120,17 @@ export default function ChargeLevelPlot({ points, charging, from, to }: { points
             const left = px(c.x1);
             const w = px(c.x2) - left;
             const hit = Math.max(w, HIT_PX);
+            // A narrow band takes its full height; a wide one (an overnight charge on a day) only a strip along
+            // the bottom, so the line's own tip still shows above it.
             return (
               <button
                 key={c.start}
                 type="button"
                 aria-label={c.tip}
-                className="pointer-events-auto absolute top-2 bottom-0 cursor-default outline-offset-1 focus-visible:outline-2 focus-visible:outline-ring"
+                className={cn(
+                  "pointer-events-auto absolute bottom-0 cursor-default outline-offset-1 focus-visible:outline-2 focus-visible:outline-ring",
+                  w > HIT_PX ? "h-4" : "top-2",
+                )}
                 style={{ left: left - (hit - w) / 2, width: hit }}
                 onPointerEnter={(e) => e.pointerType === "mouse" && setActive({ key: k, el: e.currentTarget })}
                 onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}

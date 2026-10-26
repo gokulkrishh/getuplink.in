@@ -1,4 +1,6 @@
+import { Fragment } from "react";
 import { Measure } from "@/components/measure";
+import { measureParts } from "@/lib/measure";
 import { cn } from "@/lib/utils";
 
 // The pieces Bars, BarColumns and StackedBars share. No directive: they render on either side.
@@ -50,10 +52,20 @@ export function AxisLabel({ label, current, edge, first }: { label: string; curr
 // sr-only text instead.
 export function ValueLabel({ display, unit }: { display: string; unit?: string }) {
   const full = withUnit(display, unit);
+  // The unit small and close, as on a tile, so six "17.0 km" fit across a phone.
+  const parts = measureParts(full);
   return (
     <span data-value-label aria-hidden="true" className="invisible relative h-4 font-mono text-xs whitespace-nowrap text-muted-foreground tabular-nums">
       <span data-value="full">
-        <Measure text={full} />
+        {parts.map((part, k) =>
+          part.unit ? (
+            <span key={k} className={cn("font-sans text-[0.625rem] text-faint", k > 0 && "ml-px")}>
+              {part.text}
+            </span>
+          ) : (
+            <Fragment key={k}>{part.text}</Fragment>
+          ),
+        )}
       </span>
       {full !== display && (
         <span data-value="bare" className="hidden">

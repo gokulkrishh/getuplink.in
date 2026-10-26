@@ -64,7 +64,7 @@ The owner's rule, for every page: too much text is worse than too little. Keep t
 
 1. **Description**: one short sentence, ideally under about 12 words, saying what the chart shows. Not how to read the axes, and no "hover or tap".
 2. **Units and method go behind the ⓘ.** Glossary words and method notes (how a figure is worked out, what a mark, a gap or a symbol means) go in the info popover, never inline.
-3. **Caption**: at most one short line, only when needed, such as the span ("Last 7 days", "Each day, last 7 days") or a data cut-off ("Readings go back to 25 Sept."). Drop sentences that repeat the title or description.
+3. **Caption**: at most one short line, only when needed, such as the span ("Last 7 days", "Each day, last 7 days") or a data cut-off ("Readings go back to 25 Sept"), with no trailing period. Drop sentences that repeat the title or description.
 4. **Advice** (like "Sentry Mode keeps the car awake"): keep it only when it's actionable and fits on one short line. Otherwise move it into the popover.
 5. **Tables**: short column headers. Explanations of columns ("Seen awake is a minimum", "≥ means parked since before the first reading") go in the popover.
 6. **No interaction hints**, anywhere: no "Hover or tap for its value", "Tap a pin", "Click…", not even in the popover. People know how to hover. Screen-reader text and `aria-label`s are fine. A map footer keeps only its attribution.

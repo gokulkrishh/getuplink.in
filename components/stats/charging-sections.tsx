@@ -6,8 +6,8 @@ import { Figures, Value } from "@/components/stats/figures";
 import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
 import { chargeEfficiency } from "@/lib/charge-sessions";
 import { type Bill, billsBySlot, billsIn } from "@/lib/charging-figures";
-import { DECIMALS, formatDuration, formatKwh, formatMoney, formatMonth, formatNumber, formatPercent, sumKnown } from "@/lib/format";
-import { knownBars } from "@/components/stats/driving-sections";
+import { DECIMALS, formatDuration, formatKwh, formatMoney, formatMonth, formatNumber, formatPercent, showsZero, sumKnown } from "@/lib/format";
+import { hasBars, knownBars } from "@/components/stats/driving-sections";
 import { LIST_PREVIEW } from "@/lib/list";
 import { inSpan, type Timeframe } from "@/lib/periods";
 import { barsSpan, EACH_HOUR } from "@/components/stats/chart-caption";
@@ -66,7 +66,7 @@ export function Summary({
           </div>
         }
         caption={barsSpan(frame)}
-        empty={bars.some((b) => b.value > 0) ? undefined : `No bills ${frame.words}`}
+        empty={hasBars(bars) ? undefined : `No bills ${frame.words}`}
       >
         <Bars bars={bars} ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} fit />
       </ChartCard>
@@ -160,7 +160,7 @@ export function EnergyAdded({
           </div>
         }
         caption={barsSpan(frame)}
-        empty={bars.some((b) => b.total > 0) ? undefined : `No charging ${frame.words}`}
+        empty={bars.some((b) => b.total > 0 && !showsZero(b.display)) ? undefined : `No charging ${frame.words}`}
       >
         <StackedBars bars={bars} series={ENERGY_SERIES} ariaLabel={`Energy added per ${frame.slotName}`} labelEvery={frame.labelEvery} fit />
       </ChartCard>

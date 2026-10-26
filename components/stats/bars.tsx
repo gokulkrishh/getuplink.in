@@ -1,5 +1,6 @@
 import { BarColumns } from "@/components/stats/bar-columns";
 import { type Bar } from "@/components/stats/bar-parts";
+import { showsZero } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export { AxisLabel, type Bar, BAR_MAX, BarTip, MIN_COLUMNS, withUnit } from "@/components/stats/bar-parts";
@@ -49,7 +50,7 @@ export function Bars({
   // Words after the value in the tip, like "of driving time".
   valueWords?: string;
 }) {
-  if (empty && !bars.some((b) => b.value > 0)) return <EmptyChart caption={caption}>{empty}</EmptyChart>;
+  if (empty && !bars.some((b) => b.value > 0 && !showsZero(b.display))) return <EmptyChart caption={caption}>{empty}</EmptyChart>;
   const max = niceMax(Math.max(1, ...bars.map((b) => b.value)));
   return (
     <Captioned caption={caption}>
@@ -101,6 +102,12 @@ export function ChartFrame({ max, prefix = "", unit, xUnit, children }: { max: n
     <div className="chart-touch relative flex gap-2 bg-muted dark:bg-card pt-5 pr-4 pb-3 pl-2">
       {unit && (
         <span className="absolute top-1 left-2 font-mono text-xs text-faint" aria-hidden="true">
+          {unit}
+        </span>
+      )}
+      {unit && (
+        // Shown by useValueLabels only when the values above the bars are bare numbers, so they read "km 17.0 15.7".
+        <span data-value-unit className="absolute top-5 left-2 hidden h-4 w-8 text-right font-sans text-[0.625rem] leading-4 text-faint" aria-hidden="true">
           {unit}
         </span>
       )}

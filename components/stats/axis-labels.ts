@@ -54,6 +54,7 @@ export function useAxisLabels(box: RefObject<HTMLElement | null>, minStride = 1)
 }
 
 const MODES = ["full", "bare", "none"] as const;
+const VALUE_GAP = 3; // px kept between two values above bars
 
 // Picks how a bar chart's values above its bars show (see ValueLabel), measured in the browser: with their
 // unit ("46.2 km") when no two touch and none runs past the chart, else bare numbers ("46.2"), else none,
@@ -79,9 +80,12 @@ export function useValueLabels(box: RefObject<HTMLElement | null>) {
         apply(mode);
         if (mode === "none") break;
         const boxes = labels.map((label) => label.getBoundingClientRect());
-        const fits = boxes.every((b, k) => b.left >= start - 1 && b.right <= end + 1 && (k === 0 || boxes[k - 1].right + GAP <= b.left));
+        const fits = boxes.every((b, k) => b.left >= start - 1 && b.right <= end + 1 && (k === 0 || boxes[k - 1].right + VALUE_GAP <= b.left));
         if (fits) break;
       }
+      // Bare numbers get their unit once, at the start of the value row in the y gutter ("km 17.0 15.7 …").
+      const unit = el.closest(".chart-touch")?.querySelector<HTMLElement>("[data-value-unit]");
+      unit?.classList.toggle("hidden", !labels[0].querySelector('[data-value="bare"]:not(.hidden)'));
     };
     layout();
     const observer = new ResizeObserver(layout);

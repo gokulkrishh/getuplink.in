@@ -28,7 +28,7 @@ export function ChargeRange({ sessions, frame, serialOf }: { sessions: StreamCha
       title="Charge range"
       description={description}
       terms={["AC", "DC"]}
-      info="Each bar fills from the level a charge started at to where it stopped, on a scale from 0 to 100%. The typical start and end are the medians."
+      info="Each bar fills from the level a charge started at to where it stopped. The typical start and end are the medians."
       summary={
         <div className="space-y-2">
           <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
@@ -39,7 +39,7 @@ export function ChargeRange({ sessions, frame, serialOf }: { sessions: StreamCha
           </p>
         </div>
       }
-      caption={`${frame.title}. Latest ${latest.length === 1 ? "charge" : `${latest.length} charges`}, newest first.`}
+      caption={`${frame.title}, latest ${latest.length === 1 ? "charge" : `${latest.length} charges`}, newest first`}
     >
       <div>
         <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] border-b pb-2 text-xs text-faint" aria-hidden="true">

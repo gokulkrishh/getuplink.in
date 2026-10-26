@@ -45,7 +45,7 @@ export function StackedBars({
   const box = useRef<HTMLDivElement>(null);
   useAxisLabels(box, labelEvery);
   useValueLabels(box);
-  if (empty && !all.some((b) => b.total > 0)) return <EmptyChart caption={caption}>{empty}</EmptyChart>;
+  if (empty && !all.some((b) => b.total > 0 && !showsZero(kwh.format(b.total)))) return <EmptyChart caption={caption}>{empty}</EmptyChart>;
   const dense = all.length > 6;
   const used = series.map((s, i) => ({ ...s, i })).filter(({ i }) => all.some((b) => b.segments[i] > 0));
   const shownTotal = (b: StackedBar) => b.segments.reduce((sum, v, i) => sum + (hidden.has(i) ? 0 : v), 0);
