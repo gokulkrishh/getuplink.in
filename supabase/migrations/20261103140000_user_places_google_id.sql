@@ -7,7 +7,7 @@
 -- stay read-only (the sheet checks for the column), and saving a Google place says it isn't ready yet.
 
 alter table public.user_places
-  add column google_place_id text check (google_place_id ~ '^[A-Za-z0-9_-]{10,1000}$');
+  add column google_place_id text check (google_place_id ~ '^[A-Za-z0-9_-]+$' and length(google_place_id) between 10 and 1000);
 
 alter table public.user_places alter column name drop not null;
 

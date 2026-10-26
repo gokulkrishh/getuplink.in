@@ -3,7 +3,6 @@ import type { Owner } from "./data/owner";
 import type { MapPin } from "@/components/stats/trip-map";
 import { chargeName, chargeSpot, chargeType, mapName, type SpotName, spotName } from "@/lib/charge-names";
 
-import { withGoogleNamesBy } from "./google-place-names";
 import { loadUserPlaces } from "./user-places";
 import { matchSessions } from "@/lib/charge-sessions";
 import { formatClock, formatKwh, formatShortDate } from "@/lib/format";
@@ -72,8 +71,9 @@ async function locateAndName(owner: Owner, vin: string, sessions: StreamChargeSe
 // The names of the given charges' spots by session id, for a list of them (the home page's).
 export async function loadChargeSpots(owner: Owner, vin: string | null, sessions: StreamChargeSession[], sources: NameSources): Promise<Record<number, SpotName>> {
   if (!vin || sessions.length === 0) return {};
-  // Shown only as list rows, so a Google-tagged spot's live name is added (credited in SessionRow).
-  return withGoogleNamesBy(Object.fromEntries((await locateAndName(owner, vin, sessions, sources)).named));
+  // Google-free on purpose: the home page refreshes every minute while the car is awake or charging, and a
+  // live Google name there would cost a Place Details call per refresh. A Google-tagged spot shows its area.
+  return Object.fromEntries((await locateAndName(owner, vin, sessions, sources)).named);
 }
 
 // What the charging page adds from the stream: the latest CURVES DC charges as power against battery level

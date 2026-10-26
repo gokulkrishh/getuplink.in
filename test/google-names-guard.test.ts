@@ -17,6 +17,12 @@ describe("Google place names stay off the map and out of exports", () => {
     expect(read("lib/server/mcp-data.ts")).not.toMatch(GOOGLE_NAME);
   });
 
+  // The home page refreshes every minute while the car is awake or charging; a live name there would be a
+  // Place Details call per refresh. Its loaders (and the shared charging loader) stay Google-free.
+  test("the auto-refreshing home page never asks Google for a name", () => {
+    for (const path of ["lib/server/home.ts", "lib/server/charging-extra.ts", "app/page.tsx"]) expect(read(path)).not.toMatch(GOOGLE_NAME);
+  });
+
   test("pins take their names through mapName", () => {
     expect(read("lib/server/day.ts")).toContain("mapName(spot)");
     expect(read("lib/server/charging-extra.ts")).toContain("mapName(named.get(s.id))");

@@ -21,7 +21,7 @@ The car's own Home, Work and Favourite flags aren't names. They sit beside the n
 - `name`: never Google's. A typed tag, or, for a Google tag, whatever comes next in the order above (usually the area). Map pins, their labels and tooltips, the trip map's facts card, charts, the MCP export and the curves' labels read only this, through `mapName`.
 - `google`: a picked Google place's name, fetched live (`withGoogleNames`), or null. Only rows, lists, titles and the sheet read it (`shownName`), each with "Google Maps" beside it.
 
-Where `google` shows: the Places table on Driving, the charging lists (home and Charging), the parked stretches on Battery, the day page's charges and a charge's own title. Where it never shows: any MapLibre/CARTO map, its pins and tooltips, the facts card under a trip's map (it is part of the map), chart labels, and the MCP export.
+Where `google` shows: the Places table on Driving, the charging list on Charging, the parked stretches on Battery, the day page's charges and a charge's own title. Where it never shows: any MapLibre/CARTO map, its pins and tooltips, the facts card under a trip's map (it is part of the map), chart labels, the MCP export, and the home page's charging list (the home page refreshes every minute while the car is awake or charging, which would make a Place Details call each time). Those show the next name, usually the area.
 
 ### The sheet's trigger
 
@@ -104,7 +104,7 @@ From [India pricing](https://developers.google.com/maps/billing-and-pricing/indi
 Expected calls for one car:
 
 - Sheet opens: one Nearby Search Pro and one Geocoding call each, plus one Place Details Pro for a Google tag. Say 30 opens a month.
-- Live names: one Place Details Pro call per Google-tagged place per page view that shows it (the Places table, a charging list, parked stretches, a day, a charge). An owner with 5 Google places who opens those pages 10 times a day is about 5 × 10 × 30 = 1,500 calls a month, if every view shows all five. Coming back to a page within 60 seconds reuses the browser's copy.
+- Live names: one Place Details Pro call per Google-tagged place per page view that shows it (the Places table, the Charging list, parked stretches, a day, a charge). None of these pages auto-refresh; the home page, which does, never asks. An owner with 5 Google places who opens those pages 10 times a day is about 5 × 10 × 30 = 1,500 calls a month, if every view shows all five. Coming back to a page within 60 seconds reuses the browser's copy.
 - 20 such owners would be about 30,000 Place Details Pro calls a month, inside the 35,000 free. Past that, each 1,000 costs $5.10. Admin > Costs shows the month's count; Google's billing page is the source of truth.
 
 ## OpenStreetMap
