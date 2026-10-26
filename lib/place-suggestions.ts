@@ -1,14 +1,17 @@
 // Suggestions for "Name this place", and the parsers for Google's and Nominatim's replies. Pure, so
 // tested with fixtures; lib/server/place-suggestions.ts makes the calls.
 //
-// Google's are hints only: shown read-only with its attribution, never copied into a name (its terms
-// forbid saving its names). OpenStreetMap's (a station from lib/station-data.ts, or the area name) can be
-// tapped to fill the field, with the ODbL credit. See docs/place-names.md.
+// Google's are never copied into the name field (its terms forbid saving its names). A Google place from
+// Nearby Search carries its place ID, and tapping it saves only that ID. The street address from
+// Geocoding has none and stays read-only. OpenStreetMap's (a station from lib/station-data.ts, or the
+// area name) fill the field with a tap, with the ODbL credit. See docs/place-names.md.
 export type SuggestionSource = "google" | "station" | "area";
-export type Suggestion = { name: string; detail: string | null; source: SuggestionSource };
-// hints: Google's, shown read-only. picks: OpenStreetMap's, which a tap copies into the field.
-export type Suggestions = { hints: Suggestion[]; picks: Suggestion[] };
-export const NO_SUGGESTIONS: Suggestions = { hints: [], picks: [] };
+export type Suggestion = { name: string; detail: string | null; source: SuggestionSource; placeId?: string };
+// hints: Google's, with "Google Maps" beside them. picks: OpenStreetMap's, which a tap copies into the
+// field. tappable: whether a Google place can be saved by its ID yet (the column exists). current: the
+// live Google name of the place this tag already is, for a rename.
+export type Suggestions = { hints: Suggestion[]; picks: Suggestion[]; tappable: boolean; current: string | null };
+export const NO_SUGGESTIONS: Suggestions = { hints: [], picks: [], tappable: false, current: null };
 
 const text = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null);
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -23,9 +26,9 @@ export function typeWords(type: unknown): string | null {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-// Places API (New) Nearby Search: places[] with displayName.text, primaryType and types (the field mask
-// in lib/server/place-suggestions.ts). Charging stations first, then the rest in Google's order (nearest
-// first, by rankPreference DISTANCE).
+// Places API (New) Nearby Search: places[] with id, displayName.text, primaryType and types (the field
+// mask in lib/server/place-suggestions.ts). Charging stations first, then the rest in Google's order
+// (nearest first, by rankPreference DISTANCE).
 export function parseNearby(body: unknown): Suggestion[] {
   const places = isRecord(body) && Array.isArray(body.places) ? body.places : [];
   const out: (Suggestion & { charging: boolean })[] = [];
@@ -34,7 +37,8 @@ export function parseNearby(body: unknown): Suggestion[] {
     const name = text(isRecord(p.displayName) ? p.displayName.text : null);
     if (!name) continue;
     const charging = p.primaryType === CHARGING || (Array.isArray(p.types) && p.types.includes(CHARGING));
-    out.push({ name, detail: charging ? "Charging station" : typeWords(p.primaryType), source: "google", charging });
+    const id = text(p.id);
+    out.push({ name, detail: charging ? "Charging station" : typeWords(p.primaryType), source: "google", ...(id ? { placeId: id } : {}), charging });
   }
   return [...out.filter((p) => p.charging), ...out.filter((p) => !p.charging)].map(({ charging: _, ...s }) => s);
 }

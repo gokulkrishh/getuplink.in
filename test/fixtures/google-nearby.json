@@ -1,11 +1,13 @@
 {
   "places": [
     {
+      "id": "ChIJmadeUpOrchardMarket01",
       "types": ["shopping_mall", "point_of_interest", "establishment"],
       "primaryType": "shopping_mall",
       "displayName": { "text": "Orchard Lane Market", "languageCode": "en" }
     },
     {
+      "id": "ChIJmadeUpBrightwellHub01",
       "types": ["electric_vehicle_charging_station", "point_of_interest", "establishment"],
       "primaryType": "electric_vehicle_charging_station",
       "displayName": { "text": "Brightwell Charging Hub", "languageCode": "en" }

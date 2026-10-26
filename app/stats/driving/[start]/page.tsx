@@ -16,7 +16,7 @@ import { type DriveDetail, loadDriveDetail } from "@/lib/server/drive-detail";
 import { placeKey, placeNames } from "@/lib/server/place-names";
 import { loadUserPlaces } from "@/lib/server/user-places";
 import { NamePlace } from "@/components/name-place";
-import { needsName, type SpotName, spotName } from "@/lib/charge-names";
+import { nameAction, type SpotName, spotName } from "@/lib/charge-names";
 import { stationAt } from "@/lib/stations";
 import type { UserPlace } from "@/lib/user-places";
 import { Measure } from "@/components/measure";
@@ -198,11 +198,12 @@ function mapPins(pins: MapPin[], legs: DriveDetail["trip"]["legs"]): MapPin[] {
 }
 
 // The trip's facts under its map, from the tiles above, with where it began and ended when known. They sit
-// on the map's card, each end with its best name (see spotName), and "Name this place" or a
-// rename beside it.
+// on the map's card, each end with its best name (see spotName), and "Name this place" or the pencil
+// beside it. Being part of the map, they never show a Google name: a Google-tagged end shows its area.
 function endFact(label: string, end: SpotName | null): MapFact | null {
   if (!end) return null;
-  const action = needsName(end.name) ? <NamePlace target={end.target} /> : end.target.tag ? <NamePlace target={end.target} compact /> : undefined;
+  const kind = nameAction(end);
+  const action = kind ? <NamePlace target={end.target} compact={kind === "rename"} /> : undefined;
   if (!end.name && !action) return null;
   return { label, value: end.name?.text ?? "Unknown", extra: action };
 }

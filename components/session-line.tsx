@@ -2,6 +2,7 @@
 
 import { Download } from "lucide-react";
 import Link from "next/link";
+import { GoogleMapsCredit } from "@/components/google-maps-credit";
 import { Measure } from "@/components/measure";
 import { Tip } from "@/components/tip";
 import { buttonVariants } from "@/components/ui/button";
@@ -16,6 +17,8 @@ export type SessionView = {
   clock: string;
   href: string | null;
   place: string;
+  // The place is a Google Maps name: credited beside it.
+  google?: boolean;
   detail: string;
   energy: string | null;
   // Only lists with a Cost column have this; null for a row without a cost.
@@ -31,14 +34,18 @@ export function SessionLine({ view }: { view: SessionView }) {
         <p className="text-xs text-faint tabular-nums">{view.clock}</p>
       </div>
       <div className="min-w-0 space-y-1">
-        <p className="truncate font-medium">
-          {view.href ? (
-            <Link href={view.href} className="outline-none after:absolute after:inset-0">
-              {view.place}
-            </Link>
-          ) : (
-            view.place
-          )}
+        {/* The name truncates; the credit beside a Google name never does. */}
+        <p className="flex min-w-0 items-baseline gap-1.5 font-medium">
+          <span className="min-w-0 truncate">
+            {view.href ? (
+              <Link href={view.href} className="outline-none after:absolute after:inset-0">
+                {view.place}
+              </Link>
+            ) : (
+              view.place
+            )}
+          </span>
+          {view.google && <GoogleMapsCredit className="shrink-0" />}
         </p>
         <p className="truncate text-xs text-muted-foreground">{view.detail}</p>
       </div>

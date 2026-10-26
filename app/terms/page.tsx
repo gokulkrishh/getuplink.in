@@ -71,7 +71,7 @@ const SECTIONS: { title: string; body: ReactNode }[] = [
     title: "Google Maps",
     body: (
       <>
-        Name this place shows hints from Google Maps. Their use is subject to the{" "}
+        Name this place shows places from Google Maps, and a place you pick shows its Google Maps name. Their use is subject to the{" "}
         <Out href="https://maps.google.com/help/terms_maps/">Google Maps Additional Terms of Service</Out> and the{" "}
         <Out href="https://policies.google.com/privacy">Google Privacy Policy</Out>.
       </>

@@ -1,8 +1,9 @@
 import "server-only";
 import type { Owner } from "./data/owner";
 import type { MapPin } from "@/components/stats/trip-map";
-import { chargeName, chargeSpot, chargeType, type SpotName, spotName } from "@/lib/charge-names";
+import { chargeName, chargeSpot, chargeType, mapName, type SpotName, spotName } from "@/lib/charge-names";
 
+import { withGoogleNamesBy } from "./google-place-names";
 import { loadUserPlaces } from "./user-places";
 import { matchSessions } from "@/lib/charge-sessions";
 import { formatClock, formatKwh, formatShortDate } from "@/lib/format";
@@ -71,7 +72,8 @@ async function locateAndName(owner: Owner, vin: string, sessions: StreamChargeSe
 // The names of the given charges' spots by session id, for a list of them (the home page's).
 export async function loadChargeSpots(owner: Owner, vin: string | null, sessions: StreamChargeSession[], sources: NameSources): Promise<Record<number, SpotName>> {
   if (!vin || sessions.length === 0) return {};
-  return Object.fromEntries((await locateAndName(owner, vin, sessions, sources)).named);
+  // Shown only as list rows, so a Google-tagged spot's live name is added (credited in SessionRow).
+  return withGoogleNamesBy(Object.fromEntries((await locateAndName(owner, vin, sessions, sources)).named));
 }
 
 // What the charging page adds from the stream: the latest CURVES DC charges as power against battery level
@@ -108,7 +110,7 @@ export async function loadChargingExtras(owner: Owner, vin: string | null, sessi
   ]);
   const pins = located.map(({ s, t, lat, lng }): MapPin => {
     const kwh = s.energy_added_kwh ?? 0;
-    const name = named.get(s.id)?.name?.text ?? null;
+    const name = mapName(named.get(s.id));
     return {
       lat,
       lng,

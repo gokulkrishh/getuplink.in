@@ -99,12 +99,12 @@ Tesla's third-party page also says the shared data is governed by the app's own 
 | Requirement | Section | How the pages meet it |
 | --- | --- | --- |
 | The app's terms of service say it includes Google Maps features and content, and that their use is subject to the Google Maps Additional Terms and the Google Privacy Policy | GMP terms 3.2.2(a) | Terms: Google Maps, linking https://maps.google.com/help/terms_maps/ and https://policies.google.com/privacy. **This was missing.** |
-| Attribution as Google provides it, not modified or hidden | 3.2.2(b) | "Google Maps" under the hints (see `docs/place-names.md`). |
+| Attribution as Google provides it, not modified or hidden | 3.2.2(b) | "Google Maps" under the sheet's Google places and beside every Google name in a row or title, at Google's text size and colours (see `docs/place-names.md`). |
 | Google receives search terms, IP addresses and coordinates, and may use and keep them under its Privacy Policy | 4.4(a) | Privacy: Who else gets it (Google gets the spot's coordinates, under Google's Privacy Policy). |
 | Comply with privacy and cookie laws | 4.4(c)(i) | Google is called only from the server, so no Google cookies reach the browser. |
 | Don't give Google an End User's personally identifiable information | 4.4(c)(ii) | Only coordinates are sent, with no account or VIN. See Ask a lawyer. |
-| Tell users in advance what's collected, and about combining location with another provider's data; don't obtain or cache a user's location without express, prior, revocable consent | 4.4(c)(iii) | Hints are asked for only when the owner opens Name this place, for that one spot. Nothing from Google is cached. The location is the car's, consented through Tesla's scope. |
-| No Google content on a non-Google map; no scraping or caching | Service terms 6.2, 14.2; GMP 3.2.3 | Covered in `docs/place-names.md`, unchanged. |
+| Tell users in advance what's collected, and about combining location with another provider's data; don't obtain or cache a user's location without express, prior, revocable consent | 4.4(c)(iii) | Suggestions are asked for only when the owner opens Name this place, for that one spot. Only the place ID of a place the owner picks is stored; its name is fetched live. The location is the car's, consented through Tesla's scope. |
+| No Google content on a non-Google map; no scraping or caching | Service terms 6.2, 14.2; GMP 3.2.3 | Covered in `docs/place-names.md` (updated 26 Oct 2026 for picked places: ID only, names live, never on a map). |
 
 ## Consumer Protection (E-Commerce) Rules, 2020
 
