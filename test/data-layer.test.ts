@@ -171,14 +171,20 @@ describe("Delete account", () => {
 });
 
 describe("fleet-wide reads", () => {
-  test("the crons check approved users, except one who disconnected", async () => {
+  test("the crons check approved users with tokens, except one who disconnected", async () => {
     fake.rows("users").push(
       { id: 3, tesla_sub: "tesla-c", status: "waitlist" },
-      { id: 4, tesla_sub: "tesla-d", status: "approved" }, // no token row yet
+      { id: 4, tesla_sub: "tesla-d", status: "approved" }, // approved from the waitlist, not signed in yet
       { id: 5, tesla_sub: "tesla-e", status: "suspended" },
     );
     fake.rows("user_tokens")[1].access_token_enc = null;
-    expect((await system.accountOwners()).map((o) => o.userId)).toEqual([1, 4]);
+    expect((await system.accountOwners()).map((o) => o.userId)).toEqual([1]);
+  });
+
+  test("before the cutover, the old single owner is checked with no token row, so the check copies it", async () => {
+    fake.tables.user_tokens = fake.rows("user_tokens").filter((r) => r.user_id !== 1);
+    fake.rows("users").push({ id: 4, tesla_sub: "tesla-d", status: "approved" });
+    expect((await system.accountOwners()).map((o) => o.userId)).toEqual([1, 2]);
   });
 
   test("a connector token opens only its own approved user", async () => {

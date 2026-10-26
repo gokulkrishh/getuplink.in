@@ -3,20 +3,24 @@ import { cache } from "react";
 import { DEMO } from "@/lib/demo";
 import { decrypt, encrypt } from "./crypto";
 import { demoData } from "./demo";
-import { env, fleetApiBase } from "./env";
+import { env, fleetApiBase, signupMode } from "./env";
 import { eraseOwnerRows } from "./data/erase";
 import { type Owner, ownerDb } from "./data/owner";
 import {
   APPROVED,
   claimLegacyLease,
+  DECLINED,
   deleteUser,
+  joinWaitlist,
   legacyTokens,
   ownerOf,
   releaseLegacyLease,
   retireLegacyTokens,
   revokeUserSessions,
+  SUSPENDED,
   userById,
   userBySub,
+  WAITLIST,
 } from "./data/system";
 
 export const AUTHORIZE_URL = "https://auth.tesla.com/oauth2/v3/authorize";
@@ -105,13 +109,31 @@ function idTokenSubject(idToken: string | undefined): string {
   return sub;
 }
 
-// The user to start a session for, or "not-owner" for a Tesla account that can't sign in.
-export type SignInResult = { userId: number } | "not-owner";
+// The user to start a session for, or why there is none:
+// - "not-owner": sign-up is closed and Uplink doesn't know this Tesla account;
+// - "waitlist": on the waitlist (just joined, or still waiting);
+// - "not-approved": declined or suspended;
+// - "region": not an account the APAC Fleet API serves, so it can't join.
+export type SignInResult = { userId: number } | "not-owner" | "waitlist" | "not-approved" | "region";
+
+// Whether Tesla serves this account from the Fleet API Uplink uses (TESLA_FLEET_API_BASE_URL, the
+// North America and Asia-Pacific one): /api/1/users/region names the account's base URL. Tesla gives
+// North America and Asia-Pacific the same one, so this refuses Europe, the Middle East, Africa and China,
+// not North America. Throws when Tesla doesn't answer: a sign-up then fails rather than joining unchecked.
+async function servedRegion(accessToken: string): Promise<boolean> {
+  const res = await fetch(`${fleetApiBase()}/api/1/users/region`, { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
+  if (!res.ok) throw new TeslaError(`GET /api/1/users/region failed (${res.status})`, res.status);
+  const body = (await res.json().catch(() => null)) as { response?: { fleet_api_base_url?: unknown } | null } | null;
+  const base = body?.response?.fleet_api_base_url;
+  if (typeof base !== "string" || !base) throw new TeslaError("Tesla's region answer had no base URL", res.status);
+  return base.replace(/\/$/, "") === fleetApiBase();
+}
 
 // Sign in with Tesla doubles as the dashboard login. Only a Tesla account with an approved users row signs
-// in. With sign-up closed (SIGNUP_MODE, see signupMode in ./env; waitlist and open come with step 6)
-// anyone else is refused, a waitlisted account included, and nothing of theirs is stored: not a users
-// row, not their Tesla tokens.
+// in, and only then are its Tesla tokens stored. Anyone else gets no session and no stored tokens: the
+// pair Tesla just issued is used at most once, for the region check, and dropped.
+// A Tesla account Uplink doesn't know joins the waitlist when SIGNUP_MODE is waitlist (or open, for now;
+// see signupMode): a users row with its Tesla account id and the time, nothing else.
 export async function signIn(code: string): Promise<SignInResult> {
   const tokens = await tokenRequest({
     grant_type: "authorization_code",
@@ -123,7 +145,15 @@ export async function signIn(code: string): Promise<SignInResult> {
   });
   const sub = idTokenSubject(tokens.id_token);
   const user = await userBySub(sub);
-  if (user?.status !== APPROVED) return "not-owner";
+  if (user?.status === WAITLIST) return "waitlist";
+  if (user?.status === DECLINED || user?.status === SUSPENDED) return "not-approved";
+  if (!user) {
+    if (signupMode() === "closed") return "not-owner";
+    if (!(await servedRegion(tokens.access_token))) return "region";
+    await joinWaitlist(sub);
+    return "waitlist";
+  }
+  if (user.status !== APPROVED) return "not-approved";
   const owner = ownerOf(user);
   // Replaces whatever pair was stored, disconnected or not: a sign-in always wins, including over a
   // cutover copy in flight (which never overwrites, see adoptLegacyTokens).

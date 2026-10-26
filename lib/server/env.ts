@@ -1,5 +1,5 @@
 import "server-only";
-import { parseAdminAccounts } from "@/lib/admin";
+import { parseMaxUsers } from "@/lib/admin";
 
 export const FLEET_API_DEFAULT = "https://fleet-api.prd.na.vn.cloud.tesla.com";
 
@@ -30,18 +30,17 @@ export function missingEnv(): string[] {
   ].filter((name) => !process.env[name]);
 }
 
-// Optional, so not in missingEnv: ADMIN_ACCOUNTS lists the Tesla accounts (users.tesla_sub) that can open
-// /admin, comma-separated. Unset, /admin is a 404 for everyone.
-export function adminAccounts(): Set<string> {
-  return parseAdminAccounts(process.env.ADMIN_ACCOUNTS);
+// Optional: MAX_USERS caps approved accounts, admins included (default 25). Approving past it is refused.
+export function maxUsers(): number {
+  return parseMaxUsers(process.env.MAX_USERS);
 }
 
 export const SIGNUP_MODES = ["closed", "waitlist", "open"] as const;
 export type SignupMode = (typeof SIGNUP_MODES)[number];
 
-// Optional: SIGNUP_MODE says who may sign up. Unset or unknown is "closed": only approved users sign in
-// (lib/server/tesla.ts signIn). Nothing reads "waitlist" or "open" yet; step 6 of docs/signup-plan.md
-// wires them.
+// Optional: SIGNUP_MODE says who may sign up (lib/server/tesla.ts signIn). Unset or unknown is "closed":
+// only approved users sign in. "waitlist": a Tesla account Uplink doesn't know joins the waitlist. "open"
+// acts as "waitlist" for now: auto-approval waits for step 4, until which two users can't track one car.
 export function signupMode(): SignupMode {
   const value = process.env.SIGNUP_MODE?.trim().toLowerCase();
   return SIGNUP_MODES.find((mode) => mode === value) ?? "closed";

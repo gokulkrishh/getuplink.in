@@ -43,6 +43,7 @@ class FakeQuery {
   private ignoreDuplicates = false;
   private filters: Filter[] = [];
   private max: number | null = null;
+  private sort: { column: string; ascending: boolean } | null = null;
   constructor(
     private db: FakeDb,
     private table: string,
@@ -75,6 +76,11 @@ class FakeQuery {
     this.filters.push([`${column} = ${value}`, (r) => r[column] === value]);
     return this;
   }
+  // A missing column reads as not equal, like a column default other than the value.
+  neq(column: string, value: unknown) {
+    this.filters.push([`${column} <> ${value}`, (r) => r[column] !== value]);
+    return this;
+  }
   in(column: string, values: unknown[]) {
     this.filters.push([`${column} in (${values.join(",")})`, (r) => values.includes(r[column])]);
     return this;
@@ -101,7 +107,8 @@ class FakeQuery {
     this.filters.push([`(${expression})`, (r) => parts.some((p) => p(r))]);
     return this;
   }
-  order() {
+  order(column?: string, options?: { ascending?: boolean }) {
+    if (column) this.sort = { column, ascending: options?.ascending !== false };
     return this;
   }
   range() {
@@ -137,6 +144,12 @@ class FakeQuery {
       return { data: out, error: null };
     }
     let matched = all.filter(hit);
+    if (this.sort) {
+      const { column, ascending } = this.sort;
+      // Numbers and ISO times both compare in order with < and >.
+      const key = (r: Row) => r[column] as number | string;
+      matched = [...matched].sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0) * (ascending ? 1 : -1));
+    }
     if (this.max !== null) matched = matched.slice(0, this.max);
     if (this.op === "delete") this.db.tables[this.table] = all.filter((r) => !matched.includes(r));
     if (this.op === "update") for (const r of matched) Object.assign(r, this.patch);

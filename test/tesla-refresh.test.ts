@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Owner } from "@/lib/server/data/owner";
 import { FakeDb } from "./fake-db";
 
@@ -19,6 +19,11 @@ const tesla = {
 };
 
 let fake: FakeDb;
+
+// What /api/1/users/region answers for the account signing in (null: Tesla fails), and how often it's asked.
+const FLEET_NA_APAC = "https://fleet-api.prd.na.vn.cloud.tesla.com";
+let region: string | null = FLEET_NA_APAC;
+let regionAsked = 0;
 
 mock.module("server-only", () => ({}));
 mock.module("@/lib/server/supabase", () => ({ db: () => fake.client() }));
@@ -51,6 +56,11 @@ const fakeFetch = (async (input: string | URL | Request, init?: RequestInit) => 
     return Response.json(tesla.issue());
   }
   const bearer = new Headers(init?.headers).get("Authorization")?.replace("Bearer ", "");
+  if (url.endsWith("/api/1/users/region")) {
+    regionAsked++;
+    if (!bearer || !tesla.access.has(bearer) || region === null) return new Response("unavailable", { status: 503 });
+    return Response.json({ response: { region: "na", fleet_api_base_url: region } });
+  }
   return bearer && tesla.access.has(bearer) ? Response.json({ response: "ok" }) : new Response("unauthorized", { status: 401 });
 }) as typeof fetch;
 
@@ -66,7 +76,8 @@ function users() {
   return [
     { id: 1, tesla_sub: "owner", status: "approved", sessions_valid_after: "-infinity", created_at: "2026-10-01T00:00:00Z" },
     { id: 2, tesla_sub: "other", status: "approved", sessions_valid_after: "-infinity", created_at: "2026-10-02T00:00:00Z" },
-    { id: 3, tesla_sub: "waiting", status: "waitlist", email: "w@example.com", sessions_valid_after: "-infinity", created_at: "2026-10-03T00:00:00Z" },
+    { id: 3, tesla_sub: "waiting", status: "waitlist", sessions_valid_after: "-infinity", created_at: "2026-10-03T00:00:00Z" },
+    { id: 4, tesla_sub: "declined", status: "declined", sessions_valid_after: "-infinity", created_at: "2026-10-04T00:00:00Z" },
   ];
 }
 
@@ -230,6 +241,8 @@ describe("token cutover", () => {
   });
 });
 
+const oauthRow = () => fake.rows("oauth_tokens")[0];
+
 describe("sign-in with sign-up closed", () => {
   beforeEach(() => {
     fake = new FakeDb({ users: users(), user_tokens: [], oauth_tokens: [{ provider: "tesla", owner_sub: "owner", access_token_enc: null, refresh_token_enc: null }] });
@@ -242,14 +255,67 @@ describe("sign-in with sign-up closed", () => {
 
   test("an unknown Tesla account is refused and nothing of it is stored", async () => {
     expect(await signIn("stranger")).toBe("not-owner");
-    expect(fake.rows("users")).toHaveLength(3);
+    expect(fake.rows("users")).toHaveLength(4);
+    expect(fake.rows("user_tokens")).toEqual([]);
+    expect(regionAsked).toBe(0);
+  });
+
+  test("a waitlisted account is told it's waiting; declined and suspended ones are not approved; none stores tokens", async () => {
+    fake.rows("users")[1].status = "suspended";
+    expect(await signIn("waiting")).toBe("waitlist");
+    expect(await signIn("declined")).toBe("not-approved");
+    expect(await signIn("other")).toBe("not-approved");
+    expect(fake.rows("user_tokens")).toEqual([]);
+    expect(oauthRow().owner_sub).toBe("owner"); // and the old owner's row untouched
+  });
+});
+
+describe("sign-in with SIGNUP_MODE=waitlist", () => {
+  beforeEach(() => {
+    process.env.SIGNUP_MODE = "waitlist";
+    region = FLEET_NA_APAC;
+    regionAsked = 0;
+    fake = new FakeDb({ users: users(), user_tokens: [], oauth_tokens: [{ provider: "tesla", owner_sub: "owner", access_token_enc: null, refresh_token_enc: null }] });
+  });
+  afterEach(() => {
+    delete process.env.SIGNUP_MODE;
+  });
+
+  const row = (sub: string) => fake.rows("users").find((r) => r.tesla_sub === sub);
+
+  test("an unknown account joins the waitlist with its Tesla id and nothing else, and stores no tokens", async () => {
+    expect(await signIn("newcomer")).toBe("waitlist");
+    expect(Object.keys(row("newcomer")!).sort()).toEqual(["status", "tesla_sub"]);
+    expect(row("newcomer")!.status).toBe("waitlist");
+    expect(fake.rows("user_tokens")).toEqual([]);
+    expect(oauthRow().access_token_enc).toBeNull();
+    expect(regionAsked).toBe(1);
+  });
+
+  test("signing in again keeps its place and still stores nothing", async () => {
+    expect(await signIn("waiting")).toBe("waitlist");
+    expect(fake.rows("users").filter((r) => r.tesla_sub === "waiting")).toEqual([expect.objectContaining({ id: 3, created_at: "2026-10-03T00:00:00Z" })]);
+    expect(regionAsked).toBe(0); // only a new request is region-checked
     expect(fake.rows("user_tokens")).toEqual([]);
   });
 
-  test("a waitlisted or suspended account is refused and stores no Tesla tokens", async () => {
-    fake.rows("users")[1].status = "suspended";
-    expect(await signIn("waiting")).toBe("not-owner");
-    expect(await signIn("other")).toBe("not-owner");
+  test("an account outside the APAC Fleet API region is refused and not stored", async () => {
+    region = "https://fleet-api.prd.eu.vn.cloud.tesla.com";
+    expect(await signIn("newcomer")).toBe("region");
+    expect(row("newcomer")).toBeUndefined();
     expect(fake.rows("user_tokens")).toEqual([]);
+  });
+
+  test("no answer from Tesla's region check fails the sign-in rather than letting it join", async () => {
+    region = null;
+    await expect(signIn("newcomer")).rejects.toThrow();
+    expect(row("newcomer")).toBeUndefined();
+  });
+
+  test("a declined account is still refused, and an approved one still signs in", async () => {
+    expect(await signIn("declined")).toBe("not-approved");
+    expect(row("declined")!.status).toBe("declined");
+    expect(await signIn("other")).toEqual({ userId: 2 });
+    expect(fake.rows("user_tokens")).toEqual([expect.objectContaining({ user_id: 2 })]);
   });
 });

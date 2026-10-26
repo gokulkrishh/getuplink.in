@@ -55,19 +55,86 @@ export async function deleteUser(owner: Owner): Promise<void> {
   check(await db().from("users").delete().eq("id", owner.userId));
 }
 
-// Whom the crons check: every approved user, except one who disconnected (a user_tokens row with no
-// tokens). An approved user with no user_tokens row yet is checked: for the owner at cutover, that first
-// check is what copies the tokens over (see lib/server/tesla.ts); for anyone else it fails with "not
-// connected", as a missing token always has.
+// Whom the crons check: every approved user with Tesla tokens. An approved user with no user_tokens row
+// yet is checked only if they are oauth_tokens' owner: that first check is what copies the tokens over at
+// cutover (see lib/server/tesla.ts). Anyone else approved from the waitlist has no tokens until they sign
+// in, so checking them would only fail every run with "not connected". A user who disconnected keeps an
+// empty row and isn't checked.
 export async function accountOwners(): Promise<Owner[]> {
-  const [users, disconnected] = await Promise.all([
+  const [users, rows, connected, legacy] = await Promise.all([
     db().from("users").select("id, tesla_sub").eq("status", APPROVED).order("id"),
-    db().from("user_tokens").select("user_id").is("access_token_enc", null),
+    db().from("user_tokens").select("user_id"),
+    db().from("user_tokens").select("user_id").not("access_token_enc", "is", null),
+    db().from("oauth_tokens").select("owner_sub").eq("provider", "tesla"),
   ]);
-  if (users.error) throw new Error(`Reading accounts failed: ${users.error.message}`);
-  if (disconnected.error) throw new Error(`Reading accounts failed: ${disconnected.error.message}`);
-  const off = new Set((disconnected.data ?? []).map((r) => Number(r.user_id)));
-  return (users.data ?? []).filter((u) => !off.has(Number(u.id))).map((u) => ownerOf(u as UserRow));
+  for (const result of [users, rows, connected]) {
+    if (result.error) throw new Error(`Reading accounts failed: ${result.error.message}`);
+  }
+  if (legacy.error && !MISSING_TABLE.includes(legacy.error.code)) throw new Error(`Reading accounts failed: ${legacy.error.message}`);
+  const ids = (list: { user_id: unknown }[] | null) => new Set((list ?? []).map((r) => Number(r.user_id)));
+  const hasRow = ids(rows.data);
+  const hasTokens = ids(connected.data);
+  const legacySubs = new Set((legacy.data ?? []).map((r) => r.owner_sub as string | null).filter(Boolean));
+  return (users.data ?? [])
+    .filter((u) => hasTokens.has(Number(u.id)) || (!hasRow.has(Number(u.id)) && legacySubs.has(u.tesla_sub as string)))
+    .map((u) => ownerOf(u as UserRow));
+}
+
+// ---- The waitlist and the admin role (step 6) ----
+
+export const WAITLIST = "waitlist";
+export const DECLINED = "declined";
+export const SUSPENDED = "suspended";
+export const ADMIN_ROLE = "admin";
+
+// The user's role, read fresh on every admin check (never cached). Null for no such user, and while the
+// role column doesn't exist yet (its migration not applied): then nobody is an admin.
+export async function userRole(id: number): Promise<string | null> {
+  const { data, error } = await db().from("users").select("role").eq("id", id).maybeSingle();
+  if (error) {
+    if (error.code === "42703" || error.code === "PGRST204") return null; // undefined column
+    throw new Error(`Reading account failed: ${error.message}`);
+  }
+  return (data?.role as string | undefined) ?? null;
+}
+
+// A Tesla login Uplink doesn't know asks to join: a users row with its Tesla account id and status
+// waitlist, nothing else (created_at is when it asked). A repeat changes nothing, so it keeps its place.
+export async function joinWaitlist(sub: string): Promise<void> {
+  check(await db().from("users").upsert({ tesla_sub: sub, status: WAITLIST }, { onConflict: "tesla_sub", ignoreDuplicates: true }));
+}
+
+export type AccountRow = { id: number; status: string; created_at: string; approved_at: string | null; updated_at: string };
+
+// Every account but the admins', for /admin/waitlist, oldest first: no Tesla ids, no names.
+export async function waitlistAccounts(): Promise<AccountRow[]> {
+  const rows = check(
+    await db().from("users").select("id, status, created_at, approved_at, updated_at").neq("role", ADMIN_ROLE).order("created_at", { ascending: true }),
+  ) as AccountRow[] | null;
+  return (rows ?? []).map((r) => ({ ...r, id: Number(r.id) }));
+}
+
+// Approved users, admins included: the places used against MAX_USERS.
+export async function approvedCount(): Promise<number> {
+  const { count, error } = await db().from("users").select("id", { count: "exact", head: true }).eq("status", APPROVED);
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+// Moves one account from one of the `from` states to `to`, never an admin's. True when it moved; false
+// when it isn't in one of those states (decided meanwhile) or doesn't exist.
+export async function moveAccount(id: number, from: string[], to: string): Promise<boolean> {
+  const now = new Date().toISOString();
+  const rows = check(
+    await db()
+      .from("users")
+      .update({ status: to, updated_at: now, ...(to === APPROVED ? { approved_at: now } : {}) })
+      .eq("id", id)
+      .in("status", from)
+      .neq("role", ADMIN_ROLE)
+      .select("id"),
+  ) as unknown[] | null;
+  return (rows?.length ?? 0) === 1;
 }
 
 // How many users exist, whatever their status. Admin's total.
