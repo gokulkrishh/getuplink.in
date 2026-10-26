@@ -5,7 +5,7 @@ import { type Bill, billsBySlot, billsIn, energyBySlot, energyIn } from "@/lib/c
 import { type Change, changeToPrevious, compareToPrevious } from "@/lib/dashboard-summary";
 import type { DrivingPeriod } from "@/lib/driving-figures";
 import { DECIMALS, formatDate, formatKm, formatKwh, formatMoney, formatNumber, formatShortDate, sumKnown } from "@/lib/format";
-import { type Slot, type Timeframe, trackingGap } from "@/lib/periods";
+import { fromTracking, type Slot, type Timeframe, trackingGap } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { barsCaption } from "@/components/stats/chart-caption";
@@ -140,15 +140,26 @@ export function Headline({
   // a month or a year by its label, which for hours is their whole span ("6 AM to 9 AM"); nothing for a
   // slot with nothing known.
   const slotTitle = (slot: Slot) => (frame.slotName === "day" ? formatShortDate(slot.from + 12 * 3_600_000) : slot.label);
+  // Each sparkline starts at its own data's first day (see fromTracking): driving at the first odometer
+  // reading, charging at the first session. `skip` is how many bars before it are left out of the drawing;
+  // nothing was read in them, so the number is the same.
+  const driveSkip = fromTracking(frame, since, now).skip;
+  const chargeSkip = fromTracking(frame, chargingSince, now).skip;
   // A cell's number and its sparkline's tips, from the same values: the number is the bars' raw sum (they
   // cover the span, so it is the span's figure), and each is rounded on its own when shown. With no bar
   // known, the span's own figure (`whole`) stands, or none.
-  const figure = (values: (number | null)[], whole: number | null, decimals: number, format: (n: number) => string): { value: number | null; spark: Spark } => {
+  const figure = (values: (number | null)[], whole: number | null, decimals: number, format: (n: number) => string, skip: number): { value: number | null; spark: Spark } => {
     const parts = upToNow(values);
     const known = parts.some((v) => v !== null);
+    const shown = parts.slice(skip);
     return {
       value: whole === null ? null : known ? sumKnown(parts) : whole,
-      spark: { kind: "bars", values: parts, current: currentSlot, tips: parts.map((v, k) => (v === null ? null : { title: slotTitle(slots[k]), value: format(v) })) },
+      spark: {
+        kind: "bars",
+        values: shown,
+        current: currentSlot < 0 ? -1 : currentSlot - skip,
+        tips: shown.map((v, k) => (v === null ? null : { title: slotTitle(slots[k + skip]), value: format(v) })),
+      },
     };
   };
   const driven = figure(
@@ -156,6 +167,7 @@ export function Headline({
     current.km,
     DECIMALS.km,
     formatKm,
+    driveSkip,
   );
   // Like the Driving page: no figure with no driving is nothing used, with driving it is unknown.
   const used = figure(
@@ -163,9 +175,10 @@ export function Headline({
     current.kwh,
     DECIMALS.kWh,
     formatKwh,
+    driveSkip,
   );
-  const added = figure(charged(energyBySlot(sessions, streamOnly, slots)), energy, DECIMALS.kWh, formatKwh);
-  const spent = figure(charged(billsBySlot(bills, slots)), spend, DECIMALS.money, money);
+  const added = figure(charged(energyBySlot(sessions, streamOnly, slots)), energy, DECIMALS.kWh, formatKwh, chargeSkip);
+  const spent = figure(charged(billsBySlot(bills, slots)), spend, DECIMALS.money, money, chargeSkip);
 
   // `lowerIsBetter` colours the delta and words the sentence better or worse: "₹171 worse than the 7 days before".
   // Nothing yet this period (no figure, or zero) has nothing to compare, so the delta stays blank. The change

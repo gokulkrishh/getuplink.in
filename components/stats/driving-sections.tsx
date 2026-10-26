@@ -132,14 +132,17 @@ const upper = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 const PHONE_DAYS = 30;
 
 // Kilometres per day for the last 90 days, from the streamed odometer, squeezed to fit the panel: all of
-// them on a wide screen, the last 30 on a phone. With `frame` (a range picked by date), only its days, and
-// a note when it starts before the kept days.
+// them on a wide screen, the last 30 on a phone. It starts at the first day with a reading, so four days
+// of tracking draw four bars, and says "since 23 Oct". With `frame` (a range picked by date), only its
+// days, and a note when it starts before the kept days.
 export function DailyDriving({ days: all, frame, partial = false }: { days: DayKm[]; frame?: Timeframe; partial?: boolean }) {
-  const days = frame ? all.filter((d) => inSpan(d.start, frame.span)) : all;
+  const inFrame = frame ? all.filter((d) => inSpan(d.start, frame.span)) : all;
+  const first = inFrame.findIndex((d) => d.km !== null);
+  const days = first < 0 ? [] : inFrame.slice(first);
   // One day of readings has nothing to compare against, so the section waits for a second.
   if (days.filter((d) => d.km !== null).length < 2) return null;
-  // The total line is the raw sum of the days it counts, the same days the bars show.
-  const total = sumKnown((frame ? days : days.slice(-PHONE_DAYS)).map((d) => d.km));
+  // Cut short at the first reading: the days start later than the window or the range does.
+  const since = first > 0 ? `since ${formatShortDate(days[0].start)}` : null;
   const bars = days.map((d, k) => ({
     key: String(d.day),
     label: formatShortDate(d.start),
@@ -149,9 +152,16 @@ export function DailyDriving({ days: all, frame, partial = false }: { days: DayK
     blank: d.km === null,
   }));
   const split = bars.length > PHONE_DAYS;
-  const span = (n: number) => (frame && n === days.length ? frame.words : `last ${n} days`);
+  // The words for every day drawn: "since 23 Oct" when cut short, the range's own words, or the window.
+  const whole = since ?? (frame ? frame.words : `last ${days.length} days`);
   // A picked range may end before today, so its phone bars are named by their own dates.
-  const phoneSpan = frame && split ? `${bars[bars.length - PHONE_DAYS].label} to ${bars[bars.length - 1].label}` : `last ${PHONE_DAYS} days`;
+  const phoneSpan = frame ? `${bars[bars.length - PHONE_DAYS]?.label} to ${bars[bars.length - 1].label}` : `last ${PHONE_DAYS} days`;
+  // Few days need little thinning: every label up to a week, every other up to two.
+  const every = (n: number) => (n <= 7 ? 1 : n <= 14 ? 2 : 7);
+  // The total line counts the same days the caption names, on a phone as on a wide screen: the raw sum
+  // of those days (see sumKnown).
+  const total = (list: DayKm[], words: string) =>
+    `${formatKm(sumKnown(list.map((d) => d.km)))} ${words.startsWith("last") ? `in the ${words}` : /^\d/.test(words) ? `from ${words}` : words}`;
   return (
     <ChartCard
       title="Driving per day"
@@ -160,7 +170,14 @@ export function DailyDriving({ days: all, frame, partial = false }: { days: DayK
       summary={
         <div className="space-y-1">
           <p className="text-sm text-muted-foreground tabular-nums">
-            {formatKm(total)} {frame ? frame.words : "in the last 30 days"}
+            {split ? (
+              <>
+                <span className="max-sm:hidden">{total(days, whole)}</span>
+                <span className="sm:hidden">{total(days.slice(-PHONE_DAYS), phoneSpan)}</span>
+              </>
+            ) : (
+              total(days, whole)
+            )}
           </p>
           {partial && <p className="text-xs text-faint">Days cover only the last {all.length} days.</p>}
         </div>
@@ -168,11 +185,11 @@ export function DailyDriving({ days: all, frame, partial = false }: { days: DayK
       caption={
         split ? (
           <>
-            <span className="max-sm:hidden">{upper(span(days.length))}</span>
+            <span className="max-sm:hidden">{upper(whole)}</span>
             <span className="sm:hidden">{upper(phoneSpan)}</span>
           </>
         ) : (
-          upper(span(days.length))
+          upper(whole)
         )
       }
     >
@@ -186,7 +203,7 @@ export function DailyDriving({ days: all, frame, partial = false }: { days: DayK
           </div>
         </>
       ) : (
-        <Bars bars={bars} ariaLabel="Distance per day" labelEvery={7} unit="km" fit />
+        <Bars bars={bars} ariaLabel="Distance per day" labelEvery={every(bars.length)} unit="km" fit />
       )}
     </ChartCard>
   );

@@ -88,11 +88,13 @@ describe("slotsFor", () => {
     expect(slots[6]).toMatchObject({ from: ist("2026-10-22T00:00:00"), to: ist("2026-10-23T00:00:00"), label: "Thu", isCurrent: true });
     expect(slots.filter((s) => s.isCurrent)).toHaveLength(1);
   });
-  test("month: the last 6 months, this one current", () => {
+  test("month: every day of this month, the rest of it ahead", () => {
     const slots = slotsFor("month", now);
-    expect(slots.map((s) => s.label)).toEqual(["May", "Jun", "Jul", "Aug", slots[4].label, "Oct"]);
-    expect(slots[0].from).toBe(ist("2026-05-01T00:00:00"));
-    expect(slots[5].isCurrent).toBe(true);
+    expect(slots).toHaveLength(31);
+    expect(slots[0]).toMatchObject({ from: ist("2026-10-01T00:00:00"), to: ist("2026-10-02T00:00:00") });
+    expect(slots[30].to).toBe(ist("2026-11-01T00:00:00"));
+    expect(slots.findIndex((s) => s.isCurrent)).toBe(21);
+    expect(slots.filter((s) => s.ahead)).toHaveLength(9);
   });
   test("year: January to December of this year", () => {
     const slots = slotsFor("year", now);
@@ -201,24 +203,17 @@ describe("trackingGap", () => {
 
 describe("the Day period", () => {
   const now = Date.parse("2026-10-23T14:00:00+05:30");
-  test("today from IST midnight, compared with all of yesterday, in 3-hour bars", () => {
+  test("today from IST midnight, compared with all of yesterday, in hourly bars", () => {
     expect(periodSpan("day", now).from).toBe(Date.parse("2026-10-23T00:00:00+05:30"));
     expect(previousSpan("day", now)).toEqual({ from: Date.parse("2026-10-22T00:00:00+05:30"), to: Date.parse("2026-10-23T00:00:00+05:30") });
     expect(previousLabel("day", now)).toBe("yesterday");
     const slots = slotsFor("day", now);
-    expect(slots.map((s) => s.label)).toEqual([
-      "12 AM to 3 AM",
-      "3 AM to 6 AM",
-      "6 AM to 9 AM",
-      "9 AM to 12 PM",
-      "12 PM to 3 PM",
-      "3 PM to 6 PM",
-      "6 PM to 9 PM",
-      "9 PM to 12 AM",
-    ]);
-    expect(slots.map((s) => s.axis)).toEqual(["12 AM", "3 AM", "6 AM", "9 AM", "12 PM", "3 PM", "6 PM", "9 PM"]);
+    expect(slots).toHaveLength(24);
+    expect(slots.slice(0, 3).map((s) => s.label)).toEqual(["12 AM to 1 AM", "1 AM to 2 AM", "2 AM to 3 AM"]);
+    expect(slots[7]).toMatchObject({ label: "7 AM to 8 AM", axis: "7 AM", from: ist("2026-10-23T07:00:00"), to: ist("2026-10-23T08:00:00") });
+    expect(slots[23].label).toBe("11 PM to 12 AM");
     expect(slots.every((s) => s.edge)).toBe(true);
-    expect(slots.find((s) => s.isCurrent)!.label).toBe("12 PM to 3 PM");
+    expect(slots.find((s) => s.isCurrent)!.label).toBe("2 PM to 3 PM");
   });
 });
 
@@ -249,8 +244,8 @@ describe("custom ranges", () => {
   });
   test("bars fit the range's length", () => {
     const slots = (from: string, to: string) => rangeSlots({ from: day(from), to: day(to) }, now);
-    expect(slots("2026-10-24", "2026-10-25").slots).toHaveLength(16);
-    expect(slots("2026-10-24", "2026-10-25").slotName).toBe("3 hours");
+    expect(slots("2026-10-24", "2026-10-25").slots).toHaveLength(48);
+    expect(slots("2026-10-24", "2026-10-25").slotName).toBe("hour");
     const days = slots("2026-09-26", "2026-10-25");
     expect(days.slots).toHaveLength(30);
     expect(days.labelEvery).toBe(7);

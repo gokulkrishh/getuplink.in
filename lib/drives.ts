@@ -5,7 +5,7 @@
 // when a drive starts or ends can be minutes old: taken mid-charge, or while still driving. levelAtStart and
 // levelAtEnd pick the readings that belong to the drive, and give none when no reading can be trusted.
 import { MILES_TO_KM } from "@/lib/car";
-import { median, num, type Reading } from "@/lib/telemetry-derive";
+import { istDay, istDayStart, median, num, type Reading } from "@/lib/telemetry-derive";
 
 const MIN = 60_000;
 const HOUR = 3_600_000;
@@ -31,7 +31,12 @@ export type Drive = {
   endLevel: number | null;
   rangeKm?: number | null; // rated range used
   chargedBefore?: boolean; // a charge ran between the previous drive and this one
+  // The drive's km in each IST hour it ran through, by the hour's start: the odometer's last reading
+  // before each hour boundary splits it, as the hourly bars read the counter. They add up to km.
+  hourKm?: HourKm[];
 };
+
+export type HourKm = { from: number; km: number };
 
 // One stretch parked, like TeslaMate's vampire drain table: what was lost and how hard the car worked.
 // kwh: EnergyRemaining at the start minus at the end; watts: that over the hours. awakeMs: time the car
@@ -168,6 +173,30 @@ function levels(points: Point[], trip: Trip, limit: number, charging: Charges): 
   return a && b && a.t < b.t ? [a.v, b.v] : null;
 }
 
+// The IST hour an instant falls in, by its start. Counted from the IST day's start: IST hours begin at
+// half past a UTC hour, so rounding the instant down to a whole hour would be 30 minutes off.
+export function istHourStart(t: number): number {
+  const dayStart = istDayStart(istDay(t));
+  return dayStart + Math.floor((t - dayStart) / HOUR) * HOUR;
+}
+
+// A drive's km in each IST hour from `start` to `until`, split at every hour boundary by the odometer's
+// last reading before it (as counter_values_at reads it), kept between the drive's own first and last
+// odometer values (miles) so the pieces add up to the drive's distance exactly.
+export function hourKm(odometer: Point[], start: number, until: number, odoStart: number, odoEnd: number): HourKm[] {
+  const pieces: HourKm[] = [];
+  let from = istHourStart(start);
+  let before = odoStart;
+  for (let boundary = from + HOUR; boundary <= until; boundary += HOUR) {
+    const at = Math.min(odoEnd, Math.max(before, valueAt(odometer, boundary - 1) ?? before));
+    pieces.push({ from, km: (at - before) * MILES_TO_KM });
+    before = at;
+    from = boundary;
+  }
+  pieces.push({ from, km: (odoEnd - before) * MILES_TO_KM });
+  return pieces.filter((p) => p.km > 0);
+}
+
 function describe(trip: Trip, nextStart: number, s: Series, charging: Charges): Drive | null {
   // The odometer is read up to a few minutes after the gear shows P, but never into the next drive.
   const settled = Math.min(trip.end + LOOKAHEAD_MS, nextStart - 1);
@@ -191,6 +220,7 @@ function describe(trip: Trip, nextStart: number, s: Series, charging: Charges): 
     start: trip.start,
     end: trip.end,
     km,
+    hourKm: hourKm(s.odometer, trip.start, settled, odoStart, odoEnd),
     kwh,
     whPerKm: kwh !== null && km >= 1 ? (kwh * 1000) / km : null,
     startLevel: battery?.[0] ?? null,

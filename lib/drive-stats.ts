@@ -1,6 +1,7 @@
 import { DRIVE_DAYS, type Drive } from "@/lib/drives";
 import { groupTrips } from "@/lib/trips";
 import type { DrivingFigure, DrivingFigures, DrivingPeriod } from "@/lib/driving-figures";
+import { sumKnown } from "@/lib/format";
 import { inSpan, type Period, periodTimeframe, type Span, type Timeframe } from "@/lib/periods";
 import { median } from "@/lib/telemetry-derive";
 
@@ -27,15 +28,30 @@ export function driveStats(drives: Drive[], windowFrom: number, since: number | 
   };
 }
 
-// The drives' energy, and Wh/km over their distance. kWh is the sum of every drive with an energy figure,
-// however short, so a span's figure is the sum of its bars'; null when no drive has one (none were found,
-// or the odometer moved without one). Wh/km is null under 1 km, too short to mean anything.
-function driveEnergy(drives: Drive[]): { kwh: number | null; whPerKm: number | null } {
-  const counted = drives.filter((d) => d.kwh !== null);
-  if (counted.length === 0) return { kwh: null, whPerKm: null };
-  const km = counted.reduce((sum, d) => sum + d.km, 0);
-  const kwh = counted.reduce((sum, d) => sum + d.kwh!, 0);
-  return { kwh, whPerKm: km < 1 ? null : (kwh * 1000) / km };
+// How much of a drive's distance falls in a span: the sum of its hours there (see Drive.hourKm), since
+// every bar starts on an IST hour. A drive without them counts whole where it started.
+export function driveKmIn(d: Drive, span: Span): number {
+  if (!d.hourKm) return inSpan(d.start, span) ? d.km : 0;
+  return d.hourKm.reduce((sum, h) => sum + (inSpan(h.from, span) ? h.km : 0), 0);
+}
+
+// The drives' energy in a span, each drive's kWh shared out by the distance it drove there, so a
+// 7:14 AM to 8:19 AM drive counts in both hours and the bars add up to the span's total. Null when no
+// drive with an energy figure ran in it. Wh/km over that distance, or null under 1 km.
+export function driveEnergy(drives: Drive[], span: Span): { kwh: number | null; whPerKm: number | null } {
+  let km = 0;
+  let kwh = 0;
+  let any = false;
+  for (const d of drives) {
+    if (d.kwh === null || d.km <= 0) continue;
+    const part = driveKmIn(d, span);
+    if (part <= 0) continue;
+    any = true;
+    km += part;
+    kwh += (d.kwh * part) / d.km;
+  }
+  if (!any) return { kwh: null, whPerKm: null };
+  return { kwh, whPerKm: km >= 1 ? (kwh * 1000) / km : null };
 }
 
 // Energy used driving, and efficiency, from the drives wherever they cover the whole span (they reach
@@ -53,14 +69,21 @@ export function timeframeEfficiency(p: DrivingPeriod, frame: Timeframe, drives: 
   const windowFrom = now - DRIVE_DAYS * DAY;
   const covered = (span: Span) => span.from >= windowFrom || (since !== null && since >= windowFrom);
   const fill = (f: DrivingFigure, span: Span): DrivingFigure => {
-    const fromDrives = driveEnergy(drives.filter((d) => inSpan(d.start, span)));
+    const fromDrives = driveEnergy(drives, span);
     if (covered(span)) return { ...f, whPerKm: fromDrives.whPerKm, kwh: fromDrives.kwh };
     return { ...f, whPerKm: f.whPerKm ?? fromDrives.whPerKm, kwh: f.kwh ?? fromDrives.kwh };
   };
+  const bars = p.bars.map((b, k) => (frame.slots[k] ? fill(b, frame.slots[k]) : b));
+  // A span older than the drives (a Year from before the window) mixes sources: its recent bars come
+  // from the drives and its older ones from the lifetime counter, which counts parked use too. Its total
+  // is then the raw sum of its bars, as every headline is, when every bar with driving has a figure.
+  const current = fill(p.current, frame.span);
+  const whole = bars.every((b) => b.kwh !== null || !b.km);
+  if (!covered(frame.span) && whole && bars.some((b) => b.kwh !== null)) current.kwh = sumKnown(bars.map((b) => b.kwh));
   return {
     ...p,
-    current: fill(p.current, frame.span),
+    current,
     previous: p.previous && frame.previous ? fill(p.previous, frame.previous) : p.previous,
-    bars: p.bars.map((b, k) => (frame.slots[k] ? fill(b, frame.slots[k]) : b)),
+    bars,
   };
 }

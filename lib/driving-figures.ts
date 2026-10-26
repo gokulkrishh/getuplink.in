@@ -1,6 +1,6 @@
 import { MILES_TO_KM } from "@/lib/car";
 import { MIN_EFFICIENCY_KM } from "@/lib/dashboard-summary";
-import { type Period, PERIOD_ORDER, periodTimeframe, type Span, type Timeframe } from "@/lib/periods";
+import { isHourSlot, type Period, PERIOD_ORDER, periodTimeframe, type Slot, type Span, type Timeframe } from "@/lib/periods";
 import { MIN_ENERGY_KM } from "@/lib/telemetry-derive";
 
 // Distance, energy use and regen for every period, its comparison span and its bars, from cumulative
@@ -90,6 +90,9 @@ export type DrivingCounters = {
   regen: CounterColumn | null;
   // The polled odometer (miles), from before the stream began.
   polledOdometer: CounterColumn | null;
+  // Fields the car sends every few minutes while awake (see PRESENCE_FIELDS), read at the same instants:
+  // an hour where none was read is one the car slept through. Null when they weren't read.
+  presence?: CounterColumn[] | null;
 };
 
 // Each counter's readings by instant, and the figure for a span from them.
@@ -99,9 +102,16 @@ function figureReader(input: DrivingCounters, now: number) {
   const odometer = newest(streamed, at(input.polledOdometer));
   const used = at(input.used);
   const regen = at(input.regen);
+  // A field never read at all says nothing about sleep, so it is left out.
+  const presence = input.presence?.map(at).filter((r): r is Readings => r !== null && r.first !== null) ?? [];
+
+  // Whether the car sent anything in an hour: some presence field's last reading before its end was
+  // taken in it. Unknown (true) when the presence fields weren't read, so no bar is blanked on a guess.
+  const awake = (slot: Span) =>
+    presence.length === 0 || presence.some((r) => (r.before.get(slot.to > now ? Infinity : slot.to)?.at ?? -Infinity) >= slot.from);
 
   // Energy use needs the streamed odometer: the energy counter only exists since the stream began. Below
-  // minKm the figure is mostly parked use (Sentry Mode, climate), so there is none.
+  // minKm the figure is mostly parked use (Sentry Mode, climate), so there is none. km is unrounded.
   const figure = (span: Span, minKm: number, onlyCovered = false): DrivingFigure => {
     const counted = (r: Readings | null) => (!onlyCovered || covers(r, span, now) ? r : null);
     const miles = rise(counted(odometer), span, now);
@@ -116,10 +126,17 @@ function figureReader(input: DrivingCounters, now: number) {
       regenKwh: rise(counted(regen), span, now),
     };
   };
+  // An hour the car slept through, its counters unmoved, is blank: nothing was seen, so it isn't a
+  // measured 0. Awake and parked, or any distance at all, it shows. Days and longer keep a real 0.
+  const bar = (slot: Slot, minKm: number): DrivingFigure => {
+    const f = figure(slot, minKm);
+    if (!isHourSlot(slot) || f.km === null || f.km > 0 || awake(slot)) return f;
+    return { km: null, whPerKm: null, kwh: null, regenKwh: null };
+  };
   const period = (frame: Timeframe, minKm: number): DrivingPeriod => ({
     current: figure(frame.span, minKm),
     previous: frame.previous && figure(frame.previous, minKm, true),
-    bars: frame.slots.map((slot) => figure(slot, minKm)),
+    bars: frame.slots.map((slot) => bar(slot, minKm)),
   });
   return { odometer, period };
 }

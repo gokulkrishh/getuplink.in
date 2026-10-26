@@ -1,7 +1,7 @@
 import { ChartCard } from "@/components/chart-card";
 import { AwakeStrip } from "@/components/stats/awake-strip";
 import { type DayStrip, hasPresence, type Presence, runLabel } from "@/lib/awake";
-import { formatDayLabel } from "@/lib/format";
+import { formatDayLabel, formatShortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const STATES: { state: Presence; label: string; className: string }[] = [
@@ -14,9 +14,14 @@ const STATES: { state: Presence; label: string; className: string }[] = [
 const classes = Object.fromEntries(STATES.map((s) => [s.state, s.className])) as Record<Presence, string>;
 
 // A thin strip per IST day for the last 14 days, newest on top: when the car was online, asleep or
-// offline. Updates only download while it's awake, so this answers "why hasn't it arrived yet?".
-export function AwakeTimeline({ days, now }: { days: DayStrip[]; now: number }) {
-  if (!hasPresence(days)) return null;
+// offline. Updates only download while it's awake, so this answers "why hasn't it arrived yet?". The
+// strips start at the first day with any data, so days before tracking began aren't drawn as "No data".
+export function AwakeTimeline({ days: all, now }: { days: DayStrip[]; now: number }) {
+  if (!hasPresence(all)) return null;
+  const first = all.findIndex((d) => d.runs.some((r) => r.state !== "unknown"));
+  const days = first > 0 ? all.slice(first) : all;
+  // "last 14 days", or "since 23 Oct" when cut short.
+  const span = first > 0 ? `since ${formatShortDate(days[0].start + 43_200_000)}` : `last ${days.length} days`;
   const onlineDays = days.filter((d) => d.runs.some((r) => r.state === "online")).length;
   return (
     <ChartCard
@@ -33,7 +38,7 @@ export function AwakeTimeline({ days, now }: { days: DayStrip[]; now: number }) 
       }
       summary={
         <p className="text-sm tabular-nums">
-          Online on {onlineDays} of the last {days.length} days
+          {first > 0 ? `Online on ${onlineDays} of ${days.length} days ${span}` : `Online on ${onlineDays} of the last ${days.length} days`}
         </p>
       }
     >

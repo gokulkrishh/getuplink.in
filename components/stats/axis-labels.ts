@@ -19,8 +19,8 @@ export function useAxisLabels(box: RefObject<HTMLElement | null>, minStride = 1)
       const { left: origin, width } = el.getBoundingClientRect();
       if (labels.length === 0 || width === 0) return;
       // Edge labels (blocks of hours, see AxisLabel) sit on the boundary before their column, midway
-      // through the gap, and are thinned from the first column by halving (every 3, 6 or 12 hours), so
-      // midnight, and each day's name on a two-day chart, always shows.
+      // through the gap, and are thinned from the first column to every 2, 3, 6, 12 or 24 hours, strides
+      // that divide a day, so midnight, and each day's name on a two-day chart, always shows.
       const edge = labels.some((label) => label.dataset.axisEdge !== undefined);
       const columns = labels.map((label) => label.parentElement!.getBoundingClientRect());
       const marks = labels.map((label, k) => {
@@ -34,7 +34,7 @@ export function useAxisLabels(box: RefObject<HTMLElement | null>, minStride = 1)
       const n = marks.length;
       const picked = (k: number, stride: number) => (edge ? k : n - 1 - k) % stride === 0;
       let stride = Math.max(1, minStride);
-      for (; stride < n; stride = edge ? stride * 2 : stride + 1) {
+      for (; stride < n; stride = edge ? (stride === 2 ? 3 : stride * 2) : stride + 1) {
         const shown = marks.filter((m, k) => picked(k, stride) && !m.empty);
         if (shown.every((m, i) => i === 0 || shown[i - 1].left + shown[i - 1].w + GAP <= m.left)) break;
       }
