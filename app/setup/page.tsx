@@ -140,8 +140,7 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
             </a>
           )}
           <p className="text-sm text-muted-foreground">
-            The key lets your car send its data to Uplink. Uplink sends your car no commands, and you can remove the key in the car&apos;s Locks
-            settings at any time.
+            Uplink only reads data, never sends commands. Remove the key anytime in the car&apos;s Locks settings.
           </p>
           <CarList cars={cars} words={keyWords} />
         </Step>
