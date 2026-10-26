@@ -31,7 +31,8 @@ const SECTIONS: { title: string; body: ReactNode }[] = [
     title: "Agreeing",
     body: (
       <>
-        Uplink is a free app run by one person in India. By signing in you agree to these terms and to the{" "}
+        Uplink is a free app run by one person in India. By signing in, and on an invite by ticking its box, you agree to
+        these terms and to the{" "}
         <Link href="/privacy" className={LINK}>
           Privacy
         </Link>{" "}
@@ -91,7 +92,7 @@ const SECTIONS: { title: string; body: ReactNode }[] = [
   },
   {
     title: "Liability",
-    body: "To the extent the law allows, Uplink isn't liable for losses from using it. Nothing here takes away rights the law gives you.",
+    body: "To the extent the law allows, Uplink isn't liable for losses from using it, except those caused by its fraud or wilful misconduct. Nothing here takes away rights the law gives you.",
   },
   {
     title: "Changes",

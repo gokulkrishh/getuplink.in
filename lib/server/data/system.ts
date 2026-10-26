@@ -51,9 +51,10 @@ export async function revokeUserSessions(owner: Owner, at: string): Promise<void
 
 // Delete account: the users row, which cascades to every per-user table. Streamed readings aren't one
 // user's: the caller first deletes those nobody may see any more. An invite they joined through keeps its
-// row (used, so it can't be used again) but loses the car it named; the foreign key clears used_by.
+// row (used, so it can't be used again) but loses the car it named and the admin's note, which may name
+// the person (erasure, DPDP Act s. 8(7)); the foreign key clears used_by.
 export async function deleteUser(owner: Owner): Promise<void> {
-  const invites = await db().from("invites").update({ joined_label: null }).eq("used_by", owner.userId);
+  const invites = await db().from("invites").update({ joined_label: null, label: null }).eq("used_by", owner.userId);
   if (invites.error && !MISSING_TABLE.includes(invites.error.code ?? "")) throw new Error(invites.error.message);
   check(await db().from("users").delete().eq("id", owner.userId));
 }

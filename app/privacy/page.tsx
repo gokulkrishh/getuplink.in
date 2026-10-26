@@ -39,18 +39,19 @@ const STORED = [
   "Everything your car streams while it's awake: driving (speed, gear, pedals, acceleration), battery and charging, climate and cabin, tyres, doors and locks, Sentry Mode and navigation. Not what's playing, and not your phone's name",
   "Where the car is while it's awake, including trip routes, stops and navigation destinations",
   "Tesla Supercharger sessions: site, time, energy, cost and each fee on the bill. The invoice itself is fetched from Tesla when you open it, not stored",
-  "Invoices from other charging networks that you add through the connector: the network, station, times, energy, amount, GST, invoice number, the email's message id if it came from email and, if you send it, the file",
+  "Invoices from other charging networks that you add through the connector: the network, station, times, energy, amount, GST, invoice number, the email's message id if it came from email and, if you send it, the file. The file is kept as the network made it, so it may show your name, phone number or part of a card number",
   "Names you give places, with the spot and its radius. For a place you pick from Google Maps, only Google's ID for it",
   "Each car's home state, such as Karnataka, for the India rollout map",
   "The name of the charging station each session happened at, such as Statiq, Koramangala",
   "A log of each check of your car, and how many Tesla API calls your account made",
   "Your connector token, stored only as a hash, and when it was last used",
+  "If you joined through an invite: the last 6 characters of the invited car's VIN, the inviter's note on it, and the car's model and last 4 VIN characters once you join",
 ];
 
 const NOT_DONE = [
   "It doesn't send commands to your car, and it never wakes the car. The key you add to your car can't unlock or drive it.",
   "It doesn't sell your data, and shares it only as listed under Who else gets it.",
-  "There are no ads and no tracking. One cookie keeps you signed in, a short-lived one protects the Tesla sign-in, and your theme choice is saved in your browser.",
+  "There are no ads and no tracking. One cookie keeps you signed in, short-lived ones protect the Tesla sign-in and an invite link, and your theme choice is saved in your browser.",
 ];
 
 export default function PrivacyPage() {
@@ -73,7 +74,10 @@ export default function PrivacyPage() {
       </PlainSection>
 
       <PlainSection title="Signing in">
-        <p>You sign in on Tesla&apos;s own page. Uplink never sees your Tesla password.</p>
+        <p>
+          On an invite link, you first tick that you&apos;re 18 or over and agree to this page and the Terms. Then you sign
+          in on Tesla&apos;s own page. Uplink never sees your Tesla password.
+        </p>
         <p>Tesla&apos;s page asks you to allow:</p>
         <ul className={PLAIN_LIST}>
           <li>Profile information. Uplink keeps only your Tesla account id from it, not your name or email.</li>
@@ -153,7 +157,10 @@ export default function PrivacyPage() {
             in its search. If you pick one, Uplink keeps only its ID and asks Google for the name each time a page shows it.{" "}
             <Out href="https://policies.google.com/privacy">Google&apos;s Privacy Policy</Out> applies.
           </li>
-          <li>OpenStreetMap&apos;s Nominatim: a spot&apos;s coordinates, with nothing about you, to look up the area name.</li>
+          <li>
+            OpenStreetMap&apos;s Nominatim: a spot&apos;s coordinates, rounded to about 100 metres, with nothing about you,
+            to look up the area name.
+          </li>
           <li>CARTO serves the map tiles to your browser, so it sees your IP address and the part of the map you view.</li>
           <li>
             The AI you connect, if you make a connector token. It reads your data under its own terms. Revoke the token in
@@ -167,6 +174,10 @@ export default function PrivacyPage() {
           </li>
           <li>Authorities, only when Indian law requires it.</li>
         </ul>
+        <p>
+          Vercel sees your IP address, and Fly.io your car&apos;s, and each keeps short logs of requests. An invite link
+          counts tries by IP address for a few minutes, in memory only.
+        </p>
         <p>
           Vercel, Supabase and Fly.io are US companies. The receiver, and some of these services, handle data outside
           India.
@@ -188,6 +199,7 @@ export default function PrivacyPage() {
           </li>
           <li>Where the car was at the start of each charge is kept with that charge, for the charging map.</li>
           <li>Area names, such as Koramangala, are kept by rounded spot, with nothing about who parked there.</li>
+          <li>Deleted data can stay in the database host&apos;s backups until they expire.</li>
           <li>If a law makes Uplink keep something longer, it keeps only that, only as long as required.</li>
         </ul>
       </PlainSection>
@@ -201,7 +213,8 @@ export default function PrivacyPage() {
           </li>
           <li>
             Delete account does the same, then removes your account. Your Tesla API call counts stay in Uplink&apos;s
-            monthly totals, without your account.
+            monthly totals, without your account. An invite you joined through stays used, without your car or the
+            inviter&apos;s note.
           </li>
           <li>
             On a car another Uplink user also tracks, the readings from their time with it stay theirs.
@@ -238,6 +251,7 @@ export default function PrivacyPage() {
           Email <Mail /> with your request and your car&apos;s VIN, so we can find your account. We may ask you to show the
           car is yours. We confirm within 2 days and answer within 30 days.
         </p>
+        <p>If you drive a car that someone tracks on Uplink, you can write to us about your trips too.</p>
       </PlainSection>
 
       <PlainSection title="Grievance Officer">
@@ -257,12 +271,15 @@ export default function PrivacyPage() {
       <PlainSection title="If there's a breach">
         <p>
           If your data is exposed, Uplink tells you in the app without delay: what happened, what it means for you, what
-          is being done and what you can do. It also reports it to the Data Protection Board and to Tesla.
+          is being done and what you can do. It also reports it to the Data Protection Board, to CERT-In and to Tesla.
         </p>
       </PlainSection>
 
       <PlainSection title="Age">
-        <p>Uplink is for adults. Don&apos;t sign in if you&apos;re under 18. An account found to be a child&apos;s is deleted.</p>
+        <p>
+          Uplink is for adults. Don&apos;t sign in if you&apos;re under 18; an invite asks you to confirm it. An account
+          found to be a child&apos;s is deleted.
+        </p>
       </PlainSection>
 
       <PlainSection title="Changes">

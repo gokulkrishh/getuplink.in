@@ -89,8 +89,8 @@ afterEach(() => {
 });
 
 // A link made by the admin now (or `at`), for a car ending in these characters; its hash rides the cookie.
-async function invite(suffix = "104821", at = Date.now()) {
-  const token = await createInvite(ADMIN, suffix, null, at);
+async function invite(suffix = "104821", at = Date.now(), label: string | null = null) {
+  const token = await createInvite(ADMIN, suffix, label, at);
   return { token, hash: tokenHash(token), row: () => fake.rows("invites").find((r) => r.token_hash === tokenHash(token))! };
 }
 
@@ -297,13 +297,15 @@ describe("the invite cookie", () => {
   });
 });
 
-test("Delete account takes the car off the invite it joined through", async () => {
+test("Delete account takes the car and the admin's note off the invite it joined through", async () => {
   garages.friend = [FRIEND_VIN];
-  const { hash, row } = await invite();
+  const { hash, row } = await invite("104821", Date.now(), "A friend's Model Y");
   await signIn("friend", { inviteHash: hash });
+  expect(row().label).toBe("A friend's Model Y");
   const { deleteUser } = await import("@/lib/server/data/system");
   await deleteUser(asOwner(userBySub("friend")!.id as number, "friend"));
   expect(row().joined_label).toBeNull();
+  expect(row().label).toBeNull();
   expect(row().used_at).toBeString(); // still used: the link can't come back
 });
 
