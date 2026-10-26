@@ -2,7 +2,7 @@ import "server-only";
 import type { Owner } from "./data/owner";
 import { MILES_TO_KM } from "@/lib/car";
 import type { MapPin, MapPoint } from "@/components/stats/trip-map";
-import { num, type Reading } from "@/lib/telemetry-derive";
+import { median, num, type Reading } from "@/lib/telemetry-derive";
 import { groupTrips, type Trip } from "@/lib/trips";
 import { tripRoute } from "@/lib/trip-route";
 import { loadWindowStats } from "./driving";
@@ -54,19 +54,22 @@ export async function loadDriveDetail(owner: Owner, start: number, now: number, 
   // A little either side, so the values in force at the start and end are there.
   const from = new Date(drive.start - 30 * MIN).toISOString();
   const to = new Date(drive.end + 10 * MIN).toISOString();
-  const byField = (await loadReadingsByField(owner, vin, ["BatteryLevel", "RatedRange", "VehicleSpeed", "OutsideTemp", "Location", "LongitudinalAcceleration", "PackVoltage", "PackCurrent", "GradeEstimatePercent"], from, to)) ?? {};
+  const byField = (await loadReadingsByField(owner, vin, ["BatteryLevel", "VehicleSpeed", "OutsideTemp", "Location", "LongitudinalAcceleration", "PackVoltage", "PackCurrent", "GradeEstimatePercent"], from, to)) ?? {};
   const read = (field: string) => [...(byField[field] ?? [])].sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
 
-  const range = points(read("RatedRange"), drive.start - 30 * MIN, drive.end + 10 * MIN);
-  const rangeStart = valueAt(range, drive.start);
-  const rangeEnd = valueAt(range, drive.end + 5 * MIN);
+  // Range used is the legs' own (see lib/drives.ts), so a stop's parked use or a charge isn't counted.
+  const rangeUsedKm = trip.legs.every((d) => d.rangeKm != null) ? trip.legs.reduce((sum, d) => sum + d.rangeKm!, 0) : null;
   // VehicleSpeed arrives in mph, like the odometer and rated range. Only while a leg is under way.
   const moving = (t: number) => trip.legs.some((d) => t >= d.start && t <= d.end);
   const speed = points(read("VehicleSpeed"), drive.start, drive.end, MILES_TO_KM).filter((p) => moving(p.t));
-  const temps = points(read("OutsideTemp"), drive.start - 30 * MIN, drive.end).map((p) => p.v).sort((a, b) => a - b);
-  // The battery from the reading in force at the start, so the trace begins with the drive.
-  const allBattery = points(read("BatteryLevel"), drive.start - 30 * MIN, drive.end + 10 * MIN);
-  const startLevel = valueAt(allBattery, drive.start);
+  // Outside temperature while driving: the reading in force at the start, then those during the trip.
+  const allTemps = points(read("OutsideTemp"), drive.start - 30 * MIN, drive.end);
+  const tempAtStart = allTemps.findLast((p) => p.t <= drive.start);
+  const temps = [...(tempAtStart ? [tempAtStart] : []), ...allTemps.filter((p) => p.t > drive.start)].map((p) => p.v);
+  // The battery from the level the trip started at (lib/drives.ts picks it, never a mid-charge reading),
+  // so the trace begins with the drive.
+  const startLevel = trip.startLevel;
+  const allBattery = points(read("BatteryLevel"), drive.start, drive.end + 10 * MIN);
   const battery = [...(startLevel === null ? [] : [{ t: drive.start, v: startLevel }]), ...allBattery.filter((p) => p.t > drive.start && p.t <= drive.end + 5 * MIN)];
 
   const { route, pins } = tripRoute(trip, read("Location"));
@@ -96,8 +99,8 @@ export async function loadDriveDetail(owner: Owner, start: number, now: number, 
     pins,
     battery,
     speed,
-    rangeUsedKm: rangeStart !== null && rangeEnd !== null && rangeStart >= rangeEnd ? (rangeStart - rangeEnd) * MILES_TO_KM : null,
+    rangeUsedKm,
     topKmh: speed.length ? Math.max(...speed.map((p) => p.v)) : null,
-    outsideC: temps.length ? temps[Math.floor(temps.length / 2)] : null,
+    outsideC: temps.length ? median(temps) : null,
   };
 }
