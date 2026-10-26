@@ -79,7 +79,7 @@ const FAQ = [
   { q: "Which cars work?", a: "Any Tesla the Fleet API supports, including the Indian Model Y." },
   {
     q: "How do I delete my data?",
-    a: "Use Delete my data in Settings. Then remove Uplink's key in your car's Locks settings.",
+    a: "Use Delete my data in Settings, or Delete account to remove your account too. Then remove Uplink's key in your car's Locks settings.",
   },
 ];
 
