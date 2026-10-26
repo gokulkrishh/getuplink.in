@@ -1,4 +1,5 @@
 import { ChevronRight } from "lucide-react";
+import { fitFont } from "@/components/measure";
 import { PeriodLink } from "@/components/home/more-link";
 import type { View } from "@/components/stats/periods";
 import { type Bill, billsBySlot, billsIn, energyBySlot, energyIn } from "@/lib/charging-figures";
@@ -48,7 +49,7 @@ function Cell({
         <span className="truncate">{label}</span>
         <ChevronRight aria-hidden="true" className="size-3.5 shrink-0 transition-[color,translate] duration-150 group-hover:translate-x-0.5 group-hover:text-foreground" />
       </p>
-      <p className="font-mono text-[clamp(1rem,15cqi,1.75rem)] leading-none font-medium tracking-tight whitespace-nowrap tabular-nums">
+      <p className="font-mono leading-none font-medium tracking-tight whitespace-nowrap tabular-nums" style={fitFont(unit ? `${value} ${unit}` : value)}>
         {value}
         {unit && <span className="ml-1 text-xs font-normal tracking-normal text-faint">{unit}</span>}
       </p>

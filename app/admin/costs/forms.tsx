@@ -26,11 +26,14 @@ export function EntryForm({
   remove,
   values,
   submitLabel = "Save",
+  readOnly = false,
 }: {
   action: Action;
   remove?: Action;
   values: EntryValues | null;
   submitLabel?: string;
+  // Demo mode: nothing saves, so the buttons are off (the page says so once).
+  readOnly?: boolean;
 }) {
   const [message, formAction, pending] = useActionState(action, null);
   const [removeMessage, removeAction, removing] = useActionState(remove ?? (async () => null), null);
@@ -62,11 +65,11 @@ export function EntryForm({
           <Input id={`${id}-link`} name="link" type="url" placeholder="https://" defaultValue={values?.link ?? ""} />
         </label>
         <div className="col-span-2 flex items-center gap-2 sm:col-span-4">
-          <Button type="submit" size="sm" disabled={pending}>
+          <Button type="submit" size="sm" disabled={readOnly || pending}>
             {pending ? "Saving…" : submitLabel}
           </Button>
           {remove && (
-            <Button type="submit" size="sm" variant="outline" formAction={removeAction} formNoValidate disabled={removing}>
+            <Button type="submit" size="sm" variant="outline" formAction={removeAction} formNoValidate disabled={readOnly || removing}>
               {removing ? "Removing…" : "Remove"}
             </Button>
           )}
@@ -78,7 +81,21 @@ export function EntryForm({
 }
 
 // A single number: the budget.
-export function NumberForm({ action, name, label: text, defaultValue, placeholder }: { action: Action; name: string; label: string; defaultValue: string; placeholder?: string }) {
+export function NumberForm({
+  action,
+  name,
+  label: text,
+  defaultValue,
+  placeholder,
+  readOnly = false,
+}: {
+  action: Action;
+  name: string;
+  label: string;
+  defaultValue: string;
+  placeholder?: string;
+  readOnly?: boolean;
+}) {
   const [message, formAction, pending] = useActionState(action, null);
   const id = useId();
   return (
@@ -88,7 +105,7 @@ export function NumberForm({ action, name, label: text, defaultValue, placeholde
       </label>
       <div className="flex items-center gap-2">
         <Input id={id} name={name} inputMode="decimal" defaultValue={defaultValue} placeholder={placeholder} className="max-w-[12ch]" />
-        <Button type="submit" size="sm" variant="outline" disabled={pending}>
+        <Button type="submit" size="sm" variant="outline" disabled={readOnly || pending}>
           {pending ? "Saving…" : "Save"}
         </Button>
       </div>

@@ -1,8 +1,12 @@
 import type { ReactNode } from "react";
 import { InfoButton } from "@/components/info-button";
 import { hasWords } from "@/lib/unit-words";
-import { Measure } from "@/components/measure";
+import { fitFont, Measure } from "@/components/measure";
 import { cn } from "@/lib/utils";
+
+// A value is big, and shrinks only as a long one needs to fit its tile (fitFont); one that isn't text
+// (a name in words) scales with the tile instead.
+const VALUE = "font-mono leading-none font-medium tracking-tight whitespace-nowrap tabular-nums";
 
 export { Value } from "@/components/measure";
 
@@ -58,9 +62,13 @@ export function Figures({
             {f.key}
             {f.label}
           </dt>
-          <dd className="font-mono text-[clamp(1rem,13cqi,1.75rem)] leading-none font-medium tracking-tight whitespace-nowrap tabular-nums">
-            {typeof f.value === "string" || typeof f.value === "number" ? <Measure text={String(f.value)} size="tile" /> : f.value}
-          </dd>
+          {typeof f.value === "string" || typeof f.value === "number" ? (
+            <dd className={VALUE} style={fitFont(String(f.value))}>
+              <Measure text={String(f.value)} size="tile" />
+            </dd>
+          ) : (
+            <dd className={cn(VALUE, "text-[clamp(1rem,13cqi,1.75rem)]")}>{f.value}</dd>
+          )}
           {f.extra && <dd>{f.extra}</dd>}
           {f.note && <dd className="text-xs leading-5 text-muted-foreground tabular-nums">{f.note}</dd>}
         </div>
