@@ -9,6 +9,7 @@ import { type FeeLines, feeLines } from "@/lib/charge-fees";
 import { type ChargingSession, loadChargingFees, loadChargingSessions } from "./charging";
 import { demoStreamSessions } from "./demo";
 import { cachedPlaceNames, placeKey } from "./place-names";
+import { googlePlaceName } from "./google-place-names";
 import { loadUserPlaces } from "./user-places";
 import { type NameTarget, nameTarget } from "@/lib/user-places";
 import { selectSessions, type StreamChargeSession, toStreamSession } from "./stream-charging";
@@ -32,6 +33,8 @@ export type ChargeDetail = {
   place: string | null;
   // The owner's tag for the spot, if any, and what "Name this place" needs.
   target: NameTarget | null;
+  // The tag's Google place name, fetched live, for the title only (credited there).
+  google: string | null;
 };
 
 async function loadStreamSession(owner: Owner, id: number): Promise<StreamChargeSession | null> {
@@ -92,5 +95,7 @@ export async function loadChargeDetail(owner: Owner, id: number, now: number): P
     spot ? cachedPlaceNames([spot]).catch(() => new Map<string, string>()) : new Map<string, string>(),
     spot ? loadUserPlaces(owner) : [],
   ]);
-  return { session, tesla: twin, invoice, curve, fees, spot, place: spot ? (places.get(placeKey(spot)) ?? null) : null, target: spot ? nameTarget(tags, spot) : null };
+  const target = spot ? nameTarget(tags, spot) : null;
+  const google = target?.tag?.googlePlaceId ? await googlePlaceName(target.tag.googlePlaceId) : null;
+  return { session, tesla: twin, invoice, curve, fees, spot, place: spot ? (places.get(placeKey(spot)) ?? null) : null, target, google };
 }

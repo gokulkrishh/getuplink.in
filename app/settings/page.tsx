@@ -22,7 +22,6 @@ import { ApiUsage } from "./api-usage";
 import { DeleteAccount, DeleteMyData, DisconnectTesla, SignOutEverywhere } from "./confirm-actions";
 import { BotTemplate, McpConnector } from "./integrations";
 import { Row } from "./row";
-import { YourPlaces } from "./your-places";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -113,10 +112,6 @@ async function Settings() {
           />
         </Group>
       )}
-
-      <Group title="Your places">
-        <YourPlaces />
-      </Group>
 
       <Group title="Integrations">
         <McpConnector status={connector} now={now} />

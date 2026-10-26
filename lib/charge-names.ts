@@ -1,10 +1,10 @@
 import { splitSite } from "@/lib/charge-sessions";
-import { type LatLng, type NameTarget, tagAt, type UserPlace } from "@/lib/user-places";
+import { type LatLng, type NameTarget, tagAt, targetTag, type UserPlace } from "@/lib/user-places";
 
 // What to call a place (where a charge happened, where the car parked, where a trip began or ended), best
 // source first. Pure, so tested directly.
 //
-// - tag: the owner's own name for the spot, from Your places (lib/user-places.ts). Always first.
+// - tag: the owner's own typed name for the spot (lib/user-places.ts). Always first.
 // - station: the station check's match from OpenStreetMap ("Operator, Area").
 // - invoice: the attached invoice's network and station, as printed.
 // - supercharger: Tesla's site for a Supercharger ("City, Site").
@@ -49,20 +49,42 @@ export function chargeName({ tag, station, invoice, site, place }: ChargeNamePar
   return null;
 }
 
-// A spot's name and what "Name this place" needs. The owner's tag within its radius comes first. Every
-// source here may show on a map pin: none of them is Google's.
-export type SpotName = { name: ChargeName | null; target: NameTarget };
+// A spot's names and what "Name this place" needs.
+// - name: never Google's, so it may go anywhere: map pins, tooltips, charts, the MCP export. The owner's
+//   typed tag comes first; a tag that is a Google place falls through to the station, invoice, site or area.
+// - google: that Google place's name, fetched live (lib/server/google-place-names.ts), or null. Only rows,
+//   lists, titles and the naming sheet show it, each with "Google Maps" beside it. Never on a map.
+export type SpotName = { name: ChargeName | null; google: string | null; target: NameTarget };
 
 export function spotName(tags: readonly UserPlace[], spot: LatLng, parts: Omit<ChargeNameParts, "tag"> = {}): SpotName {
   const tag = tagAt(tags, spot);
   return {
     name: chargeName({ ...parts, tag: tag?.name }),
-    target: { lat: spot.lat, lng: spot.lng, tag: tag ? { id: tag.id, name: tag.name } : null },
+    google: null,
+    target: { lat: spot.lat, lng: spot.lng, tag: tag ? targetTag(tag) : null },
   };
+}
+
+// What a map pin, its label or tooltip shows: never the Google name, even once it is filled in. Every pin
+// builder goes through here.
+export const mapName = (spot: Pick<SpotName, "name"> | null | undefined): string | null => spot?.name?.text ?? null;
+
+// What a row or title shows: the Google place's name when there is one (credited), else the safe name.
+export type ShownName = { text: string; google: boolean };
+export function shownName(spot: Pick<SpotName, "name" | "google"> | null | undefined): ShownName | null {
+  if (spot?.google) return { text: spot.google, google: true };
+  return spot?.name ? { text: spot.name.text, google: false } : null;
 }
 
 // Whether to offer "Name this place": nothing names the spot, or only its area does.
 export const needsName = (name: ChargeName | null): boolean => !name || name.source === "place";
+
+// What the sheet's trigger is beside a name: the pencil for any tagged spot (typed or Google), the words
+// "Name this place" where nothing better than the area names it, else nothing.
+export function nameAction(spot: Pick<SpotName, "name" | "target">): "rename" | "name" | null {
+  if (spot.target.tag) return "rename";
+  return needsName(spot.name) ? "name" : null;
+}
 
 // The car's own flags for where it parked, kept as a small tag after the name ("Koramangala, Bengaluru ·
 // Home"), or alone when nothing else names the spot.

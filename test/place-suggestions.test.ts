@@ -8,10 +8,11 @@ import { stationsNear } from "@/lib/stations";
 const fixture = (name: string): unknown => JSON.parse(readFileSync(join(import.meta.dir, "fixtures", name), "utf8"));
 
 describe("parseNearby", () => {
-  test("charging stations first, then the rest in Google's order; incomplete entries skipped", () => {
+  test("charging stations first, then the rest in Google's order, each with its place ID; incomplete entries skipped", () => {
     expect(parseNearby(fixture("google-nearby.json"))).toEqual([
-      { name: "Brightwell Charging Hub", detail: "Charging station", source: "google" },
-      { name: "Orchard Lane Market", detail: "Shopping mall", source: "google" },
+      { name: "Brightwell Charging Hub", detail: "Charging station", source: "google", placeId: "ChIJmadeUpBrightwellHub01" },
+      { name: "Orchard Lane Market", detail: "Shopping mall", source: "google", placeId: "ChIJmadeUpOrchardMarket01" },
+      // No ID in the reply: shown, but it can't be tapped.
       { name: "Juniper Café", detail: null, source: "google" },
     ]);
   });

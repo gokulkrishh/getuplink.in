@@ -9,7 +9,8 @@ import { ChargeRange } from "@/components/stats/charge-range";
 import { ChargingMap, DcCurves } from "@/components/stats/charging-extras";
 import { TopStations } from "@/components/stats/top-stations";
 import { topStations } from "@/lib/top-stations";
-import { CURVES, heldFrom, loadChargingExtras, PINNED } from "@/lib/server/charging-extra";
+import { type ChargingExtras, CURVES, heldFrom, loadChargingExtras, PINNED } from "@/lib/server/charging-extra";
+import { withGoogleNamesBy } from "@/lib/server/google-place-names";
 import { EnergyAdded, SessionList, Summary } from "@/components/stats/charging-sections";
 import { eachFrame } from "@/components/home/frames";
 import { customScope } from "@/components/stats/periods";
@@ -65,9 +66,11 @@ async function loadCharging(query: CustomQuery | null): Promise<{
     frame ? loadRangeDriving(owner, "normal", vin, frame, now) : null,
   ]);
   const invoices = await invoicesBySession(owner, streamSessions.filter((s) => !s.supercharger).map((s) => s.id));
+  // The session rows with a Google-tagged spot's live name; the pins and curves keep `name`.
+  const googled = async (x: ChargingExtras) => ({ ...x, spots: await withGoogleNamesBy(x.spots) });
   const [extras, rangeExtras] = await Promise.all([
-    loadChargingExtras(owner, vin, streamSessions, { tesla: sessions, invoices, now }),
-    frame ? loadChargingExtras(owner, vin, streamSessions.filter((s) => inSpan(Date.parse(s.started_at), frame.span)), { tesla: sessions, invoices, now }) : null,
+    loadChargingExtras(owner, vin, streamSessions, { tesla: sessions, invoices, now }).then(googled),
+    frame ? loadChargingExtras(owner, vin, streamSessions.filter((s) => inSpan(Date.parse(s.started_at), frame.span)), { tesla: sessions, invoices, now }).then(googled) : null,
   ]);
   const custom =
     range && frame && rangeExtras

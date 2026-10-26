@@ -2,7 +2,8 @@ import "server-only";
 import type { Owner } from "./data/owner";
 import type { MapPin, MapPoint } from "@/components/stats/trip-map";
 import { type Day, dayStrips } from "@/lib/day-timeline";
-import { chargeName, chargeSpot, chargeType, type SpotName, spotName } from "@/lib/charge-names";
+import { chargeName, chargeSpot, chargeType, mapName, type SpotName, spotName } from "@/lib/charge-names";
+import { withGoogleNamesBy } from "./google-place-names";
 import { loadUserPlaces } from "./user-places";
 import { matchSessions } from "@/lib/charge-sessions";
 import { billsIn, chargingBills } from "@/lib/charging-figures";
@@ -88,15 +89,18 @@ export async function loadDay(owner: Owner, day: number, now: number): Promise<D
     cachedPlaceNames(charged.flatMap(({ session, at }) => (at && !chargeName(partsOf(session)) ? [at] : []))).catch(() => new Map<string, string>()),
     loadUserPlaces(owner),
   ]);
-  const charges = charged.map(({ session, at }) => {
+  const listed = charged.map(({ session, at }) => {
     const invoice = invoices.get(session.id);
     const spot = at ? spotName(tags, at, { ...partsOf(session), place: places.get(placeKey(at)) }) : null;
     const name = spot?.name ?? chargeName(partsOf(session));
     return { session, cost: teslaBill.get(session.id) ?? invoice?.amount ?? null, name: name?.text ?? null, spot };
   });
+  // The rows (not the pins) show a Google-tagged spot's live name; see withGoogleNames.
+  const googled = await withGoogleNamesBy(Object.fromEntries(listed.flatMap((c) => (c.spot ? [[c.session.id, c.spot] as const] : []))));
+  const charges = listed.map((c) => ({ ...c, spot: googled[c.session.id] ?? c.spot }));
   const spots = charges.flatMap((c) => (c.spot ? [{ ...c, spot: c.spot }] : []));
   const chargePins = spots.map(({ session: s, spot }): MapPin => {
-    const shown = spot.name?.text ?? undefined;
+    const shown = mapName(spot) ?? undefined;
     return {
       lat: spot.target.lat,
       lng: spot.target.lng,

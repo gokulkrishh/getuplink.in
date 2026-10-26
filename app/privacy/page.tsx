@@ -40,7 +40,7 @@ const STORED = [
   "Where the car is while it's awake, including trip routes, stops and navigation destinations",
   "Tesla Supercharger sessions: site, time, energy, cost and each fee on the bill. The invoice itself is fetched from Tesla when you open it, not stored",
   "Invoices from other charging networks that you add through the connector: the network, station, times, energy, amount, GST, invoice number, the email's message id if it came from email and, if you send it, the file",
-  "Names you give places, with the spot and its radius",
+  "Names you give places, with the spot and its radius. For a place you pick from Google Maps, only Google's ID for it",
   "Each car's home state, such as Karnataka, for the India rollout map",
   "The name of the charging station each session happened at, such as Statiq, Koramangala",
   "A log of each check of your car, and how many Tesla API calls your account made",
@@ -150,8 +150,8 @@ export default function PrivacyPage() {
           </li>
           <li>
             Google Maps, when you open Name this place: the spot&apos;s coordinates, to suggest nearby places and the street
-            address. Nothing from Google is kept. <Out href="https://policies.google.com/privacy">Google&apos;s Privacy Policy</Out>{" "}
-            applies.
+            address. If you pick one, Uplink keeps only its ID and asks Google for the name each time a page shows it.{" "}
+            <Out href="https://policies.google.com/privacy">Google&apos;s Privacy Policy</Out> applies.
           </li>
           <li>OpenStreetMap&apos;s Nominatim: a spot&apos;s coordinates, with nothing about you, to look up the area name.</li>
           <li>CARTO serves the map tiles to your browser, so it sees your IP address and the part of the map you view.</li>

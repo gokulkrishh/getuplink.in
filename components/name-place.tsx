@@ -4,23 +4,29 @@ import { Dialog } from "@base-ui/react/dialog";
 import { Pencil, X } from "lucide-react";
 import { useActionState, useState, useTransition } from "react";
 import { placeSuggestions, removePlace, savePlace } from "@/app/places/actions";
+import { GoogleMapsCredit } from "@/components/google-maps-credit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NO_SUGGESTIONS, type Suggestions } from "@/lib/place-suggestions";
 import { NAME_MAX, type NameTarget, TAG_RADIUS_M } from "@/lib/user-places";
 import { cn } from "@/lib/utils";
 
+const ROW = "w-full rounded-md px-1 py-1.5 text-left transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none aria-pressed:bg-muted";
+
 // "Name this place": a full-screen sheet over an opaque backdrop, so nothing from Google ever shows beside
-// our map (docs/place-names.md). The owner types the name. OpenStreetMap's suggestions (a station, the
-// area) fill the field with a tap; Google's are hints only, read-only, with its attribution. Suggestions
-// are asked for when the sheet opens, never before. Saving keeps the name in Your places, for every visit
-// and charge within TAG_RADIUS_M; with a tag already, it renames or removes it. `compact` shows a pencil
-// instead of the words, for rows that already have a name.
+// our map (docs/place-names.md). The owner types a name, or picks one:
+// - OpenStreetMap's suggestions (a station, the area) fill the field with a tap.
+// - A Google place is selected with a tap, and Save keeps only its place ID; its name is never copied
+//   into the field. Until the google_place_id column exists (`tappable`), Google's are read-only.
+// Suggestions are asked for when the sheet opens, never before. With a tag already, it renames or
+// removes it. `compact` shows a pencil instead of the words, for rows that already have a name.
 export function NamePlace({ target, compact = false, className }: { target: NameTarget; compact?: boolean; className?: string }) {
   const [open, setOpen] = useState(false);
   const [loaded, setLoaded] = useState<Suggestions | null>(null);
   const [loading, startLoading] = useTransition();
   const [name, setName] = useState(target.tag?.name ?? "");
+  // The Google place picked in this sheet, by ID.
+  const [picked, setPicked] = useState<string | null>(null);
   const [saveError, save, saving] = useActionState(async (prev: string | null, form: FormData) => {
     const error = await savePlace(prev, form);
     if (!error) setOpen(false);
@@ -36,14 +42,23 @@ export function NamePlace({ target, compact = false, className }: { target: Name
     setOpen(next);
     if (next && loaded === null && !loading)
       startLoading(async () => {
-        setLoaded(await placeSuggestions(target.lat, target.lng).catch(() => NO_SUGGESTIONS));
+        setLoaded(await placeSuggestions(target.lat, target.lng, target.tag?.id).catch(() => NO_SUGGESTIONS));
       });
+  };
+  const type = (value: string) => {
+    setName(value);
+    setPicked(null);
   };
   const title = target.tag ? "Rename this place" : "Name this place";
   const picks = loaded?.picks ?? [];
   const hints = loaded?.hints ?? [];
+  const tappable = loaded?.tappable ?? false;
+  const current = loaded?.current ?? null;
   const error = saveError ?? removeError;
   const fieldId = `place-name-${target.lat}-${target.lng}`;
+  // The tag's own Google place shows as chosen until something else is.
+  const chosen = picked ?? (name.trim() === "" ? (target.tag?.googlePlaceId ?? null) : null);
+  const changed = picked !== null ? picked !== target.tag?.googlePlaceId : name.trim() !== "" && name.trim() !== target.tag?.name;
 
   return (
     <Dialog.Root open={open} onOpenChange={opened}>
@@ -70,14 +85,23 @@ export function NamePlace({ target, compact = false, className }: { target: Name
               </Dialog.Close>
             </div>
 
+            {current && (
+              <p className="flex flex-wrap items-baseline gap-x-2">
+                <span className="text-muted-foreground">Now</span>
+                <span>{current}</span>
+                <GoogleMapsCredit />
+              </p>
+            )}
+
             <form action={save} className="space-y-2">
               {target.tag ? <input type="hidden" name="id" value={target.tag.id} /> : null}
               <input type="hidden" name="lat" value={target.lat} />
               <input type="hidden" name="lng" value={target.lng} />
+              {picked && <input type="hidden" name="googlePlaceId" value={picked} />}
               <label className="sr-only" htmlFor={fieldId}>
                 Name
               </label>
-              <Input id={fieldId} name="name" value={name} maxLength={NAME_MAX} placeholder="Name" autoComplete="off" onChange={(e) => setName(e.target.value)} />
+              <Input id={fieldId} name="name" value={name} maxLength={NAME_MAX} placeholder="Name" autoComplete="off" onChange={(e) => type(e.target.value)} />
               <p className="text-xs text-muted-foreground">Used for every visit within {TAG_RADIUS_M} m.</p>
               {error && (
                 <p role="alert" className="text-xs text-destructive">
@@ -92,7 +116,7 @@ export function NamePlace({ target, compact = false, className }: { target: Name
                 ) : (
                   <span />
                 )}
-                <Button type="submit" size="sm" disabled={saving || removing || name.trim() === ""}>
+                <Button type="submit" size="sm" disabled={saving || removing || !changed}>
                   {saving ? "Saving…" : "Save"}
                 </Button>
               </div>
@@ -106,19 +130,14 @@ export function NamePlace({ target, compact = false, className }: { target: Name
                 <ul className="-mx-1">
                   {picks.map((s) => (
                     <li key={`${s.source}:${s.name}`}>
-                      <button
-                        type="button"
-                        onClick={() => setName(s.name.slice(0, NAME_MAX))}
-                        aria-pressed={name === s.name.slice(0, NAME_MAX)}
-                        className="w-full rounded-md px-1 py-1.5 text-left transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none aria-pressed:bg-muted"
-                      >
+                      <button type="button" onClick={() => type(s.name.slice(0, NAME_MAX))} aria-pressed={picked === null && name === s.name.slice(0, NAME_MAX)} className={ROW}>
                         <span className="block truncate">{s.name}</span>
                         {s.detail && <span className="block truncate text-xs text-muted-foreground">{s.detail}</span>}
                       </button>
                     </li>
                   ))}
                 </ul>
-                <p className="text-[0.7rem] leading-4 text-faint">
+                <p className="text-xs text-faint">
                   ©{" "}
                   <a href="https://www.openstreetmap.org/copyright" className="underline underline-offset-2 hover:text-foreground">
                     OpenStreetMap contributors
@@ -128,19 +147,38 @@ export function NamePlace({ target, compact = false, className }: { target: Name
             )}
 
             {hints.length > 0 && (
-              <section className="space-y-1">
-                <h3 className="text-xs text-faint">Nearby on Google Maps</h3>
+              <section className="space-y-1 rounded-lg border p-3">
+                <h3 className="text-xs text-faint">Nearby</h3>
                 <ul className="-mx-1">
-                  {hints.map((s) => (
-                    <li key={s.name} className="px-1 py-1.5">
-                      <span className="block truncate">{s.name}</span>
-                      {s.detail && <span className="block truncate text-xs text-muted-foreground">{s.detail}</span>}
-                    </li>
-                  ))}
+                  {hints.map((s) => {
+                    const body = (
+                      <>
+                        <span className="block truncate">{s.name}</span>
+                        {s.detail && <span className="block truncate text-xs text-muted-foreground">{s.detail}</span>}
+                      </>
+                    );
+                    return (
+                      <li key={s.placeId ?? s.name}>
+                        {tappable && s.placeId ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPicked(s.placeId!);
+                              setName("");
+                            }}
+                            aria-pressed={chosen === s.placeId}
+                            className={ROW}
+                          >
+                            {body}
+                          </button>
+                        ) : (
+                          <div className="px-1 py-1.5">{body}</div>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
-                <p className="text-[0.7rem] leading-4 text-faint" translate="no">
-                  Google Maps
-                </p>
+                <GoogleMapsCredit className="block" />
               </section>
             )}
           </div>
