@@ -74,6 +74,8 @@ Every figure shows the precision its data supports, the same everywhere it appea
 | Energy | 1 decimal: "11.1 kWh" | `formatKwh` | Counters and bills read to 0.001 kWh |
 | Power | 1 decimal: "7.2 kW"; under 1 kW in W: "24 W", "4.5 W" | `formatKw`, `formatPower` | |
 | Money | To the paisa: "₹874.50" | `formatMoney` | Bills are to the paisa. Axis ticks stay compact |
+| Tesla API cost | To the cent, in dollars: "$3.12" | `formatUsd` | Tesla bills in dollars; no exchange rate is known, so no rupees |
+| Requests, signals | Whole: "1,23,456" | `formatCount` | |
 | Battery level, shares | Whole: "66%", "58% to 51%" | `formatPercent`, `formatLevels` | Whole percent, as the car's screen shows it |
 | Rates of %: drain | 1 decimal: "1.4% a day" | `formatPercent(v, 1)` | Small numbers |
 | Speed | Whole: "92 km/h" | `formatSpeed` | |

@@ -6,7 +6,7 @@ A single-owner dashboard that tracks Tesla software updates for the vehicles on 
 
 - Shows each vehicle's current version, any pending update (available, scheduled, downloading, installing) with progress, and when the car was last seen online (IST).
 - Keeps a version history and a small chart of version changes.
-- Polls every 6 hours. It **never wakes the car**: asleep or offline vehicles are recorded as such and skipped.
+- Polls each account about every 6 hours (every 12, then not at all, as the month's Tesla API estimate nears its budget). It **never wakes the car**: asleep or offline vehicles are recorded as such and skipped.
 
 Stack: Bun, Next.js 16 (App Router), shadcn/ui, Geist, Recharts, Supabase Postgres (server-side only), Vercel (region `bom1`).
 
@@ -15,7 +15,7 @@ Stack: Bun, Next.js 16 (App Router), shadcn/ui, Geist, Recharts, Supabase Postgr
 | Path | Purpose |
 | --- | --- |
 | `/login` → `/api/auth/connect` → `/api/auth/callback` | **Sign in with Tesla** is both the dashboard login and the data connection (authorization code + `state` cookie). Only a Tesla account with an approved `users` row signs in (matched on its `id_token` `sub`). With `SIGNUP_MODE=waitlist` an unknown account joins the waitlist instead (its `sub` and the time, no tokens) and lands on `/waitlist`; declined and suspended accounts are told "Not approved." Sign-in sets a signed, httpOnly 30-day session cookie, and `proxy.ts` guards everything else. Tokens are stored AES-256-GCM encrypted in Supabase and refreshed automatically (access tokens last ~8 h, refresh tokens rotate). |
-| `/api/cron/poll` | Called by Vercel Cron with `Authorization: Bearer $CRON_SECRET`. Lists vehicles, fetches `vehicle_state` only for online cars, writes a snapshot per vehicle and a `version_history` row when the version changes. |
+| `/api/cron/poll` | Called by Vercel Cron every 15 minutes with `Authorization: Bearer $CRON_SECRET`. Takes up to 4 accounts that are due and, for each, lists vehicles, fetches `vehicle_state` only for online cars, writes a snapshot per vehicle and a `version_history` row when the version changes. |
 | `/api/cron/stations` | Every 15 minutes, same `CRON_SECRET`. Names the charging station of a streamed session in progress or just ended (see Charging station names). With no such session it makes no Tesla call. |
 | `/.well-known/appspecific/com.tesla.3p.public-key.pem` | Serves `TESLA_PUBLIC_KEY_PEM` (rewritten to `/api/public-key`). |
 | `/` | Home: the car now (status, battery, version, odometer), one period switch (Week, Month, Year, All) for the distance, spend, energy added and efficiency, each compared with the same span before, then charging, driving and battery. |
@@ -23,11 +23,11 @@ Stack: Bun, Next.js 16 (App Router), shadcn/ui, Geist, Recharts, Supabase Postgr
 | `/stats/charging`, `/stats/driving`, `/stats/battery` | One topic each, in depth: every session, drive and chart. The period carries over in `?period=`. Old `/stats?view=…` links redirect here (update stats to `/updates`). |
 | `/car`, `/settings` | The car's details and battery health; theme, importing past updates and the account. |
 | `/rollout` | India rollout tracker, pooled across every car: versions on Indian cars, when the first got each, cars on each now and the lag behind the global release (from a hand-kept list in `lib/rollout.ts`). Totals only, with a state map of where each version runs. |
-| `/admin` | For the admin only (`users.role = 'admin'`; 404 for anyone else): owners, cars, version spread, failed checks and health checks. Tesla API usage and cost aren't tracked yet. |
+| `/admin` | For the admin only (`users.role = 'admin'`; 404 for anyone else): owners, cars, version spread, failed checks, health checks, and this month's Tesla API requests per kind and estimated cost. |
 | `/admin/waitlist` | For the admin only: requests waiting, oldest first, with Approve and Decline; approved, suspended and declined accounts with Suspend and Restore. Approve and Restore are refused past `MAX_USERS`. |
 | `/waitlist` | Public: "You're on the waitlist. Sign in again later to check." |
 
-The dashboard also has a **Check now** button that runs the same poll.
+Signing in runs the same check right away, for that account only, at most once every 5 minutes.
 
 Region: the app defaults to `https://fleet-api.prd.na.vn.cloud.tesla.com`. Tesla's [regions page](https://developer.tesla.com/docs/fleet-api/getting-started/regions-countries) assigns this host to "North America, Asia-Pacific (excluding China)" but does not list India by name, so this default is inferred rather than confirmed. If token exchange or vehicle calls fail with a region error, set `TESLA_FLEET_API_BASE_URL` to the host Tesla gives you.
 
@@ -51,6 +51,7 @@ Every variable is listed in [`.env.example`](.env.example). In Vercel: **Project
 | `TESLA_LOCATION_SCOPE` | Optional. `1` asks Tesla for `vehicle_location` at sign-in, so the 6-hourly check can work out the car's home state (only the state is kept). Enable Vehicle Location in the Tesla developer app first, then sign in again. Unset: the state comes from Supercharger history. |
 | `SIGNUP_MODE` | Optional. `closed` (default): only approved accounts sign in. `waitlist`: an unknown Tesla account in Tesla's NA/APAC region joins the waitlist. `open` acts as `waitlist` for now. |
 | `MAX_USERS` | Optional. How many accounts can be approved at once, the admin included. Default 25. |
+| `TESLA_BUDGET_USD` | Optional. What the Tesla developer account may spend in a month, by Uplink's estimate. Checks slow to every 12 hours from 80% of it and pause at 100% until the 1st; streaming carries on. Default 10, Tesla's monthly credit. |
 
 The admin isn't an env var: it's `users.role`. Set it once in the Supabase SQL editor: `update users set role = 'admin' where tesla_sub = '<tesla sub>';`. Demo mode always shows `/admin`.
 
@@ -117,12 +118,12 @@ The stations come from [OpenStreetMap](https://www.openstreetmap.org/copyright),
 
 ## Polling and the Vercel Hobby plan
 
-`vercel.json` schedules `/api/cron/poll` every 6 hours (`0 */6 * * *`) and `/api/cron/stations` every 15 minutes (`*/15 * * * *`). **Vercel Hobby only allows crons that run at most once a day, and a more frequent schedule fails the deployment.** On Hobby, drop the stations cron (sessions just stay unnamed) and either:
+`vercel.json` schedules `/api/cron/poll` and `/api/cron/stations` every 15 minutes (`*/15 * * * *`). Each poll run checks the users who are due, up to 4, each about every 6 hours. **Vercel Hobby only allows crons that run at most once a day, and a more frequent schedule fails the deployment.** On Hobby, drop the stations cron (sessions just stay unnamed) and either:
 
 - change the schedule to daily, e.g. `0 3 * * *` (8:30 AM IST), or
 - remove the `crons` block and call `/api/cron/poll` from an external scheduler such as cron-job.org, sending `Authorization: Bearer <CRON_SECRET>`.
 
-Fleet API calls are billed per request. Each poll makes one `vehicles` call plus one `vehicle_data` call per online car, so 4 polls a day stays small.
+Fleet API calls are billed per request, and Tesla takes $10 off each month. Uplink counts every request and streamed signal (Settings > Tesla API usage), and slows, then pauses, checks as the month's estimate nears `TESLA_BUDGET_USD`. Prices and the rules: [`docs/tesla-billing.md`](docs/tesla-billing.md).
 
 ## Later: Fleet Telemetry
 

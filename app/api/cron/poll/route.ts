@@ -1,11 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { DEMO } from "@/lib/demo";
 import { safeEqual } from "@/lib/session";
-import { pollAll } from "@/lib/server/poll";
-import { recordHealth } from "@/lib/server/stream-health";
+import { checkDue } from "@/lib/server/poll";
+import { recordIfStale } from "@/lib/server/status";
 
 export const maxDuration = 60;
 
+// Longer than the health bot's 15 minutes, so this defers to the bot while it runs.
+const HEALTH_EVERY_MS = 20 * 60_000;
+
+// Every 15 minutes: checks the users who are due (lib/server/poll.ts checkDue).
 // Vercel Cron sends `Authorization: Bearer $CRON_SECRET`.
 export async function GET(request: NextRequest) {
   // The demo site has no car or database to poll.
@@ -16,9 +20,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
-    const result = await pollAll();
-    // Feeds the status page's history; a failure here must not fail the poll.
-    await recordHealth().catch((err) => console.warn("Recording health failed:", err));
+    const result = await checkDue();
+    // Feeds the status page's history, unless the health bot or a visitor recorded a check in the last
+    // 20 minutes: each check asks Tesla twice, so one every run would add 192 requests a day. Warn-only.
+    await recordIfStale(HEALTH_EVERY_MS);
     return NextResponse.json(result, { status: result.ok ? 200 : 500 });
   } catch (err) {
     console.error(err);

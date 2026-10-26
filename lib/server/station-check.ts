@@ -5,6 +5,7 @@ import { syncStreamSessionsSafely } from "./stream-charging";
 import { type Owner, ownerDb } from "./data/owner";
 import { accountOwners } from "./data/system";
 import { fleetGet, hasScope, LOCATION_SCOPE, TeslaError } from "./tesla";
+import { budgetState } from "./usage";
 
 const MIN = 60 * 1000;
 // A session that ended this recently may still have the car at the charger.
@@ -105,8 +106,10 @@ export async function checkStations(): Promise<StationCheckResult> {
   if (DEMO) return { sessions: 0, labelled: 0, skipped: "demo" };
   const total: StationCheckResult = { sessions: 0, labelled: 0 };
   const skipped = new Set<string>();
+  // Naming a station is optional: past the Tesla budget only the database rebuild runs.
+  const spent = (await budgetState()).level === "stopped";
   for (const owner of await accountOwners()) {
-    const result = await checkOwnerStations(owner);
+    const result = await checkOwnerStations(owner, spent);
     total.sessions += result.sessions;
     total.labelled += result.labelled;
     if (result.skipped) skipped.add(result.skipped);
@@ -114,10 +117,11 @@ export async function checkStations(): Promise<StationCheckResult> {
   return skipped.size ? { ...total, skipped: [...skipped].join(", ") } : total;
 }
 
-async function checkOwnerStations(owner: Owner): Promise<StationCheckResult> {
+async function checkOwnerStations(owner: Owner, budgetSpent: boolean): Promise<StationCheckResult> {
   await syncChargingCars(owner);
   const rows = await pending(owner);
   if (!rows || rows.length === 0) return { sessions: 0, labelled: 0 };
+  if (budgetSpent) return { sessions: rows.length, labelled: 0, skipped: "Tesla budget spent" };
   if (!(await hasScope(owner, LOCATION_SCOPE).catch(() => false))) return { sessions: rows.length, labelled: 0, skipped: "no location scope" };
 
   const listed = await fleetGet<FleetVehicle[]>(owner, "/api/1/vehicles");

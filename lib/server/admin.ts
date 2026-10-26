@@ -9,10 +9,11 @@ import { missingEnv } from "./env";
 import { DEMO_OWNER, type Owner } from "./data/owner";
 import { ADMIN_ROLE, adminTotals, userRole } from "./data/system";
 import { COMPONENTS } from "./stream-health";
+import { accountKinds, type BudgetState, stateFor } from "./usage";
+import type { KindCount, Usage } from "@/lib/tesla-billing";
 
 const DAY = 86_400_000;
 export const RECENT_DAYS = 7;
-export const USAGE_DAYS = 30;
 
 // The admin is a role on the users row (users.role = 'admin', set by hand), never anything in code or env.
 // Admin means a current session (currentOwner: signed, not revoked, approved) whose user has that role,
@@ -24,6 +25,13 @@ export async function adminOwner(): Promise<Owner | null> {
   const owner = await currentOwner();
   if (!owner) return null;
   return (await userRole(owner.userId)) === ADMIN_ROLE ? owner : null;
+}
+
+// Whether a signed-in owner has the admin role, read fresh. For what a page shows, not for an action
+// (actions use adminOwner).
+export async function ownerIsAdmin(owner: Owner): Promise<boolean> {
+  if (DEMO) return true;
+  return (await userRole(owner.userId)) === ADMIN_ROLE;
 }
 
 export async function isAdmin(): Promise<boolean> {
@@ -42,9 +50,9 @@ export type AdminPage = {
   runs: { total: number; failed: number; lastFailedAt: string | null };
   // Checks that found a component down, per component, in the last RECENT_DAYS days.
   health: { component: string; down: number; total: number }[];
-  // Fleet API requests and cost aren't counted yet. Real data shows the number of checks instead (each one
-  // makes a few Fleet API calls); the demo shows simulated figures.
-  api: { kind: "simulated"; requests: number; costUsd: number } | { kind: "checks"; checks: number };
+  // This month's Fleet API requests per Uplink kind and streamed signals across the developer account, their
+  // estimated cost, and where that leaves the budget. counted is false before the api_usage migration.
+  api: { kinds: KindCount[]; signals: number; usage: Usage; counted: boolean; budget: BudgetState };
 };
 
 function spread(versions: (string | null)[]): Pick<AdminPage, "versions" | "noVersion"> {
@@ -76,6 +84,8 @@ export async function loadAdmin(now: number): Promise<AdminPage> {
   const recent = now - RECENT_DAYS * DAY;
   // health_daily works in IST days; the window starts on the day RECENT_DAYS - 1 days ago.
   const sinceDay = istDay(now - (RECENT_DAYS - 1) * DAY);
+  const usage = await accountKinds(now);
+  const api = { ...usage, budget: stateFor(usage.usage.costUsd) };
   if (DEMO) {
     const fleet = demoFleet();
     const failed = fleet.runs.filter((r) => !r.ok);
@@ -87,11 +97,11 @@ export async function loadAdmin(now: number): Promise<AdminPage> {
       ...spread(fleet.vehicles.map((v) => v.current_version)),
       runs: { total: fleet.runs.length, failed: failed.length, lastFailedAt: failed[0]?.started_at ?? null },
       health: healthTotals(demoData().healthDaily, sinceDay),
-      api: { kind: "simulated", ...fleet.api },
+      api,
     };
   }
   const since = new Date(recent).toISOString();
-  const totals = await adminTotals(since, new Date(now - USAGE_DAYS * DAY).toISOString(), new Date(now - RECENT_DAYS * DAY).toISOString());
+  const totals = await adminTotals(since, new Date(now - RECENT_DAYS * DAY).toISOString());
   const cars = totals.cars;
   return {
     simulated: false,
@@ -101,6 +111,6 @@ export async function loadAdmin(now: number): Promise<AdminPage> {
     ...spread(cars.map((v) => v.current_version)),
     runs: { total: totals.runs, failed: totals.failed, lastFailedAt: totals.lastFailedAt },
     health: healthTotals(totals.health as DailyCheck[], sinceDay),
-    api: { kind: "checks", checks: totals.checks },
+    api,
   };
 }

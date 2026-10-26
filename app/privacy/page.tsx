@@ -79,8 +79,9 @@ export default function PrivacyPage() {
         <p>Two ways.</p>
         <ul className={PLAIN_LIST}>
           <li>
-            Uplink checks Tesla&apos;s Fleet API every 6 hours, and while a charge is in progress, once more to
-            name the station. It only reads a car that is already online.
+            Uplink checks Tesla&apos;s Fleet API about every 6 hours, less often when it nears its monthly Tesla
+            budget, and while a charge is in progress, once more to name the station. It only reads a car that
+            is already online.
           </li>
           <li>
             Once you add Uplink&apos;s key to your car, the car streams changes to Uplink while it&apos;s awake:

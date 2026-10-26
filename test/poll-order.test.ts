@@ -64,7 +64,7 @@ globalThis.fetch = (async (input: string | URL | Request) => {
   return Response.json({ response: null });
 }) as typeof fetch;
 
-const { pollAll } = await import("@/lib/server/poll");
+const { checkDue } = await import("@/lib/server/poll");
 
 beforeEach(() => {
   events = [];
@@ -79,17 +79,20 @@ afterAll(() => {
 describe("the 6-hourly check", () => {
   test("syncs the versions the car streamed before it reads the car", async () => {
     // Recorded first by the check, a streamed install would carry the check's time and odometer instead.
-    await pollAll();
+    await checkDue();
+    // The check starts with its run row; the budget read before it also reads vehicles (for the VINs).
+    const started = events.indexOf("insert poll_runs");
     const firstSync = events.indexOf("sync streamed versions");
-    const firstCarRead = events.findIndex((e) => e.endsWith(" vehicles"));
-    expect(firstSync).toBeGreaterThanOrEqual(0);
+    const firstCarRead = events.findIndex((e, i) => i > started && e.endsWith(" vehicles"));
+    expect(started).toBeGreaterThanOrEqual(0);
+    expect(firstSync).toBeGreaterThan(started);
     expect(firstCarRead).toBeGreaterThan(firstSync);
     // And again after, for a car seen for the first time.
     expect(events.lastIndexOf("sync streamed versions")).toBeGreaterThan(firstCarRead);
   });
 
   test("never asks an asleep car for its data", async () => {
-    await pollAll();
+    await checkDue();
     expect(fleetPaths.some((p) => p.includes("vehicle_data") || p.includes("wake_up"))).toBe(false);
     expect(events).toContain("insert snapshots");
   });

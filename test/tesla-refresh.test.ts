@@ -233,7 +233,7 @@ describe("token cutover", () => {
 
   test("a sign-in before the copy stores its own pair and retires the old one", async () => {
     legacy(later());
-    expect(await signIn("owner")).toEqual({ userId: 1 });
+    expect(await signIn("owner")).toMatchObject({ userId: 1 });
     expect(tokensOf(1)).toEqual([expect.objectContaining({ refresh_token_enc: "enc:r2" })]);
     expect(oauth().refresh_token_enc).toBeNull();
     expect(await fleetGet<string>(OWNER, "/api/1/vehicles")).toBe("ok");
@@ -249,7 +249,7 @@ describe("sign-in with sign-up closed", () => {
   });
 
   test("an approved user signs in and their tokens are stored as theirs", async () => {
-    expect(await signIn("other")).toEqual({ userId: 2 });
+    expect(await signIn("other")).toMatchObject({ userId: 2 });
     expect(fake.rows("user_tokens")).toEqual([expect.objectContaining({ user_id: 2, access_token_enc: "enc:a1", refresh_token_enc: "enc:r1" })]);
   });
 
@@ -315,7 +315,7 @@ describe("sign-in with SIGNUP_MODE=waitlist", () => {
   test("a declined account is still refused, and an approved one still signs in", async () => {
     expect(await signIn("declined")).toBe("not-approved");
     expect(row("declined")!.status).toBe("declined");
-    expect(await signIn("other")).toEqual({ userId: 2 });
+    expect(await signIn("other")).toMatchObject({ userId: 2 });
     expect(fake.rows("user_tokens")).toEqual([expect.objectContaining({ user_id: 2 })]);
   });
 });

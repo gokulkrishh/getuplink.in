@@ -63,8 +63,7 @@ export type DemoFleet = {
   globalReleases: Record<string, string>; // simulated, IST days
   notes: ReleaseNotesByVersion; // simulated
   runs: FleetRun[]; // the last 7 days of checks, newest first
-  // Simulated: real Fleet API requests and spend aren't counted anywhere yet.
-  api: { requests: number; costUsd: number };
+  // The demo's Fleet API usage is simulated in lib/server/usage.ts (demoMonth), at Tesla's prices.
 };
 
 export function generateFleet(now: number): DemoFleet {
@@ -108,7 +107,6 @@ export function generateFleet(now: number): DemoFleet {
   for (let i = 0; i < 28; i++) {
     runs.push({ started_at: new Date(now - (i * 6 + 1) * HOUR).toISOString(), ok: i !== 5 && i !== 19 });
   }
-  const requests = vehicles.length * 4 * 30 * 3; // four checks a day, about three Fleet API calls each
   return {
     now,
     owners: vehicles.length - SHARED_CARS,
@@ -118,7 +116,6 @@ export function generateFleet(now: number): DemoFleet {
     globalReleases: Object.fromEntries(RELEASES.map(([version, globalDaysAgo]) => [version, istDay(now - globalDaysAgo * DAY)])),
     notes: FLEET_NOTES,
     runs,
-    api: { requests, costUsd: Math.round(requests * 0.0011 * 100) / 100 },
   };
 }
 

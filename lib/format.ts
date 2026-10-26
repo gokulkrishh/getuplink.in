@@ -206,6 +206,17 @@ export function formatMoney(value: number, currency: string): string {
 }
 
 const moneyFormats = new Map<string, Intl.NumberFormat>();
+
+// "$3.12": Tesla Fleet API cost, in dollars as Tesla bills it, to the cent. No rupee figure: Uplink has no
+// verified exchange rate.
+export function formatUsd(value: number): string {
+  return formatMoney(value, "USD");
+}
+
+// "1,23,456": a count of requests or signals.
+export function formatCount(value: number): string {
+  return formatNumber(value, 0);
+}
 const month = new Intl.DateTimeFormat("en-GB", { timeZone: IST, month: "long", year: "numeric" });
 
 // "October 2026", in IST. Also the key that groups sessions by month.

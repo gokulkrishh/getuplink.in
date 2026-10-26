@@ -222,8 +222,9 @@ export async function retireLegacyTokens(sub: string, refreshTokenEnc?: string):
 }
 
 // ---- The check lock (poll_runs) ----
-// poll_runs allows one unfinished row (poll_runs_one_running_idx): inserting one is taking the lock. One
-// lock for every account today; step 5 makes it one per user.
+// poll_runs allows one unfinished row per user (poll_runs_one_running_per_user_idx, from the api_usage
+// migration): inserting one is taking the user's lock. Before that migration the index allows one for
+// everyone, so a second user's check waits for the first (the cron checks users one after another).
 
 export async function closeStaleRuns(startedBefore: string): Promise<void> {
   check(
@@ -236,8 +237,8 @@ export async function closeStaleRuns(startedBefore: string): Promise<void> {
 }
 
 // The new run's id, or null when another run holds the lock.
-export async function startRun(uniqueViolation: string): Promise<number | null> {
-  const { data, error } = await db().from("poll_runs").insert({}).select("id").single();
+export async function startRun(owner: Owner, uniqueViolation: string): Promise<number | null> {
+  const { data, error } = await db().from("poll_runs").insert({ user_id: owner.userId }).select("id").single();
   if (error?.code === uniqueViolation) return null;
   if (error || !data) throw new Error(error?.message ?? "Could not start a check");
   return data.id as number;
@@ -253,9 +254,11 @@ export async function finishRun(id: number, fields: { ok: boolean; vehicles_seen
   );
 }
 
-// True while a run holds the lock and isn't stale.
-export async function runInProgress(startedAfter: string): Promise<boolean> {
-  const running = check(await db().from("poll_runs").select("id").is("finished_at", null).gte("started_at", startedAfter).limit(1).maybeSingle());
+// True while a run holds the user's lock and isn't stale.
+export async function runInProgress(owner: Owner, startedAfter: string): Promise<boolean> {
+  const running = check(
+    await db().from("poll_runs").select("id").eq("user_id", owner.userId).is("finished_at", null).gte("started_at", startedAfter).limit(1).maybeSingle(),
+  );
   return Boolean(running);
 }
 
@@ -395,15 +398,14 @@ function count(result: { count: number | null; error: { message: string } | null
   return result.count ?? 0;
 }
 
-export async function adminTotals(since: string, usageSince: string, healthSince: string) {
-  const [owners, vehicles, runs, failed, lastFailed, health, checks] = await Promise.all([
+export async function adminTotals(since: string, healthSince: string) {
+  const [owners, vehicles, runs, failed, lastFailed, health] = await Promise.all([
     db().from("users").select("id", { count: "exact", head: true }).eq("status", APPROVED),
     db().from("vehicles").select("id:id::text, vin, current_version, last_seen_at, user_id"),
     db().from("poll_runs").select("id", { count: "exact", head: true }).gte("started_at", since),
     db().from("poll_runs").select("id", { count: "exact", head: true }).gte("started_at", since).eq("ok", false),
     db().from("poll_runs").select("started_at").eq("ok", false).gte("started_at", since).order("started_at", { ascending: false }).limit(1).maybeSingle(),
     db().rpc("health_daily", { since: healthSince }),
-    db().from("poll_runs").select("id", { count: "exact", head: true }).gte("started_at", usageSince),
   ]);
   return {
     owners: count(owners),
@@ -416,7 +418,6 @@ export async function adminTotals(since: string, usageSince: string, healthSince
     failed: count(failed),
     lastFailedAt: ((check(lastFailed) as { started_at: string } | null)?.started_at as string | undefined) ?? null,
     health: check(health) as { component: string; day: string; up: number; total: number }[],
-    checks: count(checks),
   };
 }
 

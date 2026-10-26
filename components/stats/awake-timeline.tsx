@@ -26,7 +26,7 @@ export function AwakeTimeline({ days, now }: { days: DayStrip[]; now: number }) 
         <>
           <p>Newest day on top. Long asleep stretches can explain a late update.</p>
           <p>
-            The car doesn&apos;t say when it wakes or sleeps, so each mark is a 15-minute block where it sent data, or where a check every 6 hours found
+            The car doesn&apos;t say when it wakes or sleeps, so each mark is a 15-minute block where it sent data, or where a check (about every 6 hours) found
             it asleep or offline.
           </p>
         </>

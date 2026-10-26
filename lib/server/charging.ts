@@ -4,6 +4,7 @@ import { readAllRows, readPages } from "@/lib/paging";
 import { demoChargingFees, demoChargingSessions } from "./demo";
 import { type Owner, ownerDb } from "./data/owner";
 import { fleetGet, TeslaError } from "./tesla";
+import { budgetState } from "./usage";
 
 const DAY = 24 * 60 * 60 * 1000;
 const LOOKBACK_DAYS = 120;
@@ -213,6 +214,8 @@ export async function syncChargingHistoryThrottled(owner: Owner): Promise<void> 
     const { data: last, error } = await ownerDb(owner).from("charging_sessions").select("fetched_at").order("fetched_at", { ascending: false }).limit(1).maybeSingle();
     if (error) throw new Error(error.message);
     if (last?.fetched_at && Date.now() - Date.parse(last.fetched_at as string) < MIN_SYNC_GAP_MS) return;
+    // Optional: past the Tesla budget the page shows what's stored until the month resets.
+    if ((await budgetState()).level === "stopped") return;
     const { data: cars, error: carsError } = await ownerDb(owner).from("vehicles").select("vin").not("vin", "is", null);
     if (carsError) throw new Error(carsError.message);
     await syncChargingHistory(owner, (cars ?? []).map((c) => c.vin as string));
