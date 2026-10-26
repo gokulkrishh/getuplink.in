@@ -120,8 +120,8 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
             </p>
           )}
           {key !== "done" && (
-            <a href={KEY_PAIRING_URL} className={cn(buttonVariants({ size: "lg" }), "h-12 w-full gap-2 text-base sm:w-auto sm:px-8")}>
-              <KeyRound aria-hidden className="size-5" />
+            <a href={KEY_PAIRING_URL} className={cn(buttonVariants({ size: "lg" }), "h-11 w-full gap-2 px-4 text-base sm:w-auto")}>
+              <KeyRound aria-hidden className="size-5 fill-current" />
               Add the key in the Tesla app
             </a>
           )}
