@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { KeyRound } from "lucide-react";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
 import { buttonVariants } from "@/components/ui/button";
-import { DEMO } from "@/lib/demo";
+import { DEMO, DEMO_SITE } from "@/lib/demo";
 import { formatAgo } from "@/lib/format";
 import { type CarSetup, KEY_PAIRING_URL, keyStep, type StepState, streamingStep } from "@/lib/setup-status";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
@@ -166,6 +166,8 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
 }
 
 export default function SetupPage({ searchParams }: PageProps<"/setup">) {
+  // The public demo site's sample car has nothing to set up; local demo mode keeps the page to preview it.
+  if (DEMO_SITE) notFound();
   return (
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
       <Header setup={false} />
