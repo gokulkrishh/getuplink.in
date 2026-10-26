@@ -6,6 +6,7 @@ import { backTo, overlapping } from "@/lib/kept";
 import { LIST_PREVIEW } from "@/lib/list";
 import type { Timeframe } from "@/lib/periods";
 import { median } from "@/lib/telemetry-derive";
+import { unitNotes } from "@/lib/unit-words";
 import { type ParkedRow, ParkedBlocks, ParkedTable } from "@/components/stats/parked-rows";
 
 const HOUR = 3_600_000;
@@ -82,7 +83,12 @@ export function ParkedDrain({ parked, parkedNow, frame }: { parked: ParkedPeriod
   return (
     <section className="space-y-8">
       <div className="space-y-2">
-        <h2 className="text-lg font-medium tracking-heading">Parked drain</h2>
+        <div className="space-y-1">
+          <h2 className="text-lg font-medium tracking-heading">Parked drain</h2>
+          <p className="text-sm text-muted-foreground">
+            How much battery the car lost while parked, as % a day, and the power it drew to stay on, in W. Lower is better.
+          </p>
+        </div>
         {headline && (
           <>
             {/* The label wraps as a whole under the figure on a phone, rather than splitting across the big line. */}
@@ -131,7 +137,7 @@ export function ParkedDrain({ parked, parkedNow, frame }: { parked: ParkedPeriod
       )}
       <p className="text-xs text-faint">
         {cut && `${cut} `}Energy is what the pack lost; average power is that over the time parked. Seen awake counts only the time the car was sending data, so
-        it&apos;s a minimum. ≥ means parked since before Uplink&apos;s first reading.
+        it&apos;s a minimum. ≥ means parked since before Uplink&apos;s first reading. {unitNotes(["% a day", "W", "kWh"])}
       </p>
     </section>
   );

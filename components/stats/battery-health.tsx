@@ -1,3 +1,4 @@
+import { ChartCard } from "@/components/chart-card";
 import { type Figure, Figures } from "@/components/stats/figures";
 import { chargeEfficiency } from "@/lib/charge-sessions";
 import type { WeeklyRange } from "@/lib/charge-level";
@@ -17,7 +18,7 @@ function vsBest<T>(weeks: T[], value: (w: T) => number, format: (n: number) => s
   const best = weeks.reduce((a, w) => (value(w) > value(a) ? w : a));
   if (weeks.length < 2 || best === latest) return { now: format(value(latest)), note: weeks.length < 2 ? "Latest week's median" : "Latest week, the best on record" };
   const change = (value(latest) - value(best)) / value(best);
-  return { now: format(value(latest)), note: `Latest week, ${(change * 100).toFixed(1)}% vs best week, ${format(value(best))}` };
+  return { now: format(value(latest)), note: `Latest week, ${Math.abs(change * 100).toFixed(1)}% below the best week, ${format(value(best))}` };
 }
 
 // Battery health after TeslaMate's dashboard, from what the car streamed. Usable capacity and range at
@@ -60,19 +61,25 @@ export function BatteryHealth({
   const ever = sessions.filter((s) => s.ended_at !== null && s.energy_added_kwh !== null);
   const none = `No finished charges ${frame.words}`;
   figures.push({ label: "Energy charged", value: formatKwh(added), note: added > 0 ? `${finished.length} ${finished.length === 1 ? "charge" : "charges"} ${frame.words}` : none });
-  if (latestKwh) figures.push({ label: "Charge cycles", value: (added / latestKwh).toFixed(1), note: `Energy charged ÷ usable capacity, ${frame.words}` });
+  if (latestKwh) figures.push({ label: "Charge cycles", value: (added / latestKwh).toFixed(1), note: `Energy charged divided by usable capacity, ${frame.words}` });
   if (chargeEfficiency(ever.filter((s) => s.kind === "ac")) !== null) figures.push({ label: "AC efficiency", value: ac !== null ? percent(ac) : "—", note: ac !== null ? efficiency : `No AC charge to measure ${frame.words}` });
   if (chargeEfficiency(ever.filter((s) => s.kind === "dc")) !== null) figures.push({ label: "DC efficiency", value: dc !== null ? percent(dc) : "—", note: dc !== null ? efficiency : `No DC charge to measure ${frame.words}` });
   if (figures.length === 0) return null;
 
   return (
-    <section className="space-y-4">
-      <h2 className="text-lg font-medium tracking-heading">Battery health</h2>
+    <ChartCard
+      title="Battery health"
+      description="How much the battery holds and how far it goes when full, against the best week Uplink has seen, then how much you charged and how much of it reached the battery."
+      unit="kWh"
+      terms={["capacity", "range at 100%", "charge cycles", "charging efficiency", "AC and DC"]}
+      caption={
+        <>
+          Uplink compares with the best week it has seen, not with a new pack: it only knows what the car has reported since you connected it.
+          {teslaPack && " Full pack, per Tesla, is the car's own figure, as it last sent it; Tesla may count the pack differently from Uplink's estimate."}
+        </>
+      }
+    >
       <Figures figures={figures} />
-      <p className="text-xs text-faint">
-        Usable capacity and range are compared with the best week Uplink has seen, not with a new pack: it only knows what the car has reported since you connected it.
-        {teslaPack && " Full pack, per Tesla, is the car's own figure, as it last sent it; Tesla may count the pack differently from Uplink's estimate."}
-      </p>
-    </section>
+    </ChartCard>
   );
 }
