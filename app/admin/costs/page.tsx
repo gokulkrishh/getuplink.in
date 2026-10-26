@@ -3,7 +3,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import type { ReactNode } from "react";
-import { Header } from "@/components/header";
+import { AdminPage } from "@/components/admin/admin-page";
 import { Measure } from "@/components/measure";
 import { Figures } from "@/components/stats/figures";
 import {
@@ -146,7 +146,7 @@ function Breakdown({ name, parts }: { name: string; parts: Part[] }) {
   );
 }
 
-function Row({ line, edit, parts, now, ready }: { line: CostLine; edit?: Editable; parts?: Part[]; now: number; ready: boolean }) {
+function Row({ line, edit, parts, now, ready, readOnly }: { line: CostLine; edit?: Editable; parts?: Part[]; now: number; ready: boolean; readOnly: boolean }) {
   const text = amountText(line);
   const soon = renews(line) && line.amount !== null && renewsSoon(line.resetsOn, now);
   const lines = details(line, now);
@@ -193,7 +193,7 @@ function Row({ line, edit, parts, now, ready }: { line: CostLine; edit?: Editabl
             Edit
             <span className="sr-only"> {line.name}</span>
           </summary>
-          <EntryForm action={saveEntry.bind(null, edit.target)} remove={removeEntry.bind(null, edit.target)} values={edit.values} />
+          <EntryForm action={saveEntry.bind(null, edit.target)} remove={removeEntry.bind(null, edit.target)} values={edit.values} readOnly={readOnly} />
         </details>
       )}
     </li>
@@ -235,18 +235,16 @@ export default async function Page() {
   if (data.tesla) parts.tesla = teslaParts(data.tesla, now);
   if (data.google) parts.google = googleParts(data.google);
   return (
-    <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
-      <Header setup={false} />
-      <div className="space-y-12">
-        <header className="space-y-1">
-          <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">Costs</h1>
-          <p className="text-sm text-muted-foreground">
-            What running Uplink costs this month, in dollars.
-            {data.simulated && " Demo mode: sample figures."}
-            {!data.simulated && !data.ready && " Apply the costs migration to add your own."}
-          </p>
-        </header>
-
+    <AdminPage
+      tab="costs"
+      description={
+        <p>
+          What running Uplink costs this month, in dollars.
+          {data.simulated && " Demo: sample figures, read-only."}
+          {!data.simulated && !data.ready && " Apply the costs migration to add your own."}
+        </p>
+      }
+    >
         <Figures
           figures={[{ label: "This month", value: usd(total.usd), note: totalNote(total) }]}
           info="Estimated lines are list prices for what each provider's API reports, refreshed every 6 hours."
@@ -272,13 +270,13 @@ export default async function Page() {
           <h2 className={heading}>Services</h2>
           <ul className="divide-y border-t">
             {data.lines.map((line) => (
-              <Row key={line.id} line={line} edit={data.edit[line.id]} parts={parts[line.id]} now={now} ready={data.ready} />
+              <Row key={line.id} line={line} edit={data.edit[line.id]} parts={parts[line.id]} now={now} ready={data.ready} readOnly={data.simulated} />
             ))}
           </ul>
           {data.ready && (
             <details className="pt-2">
               <summary className={cn("w-fit cursor-pointer list-none text-sm [&::-webkit-details-marker]:hidden", link)}>Add a cost</summary>
-              <EntryForm action={saveEntry.bind(null, "new")} values={null} submitLabel="Add" />
+              <EntryForm action={saveEntry.bind(null, "new")} values={null} submitLabel="Add" readOnly={data.simulated} />
             </details>
           )}
         </section>
@@ -293,13 +291,13 @@ export default async function Page() {
                 label="Google Maps budget, in dollars"
                 defaultValue={data.googleBudgetUsd === null ? "" : String(data.googleBudgetUsd)}
                 placeholder="None"
+                readOnly={data.simulated}
               />
             </div>
           </section>
         )}
 
         <p className="text-xs text-faint">As of {formatDateTime(now)}</p>
-      </div>
-    </div>
+    </AdminPage>
   );
 }

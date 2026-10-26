@@ -11,7 +11,6 @@ import { carsNotStreaming, type WaitingCar } from "./data/setup";
 import { ADMIN_ROLE, adminTotals, userRole } from "./data/system";
 import { canSendConfig } from "./telemetry-config";
 import { COMPONENTS } from "./stream-health";
-import { accountKinds } from "./usage";
 
 const DAY = 86_400_000;
 export const RECENT_DAYS = 7;
@@ -47,9 +46,6 @@ export type AdminPage = {
   runs: { total: number; failed: number; lastFailedAt: string | null };
   // Checks that found a component down, per component, in the last RECENT_DAYS days.
   health: { component: string; down: number; total: number }[];
-  // This month's estimated Fleet API cost across the developer account; Costs has what it's made of.
-  // counted is false before the api_usage migration.
-  api: { costUsd: number; counted: boolean };
   // Cars that don't stream to Uplink yet (/setup's two steps), by user id: null before the car_setup
   // migration. sendsConfig: whether Uplink sends the streaming config itself (its keys are set).
   notStreaming: WaitingCar[] | null;
@@ -85,8 +81,6 @@ export async function loadAdmin(now: number): Promise<AdminPage> {
   const recent = now - RECENT_DAYS * DAY;
   // health_daily works in IST days; the window starts on the day RECENT_DAYS - 1 days ago.
   const sinceDay = istDay(now - (RECENT_DAYS - 1) * DAY);
-  const { usage, counted } = await accountKinds(now);
-  const api = { costUsd: usage.costUsd, counted };
   if (DEMO) {
     const fleet = demoFleet();
     const failed = fleet.runs.filter((r) => !r.ok);
@@ -98,7 +92,6 @@ export async function loadAdmin(now: number): Promise<AdminPage> {
       ...spread(fleet.vehicles.map((v) => v.current_version)),
       runs: { total: fleet.runs.length, failed: failed.length, lastFailedAt: failed[0]?.started_at ?? null },
       health: healthTotals(demoData().healthDaily, sinceDay),
-      api,
       notStreaming: [],
       sendsConfig: true,
     };
@@ -114,7 +107,6 @@ export async function loadAdmin(now: number): Promise<AdminPage> {
     ...spread(cars.map((v) => v.current_version)),
     runs: { total: totals.runs, failed: totals.failed, lastFailedAt: totals.lastFailedAt },
     health: healthTotals(totals.health as DailyCheck[], sinceDay),
-    api,
     notStreaming,
     sendsConfig: canSendConfig(),
   };

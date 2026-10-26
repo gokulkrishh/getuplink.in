@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
-import { Info } from "lucide-react";
-import { Header } from "@/components/header";
+import { AdminPage } from "@/components/admin/admin-page";
 import { Figures } from "@/components/stats/figures";
-import { Tip, TipTrigger } from "@/components/tip";
+import { InfoButton } from "@/components/info-button";
 import { type Decision, isFull, placesLine } from "@/lib/admin";
 import { formatDateTime } from "@/lib/format";
 import { isAdmin } from "@/lib/server/admin";
@@ -12,8 +11,8 @@ import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type Account, loadWaitlist, WAITLIST_TAG, type WaitlistPage } from "@/lib/server/waitlist";
 import { type InviteItem, type InvitesPage, loadInvites } from "@/lib/server/invites";
 import { copyInviteLink, createInviteLink, decideAccount, renewInviteLink, revokeInviteLink } from "./actions";
-import { DecisionButton } from "./decision-button";
-import { CreateInvite, LinkButton } from "./invite-forms";
+import { ActionRow, type RowAction } from "./decision-button";
+import { CreateInvite } from "./invite-forms";
 
 export const metadata: Metadata = { title: "Access · Admin" };
 
@@ -43,7 +42,7 @@ function inviteLine(i: InviteItem): string {
 }
 
 // Invite links: one for each friend's car, made here and shared by the admin. Uplink sends nothing.
-function Invites({ invites }: { invites: InvitesPage }) {
+function Invites({ invites, readOnly }: { invites: InvitesPage; readOnly: boolean }) {
   return (
     <section className="space-y-4">
       <div className="space-y-1">
@@ -60,28 +59,12 @@ function Invites({ invites }: { invites: InvitesPage }) {
       {invites.items.length > 0 && (
         <ul className="divide-y border-t">
           {invites.items.map((i) => (
-            <li key={i.id} className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 py-3">
-              <div className="min-w-0 space-y-0.5">
-                <p className="text-sm font-medium">
-                  {i.label ?? "Invite"} <span className="font-mono text-xs font-normal text-muted-foreground">VIN …{i.vinSuffix}</span>
-                </p>
-                <p className="text-sm text-muted-foreground">{inviteLine(i)}</p>
-              </div>
-              <div className="flex shrink-0 items-start gap-2">
-                {i.state === "unused" && (
-                  <>
-                    <LinkButton action={copyInviteLink.bind(null, i.id)} label="Copy" pendingLabel="Copying…" />
-                    <DecisionButton action={revokeInviteLink.bind(null, i.id)} label="Revoke" pendingLabel="Revoking…" />
-                  </>
-                )}
-                {(i.state === "expired" || i.state === "revoked") && (
-                  <LinkButton action={renewInviteLink.bind(null, i.id)} label="New link" pendingLabel="Creating…" />
-                )}
-                {i.state === "used" && i.joinedApproved && i.joinedUserId !== null && (
-                  <DecisionButton action={decideAccount.bind(null, "suspend", i.joinedUserId)} label="Suspend" pendingLabel="Suspending…" />
-                )}
-              </div>
-            </li>
+            <ActionRow key={i.id} actions={inviteActions(i, readOnly)}>
+              <p className="text-sm font-medium">
+                {i.label ?? "Invite"} <span className="font-mono text-xs font-normal text-muted-foreground">VIN …{i.vinSuffix}</span>
+              </p>
+              <p className="text-sm text-muted-foreground">{inviteLine(i)}</p>
+            </ActionRow>
           ))}
         </ul>
       )}
@@ -89,7 +72,20 @@ function Invites({ invites }: { invites: InvitesPage }) {
   );
 }
 
-type Button = { decision: Decision; label: string; pendingLabel: string; variant?: "default" | "outline"; full?: boolean };
+// Copy and New link only hand back a link, so they work in demo mode too; the rest change something.
+function inviteActions(i: InviteItem, readOnly: boolean): RowAction[] {
+  if (i.state === "unused")
+    return [
+      { label: "Copy", pendingLabel: "Copying…", action: copyInviteLink.bind(null, i.id) },
+      { label: "Revoke", pendingLabel: "Revoking…", action: revokeInviteLink.bind(null, i.id), disabled: readOnly },
+    ];
+  if (i.state === "expired" || i.state === "revoked") return [{ label: "New link", pendingLabel: "Creating…", action: renewInviteLink.bind(null, i.id) }];
+  if (i.state === "used" && i.joinedApproved && i.joinedUserId !== null)
+    return [{ label: "Suspend", pendingLabel: "Suspending…", action: decideAccount.bind(null, "suspend", i.joinedUserId), disabled: readOnly }];
+  return [];
+}
+
+type Button = { decision: Decision; label: string; pendingLabel: string; primary?: boolean; disabled?: boolean };
 
 function List({ title, accounts, empty, when, buttons, more }: {
   title: string;
@@ -107,24 +103,13 @@ function List({ title, accounts, empty, when, buttons, more }: {
       ) : (
         <ul className="divide-y border-t">
           {accounts.map((a) => (
-            <li key={a.id} className="flex items-start justify-between gap-4 py-3">
-              <div className="min-w-0 space-y-0.5">
-                <p className="text-sm font-medium">Request {a.id}</p>
-                <p className="text-sm text-muted-foreground">{when(a)}</p>
-              </div>
-              <div className="flex shrink-0 items-start gap-2">
-                {buttons.map((b) => (
-                  <DecisionButton
-                    key={b.decision}
-                    action={decideAccount.bind(null, b.decision, a.id)}
-                    label={b.label}
-                    pendingLabel={b.pendingLabel}
-                    variant={b.variant}
-                    disabled={b.full}
-                  />
-                ))}
-              </div>
-            </li>
+            <ActionRow
+              key={a.id}
+              actions={buttons.map((b) => ({ label: b.label, pendingLabel: b.pendingLabel, primary: b.primary, disabled: b.disabled, action: decideAccount.bind(null, b.decision, a.id) }))}
+            >
+              <p className="text-sm font-medium">Request {a.id}</p>
+              <p className="text-sm text-muted-foreground">{when(a)}</p>
+            </ActionRow>
           ))}
         </ul>
       )}
@@ -140,73 +125,66 @@ const latest = (shown: number, total: number) => (total > shown ? `The latest ${
 export default async function Page() {
   const { data, invites, now } = await loadPage();
   const full = isFull(data.used, data.max);
+  // Demo mode saves nothing, so whatever would change something is off, said once here.
+  const readOnly = data.simulated;
   return (
-    <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
-      <Header setup={false} />
-      <div className="space-y-12">
-        <header className="space-y-1">
-          <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">Access</h1>
-          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            {placesLine(data.used, data.max)}.{data.simulated && " Demo mode: simulated."}
-            <TipTrigger className="text-faint hover:text-foreground">
-              <Info aria-hidden className="size-3.5" />
-              <span className="sr-only">About places</span>
-              <Tip align="start" className="max-w-[min(32ch,calc(100vw-2rem))] whitespace-normal">
-                Approved accounts hold a place, yours included. Suspended ones don&apos;t. MAX_USERS sets the number.
-              </Tip>
-            </TipTrigger>
-          </p>
-        </header>
+    <AdminPage
+      tab="access"
+      description={
+        <p className="flex items-center gap-1">
+          {placesLine(data.used, data.max)}.{readOnly && " Demo: read-only."}
+          <InfoButton label="places">Approved accounts hold a place, yours included. Suspended ones don&apos;t. MAX_USERS sets the number.</InfoButton>
+        </p>
+      }
+    >
+      <Figures
+        figures={[
+          { label: "Waiting", value: number.format(data.counts.pending) },
+          { label: "Approved", value: number.format(data.counts.approved), note: "Not counting you" },
+          { label: "Suspended", value: number.format(data.counts.suspended) },
+          { label: "Declined", value: number.format(data.counts.declined) },
+        ]}
+      />
 
-        <Figures
-          figures={[
-            { label: "Waiting", value: number.format(data.counts.pending) },
-            { label: "Approved", value: number.format(data.counts.approved), note: "Not counting you" },
-            { label: "Suspended", value: number.format(data.counts.suspended) },
-            { label: "Declined", value: number.format(data.counts.declined) },
-          ]}
-        />
+      <Invites invites={invites} readOnly={readOnly} />
 
-        <Invites invites={invites} />
+      <List
+        title="Waiting"
+        accounts={data.pending}
+        empty="Nobody is waiting."
+        when={asked}
+        more={full ? "Every place is used. Suspend someone to approve another." : undefined}
+        buttons={[
+          { decision: "approve", label: "Approve", pendingLabel: "Approving…", primary: true, disabled: full || readOnly },
+          { decision: "decline", label: "Decline", pendingLabel: "Declining…", disabled: readOnly },
+        ]}
+      />
+      <List
+        title="Approved"
+        accounts={data.approved}
+        empty="Nobody yet."
+        when={decided("Approved")}
+        more={latest(data.approved.length, data.counts.approved)}
+        buttons={[{ decision: "suspend", label: "Suspend", pendingLabel: "Suspending…", disabled: readOnly }]}
+      />
+      <List
+        title="Suspended"
+        accounts={data.suspended}
+        empty="Nobody."
+        when={decided("Suspended")}
+        more={latest(data.suspended.length, data.counts.suspended)}
+        buttons={[{ decision: "restore", label: "Restore", pendingLabel: "Restoring…", disabled: full || readOnly }]}
+      />
+      <List
+        title="Declined"
+        accounts={data.declined}
+        empty="Nobody."
+        when={decided("Declined")}
+        more={latest(data.declined.length, data.counts.declined) ?? "Restore puts a request back on the waitlist."}
+        buttons={[{ decision: "reopen", label: "Restore", pendingLabel: "Restoring…", disabled: readOnly }]}
+      />
 
-        <List
-          title="Waiting"
-          accounts={data.pending}
-          empty="Nobody is waiting."
-          when={asked}
-          more={full ? "Every place is used. Suspend someone to approve another." : undefined}
-          buttons={[
-            { decision: "approve", label: "Approve", pendingLabel: "Approving…", variant: "default", full },
-            { decision: "decline", label: "Decline", pendingLabel: "Declining…" },
-          ]}
-        />
-        <List
-          title="Approved"
-          accounts={data.approved}
-          empty="Nobody yet."
-          when={decided("Approved")}
-          more={latest(data.approved.length, data.counts.approved)}
-          buttons={[{ decision: "suspend", label: "Suspend", pendingLabel: "Suspending…" }]}
-        />
-        <List
-          title="Suspended"
-          accounts={data.suspended}
-          empty="Nobody."
-          when={decided("Suspended")}
-          more={latest(data.suspended.length, data.counts.suspended)}
-          buttons={[{ decision: "restore", label: "Restore", pendingLabel: "Restoring…", full }]}
-        />
-        <List
-          title="Declined"
-          accounts={data.declined}
-          empty="Nobody."
-          when={decided("Declined")}
-          more={latest(data.declined.length, data.counts.declined) ?? "Restore puts a request back on the waitlist."}
-          buttons={[{ decision: "reopen", label: "Restore", pendingLabel: "Restoring…" }]}
-        />
-
-        <p className="text-xs text-faint">As of {formatDateTime(now)}</p>
-      </div>
-    </div>
+      <p className="text-xs text-faint">As of {formatDateTime(now)}</p>
+    </AdminPage>
   );
 }

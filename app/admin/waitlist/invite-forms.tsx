@@ -86,31 +86,3 @@ export function CreateInvite({ action }: { action: (previous: LinkResult, form: 
     </div>
   );
 }
-
-// Copy (an unused invite's link again) or New link (an expired one's replacement): the link shows under the row.
-export function LinkButton({
-  action,
-  label,
-  pendingLabel,
-}: {
-  action: (previous: LinkResult, form: FormData) => Promise<LinkResult>;
-  label: string;
-  pendingLabel: string;
-}) {
-  const [result, formAction, pending] = useActionState(action, null);
-  return (
-    <div className="flex flex-col items-end gap-2">
-      <form action={formAction}>
-        <Button type="submit" variant="outline" size="sm" disabled={pending}>
-          {pending ? pendingLabel : label}
-        </Button>
-      </form>
-      <Message result={result} />
-      {result?.url && (
-        <div className="w-[min(22rem,calc(100vw-2.5rem))]">
-          <LinkPanel url={result.url} />
-        </div>
-      )}
-    </div>
-  );
-}
