@@ -17,7 +17,7 @@ import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type CarDetails, loadCarDetails } from "@/lib/server/car";
 import { type CarState, loadCarState, OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadPrimaryVehicle, loadStream } from "@/lib/server/telemetry";
-import { unitNotes } from "@/lib/unit-words";
+import { loadTyreArrivals } from "@/lib/server/telemetry-window";
 import type { Stream } from "@/lib/telemetry";
 import { cn } from "@/lib/utils";
 import { currentVersion } from "@/lib/versions";
@@ -51,8 +51,12 @@ async function loadLive(id: string, vin: string | null): Promise<Live> {
   if (!owner) redirect(SIGNED_OUT_PATH);
   const at = Date.now();
   // The flags come with the state's read of the last online check.
-  const [{ flags, ...state }, stream] = await Promise.all([loadCarState(owner, { id, vin }, "normal"), vin ? loadStream(owner, vin, PAGE_FIELDS) : {}]);
-  return { state, stream, now: vin ? carNow(stream, at, flags.tyres) : null, notices: flags.notices, at };
+  const [{ flags, ...state }, stream, arrivals] = await Promise.all([
+    loadCarState(owner, { id, vin }, "normal"),
+    vin ? loadStream(owner, vin, PAGE_FIELDS) : {},
+    vin ? loadTyreArrivals(owner, vin, at) : {},
+  ]);
+  return { state, stream, now: vin ? carNow(stream, at, flags.tyres, arrivals) : null, notices: flags.notices, at };
 }
 
 
@@ -212,23 +216,25 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
           <Figures
             figures={[
               {
-                label: "Estimated full pack",
+                label: "Usable capacity",
                 value: formatKwh(car.battery.kwh),
                 note: `From ${car.battery.readings === 1 ? "1 reading" : `${car.battery.readings} readings`} in the week of ${formatShortDate(car.battery.weekStart)}`,
               },
             ]}
+            label="Battery"
+            terms={["kWh", "usable capacity"]}
           />
-          <p className="text-xs text-muted-foreground">{unitNotes(["kWh", "capacity"])}</p>
         </Section>
       )}
 
       {figures.length > 0 && (
         <Section title="Car now">
-          <Figures figures={figures} />
           {/* The charge tile's note gives the power in kW while charging. */}
-          {state.lastOnline?.charging_state === "Charging" && (state.lastOnline.charge_power_kw ?? 0) > 0 && (
-            <p className="text-xs text-muted-foreground">{unitNotes(["kW"])}</p>
-          )}
+          <Figures
+            figures={figures}
+            label="Car now"
+            terms={state.lastOnline?.charging_state === "Charging" && (state.lastOnline.charge_power_kw ?? 0) > 0 ? ["kW"] : []}
+          />
         </Section>
       )}
 
@@ -249,11 +255,10 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
                 </>
               ),
             }))}
+            label="Tyres"
+            terms={["psi"]}
           />
-          <p className="text-xs text-muted-foreground">
-            {car.tyrePressure && `Recommended ${car.tyrePressure}. `}
-            {unitNotes(["psi"])}
-          </p>
+          {car.tyrePressure && <p className="text-xs text-muted-foreground">Recommended {car.tyrePressure}</p>}
           {/* A warning not shown on a tile: one that doesn't say which tyre, or a tyre with no reading. */}
           {now?.tyreWarning && !tyres.some((t) => t.alert) && <p className="text-sm text-destructive">{now.tyreWarning}</p>}
         </section>
@@ -270,7 +275,6 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
               </div>
             ))}
           </dl>
-          {tyres.length === 0 && car.tyrePressure && <p className="text-xs text-muted-foreground">{unitNotes(["psi"])}</p>}
         </Section>
       )}
 
@@ -281,16 +285,18 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
               ac.kw !== null && { label: "Power", value: formatKw(ac.kw), note: "Its typical draw" },
               ...(ac.supply ? supplyFigures(ac.supply) : []),
             ]}
+            label="Last AC charge"
+            terms={["kW", "V", "A"]}
           />
           <p className="text-xs text-muted-foreground tabular-nums">
-            Ended {formatShortDate(ac.endedAt)}, {formatClock(ac.endedAt)}. {unitNotes(["kW", "V", "A"])}
+            Ended {formatShortDate(ac.endedAt)}, {formatClock(ac.endedAt)}
           </p>
         </Section>
       )}
 
       {!car.checkedAt && (
         <p className="text-sm text-muted-foreground">
-          The details need a check that finds the car awake. Open the Tesla app; the details fill in on their own.
+          Details fill in once the car is awake. Open the Tesla app to wake it.
         </p>
       )}
     </div>

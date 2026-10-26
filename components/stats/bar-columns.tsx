@@ -33,10 +33,10 @@ export function BarColumns({ bars, max, ariaLabel, labelEvery, unit, fit = false
     >
       {bars.map((b, k) =>
         hidden(b, k) ? (
-          <li key={b.key} aria-hidden="true" className="flex flex-col items-center gap-2">
+          <li key={b.key} aria-hidden="true" className="relative flex flex-col items-center gap-2">
             <span className="h-4" />
             <div className="h-20" />
-            <AxisLabel label={b.axis ?? b.label} />
+            <AxisLabel label={b.axis ?? b.label} edge={b.edge} first={k === 0} />
           </li>
         ) : (
           <li key={b.key} className="group relative flex flex-col items-center gap-2">
@@ -51,7 +51,7 @@ export function BarColumns({ bars, max, ariaLabel, labelEvery, unit, fit = false
               )}
             </div>
             {/* The label is as wide as its text and may spill over the neighbouring columns. */}
-            <AxisLabel label={b.axis ?? b.label} current={b.isCurrent} />
+            <AxisLabel label={b.axis ?? b.label} current={b.isCurrent} edge={b.edge} first={k === 0} />
             {(dense || b.tip) && <span className="sr-only">{[dense && withUnit(b.display, unit), b.tip].filter(Boolean).join(", ")}</span>}
           </li>
         ),

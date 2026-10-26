@@ -88,7 +88,7 @@ async function Settings() {
         <Group title="Demo">
           <Row
             title="See the demo"
-            description="Every feature with a sample car, to see how your data will look as it builds up. Nothing from your account is shown there."
+            description="Every feature with a sample car. None of your data is shown."
             control={
               <a href={DEMO_URL} target="_blank" rel="noopener" className={buttonVariants({ variant: "outline", size: "lg" })}>
                 View the demo
@@ -111,7 +111,7 @@ async function Settings() {
         )}
         <Row
           title="Sign out everywhere"
-          description="Ends every session on every device, including this one."
+          description="Signs out every device, including this one."
           control={
             <SignOutEverywhere />
           }

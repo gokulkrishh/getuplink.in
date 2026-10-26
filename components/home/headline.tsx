@@ -4,11 +4,12 @@ import type { View } from "@/components/stats/periods";
 import { type Bill, billsBySlot, billsIn, energyBySlot, energyIn } from "@/lib/charging-figures";
 import { type Change, changeToPrevious, compareToPrevious } from "@/lib/dashboard-summary";
 import type { DrivingPeriod } from "@/lib/driving-figures";
-import { DECIMALS, formatDate, formatHour, formatKm, formatKwh, formatMoney, formatNumber, formatShortDate, shownTotal } from "@/lib/format";
+import { DECIMALS, formatDate, formatKm, formatKwh, formatMoney, formatNumber, formatShortDate, shownTotal } from "@/lib/format";
 import { type Slot, type Timeframe, trackingGap } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
-import { barsCaption, unitNotes } from "@/components/stats/chart-caption";
+import { barsCaption } from "@/components/stats/chart-caption";
+import { InfoButton } from "@/components/info-button";
 import { type Spark, Sparkline } from "./sparkline";
 
 // The change carries its sign in the text ("+22 km", "−3 kWh"), never an arrow. It is coloured by meaning,
@@ -135,10 +136,10 @@ export function Headline({
   const upToNow = (values: (number | null)[]): (number | null)[] => values.map((v, k) => (slots[k].ahead ? null : v));
   // Charging is known from its first session on: a slot that ends before it is empty, not ₹0 or 0 kWh.
   const charged = (values: number[]): (number | null)[] => values.map((v, k) => (chargingSince === null || slots[k].to <= chargingSince ? null : v));
-  // Each slot's tip: a day by its date ("23 Oct", where a week's bars are labelled by weekday), 3 hours by
-  // when they start and end, a month or year by its label; nothing for a slot with nothing known.
-  const slotTitle = (slot: Slot, k: number) =>
-    frame.slotName === "day" ? formatShortDate(slot.from + 12 * 3_600_000) : frame.slotName === "3 hours" ? `${slot.label} to ${slots[k + 1]?.label ?? formatHour(0)}` : slot.label;
+  // Each slot's tip: a day by its date ("23 Oct", where a week's bars are labelled by weekday); 3 hours,
+  // a month or a year by its label, which for hours is their whole span ("6 AM to 9 AM"); nothing for a
+  // slot with nothing known.
+  const slotTitle = (slot: Slot) => (frame.slotName === "day" ? formatShortDate(slot.from + 12 * 3_600_000) : slot.label);
   // A cell's number and its sparkline's tips, rounded together (see shownTotal) so the tips add up to the
   // number as shown. The bars cover the span, so their sum is the span's figure; with no bar known, the
   // span's own figure (`whole`) stands, or none.
@@ -147,7 +148,7 @@ export function Headline({
     const known = parts.some((v) => v !== null);
     return {
       value: whole === null ? null : known ? total : whole,
-      spark: { kind: "bars", values: parts, current: currentSlot, tips: parts.map((v, k) => (v === null ? null : { title: slotTitle(slots[k], k), value: format(v) })) },
+      spark: { kind: "bars", values: parts, current: currentSlot, tips: parts.map((v, k) => (v === null ? null : { title: slotTitle(slots[k]), value: format(v) })) },
     };
   };
   const driven = figure(
@@ -212,10 +213,12 @@ export function Headline({
         />
       </div>
       {/* One line in every period, so the strip keeps its height (see ByPeriod's steady). */}
-      <p className="text-xs text-muted-foreground">
-        {barsCaption("Small bars: the amount", frame)}. Hover or tap one for its value. {unitNotes(["kWh"])}
+      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <InfoButton label="these figures" terms={["kWh"]}>
+          {`${barsCaption("Small bars: the amount", frame)}.`}
+        </InfoButton>
+        {gapText && <span>Tracking since {gapText}</span>}
       </p>
-      {gapText && <p className="text-xs text-muted-foreground">Tracking since {gapText} · no earlier period to compare</p>}
     </div>
   );
 }

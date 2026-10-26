@@ -49,18 +49,58 @@ export const MIN_LEVEL = 20;
 
 export type PackEstimate = { at: string; kwh: number };
 
-// Estimated full pack per energy reading: kWh remaining ÷ battery level, using only readings the car
-// sent together (same timestamp) and a level of at least MIN_LEVEL.
-export function packEstimates(energy: Reading[], level: Reading[]): PackEstimate[] {
-  const levels = new Map(level.map((r) => [Date.parse(r.at), num(r.value)]));
-  const estimates: PackEstimate[] = [];
-  for (const r of energy) {
-    const kwh = num(r.value);
-    const pct = levels.get(Date.parse(r.at));
-    if (kwh !== null && pct != null && pct >= MIN_LEVEL) estimates.push({ at: r.at, kwh: kwh / (pct / 100) });
+// The car sends battery level and energy left every 5 minutes. Most of the time they share a timestamp,
+// but after a charge they can drift apart (on 25 Oct 2026 energy came at :x0:52, level at :x2:59), and
+// mid-charge the level climbs about 4 points in those 5 minutes. Even a straight line between the level
+// readings either side misses by half a point where a charge starts or stops (21:25:52 and 21:55:52 that
+// night). So the level at a reading is the level reading at that instant, else the line between the ones
+// either side only when they agree within STEADY_LEVEL points: the car was still, and the level is known to
+// within that. Mid-charge and mid-drive readings at other instants are left unpaired.
+export const STEADY_LEVEL = 0.5;
+
+type LevelReading = { ms: number; pct: number };
+
+export function levelAt(levels: LevelReading[], ms: number): number | null {
+  // The first reading at or after ms (levels are oldest first).
+  let lo = 0;
+  let hi = levels.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (levels[mid].ms < ms) lo = mid + 1;
+    else hi = mid;
   }
-  return estimates;
+  const after = levels[lo];
+  if (after && after.ms === ms) return after.pct;
+  const before = levels[lo - 1];
+  if (!before || !after) return null;
+  if (Math.abs(after.pct - before.pct) > STEADY_LEVEL) return null;
+  return before.pct + ((after.pct - before.pct) * (ms - before.ms)) / (after.ms - before.ms);
 }
+
+// Each reading with the battery level at its time, when that is known (see levelAt) and at least
+// MIN_LEVEL. `level` is a percentage.
+export type WithLevel = { at: string; value: number; level: number };
+
+export function withLevel(readings: Reading[], level: Reading[]): WithLevel[] {
+  const levels = level
+    .flatMap((r) => {
+      const pct = num(r.value);
+      const ms = Date.parse(r.at);
+      return pct !== null && Number.isFinite(ms) ? [{ ms, pct }] : [];
+    })
+    .sort((a, b) => a.ms - b.ms);
+  return readings.flatMap((r) => {
+    const value = num(r.value);
+    const pct = value === null ? null : levelAt(levels, Date.parse(r.at));
+    return value !== null && pct !== null && pct >= MIN_LEVEL ? [{ at: r.at, value, level: pct }] : [];
+  });
+}
+
+// Energy left against battery level.
+export type EnergyPoint = { at: string; kwh: number; level: number };
+
+export const energyPoints = (energy: Reading[], level: Reading[]): EnergyPoint[] =>
+  withLevel(energy, level).map(({ at, value, level }) => ({ at, kwh: value, level }));
 
 export const roundKwh = (kwh: number) => Math.round(kwh * 10) / 10;
 
@@ -70,7 +110,48 @@ export type WeeklyPack = { weekStart: number; kwh: number; readings: number };
 export const istWeek = (ms: number) => Math.floor((istDay(ms) + 3) / 7);
 export const istWeekStart = (week: number) => istDayStart(week * 7 - 3);
 
-// Median estimate per IST week, oldest week first. Weeks without estimates are left out.
+// Energy left isn't level × capacity: the car counts a reserve below 0% in it. Its readings sit on a
+// straight line, energy = reserve + usable × level (from 46% to 70% on this car: 2.97 kWh + 59.12 kWh ×
+// level, r² 0.9994), so energy ÷ level read 64.2 kWh at 61% and 65.5 kWh at 46% in the same week. The
+// usable capacity is that line's slope: the kWh between 0% and 100%. Energy left moves in 0.12 kWh steps,
+// so a slope over few levels is loose: 13 readings over 11 points (26 Oct 2026) gave 58.5 kWh against
+// 59.0 from 90 over 24 the week before, which "vs best week" would show as a 0.8% loss. A week needs
+// MIN_POINTS readings whose levels span MIN_SPAN points, or it has no figure.
+export const MIN_SPAN = 15;
+export const MIN_POINTS = 6;
+
+export function usableKwh(points: EnergyPoint[]): number | null {
+  if (points.length < MIN_POINTS) return null;
+  const xs = points.map((p) => p.level / 100);
+  if ((Math.max(...xs) - Math.min(...xs)) * 100 < MIN_SPAN) return null;
+  const mx = xs.reduce((a, b) => a + b, 0) / xs.length;
+  const my = points.reduce((a, p) => a + p.kwh, 0) / points.length;
+  let sxy = 0;
+  let sxx = 0;
+  points.forEach((p, k) => {
+    sxy += (xs[k] - mx) * (p.kwh - my);
+    sxx += (xs[k] - mx) ** 2;
+  });
+  const slope = sxy / sxx;
+  return slope > 0 ? slope : null;
+}
+
+// Usable capacity per IST week (see usableKwh), oldest week first. Weeks without one are left out.
+export function weeklyUsable(points: EnergyPoint[]): WeeklyPack[] {
+  const byWeek = new Map<number, EnergyPoint[]>();
+  for (const p of points) {
+    const week = istWeek(Date.parse(p.at));
+    byWeek.set(week, [...(byWeek.get(week) ?? []), p]);
+  }
+  return [...byWeek]
+    .sort(([a], [b]) => a - b)
+    .flatMap(([week, values]) => {
+      const kwh = usableKwh(values);
+      return kwh === null ? [] : [{ weekStart: istWeekStart(week), kwh: roundKwh(kwh), readings: values.length }];
+    });
+}
+
+// Median value per IST week, oldest week first. Weeks without values are left out.
 export function weeklyPack(estimates: PackEstimate[]): WeeklyPack[] {
   const byWeek = new Map<number, number[]>();
   for (const e of estimates) {

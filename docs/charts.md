@@ -8,26 +8,28 @@ Notes for agents. Every chart in the app goes inside `ChartCard` (`components/ch
 <ChartCard
   as="h3"                    // h2 when the chart is the section, h3 under a section's own h2
   title="Power"              // what is measured: sentence case, no unit
-  description="How hard the car drew on the battery. Below zero is regen: energy going back into the battery as the car slows."
-  unit="kW"                  // picks the unit's plain words for the caption, from lib/unit-words.ts
-  terms={["grade"]}          // optional: other glossary terms to explain after the unit
+  description="Power drawn from the battery. Below zero is regen." // one short sentence
+  unit="kW"                  // its plain words go in the ⓘ popover, from lib/unit-words.ts
+  terms={["regen"]}          // optional: other glossary terms for the popover
+  info="Each point is the middle value of a 5% step." // optional method notes for the popover
   summary={<Figures figures={peaks} />} // optional: tiles or a headline value above the chart
-  caption="Gaps are stops."  // optional footnote: source, gaps, cut-offs
+  caption="Last 7 days"      // optional: at most one short line, only when needed
   empty="No driving today"   // optional: a note in the chart's place, same height
 >
   <DriveTrace label="Power" points={power} unit="kW" signed from={start} to={end} legs={legs} />
 </ChartCard>
 ```
 
-The card renders the title, the description, the summary, the chart and then the caption. The caption is your `caption` followed by the glossary words for `unit` and `terms`. It has no hooks, so server sections and client plots can both use it.
+The card renders the title with an ⓘ beside it, the description, the summary, the chart and then the caption. The ⓘ shows only when `unit`, `terms` or `info` has something to say. The card has no hooks, so server sections and client plots can both use it (the ⓘ is its own client component).
 
-- **Unit**: the chart draws its unit once, above the y axis (`ChartFrame`, `DriveTrace`). Don't repeat it in the title. The `unit` prop only chooses the caption words. Don't call `unitNotes` yourself in a caption that goes through `ChartCard`, or the words will show twice.
+- **Unit**: the chart draws its unit once, above the y axis (`ChartFrame`, `DriveTrace`). Don't repeat it in the title or the description. The `unit` prop only picks the popover words.
 - **No data**: on a page about one thing (a drive, a charge), don't render the card at all. Check `points.length >= 2` in the parent, because a parent can't tell that a child rendered nothing. On a period page (Day, Week, Month), pass `empty` so switching periods doesn't change the page's shape.
-- **Panel**: the plot sits in `bg-muted dark:bg-card` (the lit panel in dark mode) and uses one data hue, `chart-accent`. Gridlines are dashed `border-border`. A zero line is solid `muted-foreground/40`.
+- **Panel**: the plot sits in `bg-muted dark:bg-card` (the lit panel in dark mode) and uses one data hue, `chart-accent`. Charging is the one exception: charge pins on every map, their legend swatch and the charging bands on the charge level chart use `charge` (green, `--charge` in `app/globals.css`). Routes and every other mark stay `chart-accent`. Gridlines are dashed `border-border`. A zero line is solid `muted-foreground/40`.
 - **Tooltip**: every chart has one, opened by hover and by tap, showing the time or label and the value with its unit. A tap outside closes it. Where there's no reading near the pointer it says "No reading here". It must never show a far-off value.
 - **Width**: a chart never scrolls sideways. Draw text in HTML, not inside a scaled SVG `viewBox`, so it stays 12px on a 390px phone. `DriveTrace` shows the pattern: HTML axes, and an SVG with `preserveAspectRatio="none"` and `vectorEffect="non-scaling-stroke"` that draws only the line.
 - **X axis**: the axis covers only the data's own span, such as the drive's start to its end, and never pads out to a later reading. Charts stacked on one page share `from` and `to` so their axes line up. Clock labels are measured to fit, with none colliding.
 - **Gaps**: break the line wherever there are no readings (stops between legs) rather than drawing a straight line across.
+- **Blocks of hours**: a bar or square that covers hours (Day's 3-hour bars, a custom range of 2 days or less, the charge heatmap) says its whole span wherever it is named: "6 AM to 9 AM" in the tooltip and for screen readers (`formatHours`), never just its start, which reads as "at 6 AM". The caption says what each bar covers ("Kilometres driven in each 3-hour block today, 12 AM to 12 AM"). The axis writes the start hour on the block's start boundary under a tick (a slot's `axis` and `edge`, see `Slot`), like a clock axis, not centred under the bar.
 
 ## Title
 
@@ -40,16 +42,23 @@ A noun for what is measured, in sentence case, with no unit and no period.
 | Energy added | Energy Added Per Session |
 | Battery level | Battery % over time |
 
-## Description
+## Keep it brief
 
-One or two plain sentences saying what the chart shows and how to read it: what's up, what's down, and what zero means. Name the unit in words when it's obvious ("in km/h"). Leave the explanation of a non-obvious unit to the glossary caption.
+The owner's rule, for every page: too much text is worse than too little. Keep the meaning, cut the words, and never remove data.
+
+1. **Description**: one short sentence, ideally under about 12 words, saying what the chart shows. Not how to read the axes, and no "hover or tap".
+2. **Units and method go behind the ⓘ.** Glossary words and method notes (how a figure is worked out, what a mark, a gap or a symbol means) go in the info popover, never inline.
+3. **Caption**: at most one short line, only when needed, such as the span ("Last 7 days", "Each day, last 7 days") or a data cut-off ("Readings go back to 25 Sept."). Drop sentences that repeat the title or description.
+4. **Advice** (like "Sentry Mode keeps the car awake"): keep it only when it's actionable and fits on one short line. Otherwise move it into the popover.
+5. **Tables**: short column headers. Explanations of columns ("Seen awake is a minimum", "≥ means parked since before the first reading") go in the popover.
+6. **No interaction hints**, anywhere: no "Hover or tap for its value", "Tap a pin", "Click…", not even in the popover. People know how to hover. Screen-reader text and `aria-label`s are fine. A map footer keeps only its attribution.
 
 | Good | Bad |
 | --- | --- |
-| How fast the car went through the drive, in km/h. | Vehicle speed telemetry. |
-| How hard the car drew on the battery. Below zero is regen: energy going back into the battery as the car slows. | Power (kW), negative = regen |
-| How steep the road was, as the car estimated it. Above zero is uphill, below zero is downhill. | Grade % → uphill/downhill |
-| Kilometres driven each day, last 30 days. | Daily km – last 30d |
+| How fast the car went. | How fast the car went through the drive, in km/h. |
+| Power drawn from the battery. Below zero is regen. | How hard the car drew on the battery. Below zero is regen: energy going back into the battery as the car slows. |
+| Uphill above zero, downhill below. | Grade % → uphill/downhill |
+| Battery lost while parked. Lower is better. | How much battery the car lost while parked, as % a day, and the power it drew to stay on, in W. Lower is better. |
 
 Copy rules: plain sentences, sentence case, no arrows, no en-dash ranges ("58% to 51%", "8:18 AM to 8:48 AM"). Show only what is known: no guessed times or durations, and no projections presented as readings.
 
@@ -86,9 +95,29 @@ A total and its parts agree as shown, to the last digit:
 - Rows under a total (trips, legs, charges, sessions) take their figures from the same `shownTotal`: `shownTrip`, `shownTrips`, `SessionRow`'s `shownKwh`.
 - A bar's tooltip shows its `display`, the rounded part, so the tip, the label and the headline agree.
 
+## The info popover
+
+`InfoButton` (`components/info-button.tsx`) is a small ⓘ that opens a popover: method notes first, then the glossary words for each unit or term. Hover or keyboard focus opens it on a desktop, a tap on a phone; a tap outside or Esc closes it. It renders nothing when there's nothing to say.
+
+```tsx
+<InfoButton label="Parked drain" terms={["% a day", "W", "kWh"]}>
+  <p>Seen awake counts only the time the car was sending data, so it's a minimum.</p>
+</InfoButton>
+```
+
+- `label` names what it's about; the button's accessible name is "About {label}".
+- `terms` are glossary keys from `lib/unit-words.ts`. Unknown or undefined keys are skipped.
+- Children are the method notes: a string, or one `<p>` per note.
+
+Where it goes:
+
+- **Charts**: `ChartCard` draws it beside the title from `unit`, `terms` and `info`.
+- **Tiles**: `Figures` takes `terms`, `info` and `label` and draws it in the grid's top-right corner. Tiles inside a `ChartCard` `summary` put their terms on the card instead, so a card has one ⓘ.
+- **Anything else** (Parked drain, the charge session's tiles): put `InfoButton` beside the heading, in a `flex items-center gap-1.5` row.
+
 ## Units and the glossary
 
-Every unit or term a non-technical owner might not know gets a short plain explanation wherever it appears: a chart, a tile or a table. The words live in one place, `lib/unit-words.ts` (`UNIT_WORDS`, `unitWords(unit)`, `unitNotes([units])`). Charts get them through `ChartCard`'s `unit` and `terms`. Tiles and tables use `unitWords` or `unitNotes` in a tile `note` or in one line under the tiles, as the drive page does for kWh. Add new terms to the glossary rather than writing the words inline.
+Every unit or term a non-technical owner might not know gets a short plain explanation in the ⓘ popover wherever it appears: a chart, a tile or a table. The words live in one place, `lib/unit-words.ts` (`UNIT_WORDS`, `unitWords(unit)`, `unitNotes([units])`, `hasWords([units])`). Pass keys as `terms`; don't write the words inline. Add new terms to the glossary rather than writing them in a component.
 
 Obvious units are never explained: km, km/h, %, °C, ₹ and min.
 
@@ -158,4 +187,4 @@ Where you can, prefer a unit people already understand. The drive page shows acc
 | `components/rollout-adoption.tsx` | Rollout adoption | Bars: cars on each version |
 | `components/rollout-map.tsx` | Rollout map | India's states shaded by cars on a version |
 
-Maps, timelines and tile-only sections still take the same title and description. Tiles explain their units through the glossary.
+Maps, timelines and tile-only sections still take the same short title and description. Tiles explain their units through the ⓘ popover.

@@ -12,6 +12,14 @@ export type DayStrip = { day: number; start: number; runs: Run[] };
 const MIN = 60_000;
 const DAY = 86_400_000;
 export const SLOT_MS = 15 * MIN;
+
+// Fields the car sends every few minutes while it is awake (the pack drains, the counter ticks), plus update
+// downloads. A scan across every field would not be served by the (vin, field, created_at) index, so these
+// stand in for all of them. Soc and IsolationResistance are in because the other three missed 4 of the 66
+// quarter hours the car streamed in from 21 to 25 Oct 2026: 24 Oct 11:00 IST sent 86 readings, among them
+// IsolationResistance but none of the others, and the 25 Oct 12:00 slot had Soc but none of the others.
+export const PRESENCE_FIELDS = ["EnergyRemaining", "IsolationResistance", "LifetimeEnergyUsed", "Soc", "SoftwareUpdateDownloadPercentComplete"];
+
 // The car sends data every few minutes while awake, so readings this close together mean it was awake
 // from the first to the last. A wider gap could hide a sleep.
 const STEADY_GAP_MS = 10 * MIN;
@@ -60,10 +68,9 @@ export function hasPresence(strips: DayStrip[]): boolean {
 
 export const PRESENCE_LABEL: Record<Presence, string> = { online: "Online", asleep: "Asleep", offline: "Offline", unknown: "No data" };
 
-// "7:12–7:40 PM", or "11:30 AM–6:05 PM" across AM and PM: the shared AM or PM is said once.
+// "7:12 PM to 7:40 PM", "11:30 AM to 6:05 PM": both ends in full, like every span of time in the app.
 function clockRange(start: number, end: number): string {
-  const [from, to] = [formatClock(start), formatClock(end)];
-  return `${from.slice(-2) === to.slice(-2) ? from.slice(0, -3) : from} to ${to}`;
+  return `${formatClock(start)} to ${formatClock(end)}`;
 }
 
 // Times seen close together (see STEADY_GAP_MS) as [first, last] spans.

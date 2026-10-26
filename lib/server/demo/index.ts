@@ -142,22 +142,25 @@ export function demoStreamSessions(): StreamChargeSession[] {
       ...s,
       id: i + 1,
       vin: data.vin,
-      station_name: s.kind === "dc" && !s.supercharger ? (DEMO_STATIONS[dc++ % DEMO_STATIONS.length] ?? null) : null,
+      // The second one has no station nearby in OpenStreetMap; its invoice names it (see demoInvoices).
+      station_name: s.kind === "dc" && !s.supercharger ? (dc++ === 1 ? null : (DEMO_STATIONS[dc % DEMO_STATIONS.length] ?? null)) : null,
     }))
     .reverse();
 }
 
 // Invoices for the demo's third-party DC charges, as the Grok bot would attach them: billed a little over
 // what the car added, at ₹21/kWh with 18% GST, every other one so some show "Cost not available".
-export function demoInvoices(): Map<number, { amount: number; kwhBilled: number | null; network: string; gst: number }> {
-  const out = new Map<number, { amount: number; kwhBilled: number | null; network: string; gst: number }>();
+type DemoInvoice = { amount: number; kwhBilled: number | null; network: string; station: string | null; gst: number };
+
+export function demoInvoices(): Map<number, DemoInvoice> {
+  const out = new Map<number, DemoInvoice>();
   demoStreamSessions()
     .filter((s) => s.kind === "dc" && !s.supercharger && s.ended_at !== null && s.energy_added_kwh)
     .forEach((s, k) => {
-      if (k % 2 === 1) return;
+      if (k % 2 === 1 && s.station_name) return;
       const kwhBilled = Math.round(s.energy_added_kwh! * 1.04 * 100) / 100;
       const amount = Math.round(kwhBilled * 21 * 1.18 * 100) / 100;
-      out.set(s.id, { amount, kwhBilled, network: s.station_name?.split(",")[0] ?? "Charging network", gst: Math.round((amount - amount / 1.18) * 100) / 100 });
+      out.set(s.id, { amount, kwhBilled, ...(s.station_name ? { network: s.station_name.split(",")[0], station: null } : { network: "VoltPoint", station: "Lakeview Fuels, Ring Road" }), gst: Math.round((amount - amount / 1.18) * 100) / 100 });
     });
   return out;
 }

@@ -8,19 +8,32 @@ import type { Slot, Span } from "@/lib/periods";
 export { UNIT_WORDS, unitNotes, unitWords } from "@/lib/unit-words";
 
 // The bars a chart draws and the span they stand for. `title` heads the span ("Last 7 days", "This year",
-// "1 Sept to 30 Sept"); `slotName` names one bar ("day", "month", "3 hours").
-type Bars = { slots: Pick<Slot, "label" | "from">[]; slotName: string; title: string; span: Pick<Span, "from"> };
+// "1 Sept to 30 Sept"); `words` ends a sentence ("today", "on 24 Oct"); `slotName` names one bar ("day",
+// "month", "3 hours").
+type Bars = { slots: Pick<Slot, "label" | "from">[]; slotName: string; title: string; words: string; span: Pick<Span, "from"> };
+
+// One bar of 3 hours, for a chart's words: a block of the day, never "every 3 hours", which reads as a
+// reading taken at 6 AM, 9 AM and so on.
+export const EACH_HOURS = "in each 3-hour block";
 
 // "Kilometres driven each day, last 7 days": what a bar chart plots and over which bars. When the bars
 // cover the span exactly (Day, Week, Year, a picked range) the span's title names them; when they reach
 // past it (Month draws the last 6 months, All the last 6 years) the first and last bar do, so the words
-// always match the chart and not the headline above it.
-export function barsCaption(what: string, { slots, slotName, title, span }: Bars): string {
-  const each = slotName === "3 hours" ? "every 3 hours" : `each ${slotName}`;
+// always match the chart and not the headline above it. Blocks of hours say what each bar covers and,
+// for one day, the hours the bars run over: "Kilometres driven in each 3-hour block today, 12 AM to 12 AM".
+export function barsCaption(what: string, { slots, slotName, title, words, span }: Bars): string {
+  if (slotName === "3 hours") return `${what} ${EACH_HOURS} ${words}${slots.length <= 8 ? ", 12 AM to 12 AM" : ""}`;
+  const each = `each ${slotName}`;
   const first = slots[0];
   const last = slots.at(-1);
   if (!first || !last) return `${what} ${each}`;
   const where =
     first.from === span.from ? title.charAt(0).toLowerCase() + title.slice(1) : first === last ? first.label : `${first.label} to ${last.label}`;
   return `${what} ${each}, ${where}`;
+}
+
+// "Each day, last 7 days": the bars and their span alone, the one short caption a bar chart needs.
+export function barsSpan(frame: Bars): string {
+  const text = barsCaption("", frame).trim();
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }

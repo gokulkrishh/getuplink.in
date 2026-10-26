@@ -16,7 +16,6 @@ import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type DriveDetail, loadDriveDetail } from "@/lib/server/drive-detail";
 import { placeKey, placeNames } from "@/lib/server/place-names";
 import { Measure } from "@/components/measure";
-import { unitNotes } from "@/lib/unit-words";
 
 export const metadata: Metadata = { title: "Trip · Uplink" };
 
@@ -89,8 +88,9 @@ function Drive({ detail }: { detail: DriveDetail }) {
                 </div>
               ),
             }))}
+            label={trip.stops ? "this trip" : "this drive"}
+            terms={trip.kwh !== null ? ["kWh"] : []}
           />
-          {trip.kwh !== null && <p className="mt-2 text-xs text-muted-foreground">{unitNotes(["kWh"])}</p>}
         </section>
         <section className="space-y-4">
           <h2 className="text-lg font-medium tracking-heading">Map</h2>
@@ -122,12 +122,11 @@ function Drive({ detail }: { detail: DriveDetail }) {
             <div className="space-y-1">
               <h2 className="text-lg font-medium tracking-heading">Over the drive</h2>
               <p className="text-sm text-muted-foreground">
-                What the car sent from {formatClock(trip.start)} to {formatClock(trip.end)}, one chart per measure. Hover or tap a chart for the time and value.
-                {trip.stops > 0 && " Gaps in a line are stops."}
+                What the car sent, {formatClock(trip.start)} to {formatClock(trip.end)}.{trip.stops > 0 && " Gaps are stops."}
               </p>
             </div>
             {speed.length >= 2 && (
-              <ChartCard as="h3" title="Speed" description="How fast the car went through the drive, in km/h.">
+              <ChartCard as="h3" title="Speed" description="How fast the car went.">
                 <DriveTrace label="Speed" points={speed} unit="km/h" {...axis} />
               </ChartCard>
             )}
@@ -135,8 +134,9 @@ function Drive({ detail }: { detail: DriveDetail }) {
               <ChartCard
                 as="h3"
                 title="Power"
-                description="How hard the car drew on the battery. Below zero is regen: energy going back into the battery as the car slows."
+                description="Power drawn from the battery. Below zero is regen."
                 unit="kW"
+                terms={["regen"]}
                 summary={<Figures figures={peaks.power} />}
               >
                 <DriveTrace label="Power" points={power} unit="kW" signed {...axis} />
@@ -146,7 +146,7 @@ function Drive({ detail }: { detail: DriveDetail }) {
               <ChartCard
                 as="h3"
                 title="Acceleration"
-                description="How quickly the car sped up or slowed down. Above zero is speeding up, below zero is braking."
+                description="Speeding up above zero, braking below."
                 unit={ACCEL_UNIT}
                 summary={<Figures figures={peaks.accel} />}
               >
@@ -157,7 +157,7 @@ function Drive({ detail }: { detail: DriveDetail }) {
               <ChartCard
                 as="h3"
                 title="Road grade"
-                description="How steep the road was, as the car estimated it. Above zero is uphill, below zero is downhill."
+                description="Uphill above zero, downhill below."
                 terms={["grade"]}
               >
                 <DriveTrace label="Road grade" points={grade} unit="%" signed digits={1} {...axis} />
@@ -166,14 +166,14 @@ function Drive({ detail }: { detail: DriveDetail }) {
             {/* Battery barely moves on a short drive, and the Battery tile above already says "70% to 69%". A flat
                 line adds nothing, so the chart only shows when the level fell by BATTERY_CHART_POINTS or more. */}
             {batteryShown.length >= 2 && (
-              <ChartCard as="h3" title="Battery level" description="How much charge was left as the drive went on, from 0 to 100%.">
+              <ChartCard as="h3" title="Battery level" description="Charge left as the drive went on.">
                 <DriveTrace label="Battery level" points={batteryShown} unit="%" max={100} {...axis} />
               </ChartCard>
             )}
           </section>
         )}
         {(topKmh === null || outsideC === null || accel.length < 2) && (
-          <p className="text-xs text-faint">Speed, acceleration and outside temperature show here for drives after your car starts streaming them.</p>
+          <p className="text-xs text-faint">Speed, acceleration and outside temperature show once your car streams them.</p>
         )}
       </div>
     </>

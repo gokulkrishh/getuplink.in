@@ -51,8 +51,9 @@ export function RolloutAdoption({ adoption }: { adoption: Record<AdoptionGrain, 
   return (
     <ChartCard
       title="Adoption over time"
-      description={`The share of Indian cars on the picked version at the end of ${SPAN_WORDS[grain]}. A taller bar means more cars had it.`}
+      description="Share of Indian cars on the picked version."
       unit="%"
+      info={`Each bar is the share at the end of ${SPAN_WORDS[grain]}, out of the cars whose version Uplink had seen by then. Each car counts from its first recorded version, never before.`}
       summary={
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -82,7 +83,6 @@ export function RolloutAdoption({ adoption }: { adoption: Record<AdoptionGrain, 
         </div>
       }
       empty={bars.some((b) => b.value > 0) ? undefined : `No cars ran ${version} in these ${words}`}
-      caption="Out of the cars whose version Uplink had seen by then, each counted from its first recorded version, never before. Hover or tap a bar for the count."
     >
       <Bars bars={bars} ariaLabel={`Share of cars on ${version}, ${SPAN_WORDS[grain]}`} labelEvery={LABEL_EVERY[grain]} unit="%" />
     </ChartCard>

@@ -21,13 +21,21 @@ export function AwakeTimeline({ days, now }: { days: DayStrip[]; now: number }) 
   return (
     <ChartCard
       title="Online and asleep"
-      description={`When the car was awake each day, last ${days.length} days, newest on top. Updates download only while it's awake, so long asleep stretches can explain a late update.`}
+      description="When the car was awake each day. Updates download only then."
+      info={
+        <>
+          <p>Newest day on top. Long asleep stretches can explain a late update.</p>
+          <p>
+            The car doesn&apos;t say when it wakes or sleeps, so each mark is a 15-minute block where it sent data, or where a check every 6 hours found
+            it asleep or offline.
+          </p>
+        </>
+      }
       summary={
         <p className="text-sm tabular-nums">
           Online on {onlineDays} of the last {days.length} days
         </p>
       }
-      caption="The car doesn't say when it wakes or sleeps, so each mark is a 15-minute block where it sent data, or where a check every 6 hours found it asleep or offline. Hover or tap a mark for its times."
     >
       <div className="space-y-3">
         <div className="space-y-3 bg-muted dark:bg-card px-3 pt-4 pb-3">

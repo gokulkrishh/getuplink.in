@@ -8,8 +8,10 @@ import { formatHour } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Measure } from "@/components/measure";
 
-// The start of each 3-hour slot, as the app writes times ("12 AM", "3 AM" ...). On a phone every other one
-// shows (12 AM, 6 AM, 12 PM, 6 PM), since "12 AM" is wider than a column there.
+// The start of each 3-hour slot, as the app writes times ("12 AM", "3 AM" ...), written from the column's
+// left edge, so it marks where the block begins like a clock's tick; the tooltip and the line above say
+// the whole span ("6 PM to 9 PM"). On a phone every other one shows (12 AM, 6 AM, 12 PM, 6 PM), since
+// "12 AM" is wider than a column there.
 const AXIS = Array.from({ length: 8 }, (_, k) => formatHour(k * 3));
 
 const describe = (day: number, slot: number, count: number) => `${WEEKDAYS[day]}, ${slotLabel(slot)} · ${count} ${count === 1 ? "charge" : "charges"}`;
@@ -30,7 +32,8 @@ export function ChargeHabits({ starts, title, words }: { starts: number[]; title
   return (
     <ChartCard
       title="When you charge"
-      description="When charges started, by weekday and 3-hour block of the day, India time. The darker a square, the more charges started then."
+      description="When charges started, India time. Darker is more."
+      info="By weekday and 3-hour block of the day, from the charges listed on this page."
       summary={
         <p className="text-sm tabular-nums">
           {max === 0 ? (
@@ -46,7 +49,7 @@ export function ChargeHabits({ starts, title, words }: { starts: number[]; title
           )}
         </p>
       }
-      caption={`${title}, from the charges listed on this page. Hover or tap a square for its count.`}
+      caption={title}
     >
       <div ref={grid} className="chart-touch relative space-y-1.5 bg-muted p-3 dark:bg-card" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
         {counts.map((row, d) => (

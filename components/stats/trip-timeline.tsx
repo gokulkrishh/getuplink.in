@@ -40,7 +40,7 @@ export function TripTimeline({ legs }: { legs: Drive[] }) {
   return (
     <div className="space-y-4">
     <p className="text-sm text-muted-foreground">
-      The trip from start to finish. Each solid block is a drive and each striped gap a stop, as wide as the time it took. Hover or tap one for its details.
+      Solid blocks are drives, striped gaps are stops.
     </p>
     <div ref={box} className="chart-touch space-y-2" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
       <div className="relative h-12">

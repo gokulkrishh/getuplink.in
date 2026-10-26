@@ -16,6 +16,7 @@ import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type DayDetail, loadDay } from "@/lib/server/day";
 import { dayParam } from "@/lib/day-timeline";
+import { chargeType } from "@/lib/charge-names";
 import { chargeTotals } from "@/lib/charging-figures";
 import { isoDay } from "@/lib/periods";
 import { istDayStart } from "@/lib/telemetry-derive";
@@ -102,14 +103,14 @@ function DayView({ detail, now }: { detail: DayDetail; now: number }) {
           <section className="space-y-4">
             <h2 className="text-lg font-medium tracking-heading">Charges</h2>
             <ul className="divide-y border-t text-sm tabular-nums">
-              {detail.charges.map(({ session: s, cost }, k) => (
+              {detail.charges.map(({ session: s, cost, name }, k) => (
                 <li key={s.id} className="relative flex cursor-pointer items-baseline justify-between gap-4 py-3 sm:-mx-3 sm:px-3 transition-colors duration-150 hover:bg-muted focus-within:bg-muted">
                   <span>
                     <Link href={`/stats/charging/${s.id}`} className="outline-none after:absolute after:inset-0">
                       {formatClock(s.started_at)}
                       {s.ended_at ? ` to ${formatClock(s.ended_at)}` : ", charging"}
                     </Link>
-                    <span className="block text-xs text-muted-foreground">{[s.supercharger ? "Supercharger" : s.kind.toUpperCase(), s.station_name].filter(Boolean).join(" · ")}</span>
+                    <span className="block text-xs text-muted-foreground">{[chargeType(s), name].filter(Boolean).join(" · ")}</span>
                   </span>
                   <span className="text-right font-mono">
                     {s.energy_added_kwh !== null && <Measure text={formatKwh(chargedKwh.parts[k] ?? s.energy_added_kwh)} />}

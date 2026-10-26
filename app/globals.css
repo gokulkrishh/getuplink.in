@@ -28,6 +28,7 @@
   --tracking-heading: -0.01em;
   --leading-display: 1.05;
   --color-chart-accent: var(--chart-accent);
+  --color-charge: var(--charge);
   --color-chart-better: var(--chart-better);
   --color-chart-worse: var(--chart-worse);
   --color-chart-5: var(--chart-5);
@@ -90,6 +91,7 @@
   --chart-4: #b7b7b7;
   --chart-5: #d7d7d7;
   --chart-accent: #3f6fae;
+  --charge: #1e8449; /* charging: map pins, the bolt on them is white */
   --chart-better: #2f7d4f;
   --chart-worse: #8f6207;
   --radius: 0rem;
@@ -123,6 +125,7 @@
   --chart-4: #333333;
   --chart-5: #1e1e1e;
   --chart-accent: #5f93d6;
+  --charge: #2f9a5a;
   --chart-better: #6bbf8a;
   --chart-worse: #d9a441;
 }
@@ -155,6 +158,7 @@
     --chart-4: #333333;
     --chart-5: #1e1e1e;
     --chart-accent: #5f93d6;
+    --charge: #2f9a5a;
     --chart-better: #6bbf8a;
     --chart-worse: #d9a441;
   }

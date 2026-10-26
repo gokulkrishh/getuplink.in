@@ -1,6 +1,6 @@
 import { MILES_TO_KM } from "@/lib/car";
 import { chargeStateName } from "@/lib/charge-sessions";
-import { istWeek, istWeekStart, median, MIN_LEVEL, num, type Reading } from "@/lib/telemetry-derive";
+import { istWeek, istWeekStart, median, num, type Reading, withLevel } from "@/lib/telemetry-derive";
 
 // Pure helpers for the Battery tab's charge level chart and range at 100%.
 
@@ -43,17 +43,15 @@ export function chargingStretches(states: Reading[], now: number): ChargeStretch
 
 export type WeeklyRange = { weekStart: number; km: number };
 
-// Rated range at 100% per IST week: the median of rated range ÷ battery level, paired and filtered the
-// same way as packEstimates. RatedRange arrives in miles.
+// Rated range at 100% per IST week: the median of rated range ÷ battery level, with the level at each range
+// reading found the same way as for energy left (see withLevel): most share a timestamp, but 13 of the first
+// 149 didn't. Unlike energy left, rated range has no reserve in it: rated range ÷ level was 269.4 miles at
+// both 47% and 69% on 25 Oct 2026, so the ratio itself is the figure. RatedRange arrives in miles.
 export function weeklyFullRange(range: Reading[], level: Reading[]): WeeklyRange[] {
-  const levels = new Map(level.map((r) => [Date.parse(r.at), num(r.value)]));
   const byWeek = new Map<number, number[]>();
-  for (const r of range) {
-    const miles = num(r.value);
-    const pct = levels.get(Date.parse(r.at));
-    if (miles === null || pct == null || pct < MIN_LEVEL) continue;
+  for (const r of withLevel(range, level)) {
     const week = istWeek(Date.parse(r.at));
-    byWeek.set(week, [...(byWeek.get(week) ?? []), (miles * MILES_TO_KM) / (pct / 100)]);
+    byWeek.set(week, [...(byWeek.get(week) ?? []), (r.value * MILES_TO_KM) / (r.level / 100)]);
   }
   return [...byWeek].sort(([a], [b]) => a - b).map(([week, values]) => ({ weekStart: istWeekStart(week), km: median(values) }));
 }

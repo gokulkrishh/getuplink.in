@@ -1,8 +1,9 @@
 "use client";
 
-import { Map, MapControls, MapMarker, MarkerContent, MarkerPopup, MarkerTooltip, useMap } from "@/components/ui/map";
+import { Map, MapControls, MapMarker, MapPopup, MarkerContent, useMap } from "@/components/ui/map";
 import { Zap } from "lucide-react";
-import { Component, type ReactNode, useEffect, useId, useMemo, useState } from "react";
+import { Component, type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { googleMapsUrl } from "@/lib/charge-names";
 import { formatClock, formatShortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -22,9 +23,10 @@ class MapBoundary extends Component<{ children: ReactNode }, { failed: boolean }
 }
 
 export type MapPoint = { lat: number; lng: number; t: number };
-// size: a diameter in px, for pins drawn to scale (a charge's kWh, a place's visits). A charge is a
+// size: a diameter in px, for pins drawn to scale (a charge's kWh, a place's visits). A charge is a green
 // lightning-bolt badge, so it reads as a charger at a glance. note: an extra line for the pin's tooltip.
-export type MapPin = MapPoint & { kind: "start" | "stop" | "end" | "place" | "charge"; label: string; size?: number; note?: string };
+// name: where it is, shown beside the pin when there's room (see LabelPlacer).
+export type MapPin = MapPoint & { kind: "start" | "stop" | "end" | "place" | "charge"; label: string; size?: number; note?: string; name?: string };
 // A leg of a trip, for a chip at its middle: its start and end, and a line saying what it was.
 export type MapLeg = { start: number; end: number; note: string };
 export type MapFact = { label: string; value: string };
@@ -232,24 +234,128 @@ function FitView({ bounds, pad }: { bounds: [[number, number], [number, number]]
   return null;
 }
 
-// A marker's tip: hover on a mouse, tap on a touch screen, never both at once.
-function PinTip({ lines }: { lines: string[] }) {
-  const body = (
-    <span className="block max-w-64 border bg-background px-2.5 py-1.5 text-xs text-foreground shadow-md tabular-nums">
-      <span className="block font-medium">{lines[0]}</span>
-      {lines.slice(1).map((l) => (
-        <span key={l} className="block text-muted-foreground">
-          {l}
-        </span>
-      ))}
-    </span>
-  );
+// The open tip: which marker, where, what it says, and whether a click or tap holds it open. link: a
+// pin's tips offer the spot in Google Maps; a leg's chip has no spot of its own.
+type Tip = { key: string; lat: number; lng: number; lines: string[]; link: boolean; held: boolean };
+
+const TIP_LINGER_MS = 250; // time to move the pointer from a pin into its tip
+
+// One tip at a time. On a mouse, hovering a pin opens it, and it stays while the pointer is on the pin or
+// the tip, so its link can be clicked. A click or tap holds it open; a click elsewhere or Escape closes it.
+function PinTip({ tip, onEnter, onLeave, onClose }: { tip: Tip; onEnter: () => void; onLeave: () => void; onClose: () => void }) {
+  const { map } = useMap();
+  useEffect(() => {
+    if (!map) return;
+    const click = (e: { originalEvent: MouseEvent }) => {
+      if ((e.originalEvent.target as Element | null)?.closest?.(".maplibregl-marker, .maplibregl-popup")) return;
+      onClose();
+    };
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    map.on("click", click);
+    document.addEventListener("keydown", key);
+    return () => {
+      map.off("click", click);
+      document.removeEventListener("keydown", key);
+    };
+  }, [map, onClose]);
+  // Native listeners: React's enter and leave events don't cross from a marker's portal into the popup's.
+  const body = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = body.current;
+    if (!el) return;
+    el.addEventListener("mouseenter", onEnter);
+    el.addEventListener("mouseleave", onLeave);
+    return () => {
+      el.removeEventListener("mouseenter", onEnter);
+      el.removeEventListener("mouseleave", onLeave);
+    };
+  }, [onEnter, onLeave]);
   return (
-    <>
-      <MarkerTooltip className="rounded-none bg-transparent p-0 shadow-none [@media(hover:none)]:hidden">{body}</MarkerTooltip>
-      <MarkerPopup className="rounded-none border-0 bg-transparent p-0 shadow-none [@media(hover:hover)]:hidden">{body}</MarkerPopup>
-    </>
+    <MapPopup longitude={tip.lng} latitude={tip.lat} closeOnClick={false} focusAfterOpen={false} offset={18} className="max-w-none rounded-none border-0 bg-transparent p-0 shadow-none">
+      <div ref={body} className="block max-w-64 border bg-background px-2.5 py-1.5 text-xs text-foreground shadow-md tabular-nums">
+        <span className="block font-medium">{tip.lines[0]}</span>
+        {tip.lines.slice(1).map((l) => (
+          <span key={l} className="block text-muted-foreground">
+            {l}
+          </span>
+        ))}
+        {tip.link && (
+          <a
+            href={googleMapsUrl(tip)}
+            target="_blank"
+            rel="noopener"
+            className="-mx-1 mt-1 inline-block px-1 py-1 font-medium text-foreground underline underline-offset-2 transition-colors duration-150 hover:text-chart-accent"
+          >
+            Open in Google Maps
+          </a>
+        )}
+      </div>
+    </MapPopup>
   );
+}
+
+type Box = { x0: number; y0: number; x1: number; y1: number };
+const overlaps = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+export type LabelSide = "right" | "left";
+type LabelItem = { key: string; lat: number; lng: number; r: number; text?: string; rank: number };
+const LABEL_MAX = 176; // px, the chip's widest; a longer name ends in an ellipsis
+const LABEL_H = 22;
+const LABEL_GAP = 4;
+
+// Which named pins get their name beside them, and on which side: biggest pins first, each name on the
+// right, else the left, and only where it overlaps no other name, pin or the zoom buttons and stays inside
+// the map. Placed again after every move and zoom, so zooming in shows the names that didn't fit.
+function LabelPlacer({ items, onPlace }: { items: LabelItem[]; onPlace: (sides: ReadonlyMap<string, LabelSide>) => void }) {
+  const { map, isLoaded } = useMap();
+  const key = items.map((i) => `${i.key}:${i.text ?? ""}`).join("|");
+  useEffect(() => {
+    if (!isLoaded || !map || !items.some((i) => i.text)) return;
+    const ctx = document.createElement("canvas").getContext("2d");
+    if (ctx) ctx.font = `500 11px ${getComputedStyle(document.body).fontFamily}`;
+    const width = (text: string) => Math.min(LABEL_MAX, Math.ceil(ctx?.measureText(text).width ?? text.length * 6.5) + 14);
+    const place = () => {
+      const { clientWidth: w, clientHeight: h } = map.getContainer();
+      const at = new globalThis.Map(items.map((i) => [i.key, map.project([i.lng, i.lat])]));
+      const pins = items.map((i) => {
+        const p = at.get(i.key)!;
+        return { key: i.key, box: { x0: p.x - i.r, y0: p.y - i.r, x1: p.x + i.r, y1: p.y + i.r } };
+      });
+      const placed: Box[] = [{ x0: w - 48, y0: 0, x1: w, y1: 84 }];
+      const sides = new globalThis.Map<string, LabelSide>();
+      const named: { text: string; x: number; y: number }[] = [];
+      for (const i of [...items].filter((i) => i.text).sort((a, b) => b.rank - a.rank)) {
+        const p = at.get(i.key)!;
+        // Charges at one spot (home, most nights) share one name.
+        if (named.some((n) => n.text === i.text && Math.hypot(n.x - p.x, n.y - p.y) < 48)) continue;
+        named.push({ text: i.text!, x: p.x, y: p.y });
+        const wide = width(i.text!);
+        const options: [LabelSide, number][] = [
+          ["right", p.x + i.r + LABEL_GAP],
+          ["left", p.x - i.r - LABEL_GAP - wide],
+        ];
+        for (const [side, x0] of options) {
+          const box = { x0, x1: x0 + wide, y0: p.y - LABEL_H / 2, y1: p.y + LABEL_H / 2 };
+          if (box.x0 < 4 || box.x1 > w - 4 || box.y0 < 4 || box.y1 > h - 4) continue;
+          if (placed.some((b) => overlaps(b, box)) || pins.some((o) => o.key !== i.key && overlaps(o.box, box))) continue;
+          placed.push(box);
+          sides.set(i.key, side);
+          break;
+        }
+      }
+      onPlace(sides);
+    };
+    place();
+    map.on("moveend", place);
+    map.on("resize", place);
+    return () => {
+      map.off("moveend", place);
+      map.off("resize", place);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, map, key]);
+  return null;
 }
 
 const BADGE = "flex items-center justify-center rounded-full border-2 font-mono font-semibold leading-none shadow-md";
@@ -259,7 +365,7 @@ const BADGE = "flex items-center justify-center rounded-full border-2 font-mono 
 function JourneyBadge({ kinds, stop }: { kinds: MapPin["kind"][]; stop: number | null }) {
   if (kinds.includes("charge")) {
     return (
-      <span className={cn(BADGE, "size-6 border-background bg-chart-accent text-white")}>
+      <span className={cn(BADGE, "size-6 border-background bg-charge text-white")}>
         <Zap className="size-3 fill-current" aria-hidden="true" />
       </span>
     );
@@ -351,6 +457,44 @@ export function TripMap({
     [legs, route],
   );
 
+  // The one open tip; a hover tip closes a moment after the pointer leaves both the pin and the tip.
+  const [tip, setTip] = useState<Tip | null>(null);
+  const timer = useRef<number | undefined>(undefined);
+  const stay = useCallback(() => window.clearTimeout(timer.current), []);
+  const leave = useCallback(() => {
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setTip((t) => (t && !t.held ? null : t)), TIP_LINGER_MS);
+  }, []);
+  const closeTip = useCallback(() => {
+    window.clearTimeout(timer.current);
+    setTip(null);
+  }, []);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+  // A marker's handlers: hover shows its tip, a click or tap holds it (on touch the hover comes first).
+  const tipOn = (next: Omit<Tip, "held">) => ({
+    onMouseEnter: () => {
+      stay();
+      setTip((t) => ({ ...next, held: t?.key === next.key && t.held }));
+    },
+    onMouseLeave: leave,
+    onClick: () => {
+      stay();
+      setTip({ ...next, held: true });
+    },
+  });
+
+  // Names beside the pins that have one, where they fit.
+  const groupKey = (g: Group) => `${g.pins[0].kind}-${g.pins[0].t}-${g.pins[0].lat}`;
+  const labelItems = useMemo(
+    () =>
+      groups.map((g) => {
+        const size = journey ? 24 : (g.pins[0].size ?? 16);
+        return { key: groupKey(g), lat: g.lat, lng: g.lng, r: size / 2, text: g.pins.find((p) => p.name)?.name, rank: size * 1e13 + g.pins[0].t };
+      }),
+    [groups, journey],
+  );
+  const [sides, setSides] = useState<ReadonlyMap<string, LabelSide>>(new globalThis.Map());
+
   const all = [...route, ...pins];
   if (all.length === 0) return null;
   const lngs = all.map((p) => p.lng);
@@ -379,7 +523,7 @@ export function TripMap({
       <div>
         <div
           className="relative h-72 w-full overflow-hidden border sm:h-96"
-          role="img"
+          role="group"
           aria-label={label ?? (route.length ? `Route from ${formatClock(route[0].t)} to ${formatClock(route.at(-1)!.t)}, ${pins.length} pins` : `${pins.length} places`)}
         >
           <MapBoundary>
@@ -388,34 +532,55 @@ export function TripMap({
               <FitView bounds={bounds} pad={biggest / 2 + 28} />
               {parts.length > 0 && <RouteLines parts={parts} journey={journey} colors={colors} onHover={onHover} />}
               {legChips.map(({ at, n, leg }) => (
-                <MapMarker key={`leg-${n}`} longitude={at.lng} latitude={at.lat}>
+                <MapMarker
+                  key={`leg-${n}`}
+                  longitude={at.lng}
+                  latitude={at.lat}
+                  {...tipOn({ key: `leg-${n}`, lat: at.lat, lng: at.lng, lines: [`Leg ${n}, ${formatClock(leg.start)} to ${formatClock(leg.end)}`, leg.note], link: false })}
+                >
                   <MarkerContent>
                     <span className="block border bg-background px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap text-muted-foreground shadow-sm">Leg {n}</span>
                   </MarkerContent>
-                  <PinTip lines={[`Leg ${n}, ${formatClock(leg.start)} to ${formatClock(leg.end)}`, leg.note]} />
                 </MapMarker>
               ))}
               {groups.map((g) => {
                 const lead = g.pins[0];
                 const size = lead.size ?? (lead.kind === "stop" ? 12 : 16);
                 const stop = journey && g.pins.some((p) => p.kind === "stop") && single ? ++stopNumber : null;
+                const key = groupKey(g);
+                const name = g.pins.find((p) => p.name)?.name;
+                const side = sides.get(key);
                 return (
-                  <MapMarker key={`${lead.kind}-${lead.t}-${lead.lat}`} longitude={g.lng} latitude={g.lat}>
+                  <MapMarker key={key} longitude={g.lng} latitude={g.lat} {...tipOn({ key, lat: g.lat, lng: g.lng, lines: g.pins.flatMap((p) => pinLines(p, journey)), link: true })}>
                     <MarkerContent>
                       {journey ? (
                         <JourneyBadge kinds={g.pins.map((p) => p.kind)} stop={stop} />
                       ) : lead.kind === "charge" ? (
-                        <span className="flex items-center justify-center rounded-full border-2 border-background bg-chart-accent text-white shadow-md" style={{ width: size, height: size }}>
+                        <span className="flex items-center justify-center rounded-full border-2 border-background bg-charge text-white shadow-md" style={{ width: size, height: size }}>
                           <Zap className="fill-current" style={{ width: size * 0.5, height: size * 0.5 }} aria-hidden="true" />
                         </span>
                       ) : (
-                        <span className="block rounded-full border-2 border-background bg-chart-accent/75 shadow-md" style={{ width: size, height: size }} />
+                        // A small place still gets a finger-sized target around it.
+                        <span className="block p-2">
+                          <span className="block rounded-full border-2 border-background bg-chart-accent/75 shadow-md" style={{ width: size, height: size }} />
+                        </span>
+                      )}
+                      {name && side && (
+                        <span
+                          className={cn(
+                            "absolute top-1/2 block max-w-44 -translate-y-1/2 truncate border bg-background/90 px-1.5 py-0.5 text-[11px] leading-4 font-medium whitespace-nowrap text-foreground shadow-sm",
+                            side === "right" ? "left-full ml-1" : "right-full mr-1",
+                          )}
+                        >
+                          {name}
+                        </span>
                       )}
                     </MarkerContent>
-                    <PinTip lines={g.pins.flatMap((p) => pinLines(p, journey))} />
                   </MapMarker>
                 );
               })}
+              <LabelPlacer items={labelItems} onPlace={setSides} />
+              {tip && <PinTip key={tip.key} tip={tip} onEnter={stay} onLeave={leave} onClose={closeTip} />}
               {hovered && (
                 <MapMarker longitude={hovered.lng} latitude={hovered.lat} className="pointer-events-none">
                   <MarkerContent className="pointer-events-none">
@@ -449,7 +614,7 @@ export function TripMap({
             )}
             {kinds.has("charge") && (
               <Swatch text="Charging stop">
-                <span className={cn(BADGE, "size-4 border-background bg-chart-accent text-white")}>
+                <span className={cn(BADGE, "size-4 border-background bg-charge text-white")}>
                   <Zap className="size-2.5 fill-current" aria-hidden="true" />
                 </span>
               </Swatch>
@@ -464,7 +629,7 @@ export function TripMap({
           <>
             {kinds.has("charge") && (
               <Swatch text={legend ?? "Charge"}>
-                <span className="flex size-4 items-center justify-center rounded-full bg-chart-accent text-white">
+                <span className="flex size-4 items-center justify-center rounded-full bg-charge text-white">
                   <Zap className="size-2.5 fill-current" aria-hidden="true" />
                 </span>
               </Swatch>
@@ -483,7 +648,7 @@ export function TripMap({
         )}
       </ul>
       <p className="text-xs text-muted-foreground">
-        {parts.length > 0 ? "Hover or tap a pin or the route for details." : "Hover or tap a pin for its details."} Map data © OpenStreetMap contributors, © CARTO.
+        Map data © OpenStreetMap contributors, © CARTO.
       </p>
     </div>
   );

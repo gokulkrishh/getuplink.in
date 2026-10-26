@@ -23,6 +23,7 @@ import { seasonMonths, seasonName } from "@/lib/seasons";
 import { invoicesBySession, istIso } from "./receipts";
 import { loadStreamSessions } from "./stream-charging";
 import { loadPrimaryVehicle, loadStream } from "./telemetry";
+import { loadTyreArrivals } from "./telemetry-window";
 
 // What the MCP connector's read tools return: the same loaders the pages use, shaped as plain JSON for an
 // AI. Times are IST ("2026-10-23T10:54:00+05:30"), energy in kWh, distance in km, money in ₹. Nothing is
@@ -132,8 +133,9 @@ export async function batteryStatus(owner: Owner) {
 export async function carNowStatus(owner: Owner) {
   const { vehicle, vin } = await car(owner);
   if (!vehicle || !vin) return { error: "No car on this account." };
-  const [stream, flags] = await Promise.all([loadStream(owner, vin, CAR_NOW_FIELDS), loadCarFlags(owner, vehicle.id)]);
-  const now = carNow(stream, Date.now(), flags.tyres);
+  const at = Date.now();
+  const [stream, flags, arrivals] = await Promise.all([loadStream(owner, vin, CAR_NOW_FIELDS), loadCarFlags(owner, vehicle.id), loadTyreArrivals(owner, vin, at)]);
+  const now = carNow(stream, at, flags.tyres, arrivals);
   return {
     last_update: now.since ? istIso(now.since) : null,
     state: Object.fromEntries(now.rows),
@@ -179,8 +181,8 @@ export async function monthlySummary(owner: Owner) {
 // Where you charge, typical start and end level, AC and DC time, and recent DC charges' power.
 export async function chargingInsights(owner: Owner) {
   const { vin } = await car(owner);
-  const { teslaSessions, streamSessions, streamOnly, invoices } = await charges(owner);
-  const extras = await loadChargingExtras(owner, vin, streamSessions);
+  const { now, teslaSessions, streamSessions, streamOnly, invoices } = await charges(owner);
+  const extras = await loadChargingExtras(owner, vin, streamSessions, { tesla: teslaSessions, invoices, now });
   const finished = streamSessions.filter((s) => s.ended_at !== null && s.start_level !== null && s.end_level !== null);
   const hours = (kind: "ac" | "dc") =>
     full(streamSessions.filter((s) => s.kind === kind && s.ended_at).reduce((a, s) => a + Date.parse(s.ended_at!) - Date.parse(s.started_at), 0) / 3_600_000);
@@ -191,14 +193,19 @@ export async function chargingInsights(owner: Owner) {
     ]).map((r) => ({ station: r.name, charges: r.charges, kwh: full(r.kwh), spend_inr: r.billed ? full(r.spend) : null })),
     typical_range_pct: finished.length ? { start: full(median(finished.map((s) => s.start_level!))), end: full(median(finished.map((s) => s.end_level!))) } : null,
     hours_charging: { ac: hours("ac"), dc: hours("dc") },
-    recent_dc_charges: extras.curves.map((c) => ({
-      date: istIso(c.date).slice(0, 10),
-      charger: c.name,
-      peak_kw: full(Math.max(...c.points.map((p) => p.y))),
-      average_kw: full(c.points.reduce((a, p) => a + p.y, 0) / c.points.length),
-      battery_from_pct: full(Math.min(...c.points.map((p) => p.x))),
-      battery_to_pct: full(Math.max(...c.points.map((p) => p.x))),
-    })),
+    recent_dc_charges: extras.curves.map((c) => {
+      const s = streamSessions.find((x) => x.id === c.id);
+      const pct = (level: number | null | undefined, fallback: number) => level ?? fallback;
+      return {
+        date: istIso(c.date).slice(0, 10),
+        charger: c.name,
+        peak_kw: full(c.peakKw),
+        average_kw: full(c.avgKw),
+        // The session's own levels, as its page shows them; the curve's ends when it has none.
+        battery_from_pct: pct(s?.start_level, Math.min(...c.points.map((p) => p.x))),
+        battery_to_pct: pct(s?.end_level, Math.max(...c.points.map((p) => p.x))),
+      };
+    }),
   };
 }
 

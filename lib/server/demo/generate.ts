@@ -3,7 +3,7 @@
 //
 // It writes what the real car would: Fleet Telemetry readings (field, time, value) and the rows the poll
 // and the Supercharger sync store. The loaders feed those into the same functions as the real path
-// (buildSessions, packEstimates, dailyDistance, ...), so the pages show what real data produces.
+// (buildSessions, energyPoints, dailyDistance, ...), so the pages show what real data produces.
 import { MILES_TO_KM } from "@/lib/car";
 import type { CarFlags } from "@/lib/car-notices";
 import { DEMO_ROUTES } from "./routes";
@@ -192,7 +192,7 @@ export function generateDemo(now: number): DemoData {
     }
   }
   // Two quick top-ups at a third-party CCS charger.
-  for (const ago of [33, 61]) {
+  for (const ago of [23, 61]) {
     const d = today - ago;
     const rng = rngFor(8, d);
     special.set(d, [{ start: at(d, between(rng, 10, 13)), km: Math.round(between(rng, 40, 70)), mult: 1, kind: "detour", stop: { supercharger: false, at: 0.5 } }]);
@@ -692,7 +692,7 @@ export function generateDemo(now: number): DemoData {
   const vehicle: Vehicle = {
     id: "1",
     vin: DEMO_VIN,
-    display_name: "Shadow",
+    display_name: "Demo car",
     last_state: "online",
     current_version: current.version,
     last_seen_at: polledAt,
