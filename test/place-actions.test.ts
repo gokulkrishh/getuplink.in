@@ -63,6 +63,7 @@ globalThis.fetch = answerEmpty;
 
 const { asOwner } = await import("@/lib/server/data/owner");
 const { placeSuggestions, removePlace, savePlace } = await import("@/app/places/actions");
+const { POST } = await import("@/app/api/places/autocomplete/route");
 const { loadUserPlaces } = await import("@/lib/server/user-places");
 const { withGoogleNames } = await import("@/lib/server/google-place-names");
 const { shownName, spotName } = await import("@/lib/charge-names");
@@ -160,29 +161,32 @@ describe("signed in as A", () => {
     expect(result.hints).toEqual([]);
     expect(fetched.filter((u) => u.includes("googleapis"))).toEqual([]);
     expect(fake.rpcs).toEqual([]);
-    expect(await placeSuggestions(Number.NaN, 22)).toEqual({ hints: [], picks: [], tappable: false, current: null });
+    expect(result.search).toBe(false);
+    expect(await placeSuggestions(Number.NaN, 22)).toEqual({ hints: [], picks: [], tappable: false, current: null, search: false });
   });
 
-  test("with a key, one Nearby Search Pro and one Geocoding call, each counted under its SKU", async () => {
+  test("with a key, one Nearby Search Pro call, counted under its SKU", async () => {
     process.env.GOOGLE_MAPS_API_KEY = "test-key";
     const masks: string[] = [];
     globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
       fetched.push(String(url));
       const mask = new Headers(init?.headers).get("X-Goog-FieldMask");
       if (mask) masks.push(mask);
-      const body = String(url).includes("geocode") ? readFixture("google-reverse.json") : readFixture("google-nearby.json");
-      return new Response(body, { status: 200 });
+      return new Response(readFixture("google-nearby.json"), { status: 200 });
     }) as unknown as typeof fetch;
     const result = await placeSuggestions(12, 22);
-    expect(fetched.filter((u) => u.includes("googleapis"))).toHaveLength(2);
+    expect(fetched.filter((u) => u.includes("googleapis"))).toEqual(["https://places.googleapis.com/v1/places:searchNearby"]);
     // The ID is an IDs Only field: the call stays Nearby Search Pro.
     expect(masks).toEqual(["places.id,places.displayName,places.primaryType,places.types"]);
-    expect(fake.rpcs.map((r) => r.args.p_sku).sort()).toEqual(["geocoding", "nearbySearchPro"]);
+    expect(fake.rpcs.map((r) => r.args.p_sku)).toEqual(["nearbySearchPro"]);
     expect(fake.rpcs.every((r) => r.fn === "increment_google_usage" && r.args.p_n === 1)).toBe(true);
-    expect(result.hints.map((h) => h.name)).toEqual(["Brightwell Charging Hub", "Orchard Lane Market", "Juniper Café", "14, Orchard Lane, Hillgrove"]);
-    // Places with an ID can be tapped; the street address can't.
-    expect(result.hints.map((h) => h.placeId ?? null)).toEqual(["ChIJmadeUpBrightwellHub01", "ChIJmadeUpOrchardMarket01", null, null]);
+    // Only places with an ID, which a pick can save.
+    expect(result.hints.map((h) => [h.name, h.placeId])).toEqual([
+      ["Brightwell Charging Hub", "ChIJmadeUpBrightwellHub01"],
+      ["Orchard Lane Market", "ChIJmadeUpOrchardMarket01"],
+    ]);
     expect(result.tappable).toBe(true);
+    expect(result.search).toBe(true);
     // Suggestions are never written anywhere.
     expect(fake.calls.filter((c) => c.op !== "select")).toEqual([]);
   });
@@ -288,7 +292,10 @@ describe("before the google_place_id migration", () => {
     process.env.GOOGLE_MAPS_API_KEY = "test-key";
     globalThis.fetch = (async (url: string | URL) => (fetched.push(String(url)), new Response(readFixture("google-nearby.json"), { status: 200 }))) as unknown as typeof fetch;
     expect((await loadUserPlaces(A)).map((p) => p.name)).toEqual(["Maple Court"]);
-    expect((await placeSuggestions(12, 22)).tappable).toBe(false);
+    const before = await placeSuggestions(12, 22);
+    expect(before.tappable).toBe(false);
+    // Nothing found could be saved, so typing doesn't search.
+    expect(before.search).toBe(false);
     expect(await savePlace(null, form({ googlePlaceId: "ChIJmadeUpOrchardMarket01", lat: "12", lng: "22" }))).toBe("Naming places isn't ready yet. Try again later.");
     expect(await savePlace(null, form({ name: "Elm Yard", lat: "12", lng: "22" }))).toBeNull();
     expect(await savePlace(null, form({ id: "10", name: "Maple Court East" }))).toBeNull();
@@ -303,5 +310,86 @@ describe("before the migration", () => {
     expect(await loadUserPlaces(A)).toEqual([]);
     expect(await savePlace(null, form({ name: "Elm Yard", lat: "12", lng: "22" }))).toBe("Naming places isn't ready yet. Try again later.");
     expect(await removePlace(null, form({ id: "10" }))).toBe("Naming places isn't ready yet. Try again later.");
+  });
+});
+
+describe("the search route", () => {
+  const TOKEN = "0b6f3c1e-8d2a-4f7b-9c1d-2e3f4a5b6c7d";
+  const ask = (body: unknown) => POST(new Request("http://localhost/api/places/autocomplete", { method: "POST", body: typeof body === "string" ? body : JSON.stringify(body) }));
+  type Sent = { url: string; mask: string | null; key: string | null; body: unknown; cache: RequestCache | undefined };
+  const sent: Sent[] = [];
+  const answer = (status: number, body: string) => {
+    sent.length = 0;
+    globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+      fetched.push(String(url));
+      const headers = new Headers(init?.headers);
+      sent.push({ url: String(url), mask: headers.get("X-Goog-FieldMask"), key: headers.get("X-Goog-Api-Key"), body: JSON.parse(String(init?.body)), cache: init?.cache });
+      return new Response(body, { status });
+    }) as unknown as typeof fetch;
+  };
+
+  test("without a session: 401 and no call", async () => {
+    process.env.GOOGLE_MAPS_API_KEY = "test-key";
+    const res = await ask({ q: "brightwell", lat: 12, lng: 22, token: TOKEN });
+    expect(res.status).toBe(401);
+    expect(fetched).toEqual([]);
+  });
+
+  test("one Autocomplete call near the pin, with the session token, counted and never stored", async () => {
+    signedIn = A;
+    process.env.GOOGLE_MAPS_API_KEY = "test-key";
+    answer(200, readFixture("google-autocomplete.json"));
+    const res = await ask({ q: "  bright  well ", lat: 12.5, lng: 22.5, token: TOKEN });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+    expect(await res.json()).toEqual({
+      results: [
+        { name: "Brightwell Fuel Station", detail: "Ring Road, Riverton", source: "google", placeId: "ChIJmadeUpBrightwellFuel1" },
+        { name: "Brightwell Charging Hub", detail: null, source: "google", placeId: "ChIJmadeUpBrightwellHub01" },
+      ],
+      unavailable: false,
+    });
+    expect(sent).toEqual([
+      {
+        url: "https://places.googleapis.com/v1/places:autocomplete",
+        mask: "suggestions.placePrediction.placeId,suggestions.placePrediction.structuredFormat",
+        key: "test-key",
+        cache: "no-store",
+        body: {
+          input: "bright well",
+          sessionToken: TOKEN,
+          languageCode: "en",
+          includedRegionCodes: ["in"],
+          locationBias: { circle: { center: { latitude: 12.5, longitude: 22.5 }, radius: 5000 } },
+        },
+      },
+    ]);
+    expect(fake.rpcs.map((r) => r.args.p_sku)).toEqual(["autocomplete"]);
+    expect(fake.calls.filter((c) => c.op !== "select")).toEqual([]);
+    expect(JSON.stringify(fake.tables)).not.toContain("Brightwell");
+  });
+
+  test("bad input is refused before Google: under 2 characters, no spot, no token, junk", async () => {
+    signedIn = A;
+    process.env.GOOGLE_MAPS_API_KEY = "test-key";
+    for (const body of [{ q: "b", lat: 12, lng: 22, token: TOKEN }, { q: "brightwell", lat: 999, lng: 22, token: TOKEN }, { q: "brightwell", lat: 12, lng: 22 }, "not json", "x".repeat(3000)])
+      expect((await ask(body)).status).toBe(400);
+    expect(fetched).toEqual([]);
+  });
+
+  test("a quota reached or a refused key says unavailable, uncounted", async () => {
+    signedIn = A;
+    process.env.GOOGLE_MAPS_API_KEY = "test-key";
+    for (const status of [429, 403]) {
+      answer(status, "{}");
+      expect(await (await ask({ q: "brightwell", lat: 12, lng: 22, token: TOKEN })).json()).toEqual({ results: [], unavailable: true });
+    }
+    expect(fake.rpcs).toEqual([]);
+  });
+
+  test("without a key, no call", async () => {
+    signedIn = A;
+    expect(await (await ask({ q: "brightwell", lat: 12, lng: 22, token: TOKEN })).json()).toEqual({ results: [], unavailable: true });
+    expect(fetched).toEqual([]);
   });
 });

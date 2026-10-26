@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { mergeSuggestions, nominatimName, parseNearby, parseReverse, type Suggestion, typeWords } from "@/lib/place-suggestions";
+import { matches, mergeSuggestions, nominatimName, parseAutocomplete, parseNearby, parseQuery, parseSessionToken, type Suggestion, typeWords } from "@/lib/place-suggestions";
 import { stationsNear } from "@/lib/stations";
 
 // Google's replies in their real shape, with made-up places (test/fixtures).
@@ -12,8 +12,7 @@ describe("parseNearby", () => {
     expect(parseNearby(fixture("google-nearby.json"))).toEqual([
       { name: "Brightwell Charging Hub", detail: "Charging station", source: "google", placeId: "ChIJmadeUpBrightwellHub01" },
       { name: "Orchard Lane Market", detail: "Shopping mall", source: "google", placeId: "ChIJmadeUpOrchardMarket01" },
-      // No ID in the reply: shown, but it can't be tapped.
-      { name: "Juniper Café", detail: null, source: "google" },
+      // Juniper Café has no ID in the reply, so it can't be picked and is left out.
     ]);
   });
 
@@ -24,20 +23,41 @@ describe("parseNearby", () => {
   });
 });
 
-describe("parseReverse", () => {
-  test("the first street result, without the plus code, postcode or country", () => {
-    expect(parseReverse(fixture("google-reverse.json"))).toEqual({
-      name: "14, Orchard Lane, Hillgrove",
-      detail: "Street address",
-      source: "google",
-    });
+describe("parseAutocomplete", () => {
+  test("place predictions with an ID and a name, in Google's order; query predictions and incomplete ones skipped", () => {
+    expect(parseAutocomplete(fixture("google-autocomplete.json"))).toEqual([
+      { name: "Brightwell Fuel Station", detail: "Ring Road, Riverton", source: "google", placeId: "ChIJmadeUpBrightwellFuel1" },
+      { name: "Brightwell Charging Hub", detail: null, source: "google", placeId: "ChIJmadeUpBrightwellHub01" },
+    ]);
   });
 
-  test("a failed or empty lookup is nothing", () => {
-    expect(parseReverse({ status: "ZERO_RESULTS", results: [] })).toBeNull();
-    expect(parseReverse({ status: "REQUEST_DENIED", error_message: "x" })).toBeNull();
-    expect(parseReverse("oops")).toBeNull();
+  test("an empty or odd reply is no places", () => {
+    expect(parseAutocomplete({})).toEqual([]);
+    expect(parseAutocomplete(null)).toEqual([]);
+    expect(parseAutocomplete({ suggestions: "nope" })).toEqual([]);
   });
+});
+
+test("parseQuery takes 2 to 80 characters, spaces squeezed", () => {
+  expect(parseQuery("  orchard   lane ")).toBe("orchard lane");
+  expect(parseQuery("o")).toBeNull();
+  expect(parseQuery("   ")).toBeNull();
+  expect(parseQuery("x".repeat(81))).toBeNull();
+  expect(parseQuery(42)).toBeNull();
+});
+
+test("parseSessionToken takes a UUID-like token only", () => {
+  expect(parseSessionToken("0b6f3c1e-8d2a-4f7b-9c1d-2e3f4a5b6c7d")).toBe("0b6f3c1e-8d2a-4f7b-9c1d-2e3f4a5b6c7d");
+  expect(parseSessionToken("short")).toBeNull();
+  expect(parseSessionToken("0b6f3c1e 8d2a 4f7b 9c1d")).toBeNull();
+  expect(parseSessionToken(undefined)).toBeNull();
+});
+
+test("matches wants every typed word in the name or detail, ignoring case", () => {
+  const s: Suggestion = { name: "Orchard Lane Market", detail: "Shopping mall", source: "google" };
+  expect(matches(s, "orch")).toBe(true);
+  expect(matches(s, "lane mall")).toBe(true);
+  expect(matches(s, "lane fuel")).toBe(false);
 });
 
 describe("nominatimName", () => {

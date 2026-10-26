@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NO_AUTOFILL } from "@/lib/no-autofill";
 import { deleteEverything, deleteWholeAccount, disconnect, signOutEverywhereWithError } from "./actions";
 import { Row } from "./row";
 
@@ -120,7 +121,7 @@ function ConfirmDelete({
           <p className="text-muted-foreground">{consequence}</p>
           <label className="block space-y-1.5">
             <span className="block text-sm text-muted-foreground">Type {word} to confirm</span>
-            <Input ref={input} name="confirm" autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder={word} className="h-9 max-sm:h-10 max-w-48" aria-invalid={error ? true : undefined} aria-describedby={error ? errorId : undefined} />
+            <Input ref={input} name="confirm" {...NO_AUTOFILL} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder={word} className="h-9 max-sm:h-10 max-w-48" aria-invalid={error ? true : undefined} aria-describedby={error ? errorId : undefined} />
           </label>
           {error && (
             <p id={errorId} role="alert" className="text-sm text-destructive">

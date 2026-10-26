@@ -41,12 +41,15 @@ Any tagged spot (typed or Google) gets the pencil. A spot named only by its area
 
 A full-screen sheet over an opaque backdrop (`components/name-place.tsx`), so the page and its map are hidden while it is open. It has:
 
-- **Now**, for a Google tag: its live name and "Google Maps".
-- **The name field**, empty for a new place or a Google tag. The owner types the name.
-- **From OpenStreetMap**: mapped charging stations within 150 m and the kept area name. A tap fills the field (ODbL allows it), credited "© OpenStreetMap contributors".
-- **Nearby** (with `GOOGLE_MAPS_API_KEY`), in its own bordered box with "Google Maps" under it. A tap on a place selects it; Save sends only its place ID. Its name is never copied into the field and never sent back. Typing clears the selection. The street address from Geocoding has no place ID and stays read-only.
+- **Now**, for a tagged place: its typed name, or a Google tag's live name with "Google Maps".
+- **One search field**, an ARIA 1.2 combobox (`role="combobox"`, `aria-activedescendant`, a `listbox` of grouped options). Arrow keys move through the choices, Enter picks the highlighted one (or saves the typed text when none is), and Escape clears the search before a second Escape closes the sheet. Password managers are kept out of it (`NO_AUTOFILL`, `lib/no-autofill.ts`).
+- **The choices under it.** Before typing, the nearby ones; while typing, those that match plus Google's search results:
+  - **Use "…"**: the typed text as the owner's own name.
+  - **Stations and area** (OpenStreetMap): mapped charging stations within 150 m and the kept area name, credited "© OpenStreetMap contributors" in the group's header. Picking one saves it as a typed name (ODbL allows it).
+  - **Places** (Google, with `GOOGLE_MAPS_API_KEY`): Nearby Search's places, then Autocomplete's, each once, at most 8. "Google Maps" sits in the group's header, so Google's content is its own labelled group. Picking one saves only its place ID. Its name is never put into the field and never sent back.
+- **The footer**: "Used for every visit within 75 m.", and Remove for a tagged place.
 
-Suggestions are asked for only when the sheet opens, for that one spot. Without the key there are no Google suggestions and no error. Demo mode uses made-up suggestions and IDs (`DEMO_GOOGLE_NAMES`) and calls nothing; one demo tag is a Google place, near Whitefield.
+Picking a choice saves at once and closes the sheet. Nearby suggestions are asked for once, when the sheet opens, for that one spot. Search asks Google only after 300 ms without typing and from 2 characters (`app/api/places/autocomplete`). Each new keystroke aborts the request before it. Without the key (or before `google_place_id` exists) there are no Google places, typing doesn't search, and there's no error. When Google refuses a search (a quota reached, a key problem) the sheet says "Search isn't available right now." and the typed name still saves. Demo mode uses made-up places and IDs (`DEMO_GOOGLE_NAMES`, `DEMO_SEARCH`) and calls nothing; one demo tag is a Google place, near Whitefield.
 
 ## Google
 
@@ -55,14 +58,19 @@ Suggestions are asked for only when the sheet opens, for that one spot. Without 
 When the sheet opens, at most:
 
 - **Places API (New) Nearby Search**, 150 m, ranked by distance, at most 8 results. Field mask `places.id,places.displayName,places.primaryType,places.types`. `displayName` puts it in Nearby Search Pro, the cheapest tier with a name; `id` is an IDs Only field and adds nothing. No Enterprise fields (ratings, hours, photos). Charging stations are listed first.
-- **Geocoding API** reverse lookup, for the street address.
 - **Place Details (New)**, for a Google tag's current name.
+
+While the owner types in the sheet (signed in only; POST, so the query and the spot stay out of URLs and logs):
+
+- **Places API (New) Autocomplete**, `places:autocomplete`, biased to a 5 km circle around the pin, `includedRegionCodes: ["in"]`, English. Field mask `suggestions.placePrediction.placeId,suggestions.placePrediction.structuredFormat`, so no query predictions. At most 5 results shown. A session token (a UUID made in the browser) is sent with each request, new each time the sheet opens and after each pick. The query is checked again on the server (2 to 80 characters) and never logged or stored. The reply is answered `no-store`.
+
+The Autocomplete (New) session pricing page says a session that never ends in a Place Details call with the same token is billed per request, at the Autocomplete Requests SKU. Uplink saves the ID without asking for the details, so each search request is billed. The token still groups a search, and the cost is kept down by the 300 ms pause, the 2-character minimum and aborting stale requests. Google Cloud's per-day quotas cap the rest.
 
 When a page shows a Google-tagged place in a row or title:
 
 - **Place Details (New)**, `GET places/{id}`, field mask `displayName` only, `cache: "no-store"` (`lib/server/google-place-names.ts`). One call per place per render: React's `cache()` shares the answer within one render and nothing else holds it. At most 20 places a page; past that a row shows its safe name. The MCP export and the trip map's facts card never ask.
 
-Each call that answers is counted in `google_usage` (UTC month, SKU: `nearbySearchPro`, `geocoding`, `placeDetailsPro`) by `increment_google_usage`. A failed call isn't counted. Admin > Costs reads the month's counts (`googleUsage` in `lib/server/costs/usage.ts`) and prices them with `lib/costs.ts` `GOOGLE_SKUS`. Before the first migration nothing is counted and the line reads "Not tracked yet".
+Each call that answers is counted in `google_usage` (UTC month, SKU: `nearbySearchPro`, `autocomplete`, `placeDetailsPro`; older months may also have `geocoding`, from before the sheet stopped asking for the street address) by `increment_google_usage`. A failed call isn't counted. Admin > Costs reads the month's counts (`googleUsage` in `lib/server/costs/usage.ts`) and prices them with `lib/costs.ts` `GOOGLE_SKUS`. Before the first migration nothing is counted and the line reads "Not tracked yet".
 
 Without the key, or when Google fails or times out (5 s), a Google-tagged place shows its next name, usually the OpenStreetMap area, with no credit.
 
@@ -85,7 +93,7 @@ Sources, read on 26 Oct 2026:
 | Nothing else may be stored or cached: "Content, except for place IDs, cannot be cached or stored unless permitted by agreement" (Places policies); "Customer will not cache Google Maps Content except as expressly permitted" (3.2.3(b)); only lat/lng may be cached, for 30 days (Service terms 14.3); don't "copy and save business names, addresses" (3.2.3(a)(iii)). | The name is fetched live each time with `no-store`. It is held only for one render (React `cache()`) and, through `"use cache: private"`, in the browser's memory for the page's 60-second `stale` time; production keeps no server copy (Next.js `use cache: private` docs). It is never written to the database, a shared cache (`"use cache"`, `"use cache: remote"`), a log, or the MCP export. The owner's typed name is never filled from Google. |
 | No use with a non-Google map: "Customer must not use Google Maps Content from the Places API in conjunction with a non-Google map" (Service terms 14.2); "Customer will not use the Google Maps Core Services with or near a non-Google Map ... (i) display or use Places content on a non-Google Map" (3.2.3(e)); "Places API results must display on a Google Map, if a map is used" (Places policies). Uplink's maps are MapLibre with CARTO tiles. | Google names never reach a map: pins, labels and tooltips read `mapName`, which can't return one, and the facts card under a trip's map shows the area. Google suggestions appear only in the full-screen sheet, whose opaque backdrop hides the page and its map. Rows and titles that show a Google name sit apart from any map on the page. Tests: `test/charge-names.test.ts`, `test/google-names-guard.test.ts`. |
 | Use without a map is allowed: "Customer may use Google Maps Content from the Places API in Customer Applications without a corresponding Google Map" (Service terms 14.1). | Rows, lists and titles. |
-| Attribution: "When displaying Places API data without a Google Map, you must include the Google logo"; the text "Google Maps" is acceptable where space is limited, unmodified, on one line, untranslated (`translate="no"`), 12 to 16 px, weight 400, in #1F1F1F, #5E5E5E or white at 4.5:1 contrast, near the content and in the same container, and Google content visually distinct from other content (Places policies, Google Maps attribution). | `GoogleMapsCredit` (`components/google-maps-credit.tsx`): "Google Maps" at 12 px, #5E5E5E on the light theme and white on the dark one, right beside every Google name, never truncated. In the sheet, Google's suggestions sit in their own bordered box with the credit under them. |
+| Attribution: "When displaying Places API data without a Google Map, you must include the Google logo"; the text "Google Maps" is acceptable where space is limited, unmodified, on one line, untranslated (`translate="no"`), 12 to 16 px, weight 400, in #1F1F1F, #5E5E5E or white at 4.5:1 contrast, near the content and in the same container, and Google content visually distinct from other content (Places policies, Google Maps attribution). | `GoogleMapsCredit` (`components/google-maps-credit.tsx`): "Google Maps" at 12 px, #5E5E5E on the light theme and white on the dark one, right beside every Google name, never truncated. In the sheet, Google's places are their own labelled group, with the credit in its header. |
 | Refresh old IDs: place IDs can change; Google suggests refreshing those older than 12 months, and Place Details with the `id` field alone is free (Place IDs guide). | Not done yet. A stale ID returns NOT_FOUND, which shows the area like any other failure. The owner can pick the place again. |
 
 ### Pricing (India billing)
@@ -95,6 +103,7 @@ From [India pricing](https://developers.google.com/maps/billing-and-pricing/indi
 | SKU | Free each month | Then, per 1,000 (first tier) |
 | --- | --- | --- |
 | Geocoding (Essentials) | 70,000 | $1.50 |
+| Autocomplete Requests (the search) | 70,000 | $0.85 |
 | Places Essentials | 70,000 | $1.50 |
 | Places IDs Only variants | — | $0 |
 | Nearby Search Pro | 35,000 | $9.60 |
@@ -103,7 +112,8 @@ From [India pricing](https://developers.google.com/maps/billing-and-pricing/indi
 
 Expected calls for one car:
 
-- Sheet opens: one Nearby Search Pro and one Geocoding call each, plus one Place Details Pro for a Google tag. Say 30 opens a month.
+- Sheet opens: one Nearby Search Pro call each, plus one Place Details Pro for a Google tag. Say 30 opens a month.
+- Searches: one Autocomplete request per pause in typing, from 2 characters. A search like "brightwell" typed at a normal pace is 1 to 3 requests. Say 30 searches a month, about 90 requests, far inside the 70,000 free.
 - Live names: one Place Details Pro call per Google-tagged place per page view that shows it (the Places table, the Charging list, parked stretches, a day, a charge). None of these pages auto-refresh; the home page, which does, never asks. An owner with 5 Google places who opens those pages 10 times a day is about 5 × 10 × 30 = 1,500 calls a month, if every view shows all five. Coming back to a page within 60 seconds reuses the browser's copy.
 - 20 such owners would be about 30,000 Place Details Pro calls a month, inside the 35,000 free. Past that, each 1,000 costs $5.10. Admin > Costs shows the month's count; Google's billing page is the source of truth.
 

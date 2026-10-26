@@ -2,10 +2,11 @@
 
 import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
+import { DEMO } from "@/lib/demo";
 import { NO_SUGGESTIONS, type Suggestions } from "@/lib/place-suggestions";
 import { currentOwner, type Owner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
-import { googlePlaceName } from "@/lib/server/google-place-names";
+import { googleKey, googlePlaceName } from "@/lib/server/google-place-names";
 import { suggestionsAt } from "@/lib/server/place-suggestions";
 import { googleTapReady, loadUserPlaces, type PlaceLabel, removeUserPlace, type SaveInput, saveUserPlace } from "@/lib/server/user-places";
 import { parseId, parseName, parsePlaceId, parsePoint } from "@/lib/user-places";
@@ -21,7 +22,7 @@ async function requireSession(): Promise<Owner> {
 }
 
 // The sheet's suggestions for one spot, and, for a tag that is a Google place, that place's live name.
-// The only place Google's search is called, and only when the sheet opens.
+// Called once, when the sheet opens; typing searches through app/api/places/autocomplete.
 export async function placeSuggestions(lat: number, lng: number, tagId?: number): Promise<Suggestions> {
   const owner = await requireSession();
   const point = parsePoint(lat, lng);
@@ -32,7 +33,7 @@ export async function placeSuggestions(lat: number, lng: number, tagId?: number)
     // Only the owner's own tag is looked up, never an ID from the browser.
     const placeId = tags.find((t) => t.id === id)?.googlePlaceId ?? null;
     const current = placeId ? await googlePlaceName(placeId) : null;
-    return { ...found, tappable, current };
+    return { ...found, tappable, current, search: tappable && (DEMO || googleKey() !== null) };
   } catch (err) {
     console.warn("Place suggestions failed:", (err as Error).message);
     return NO_SUGGESTIONS;

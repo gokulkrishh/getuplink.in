@@ -4,6 +4,7 @@ import { useActionState, useId } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { EntryValues } from "@/lib/costs";
+import { NO_AUTOFILL } from "@/lib/no-autofill";
 
 type Action = (previous: string | null, form: FormData) => Promise<string | null>;
 
@@ -43,11 +44,11 @@ export function EntryForm({
       <form action={formAction} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <label className={`${label} col-span-2`} htmlFor={`${id}-name`}>
           Name
-          <Input id={`${id}-name`} name="name" defaultValue={values?.name ?? ""} required maxLength={80} />
+          <Input id={`${id}-name`} name="name" defaultValue={values?.name ?? ""} required maxLength={80} {...NO_AUTOFILL} />
         </label>
         <label className={label} htmlFor={`${id}-amount`}>
           Amount, $
-          <Input id={`${id}-amount`} name="amount" inputMode="decimal" defaultValue={values?.amount ?? ""} required />
+          <Input id={`${id}-amount`} name="amount" inputMode="decimal" defaultValue={values?.amount ?? ""} required {...NO_AUTOFILL} />
         </label>
         <label className={label} htmlFor={`${id}-period`}>
           Billed
@@ -62,7 +63,7 @@ export function EntryForm({
         </label>
         <label className={`${label} col-span-2 sm:col-span-3`} htmlFor={`${id}-link`}>
           Billing link
-          <Input id={`${id}-link`} name="link" type="url" placeholder="https://" defaultValue={values?.link ?? ""} />
+          <Input id={`${id}-link`} name="link" type="url" placeholder="https://" defaultValue={values?.link ?? ""} {...NO_AUTOFILL} />
         </label>
         <div className="col-span-2 flex items-center gap-2 sm:col-span-4">
           <Button type="submit" size="sm" disabled={readOnly || pending}>
@@ -104,7 +105,7 @@ export function NumberForm({
         {text}
       </label>
       <div className="flex items-center gap-2">
-        <Input id={id} name={name} inputMode="decimal" defaultValue={defaultValue} placeholder={placeholder} className="max-w-[12ch]" />
+        <Input id={id} name={name} inputMode="decimal" defaultValue={defaultValue} placeholder={placeholder} className="max-w-[12ch]" {...NO_AUTOFILL} />
         <Button type="submit" size="sm" variant="outline" disabled={readOnly || pending}>
           {pending ? "Saving…" : "Save"}
         </Button>

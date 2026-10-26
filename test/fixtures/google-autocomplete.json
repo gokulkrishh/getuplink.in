@@ -1,0 +1,23 @@
+{
+  "suggestions": [
+    {
+      "placePrediction": {
+        "placeId": "ChIJmadeUpBrightwellFuel1",
+        "structuredFormat": {
+          "mainText": { "text": "Brightwell Fuel Station", "matches": [{ "endOffset": 10 }] },
+          "secondaryText": { "text": "Ring Road, Riverton" }
+        }
+      }
+    },
+    {
+      "placePrediction": {
+        "placeId": "ChIJmadeUpBrightwellHub01",
+        "structuredFormat": { "mainText": { "text": "Brightwell Charging Hub" } }
+      }
+    },
+    { "placePrediction": { "structuredFormat": { "mainText": { "text": "No ID Diner" } } } },
+    { "placePrediction": { "placeId": "ChIJmadeUpNoNameAtAll01" } },
+    { "queryPrediction": { "text": { "text": "brightwell near me" } } },
+    "not a suggestion"
+  ]
+}

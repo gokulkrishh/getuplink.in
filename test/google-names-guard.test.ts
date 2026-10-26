@@ -37,4 +37,18 @@ describe("Google place names stay off the map and out of exports", () => {
     for (const path of ["lib/server/google-place-names.ts", "lib/server/charging-extra.ts", "lib/server/parked-places.ts", "lib/server/day.ts", "lib/server/charge-curve.ts", "app/stats/driving/page.tsx", "app/stats/charging/page.tsx"])
       expect(read(path)).not.toMatch(/^\s*"use cache(: remote)?";/m);
   });
+
+  test("search results are asked for uncached and answered no-store", () => {
+    const search = read("lib/server/place-suggestions.ts");
+    expect(search.match(/cache: "no-store"/g)).toHaveLength(2);
+    expect(search).not.toMatch(/^\s*"use cache/m);
+    const route = read("app/api/places/autocomplete/route.ts");
+    expect(route).toContain('"Cache-Control": "no-store"');
+    expect(route).not.toMatch(/^\s*"use cache/m);
+  });
+
+  test("the sheet never puts a Google name into the field", () => {
+    // A Google pick sends its place ID; only typed text and OpenStreetMap names go in as "name".
+    expect(read("components/name-place.tsx")).toMatch(/if \(o\.kind === "google" && o\.placeId\) form\.set\("googlePlaceId", o\.placeId\);\s*else form\.set\("name", o\.name\);/);
+  });
 });
