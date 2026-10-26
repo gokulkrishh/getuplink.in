@@ -5,7 +5,6 @@ import { istDay } from "@/lib/status";
 import { type CostEntryRow, costEntries, type CostSetting, costSettings, saveCostSetting } from "../data/costs";
 import { domainLine, readDomain } from "./domain";
 import { flyLine, readFly } from "./fly";
-import { describeError } from "./http";
 import { readSupabase, supabaseLine } from "./supabase-billing";
 import { googleLine, googleUsage, safely, teslaLine, teslaUsage } from "./usage";
 import { describeFailure, readVercel, type VercelSnapshot, vercelLine } from "./vercel";
@@ -56,13 +55,13 @@ function snapshotOf(saved: CostSetting | undefined): VercelSnapshot | null {
   return { amount: v.amount, plan: typeof v.plan === "string" ? v.plan : null, fetchedAt: v.fetchedAt };
 }
 
-// A provider's read that throws (a failure with nothing cached before) shows as Unavailable. The log gets
-// the provider and status only.
+// A provider's read that throws (a failure with nothing cached before) shows as Unavailable. The status was
+// logged where it was thrown (http.ts providerError); the error's own text could carry a URL, so it isn't.
 async function settle<T>(read: () => Promise<T>, what: string, failed: T): Promise<T> {
   try {
     return await read();
-  } catch (err) {
-    console.warn(`${what} costs unavailable (${describeError(what, err)})`);
+  } catch {
+    console.warn(`${what} costs unavailable`);
     return failed;
   }
 }

@@ -1,7 +1,7 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 import { type CostLine, FLY_PRICES, flyEstimate, type FlyIp, type FlyMachine, type FlyVolume, isStale } from "@/lib/costs";
-import { getJson, PROVIDER_COSTS_TAG, ProviderError } from "./http";
+import { getJson, PROVIDER_COSTS_TAG, providerError } from "./http";
 
 // Fly.io: the telemetry app's Machines, volumes and IPs from the Machines API, priced at Fly's list prices
 // (lib/costs.ts FLY_PRICES). Needs FLY_API_TOKEN, a read-only org token; see docs/costs.md. The token is
@@ -38,9 +38,9 @@ export async function readFly(): Promise<FlyRead> {
     getJson("Fly.io", `${app}/ip_assignments`, headers),
   ]);
   const list = (ips as { ips?: unknown } | null)?.ips;
-  if (!Array.isArray(machines) || !Array.isArray(volumes) || !Array.isArray(list)) throw new ProviderError("Fly.io", "shape");
+  if (!Array.isArray(machines) || !Array.isArray(volumes) || !Array.isArray(list)) throw providerError("Fly.io", "shape");
   const estimate = flyEstimate({ machines: machines as FlyMachine[], volumes: volumes as FlyVolume[], ips: list as FlyIp[] });
-  if (!estimate) throw new ProviderError("Fly.io", "shape");
+  if (!estimate) throw providerError("Fly.io", "shape");
   return { kind: "ok", usd: estimate.usd, machines: estimate.machines, fetchedAt: new Date().toISOString() };
 }
 

@@ -19,25 +19,26 @@ export class ProviderError extends Error {
   }
 }
 
+// The error to throw, logged here first: under Next, an error thrown inside a cache scope is serialized and
+// its message can be replaced in production, so the caller can't log the status itself.
+export function providerError(what: string, status: FailureStatus): ProviderError {
+  const err = new ProviderError(what, status);
+  console.warn(`Costs read failed: ${err.message}`);
+  return err;
+}
+
 export async function getJson(what: string, url: string, headers: Record<string, string> = {}): Promise<unknown> {
   let res: Response;
   try {
     res = await fetch(url, { headers: { Accept: "application/json", ...headers }, signal: AbortSignal.timeout(TIMEOUT_MS), cache: "no-store" });
   } catch (err) {
     const name = err instanceof Error ? err.name : "";
-    throw new ProviderError(what, name === "TimeoutError" || name === "AbortError" ? "timeout" : "network");
+    throw providerError(what, name === "TimeoutError" || name === "AbortError" ? "timeout" : "network");
   }
-  if (!res.ok) throw new ProviderError(what, res.status);
+  if (!res.ok) throw providerError(what, res.status);
   try {
     return await res.json();
   } catch {
-    throw new ProviderError(what, "body");
+    throw providerError(what, "body");
   }
-}
-
-// What goes in the log for a failed read: the provider's own short message, or just the provider. A
-// thrown error from anywhere else could carry a URL, so its text is never logged.
-export function describeError(what: string, err: unknown): string {
-  const message = err instanceof Error ? err.message : "";
-  return /^[\w. ]+ (\d{3}|timeout|network|body|shape)$/.test(message) ? `${message}` : `${what} error`;
 }

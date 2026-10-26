@@ -1,7 +1,7 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 import { type CostLine, isStale, type SupabaseAddon, type SupabaseProject, supabaseEstimate } from "@/lib/costs";
-import { getJson, PROVIDER_COSTS_TAG, ProviderError } from "./http";
+import { getJson, PROVIDER_COSTS_TAG, providerError } from "./http";
 
 // Supabase: the org's plan and each project's add-ons from the Management API, priced at Supabase's list
 // prices (lib/costs.ts SUPABASE_PRICES). Needs SUPABASE_ACCESS_TOKEN, a personal access token; see
@@ -42,13 +42,13 @@ export async function readSupabase(): Promise<SupabaseRead> {
   cacheLife({ stale: 300, revalidate: 21_600, expire: 30 * 86_400 });
   const auth = { Authorization: `Bearer ${token}` };
   const projects = await getJson("Supabase", `${API}/v1/projects`, auth);
-  if (!Array.isArray(projects)) throw new ProviderError("Supabase", "shape");
+  if (!Array.isArray(projects)) throw providerError("Supabase", "shape");
   const ref = projectRef();
   const org = (projects as Project[]).find((p) => p?.ref === ref)?.organization_slug;
-  if (typeof org !== "string" || !/^[\w-]+$/.test(org)) throw new ProviderError("Supabase", "shape");
+  if (typeof org !== "string" || !/^[\w-]+$/.test(org)) throw providerError("Supabase", "shape");
   const body = (await getJson("Supabase", `${API}/v1/organizations/${encodeURIComponent(org)}`, auth)) as { plan?: unknown } | null;
   const plan = typeof body?.plan === "string" ? body.plan : null;
-  if (!plan) throw new ProviderError("Supabase", "shape");
+  if (!plan) throw providerError("Supabase", "shape");
 
   // Add-ons only cost on a paid plan. GET /v1/projects lists every org the token can see: keep this one's.
   const priced: SupabaseProject[] = [];
@@ -58,7 +58,7 @@ export async function readSupabase(): Promise<SupabaseRead> {
       const addons = (await getJson("Supabase", `${API}/v1/projects/${encodeURIComponent(p.ref as string)}/billing/addons`, auth)) as {
         selected_addons?: unknown;
       } | null;
-      if (!Array.isArray(addons?.selected_addons)) throw new ProviderError("Supabase", "shape");
+      if (!Array.isArray(addons?.selected_addons)) throw providerError("Supabase", "shape");
       priced.push({ status: String(p.status ?? ""), addons: addons.selected_addons as SupabaseAddon[] });
     }
   }

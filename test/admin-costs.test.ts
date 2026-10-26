@@ -246,11 +246,12 @@ describe("the page's data", () => {
     expect(fetched[0].url).toBe("https://rdap.org/domain/getuplink.in");
   });
 
-  test("RDAP failing, or answering without an expiry, is Unavailable", async () => {
+  test("RDAP failing keeps the price and loses only the date; an answer without an expiry fails", async () => {
     stubFetch((url) => (url.host === "rdap.org" ? new Response("rate limited", { status: 429 }) : providers(url)));
-    expect(await logs(async () => expect((await byId()).domain).toMatchObject({ amount: null, state: "unavailable", resetsOn: null }))).toContain(
-      "Domain costs unavailable (RDAP 429)",
+    const logged = await logs(async () =>
+      expect((await byId()).domain).toMatchObject({ amount: 11.98, state: "ok", resetsOn: null, note: "getuplink.in. Renewal date unavailable" }),
     );
+    expect(logged).toEqual(["Costs read failed: RDAP 429", "Domain costs unavailable"]);
     stubFetch((url) => (url.host === "rdap.org" ? Response.json({ objectClassName: "domain", events: [] }) : providers(url)));
     await expect(readDomain()).rejects.toThrow("RDAP shape");
   });
@@ -296,9 +297,12 @@ describe("the page's data", () => {
   test("Supabase failing throws, so the cache keeps the last read; with none it's Unavailable, and the token is never logged", async () => {
     process.env.SUPABASE_ACCESS_TOKEN = "made-up-supabase-token";
     stubFetch((url) => (url.host === "api.supabase.com" ? new Response("bad token made-up-supabase-token", { status: 401 }) : providers(url)));
-    await expect(readSupabase()).rejects.toThrow("Supabase 401");
-    const logged = await logs(async () => expect((await byId()).supabase).toMatchObject({ amount: null, state: "unavailable" }));
-    expect(logged).toContain("Supabase costs unavailable (Supabase 401)");
+    const logged = await logs(async () => {
+      await expect(readSupabase()).rejects.toThrow("Supabase 401");
+      expect((await byId()).supabase).toMatchObject({ amount: null, state: "unavailable" });
+    });
+    expect(logged).toContain("Costs read failed: Supabase 401");
+    expect(logged).toContain("Supabase costs unavailable");
     expect(logged.some((l) => l.includes("made-up-supabase-token"))).toBe(false);
     // The project isn't one the token can see.
     stubFetch((url) => (url.pathname === "/v1/projects" ? Response.json([apis.supabaseProjects[2]]) : providers(url)));

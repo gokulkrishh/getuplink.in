@@ -56,12 +56,21 @@ Code:
 - Each call has an 8-second timeout.
 - **Supabase, Fly.io, the domain:**
   - Each read is a `"use cache: remote"` function with `cacheLife({ stale: 300, revalidate: 21600, expire: 2592000 })`: refreshed in the background every 6 hours, and kept for up to 30 days.
-  - A failed read **throws** rather than returning an error. Next's cache doesn't store a result that errored, so the last good read keeps being served. This is the "last known value", and it needs no table. We checked in `node_modules/next/dist/server/use-cache/use-cache-wrapper.js` (`collectResult` errors the stream) and `lib/cache-handlers/default.js` (an errored stream isn't stored), Next 16.4.3.
+  - A failed read **throws** rather than returning an error. Next's cache doesn't store a result that errored, so the last good read keeps being served. This is the "last known value", and it needs no table.
+    - Verified for Next's default handler (Next 16.4.3): `collectResult` in `node_modules/next/dist/server/use-cache/use-cache-wrapper.js` errors the stream, and `lib/cache-handlers/default.js` doesn't store an errored stream.
+    - Expected but not verified for Vercel's remote handler, which backs `"use cache: remote"` there (this repo sets no `cacheHandlers`).
+    - Self-hosted without a remote handler, the cache is per-instance memory.
+    - Remote entries don't survive a deploy: the key includes the build. So the first read after a deploy has no fallback.
+    - The `snapshot:*` follow-up below would make this certain.
   - Each read carries `fetchedAt`. A read older than 7 hours (`isStale`) shows "Last read …".
-  - If a read fails with nothing cached, the loader catches it and the line reads "Unavailable".
+  - If a read fails with nothing cached, the loader catches it and the line reads "Unavailable". The domain is the exception: its price is a constant, so it stays counted, with "Renewal date unavailable".
   - A missing token returns `connect`, cached for minutes, so setting the token shows up quickly.
 - **Vercel:** cached for an hour. A failure is cached for minutes. Each good read is saved to `cost_settings` (`snapshot:vercel`), and shown with "Last read …" when a later call fails.
-- **Logs:** the provider and status only ("Fly.io 401", "RDAP timeout"), from `ProviderError`. A token is never logged, never a cache argument and never returned. Any other error's text is not logged, because it could carry a URL.
+- **Logs:**
+  - "Costs read failed: Fly.io 401" (or "RDAP timeout"), logged by `providerError` in `http.ts` where the error is thrown. It is logged there because, under Next, an error leaving a cache scope is serialized and its message can be replaced in production.
+  - The loader then logs only "Fly.io costs unavailable".
+  - A token is never logged, never a cache argument and never returned.
+  - No error's own text is logged, because it could carry a URL.
 - **Follow-up, not done here:** to keep the last value across a cache flush or a redeploy, widen `cost_settings_key_check` and `CostSettingKey` to add `snapshot:supabase`, `snapshot:fly` and `snapshot:domain`, and save each read as Vercel's is. That is a migration and a `lib/server/data` change.
 
 ## What each API offers, and the prices
