@@ -40,7 +40,7 @@ export function DcCurves({ curves, frame, note }: { curves: (Curve & { serial?: 
         terms={["kWh", "DC"]}
         info={`Each point is the middle value in a ${BAND}% step of battery level.`}
         caption={curves.length > 0 ? `${frame.title}, ${curves.length} DC ${curves.length === 1 ? "charge" : "charges"}` : undefined}
-        empty={curves.length === 0 ? `No DC charging curves ${frame.words}` : undefined}
+        empty={curves.length === 0 ? `No DC charging curves ${frame.words}.` : undefined}
       >
         <DcCurvePlot series={series} band={BAND} label={`Typical DC charging power against battery level, ${frame.title}`} />
       </ChartCard>
@@ -98,10 +98,7 @@ export function ChargingMap({ pins, frame, note }: { pins: MapPin[]; frame: Time
       {pins.length > 0 ? (
         <TripMap pins={pins} label={`${pins.length} charges on a map`} legend="A charge; bigger pins added more energy" />
       ) : (
-        // The map's box, so the page keeps its shape from one period to the next.
-        <p className="flex h-72 w-full items-center justify-center border bg-muted dark:bg-card p-4 text-center text-sm text-muted-foreground sm:h-96">
-          No charges with a location {frame.words}.
-        </p>
+        <p className="text-sm text-muted-foreground">No charges with a location {frame.words}.</p>
       )}
       {note && <p className="text-sm text-faint">{note}</p>}
     </section>

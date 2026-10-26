@@ -1,10 +1,11 @@
+import { ReceiptText } from "lucide-react";
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
 import { OsmCredit, rate, streamName } from "@/components/session-row";
-import { chargeType, nameAction } from "@/lib/charge-names";
+import { chargeType, googleMapsUrl, nameAction } from "@/lib/charge-names";
 import { GoogleMapsCredit } from "@/components/google-maps-credit";
 import { NamePlace } from "@/components/name-place";
 import { ChargeCurve } from "@/components/stats/charge-curve";
@@ -43,8 +44,8 @@ function cost(tesla: ChargeDetail["tesla"], invoice: ChargeDetail["invoice"], en
 
 function Charge({ detail }: { detail: ChargeDetail }) {
   const { session: s, tesla, invoice, curve } = detail;
-  // Tesla's site for a Supercharger it billed; otherwise the best name known, with the kind of charge
-  // under it, or the kind alone.
+  // Tesla's site for a Supercharger it billed, with its city under it; otherwise the best name known, or
+  // the kind of charge when there's no name.
   // The owner's own name for the spot comes first, over Tesla's site name too: typed, or the Google place
   // they picked (live, credited beside it).
   const tag = detail.target?.tag?.name ?? null;
@@ -52,9 +53,15 @@ function Charge({ detail }: { detail: ChargeDetail }) {
   const named = tesla ? (tag ? { text: tag, source: "tag" as const } : null) : streamName(s, invoice, detail.place, tag);
   const site = tesla ? splitSite(tesla.site_name) : null;
   const best = google ?? named?.text ?? null;
-  const { place, city } = site ? { place: best ?? site.place, city: site.city } : { place: best ?? chargeType(s), city: best ? chargeType(s) : null };
+  const { place, city } = site ? { place: best ?? site.place, city: site.city } : { place: best ?? chargeType(s), city: null };
   // A tagged spot gets the pencil; otherwise "Name this place" unless Tesla's site already names it.
   const action = !detail.target ? null : tesla && !detail.target.tag ? null : nameAction({ name: named, target: detail.target });
+  // Where it was: the car's own location when it started, else a search for Tesla's site name.
+  const mapsHref = detail.spot
+    ? googleMapsUrl(detail.spot)
+    : tesla?.site_name
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`Tesla Supercharger ${tesla.site_name}`)}`
+      : null;
   const stoppedAt = tesla?.stopped_at ?? s.ended_at;
   const span = stoppedAt
     ? `${formatClock(s.started_at)} to ${formatClock(stoppedAt)} · ${formatDuration((Date.parse(stoppedAt) - Date.parse(s.started_at)) / 1000)}`
@@ -109,7 +116,17 @@ function Charge({ detail }: { detail: ChargeDetail }) {
         {google && <GoogleMapsCredit />}
         {detail.target && action && <NamePlace target={detail.target} compact={action === "rename"} />}
       </div>
-      <p className="mt-2 mb-12 text-sm text-muted-foreground tabular-nums">{[city, formatDate(s.started_at), span].filter(Boolean).join(" · ")}</p>
+      <p className="mt-2 mb-12 text-sm text-muted-foreground tabular-nums">
+        {[city, formatDate(s.started_at), span].filter(Boolean).join(" · ")}
+        {mapsHref && (
+          <>
+            {" · "}
+            <a href={mapsHref} target="_blank" rel="noopener" className="underline decoration-border underline-offset-4 transition-colors duration-150 hover:text-foreground hover:decoration-foreground">
+              Open in Google Maps
+            </a>
+          </>
+        )}
+      </p>
       <div className="space-y-12">
         {curve.points.length >= 2 && <ChargeCurve points={curve.points} />}
         {shown.length > 0 && (
@@ -146,7 +163,8 @@ function Charge({ detail }: { detail: ChargeDetail }) {
         <ChargeSupply session={s} />
       </div>
       {invoice?.hasFile && (
-        <a href={`/api/charging/receipt/${s.id}`} target="_blank" rel="noopener" className="mt-6 inline-block text-sm text-muted-foreground underline-offset-4 transition-colors duration-150 hover:text-foreground hover:underline">
+        <a href={`/api/charging/receipt/${s.id}`} target="_blank" rel="noopener" className="mt-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 transition-colors duration-150 hover:text-foreground hover:underline">
+          <ReceiptText className="size-4" aria-hidden="true" />
           {invoice.network} invoice
         </a>
       )}

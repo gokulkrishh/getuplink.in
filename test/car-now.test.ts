@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { carNow, firstArrival, measuredAt, seenAt, tyreFlags, words } from "@/lib/car-now";
+import { carNow, firstArrival, measuredAt, seenAt, shutSummary, tyreFlags, tyreSeen, words } from "@/lib/car-now";
 
 // TpmsLastSeenPressureTimeFl as the car sent it, arrival times in IST. Each new value came 12 h 30 min
 // ahead of its arrival; the 24 Oct 12:35:17 AM value (1792771517) was then sent again on every wake.
@@ -157,5 +157,43 @@ describe("measuredAt", () => {
     expect(measuredAt(0, now)).toBeNull();
     expect(measuredAt(null, now)).toBeNull();
     expect(measuredAt(now / 1000 + 3600, now)).toBeNull();
+  });
+});
+
+describe("shutSummary", () => {
+  const shut = { DriverFront: false, DriverRear: false, PassengerFront: false, PassengerRear: false, TrunkFront: false, TrunkRear: false };
+  const closed = Object.fromEntries(["FdWindow", "FpWindow", "RdWindow", "RpWindow"].map((f) => [f, { at, value: "WindowStateClosed" }]));
+  const all = { Locked: { at, value: true }, DoorState: { at, value: shut }, ...closed, ChargePortDoorOpen: { at, value: false } };
+  test("everything shut", () => {
+    expect(shutSummary(all, true)).toBe("Locked, all closed");
+  });
+  test("what is open is named, by side when the steering is known", () => {
+    const rearWindow = { ...all, Locked: { at, value: false }, RdWindow: { at, value: "WindowStatePartiallyOpen" } };
+    expect(shutSummary(rearWindow, true)).toBe("Unlocked, rear right window open");
+    expect(shutSummary(rearWindow, false)).toBe("Unlocked, rear left window open");
+    expect(shutSummary(rearWindow, null)).toBe("Unlocked, driver rear window open");
+    const several = { ...all, DoorState: { at, value: { ...shut, TrunkFront: true } }, ChargePortDoorOpen: { at, value: true } };
+    expect(shutSummary(several, true)).toBe("Locked, front trunk and charge port open");
+    expect(shutSummary({ ...all, ...Object.fromEntries(Object.keys(closed).map((f) => [f, { at, value: "WindowStateOpened" }])) }, true)).toBe("Locked, all windows open");
+  });
+  test("only what the car sent: no all closed without every group", () => {
+    expect(shutSummary({ Locked: { at, value: true }, ...closed }, true)).toBe("Locked, windows closed");
+    expect(shutSummary({ DoorState: { at, value: shut }, ...closed }, true)).toBe("Doors and windows closed");
+    expect(shutSummary({ Locked: { at, value: true } }, true)).toBe("Locked");
+    expect(shutSummary({}, true)).toBeNull();
+  });
+});
+
+describe("tyreSeen", () => {
+  const t = (minutesAgo: number) => ({ measuredAt: null, updatedAt: new Date(now - minutesAgo * 60_000).toISOString() });
+  test("the same time on every tyre is said once", () => {
+    expect(tyreSeen([t(3), t(3), t(3), t(3)], now)).toEqual({ shared: "Updated 3 minutes ago", each: [null, null, null, null] });
+  });
+  test("a tyre that differs keeps its own time", () => {
+    const rear = { measuredAt: new Date(now - 2 * 86_400_000).toISOString(), updatedAt: t(3).updatedAt };
+    expect(tyreSeen([t(3), t(3), t(3), rear], now)).toEqual({ shared: "Updated 3 minutes ago", each: [null, null, null, "Measured 2 days ago"] });
+  });
+  test("no majority: every tyre keeps its own", () => {
+    expect(tyreSeen([t(3), t(3), t(90), t(90)], now)).toEqual({ shared: null, each: ["Updated 3 minutes ago", "Updated 3 minutes ago", "Updated 2 hours ago", "Updated 2 hours ago"] });
   });
 });

@@ -1,5 +1,5 @@
 import { psi } from "@/lib/car";
-import { formatCelsius } from "@/lib/format";
+import { formatAgo, formatCelsius } from "@/lib/format";
 import type { Stream } from "@/lib/telemetry";
 import type { Reading } from "@/lib/telemetry-derive";
 
@@ -49,6 +49,65 @@ function doors(value: unknown): string | null {
   const named = open.filter((k) => DOOR_NAMES[k]).map((k) => DOOR_NAMES[k]);
   const doorsOpen = open.length - named.length;
   return [doorsOpen && `${doorsOpen} ${doorsOpen === 1 ? "door" : "doors"} open`, ...named.map((n) => `${n} open`)].filter(Boolean).join(", ");
+}
+
+// Which side the driver sits: true for right-hand drive, false for left, null when unknown.
+type Rhd = boolean | null;
+// "Front right" for the driver's front on a right-hand-drive car; "Driver front" when the side is unknown.
+function corner(front: boolean, driver: boolean, rhd: Rhd): string {
+  const end = front ? "front" : "rear";
+  if (rhd === null) return `${driver ? "Driver" : "Passenger"} ${end}`;
+  return `${front ? "Front" : "Rear"} ${driver === rhd ? "right" : "left"}`;
+}
+const WINDOWS: [string, boolean, boolean][] = [
+  ["FdWindow", true, true],
+  ["FpWindow", true, false],
+  ["RdWindow", false, true],
+  ["RpWindow", false, false],
+];
+const DOORS: [string, boolean, boolean][] = [
+  ["DriverFront", true, true],
+  ["PassengerFront", true, false],
+  ["DriverRear", false, true],
+  ["PassengerRear", false, false],
+];
+
+// Locks, doors, windows and the charge port door in one line: "Locked, all closed", "Unlocked, rear left
+// window open", "Locked, front trunk and charge port open". Only what the car streamed counts: "all
+// closed" needs all three groups, otherwise it names the ones it knows ("doors and windows closed"). Null
+// with none of them.
+export function shutSummary(stream: Stream, rhd: Rhd): string | null {
+  const v = (field: string) => stream[field]?.value;
+  const open: string[] = [];
+  const closed: string[] = [];
+  const doorState = v("DoorState");
+  const doorsKnown = typeof doorState === "object" && doorState !== null;
+  if (doorsKnown) {
+    const d = doorState as Record<string, unknown>;
+    const doorsOpen = DOORS.filter(([k]) => d[k] === true);
+    if (doorsOpen.length === 4) open.push("all doors");
+    else open.push(...doorsOpen.map(([, front, driver]) => `${corner(front, driver, rhd).toLowerCase()} door`));
+    if (d.TrunkFront === true) open.push("front trunk");
+    if (d.TrunkRear === true) open.push("boot");
+    if (!Object.values(d).some((x) => x === true)) closed.push("doors");
+  }
+  const windows = WINDOWS.filter(([f]) => words(v(f)) !== null);
+  if (windows.length > 0) {
+    const windowsOpen = windows.filter(([f]) => !/closed/i.test(words(v(f))!));
+    if (windowsOpen.length === 4) open.push("all windows");
+    else open.push(...windowsOpen.map(([, front, driver]) => `${corner(front, driver, rhd).toLowerCase()} window`));
+    if (windowsOpen.length === 0) closed.push("windows");
+  }
+  const port = v("ChargePortDoorOpen");
+  if (port === true) open.push("charge port");
+  else if (port === false) closed.push("charge port");
+  const known = [doorsKnown, windows.length > 0, typeof port === "boolean"].filter(Boolean).length;
+  const locked = typeof v("Locked") === "boolean" ? (v("Locked") ? "Locked" : "Unlocked") : null;
+  if (known === 0) return locked;
+  const and = (list: string[]) => (list.length > 1 ? `${list.slice(0, -1).join(", ")} and ${list.at(-1)}` : list[0]);
+  const shut = open.length > 0 ? `${and(open)} open` : known === 3 ? "all closed" : `${and(closed)} closed`;
+  const line = [locked, shut].filter(Boolean).join(", ");
+  return line.charAt(0).toUpperCase() + line.slice(1);
 }
 
 const temp = (v: unknown) => (typeof v === "number" ? formatCelsius(v) : null);
@@ -135,6 +194,16 @@ export type Tyre = {
   warning: "low" | "very low" | null;
   alert: string | null;
 };
+
+// When each tyre was read, as the page words it: "Measured 3 minutes ago" when the car said, otherwise
+// "Updated 3 minutes ago" (when the reading arrived). Said once under the tyres (`shared`) when more than
+// half of them read the same; a tyre that differs keeps its own (`each`, null where the shared line
+// covers it). With no majority, every tyre keeps its own.
+export function tyreSeen(tyres: Pick<Tyre, "measuredAt" | "updatedAt">[], now: number): { shared: string | null; each: (string | null)[] } {
+  const text = tyres.map((t) => (t.measuredAt ? `Measured ${formatAgo(t.measuredAt, now)}` : `Updated ${formatAgo(t.updatedAt, now)}`));
+  const shared = text.find((x) => text.filter((y) => y === x).length * 2 > text.length) ?? null;
+  return { shared, each: text.map((x) => (x === shared ? null : x)) };
+}
 
 export type CarNow = { rows: [string, string][]; tyres: Tyre[]; tyreWarning: string | null; since: string | null };
 

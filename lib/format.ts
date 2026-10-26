@@ -102,8 +102,8 @@ export function formatNumber(value: number, decimals: number): string {
   // the formatter then only writes the digits.
   const units = Math.round(Math.round(value * 10 ** decimals * 1e6) / 1e6);
   const text = fmt.format(units / 10 ** decimals);
-  // A tiny negative that rounds to zero reads "0.0", not "-0.0".
-  return /^-0(\.0+)?$/.test(text) ? text.slice(1) : text;
+  // Zero reads "0", never "0.0" or "-0.0": a tiny value that rounds away is nothing at this precision.
+  return /^-?0(\.0+)?$/.test(text) ? "0" : text;
 }
 
 // Whether a figure shows as zero at its unit's precision ("0.0", "₹0.00"). A chart draws no bar for it, so
@@ -208,7 +208,9 @@ export function formatMoney(value: number, currency: string): string {
     }
     moneyFormats.set(currency, fmt);
   }
-  return fmt.format(value);
+  // "₹0", not "₹0.00", as other figures read "0".
+  const text = fmt.format(value);
+  return showsZero(text) ? text.replace(/-?0[.,]0+/, "0").replace("-", "") : text;
 }
 
 const moneyFormats = new Map<string, Intl.NumberFormat>();

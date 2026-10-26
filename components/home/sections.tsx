@@ -50,93 +50,97 @@ function Rows({ header, children }: { header?: ReactNode; children: ReactNode })
   );
 }
 
+// A period with nothing in a section says so in one line, in place of its chart and rows together.
+function Quiet({ children }: { children: ReactNode }) {
+  return <p className="text-sm text-muted-foreground">{children}</p>;
+}
+
 // Spend per bar from real bills (Tesla's and the invoices attached, as in Spent and on Charging), then the
-// newest sessions in the period.
+// newest sessions in the period. A period with neither is one line ("No charging today."), so the
+// sections aren't held open to a chart's height (no `steady`).
 // The chart starts at the first charge's day (`chargingSince`, see fromSince).
 export function ChargingSection({ frames, bills, listed, chargingSince, now }: { frames: HomeFrame[]; bills: Bill[]; listed: Listed[]; chargingSince: number | null; now: number }) {
   if (listed.length === 0) return null;
   const currency = listed.find((item) => item.tesla?.currency)?.tesla?.currency ?? "INR";
-  const chart = (f: HomeFrame) => {
+  const body = (f: HomeFrame) => {
     // The bars start at the first charge's day (see fromSince).
     const { frame } = fromSince(f, chargingSince, now);
     // A slot ahead of now is blank, never ₹0; those before the first bill are hidden by Bars itself. To the
     // paisa and rounded together, so the bars add up to Spent above as shown.
     const { bars } = knownBars(frame.slots, billsBySlot(bills, frame.slots), DECIMALS.money, (n) => formatMoney(n, currency));
-    return (
-      <ChartCard
-        as="h3"
-        title="Spend"
-        description="What charging cost."
-        info="From Tesla's Supercharger bills and the invoices you attached."
-        caption={barsSpan(frame)}
-        empty={hasBars(bars) ? undefined : `No bills ${frame.words}`}
-      >
-        <Bars bars={bars} ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} fit />
-      </ChartCard>
-    );
-  };
-  const rows = ({ frame }: HomeFrame) => {
-    const shown = listed.filter((item) => inSpan(Date.parse(item.started_at), frame.span)).slice(0, ROWS);
-    if (shown.length === 0) return <p className="text-sm text-muted-foreground">No charging sessions {frame.words}.</p>;
+    const shown = listed.filter((item) => inSpan(Date.parse(item.started_at), f.frame.span)).slice(0, ROWS);
+    if (!hasBars(bars) && shown.length === 0) return <Quiet>No charging {f.frame.words}.</Quiet>;
     const costs = hasCosts(shown);
     return (
-      <div>
-        <Rows header={<SessionHeader costs={costs} wide />}>
-          {shown.map((item) => (
-            <SessionRow key={item.key} item={item} now={now} costs={costs} />
-          ))}
-        </Rows>
-        {hasStationNames(shown) && <OsmCredit className="mt-3" />}
+      <div className="space-y-6">
+        <ChartCard
+          as="h3"
+          title="Spend"
+          description="What charging cost."
+          info="From Tesla's Supercharger bills and the invoices you attached."
+          caption={barsSpan(frame)}
+          empty={hasBars(bars) ? undefined : `No bills ${frame.words}.`}
+        >
+          <Bars bars={bars} ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} fit />
+        </ChartCard>
+        {shown.length === 0 ? (
+          <Quiet>No charging sessions {f.frame.words}.</Quiet>
+        ) : (
+          <div>
+            <Rows header={<SessionHeader costs={costs} wide />}>
+              {shown.map((item) => (
+                <SessionRow key={item.key} item={item} now={now} costs={costs} />
+              ))}
+            </Rows>
+            {hasStationNames(shown) && <OsmCredit className="mt-3" />}
+          </div>
+        )}
       </div>
     );
   };
   return (
     <Section title="Charging" view="charging" more="See all sessions">
-      {eachFrame(frames, chart, { steady: true })}
-      {eachFrame(frames, rows)}
+      {eachFrame(frames, body)}
     </Section>
   );
 }
 
-// Distance per bar, then the newest trips in the period. Trips are rebuilt from the last DRIVE_DAYS of
-// readings, so a period that starts earlier says so rather than look complete.
+// Distance per bar, then the newest trips in the period; a period with neither is one line. Trips are
+// rebuilt from the last DRIVE_DAYS of readings, so a period that starts earlier says so rather than look
+// complete.
 export function DrivingSection({ frames, figures, drives, now }: { frames: HomeFrame[]; figures: DrivingFigures; drives: Drive[]; now: number }) {
   if (!figures.periods.all.current.km && drives.length === 0) return null;
   const trips = groupTrips(drives);
   const tripsFrom = now - DRIVE_DAYS * 86_400_000;
-  const chart = (f: HomeFrame) => {
+  const body = (f: HomeFrame) => {
     // The bars start at the first odometer reading's day (see fromSince).
     const { frame, driving } = fromSince(f, figures.since, now);
     // A slot with no reading (before tracking began, or ahead of now) is blank, never 0 km.
     // Rounded together like the headline's Driven, so they add up to it as shown.
     const { bars } = knownBars(frame.slots, frame.slots.map((_, k) => (driving ? (driving.bars[k]?.km ?? null) : null)), DECIMALS.km);
-    const empty = !driving ? "Couldn't read the distance for these dates" : hasBars(bars) ? undefined : `No driving ${frame.words}`;
-    return (
-      <ChartCard as="h3" title="Distance" description="Kilometres driven." caption={barsSpan(frame)} empty={empty}>
-        <Bars bars={bars} ariaLabel={`Distance per ${frame.slotName} in km`} unit="km" labelEvery={frame.labelEvery} fit />
-      </ChartCard>
-    );
-  };
-  const rows = ({ frame }: HomeFrame) => {
-    if (drives.length === 0) return null;
-    const shown = trips.filter((t) => inSpan(t.start, frame.span)).slice(0, ROWS);
+    const shown = trips.filter((t) => inSpan(t.start, f.frame.span)).slice(0, ROWS);
     // Tracking began before the trips' window and the period reaches back past it.
-    const partial = frame.span.from < tripsFrom && (figures.since === null || figures.since < tripsFrom);
+    const partial = f.frame.span.from < tripsFrom && (figures.since === null || figures.since < tripsFrom);
+    // A period with no distance and no trips is one line, as in ChargingSection.
+    if (driving && !hasBars(bars) && shown.length === 0) return <Quiet>No driving {f.frame.words}.</Quiet>;
+    const empty = !driving ? "Couldn't read the distance for these dates." : hasBars(bars) ? undefined : `No driving ${frame.words}.`;
     return (
-      <div className="space-y-3">
-        {shown.length > 0 ? (
-          <TripTable trips={shown} serialOf={(t) => trips.length - trips.indexOf(t)} now={now} />
-        ) : (
-          <p className="text-sm text-muted-foreground">No trips {frame.words}.</p>
+      <div className="space-y-6">
+        <ChartCard as="h3" title="Distance" description="Kilometres driven." caption={barsSpan(frame)} empty={empty}>
+          <Bars bars={bars} ariaLabel={`Distance per ${frame.slotName} in km`} unit="km" labelEvery={frame.labelEvery} fit />
+        </ChartCard>
+        {drives.length > 0 && (
+          <div className="space-y-3">
+            {shown.length > 0 ? <TripTable trips={shown} serialOf={(t) => trips.length - trips.indexOf(t)} now={now} /> : <Quiet>No trips {f.frame.words}.</Quiet>}
+            {partial && <p className="text-sm text-faint">Trips cover only the last {DRIVE_DAYS} days.</p>}
+          </div>
         )}
-        {partial && <p className="text-sm text-faint">Trips cover only the last {DRIVE_DAYS} days.</p>}
       </div>
     );
   };
   return (
     <Section title="Driving" view="driving" more="See all trips">
-      {eachFrame(frames, chart, { steady: true })}
-      {eachFrame(frames, rows)}
+      {eachFrame(frames, body)}
     </Section>
   );
 }
@@ -198,8 +202,8 @@ export function BatterySection({
   };
   return (
     <Section title="Battery" view="battery" more="See battery details">
-      {(parkedNow || parked.length > 0) && eachFrame(frames, drain, { steady: true })}
-      {hasLevel && eachFrame(frames, ({ frame }) => <ChargeLevelChart level={level} now={now} frame={frame} />, { steady: true })}
+      {(parkedNow || parked.length > 0) && eachFrame(frames, drain)}
+      {hasLevel && eachFrame(frames, ({ frame }) => <ChargeLevelChart level={level} now={now} frame={frame} />)}
     </Section>
   );
 }

@@ -11,7 +11,6 @@ import { listSessions, withSpots } from "@/components/session-row";
 import { eachFrame } from "@/components/home/frames";
 import { PeriodPicker, PeriodScope } from "@/components/stats/period-scope";
 import { customScope } from "@/components/stats/periods";
-import { UpdateBanner } from "@/components/updates/update-banner";
 import { matchSessions } from "@/lib/charge-sessions";
 import { billedCharges, chargingBills, firstStartedAt } from "@/lib/charging-figures";
 import { withDriveEfficiency } from "@/lib/drive-stats";
@@ -124,8 +123,12 @@ async function HomeContent({ searchParams }: Pick<PageProps<"/">, "searchParams"
           {cars.map((car) => (
             <div key={car.vehicle.id} className="space-y-6">
               <CarNotices notices={car.notices} />
-              <NowStrip car={car} odometerKm={car.vehicle.id === primaryId ? home.figures.odometerKm : null} now={now} />
-              <UpdateBanner snapshot={car.lastOnline} installed={car.vehicle.current_version} />
+              <NowStrip
+                car={car}
+                odometerKm={car.vehicle.id === primaryId ? home.figures.odometerKm : null}
+                parkedNow={car.vehicle.id === primaryId ? home.window.driving.parkedNow : null}
+                now={now}
+              />
             </div>
           ))}
           <PeriodScope custom={customScope(range, now)}>
@@ -151,7 +154,7 @@ function HomeSkeleton() {
       <span className="sr-only">Loading…</span>
       <div className="space-y-4">
         <div className={`h-4 w-40 ${block}`} />
-        <div className={`h-8 w-32 ${block}`} />
+        <div className={`h-12 w-40 ${block}`} />
         <div className={`h-1 w-full max-w-sm ${block}`} />
         <div className={`h-4 w-48 ${block}`} />
       </div>

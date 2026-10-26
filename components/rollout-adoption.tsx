@@ -86,7 +86,7 @@ export function RolloutAdoption({ adoption }: { adoption: Record<AdoptionGrain, 
           <Segmented label="Group by" options={GRAINS} value={grain} onChange={setGrain} />
         </div>
       }
-      empty={bars.some((b) => b.value > 0) ? undefined : `No cars ran ${version} in these ${words}`}
+      empty={bars.some((b) => b.value > 0) ? undefined : `No cars ran ${version} in these ${words}.`}
     >
       <Bars bars={bars} ariaLabel={`Share of cars on ${version}, ${spanWords}`} labelEvery={labelEvery} unit="%" valueWords="of cars" fit />
     </ChartCard>

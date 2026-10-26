@@ -10,8 +10,8 @@ import { supplyFigures, Words } from "@/components/stats/charge-supply";
 import { type Figure, Figures } from "@/components/stats/figures";
 import { Vin } from "@/components/vin";
 import { odometerKm } from "@/lib/car";
-import { CAR_NOW_FIELDS, type CarNow, carNow } from "@/lib/car-now";
-import { formatAgo, formatClock, formatKm, formatKw, formatKwh, formatPercent, formatRangeKm, formatShortDate } from "@/lib/format";
+import { CAR_NOW_FIELDS, type CarNow, carNow, shutSummary, tyreSeen } from "@/lib/car-now";
+import { formatClock, formatKm, formatKw, formatKwh, formatPercent, formatRangeKm, formatShortDate } from "@/lib/format";
 import { isStaleSync, lastSyncedText, newestTime } from "@/lib/last-synced";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type CarDetails, loadCarDetails } from "@/lib/server/car";
@@ -129,14 +129,13 @@ function CarHeader({ car, odometer, version, syncedAt, at }: { car: CarDetails; 
   );
 }
 
-// Locked arrives as a yes or no; on a tile it reads better as the state.
-const NOW_WORDS: Record<string, (value: string) => [string, string]> = {
-  Locked: (v) => ["Locks", v === "Yes" ? "Locked" : "Unlocked"],
-};
+// carNow's rows that `shut` (see shutSummary) says in one tile, placed where the first of them was.
+const SHUT_ROWS = new Set(["Locked", "Doors", "Windows", "Charge port door"]);
 
 // The charge and range from the latest online check, newer streamed values laid over it, then carNow's
-// rows. Temperatures are measures; the rest are words.
-function nowFigures(state: Omit<CarState, "flags">, now: CarNow | null): Figure[] {
+// rows, with locks, doors, windows and the charge port door as one tile. Temperatures are measures; the
+// rest are words.
+function nowFigures(state: Omit<CarState, "flags">, now: CarNow | null, shut: string | null): Figure[] {
   const s = state.lastOnline;
   const figures: Figure[] = [];
   if (s?.battery_level != null) {
@@ -152,9 +151,14 @@ function nowFigures(state: Omit<CarState, "flags">, now: CarNow | null): Figure[
     figures.push({ label: "Charge", value: formatPercent(s.battery_level), note });
   }
   if (s?.battery_range_km != null) figures.push({ label: "Range", value: formatRangeKm(s.battery_range_km) });
+  let shutShown = false;
   for (const [label, value] of now?.rows ?? []) {
-    const [name, text] = NOW_WORDS[label]?.(value) ?? [label, value];
-    figures.push({ label: name, value: /^-?\d/.test(text) ? text : <Words>{text}</Words> });
+    if (SHUT_ROWS.has(label)) {
+      if (shut && !shutShown) figures.push({ label: "Locks and doors", value: <Words>{shut}</Words> });
+      shutShown = true;
+      continue;
+    }
+    figures.push({ label, value: /^-?\d/.test(value) ? value : <Words>{value}</Words> });
   }
   return figures;
 }
@@ -165,8 +169,10 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
   const odometer = odometerKm(car.polledOdometer, reading("Odometer") && { miles: reading("Odometer").value, at: reading("Odometer").at });
   const version = currentVersion(car.rowVersion, car.checkedVersion, reading("Version") && { version: reading("Version").value, at: reading("Version").at });
   const syncedAt = newestTime([state.latest?.polled_at, state.streamAt]);
-  const figures = nowFigures(state, now);
+  const rhd = car.steering === "Right-hand drive" ? true : car.steering === "Left-hand drive" ? false : null;
+  const figures = nowFigures(state, now, shutSummary(stream, rhd));
   const tyres = now?.tyres ?? [];
+  const seen = tyreSeen(tyres, at);
 
   const specs = shown<ReactNode>([
     ["Drive", car.drive],
@@ -244,21 +250,27 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
           {/* Laid out like the car: fronts on top, left on the left, two by two at every width. */}
           <Figures
             className="sm:grid-cols-2"
-            figures={tyres.map((t) => ({
+            figures={tyres.map((t, k) => ({
               label: t.name,
               value: t.pressure,
-              note: (
-                <>
-                  {/* When the car measured it; when it didn't say, when the reading arrived. */}
-                  {t.measuredAt ? `Measured ${formatAgo(t.measuredAt, at)}` : `Updated ${formatAgo(t.updatedAt, at)}`}
-                  {t.alert && <span className="block text-destructive">{t.alert}</span>}
-                </>
-              ),
+              // Its own time only when it differs from the line under the tyres (see tyreSeen).
+              note:
+                seen.each[k] || t.alert ? (
+                  <>
+                    {seen.each[k]}
+                    {t.alert && <span className="block text-destructive">{t.alert}</span>}
+                  </>
+                ) : undefined,
             }))}
             label="Tyres"
             terms={["psi"]}
           />
-          {car.tyrePressure && <p className="text-xs text-muted-foreground">Recommended {car.tyrePressure}</p>}
+          {(seen.shared || car.tyrePressure) && (
+            <div className="space-y-1 text-xs text-muted-foreground">
+              {seen.shared && <p>{seen.shared}</p>}
+              {car.tyrePressure && <p>Recommended {car.tyrePressure}</p>}
+            </div>
+          )}
           {/* A warning not shown on a tile: one that doesn't say which tyre, or a tyre with no reading. */}
           {now?.tyreWarning && !tyres.some((t) => t.alert) && <p className="text-sm text-destructive">{now.tyreWarning}</p>}
         </section>

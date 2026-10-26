@@ -62,21 +62,25 @@ export function Summary({
         title="Spend"
         description={`What you paid to charge ${eachSlot(frame)}.`}
         info="From Tesla's Supercharger bills and the invoices you attached."
+        // With no bills, the empty line says so alone; a ₹0.00 headline over it would say it twice.
         summary={
-          <div className="space-y-2">
-            <p className="text-[0.8125rem] text-muted-foreground">Spent {frame.words}</p>
-            <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
-              <Value text={formatMoney(cost, "INR")} />
-            </p>
-          </div>
+          hasBars(bars) ? (
+            <div className="space-y-2">
+              <p className="text-[0.8125rem] text-muted-foreground">Spent {frame.words}</p>
+              <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
+                <Value text={formatMoney(cost, "INR")} />
+              </p>
+            </div>
+          ) : undefined
         }
         caption={barsSpan(frame)}
-        empty={hasBars(bars) ? undefined : `No bills ${frame.words}`}
+        empty={hasBars(bars) ? undefined : `No bills ${frame.words}.`}
       >
         <Bars bars={bars} ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} fit />
       </ChartCard>
-      {/* What only some periods have (the rates, these lines) goes under the chart, so it stays put on a switch. */}
-      <div className="space-y-2">
+      {/* What only some periods have (the rates, these lines) goes under the chart, so it stays put on a switch.
+          With no bill and no time on a charger, the empty line above says it all. */}
+      {(count > 0 || ac || dc) && (
         <Figures
           figures={[
             { label: "Energy billed", value: formatKwh(kwh) },
@@ -89,7 +93,7 @@ export function Summary({
           label="bills"
           terms={["kWh", acPerKwh !== null || dcPerKwh !== null ? "₹/kWh" : undefined, ac ? "AC" : undefined, dc ? "DC" : undefined]}
         />
-      </div>
+      )}
       {km !== null && km >= 10 && cost > 0 && missing === 0 && (
         <p className="text-sm text-muted-foreground tabular-nums">{formatMoney((cost / km) * 100, "INR")} per 100 km driven</p>
       )}
@@ -148,10 +152,11 @@ export function PaidFor({ bills, frame }: { bills: Bill[]; frame: Timeframe }) {
 }
 
 // Tones from the foreground down, so the series read apart without colour.
+// Charging's green, darker the faster the charger: Supercharger, then third-party DC, then AC.
 const ENERGY_SERIES = [
-  { label: "Supercharger", className: "bg-chart-1" },
-  { label: "Third-party DC", className: "bg-chart-2" },
-  { label: "AC", className: "bg-chart-3" },
+  { label: "Supercharger", className: "bg-charge" },
+  { label: "Third-party DC", className: "bg-charge/65" },
+  { label: "AC", className: "bg-charge/35" },
 ];
 
 // Energy added per bar of the period or range (see Timeframe), split by charger kind. Supercharger energy is
@@ -186,6 +191,8 @@ export function EnergyAdded({
     return { key: String(slot.id), label: slot.label, axis: slot.axis, edge: slot.edge, total: sum, display: formatNumber(sum, DECIMALS.kWh), isCurrent: slot.isCurrent, segments: energy[k], blank: slot.ahead || undefined };
   });
   const efficiency = chargeEfficiency(streamOnly.filter((s) => s.kind === "ac" && inSpan(Date.parse(s.started_at), span)));
+  // Any column that shows above 0.0 kWh; without one, the empty line stands alone, as on Spend.
+  const charged = bars.some((b) => b.total > 0 && !showsZero(b.display));
   return (
     <section className="space-y-8">
       <ChartCard
@@ -195,15 +202,17 @@ export function EnergyAdded({
         unit="kWh"
         terms={["AC", "DC"]}
         summary={
-          <div className="space-y-2">
-            <p className="text-[0.8125rem] text-muted-foreground">Added {frame.words}</p>
-            <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
-              <Value text={formatKwh(total)} />
-            </p>
-          </div>
+          charged ? (
+            <div className="space-y-2">
+              <p className="text-[0.8125rem] text-muted-foreground">Added {frame.words}</p>
+              <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
+                <Value text={formatKwh(total)} />
+              </p>
+            </div>
+          ) : undefined
         }
         caption={barsSpan(frame)}
-        empty={bars.some((b) => b.total > 0 && !showsZero(b.display)) ? undefined : `No charging ${frame.words}`}
+        empty={charged ? undefined : `No charging ${frame.words}.`}
       >
         <StackedBars bars={bars} series={ENERGY_SERIES} ariaLabel={`Energy added per ${frame.slotName}`} labelEvery={frame.labelEvery} fit />
       </ChartCard>

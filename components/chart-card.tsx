@@ -8,8 +8,8 @@ import { cn } from "@/lib/utils";
 // most one short caption under it. The ⓘ opens a popover with the plain words for `unit` and `terms`
 // (lib/unit-words.ts) and any `info` (how a figure is worked out); nothing about units shows inline.
 // The unit itself is drawn once, by the chart, above its y axis (as ChartFrame and DriveTrace do). With
-// `empty`, a note sits in the chart's place, the same height, so a period page keeps its shape; on a page
-// where a chart has no data, don't render the card at all.
+// `empty`, one sentence sits in the chart's place and the caption is left out; on a page where a chart has
+// no data, don't render the card at all.
 // Server-safe: no hooks, so it wraps server sections and client plots alike (InfoButton is its own client
 // component).
 export function ChartCard({
@@ -39,7 +39,7 @@ export function ChartCard({
   caption?: ReactNode;
   // Tiles or a headline value between the description and the chart.
   summary?: ReactNode;
-  // Like "No driving today": shown in place of the chart.
+  // Like "No driving today.", a whole sentence: shown in place of the chart.
   empty?: ReactNode;
   // h2 when the chart is the section; h3 under a section's own h2.
   as?: "h2" | "h3";
@@ -59,7 +59,6 @@ export function ChartCard({
       </div>
       {summary}
       {empty ? <EmptyChart>{empty}</EmptyChart> : <Captioned caption={caption}>{children}</Captioned>}
-      {empty && caption && <p className="text-sm text-muted-foreground">{caption}</p>}
     </section>
   );
 }

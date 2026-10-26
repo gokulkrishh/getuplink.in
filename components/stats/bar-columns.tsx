@@ -60,7 +60,10 @@ export function BarColumns({
           </li>
         ) : (
           <li key={b.key} className="group relative flex flex-col items-center gap-2">
-            <BarTip at={k} of={bars.length} lines={[valueWords ? `${withUnit(b.display, unit)} ${valueWords}` : withUnit(b.display, unit), b.tip ?? null]} title={b.label} />
+            {/* Nothing drawn, nothing to tell: a zero column has no tip, as it has no bar or label. */}
+            {!showsZero(b.display) && (
+              <BarTip at={k} of={bars.length} lines={[valueWords ? `${withUnit(b.display, unit)} ${valueWords}` : withUnit(b.display, unit), b.tip ?? null]} title={b.label} />
+            )}
             {dense ? <span className="h-4" /> : <ValueLabel display={b.display} unit={unit} />}
             <div className="flex h-20 w-full items-end justify-center">
               {b.value > 0 && !showsZero(b.display) && (

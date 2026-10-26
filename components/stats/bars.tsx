@@ -11,11 +11,11 @@ export { AxisLabel, type Bar, BAR_MAX, BarTip, MIN_COLUMNS, withUnit } from "@/c
 // Every column is at least MIN_COLUMN_PX wide: a chart with more than fit (90 days on a phone) scrolls
 // sideways from its newest end, with the y axis staying put. The x-axis shows only the labels that fit,
 // measured in the browser (useAxisLabels).
-// With empty, a period with nothing to show says so (EmptyChart) in the same box instead of drawing an empty frame.
+// With empty, a period with nothing to show says so in one line (EmptyChart) instead of drawing an empty frame.
 // `caption` says in plain words what is plotted and over which bars (see chart-caption.ts); it sits under the
 // panel so a caption that wraps differently in another period never moves the chart.
-// Every period draws the same box: the value row is kept (blank when dense), so a switch between 6 and 12
-// columns, or to an empty period, doesn't change the chart's height. Each slot keeps its column, those
+// Every drawn period has the same box: the value row is kept (blank when dense), so a switch between 6 and
+// 12 columns doesn't change the chart's height. Each slot keeps its column, those
 // before the history starts drawn blank, and a bar is never wider than BAR_MAX.
 // `unit` titles the y axis and follows each value in the hover tip and for screen readers; `display` is
 // the bare number (money carries its own sign, with `prefix` on the axis).
@@ -39,7 +39,7 @@ export function Bars({
   prefix?: string;
   // Like "km" or "% a day".
   unit?: string;
-  // Like "No driving today".
+  // Like "No driving today.", a whole sentence.
   empty?: string;
   // Like "Kilometres driven each month, May to Oct".
   caption?: string;
@@ -50,7 +50,7 @@ export function Bars({
   // Words after the value in the tip, like "of driving time".
   valueWords?: string;
 }) {
-  if (empty && !bars.some((b) => b.value > 0 && !showsZero(b.display))) return <EmptyChart caption={caption}>{empty}</EmptyChart>;
+  if (empty && !bars.some((b) => b.value > 0 && !showsZero(b.display))) return <EmptyChart>{empty}</EmptyChart>;
   const max = niceMax(Math.max(1, ...bars.map((b) => b.value)));
   return (
     <Captioned caption={caption}>
@@ -73,14 +73,10 @@ export function Captioned({ caption, children }: { caption?: React.ReactNode; ch
 }
 
 
-// In place of a bar chart with nothing in it: the panel, exactly a chart's height (h-40, see ChartFrame), with a short
-// note, and the chart's caption under it like a drawn chart's.
-export function EmptyChart({ caption, children }: { caption?: string; children: React.ReactNode }) {
-  return (
-    <Captioned caption={caption}>
-      <div className="flex h-40 items-center justify-center bg-muted dark:bg-card px-4 text-center text-sm text-faint">{children}</div>
-    </Captioned>
-  );
+// In place of a chart with nothing in it: one short sentence ("No bills today."), not an empty panel. The
+// caption is left out; the sentence already says which period.
+export function EmptyChart({ children }: { children: React.ReactNode }) {
+  return <p className="text-sm text-muted-foreground">{children}</p>;
 }
 
 // The y-axis top: the data's maximum rounded up to 1, 2, 2.5 or 5 times a power of ten.

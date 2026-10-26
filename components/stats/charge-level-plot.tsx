@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 // A charge as drawn: its clipped span and its tip's words (see chargeTip).
 export type ChargeBand = ChargeStretch & { tip: string };
 
+const DAY = 86_400_000;
 const MIN_BAND_PX = 3;
 const HIT_PX = 16;
 // The charging green behind the line; the legend's swatch uses the same (bg-charge/40).
@@ -51,6 +52,8 @@ export default function ChargeLevelPlot({ points, charging, from, to }: { points
     return { ...c, x1, x2 };
   });
   const px = (t: number) => 32 + ((t - from) / (to - from || 1)) * plotWidth;
+  // Up to two days across, the ticks are times ("9 AM"); a date would repeat along the axis.
+  const tick = to - from <= 2 * DAY ? formatClock : formatShortDate;
 
   return (
     <div ref={panel} className="relative bg-muted dark:bg-card px-3 pt-6 pb-2" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
@@ -73,7 +76,7 @@ export default function ChargeLevelPlot({ points, charging, from, to }: { points
                 type="number"
                 scale="time"
                 domain={[from, to]}
-                tickFormatter={formatShortDate}
+                tickFormatter={tick}
                 tickLine={false}
                 axisLine={{ stroke: "var(--border)" }}
                 minTickGap={48}

@@ -12,10 +12,16 @@ const SPARK_HEIGHT = 24;
 export type Spark = { kind: "bars" | "line"; values: (number | null)[]; current: number; tips: ({ title: string; value: string } | null)[] };
 
 // The period's shape behind a headline number: bars for totals, a line for a rate. With nothing to draw
-// it says so in the same height, not a bare baseline. Hover a slot, or tap it on a touch screen, for its
+// it leaves the same height blank; the tile's number already says so (see Headline's Cell). Hover a slot, or tap it on a touch screen, for its
 // label and value; the tile is a link, so a tap on the sparkline opens the tip instead of following it, and
 // a tap anywhere else closes it. Screen readers get the tile's number and sentence instead.
-export function Sparkline({ kind, values, current, tips }: Spark) {
+// Bars take the colour of what they count: charging's green for energy added, the chart blue otherwise.
+const TONES = {
+  accent: { current: "fill-chart-accent", active: "fill-chart-accent/80", rest: "fill-chart-accent/40 group-hover:fill-chart-accent/60" },
+  charge: { current: "fill-charge", active: "fill-charge/80", rest: "fill-charge/40 group-hover:fill-charge/60" },
+};
+
+export function Sparkline({ kind, values, current, tips, tone = "accent" }: Spark & { tone?: keyof typeof TONES }) {
   const box = useRef<HTMLDivElement>(null);
   const touch = useRef(false);
   const [active, setActive] = useState<number | null>(null);
@@ -28,9 +34,7 @@ export function Sparkline({ kind, values, current, tips }: Spark) {
     return () => document.removeEventListener("pointerdown", away);
   }, [active]);
 
-  if (!hasSparkData(kind, values)) {
-    return <p className="flex h-6 items-center text-xs text-faint">No data yet</p>;
-  }
+  if (!hasSparkData(kind, values)) return <div aria-hidden="true" className="h-6" />;
   const width = values.length * SLOT_WIDTH;
   const slotAt = (clientX: number) => {
     const rect = box.current!.getBoundingClientRect();
@@ -66,7 +70,7 @@ export function Sparkline({ kind, values, current, tips }: Spark) {
               height={bar.height}
               className={cn(
                 "transition-colors duration-150",
-                bar.k === current ? "fill-chart-accent" : bar.k === active ? "fill-chart-accent/80" : "fill-chart-accent/40 group-hover:fill-chart-accent/60",
+                bar.k === current ? TONES[tone].current : bar.k === active ? TONES[tone].active : TONES[tone].rest,
               )}
             />
           ))

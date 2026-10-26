@@ -19,8 +19,7 @@ const describe = (day: number, slot: number, count: number) => `${WEEKDAYS[day]}
 
 // When charges start, by weekday and time of day (IST), after TeslaMate's charge heatmap. Hover, focus
 // or tap a cell for a tooltip with its count; the line above names the busiest slot. `title` names the
-// span the starts fall in, and `words` ends "No charges …" for a span without any; the grid stays, so the
-// page keeps its shape.
+// span the starts fall in, and `words` ends "No charges …" for a span without any, in the grid's place.
 export function ChargeHabits({ starts, title, words }: { starts: number[]; title: string; words: string }) {
   const counts = chargeStarts(starts);
   const max = Math.max(0, ...counts.flat());
@@ -35,21 +34,18 @@ export function ChargeHabits({ starts, title, words }: { starts: number[]; title
       title="When you charge"
       description="When charges started, India time."
       summary={
-        <p className="text-sm tabular-nums">
-          {max === 0 ? (
-            <span className="text-muted-foreground">No charges {words}.</span>
-          ) : (
-            <>
-              <span className="text-muted-foreground">Most often </span>
-              {WEEKDAYS[busiest[0]]}, {slotLabel(busiest[1])}
-              <span className="text-muted-foreground">
-                , {counts[busiest[0]][busiest[1]]} {counts[busiest[0]][busiest[1]] === 1 ? "charge" : "charges"}
-              </span>
-            </>
-          )}
-        </p>
+        max > 0 && (
+          <p className="text-sm tabular-nums">
+            <span className="text-muted-foreground">Most often </span>
+            {WEEKDAYS[busiest[0]]}, {slotLabel(busiest[1])}
+            <span className="text-muted-foreground">
+              , {counts[busiest[0]][busiest[1]]} {counts[busiest[0]][busiest[1]] === 1 ? "charge" : "charges"}
+            </span>
+          </p>
+        )
       }
       caption={title}
+      empty={max === 0 ? `No charges ${words}.` : undefined}
     >
       <div ref={grid} className="chart-touch relative space-y-1.5 bg-muted p-3 dark:bg-card" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
         {counts.map((row, d) => (

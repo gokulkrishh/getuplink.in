@@ -26,12 +26,12 @@ import { groupTrips } from "@/lib/trips";
 const read = (text: string) => Number(text.replace(/[^0-9.-]/g, ""));
 
 describe("format rules per unit", () => {
-  test("distance: always one decimal, the trailing zero and zero itself included", () => {
+  test("distance: one decimal, the trailing zero included; zero itself reads 0", () => {
     expect(formatKm(46.215)).toBe("46.2 km");
     expect(formatKm(46)).toBe("46.0 km");
     expect(formatKm(100.008)).toBe("100.0 km");
     expect(formatKm(123_400.46)).toBe("1,23,400.5 km");
-    expect(formatKm(0)).toBe("0.0 km");
+    expect(formatKm(0)).toBe("0 km");
   });
   test("range is the car's estimate: whole km", () => {
     expect(formatRangeKm(287.4)).toBe("287 km");
@@ -39,7 +39,7 @@ describe("format rules per unit", () => {
   test("energy: always one decimal", () => {
     expect(formatKwh(11.056)).toBe("11.1 kWh");
     expect(formatKwh(1234.56)).toBe("1,234.6 kWh");
-    expect(formatKwh(0)).toBe("0.0 kWh");
+    expect(formatKwh(0)).toBe("0 kWh");
   });
   test("power: one decimal in kW, watts below 1 kW", () => {
     expect(formatKw(7.24)).toBe("7.2 kW");
@@ -48,9 +48,9 @@ describe("format rules per unit", () => {
     expect(formatPower(4.46)).toBe("4.5 W");
     expect(formatPower(1234)).toBe("1.2 kW");
   });
-  test("money: to the paisa", () => {
+  test("money: to the paisa; zero reads ₹0", () => {
     expect(formatMoney(874.5, "INR")).toBe("₹874.50");
-    expect(formatMoney(0, "INR")).toBe("₹0.00");
+    expect(formatMoney(0, "INR")).toBe("₹0");
     expect(formatMoney(1234.567, "INR")).toBe("₹1,234.57");
   });
   test("battery level and shares: whole percent; drain to one decimal", () => {
@@ -67,7 +67,7 @@ describe("format rules per unit", () => {
   test("halves round up, despite float noise, and never read as -0", () => {
     expect(formatNumber(1.15, 1)).toBe("1.2");
     expect(formatNumber(2.675, 2)).toBe("2.68");
-    expect(formatNumber(-0.01, 1)).toBe("0.0");
+    expect(formatNumber(-0.01, 1)).toBe("0");
   });
 });
 
@@ -81,7 +81,7 @@ describe("one quantity, one reading", () => {
   test("a total is the raw sum of the same parts, rounded once", () => {
     // A week with three drives, as the odometer read it.
     const week = [null, null, 0, 46.215, 0, 7.416, 46.377];
-    expect(week.map((v) => (v === null ? "" : formatKm(v)))).toEqual(["", "", "0.0 km", "46.2 km", "0.0 km", "7.4 km", "46.4 km"]);
+    expect(week.map((v) => (v === null ? "" : formatKm(v)))).toEqual(["", "", "0 km", "46.2 km", "0 km", "7.4 km", "46.4 km"]);
     expect(formatKm(sumKnown(week))).toBe("100.0 km");
   });
 
@@ -147,7 +147,7 @@ describe("dailyDistance", () => {
     expect(km[1]).toBe(0);
     expect(km[2]).toBeCloseTo((2105.349236 - 2100.7411470637076) * MILES_TO_KM, 9);
     expect(km[3]).toBeCloseTo((2134.166569195353 - 2105.349236) * MILES_TO_KM, 9);
-    expect(km.map((v) => formatKm(v!))).toEqual(["46.2 km", "0.0 km", "7.4 km", "46.4 km"]);
+    expect(km.map((v) => formatKm(v!))).toEqual(["46.2 km", "0 km", "7.4 km", "46.4 km"]);
   });
 
   test("before the first reading a day is blank; after it a day without one is 0", () => {

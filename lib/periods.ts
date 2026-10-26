@@ -193,6 +193,18 @@ export const PERIOD_WORDS: Record<Period, string> = {
   all: "in total",
 };
 
+// A tile with nothing in the period says only this, short enough for a tile: "None today", "None in 7 days".
+const NONE_WORDS: Record<Period, string> = {
+  day: "None today",
+  week: "None in 7 days",
+  month: "None this month",
+  year: "None this year",
+  all: "None yet",
+};
+export function noneWords({ period }: Pick<Timeframe, "period">): string {
+  return period === undefined ? "None in these dates" : NONE_WORDS[period];
+}
+
 // What one bar of slotsFor covers, for screen readers: "Spend per day".
 export const SLOT_NAMES: Record<Period, string> = { day: "hour", week: "day", month: "day", year: "month", all: "year" };
 

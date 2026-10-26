@@ -1,6 +1,5 @@
 import "server-only";
 import { buildSessions, CHARGE_FIELDS } from "@/lib/charge-sessions";
-import { MILES_TO_KM } from "@/lib/car";
 import type { DemoScenario } from "@/lib/demo";
 import type { CounterColumn } from "@/lib/driving-figures";
 import { stationAt } from "@/lib/stations";
@@ -77,13 +76,9 @@ export function demoLastReadingAt(): string | null {
 function scenarioReadings(scenario: DemoScenario): Record<string, unknown> {
   switch (scenario) {
     case "charging":
-      return {
-        DetailedChargeState: "DetailedChargeStateCharging",
-        ACChargingPower: 7.2,
-        TimeToFullCharge: 1.3,
-        BatteryLevel: 66,
-        RatedRange: Math.round(((0.66 * 434) / MILES_TO_KM) * 10) / 10,
-      };
+      // The history itself ends in a charge (see generateDemo), so the session list and the parked
+      // stretch agree with the stream; laying values over the stream alone would not reach them.
+      return {};
     case "updating":
       return {
         SoftwareUpdateVersion: PENDING_VERSION,
@@ -101,9 +96,9 @@ function scenarioReadings(scenario: DemoScenario): Record<string, unknown> {
         SoftwareUpdateInProgress: true,
       };
     default:
-      // The one state the demo shows: charging, with an update downloading, so the home page and Updates
-      // both have something live to show.
-      return { ...scenarioReadings("charging"), ...scenarioReadings("updating") };
+      // The one state the demo shows: charging (from the history), with an update downloading, so the home
+      // page and Updates both have something live to show.
+      return scenarioReadings("updating");
   }
 }
 

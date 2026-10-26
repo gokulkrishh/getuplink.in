@@ -3,13 +3,15 @@ import Link from "next/link";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { BatteryGauge } from "@/components/battery-gauge";
 import { AWAKE_MS, CarStatus } from "@/components/car-status";
-import { formatKm } from "@/lib/format";
+import { UpdateBanner } from "@/components/updates/update-banner";
+import type { ParkedNow } from "@/lib/drives";
 import type { HomeCar } from "@/lib/server/home";
 import { currentVersion } from "@/lib/versions";
 
-// The car right now, in about a header's height: name and status, the battery, the version and the
-// odometer. The version's details live on /updates. `odometerKm` is known for the primary car only.
-export function NowStrip({ car, odometerKm, now }: { car: HomeCar; odometerKm: number | null; now: number }) {
+// The car right now: name and status, then the battery as the biggest thing on the page with what the
+// car is doing under it, then its software (version, odometer, any update) in a card that opens /updates.
+// `odometerKm` and `parkedNow` are known for the primary car only.
+export function NowStrip({ car, odometerKm, parkedNow, now }: { car: HomeCar; odometerKm: number | null; parkedNow: ParkedNow | null; now: number }) {
   const { vehicle, latest, lastOnline, streamAt } = car;
   // A car that streamed in the last few minutes is awake: keep the page fresh so new data shows up on its own.
   const awake = streamAt !== null && now - Date.parse(streamAt) < AWAKE_MS;
@@ -19,7 +21,7 @@ export function NowStrip({ car, odometerKm, now }: { car: HomeCar; odometerKm: n
   const battery = lastOnline?.battery_level != null ? lastOnline : null;
   const version = currentVersion(vehicle.current_version, lastOnline && { version: lastOnline.car_version, at: lastOnline.polled_at });
   return (
-    <section aria-label="Your car now" className="space-y-4">
+    <section aria-label="Your car now" className="space-y-5">
       {awake && <AutoRefresh />}
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         {/* The car's name opens its page: set as a link (foreground, arrow), not as a caption. */}
@@ -45,19 +47,13 @@ export function NowStrip({ car, odometerKm, now }: { car: HomeCar; odometerKm: n
           />
         </p>
       </div>
-      {battery && <BatteryGauge snapshot={battery} />}
-      {version ? (
-        <p className="text-sm text-muted-foreground tabular-nums">
-          <Link href="/updates" prefetch={true} className="font-mono underline decoration-border decoration-dotted underline-offset-4 transition-colors duration-150 hover:text-foreground hover:decoration-foreground">
-            {version}
-          </Link>
-          {odometerKm !== null && <span> · {formatKm(odometerKm)}</span>}
-        </p>
-      ) : (
+      {battery && <BatteryGauge snapshot={battery} parked={parkedNow} />}
+      {!version && (
         <p className="text-sm text-muted-foreground">
           Asleep at every check so far. Open the Tesla app to wake the car; this page updates on its own.
         </p>
       )}
+      <UpdateBanner snapshot={lastOnline} installed={vehicle.current_version} version={version} odometerKm={odometerKm} />
     </section>
   );
 }

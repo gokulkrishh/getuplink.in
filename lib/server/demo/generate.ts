@@ -557,7 +557,43 @@ export function generateDemo(now: number): DemoData {
       counters(event.start, false);
     }
   }
-  parked(now);
+  // Charging now, at 7.2 kW where it last parked: plugged in 35 minutes ago (or 5 minutes after the last
+  // drive), its newest readings a minute and a half old. The stream, the session list and the parked
+  // stretch all read these, so every page tells the same story. Not when the last drive ended under 10
+  // minutes ago: then it is simply parked.
+  const lastPark = rows.reduce((t, r) => (r.field === "Gear" && r.value === "ShiftStateP" ? Math.max(t, r.t) : t), 0);
+  const plugAt = Math.max(now - 35 * MIN, lastPark + 5 * MIN);
+  const chargingNow = plugAt <= now - 10 * MIN;
+  if (chargingNow) {
+    parked(plugAt);
+    charging = true;
+    if (plugAt >= richFrom) push("Location", plugAt, { latitude: here.lat, longitude: here.lng });
+    push("ChargingCableType", plugAt, "CableTypeIEC");
+    push("DetailedChargeState", plugAt, "DetailedChargeStateStarting");
+    pack(plugAt);
+    let t = plugAt + 30_000;
+    push("DetailedChargeState", t, "DetailedChargeStateCharging");
+    push("ChargerVoltage", t, 229);
+    push("ChargeAmps", t, 32);
+    push("ChargerPhases", t, 1);
+    const last = now - 90_000;
+    let delivered = 0;
+    for (;;) {
+      push("ACChargingPower", t, AC_KW);
+      push("ACChargingEnergyIn", t, round(delivered, 2));
+      push("TimeToFullCharge", t, round(Math.max(0, target() - energy) / (AC_KW * AC_EFFICIENCY), 2));
+      pack(t);
+      if (t >= last) break;
+      const hours = Math.min(5 * MIN, last - t) / HOUR;
+      delivered += AC_KW * hours;
+      energy += AC_KW * hours * AC_EFFICIENCY;
+      t += hours * HOUR;
+    }
+    charging = false;
+    clock = now;
+  } else {
+    parked(now);
+  }
   const levelNow = level(now);
 
   // The last week, hourly: temperatures and cell voltages for the battery page.
@@ -575,8 +611,8 @@ export function generateDemo(now: number): DemoData {
 
   // The car woke a few minutes ago and sent its state, which makes the dashboard show it as live.
   const woke = now - 3 * MIN;
-  // How it is now: locked and parked at home, Sentry idle, windows shut, climate off, tyres a touch low
-  // at the back.
+  // How it is now: locked, Sentry idle, windows shut, the charge port open while it charges, climate off,
+  // tyres a touch low at the back.
   push("Locked", woke, true);
   push("SentryMode", woke, "SentryModeStateOff");
   // Tesla's own full-pack figure, a little above the estimate and moving with it, a reading a week.
@@ -584,7 +620,7 @@ export function generateDemo(now: number): DemoData {
   push("NominalFullPackEnergyKwh", woke, 62.12);
   push("DoorState", woke, { DriverFront: false, DriverRear: false, PassengerFront: false, PassengerRear: false, TrunkFront: false, TrunkRear: false });
   for (const w of ["FdWindow", "FpWindow", "RdWindow", "RpWindow"]) push(w, woke, "WindowStateClosed");
-  push("ChargePortDoorOpen", woke, false);
+  push("ChargePortDoorOpen", woke, chargingNow);
   push("HvacPower", woke, "HvacPowerStateOff");
   push("ClimateKeeperMode", woke, "ClimateKeeperModeStateOff");
   push("CabinOverheatProtectionMode", woke, "CabinOverheatProtectionModeStateFanOnly");
@@ -599,8 +635,11 @@ export function generateDemo(now: number): DemoData {
   push("TpmsLastSeenPressureTimeRr", woke, Math.floor((woke - 2 * DAY) / 1000));
   push("TpmsSoftWarnings", woke, { front_left: false, front_right: false, rear_left: false, rear_right: false });
   push("TpmsHardWarnings", woke, { front_left: false, front_right: false, rear_left: false, rear_right: false });
-  pack(woke);
-  push("DetailedChargeState", woke, "DetailedChargeStateDisconnected");
+  // While charging, the charge's own readings say these.
+  if (!chargingNow) {
+    pack(woke);
+    push("DetailedChargeState", woke, "DetailedChargeStateDisconnected");
+  }
   push("ChargeLimitSoc", woke, CHARGE_LIMIT);
   // The state the car was in when the window began. The charging fields go back to delivery, so theirs
   // is the state on the first morning (inside the window, it could split a session in two).
@@ -683,9 +722,10 @@ export function generateDemo(now: number): DemoData {
     scheduled_time_ms: null,
     battery_level: Math.round(levelNow),
     battery_range_km: round(((levelNow / 100) * FULL_RANGE_KM * packKwh(now, now)) / 64, 1),
-    charging_state: "Disconnected",
+    // The charge began at least 10 minutes ago, before this check.
+    charging_state: chargingNow ? "Charging" : "Disconnected",
     charge_limit: CHARGE_LIMIT,
-    charge_power_kw: null,
+    charge_power_kw: chargingNow ? AC_KW : null,
     time_to_full_h: null,
     error: null,
   };

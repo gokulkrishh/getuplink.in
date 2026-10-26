@@ -134,22 +134,14 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
     <StatsFrame view="driving" custom={customScope(custom?.range ?? null, now)} periodSwitch={hasDriving}>
       {hasDriving ? (
         <div className="space-y-12">
-          {eachFrame(
-            frames,
-            (f) => {
-              const { frame, driving } = fromSince(f, figures.since, now);
-              return <Distance frame={frame} driving={driving} />;
-            },
-            { steady: true },
-          )}
-          {eachFrame(
-            frames,
-            (f) => {
-              const { frame, driving } = fromSince(f, figures.since, now);
-              return <EnergyUse frame={frame} driving={driving} />;
-            },
-            { steady: true },
-          )}
+          {eachFrame(frames, (f) => {
+            const { frame, driving } = fromSince(f, figures.since, now);
+            return <Distance frame={frame} driving={driving} />;
+          })}
+          {eachFrame(frames, (f) => {
+            const { frame, driving } = fromSince(f, figures.since, now);
+            return <EnergyUse frame={frame} driving={driving} />;
+          })}
           {/* Seasons are compared across the year, so no single period changes them. */}
           <SeasonEfficiency {...seasons} />
           {eachFrame(frames, ({ key, frame }) => (

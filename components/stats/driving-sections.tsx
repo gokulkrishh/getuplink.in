@@ -30,7 +30,7 @@ function Headline({ value, children }: { value: string; children: ReactNode }) {
 export function Distance({ frame, driving }: Pick<Frame, "frame" | "driving">) {
   const description = "Kilometres driven.";
   // The counters couldn't be read for a range picked by date: say so in the chart's place rather than show 0 km.
-  if (!driving) return <ChartCard title="Distance" description={description} empty={`Couldn't read the car's counters ${frame.words}`} />;
+  if (!driving) return <ChartCard title="Distance" description={description} empty={`Couldn't read the car's counters ${frame.words}.`} />;
   // A period without driving still shows, at 0 km with a note in place of the chart, so picking Day before
   // the first drive of the day doesn't leave a blank gap. A bar with no reading (before tracking began, or
   // ahead of now) is blank, never 0 km; a tracked day without driving is a real 0. The headline is the
@@ -41,8 +41,9 @@ export function Distance({ frame, driving }: Pick<Frame, "frame" | "driving">) {
       title="Distance"
       description={description}
       caption={barsSpan(frame)}
-      summary={<Headline value={formatKm(total)}>Driven {frame.words}</Headline>}
-      empty={hasBars(bars) ? undefined : `No driving ${frame.words}`}
+      // With nothing driven, the empty line says so alone; a 0.0 km headline over it would say it twice.
+      summary={hasBars(bars) ? <Headline value={formatKm(total)}>Driven {frame.words}</Headline> : undefined}
+      empty={hasBars(bars) ? undefined : `No driving ${frame.words}.`}
     >
       <Bars bars={bars} ariaLabel={`Distance per ${frame.slotName}`} unit="km" labelEvery={frame.labelEvery} fit />
     </ChartCard>
@@ -94,12 +95,14 @@ export function EnergyUse({ frame, driving }: Pick<Frame, "frame" | "driving">) 
         unit="kWh"
         caption={barsSpan(frame)}
         summary={
-          <Headline value={formatKwh(used)}>
-            Used {frame.words}
-            {km ? ` · ${formatKm(km)}` : ""}
-          </Headline>
+          hasBars(bars) ? (
+            <Headline value={formatKwh(used)}>
+              Used {frame.words}
+              {km ? ` · ${formatKm(km)}` : ""}
+            </Headline>
+          ) : undefined
         }
-        empty={hasBars(bars) ? undefined : `No driving ${frame.words}`}
+        empty={hasBars(bars) ? undefined : `No driving ${frame.words}.`}
       >
         <Bars bars={bars} ariaLabel={`Energy used per ${frame.slotName} in kWh`} unit="kWh" labelEvery={frame.labelEvery} fit />
       </ChartCard>

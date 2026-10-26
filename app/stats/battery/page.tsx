@@ -60,19 +60,18 @@ async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "sear
   const frames = timeframes(custom?.frame ?? null, now);
 
   return (
-    // One switch drives every section. Charts keep the height of their tallest period (steady), so the page
-    // below doesn't move on a switch; the parked table grows with its rows.
+    // One switch drives every section. Each period draws only what it has (a quiet one is a line, not a
+    // box held to a chart's height), so the page may move on a switch.
     <StatsFrame view="battery" custom={customScope(custom?.range ?? null, now)} periodSwitch={enough}>
       {enough ? (
         <div className="space-y-12">
-          {eachFrame(frames, ({ frame }) => <BatteryHealth trend={trend} range={range} sessions={sessions} frame={frame} teslaPack={extras.teslaPack} />, { steady: true })}
+          {eachFrame(frames, ({ frame }) => <BatteryHealth trend={trend} range={range} sessions={sessions} frame={frame} teslaPack={extras.teslaPack} />)}
           {/* The id sits outside the periods' copies, so it is on the page once. */}
-          <div id="battery">{eachFrame(frames, ({ frame }) => <BatteryPack trend={trend} frame={frame} />, { steady: true })}</div>
-          {eachFrame(frames, ({ frame }) => <TeslaPackByWeek pack={extras.teslaPack} frame={frame} />, { steady: true })}
-          {eachFrame(frames, ({ frame }) => <CapacityByKm points={extras.capacityByKm} frame={frame} />, { steady: true })}
-          {eachFrame(frames, ({ frame }) => <CellBalance spread={extras.cellSpreadMv} frame={frame} />, { steady: true })}
-          {eachFrame(frames, ({ frame }) => <Temperatures temps={extras.temps} frame={frame} />, { steady: true })}
-          {/* Not steady: one recharts chart at a time. Its empty state has the chart's box, so nothing moves. */}
+          <div id="battery">{eachFrame(frames, ({ frame }) => <BatteryPack trend={trend} frame={frame} />)}</div>
+          {eachFrame(frames, ({ frame }) => <TeslaPackByWeek pack={extras.teslaPack} frame={frame} />)}
+          {eachFrame(frames, ({ frame }) => <CapacityByKm points={extras.capacityByKm} frame={frame} />)}
+          {eachFrame(frames, ({ frame }) => <CellBalance spread={extras.cellSpreadMv} frame={frame} />)}
+          {eachFrame(frames, ({ frame }) => <Temperatures temps={extras.temps} frame={frame} />)}
           {eachFrame(frames, ({ frame }) => <ChargeLevelChart level={level} now={now} frame={frame} heading />)}
           {eachFrame(frames, ({ frame }) => <ParkedDrain parked={driving.parked} parkedNow={driving.parkedNow} frame={frame} places={places} />)}
         </div>

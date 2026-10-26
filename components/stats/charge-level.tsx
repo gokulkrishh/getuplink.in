@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { ChartCard } from "@/components/chart-card";
 import { ChartNote } from "@/components/stats/chart-note";
 import { Value } from "@/components/stats/figures";
-import type { ChargeLevel, ChargeStretch, LevelPoint } from "@/lib/charge-level";
+import { type ChargeLevel, type ChargeStretch, flatLevelNote, type LevelPoint } from "@/lib/charge-level";
 import { formatClock, formatLevels, formatPercent, formatShortDate } from "@/lib/format";
 import { sinceWords, type Timeframe } from "@/lib/periods";
 
@@ -78,6 +78,7 @@ export function ChargeLevelChart({
   const charging = level.charging
     .filter((c) => c.end > from && c.start < to)
     .map((c) => ({ start: Math.max(c.start, from), end: Math.min(c.end, to), tip: chargeTip(c, level.points) }));
+  const flat = flatLevelNote(points, charging.length, frame.words);
   const latest = level.points[level.points.length - 1];
   // The readings kept start after the span does: "This month, since 25 Sept", else the span ("This month").
   // Home names the window's start, as it always has; the Battery page names the first reading seen.
@@ -101,16 +102,18 @@ export function ChargeLevelChart({
           </p>
         )
       }
-      caption={caption}
+      caption={points.length < 2 || flat ? undefined : caption}
     >
-      {/* With no readings, the note sits in the chart's own box, so a switch doesn't move what follows. */}
-      {points.length >= 2 ? (
+      {/* With no readings, or a flat line and no charge (see flatLevelNote), one line stands in for the chart. */}
+      {points.length < 2 ? (
+        <ChartNote>No readings {frame.words}.</ChartNote>
+      ) : flat ? (
+        <ChartNote>{flat}</ChartNote>
+      ) : (
         <div className="space-y-3">
           <Plot points={points} charging={charging} from={from} to={to} />
           <ChargeLegend charging={charging.length > 0} />
         </div>
-      ) : (
-        <ChartNote>No readings {frame.words}.</ChartNote>
       )}
     </ChartCard>
   );

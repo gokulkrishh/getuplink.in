@@ -19,9 +19,9 @@ export const HOME_PERIODS: { value: HomePeriod; label: string }[] = [...PERIODS,
 // Updates come too seldom for a week to say anything.
 export const UPDATE_PERIODS: Period[] = ["month", "year", "all"];
 
-// The period a page opens on: Today wherever the switch offers it, else the first option (Month on Updates).
+// The period a page opens on: Week wherever the switch offers it, else the first option (Month on Updates).
 export function defaultPeriod(allowed?: Period[]): Period {
-  return !allowed || allowed.includes("day") ? "day" : allowed[0];
+  return !allowed || allowed.includes("week") ? "week" : allowed[0];
 }
 
 // The period in a URL, if the page offers it (`allowed`, all of PERIODS by default); otherwise the default.

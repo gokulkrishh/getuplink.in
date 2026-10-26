@@ -1,5 +1,6 @@
 import { Fragment } from "react";
 import { Measure } from "@/components/measure";
+import { showsZero } from "@/lib/format";
 import { measureParts } from "@/lib/measure";
 import { cn } from "@/lib/utils";
 
@@ -50,7 +51,9 @@ export function AxisLabel({ label, current, edge, first }: { label: string; curr
 // else the bare number, else nothing (the tip still has it): which shows is measured in the browser
 // (useValueLabels), starting hidden, so values never collide on a phone. Screen readers get the column's
 // sr-only text instead.
+// A bar that shows as zero gets no label above it; its tip still says "0 km".
 export function ValueLabel({ display, unit }: { display: string; unit?: string }) {
+  if (showsZero(display)) return <span className="h-4" />;
   const full = withUnit(display, unit);
   // The unit small and close, as on a tile, so six "17.0 km" fit across a phone.
   const parts = measureParts(full);

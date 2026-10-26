@@ -6,7 +6,7 @@ import { type Bill, billsBySlot, billsIn, energyBySlot, energyIn } from "@/lib/c
 import { type Change, changeToPrevious, compareToPrevious } from "@/lib/dashboard-summary";
 import type { DrivingPeriod } from "@/lib/driving-figures";
 import { DECIMALS, formatDate, formatKm, formatKwh, formatMoney, formatNumber, formatShortDate, showsZero, sumKnown } from "@/lib/format";
-import { fromTracking, type Slot, type Timeframe, trackingGap } from "@/lib/periods";
+import { fromTracking, noneWords, type Slot, type Timeframe, trackingGap } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { type Spark, Sparkline } from "./sparkline";
@@ -18,26 +18,33 @@ const TONES: Record<Change["tone"], string> = { better: "text-chart-better", wor
 
 // Every cell has the same rows, the delta's two lines kept (blank) when there's no comparison, so the
 // strip is one height in every period. The delta lines are for the eye; screen readers get the sentence.
+// With `empty`, the cell says only that ("None today") where the number would be: no zero, no delta, no
+// sparkline note.
 function Cell({
   view,
   label,
   value,
   unit,
+  empty,
   change,
   sentence,
   span,
   spark,
+  tone,
 }: {
   view: View;
   label: string;
   value: string;
   unit?: string;
+  // "None today", "Couldn't read": the one thing the cell says when it has no figure.
+  empty: string | null;
   change: Change | null;
   // compareToPrevious's wording of the same change: "13 km more than the 7 days before".
   sentence: string | null;
   // The span compared with, as the delta's second line shows it.
   span: string;
   spark: Spark;
+  tone?: "charge";
 }) {
   return (
     <PeriodLink
@@ -49,12 +56,17 @@ function Cell({
         <span className="truncate">{label}</span>
         <ChevronRight aria-hidden="true" className="size-3.5 shrink-0 transition-[color,translate] duration-150 group-hover:translate-x-0.5 group-hover:text-foreground" />
       </p>
-      <p className="font-mono leading-none font-medium tracking-tight whitespace-nowrap tabular-nums" style={fitFont(unit ? `${value} ${unit}` : value)}>
-        {value}
-        {unit && <span className="ml-1 text-xs font-normal tracking-normal text-faint">{unit}</span>}
-      </p>
+      {empty ? (
+        // Sits on the number's baseline, so the row lines up with a tile that has one.
+        <p className="flex min-h-7 items-end text-sm leading-none text-muted-foreground">{empty}</p>
+      ) : (
+        <p className="font-mono leading-none font-medium tracking-tight whitespace-nowrap tabular-nums" style={fitFont(unit ? `${value} ${unit}` : value)}>
+          {value}
+          {unit && <span className="ml-1 text-xs font-normal tracking-normal text-faint">{unit}</span>}
+        </p>
+      )}
       <div className="text-xs leading-5">
-        {change ? (
+        {change && !empty ? (
           <>
             <p aria-hidden="true" className="truncate tabular-nums">
               <span className={TONES[change.tone]}>
@@ -73,9 +85,7 @@ function Cell({
           </>
         )}
       </div>
-      <div className="mt-auto pt-1">
-        <Sparkline {...spark} />
-      </div>
+      <div className="mt-auto pt-1">{empty ? <div aria-hidden="true" className="h-6" /> : <Sparkline {...spark} tone={tone} />}</div>
     </PeriodLink>
   );
 }
@@ -155,10 +165,10 @@ export function Headline({
       value: whole === null ? null : known ? sumKnown(parts) : whole,
       spark: {
         kind: "bars",
-        // A slot whose tip reads "0.0 km" draws no bar (see showsZero).
+        // A slot that shows as zero draws no bar and has no tip (see showsZero).
         values: shown.map((v) => (v !== null && showsZero(format(v)) ? 0 : v)),
         current: currentSlot < 0 ? -1 : currentSlot - skip,
-        tips: shown.map((v, k) => (v === null ? null : { title: slotTitle(slots[k + skip]), value: format(v) })),
+        tips: shown.map((v, k) => (v === null || showsZero(format(v)) ? null : { title: slotTitle(slots[k + skip]), value: format(v) })),
       },
     };
   };
@@ -188,7 +198,10 @@ export function Headline({
     sentence: !value ? null : (compareToPrevious(value, earlier, unit, label, { lowerIsBetter, decimals })?.text ?? null),
     span: shortLabel,
   });
-  const number = (decimals: number) => (n: number | null) => (n === null ? "—" : formatNumber(n, decimals));
+  const number = (decimals: number) => (n: number | null) => (n === null ? "" : formatNumber(n, decimals));
+  // A cell with no figure says one thing: the counters couldn't be read (a range picked by date), or there
+  // was none in the period, as the figure would show it ("0.0 km" is none; see showsZero).
+  const emptyWords = (n: number | null, decimals: number) => (n === null ? "Couldn't read" : showsZero(formatNumber(n, decimals)) ? noneWords(frame) : null);
 
   return (
     <div className="space-y-3">
@@ -198,6 +211,7 @@ export function Headline({
           label="Driven"
           value={number(DECIMALS.km)(driven.value)}
           unit="km"
+          empty={emptyWords(driven.value, DECIMALS.km)}
           {...delta(driven.value, previous?.km ?? null, formatKm, DECIMALS.km)}
           spark={driven.spark}
         />
@@ -206,14 +220,17 @@ export function Headline({
           label="Energy used"
           value={number(DECIMALS.kWh)(used.value)}
           unit="kWh"
+          empty={emptyWords(used.value, DECIMALS.kWh)}
           {...delta(used.value, previous?.kwh ?? null, formatKwh, DECIMALS.kWh)}
           spark={used.spark}
         />
         <Cell
           view="charging"
           label="Energy added"
+          tone="charge"
           value={number(DECIMALS.kWh)(added.value)}
           unit="kWh"
+          empty={emptyWords(added.value, DECIMALS.kWh)}
           {...delta(added.value, energyBefore, formatKwh, DECIMALS.kWh)}
           spark={added.spark}
         />
@@ -221,6 +238,7 @@ export function Headline({
           view="charging"
           label="Spent"
           value={money(spent.value ?? 0)}
+          empty={emptyWords(spent.value, DECIMALS.money)}
           {...delta(spent.value, spendBefore, money, DECIMALS.money, true)}
           spark={spent.spark}
         />

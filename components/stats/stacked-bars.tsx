@@ -19,8 +19,8 @@ const kwh = { format: (n: number) => formatNumber(n, DECIMALS.kWh) };
 
 // Same look as Bars, with each column split into series (first series at the bottom). Tones tell the
 // series apart and a 2px gap separates them. The legend sits under the panel, so side-by-side panels
-// line up, and each entry turns its series on or off. With empty, a period with nothing says so instead, in
-// the same box. As in Bars, every period draws one box and every slot keeps its column; `caption` goes
+// line up, and each entry turns its series on or off. With empty, a period with nothing says so in one line
+// instead. As in Bars, every period draws one box and every slot keeps its column; `caption` goes
 // under the legend. With labelEvery, any number of columns, labelled as in Bars.
 export function StackedBars({
   bars: all,
@@ -45,7 +45,7 @@ export function StackedBars({
   const box = useRef<HTMLDivElement>(null);
   useAxisLabels(box, labelEvery);
   useValueLabels(box);
-  if (empty && !all.some((b) => b.total > 0 && !showsZero(kwh.format(b.total)))) return <EmptyChart caption={caption}>{empty}</EmptyChart>;
+  if (empty && !all.some((b) => b.total > 0 && !showsZero(kwh.format(b.total)))) return <EmptyChart>{empty}</EmptyChart>;
   const dense = all.length > 6;
   const used = series.map((s, i) => ({ ...s, i })).filter(({ i }) => all.some((b) => b.segments[i] > 0));
   const shownTotal = (b: StackedBar) => b.segments.reduce((sum, v, i) => sum + (hidden.has(i) ? 0 : v), 0);
@@ -85,7 +85,7 @@ export function StackedBars({
           );
         return (
           <li key={b.key} className="group relative flex flex-col items-center gap-2">
-            <BarTip at={k} of={bars.length} lines={[`${formatKwh(total)} in total`, ...breakdown(b)]} title={b.label} />
+            {shows(total) && <BarTip at={k} of={bars.length} lines={[`${formatKwh(total)} in total`, ...breakdown(b)]} title={b.label} />}
             {dense ? <span className="h-4" /> : <ValueLabel display={kwh.format(total)} unit="kWh" />}
             <div className="flex h-20 w-full items-end justify-center">
               {total > 0 && !showsZero(kwh.format(total)) && (

@@ -1,0 +1,85 @@
+import { describe, expect, test } from "bun:test";
+import { batteryState } from "@/components/battery-gauge";
+import { bannerText } from "@/components/updates/update-banner";
+import { flatLevelNote } from "@/lib/charge-level";
+import { noneWords } from "@/lib/periods";
+import type { Snapshot } from "@/lib/server/dashboard";
+
+// What the home page says on a quiet day: a tile with nothing says one thing, a flat charge level is a
+// sentence, and the car's state line is only what was seen.
+
+const snapshot = (over: Partial<Snapshot>): Snapshot => ({
+  polled_at: "2026-10-26T15:00:00Z",
+  state: "online",
+  car_version: "2026.38.5.1",
+  update_status: null,
+  update_version: null,
+  download_perc: null,
+  install_perc: null,
+  expected_duration_sec: null,
+  scheduled_time_ms: null,
+  battery_level: 66,
+  battery_range_km: 287,
+  charging_state: "Disconnected",
+  charge_limit: 80,
+  charge_power_kw: null,
+  time_to_full_h: null,
+  error: null,
+  ...over,
+});
+
+describe("noneWords", () => {
+  test("names the period, short enough for a tile", () => {
+    expect(noneWords({ period: "day" })).toBe("None today");
+    expect(noneWords({ period: "week" })).toBe("None in 7 days");
+    expect(noneWords({ period: "month" })).toBe("None this month");
+    expect(noneWords({ period: "year" })).toBe("None this year");
+    expect(noneWords({ period: "all" })).toBe("None yet");
+  });
+  test("a range picked by date has no period", () => {
+    expect(noneWords({})).toBe("None in these dates");
+  });
+});
+
+describe("flatLevelNote", () => {
+  const at = (h: number, level: number) => ({ at: h * 3_600_000, level });
+  test("a level that never moved is one sentence", () => {
+    expect(flatLevelNote([at(0, 61), at(6, 61), at(12, 61)], 0, "today")).toBe("Stayed at 61% today.");
+  });
+  test("a small fall with no charge is one sentence, levels before and after", () => {
+    expect(flatLevelNote([at(0, 61), at(12, 60), at(23, 59)], 0, "today")).toBe("Went from 61% to 59% today, with no charging.");
+  });
+  test("a charge, a bigger move or too few readings keep the chart", () => {
+    expect(flatLevelNote([at(0, 61), at(12, 61)], 1, "today")).toBeNull();
+    expect(flatLevelNote([at(0, 61), at(12, 58)], 0, "today")).toBeNull();
+    expect(flatLevelNote([at(0, 61)], 0, "today")).toBeNull();
+  });
+});
+
+describe("batteryState", () => {
+  test("charging says the power, the limit and the time left on one line", () => {
+    expect(batteryState(snapshot({ charging_state: "Charging", charge_power_kw: 7.2, time_to_full_h: 1.3 }), null)).toBe("Charging at 7.2 kW to 80% · Full in 1 h 18 min");
+  });
+  test("charging without streamed power says only the limit", () => {
+    expect(batteryState(snapshot({ charging_state: "Charging" }), null)).toBe("Charging to 80%");
+  });
+  test("not charging says how long it has been parked, only when the readings say so, and the limit", () => {
+    expect(batteryState(snapshot({}), { hours: 11.9, fromFirstReading: false })).toBe("Parked 11 h 54 min · Limit 80%");
+    expect(batteryState(snapshot({}), { hours: 2, fromFirstReading: true })).toBe("Parked ≥ 2 h · Limit 80%");
+    expect(batteryState(snapshot({}), null)).toBe("Limit 80%");
+    expect(batteryState(snapshot({ charge_limit: null }), null)).toBeNull();
+  });
+});
+
+describe("bannerText", () => {
+  test("progress is its own part, so a phone can cut the version short and keep the number", () => {
+    expect(bannerText(snapshot({ update_status: "downloading", update_version: "2026.44.5", download_perc: 42 }))).toEqual({ text: "Downloading 2026.44.5", progress: "42%" });
+    expect(bannerText(snapshot({ update_status: "installing", update_version: "2026.44.5", install_perc: 10 }))).toEqual({ text: "Installing 2026.44.5", progress: "10%" });
+    expect(bannerText(snapshot({ update_status: "downloading", update_version: "2026.44.5" }))).toEqual({ text: "Downloading 2026.44.5", progress: null });
+  });
+  test("the other states have no progress", () => {
+    expect(bannerText(snapshot({ update_status: "available", update_version: "2026.44.5" }))).toEqual({ text: "2026.44.5 available", progress: null });
+    expect(bannerText(snapshot({ update_status: "scheduled", update_version: "2026.44.5" }))).toEqual({ text: "2026.44.5 is scheduled", progress: null });
+    expect(bannerText(snapshot({ update_status: "downloading_wifi_wait", update_version: "2026.44.5" }))).toEqual({ text: "2026.44.5 is waiting for Wi-Fi", progress: null });
+  });
+});

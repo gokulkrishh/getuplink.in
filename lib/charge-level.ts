@@ -1,5 +1,6 @@
 import { MILES_TO_KM } from "@/lib/car";
 import { chargeStateName } from "@/lib/charge-sessions";
+import { formatLevels, formatPercent } from "@/lib/format";
 import { istWeek, istWeekStart, median, num, type Reading, withLevel } from "@/lib/telemetry-derive";
 
 // Pure helpers for the Battery tab's charge level chart and range at 100%.
@@ -54,4 +55,19 @@ export function weeklyFullRange(range: Reading[], level: Reading[]): WeeklyRange
     byWeek.set(week, [...(byWeek.get(week) ?? []), (r.value * MILES_TO_KM) / (r.level / 100)]);
   }
   return [...byWeek].sort(([a], [b]) => a - b).map(([week, values]) => ({ weekStart: istWeekStart(week), km: median(values) }));
+}
+
+// A line this flat says nothing a sentence can't: the levels in the span are within FLAT_PERCENT of each
+// other and no charge ran. Then the chart gives way to the sentence, "Stayed at 61% today." or "Went from
+// 61% to 59% in the last 7 days, with no charging." Null when the line is worth drawing.
+export const FLAT_PERCENT = 2;
+export function flatLevelNote(points: LevelPoint[], charges: number, words: string): string | null {
+  if (points.length < 2 || charges > 0) return null;
+  const levels = points.map((p) => p.level);
+  const low = Math.min(...levels);
+  const high = Math.max(...levels);
+  if (high - low > FLAT_PERCENT) return null;
+  const first = points[0].level;
+  const last = points[points.length - 1].level;
+  return first === last ? `Stayed at ${formatPercent(first)} ${words}.` : `Went from ${formatLevels(first, last)} ${words}, with no charging.`;
 }

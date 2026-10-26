@@ -48,7 +48,7 @@ export function ByPeriod({ panels, steady = false }: { panels: Partial<Record<Ho
   );
 }
 
-// Holds a page's period, read from ?period= (the default, Today where offered, stays out of it). Every period's panels
+// Holds a page's period, read from ?period= (the default, Week where offered, stays out of it). Every period's panels
 // arrive with the page, so switching only replaces the address (which Next's router follows) and needs no
 // server trip; a shared link, the logo's link to / and a refresh all show the URL's period. `options`
 // limits it, like Updates without Week. Other query parameters are kept.
