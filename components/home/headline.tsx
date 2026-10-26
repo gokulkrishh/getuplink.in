@@ -8,7 +8,7 @@ import { formatDate, formatHour, formatShortDate } from "@/lib/format";
 import { type Slot, type Timeframe, trackingGap } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
-import { barsCaption } from "@/components/stats/chart-caption";
+import { barsCaption, unitNotes } from "@/components/stats/chart-caption";
 import { type Spark, Sparkline } from "./sparkline";
 
 // Energy used driving, in kWh like every other energy figure.
@@ -135,7 +135,9 @@ export function Headline({
 
   const currentSlot = slots.findIndex((slot) => slot.isCurrent);
   // Slots ahead of now (the rest of this year) are drawn empty, not as zero.
-  const upToNow = (values: (number | null)[]): (number | null)[] => values.map((v, k) => (slots[k].from > now ? null : v));
+  const upToNow = (values: (number | null)[]): (number | null)[] => values.map((v, k) => (slots[k].ahead ? null : v));
+  // Charging is known from its first session on: a slot that ends before it is empty, not ₹0 or 0 kWh.
+  const charged = (values: number[]): (number | null)[] => values.map((v, k) => (chargingSince === null || slots[k].to <= chargingSince ? null : v));
   // Each slot's tip: a day by its date ("23 Oct", where a week's bars are labelled by weekday), 3 hours by
   // when they start and end, a month or year by its label; nothing for a slot with nothing known.
   const slotTitle = (slot: Slot, k: number) =>
@@ -176,7 +178,8 @@ export function Headline({
           {...delta(current.kwh, previous?.kwh ?? null, (n) => `${oneDecimalKwh.format(n)} kWh`)}
           spark={spark(
             "bars",
-            bars.map((b) => b.kwh ?? 0),
+            // Like the Driving page: no figure with no driving is nothing used, with driving it is unknown.
+            bars.map((b) => b.kwh ?? (b.km === 0 ? 0 : null)),
             (n) => `${oneDecimalKwh.format(n)} kWh`,
           )}
         />
@@ -186,18 +189,20 @@ export function Headline({
           value={number.format(energy)}
           unit="kWh"
           {...delta(energy, energyBefore, "kWh")}
-          spark={spark("bars", energyBySlot(sessions, streamOnly, slots), (n) => `${number.format(n)} kWh`)}
+          spark={spark("bars", charged(energyBySlot(sessions, streamOnly, slots)), (n) => `${number.format(n)} kWh`)}
         />
         <Cell
           view="charging"
           label="Spent"
           value={money.format(spend)}
           {...delta(spend, spendBefore, (n) => money.format(n), true)}
-          spark={spark("bars", billsBySlot(bills, slots), (n) => money.format(n))}
+          spark={spark("bars", charged(billsBySlot(bills, slots)), (n) => money.format(n))}
         />
       </div>
       {/* One line in every period, so the strip keeps its height (see ByPeriod's steady). */}
-      <p className="text-xs text-muted-foreground">{barsCaption("Small bars: the amount", frame)}. Hover or tap one for its value.</p>
+      <p className="text-xs text-muted-foreground">
+        {barsCaption("Small bars: the amount", frame)}. Hover or tap one for its value. {unitNotes(["kWh"])}
+      </p>
       {gapText && <p className="text-xs text-muted-foreground">Tracking since {gapText} · no earlier period to compare</p>}
     </div>
   );

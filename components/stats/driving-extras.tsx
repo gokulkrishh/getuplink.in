@@ -1,3 +1,4 @@
+import { ChartCard } from "@/components/chart-card";
 import { Bars } from "@/components/stats/bars";
 import { TripMap } from "@/components/stats/trip-map";
 import { formatDuration, formatShortDate } from "@/lib/format";
@@ -29,30 +30,24 @@ export function SpeedBands({ bins, words = "last 30 days", note }: { bins: Drivi
     isCurrent: b.share === Math.max(...bins.map((x) => x.share)) && k >= 0,
   }));
   return (
-    <section className="space-y-6">
-      <div className="space-y-2">
-        <h2 className="text-lg font-medium tracking-heading">Time at each speed</h2>
-        <p className="text-sm text-muted-foreground">Share of driving time in each speed band, km/h, {words}.</p>
-        <Note note={note} />
-      </div>
-      <Bars
-        bars={bars}
-        ariaLabel="Share of driving time by speed in km/h"
-        unit="%"
-        caption="Each bar is a 20 km/h band, labelled by the speed it starts at, and its height the percent of driving time spent in it. The band you drive in most is highlighted."
-      />
-    </section>
+    <ChartCard
+      title="Time at each speed"
+      description={`Share of your driving time spent in each speed band, ${words}. A taller bar is more time at that speed.`}
+      summary={<Note note={note} />}
+      caption="Each bar is a 20 km/h band, labelled by the speed it starts at. The band you drive in most is highlighted."
+    >
+      <Bars bars={bars} ariaLabel="Share of driving time by speed in km/h" unit="%" fit />
+    </ChartCard>
   );
 }
 
 function BandTable({ title, bands }: { title: string; bands: Band[] }) {
   if (bands.length === 0) return null;
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-sm text-sm tabular-nums">
+    <table className="w-full text-sm tabular-nums">
         <thead>
           <tr className="border-b text-left text-xs text-faint">
-            <th scope="col" className="w-10 py-2 pr-3 font-normal">
+            <th scope="col" className="w-10 py-2 pr-3 font-normal max-sm:hidden">
               #
             </th>
             <th scope="col" className="py-2 pr-4 font-normal">
@@ -72,7 +67,7 @@ function BandTable({ title, bands }: { title: string; bands: Band[] }) {
         <tbody className="divide-y">
           {bands.map((b, k) => (
             <tr key={b.label}>
-              <td className="w-10 py-3 pr-3 font-mono text-xs text-faint">{k + 1}</td>
+              <td className="w-10 py-3 pr-3 font-mono text-xs text-faint max-sm:hidden">{k + 1}</td>
               <th scope="row" className="py-3 pr-4 text-left font-normal">
                 {b.label}
               </th>
@@ -82,8 +77,7 @@ function BandTable({ title, bands }: { title: string; bands: Band[] }) {
             </tr>
           ))}
         </tbody>
-      </table>
-    </div>
+    </table>
   );
 }
 
@@ -91,15 +85,17 @@ function BandTable({ title, bands }: { title: string; bands: Band[] }) {
 export function EfficiencyBands({ byTemp, bySpeed, words = "last 30 days", note }: { byTemp: Band[]; bySpeed: Band[] } & Covers) {
   if (byTemp.length === 0 && bySpeed.length === 0) return null;
   return (
-    <section className="space-y-6">
-      <div className="space-y-2">
-        <h2 className="text-lg font-medium tracking-heading">Efficiency</h2>
-        <p className="text-sm text-muted-foreground">How far each kWh took you, by outside temperature and by average speed, {words}. Higher is better.</p>
-        <Note note={note} />
+    <ChartCard
+      title="Efficiency"
+      description={`How far each kWh took you, by outside temperature and by average speed, ${words}. A higher km per kWh is better.`}
+      unit="kWh"
+      summary={<Note note={note} />}
+    >
+      <div className="space-y-6">
+        <BandTable title="Outside" bands={byTemp} />
+        <BandTable title="Average speed" bands={bySpeed} />
       </div>
-      <BandTable title="Outside" bands={byTemp} />
-      <BandTable title="Average speed" bands={bySpeed} />
-    </section>
+    </ChartCard>
   );
 }
 

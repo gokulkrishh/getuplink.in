@@ -10,7 +10,9 @@ import { cn } from "@/lib/utils";
 // Bars' columns, drawn in the browser from the bars themselves: a page sends a few numbers and labels per
 // column instead of each column's markup, which a 90-day chart in every period made the bulk of a page.
 // `max` is the axis top Bars worked out; see Bars for the rest.
-export function BarColumns({ bars, max, ariaLabel, labelEvery, unit }: { bars: Bar[]; max: number; ariaLabel: string; labelEvery?: number; unit?: string }) {
+// With `fit`, the columns share the panel's width however many there are, so the chart never scrolls
+// sideways; a chart with very many (90 days) gets hairline gaps so its bars keep some width.
+export function BarColumns({ bars, max, ariaLabel, labelEvery, unit, fit = false }: { bars: Bar[]; max: number; ariaLabel: string; labelEvery?: number; unit?: string; fit?: boolean }) {
   const dense = bars.length > 6;
   // Slots before the first value (before the history starts) keep their column and label but draw nothing,
   // not even a tip: nothing is known about them.
@@ -23,9 +25,9 @@ export function BarColumns({ bars, max, ariaLabel, labelEvery, unit }: { bars: B
   // Too many columns to fit at MIN_COLUMN_PX each, the chart scrolls sideways from its newest end.
   return (
     <ScrollEnd label={ariaLabel}>
-    <div ref={box} style={{ minWidth: columns * MIN_COLUMN_PX }}>
+    <div ref={box} style={fit ? undefined : { minWidth: columns * MIN_COLUMN_PX }}>
     <TapColumns
-      className={cn("grid items-end", labelEvery ? "gap-0.5" : dense ? "gap-1" : "gap-3")}
+      className={cn("grid items-end", fit && columns > 31 ? "gap-px" : labelEvery ? "gap-0.5" : dense ? "gap-1" : "gap-3")}
       style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
       aria-label={ariaLabel}
     >
