@@ -193,8 +193,8 @@ export async function chargingInsights(owner: Owner) {
     recent_dc_charges: extras.curves.map((c) => ({
       date: istIso(c.date).slice(0, 10),
       charger: c.name,
-      peak_kw: Math.round(Math.max(...c.points.map((p) => p.y))),
-      average_kw: Math.round(c.points.reduce((a, p) => a + p.y, 0) / c.points.length),
+      peak_kw: c.peakKw === null ? null : Math.round(c.peakKw),
+      average_kw: c.avgKw === null ? null : Math.round(c.avgKw),
       battery_from_pct: Math.round(Math.min(...c.points.map((p) => p.x))),
       battery_to_pct: Math.round(Math.max(...c.points.map((p) => p.x))),
     })),
