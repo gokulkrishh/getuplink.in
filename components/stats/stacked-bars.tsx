@@ -136,7 +136,7 @@ export function StackedBars({
           </li>
         ))}
       </ul>
-      {caption && <p className="text-xs text-muted-foreground">{caption}</p>}
+      {caption && <p className="text-sm text-muted-foreground">{caption}</p>}
     </div>
   );
 }

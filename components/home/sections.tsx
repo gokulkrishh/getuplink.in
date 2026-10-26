@@ -129,7 +129,7 @@ export function DrivingSection({ frames, figures, drives, now }: { frames: HomeF
         ) : (
           <p className="text-sm text-muted-foreground">No trips {frame.words}.</p>
         )}
-        {partial && <p className="text-xs text-faint">Trips cover only the last {DRIVE_DAYS} days.</p>}
+        {partial && <p className="text-sm text-faint">Trips cover only the last {DRIVE_DAYS} days.</p>}
       </div>
     );
   };
@@ -192,7 +192,7 @@ export function BatterySection({
           </>
         )}
         {usually && lost === null && <p className="text-sm text-muted-foreground tabular-nums">Usually loses {usually} parked</p>}
-        {cut && <p className="text-xs text-faint">{cut}.</p>}
+        {cut && <p className="text-sm text-faint">{cut}.</p>}
       </div>
     );
   };

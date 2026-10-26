@@ -4,7 +4,7 @@ import { Download } from "lucide-react";
 import Link from "next/link";
 import { GoogleMapsCredit } from "@/components/google-maps-credit";
 import { Measure } from "@/components/measure";
-import { RowChevron } from "@/components/row-chevron";
+import { ROW_LINK, RowChevron } from "@/components/row-chevron";
 import { Tip } from "@/components/tip";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -39,7 +39,7 @@ export function SessionLine({ view }: { view: SessionView }) {
         <p className="flex min-w-0 items-baseline gap-1.5 font-medium">
           <span className="min-w-0 truncate">
             {view.href ? (
-              <Link href={view.href} className="outline-none after:absolute after:inset-0">
+              <Link href={view.href} className={ROW_LINK}>
                 {view.place}
               </Link>
             ) : (

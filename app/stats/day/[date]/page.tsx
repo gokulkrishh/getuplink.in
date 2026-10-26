@@ -18,7 +18,7 @@ import { dayParam } from "@/lib/day-timeline";
 import { chargeType, nameAction } from "@/lib/charge-names";
 import { GoogleMapsCredit } from "@/components/google-maps-credit";
 import { NamePlace } from "@/components/name-place";
-import { RowChevron } from "@/components/row-chevron";
+import { ROW_LINK, RowChevron } from "@/components/row-chevron";
 import { chargeTotals } from "@/lib/charging-figures";
 import { isoDay } from "@/lib/periods";
 import { istDayStart } from "@/lib/telemetry-derive";
@@ -106,7 +106,7 @@ function DayView({ detail, now }: { detail: DayDetail; now: number }) {
               {detail.charges.map(({ session: s, cost, name, spot }) => (
                 <li key={s.id} className="group/row relative flex cursor-pointer items-baseline gap-4 py-3 sm:-mx-3 sm:px-3 transition-colors duration-150 hover:bg-muted focus-within:bg-muted">
                   <span className="min-w-0 flex-1">
-                    <Link href={`/stats/charging/${s.id}`} className="outline-none after:absolute after:inset-0">
+                    <Link href={`/stats/charging/${s.id}`} className={ROW_LINK}>
                       {formatClock(s.started_at)}
                       {s.ended_at ? ` to ${formatClock(s.ended_at)}` : ", charging"}
                     </Link>

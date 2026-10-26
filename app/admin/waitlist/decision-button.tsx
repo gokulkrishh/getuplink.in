@@ -53,7 +53,7 @@ export function ActionRow({ children, actions }: { children: ReactNode; actions:
         </form>
       )}
       {result?.message && (
-        <p role="alert" className="basis-full text-xs text-destructive">
+        <p role="alert" className="basis-full text-sm text-destructive">
           {result.message}
         </p>
       )}

@@ -132,7 +132,7 @@ async function HomeContent({ searchParams }: Pick<PageProps<"/">, "searchParams"
             <Totals home={home} custom={custom} now={now} />
           </PeriodScope>
           {cars.some((car) => car.latest?.error) && (
-            <p className="text-xs text-muted-foreground">The car went to sleep during the last check. Uplink will try again.</p>
+            <p className="text-sm text-muted-foreground">The car went to sleep during the last check. Uplink will try again.</p>
           )}
         </div>
       )}

@@ -146,7 +146,7 @@ async function Rollout() {
               <ArrivingRow key={a.version} a={a} n={k + 1} notes={releaseNotes} />
             ))}
           </ul>
-          <p className="text-xs text-faint">Updates Tesla has offered but cars haven&apos;t installed yet, and how many cars already run each.</p>
+          <p className="text-sm text-faint">Updates Tesla has offered but cars haven&apos;t installed yet, and how many cars already run each.</p>
         </section>
       )}
 

@@ -74,7 +74,7 @@ async function SetupGate() {
   if (gate === "setup") redirect("/setup");
   if (gate === "pass") return null;
   return (
-    <p role="status" className="-mt-12 mb-12 border-l-2 pl-3 text-xs text-muted-foreground">
+    <p role="status" className="-mt-12 mb-12 border-l-2 pl-3 text-sm text-muted-foreground">
       Uplink couldn&apos;t check your car&apos;s key with Tesla. It will try again.{" "}
       <Link href="/setup" className="underline decoration-border underline-offset-4 hover:decoration-foreground">
         Setup
@@ -112,7 +112,7 @@ export function Header({ current, setup = true }: { current?: Section; setup?: b
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label="Account menu"
-            className="flex size-8 cursor-pointer items-center justify-center overflow-hidden rounded-full border bg-background hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none data-popup-open:bg-muted"
+            className="tap-target flex size-8 cursor-pointer items-center justify-center rounded-full border [&>*]:rounded-full bg-background hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none data-popup-open:bg-muted"
           >
             <Suspense fallback={<AvatarBlob seed={FALLBACK_SEED} />}>
               <AccountAvatar />

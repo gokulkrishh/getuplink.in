@@ -383,7 +383,7 @@ function JourneyBadge({ kinds, stop }: { kinds: MapPin["kind"][]; stop: number |
   const letters = [kinds.includes("start") && "A", kinds.includes("end") && "B"].filter(Boolean).join(" ");
   if (letters) {
     return (
-      <span className={cn(BADGE, "h-6 min-w-6 px-1.5 text-[11px]", kinds.includes("start") && !kinds.includes("end") ? "border-map-route bg-background text-map-route" : cn(RING, "bg-map-route text-white"))}>
+      <span className={cn(BADGE, "h-6 min-w-6 px-1.5 text-xs", kinds.includes("start") && !kinds.includes("end") ? "border-map-route bg-background text-map-route" : cn(RING, "bg-map-route text-white"))}>
         {letters}
       </span>
     );
@@ -549,7 +549,7 @@ export function TripMap({
                   {...tipOn({ key: `leg-${n}`, lat: at.lat, lng: at.lng, lines: [`Leg ${n}, ${formatClock(leg.start)} to ${formatClock(leg.end)}`, leg.note], link: false })}
                 >
                   <MarkerContent>
-                    <span className="block border bg-background px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap text-muted-foreground shadow-sm">Leg {n}</span>
+                    <span className="block border bg-background px-1.5 py-0.5 text-xs font-medium whitespace-nowrap text-muted-foreground shadow-sm">Leg {n}</span>
                   </MarkerContent>
                 </MapMarker>
               ))}
@@ -578,7 +578,7 @@ export function TripMap({
                       {name && side && (
                         <span
                           className={cn(
-                            "absolute top-1/2 block max-w-44 -translate-y-1/2 truncate border bg-background/90 px-1.5 py-0.5 text-[11px] leading-4 font-medium whitespace-nowrap text-foreground shadow-sm",
+                            "absolute top-1/2 block max-w-44 -translate-y-1/2 truncate border bg-background/90 px-1.5 py-0.5 text-xs leading-4 font-medium whitespace-nowrap text-foreground shadow-sm",
                             side === "right" ? "left-full ml-1" : "right-full mr-1",
                           )}
                         >
@@ -657,7 +657,7 @@ export function TripMap({
           </>
         )}
       </ul>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         Map data © OpenStreetMap contributors, © CARTO.
       </p>
     </div>

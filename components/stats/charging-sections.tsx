@@ -94,7 +94,7 @@ export function Summary({
         <p className="text-sm text-muted-foreground tabular-nums">{formatMoney((cost / km) * 100, "INR")} per 100 km driven</p>
       )}
       {missing > 0 && (
-        <p className="text-xs text-faint">
+        <p className="text-sm text-faint">
           {missing} {missing === 1 ? "charge has" : "charges have"} no bill yet, so {missing === 1 ? "it isn't" : "they aren't"} counted.
         </p>
       )}

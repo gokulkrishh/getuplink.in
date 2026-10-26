@@ -59,7 +59,7 @@ export function ValueLabel({ display, unit }: { display: string; unit?: string }
       <span data-value="full">
         {parts.map((part, k) =>
           part.unit ? (
-            <span key={k} className={cn("font-sans text-[0.625rem] text-faint", k > 0 && "ml-px")}>
+            <span key={k} className={cn("font-sans text-xs text-faint", k > 0 && "ml-px")}>
               {part.text}
             </span>
           ) : (

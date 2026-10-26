@@ -96,7 +96,7 @@ function CarUpdates({ car, notes, label, range, now }: { car: UpdatesCar; notes:
       </dl>
       )}
 
-      {latest?.error && <p className="text-xs text-muted-foreground">The car went to sleep during the last check. Uplink will try again.</p>}
+      {latest?.error && <p className="text-sm text-muted-foreground">The car went to sleep during the last check. Uplink will try again.</p>}
 
       <VersionHistory history={history} notes={notes} now={now} until={vehicle.last_polled_at} />
 

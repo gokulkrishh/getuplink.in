@@ -59,7 +59,7 @@ async function loadPage(): Promise<{ data: CostsPage; now: number }> {
 const SOURCE: Record<Source, string> = { live: "Live", estimated: "Estimated", fixed: "Fixed" };
 
 function Badge({ source }: { source: Source }) {
-  return <span className="rounded-md border px-1.5 py-px text-[0.6875rem] leading-4 text-muted-foreground">{SOURCE[source]}</span>;
+  return <span className="rounded-md border px-1.5 py-px text-xs leading-4 text-muted-foreground">{SOURCE[source]}</span>;
 }
 
 // The figure on the right, or why there isn't one.
@@ -96,7 +96,7 @@ function details(line: CostLine, now: number): string[] {
   return out;
 }
 
-const Code = ({ children }: { children: ReactNode }) => <code className="rounded bg-muted px-1 py-px font-mono text-[0.6875rem] break-words">{children}</code>;
+const Code = ({ children }: { children: ReactNode }) => <code className="rounded bg-muted px-1 py-px font-mono text-xs break-words">{children}</code>;
 
 const Out = ({ href, children }: { href: string; children: ReactNode }) => (
   <a href={href} target="_blank" rel="noreferrer" className={link}>
@@ -185,7 +185,7 @@ function Row({ line, edit, parts, now, ready, readOnly }: { line: CostLine; edit
           )}
         </div>
       </div>
-      {line.state === "connect" && CONNECT[line.id] && <p className="pt-1 text-xs text-muted-foreground">{CONNECT[line.id]}</p>}
+      {line.state === "connect" && CONNECT[line.id] && <p className="pt-1 text-sm text-muted-foreground">{CONNECT[line.id]}</p>}
       {parts && parts.length > 0 && <Breakdown name={line.name} parts={parts} />}
       {edit && ready && (
         <details className="group pt-1">

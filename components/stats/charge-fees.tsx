@@ -46,7 +46,7 @@ export function ChargeFees({ fees, currency }: { fees: FeeLines | null; currency
         </table>
       </div>
       {!fees.addsUp && (
-        <p className="text-xs text-faint">
+        <p className="text-sm text-faint">
           {fees.skipped > 0
             ? `${fees.skipped === 1 ? "One line" : `${fees.skipped} lines`} of Tesla's bill couldn't be read, so these don't add up to the total.`
             : "These lines don't add up to the total Tesla sent."}

@@ -74,7 +74,8 @@ describe("period links", () => {
     expect(statsHref("battery", "custom")).toBe("/stats/battery?period=custom");
   });
   test("each page's default stays out of the URL", () => {
-    expect(statsHref("driving", "week")).toBe("/stats/driving");
+    expect(statsHref("driving", "day")).toBe("/stats/driving");
+    expect(statsHref("driving", "week")).toBe("/stats/driving?period=week");
     expect(statsHref("driving", "year", { from: "2026-09-01", to: "2026-09-30" })).toBe("/stats/driving?period=year");
     expect(periodQuery("month", null, UPDATE_PERIODS)).toBe("");
     expect(periodQuery("year", null, UPDATE_PERIODS)).toBe("?period=year");

@@ -59,7 +59,7 @@ export function ChartCard({
       </div>
       {summary}
       {empty ? <EmptyChart>{empty}</EmptyChart> : <Captioned caption={caption}>{children}</Captioned>}
-      {empty && caption && <p className="text-xs text-muted-foreground">{caption}</p>}
+      {empty && caption && <p className="text-sm text-muted-foreground">{caption}</p>}
     </section>
   );
 }

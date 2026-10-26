@@ -128,7 +128,7 @@ export function ParkedDrain({
             </p>
           </>
         )}
-        <p className="text-xs text-muted-foreground">Sentry Mode and apps checking in keep the car awake and raise this.</p>
+        <p className="text-sm text-muted-foreground">Sentry Mode and apps checking in keep the car awake and raise this.</p>
       </div>
 
       {rows.length === 0 ? (

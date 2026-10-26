@@ -67,7 +67,7 @@ export function UpdateStatus({ snapshot, now }: { snapshot: Snapshot | null; now
         </div>
       )}
       {(status === "scheduled" && snapshot.scheduled_time_ms) || snapshot.expected_duration_sec ? (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           {/* Tesla's estimate for the install, as it gave it: the percent doesn't move evenly enough to
               count down from (30% of a 40 min install was 14 min from done). */}
           {status === "scheduled" && snapshot.scheduled_time_ms
@@ -76,7 +76,7 @@ export function UpdateStatus({ snapshot, now }: { snapshot: Snapshot | null; now
         </p>
       ) : null}
       {status === "downloading_wifi_wait" && (
-        <p className="text-xs text-muted-foreground">Connect the car to Wi-Fi to start the download.</p>
+        <p className="text-sm text-muted-foreground">Connect the car to Wi-Fi to start the download.</p>
       )}
     </div>
   );

@@ -346,6 +346,26 @@ html .maplibregl-map {
     grid-template-columns: 10rem 1fr;
   }
 }
+/* A control's tap area: on phones at least 44px each way, centred on it, without changing how it looks.
+   An invisible ::after, so the control can't clip its own children (no overflow-hidden). */
+@utility tap-target {
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: 100%;
+    translate: -50% -50%;
+  }
+  @media (width < 40rem) {
+    &::after {
+      min-width: 2.75rem;
+      min-height: 2.75rem;
+    }
+  }
+}
 /* Charts on touch screens: a tap shows a tip, so a press shouldn't select the labels or open the
    copy menu. Only where nothing can hover, so text in a chart stays selectable with a mouse. */
 @utility chart-touch {

@@ -87,7 +87,7 @@ export function TripTimeline({ legs }: { legs: Drive[] }) {
         </span>
       </div>
     </div>
-    <p className="text-xs text-muted-foreground">A block wide enough to hold it shows the drive&apos;s distance or the stop&apos;s length.</p>
+    <p className="text-sm text-muted-foreground">A block wide enough to hold it shows the drive&apos;s distance or the stop&apos;s length.</p>
     </div>
   );
 }

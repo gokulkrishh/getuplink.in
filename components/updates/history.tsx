@@ -64,7 +64,7 @@ function EmptyHistory() {
       </div>
       <div className="space-y-1">
         <p className="text-sm">No versions yet</p>
-        <p className="max-w-md text-xs text-muted-foreground">
+        <p className="max-w-md text-sm text-muted-foreground">
           A version shows once Uplink sees the car online.
         </p>
       </div>

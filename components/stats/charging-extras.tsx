@@ -79,7 +79,7 @@ export function DcCurves({ curves, frame, note }: { curves: (Curve & { serial?: 
           </div>
         </>
       )}
-      {note && <p className="text-xs text-faint">{note}</p>}
+      {note && <p className="text-sm text-faint">{note}</p>}
     </section>
   );
 }
@@ -103,7 +103,7 @@ export function ChargingMap({ pins, frame, note }: { pins: MapPin[]; frame: Time
           No charges with a location {frame.words}.
         </p>
       )}
-      {note && <p className="text-xs text-faint">{note}</p>}
+      {note && <p className="text-sm text-faint">{note}</p>}
     </section>
   );
 }

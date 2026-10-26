@@ -67,7 +67,7 @@ export function Captioned({ caption, children }: { caption?: React.ReactNode; ch
   return (
     <figure className="space-y-2">
       {children}
-      <figcaption className="text-xs text-muted-foreground">{caption}</figcaption>
+      <figcaption className="text-sm text-muted-foreground">{caption}</figcaption>
     </figure>
   );
 }
@@ -107,7 +107,7 @@ export function ChartFrame({ max, prefix = "", unit, xUnit, children }: { max: n
       )}
       {unit && (
         // Shown by useValueLabels only when the values above the bars are bare numbers, so they read "km 17.0 15.7".
-        <span data-value-unit className="absolute top-5 left-2 hidden h-4 w-8 text-right font-sans text-[0.625rem] leading-4 text-faint" aria-hidden="true">
+        <span data-value-unit className="absolute top-5 left-2 hidden h-4 w-8 text-right font-sans text-xs leading-4 text-faint" aria-hidden="true">
           {unit}
         </span>
       )}

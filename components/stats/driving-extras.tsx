@@ -34,7 +34,7 @@ type Covers = { words?: string; note?: string };
 
 const upper = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
-const Note = ({ note }: { note?: string }) => (note ? <p className="text-xs text-faint">{note}</p> : null);
+const Note = ({ note }: { note?: string }) => (note ? <p className="text-sm text-faint">{note}</p> : null);
 
 // How long you spend at each speed, after TeslaMate's speed histogram.
 export function SpeedBands({ bins, words = "last 30 days", note }: { bins: DrivingExtras["speed"] } & Covers) {
@@ -181,7 +181,7 @@ export function Places({ places, visited, words = "last 30 days", note }: { plac
           </table>
         </div>
       )}
-      <p className="text-xs text-faint">Names you give come first, then OpenStreetMap&apos;s. Places named from Google Maps show their area on the map. Home, Work and Favourite are the ones set in your car.</p>
+      <p className="text-sm text-faint">Names you give come first, then OpenStreetMap&apos;s. Places named from Google Maps show their area on the map. Home, Work and Favourite are the ones set in your car.</p>
     </section>
   );
 }

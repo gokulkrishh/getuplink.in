@@ -54,7 +54,7 @@ export function MonthlyTable({ rows, empty }: { rows: MonthRow[]; empty?: string
           </table>
         </div>
       )}
-      <p className="text-xs text-faint">Driven is the odometer&apos;s distance, like the Distance bars. Time driving and energy used cover the last 90 days of drives. Spent counts only real bills: Tesla&apos;s and invoices you attached.</p>
+      <p className="text-sm text-faint">Driven is the odometer&apos;s distance, like the Distance bars. Time driving and energy used cover the last 90 days of drives. Spent counts only real bills: Tesla&apos;s and invoices you attached.</p>
     </section>
   );
 }

@@ -40,14 +40,14 @@ export function LinkPanel({ url }: { url: string }) {
           </Button>
         )}
       </div>
-      <p className="text-xs text-faint">Works once, for a day, for the car you named.</p>
+      <p className="text-sm text-faint">Works once, for a day, for the car you named.</p>
     </div>
   );
 }
 
 function Message({ result }: { result: LinkResult }) {
   return result?.message ? (
-    <p role="alert" className="text-xs text-destructive">
+    <p role="alert" className="text-sm text-destructive">
       {result.message}
     </p>
   ) : null;

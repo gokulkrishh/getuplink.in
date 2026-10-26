@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Measure } from "@/components/measure";
-import { RowChevron } from "@/components/row-chevron";
+import { ROW_LINK, RowChevron } from "@/components/row-chevron";
 
 // One trip as the table shows it, every text worked out on the server (see tripRow in drive-list.tsx): the
 // page sends these few strings per trip, and the browser draws both layouts from them.
@@ -41,7 +41,7 @@ function TripTableRow({ row }: { row: TripRow }) {
       <td className="py-3 pr-3 font-mono text-xs text-faint">{row.serial}</td>
       <td className="py-3 pr-3 whitespace-nowrap">{row.day}</td>
       <th scope="row" className="truncate py-3 pr-3 text-left font-medium">
-        <Link href={`/stats/driving/${row.start}`} className="outline-none after:absolute after:inset-0">
+        <Link href={`/stats/driving/${row.start}`} className={ROW_LINK}>
           {row.times}
         </Link>
       </th>
@@ -73,7 +73,7 @@ function TripListRow({ row }: { row: TripRow }) {
         <p className="flex items-baseline justify-between gap-3">
           <span className="min-w-0 truncate font-medium">
             <span className="mr-2 font-mono text-xs font-normal text-faint">{row.serial}</span>
-            <Link href={`/stats/driving/${row.start}`} className="outline-none after:absolute after:inset-0">
+            <Link href={`/stats/driving/${row.start}`} className={ROW_LINK}>
               {row.times}
             </Link>
           </span>

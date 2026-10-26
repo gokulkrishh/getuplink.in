@@ -16,7 +16,7 @@ import { type DriveDetail, loadDriveDetail } from "@/lib/server/drive-detail";
 import { placeKey, placeNames } from "@/lib/server/place-names";
 import { loadUserPlaces } from "@/lib/server/user-places";
 import { NamePlace } from "@/components/name-place";
-import { RowChevron } from "@/components/row-chevron";
+import { ROW_LINK, RowChevron } from "@/components/row-chevron";
 import { nameAction, type SpotName, spotName } from "@/lib/charge-names";
 import { stationAt } from "@/lib/stations";
 import type { UserPlace } from "@/lib/user-places";
@@ -178,7 +178,7 @@ function Drive({ detail }: { detail: DriveDetail }) {
           </section>
         )}
         {(topKmh === null || outsideC === null || accel.length < 2) && (
-          <p className="text-xs text-faint">Speed, acceleration and outside temperature show once your car streams them.</p>
+          <p className="text-sm text-faint">Speed, acceleration and outside temperature show once your car streams them.</p>
         )}
       </div>
     </>
@@ -266,7 +266,7 @@ function Legs({ legs }: { legs: DriveDetail["trip"]["legs"] }) {
               <tr key={d.start} className="group/row relative cursor-pointer transition-colors duration-150 hover:bg-muted focus-within:bg-muted">
                 <td className="py-3 pr-3 font-mono text-xs text-faint">{k + 1}</td>
                 <th scope="row" className="py-3 pr-4 text-left font-normal whitespace-nowrap">
-                  <Link href={`/stats/driving/${d.start}?leg`} className="outline-none after:absolute after:inset-0">
+                  <Link href={`/stats/driving/${d.start}?leg`} className={ROW_LINK}>
                     {formatClock(d.start)} to {formatClock(d.end)}
                   </Link>
                 </th>

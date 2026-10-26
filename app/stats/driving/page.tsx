@@ -171,7 +171,7 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
             return (
               <div className="space-y-3">
                 {inFrame.length > 0 ? <DriveList drives={inFrame} all={driving.drives} now={now} /> : <p className="text-sm text-muted-foreground">No trips {frame.words}.</p>}
-                {partial(frame.span, tripsFrom) && <p className="text-xs text-faint">Trips cover only the last {DRIVE_DAYS} days.</p>}
+                {partial(frame.span, tripsFrom) && <p className="text-sm text-faint">Trips cover only the last {DRIVE_DAYS} days.</p>}
               </div>
             );
           })}

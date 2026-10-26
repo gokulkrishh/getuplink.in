@@ -295,11 +295,11 @@ export function NamePlace({ target, compact = false, className }: { target: Name
               </div>
   
               {error ? (
-                <p role="alert" className="text-xs text-destructive">
+                <p role="alert" className="text-sm text-destructive">
                   {error}
                 </p>
               ) : (
-                <p role="status" className="min-h-4 text-xs text-muted-foreground">
+                <p role="status" className="min-h-4 text-sm text-muted-foreground">
                   {status}
                 </p>
               )}
@@ -320,7 +320,7 @@ export function NamePlace({ target, compact = false, className }: { target: Name
             </div>
 
             <div className="flex items-center justify-between gap-2 border-t pt-3">
-              <p id={`${id}-hint`} className="text-xs text-faint">
+              <p id={`${id}-hint`} className="text-sm text-faint">
                 Used for every visit within {TAG_RADIUS_M} m.
               </p>
               {target.tag && (
