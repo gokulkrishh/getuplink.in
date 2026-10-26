@@ -46,7 +46,7 @@ function Step({ n, title, state, children }: { n: number; title: string; state: 
     <li className="space-y-4 border-t py-6">
       <div className="flex items-baseline justify-between gap-4">
         <h2 className="text-lg font-medium tracking-heading">
-          <span className="mr-2 font-mono text-sm text-faint tabular-nums">{n}</span>
+          <span className="mr-1.5 text-muted-foreground tabular-nums">{n}.</span>
           {title}
         </h2>
         <StepBadge state={state} />
