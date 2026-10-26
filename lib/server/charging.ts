@@ -198,17 +198,18 @@ export async function syncChargingHistory(owner: Owner, vins: string[], { backfi
 }
 
 const MIN_SYNC_GAP_MS = 30 * 60 * 1000;
-// This instance's last attempt: covers the cases the table can't (no sessions yet, a failed sync).
-let lastAttempt = 0;
+// This instance's last attempt per user: covers the cases the table can't (no sessions yet, a failed sync).
+const lastAttempt = new Map<number, number>();
 
-// For the Stats page: the poll's Supercharger sync, at most once per 30 minutes. The time of the last
-// sync is the newest fetched_at in charging_sessions (every sync rewrites the rows it fetches), so it
-// holds across serverless instances without a settings table; lastAttempt is the per-instance backstop.
+// For the Stats page: the poll's Supercharger sync, at most once per 30 minutes per user. The time of the
+// last sync is the newest fetched_at in the user's charging_sessions (every sync rewrites the rows it
+// fetches), so it holds across serverless instances without a settings table; lastAttempt is the
+// per-instance backstop.
 export async function syncChargingHistoryThrottled(owner: Owner): Promise<void> {
   if (DEMO) return;
   try {
-    if (Date.now() - lastAttempt < MIN_SYNC_GAP_MS) return;
-    lastAttempt = Date.now();
+    if (Date.now() - (lastAttempt.get(owner.userId) ?? 0) < MIN_SYNC_GAP_MS) return;
+    lastAttempt.set(owner.userId, Date.now());
     const { data: last, error } = await ownerDb(owner).from("charging_sessions").select("fetched_at").order("fetched_at", { ascending: false }).limit(1).maybeSingle();
     if (error) throw new Error(error.message);
     if (last?.fetched_at && Date.now() - Date.parse(last.fetched_at as string) < MIN_SYNC_GAP_MS) return;

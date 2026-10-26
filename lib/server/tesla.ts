@@ -6,7 +6,18 @@ import { demoData } from "./demo";
 import { env, fleetApiBase } from "./env";
 import { eraseOwnerRows } from "./data/erase";
 import { type Owner, ownerDb } from "./data/owner";
-import { claimAccount, legacyAccount } from "./data/system";
+import {
+  APPROVED,
+  claimLegacyLease,
+  deleteUser,
+  legacyTokens,
+  ownerOf,
+  releaseLegacyLease,
+  retireLegacyTokens,
+  revokeUserSessions,
+  userById,
+  userBySub,
+} from "./data/system";
 
 export const AUTHORIZE_URL = "https://auth.tesla.com/oauth2/v3/authorize";
 export const TOKEN_URL = "https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token";
@@ -94,10 +105,13 @@ function idTokenSubject(idToken: string | undefined): string {
   return sub;
 }
 
-export type SignInResult = "claimed" | "owner" | "not-owner";
+// The user to start a session for, or "not-owner" for a Tesla account that can't sign in.
+export type SignInResult = { userId: number } | "not-owner";
 
-// Sign in with Tesla doubles as the dashboard login: the first account to sign in
-// becomes the owner, and only that account can sign in afterwards.
+// Sign in with Tesla doubles as the dashboard login. Only a Tesla account with an approved users row signs
+// in. With sign-up closed (SIGNUP_MODE, see signupMode in ./env; waitlist and open come with step 6)
+// anyone else is refused, a waitlisted account included, and nothing of theirs is stored: not a users
+// row, not their Tesla tokens.
 export async function signIn(code: string): Promise<SignInResult> {
   const tokens = await tokenRequest({
     grant_type: "authorization_code",
@@ -107,31 +121,46 @@ export async function signIn(code: string): Promise<SignInResult> {
     audience: fleetApiBase(),
     redirect_uri: env("TESLA_REDIRECT_URI"),
   });
-  return claimAccount(idTokenSubject(tokens.id_token), {
-    access_token_enc: encrypt(tokens.access_token),
-    refresh_token_enc: encrypt(tokens.refresh_token),
-    expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
-    scope: tokens.scope ?? null,
-    updated_at: new Date().toISOString(),
-  });
+  const sub = idTokenSubject(tokens.id_token);
+  const user = await userBySub(sub);
+  if (user?.status !== APPROVED) return "not-owner";
+  const owner = ownerOf(user);
+  // Replaces whatever pair was stored, disconnected or not: a sign-in always wins, including over a
+  // cutover copy in flight (which never overwrites, see adoptLegacyTokens).
+  const { error } = await ownerDb(owner)
+    .from("user_tokens")
+    .upsert(
+      {
+        access_token_enc: encrypt(tokens.access_token),
+        refresh_token_enc: encrypt(tokens.refresh_token),
+        expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+        scope: tokens.scope ?? null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" },
+    );
+  if (error) throw new Error(`Saving tokens failed: ${error.message}`);
+  // The new pair supersedes any single-owner one still in oauth_tokens: nothing may present that again.
+  await retireLegacyTokens(sub);
+  return { userId: owner.userId };
 }
 
 // Refresh tokens are single use, and Tesla can revoke the whole chain (the pair just stored included)
 // when a spent one is presented again. So only one refresh may reach Tesla at a time: requests in this
-// instance share one (inflight), and across instances the first claims a short lease on the row while the
-// others wait for the tokens it stores. The new pair is stored with a compare-and-swap on the refresh
-// token we read, so a disconnect in the meantime is never overwritten.
+// instance share one per user (inflight), and across instances the first claims a short lease on the
+// user's row while the others wait for the tokens it stores. The new pair is stored with a compare-and-swap
+// on the refresh token we read, so a disconnect in the meantime is never overwritten.
 const LEASE_MS = 30_000;
 const WAIT_STEP_MS = 500;
-let inflight: { refreshTokenEnc: string; promise: Promise<string> } | null = null;
+const inflight = new Map<number, { refreshTokenEnc: string; promise: Promise<string> }>();
 
 function refresh(owner: Owner, stored: StoredTokens): Promise<string> {
-  const current = inflight;
+  const current = inflight.get(owner.userId);
   if (current && current.refreshTokenEnc === stored.refreshTokenEnc) return current.promise;
   const promise = refreshOnce(owner, stored).finally(() => {
-    if (inflight?.promise === promise) inflight = null;
+    if (inflight.get(owner.userId)?.promise === promise) inflight.delete(owner.userId);
   });
-  inflight = { refreshTokenEnc: stored.refreshTokenEnc, promise };
+  inflight.set(owner.userId, { refreshTokenEnc: stored.refreshTokenEnc, promise });
   return promise;
 }
 
@@ -161,7 +190,7 @@ async function refreshOnce(owner: Owner, stored: StoredTokens): Promise<string> 
     throw err;
   }
   const { data, error } = await ownerDb(owner)
-    .from("oauth_tokens")
+    .from("user_tokens")
     .update({
       access_token_enc: encrypt(tokens.access_token),
       refresh_token_enc: encrypt(tokens.refresh_token),
@@ -171,7 +200,7 @@ async function refreshOnce(owner: Owner, stored: StoredTokens): Promise<string> 
       updated_at: new Date().toISOString(),
     })
     .eq("refresh_token_enc", stored.refreshTokenEnc)
-    .select("provider");
+    .select("user_id");
   if (error) throw new Error(`Saving tokens failed: ${error.message}`);
   if (data?.length === 1) return tokens.access_token;
   // Nothing matched: the owner disconnected (don't write tokens back) or signed in again meanwhile.
@@ -184,25 +213,108 @@ async function refreshOnce(owner: Owner, stored: StoredTokens): Promise<string> 
 async function claimLease(owner: Owner, stored: StoredTokens): Promise<boolean> {
   const now = new Date();
   const { data, error } = await ownerDb(owner)
-    .from("oauth_tokens")
+    .from("user_tokens")
     .update({ refreshing_until: new Date(now.getTime() + LEASE_MS).toISOString() })
     .eq("refresh_token_enc", stored.refreshTokenEnc)
     .or(`refreshing_until.is.null,refreshing_until.lt.${now.toISOString()}`)
-    .select("provider");
+    .select("user_id");
   if (error) throw new Error(`Claiming the token refresh failed: ${error.message}`);
   return data?.length === 1;
 }
 
 async function releaseLease(owner: Owner, stored: StoredTokens): Promise<void> {
-  await ownerDb(owner).from("oauth_tokens").update({ refreshing_until: null }).eq("refresh_token_enc", stored.refreshTokenEnc);
+  await ownerDb(owner).from("user_tokens").update({ refreshing_until: null }).eq("refresh_token_enc", stored.refreshTokenEnc);
+}
+
+// ---- The token cutover: oauth_tokens' single pair moves to user_tokens, once ----
+//
+// Until step 3 the owner's Tesla tokens lived in oauth_tokens. The first time this code needs a user's
+// tokens and finds no user_tokens row, and that user is oauth_tokens.owner_sub, it moves the pair across:
+//   1. read the pair, and claim oauth_tokens' refresh lease on exactly that refresh token (a compare and
+//      swap). The lease must be free: released, or run out more than LEGACY_LEASE_GRACE_MS ago, longer
+//      than any request of the old code could still be running. So no refresh of the old code can be in
+//      flight, and none can start (the old code claims the same lease before it refreshes).
+//   2. insert it into user_tokens, never overwriting: if a sign-in stored a fresh pair meanwhile, that wins.
+//   3. empty oauth_tokens' pair (compare and swap on the same refresh token, owner_sub kept). Old code
+//      still running, or a rollback, then finds no tokens and reports "not connected" instead of
+//      presenting a refresh token user_tokens now owns.
+// An instance that loses the lease waits for the row to appear, as a refresh waits for another's tokens.
+// Nothing else ever reads oauth_tokens' pair, and nothing writes it, so the copy happens once.
+const LEGACY_LEASE_GRACE_MS = 15 * 60 * 1000;
+
+const TOKEN_COLUMNS = "access_token_enc, refresh_token_enc, expires_at, scope, created_at, updated_at";
+
+type TokenRow = {
+  access_token_enc: string | null;
+  refresh_token_enc: string | null;
+  expires_at: string | null;
+  scope: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+async function selectTokenRow(owner: Owner): Promise<TokenRow | null> {
+  const { data, error } = await ownerDb(owner).from("user_tokens").select(TOKEN_COLUMNS).maybeSingle();
+  if (error) throw new Error(`Reading tokens failed: ${error.message}`);
+  return data as TokenRow | null;
+}
+
+async function adoptLegacyTokens(owner: Owner): Promise<void> {
+  const deadline = Date.now() + LEASE_MS;
+  for (;;) {
+    // Only the Tesla account oauth_tokens names, so no other user can ever be handed its pair.
+    const legacy = await legacyTokens(owner.sub);
+    if (!legacy) return;
+    const now = Date.now();
+    const claimed = await claimLegacyLease(
+      owner.sub,
+      legacy.refresh_token_enc,
+      new Date(now + LEASE_MS).toISOString(),
+      new Date(now - LEGACY_LEASE_GRACE_MS).toISOString(),
+    );
+    if (claimed) {
+      const { error } = await ownerDb(owner)
+        .from("user_tokens")
+        .upsert(
+          {
+            access_token_enc: legacy.access_token_enc,
+            refresh_token_enc: legacy.refresh_token_enc,
+            expires_at: legacy.expires_at,
+            scope: legacy.scope,
+            created_at: legacy.created_at,
+            updated_at: legacy.updated_at,
+          },
+          { onConflict: "user_id", ignoreDuplicates: true },
+        );
+      if (error) {
+        await releaseLegacyLease(owner.sub, legacy.refresh_token_enc);
+        throw new Error(`Moving tokens failed: ${error.message}`);
+      }
+      await retireLegacyTokens(owner.sub, legacy.refresh_token_enc);
+      return;
+    }
+    // Held: another instance copying (its row appears in a moment), or an old refresh finishing (the pair
+    // changes, and the next turn copies the new one).
+    if (await selectTokenRow(owner)) return;
+    if (Date.now() > deadline) throw new Error("Waited too long for the token move");
+    await new Promise((resolve) => setTimeout(resolve, WAIT_STEP_MS));
+  }
+}
+
+// The owner's user_tokens row, or null when they have none; moves the single-owner pair over first when
+// it is theirs (see above). Null tokens in the row mean disconnected: the row stays, so they never move again.
+async function readTokenRow(owner: Owner): Promise<TokenRow | null> {
+  const row = await selectTokenRow(owner);
+  if (row) return row;
+  await adoptLegacyTokens(owner);
+  return selectTokenRow(owner);
 }
 
 type StoredTokens = NonNullable<Awaited<ReturnType<typeof readTokens>>>;
 
-// Null when the owner row is missing or disconnected.
+// Null when the owner has no tokens or is disconnected. Always a fresh read: refreshing depends on it.
 async function readTokens(owner: Owner) {
-  const { data, error } = await ownerDb(owner).from("oauth_tokens").select("access_token_enc, refresh_token_enc, expires_at").maybeSingle();
-  if (error) throw new Error(`Reading tokens failed: ${error.message}`);
+  const data = await readTokenRow(owner);
   if (!data?.access_token_enc || !data.refresh_token_enc || !data.expires_at) return null;
   return {
     accessToken: decrypt(data.access_token_enc),
@@ -218,42 +330,46 @@ async function storedTokens(owner: Owner): Promise<StoredTokens> {
   return tokens;
 }
 
-// The account row (see legacyAccount), read once per request however many of the functions below and
-// currentOwner ask for it. Never used for refreshing (readTokens above): that needs a fresh read.
-export const accountRow = cache(legacyAccount);
+// Each user's token row, read once per request however many of the functions below ask for it. Never
+// used for refreshing (readTokens above): that needs a fresh read.
+const requestTokenRows = cache(() => new Map<number, Promise<TokenRow | null>>());
 
-// The owner's own account row, or null when it isn't theirs.
-async function ownRow(owner: Owner) {
-  const data = await accountRow();
-  return data?.owner_sub === owner.sub ? data : null;
+function tokenRow(owner: Owner): Promise<TokenRow | null> {
+  const rows = requestTokenRows();
+  let row = rows.get(owner.userId);
+  if (!row) rows.set(owner.userId, (row = readTokenRow(owner)));
+  return row;
 }
+
+// The users row a session names, read once per request (lib/server/auth.ts currentOwner).
+export const sessionUser = cache(userById);
 
 export async function isConnected(owner: Owner): Promise<boolean> {
   if (DEMO) return true;
-  return Boolean((await ownRow(owner))?.access_token_enc);
+  return Boolean((await tokenRow(owner))?.access_token_enc);
 }
 
 // When the tokens were last saved (a sign-in or a refresh), or null when not connected.
 export async function tokensSavedAt(owner: Owner): Promise<string | null> {
   if (DEMO) return null;
-  const data = await ownRow(owner);
+  const data = await tokenRow(owner);
   return data?.access_token_enc ? data.updated_at : null;
 }
 
 export type AccountInfo = { connected: boolean; connectedSince: string | null };
 
+// Connected since the account's first sign-in (users.created_at, carried over from oauth_tokens).
 export async function accountInfo(owner: Owner): Promise<AccountInfo> {
   if (DEMO) return { connected: true, connectedSince: demoData().history.at(-1)?.detected_at ?? null };
-  const data = await ownRow(owner);
-  return { connected: Boolean(data?.access_token_enc), connectedSince: data?.created_at ?? null };
+  const [data, user] = await Promise.all([tokenRow(owner), sessionUser(owner.userId)]);
+  return { connected: Boolean(data?.access_token_enc), connectedSince: user?.created_at ?? data?.created_at ?? null };
 }
 
 // Whether the stored token was granted a scope. Tesla's token answer lists them in `scope`, saved at
 // sign-in and each refresh; when that's missing, the access token's own `scp` claim says. Unknown is no.
 export async function hasScope(owner: Owner, scope: string): Promise<boolean> {
   if (DEMO) return true;
-  const { data, error } = await ownerDb(owner).from("oauth_tokens").select("scope, access_token_enc").maybeSingle();
-  if (error) throw new Error(`Reading account failed: ${error.message}`);
+  const data = await tokenRow(owner);
   if (typeof data?.scope === "string" && data.scope) return data.scope.split(" ").includes(scope);
   if (!data?.access_token_enc) return false;
   try {
@@ -268,8 +384,9 @@ export async function hasScope(owner: Owner, scope: string): Promise<boolean> {
 // "Sign out everywhere": the owner's sessions issued before now stop working (see currentOwner).
 export async function revokeAllSessions(owner: Owner): Promise<void> {
   if (DEMO) return;
-  const { error } = await ownerDb(owner).from("oauth_tokens").update({ sessions_valid_after: new Date().toISOString() });
-  if (error) throw new Error(`Signing out everywhere failed: ${error.message}`);
+  await revokeUserSessions(owner, new Date().toISOString()).catch((err: Error) => {
+    throw new Error(`Signing out everywhere failed: ${err.message}`);
+  });
 }
 
 // Tell Tesla to stop the car streaming to Uplink, for each of the owner's cars. Best effort: a
@@ -298,18 +415,22 @@ async function stopStreaming(owner: Owner): Promise<void> {
   }
 }
 
-// Forget the owner's Tesla tokens but keep owner_sub, so only the same Tesla account can sign in again.
+// Forget the owner's Tesla tokens and sign them out everywhere. The user_tokens row stays with no tokens
+// in it, which is what "disconnected" means (and why the cutover never moves tokens to them again); the
+// users row stays, so the same Tesla account can sign in again.
 export async function disconnectTesla(owner: Owner): Promise<void> {
   if (DEMO) return;
   await stopStreaming(owner);
-  const { error } = await ownerDb(owner).from("oauth_tokens").update({
-    access_token_enc: null,
-    refresh_token_enc: null,
-    expires_at: null,
-    sessions_valid_after: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  });
+  const now = new Date().toISOString();
+  const { error } = await ownerDb(owner)
+    .from("user_tokens")
+    .upsert({ access_token_enc: null, refresh_token_enc: null, expires_at: null, refreshing_until: null, updated_at: now }, { onConflict: "user_id" });
   if (error) throw new Error(`Disconnecting failed: ${error.message}`);
+  // A single-owner pair the cutover didn't get to (it moves only when first needed) goes too.
+  await retireLegacyTokens(owner.sub);
+  await revokeUserSessions(owner, now).catch((err: Error) => {
+    throw new Error(`Disconnecting failed: ${err.message}`);
+  });
 }
 
 async function accessToken(owner: Owner, forceRefresh = false): Promise<string> {
@@ -354,13 +475,26 @@ export function fleetGetRaw(owner: Owner, path: string): Promise<Response> {
 }
 
 // "Delete my data": remove the owner's cars and everything recorded from them (see eraseOwnerRows),
-// the Tesla tokens, and sign out everywhere. owner_sub stays, so the dashboard can't be claimed by
-// another Tesla account. Every delete goes by the owner's own keys, never "every row", so another
-// account's data can't go with it. Release notes and place names are shared, not the owner's.
+// the Tesla tokens, and sign out everywhere. The users row stays, so the account can sign in again.
+// Every delete goes by the owner's own user_id, never "every row", so another account's data can't go
+// with it. Release notes and place names are shared, not the owner's.
 export async function deleteMyData(owner: Owner): Promise<void> {
   if (DEMO) return;
   // Before the vehicles go: it needs their VINs. disconnectTesla below repeats it harmlessly.
   await stopStreaming(owner);
   await eraseOwnerRows(owner);
   await disconnectTesla(owner);
+}
+
+// "Delete account": Delete my data, then the users row itself, which cascades to every per-user table
+// left (user_tokens, and anything written since). Invoices and readings are already gone: eraseOwnerRows
+// deletes the invoice files and rows first (charge_receipts' old session key still refuses a cascade
+// through a session with an invoice) and the readings (no foreign key, so no cascade). With sign-up
+// closed, the account can't sign in again unless it is approved anew.
+export async function deleteAccount(owner: Owner): Promise<void> {
+  if (DEMO) return;
+  await deleteMyData(owner);
+  await deleteUser(owner).catch((err: Error) => {
+    throw new Error(`Deleting the account failed: ${err.message}`);
+  });
 }
