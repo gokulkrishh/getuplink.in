@@ -22,7 +22,8 @@ export function Figures({ figures, className }: { figures: (Figure | null | fals
   const columns = shown.length <= 4 ? shown.length : 3;
   const left = shown.length % columns;
   return (
-    <dl className={cn("grid grid-cols-2 gap-px border bg-border bg-clip-padding dark:border-transparent dark:bg-background", SM_COLUMNS[columns], className)}>
+    // A lone tile stays tile-sized (half the width) instead of stretching across the page.
+    <dl className={cn("grid grid-cols-2 gap-px border bg-border bg-clip-padding dark:border-transparent dark:bg-background", SM_COLUMNS[columns], shown.length === 1 && "sm:w-1/2", className)}>
       {shown.map((f, k) => (
         <div
           key={f.label}
