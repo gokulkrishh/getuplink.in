@@ -83,7 +83,7 @@ export function EntryForm({
             {pending ? "Saving…" : submitLabel}
           </Button>
           {remove && (
-            <Button type="submit" size="sm" variant="outline" formAction={removeAction} disabled={removing}>
+            <Button type="submit" size="sm" variant="outline" formAction={removeAction} formNoValidate disabled={removing}>
               {removing ? "Removing…" : "Remove"}
             </Button>
           )}

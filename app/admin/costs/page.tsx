@@ -31,15 +31,20 @@ export const instant = false;
 const heading = "text-lg font-medium tracking-heading";
 const muted = "text-sm text-faint";
 
-// The cache is for showing the page. Every save checks the admin again itself (actions.ts). Live calls
-// have their own hour-long cache (lib/server/costs/vercel.ts).
-async function loadPage(): Promise<{ data: CostsPage; now: number }> {
+// The admin check, and the clock (reading it while rendering blocks prerendering). Every save checks the
+// admin again itself (actions.ts). The costs are read outside this private cache, because the live calls
+// have their own hour-long remote cache (lib/server/costs/vercel.ts), which can't nest inside a private one.
+async function checkAdmin(): Promise<number> {
   "use cache: private";
   cacheTag(COSTS_TAG);
   cacheLife({ stale: 60 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
   if (!(await isAdmin())) notFound();
-  const now = Date.now();
+  return Date.now();
+}
+
+async function loadPage(): Promise<{ data: CostsPage; now: number }> {
+  const now = await checkAdmin();
   return { data: await loadCosts(now), now };
 }
 
@@ -92,8 +97,8 @@ function ConnectVercel() {
     <div className="space-y-1 pt-1 text-xs text-muted-foreground">
       <p>
         Create a team token at{" "}
-        <a href="https://vercel.com/account/tokens" target="_blank" rel="noreferrer" className="underline decoration-border underline-offset-4 hover:decoration-foreground">
-          vercel.com/account/tokens
+        <a href="https://vercel.com/account/settings/tokens" target="_blank" rel="noreferrer" className="underline decoration-border underline-offset-4 hover:decoration-foreground">
+          Vercel&apos;s account tokens
         </a>
         , then set VERCEL_API_TOKEN and VERCEL_TEAM_ID and redeploy.
       </p>

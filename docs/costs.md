@@ -57,6 +57,7 @@ Checked 26 Oct 2026.
 - **Tokens:** there is no read-only token. A token is Full Account, Team or Project scoped, and acts with its creator's role. [Access tokens](https://vercel.com/docs/accounts/access-tokens).
   - Billing is team-level, so use a **Team** token. A project token can't read it.
   - For the narrowest access, have a team member with the **Billing** role create it, so the token can't deploy or change settings.
+  - Steps: open https://vercel.com/account/settings/tokens, name the token, set Scope to the team (All Projects), choose an expiry, create it and copy it. Then set `VERCEL_API_TOKEN` and `VERCEL_TEAM_ID` (the team's settings page shows its ID) in the project's env, and redeploy.
 
 ### Tesla Fleet API: estimated
 
