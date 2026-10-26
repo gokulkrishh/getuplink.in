@@ -31,6 +31,8 @@ const nextConfig: NextConfig = {
       { source: "/api/:path*", headers: noindex },
       { source: "/settings", headers: noindex },
       { source: "/waitlist", headers: noindex },
+      // An invite's token is in its path: never indexed, and never sent on in a Referer.
+      { source: "/invite/:path*", headers: [...noindex, { key: "Referrer-Policy", value: "no-referrer" }] },
     ];
   },
   // Tesla fetches the partner public key from this fixed path.

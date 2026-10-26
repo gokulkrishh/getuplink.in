@@ -86,6 +86,8 @@ export async function proxy(request: NextRequest) {
   if (pathname === "/stats") return NextResponse.redirect(new URL(statsRedirect(request.nextUrl.searchParams), request.url));
 
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
+  // Invite links (/invite/<token>): opened by someone without an account yet. The page checks the token itself.
+  if (pathname.startsWith("/invite/")) return NextResponse.next();
 
   if (DEMO) return NextResponse.next();
   const sent = sessionCookieValues(request.headers.get("cookie"));

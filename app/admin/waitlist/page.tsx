@@ -10,10 +10,12 @@ import { formatDateTime } from "@/lib/format";
 import { isAdmin } from "@/lib/server/admin";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type Account, loadWaitlist, WAITLIST_TAG, type WaitlistPage } from "@/lib/server/waitlist";
-import { decideAccount } from "./actions";
+import { type InviteItem, type InvitesPage, loadInvites } from "@/lib/server/invites";
+import { copyInviteLink, createInviteLink, decideAccount, renewInviteLink, revokeInviteLink } from "./actions";
 import { DecisionButton } from "./decision-button";
+import { CreateInvite, LinkButton } from "./invite-forms";
 
-export const metadata: Metadata = { title: "Waitlist · Admin · Uplink" };
+export const metadata: Metadata = { title: "Access · Admin · Uplink" };
 
 // As /admin: the admin check runs before anything streams, so anyone else gets a real 404.
 export const instant = false;
@@ -22,14 +24,69 @@ const heading = "text-lg font-medium tracking-heading";
 const number = new Intl.NumberFormat("en-IN");
 
 // The cache is for showing the page. Every decision checks the admin again itself (decideAccount).
-async function loadPage(): Promise<{ data: WaitlistPage; now: number }> {
+async function loadPage(): Promise<{ data: WaitlistPage; invites: InvitesPage; now: number }> {
   "use cache: private";
   cacheTag(WAITLIST_TAG);
   cacheLife({ stale: 30 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
   if (!(await isAdmin())) notFound();
   const now = Date.now();
-  return { data: await loadWaitlist(now), now };
+  const [data, invites] = await Promise.all([loadWaitlist(now), loadInvites(now)]);
+  return { data, invites, now };
+}
+
+function inviteLine(i: InviteItem): string {
+  if (i.state === "used") return `Used ${formatDateTime(i.usedAt!)}${i.joined ? ` · ${i.joined}` : ""}`;
+  if (i.state === "expired") return `Expired ${formatDateTime(i.expiresAt)}`;
+  if (i.state === "revoked") return "Revoked";
+  return `Unused · Expires ${formatDateTime(i.expiresAt)}`;
+}
+
+// Invite links: one for each friend's car, made here and shared by the admin. Uplink sends nothing.
+function Invites({ invites }: { invites: InvitesPage }) {
+  return (
+    <section className="space-y-4">
+      <div className="space-y-1">
+        <h2 className={heading}>Invites</h2>
+        <p className="text-sm text-muted-foreground">
+          A link for one friend&apos;s car. It works once, for a day, and only for a Tesla account with that car.
+        </p>
+      </div>
+      {invites.available ? (
+        <CreateInvite action={createInviteLink} />
+      ) : (
+        <p className="text-sm text-faint">Invites aren&apos;t set up yet. Apply the invites migration.</p>
+      )}
+      {invites.items.length > 0 && (
+        <ul className="divide-y border-t">
+          {invites.items.map((i) => (
+            <li key={i.id} className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 py-3">
+              <div className="min-w-0 space-y-0.5">
+                <p className="text-sm font-medium">
+                  {i.label ?? "Invite"} <span className="font-mono text-xs font-normal text-muted-foreground">VIN …{i.vinSuffix}</span>
+                </p>
+                <p className="text-sm text-muted-foreground">{inviteLine(i)}</p>
+              </div>
+              <div className="flex shrink-0 items-start gap-2">
+                {i.state === "unused" && (
+                  <>
+                    <LinkButton action={copyInviteLink.bind(null, i.id)} label="Copy" pendingLabel="Copying…" />
+                    <DecisionButton action={revokeInviteLink.bind(null, i.id)} label="Revoke" pendingLabel="Revoking…" />
+                  </>
+                )}
+                {(i.state === "expired" || i.state === "revoked") && (
+                  <LinkButton action={renewInviteLink.bind(null, i.id)} label="New link" pendingLabel="Creating…" />
+                )}
+                {i.state === "used" && i.joinedApproved && i.joinedUserId !== null && (
+                  <DecisionButton action={decideAccount.bind(null, "suspend", i.joinedUserId)} label="Suspend" pendingLabel="Suspending…" />
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
 }
 
 type Button = { decision: Decision; label: string; pendingLabel: string; variant?: "default" | "outline"; full?: boolean };
@@ -81,14 +138,14 @@ const decided = (verb: string) => (a: Account) => `${verb} ${formatDateTime(a.de
 const latest = (shown: number, total: number) => (total > shown ? `The latest ${shown} of ${number.format(total)}.` : undefined);
 
 export default async function Page() {
-  const { data, now } = await loadPage();
+  const { data, invites, now } = await loadPage();
   const full = isFull(data.used, data.max);
   return (
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
       <Header />
       <div className="space-y-12">
         <header className="space-y-1">
-          <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">Waitlist</h1>
+          <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">Access</h1>
           <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
             {placesLine(data.used, data.max)}.{data.simulated && " Demo mode: simulated."}
             <TipTrigger className="text-faint hover:text-foreground">
@@ -109,6 +166,8 @@ export default async function Page() {
             { label: "Declined", value: number.format(data.counts.declined) },
           ]}
         />
+
+        <Invites invites={invites} />
 
         <List
           title="Waiting"

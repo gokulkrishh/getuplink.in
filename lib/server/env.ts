@@ -35,12 +35,14 @@ export function maxUsers(): number {
   return parseMaxUsers(process.env.MAX_USERS);
 }
 
-export const SIGNUP_MODES = ["closed", "waitlist", "open"] as const;
+export const SIGNUP_MODES = ["closed", "invite", "waitlist", "open"] as const;
 export type SignupMode = (typeof SIGNUP_MODES)[number];
 
 // Optional: SIGNUP_MODE says who may sign up (lib/server/tesla.ts signIn). Unset or unknown is "closed":
-// only approved users sign in. "waitlist": a Tesla account Uplink doesn't know joins the waitlist. "open"
-// acts as "waitlist" for now: auto-approval waits for step 4, until which two users can't track one car.
+// only approved users sign in, and invite links don't work. "invite": a Tesla account Uplink doesn't know
+// joins only through an invite link; without one it's refused. "waitlist": it joins the waitlist, and
+// invite links work too. "open" acts as "waitlist" for now: auto-approval waits for step 4, until which
+// two users can't track one car.
 export function signupMode(): SignupMode {
   const value = process.env.SIGNUP_MODE?.trim().toLowerCase();
   return SIGNUP_MODES.find((mode) => mode === value) ?? "closed";
