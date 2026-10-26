@@ -46,14 +46,14 @@ function metres(a: { lat: number; lng: number }, b: { lat: number; lng: number }
   return Math.hypot(x, y) * 6_371_000;
 }
 
-// MapLibre paints with real colours, not CSS variables: the theme's accent and background as they are now.
+// MapLibre paints with real colours, not CSS variables: the theme's route colour and background as they are now.
 function useThemeColors() {
-  const [colors, setColors] = useState({ accent: "#3f6fae", background: "#ffffff" });
+  const [colors, setColors] = useState({ route: "#1a5fd0", background: "#ffffff" });
   useEffect(() => {
     const read = () => {
       const style = getComputedStyle(document.documentElement);
       setColors({
-        accent: style.getPropertyValue("--chart-accent").trim() || "#3f6fae",
+        route: style.getPropertyValue("--map-route").trim() || "#1a5fd0",
         background: style.getPropertyValue("--background").trim() || "#ffffff",
       });
     };
@@ -70,12 +70,18 @@ function useThemeColors() {
   return colors;
 }
 
-// "#3f6fae" at an opacity, for the faint end of the route.
-function fade(hex: string, alpha: number) {
-  const m = /^#([0-9a-f]{6})$/i.exec(hex);
-  if (!m) return hex;
-  const n = parseInt(m[1], 16);
-  return `rgba(${n >> 16}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+// "#1a5fd0" part way to the background, for the faint end of the route: solid, so the roads under it
+// don't show through and muddy it on the dark map.
+function mix(hex: string, toward: string, amount: number) {
+  const rgb = (h: string) => {
+    const m = /^#([0-9a-f]{6})$/i.exec(h);
+    if (!m) return null;
+    const n = parseInt(m[1], 16);
+    return [n >> 16, (n >> 8) & 255, n & 255];
+  };
+  const [a, b] = [rgb(hex), rgb(toward)];
+  if (!a || !b) return hex;
+  return `rgb(${a.map((v, k) => Math.round(v + (b[k] - v) * amount)).join(", ")})`;
 }
 
 // The route split where readings stop for a while: between legs, between trips, between days.
@@ -110,10 +116,10 @@ function arrowImage(color: string) {
 
 type Hovered = MapPoint & { speed: number | null };
 
-// The route as lines: on a journey, faint at the start and full accent at the end, with arrows the way the
-// car went; for everywhere visited, a plain thinner line. Hovering (or tapping) the route picks the
-// nearest reading.
-function RouteLines({ parts, journey, colors, onHover }: { parts: MapPoint[][]; journey: boolean; colors: { accent: string; background: string }; onHover: (p: MapPoint | null) => void }) {
+// The route as lines over a halo in the page's background, so they stand clear of the basemap's roads: on
+// a journey, faint at the start and full colour at the end, with arrows the way the car went; for
+// everywhere visited, a plain thinner line. Hovering (or tapping) the route picks the nearest reading.
+function RouteLines({ parts, journey, colors, onHover }: { parts: MapPoint[][]; journey: boolean; colors: { route: string; background: string }; onHover: (p: MapPoint | null) => void }) {
   const { map, isLoaded } = useMap();
   const id = useId().replace(/[^a-z0-9]/gi, "");
   const source = `route-${id}`;
@@ -134,15 +140,15 @@ function RouteLines({ parts, journey, colors, onHover }: { parts: MapPoint[][]; 
     if (!isLoaded || !map) return;
     map.addSource(source, { type: "geojson", data, lineMetrics: true });
     const round = { "line-cap": "round", "line-join": "round" } as const;
-    map.addLayer({ id: casing, type: "line", source, layout: round, paint: { "line-color": colors.background, "line-width": journey ? 9 : 6, "line-opacity": 0.85 } });
+    map.addLayer({ id: casing, type: "line", source, layout: round, paint: { "line-color": colors.background, "line-width": journey ? 10 : 7 } });
     map.addLayer({
       id: line,
       type: "line",
       source,
       layout: round,
       paint: journey
-        ? { "line-width": 5, "line-gradient": ["interpolate", ["linear"], ["line-progress"], 0, fade(colors.accent, 0.4), 1, colors.accent] }
-        : { "line-width": 3, "line-color": colors.accent, "line-opacity": 0.8 },
+        ? { "line-width": 5, "line-gradient": ["interpolate", ["linear"], ["line-progress"], 0, mix(colors.route, colors.background, 0.5), 1, colors.route] }
+        : { "line-width": 3.5, "line-color": colors.route },
     });
     if (journey) {
       map.addImage(image, arrowImage(colors.background), { pixelRatio: 2 });
@@ -199,7 +205,7 @@ function RouteLines({ parts, journey, colors, onHover }: { parts: MapPoint[][]; 
     };
     // The layers rebuild with the style (a theme switch) and when the colours or data change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, map, data, journey, colors.accent, colors.background]);
+  }, [isLoaded, map, data, journey, colors.route, colors.background]);
   return null;
 }
 
@@ -360,13 +366,16 @@ function LabelPlacer({ items, onPlace }: { items: LabelItem[]; onPlace: (sides: 
 }
 
 const BADGE = "flex items-center justify-center rounded-full border-2 font-mono font-semibold leading-none shadow-md";
+// Pins wear a white ring in both themes: a ring in the page's background vanishes on the dark basemap.
+const RING = "border-white";
 
-// A start (A), an end (B), or both at one spot (A B): solid accent badges with letters, so they can't be
-// mixed up, and no text pills to collide on a phone. Stops are numbered, charging stops carry a bolt.
+// A start (A), an end (B), or both at one spot (A B): solid badges in the route's colour with letters, so
+// they can't be mixed up, and no text pills to collide on a phone. Stops are numbered, charging stops
+// carry a bolt.
 function JourneyBadge({ kinds, stop }: { kinds: MapPin["kind"][]; stop: number | null }) {
   if (kinds.includes("charge")) {
     return (
-      <span className={cn(BADGE, "size-6 border-background bg-charge text-white")}>
+      <span className={cn(BADGE, RING, "size-6 bg-charge text-white")}>
         <Zap className="size-3 fill-current" aria-hidden="true" />
       </span>
     );
@@ -374,12 +383,12 @@ function JourneyBadge({ kinds, stop }: { kinds: MapPin["kind"][]; stop: number |
   const letters = [kinds.includes("start") && "A", kinds.includes("end") && "B"].filter(Boolean).join(" ");
   if (letters) {
     return (
-      <span className={cn(BADGE, "h-6 min-w-6 px-1.5 text-[11px]", kinds.includes("start") && !kinds.includes("end") ? "border-chart-accent bg-background text-chart-accent" : "border-background bg-chart-accent text-white")}>
+      <span className={cn(BADGE, "h-6 min-w-6 px-1.5 text-[11px]", kinds.includes("start") && !kinds.includes("end") ? "border-map-route bg-background text-map-route" : cn(RING, "bg-map-route text-white"))}>
         {letters}
       </span>
     );
   }
-  return <span className={cn(BADGE, "size-5 border-background bg-foreground text-[10px] text-background")}>{stop ?? ""}</span>;
+  return <span className={cn(BADGE, RING, "size-5 bg-foreground text-[10px] text-background")}>{stop ?? ""}</span>;
 }
 
 type Group = { pins: MapPin[]; lat: number; lng: number };
@@ -557,13 +566,13 @@ export function TripMap({
                       {journey ? (
                         <JourneyBadge kinds={g.pins.map((p) => p.kind)} stop={stop} />
                       ) : lead.kind === "charge" ? (
-                        <span className="flex items-center justify-center rounded-full border-2 border-background bg-charge text-white shadow-md" style={{ width: size, height: size }}>
+                        <span className={cn("flex items-center justify-center rounded-full border-2 bg-charge text-white shadow-md", RING)} style={{ width: size, height: size }}>
                           <Zap className="fill-current" style={{ width: size * 0.5, height: size * 0.5 }} aria-hidden="true" />
                         </span>
                       ) : (
                         // A small place still gets a finger-sized target around it.
                         <span className="block p-2">
-                          <span className="block rounded-full border-2 border-background bg-chart-accent/75 shadow-md" style={{ width: size, height: size }} />
+                          <span className={cn("block rounded-full border-2 bg-map-route shadow-md", RING)} style={{ width: size, height: size }} />
                         </span>
                       )}
                       {name && side && (
@@ -603,26 +612,26 @@ export function TripMap({
         {journey ? (
           <>
             <Swatch text={start ? start.label.replace(" · ", " ") : "Start of a trip"}>
-              <span className={cn(BADGE, "size-4 border-chart-accent bg-background text-[9px] text-chart-accent")}>A</span>
+              <span className={cn(BADGE, "size-4 border-map-route bg-background text-[9px] text-map-route")}>A</span>
             </Swatch>
             <Swatch text={end ? end.label.replace(" · ", " ") : "End of a trip"}>
-              <span className={cn(BADGE, "size-4 border-background bg-chart-accent text-[9px] text-white")}>B</span>
+              <span className={cn(BADGE, RING, "size-4 bg-map-route text-[9px] text-white")}>B</span>
             </Swatch>
             {kinds.has("stop") && (
               <Swatch text="Stop">
-                <span className={cn(BADGE, "size-4 border-background bg-foreground text-[9px] text-background")}>{single ? 1 : ""}</span>
+                <span className={cn(BADGE, RING, "size-4 bg-foreground text-[9px] text-background")}>{single ? 1 : ""}</span>
               </Swatch>
             )}
             {kinds.has("charge") && (
               <Swatch text="Charging stop">
-                <span className={cn(BADGE, "size-4 border-background bg-charge text-white")}>
+                <span className={cn(BADGE, RING, "size-4 bg-charge text-white")}>
                   <Zap className="size-2.5 fill-current" aria-hidden="true" />
                 </span>
               </Swatch>
             )}
             {parts.length > 0 && (
-              <Swatch text="Route, darker towards the end">
-                <span className="block h-1.5 w-8 rounded-full bg-linear-to-r from-chart-accent/40 to-chart-accent" aria-hidden="true" />
+              <Swatch text="Route, fainter at the start">
+                <span className="block h-1.5 w-8 rounded-full bg-linear-to-r from-map-route/50 to-map-route" aria-hidden="true" />
               </Swatch>
             )}
           </>
@@ -630,19 +639,19 @@ export function TripMap({
           <>
             {kinds.has("charge") && (
               <Swatch text={legend ?? "Charge"}>
-                <span className="flex size-4 items-center justify-center rounded-full bg-charge text-white">
+                <span className={cn(BADGE, RING, "size-4 bg-charge text-white")}>
                   <Zap className="size-2.5 fill-current" aria-hidden="true" />
                 </span>
               </Swatch>
             )}
             {kinds.has("place") && (
               <Swatch text={legend ?? "Place"}>
-                <span className="block size-3 rounded-full bg-chart-accent/75" aria-hidden="true" />
+                <span className={cn("block size-3.5 rounded-full border-2 bg-map-route shadow-md", RING)} aria-hidden="true" />
               </Swatch>
             )}
             {parts.length > 0 && (
               <Swatch text="Where the car drove">
-                <span className="block h-1 w-8 rounded-full bg-chart-accent/80" aria-hidden="true" />
+                <span className="block h-1 w-8 rounded-full bg-map-route" aria-hidden="true" />
               </Swatch>
             )}
           </>

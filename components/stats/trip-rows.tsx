@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Measure } from "@/components/measure";
+import { RowChevron } from "@/components/row-chevron";
 
 // One trip as the table shows it, every text worked out on the server (see tripRow in drive-list.tsx): the
 // page sends these few strings per trip, and the browser draws both layouts from them.
@@ -20,12 +21,14 @@ export type TripRow = {
 };
 
 // The trip table's columns. Fixed widths, so a second table (behind Show more) lines up with the first.
+// The last, unlabelled, holds the row's arrow.
 const COLUMNS = [
   { label: "#", width: "w-10" },
   { label: "Date", width: "w-24" },
   { label: "Trip", width: "" },
   { label: "Distance · time", width: "w-36", right: true },
   { label: "Energy · battery", width: "w-36", right: true },
+  { label: "", width: "w-8" },
 ];
 
 const faint = <span className="text-faint">—</span>;
@@ -34,7 +37,7 @@ const faint = <span className="text-faint">—</span>;
 // its page, which lists the legs; the link covers the row, which highlights on hover or focus.
 function TripTableRow({ row }: { row: TripRow }) {
   return (
-    <tr className="relative cursor-pointer transition-colors duration-150 hover:bg-muted focus-within:bg-muted">
+    <tr className="group/row relative cursor-pointer transition-colors duration-150 hover:bg-muted focus-within:bg-muted">
       <td className="py-3 pr-3 font-mono text-xs text-faint">{row.serial}</td>
       <td className="py-3 pr-3 whitespace-nowrap">{row.day}</td>
       <th scope="row" className="truncate py-3 pr-3 text-left font-medium">
@@ -49,9 +52,12 @@ function TripTableRow({ row }: { row: TripRow }) {
           {row.stops && ` · ${row.stops}`}
         </span>
       </td>
-      <td className="py-3 text-right whitespace-nowrap" title={row.levels ?? undefined}>
+      <td className="py-3 pr-3 text-right whitespace-nowrap" title={row.levels ?? undefined}>
         <span className="block font-mono">{row.kwh === null ? faint : <Measure text={row.kwh} />}</span>
         {row.used && <span className="block text-xs text-muted-foreground">{row.used} of battery</span>}
+      </td>
+      <td className="py-3 text-right">
+        <RowChevron className="inline-block" />
       </td>
     </tr>
   );
@@ -62,19 +68,22 @@ function TripTableRow({ row }: { row: TripRow }) {
 function TripListRow({ row }: { row: TripRow }) {
   const second = [row.day, row.duration, row.stops, row.kwh, row.used && `${row.used} of battery`].filter(Boolean);
   return (
-    <li className="relative py-3 text-sm tabular-nums transition-colors duration-150 active:bg-muted">
-      <p className="flex items-baseline justify-between gap-3">
-        <span className="min-w-0 truncate font-medium">
-          <span className="mr-2 font-mono text-xs font-normal text-faint">{row.serial}</span>
-          <Link href={`/stats/driving/${row.start}`} className="outline-none after:absolute after:inset-0">
-            {row.times}
-          </Link>
-        </span>
-        <span className="shrink-0 font-mono">
-          <Measure text={row.km} />
-        </span>
-      </p>
-      <p className="mt-1 truncate text-xs text-muted-foreground">{second.join(" · ")}</p>
+    <li className="group/row relative flex items-center gap-3 py-3 text-sm tabular-nums transition-colors duration-150 hover:bg-muted focus-within:bg-muted active:bg-muted">
+      <div className="min-w-0 flex-1">
+        <p className="flex items-baseline justify-between gap-3">
+          <span className="min-w-0 truncate font-medium">
+            <span className="mr-2 font-mono text-xs font-normal text-faint">{row.serial}</span>
+            <Link href={`/stats/driving/${row.start}`} className="outline-none after:absolute after:inset-0">
+              {row.times}
+            </Link>
+          </span>
+          <span className="shrink-0 font-mono">
+            <Measure text={row.km} />
+          </span>
+        </p>
+        <p className="mt-1 truncate text-xs text-muted-foreground">{second.join(" · ")}</p>
+      </div>
+      <RowChevron />
     </li>
   );
 }

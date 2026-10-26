@@ -29,6 +29,7 @@
   --leading-display: 1.05;
   --color-chart-accent: var(--chart-accent);
   --color-charge: var(--charge);
+  --color-map-route: var(--map-route);
   --color-chart-better: var(--chart-better);
   --color-chart-worse: var(--chart-worse);
   --color-chart-5: var(--chart-5);
@@ -92,6 +93,7 @@
   --chart-5: #d7d7d7;
   --chart-accent: #3f6fae;
   --charge: #1e8449; /* charging: map pins, the bolt on them is white */
+  --map-route: #1a5fd0; /* the route and place pins: brighter than the accent, so they clear the roads */
   --chart-better: #2f7d4f;
   --chart-worse: #8f6207;
   --radius: 0rem;
@@ -126,6 +128,7 @@
   --chart-5: #1e1e1e;
   --chart-accent: #5f93d6;
   --charge: #2f9a5a;
+  --map-route: #5eb1ff;
   --chart-better: #6bbf8a;
   --chart-worse: #d9a441;
 }
@@ -159,6 +162,7 @@
     --chart-5: #1e1e1e;
     --chart-accent: #5f93d6;
     --charge: #2f9a5a;
+    --map-route: #5eb1ff;
     --chart-better: #6bbf8a;
     --chart-worse: #d9a441;
   }
@@ -310,26 +314,27 @@ html .maplibregl-map {
 @utility grid-cols-car-header {
   grid-template-columns: 1fr minmax(0, auto);
 }
-/* A charging session: when, what, energy, and cost when the list has any (see SessionRow). Fixed widths
-   so each row's own grid lines up with the header and the rows around it. "-wide" fits "Yesterday". */
+/* A charging session: when, what, energy, cost when the list has any (see SessionRow), and the arrow of a
+   row that opens its page. Fixed widths so each row's own grid lines up with the header and the rows
+   around it. "-wide" fits "Yesterday". */
 @utility grid-cols-charge {
-  grid-template-columns: 3.5rem minmax(0, 1fr) 5rem;
+  grid-template-columns: 3.5rem minmax(0, 1fr) 5rem 0.875rem;
 }
 @utility grid-cols-charge-cost {
-  grid-template-columns: 3.5rem minmax(0, 1fr) 5rem 7rem;
+  grid-template-columns: 3.5rem minmax(0, 1fr) 5rem 7rem 0.875rem;
 }
 @utility grid-cols-charge-wide {
-  grid-template-columns: 5rem minmax(0, 1fr) 5rem;
+  grid-template-columns: 5rem minmax(0, 1fr) 5rem 0.875rem;
 }
 @utility grid-cols-charge-wide-cost {
-  grid-template-columns: 5rem minmax(0, 1fr) 5rem 7rem;
+  grid-template-columns: 5rem minmax(0, 1fr) 5rem 7rem 0.875rem;
 }
 /* The same with a narrow "#" column first, for the Stats list, which numbers each session. */
 @utility grid-cols-charge-serial {
-  grid-template-columns: 2.5rem 3.5rem minmax(0, 1fr) 5rem;
+  grid-template-columns: 2.5rem 3.5rem minmax(0, 1fr) 5rem 0.875rem;
 }
 @utility grid-cols-charge-serial-cost {
-  grid-template-columns: 2.5rem 3.5rem minmax(0, 1fr) 5rem 7rem;
+  grid-template-columns: 2.5rem 3.5rem minmax(0, 1fr) 5rem 7rem 0.875rem;
 }
 @utility grid-cols-split {
   @media (width >= 48rem) {
