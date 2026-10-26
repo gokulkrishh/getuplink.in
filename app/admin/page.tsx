@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { Header } from "@/components/header";
@@ -59,6 +60,11 @@ export default async function Page() {
           <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">Admin</h1>
           <p className="text-sm text-muted-foreground">
             Totals across every owner. {data.simulated ? "Demo mode: every figure here is simulated." : "No VINs or names."}
+          </p>
+          <p className="text-sm">
+            <Link href="/admin/waitlist" prefetch={true} className="underline decoration-border underline-offset-4 hover:decoration-foreground">
+              Waitlist
+            </Link>
           </p>
         </header>
 
