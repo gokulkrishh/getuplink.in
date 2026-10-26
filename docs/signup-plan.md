@@ -5,9 +5,9 @@ The owner's decisions are final: sign-ups go through a waitlist the owner approv
 ## Done
 
 **Step 1: one data layer** (`lib/server/data/`). No database access exists outside it, and `test/data-layer-guard.test.ts` fails on any import of `lib/server/supabase.ts` or `@supabase/supabase-js`, any `db()` call and any `createClient(` elsewhere.
-- `owner.ts`: the `Owner` type and `ownerDb(owner)`, the only way to touch a per-user table (`OWNER_TABLES`), the per-car RPCs and the invoice bucket. `ownerKeys()` is the single place that says which rows are the owner's. Today that is `oauth_tokens` by `provider` + `owner_sub`, `connector_token` by `owner = 'tesla'`, and nothing for the car tables, since there is one account.
+- `owner.ts`: the `Owner` type and `ownerDb(owner)`, the only way to touch a per-user table (`OWNER_TABLES`), the per-car RPCs and the invoice bucket. `ownerKeys()` is the single place that says which rows are the owner's (`user_id`, since step 3).
 - `system.ts`: named fleet-wide functions for accounts before an owner is known (sign-in, the session check, the connector token), the check lock (`poll_runs`), rollout, admin, the status page and health checks, telemetry retention, and the shared caches (`release_notes`, `place_names`).
-- `owned.ts` / `erase.ts`: Delete my data deletes by the owner's car ids, VINs and invoice ids. It deletes rows that name no owner yet (`poll_runs`, readings for a VIN with no car row) only while `accountCount() <= 1`.
+- `owned.ts` / `erase.ts`: Delete my data deletes only the owner's rows (by `user_id` since step 3).
 - `lib/server/auth.ts` `currentOwner()` returns the account for a current session. Pages, actions, routes and background syncs pass it down. The MCP route binds its tools to the token's account. The poll and station crons loop over `accountOwners()`. `fleetGet`/`fleetGetRaw` take the owner.
 
 **Step 2: migration, written and not applied**: `supabase/migrations/20261030120000_users.sql`.
@@ -16,39 +16,48 @@ The owner's decisions are final: sign-ups go through a waitlist the owner approv
 - Composite FKs `(user_id, vehicle_id)` and `(user_id, session_id)`, plus the `check_vin_user` trigger on the two session tables. Together they refuse a row that points at another user's car.
 - User-aware overloads `counter_values_at(p_user_id, …)` and `snapshot_odometer_at(p_user_id, …)`.
 - A trigger on `oauth_tokens` creates the owner's `users` row on a fresh database.
-- Checked in a throwaway PGlite (Postgres 17): the full chain, the old code's writes, cross-user refusals and the fresh-install path. It has not run against Supabase.
+- Checked in a throwaway PGlite (Postgres 17): the full chain, the old code's writes, cross-user refusals and the fresh-install path.
 
-Apply step 2 only after step 1 is deployed. Take a backup first.
+Applied to production after step 1 was deployed. `owner_settings` never existed in production and was dropped from the plan.
 
-## Step 3: multi-user code, sign-up still closed
+**Step 3: multi-user code, sign-up still closed.** No migration: it runs on the step 2 schema as applied.
+- **The owner is a user.** `Owner = { userId, sub }`. `ownerKeys()` is `{ user_id: owner.userId }` for every table in `OWNER_TABLES` (now `user_tokens` instead of `oauth_tokens`), and `ownerDb().rpc` passes `p_user_id`, so PostgREST picks the user-aware overloads. The poll upserts `vehicles` on `(user_id, id)`, the connector token on `user_id`.
+- **The session names the user.** The cookie is `v4`: `<userId>.<issuedAt>.<expiresAt>.<hmac>`, signed under `uplink/session/v4`. A v3 cookie doesn't verify, so the deploy signs everyone out once (the owner's decision). `currentOwner()` reads the `users` row, requires `approved`, and checks `users.sessions_valid_after`, which Sign out everywhere and Disconnect now write.
+- **Sign-in** (`signIn` in `lib/server/tesla.ts`): a Tesla login whose `sub` is an approved `users.tesla_sub` signs in, and its pair goes to `user_tokens` (upsert, so a sign-in always wins). Anyone else, waitlisted, declined or suspended included, gets `not-owner`, and nothing of theirs is stored. The first-sign-in claim is gone. `SIGNUP_MODE` exists (`signupMode()` in `lib/server/env.ts`, default and fallback `closed`) and nothing reads it yet.
+- **Token cutover**, automatic, in `adoptLegacyTokens` (`lib/server/tesla.ts`). The first time the new code reads a user's tokens and finds no `user_tokens` row, and that user is `oauth_tokens.owner_sub`, it:
+  1. reads the pair and claims `oauth_tokens.refreshing_until` with a compare-and-swap on that refresh token. The lease must be free: released, or run out more than 15 minutes ago, longer than any request of the old code can live.
+  2. inserts it into `user_tokens` with ON CONFLICT DO NOTHING. It copies `scope`, `created_at` and `updated_at` too.
+  3. empties `oauth_tokens`' pair (compare-and-swap on the same token, `owner_sub` kept for `legacy_owner_id()`).
 
-1. **Owner gets a user.** `Owner = { userId: number; sub: string }`. `ownerKeys()` returns `{ user_id: owner.userId }` for every table in `OWNER_TABLES`, and `ownerDb().rpc` calls the `p_user_id` overloads. Nothing else in the app changes: every per-user query already goes through `ownerDb`.
-2. **The session carries the user.** The cookie becomes `v4`: `<userId>.<issuedAt>.<expiresAt>.<hmac>`, signed with a new context string in `lib/session.ts`. `currentOwner()` reads the user, requires `status = 'approved'`, and checks `users.sessions_valid_after`. Decide how v3 cookies are handled (see the decisions below).
-3. **Token cutover** (one deploy, no old code left running):
-   1. Claim the refresh lease on `oauth_tokens`.
-   2. Copy its pair, `scope` and `sessions_valid_after` into `user_tokens` and `users` for the legacy owner.
-   3. From then on, `tesla.ts` reads and writes only `user_tokens` (`ownerDb(owner).from("user_tokens")`, added to `OWNER_TABLES`).
+  An instance that loses the lease waits for the row, as a refresh waits. A disconnected user keeps a `user_tokens` row with no tokens, so nothing is ever copied to them again. A sign-in also empties `oauth_tokens`' pair. Tested in `test/tesla-refresh.test.ts`: five concurrent requests make one copy, an old refresh in flight is waited out, and another user is never handed the pair.
+- **System functions.** `legacyAccount` and `claimAccount` are gone.
+  - `accountOwners`: approved users, minus a disconnected one. A user with no token row is included, which is how the cron triggers the cutover.
+  - `accountCount`: all users. Admin's owners count is approved users.
+  - `connectorTokenAccount(hash)`: approved users only.
+  - `healthCheckCar`: the car's own user.
+  - `ownedRows` / `erase.ts`: everything by `user_id`. Telemetry is deleted by VIN first (indexed), then the user's rest.
+- **Delete account** (Settings → Your data, type "delete account"): Delete my data, then `delete from users`, which cascades.
+- **Fleet totals count a car once:** `oneCopyPerCar` in `fleetCars`, `fleetVersionChanges`, `fleetOffers`, `fleetSuperchargerSites` and admin's car list. Each car keeps the copy of the lowest user id.
+- `lastReadingAt` reads by the owner's VINs. `charging.ts` `lastAttempt` and the in-instance refresh dedupe in `tesla.ts` are per user.
+- **Unchanged, on purpose:**
+  - Retention prunes by field age across all readings. A loop over users would delete the same rows.
+  - The check lock (`poll_runs`) is still one run for everyone; step 5 makes it per user.
+  - The Fly receiver still writes readings with the default `legacy_owner_id()`.
 
-   Never copy outside the lease: refresh tokens are single use, and a stale copy revokes the chain.
-4. **Sign-in** (`claimAccount` → per user): upsert `users` by `tesla_sub`, and store tokens in `user_tokens`. With `SIGNUP_MODE=closed` (the default), an unknown `sub` is refused as today's `not-owner`, so only the owner can sign in.
-5. **System functions go per user.**
-   - `legacyAccount`: remove it.
-   - `accountOwners`: approved users with tokens.
-   - `accountCount`: count of users.
-   - `connectorTokenAccount`: look up by `token_hash`, with a unique index on it.
-   - `healthCheckCar`: the car and its user.
-   - `ownedRows`: by `user_id`, and drop the `unclaimed` branch.
-   - `erase.ts`: delete `poll_runs` and `telemetry_readings` by `user_id`.
-6. **"Delete account"** (new, Settings → Your data): Delete my data, then delete the user's storage files, then `delete from users where id = …`, which cascades. The old restrict key `charge_receipts.session_id` still refuses a cascade through sessions with invoices, so delete the invoices first, as `eraseOwnerRows` does.
-7. **Rollout and admin** stay fleet-wide, but dedupe by VIN once two users can share a car, so the same car isn't counted twice (`fleetCars`, `fleetVersionChanges`, `fleetOffers`).
-8. **Reads with no VIN** (`lastReadingAt`, `lastCheckAt`) filter by `user_id`. `lastReadingAt` should take the owner's VINs, so the `(vin, field, created_at)` index serves it.
-9. **Embeds name their key.** Once the migration is applied, snapshots/vehicles, version_history/vehicles and charge_receipts/stream_charge_sessions each have two foreign keys, and PostgREST refuses an unhinted embed between them (PGRST201). Hint the key (`snapshots!snapshots_vehicle_id_fkey(…)`, as `fleetOffers` does), or read in two steps (as `ownedRows` does). Step 4 drops the old keys, so the hints change then too.
-10. **Per-instance throttles become per user:** `charging.ts` `lastAttempt` becomes a `Map` keyed by user id.
+**Deploy notes for step 3.** Deploy at a quiet hour, and don't roll back after it: the cutover empties `oauth_tokens`' pair, so the old code would come back "not connected" and need a sign-in. The owner is signed out and signs in again. A fresh database (local dev, a new project) needs its owner seeded by hand, since nobody can claim it by signing in:
+```sql
+insert into public.users (tesla_sub, status, approved_at) values ('<tesla sub>', 'approved', now());
+-- Until step 4: the default user of streamed readings.
+insert into public.oauth_tokens (provider, owner_sub) values ('tesla', '<tesla sub>');
+```
 
 ## Step 4: remove the single-owner table and keys
 
 Until this step, two users can't track the same car: the old global keys refuse the second copy. Keep sign-up closed until step 4 is done.
-1. Drop `oauth_tokens`, `legacy_owner_id()`, the `oauth_tokens_legacy_owner_user` trigger and the `user_id` defaults.
+1. Drop `oauth_tokens`, `legacy_owner_id()`, the `oauth_tokens_legacy_owner_user` trigger and the `user_id` defaults. Do this only once the step 3 cutover has run in production: `oauth_tokens` has no pair left and `user_tokens` has the owner's row. Remove the cutover code with it:
+   - in `lib/server/tesla.ts`: `adoptLegacyTokens`, and the `retireLegacyTokens` calls in `signIn` and `disconnectTesla`.
+   - in `lib/server/data/system.ts`: `legacyTokens`, `claimLegacyLease`, `releaseLegacyLease` and `retireLegacyTokens`.
+   - in this doc: the `oauth_tokens` line of the seeding SQL.
 2. Swap the keys:
    - `vehicles`: PK → `(user_id, id)`, and `vin` unique → `(user_id, vin)`. Drop the old `snapshots.vehicle_id` / `version_history.vehicle_id` FKs first.
    - `charging_sessions`: PK → `(user_id, session_id)`.
@@ -85,9 +94,12 @@ Until this step, two users can't track the same car: the old global keys refuse 
 
 ## Decisions for the owner
 
+Open:
 1. The owner's email for their `users` row. The migration leaves it null.
 2. An email provider for waitlist and approval notices.
-3. At step 3, should existing (v3) sessions be signed out once, or kept as the legacy owner's until they expire?
-4. Should waitlisted accounts keep Tesla tokens? The recommendation is no: they sign in again when approved, which keeps the API budget and stored data to approved users only.
-5. Should a car tracked by two users count once in rollout totals? The recommendation is yes.
-6. When to apply the step 2 migration. It must come after step 1 is deployed, during a quiet hour, with a backup.
+
+Decided:
+- v3 sessions are signed out once at step 3.
+- Waitlisted accounts keep no Tesla tokens.
+- A car tracked by two users counts once in rollout totals.
+- The step 2 migration is applied.
