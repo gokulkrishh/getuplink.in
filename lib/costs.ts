@@ -328,7 +328,7 @@ export function flyEstimate(input: { machines: FlyMachine[]; volumes: FlyVolume[
 export const DOMAIN = {
   name: "getuplink.in",
   // Namecheap's regular .in renewal, a year (docs/costs.md).
-  renewalUsd: 11.98,
+  renewalUsd: 13.42,
   checked: "2026-10-26",
 };
 

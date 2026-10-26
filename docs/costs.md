@@ -175,7 +175,7 @@ Prices from [Fly's pricing](https://docs.fly.io/about/pricing), for started Mach
 - `GET https://rdap.nixiregistry.in/rdap/domain/getuplink.in`, the .in registry's RDAP server (per the [IANA bootstrap](https://data.iana.org/rdap/dns.json)), then `https://rdap.org/domain/getuplink.in` if that fails (it redirects to the same server). It needs no account.
   - Both are sent `Accept: application/rdap+json` and `User-Agent: Uplink costs (+https://getuplink.in)`. Without a User-Agent, requests from Vercel were refused with a 403.
 - The response's `events` ([RFC 9083](https://www.rfc-editor.org/rfc/rfc9083)) include `expiration`, which is the renewal date (as an IST day), and `registration`, whose `eventActor` is `namecheap`.
-- **Price:** $11.98 a year, Namecheap's regular .in renewal, kept as `DOMAIN.renewalUsd` in `lib/costs.ts`.
+- **Price:** $13.42 a year, `DOMAIN.renewalUsd` in `lib/costs.ts`: what the owner actually paid, $26.84 for two years (Namecheap order receipt, 21 Oct 2026; registration runs to 21 Oct 2028). Namecheap lists .in renewal at $11.98 a year before fees, so check the renewal invoice in 2028.
   - Fetching Namecheap's own page was blocked (HTTP 403 to automated fetches). The figure is from the search-indexed [Namecheap .in page](https://www.namecheap.com/domains/registration/cctld/in), which lists renewal at $11.98 a year ($59.90 for 5), and [DomainOffer's 2026 listing](https://domainoffer.net/tld/in/namecheap) agrees.
   - An older snapshot of a Namecheap page showed $9.98.
   - **The owner should confirm this** against the renewal price in their Namecheap account, and update the constant if it differs.

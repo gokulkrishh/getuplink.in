@@ -242,7 +242,7 @@ describe("the page's data", () => {
   });
 
   test("the domain: Namecheap's renewal a year, renewing on RDAP's expiry", async () => {
-    expect((await byId()).domain).toMatchObject({ amount: 11.98, period: "yearly", resetsOn: "2028-10-21", source: "estimated", state: "ok", note: "getuplink.in" });
+    expect((await byId()).domain).toMatchObject({ amount: 13.42, period: "yearly", resetsOn: "2028-10-21", source: "estimated", state: "ok", note: "getuplink.in" });
     expect(fetched[0].url).toBe("https://rdap.nixiregistry.in/rdap/domain/getuplink.in");
   });
 
@@ -263,7 +263,7 @@ describe("the page's data", () => {
     stubFetch((url) => (url.host.startsWith("rdap.") ? forbidden() : providers(url)));
     expect(await logs(async () => expect(await readDomain()).toEqual({ kind: "error" }))).toEqual(["Costs read failed: RDAP 403, 403"]);
     const logged = await logs(async () =>
-      expect((await byId()).domain).toMatchObject({ amount: 11.98, state: "ok", resetsOn: null, note: "getuplink.in. Renewal date unavailable" }),
+      expect((await byId()).domain).toMatchObject({ amount: 13.42, state: "ok", resetsOn: null, note: "getuplink.in. Renewal date unavailable" }),
     );
     expect(logged.filter((l) => l.includes("RDAP") || l.startsWith("Domain"))).toEqual(["Costs read failed: RDAP 403, 403"]);
   });
@@ -282,7 +282,7 @@ describe("the page's data", () => {
     );
     const page = await loadCosts(NOW);
     const lines = Object.fromEntries(page.lines.map((l) => [l.id, l]));
-    expect(lines.domain.amount).toBe(11.98);
+    expect(lines.domain.amount).toBe(13.42);
     expect(lines.supabase.state).toBe("connect");
     expect(lines["entry-4"]).toMatchObject({ amount: 10, approx: true, resetsOn: "2026-11-07", source: "fixed" });
     expect(Object.keys(page.edit)).toEqual(["entry-4"]);
