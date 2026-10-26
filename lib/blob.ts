@@ -24,17 +24,11 @@ function random(seed: number): () => number {
 
 const round = (n: number) => Math.round(n * 100) / 100;
 
-// Three colours that sit together: a base hue from the seed and two neighbours 40-80° either side,
-// in oklch so they read evenly bright in light and dark themes.
-export function blobColors(seed: string): [string, string, string] {
-  const next = random(hash(`${seed}:colors`));
-  const base = Math.floor(next() * 360);
-  const hue = (offset: number) => Math.round((base + offset + 360) % 360);
-  return [
-    `oklch(0.72 0.14 ${hue(0)})`,
-    `oklch(0.66 0.16 ${hue(40 + next() * 40)})`,
-    `oklch(0.8 0.1 ${hue(-(40 + next() * 40))})`,
-  ];
+// One blue blend for every account, picked by the owner; the blob shapes still come from the seed, so
+// accounts differ by shape. In oklch so it reads evenly bright in light and dark themes.
+const BLUES: [string, string, string] = ["oklch(0.74 0.09 238)", "oklch(0.62 0.11 249)", "oklch(0.86 0.05 215)"];
+export function blobColors(_seed: string): [string, string, string] {
+  return BLUES;
 }
 
 // A closed SVG path around (size/2, size/2): `points` radii between 70% and 100% of the half-size,

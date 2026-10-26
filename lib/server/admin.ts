@@ -8,7 +8,8 @@ import { demoData, demoFleet } from "./demo";
 import { missingEnv } from "./env";
 import { DEMO_OWNER, type Owner } from "./data/owner";
 import { carsNotStreaming, type WaitingCar } from "./data/setup";
-import { ADMIN_ROLE, adminTotals, userRole } from "./data/system";
+import { unknownCodes } from "@/lib/car";
+import { ADMIN_ROLE, adminTotals, carCodes, userRole } from "./data/system";
 import { canSendConfig } from "./telemetry-config";
 import { COMPONENTS } from "./stream-health";
 
@@ -50,6 +51,8 @@ export type AdminPage = {
   // migration. sendsConfig: whether Uplink sends the streaming config itself (its keys are set).
   notStreaming: WaitingCar[] | null;
   sendsConfig: boolean;
+  // Cars reporting a model or pack code lib/car.ts doesn't know yet, by user id; null when it couldn't be read.
+  unknownCars: { userId: number; codes: string[] }[] | null;
 };
 
 function spread(versions: (string | null)[]): Pick<AdminPage, "versions" | "noVersion"> {
@@ -94,10 +97,19 @@ export async function loadAdmin(now: number): Promise<AdminPage> {
       health: healthTotals(demoData().healthDaily, sinceDay),
       notStreaming: [],
       sendsConfig: true,
+      unknownCars: [],
     };
   }
   const since = new Date(recent).toISOString();
-  const [totals, notStreaming] = await Promise.all([adminTotals(since, new Date(now - RECENT_DAYS * DAY).toISOString()), carsNotStreaming()]);
+  const [totals, notStreaming, codes] = await Promise.all([
+    adminTotals(since, new Date(now - RECENT_DAYS * DAY).toISOString()),
+    carsNotStreaming(),
+    // Never fails the page: shown as not known.
+    carCodes().catch((err: Error) => {
+      console.warn("Reading car codes failed:", err.message);
+      return null;
+    }),
+  ]);
   const cars = totals.cars;
   return {
     simulated: false,
@@ -109,5 +121,6 @@ export async function loadAdmin(now: number): Promise<AdminPage> {
     health: healthTotals(totals.health as DailyCheck[], sinceDay),
     notStreaming,
     sendsConfig: canSendConfig(),
+    unknownCars: codes && codes.map((c) => ({ userId: c.userId, codes: unknownCodes(c.config) })).filter((c) => c.codes.length > 0),
   };
 }

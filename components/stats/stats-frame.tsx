@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Header } from "@/components/header";
 import { PeriodPicker, PeriodScope } from "./period-scope";
-import { type CustomScope, type View } from "./periods";
+import { type CustomScope, PAGE_PERIODS, type View } from "./periods";
 import { ViewTabs } from "./view-tabs";
 
 // What every Stats page shows around its sections, once its data is in: the topic links and, when the
@@ -11,7 +11,7 @@ import { ViewTabs } from "./view-tabs";
 // the switch still keeps a range picked by date in its links.
 export function StatsFrame({ view, custom, periodSwitch = true, children }: { view: View; custom: CustomScope; periodSwitch?: boolean; children: ReactNode }) {
   return (
-    <PeriodScope custom={custom}>
+    <PeriodScope periods={PAGE_PERIODS.stats} custom={custom}>
       <div className="space-y-12">
         <div className="space-y-6">
           <ViewTabs view={view} />

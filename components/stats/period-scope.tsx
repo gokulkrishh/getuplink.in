@@ -4,14 +4,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createContext, useContext, useState, useTransition, type ReactNode } from "react";
 import { dayIso, isoDay } from "@/lib/periods";
 import { cn } from "@/lib/utils";
-import { type CustomScope, type DateRange, defaultPeriod, type HomePeriod, type Period, parsePeriod, urlRange } from "./periods";
+import { type CustomScope, type DateRange, defaultPeriod, type HomePeriod, PAGE_PERIODS, parsePeriod, type PeriodSet, urlRange } from "./periods";
 import { PeriodSwitch } from "./period-switch";
 
 export type { CustomScope, DateRange };
 
 type Scope = {
   period: HomePeriod;
-  options?: Period[];
+  periods: PeriodSet;
   custom?: CustomScope;
   range: DateRange | null;
   pending: boolean;
@@ -19,7 +19,7 @@ type Scope = {
   pick: (range: DateRange) => void;
 };
 
-const PeriodContext = createContext<Scope>({ period: defaultPeriod(), range: null, pending: false, select: () => {}, pick: () => {} });
+const PeriodContext = createContext<Scope>({ period: defaultPeriod(PAGE_PERIODS.home), periods: PAGE_PERIODS.home, range: null, pending: false, select: () => {}, pick: () => {} });
 
 // The period picked here and, for Custom, its dates: what links to other pages carry (see statsHref).
 export const usePeriod = (): { period: HomePeriod; range: DateRange | null } => {
@@ -48,18 +48,19 @@ export function ByPeriod({ panels, steady = false }: { panels: Partial<Record<Ho
   );
 }
 
-// Holds a page's period, read from ?period= (the default, Week where offered, stays out of it). Every period's panels
+// Holds a page's period, read from ?period= (the one the page opens on stays out of it). Every period's panels
 // arrive with the page, so switching only replaces the address (which Next's router follows) and needs no
-// server trip; a shared link, the logo's link to / and a refresh all show the URL's period. `options`
-// limits it, like Updates without Week. Other query parameters are kept.
+// server trip; a shared link, the logo's link to / and a refresh all show the URL's period. `periods` is
+// the page's set (see PAGE_PERIODS): what the switch offers and what it opens on; Home's unless given.
+// Other query parameters are kept.
 // With `custom`, Custom picks a range by date: ?period=custom&from=…&to=…. A range's panels are
 // the server's to draw, so picking a new one navigates; going back to the range already drawn doesn't.
-export function PeriodScope({ options, custom, children }: { options?: Period[]; custom?: CustomScope; children: ReactNode }) {
+export function PeriodScope({ periods = PAGE_PERIODS.home, custom, children }: { periods?: PeriodSet; custom?: CustomScope; children: ReactNode }) {
   const params = useSearchParams();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const raw = params.get("period");
-  const period: HomePeriod = custom && raw === "custom" ? "custom" : parsePeriod(raw ?? undefined, options);
+  const period: HomePeriod = custom && raw === "custom" ? "custom" : parsePeriod(raw ?? undefined, periods);
   const range = custom ? (urlRange(params.get("from"), params.get("to")) ?? custom.range) : null;
 
   const withRange = (url: URL, next: DateRange) => {
@@ -84,21 +85,21 @@ export function PeriodScope({ options, custom, children }: { options?: Period[];
     const url = new URL(window.location.href);
     url.searchParams.delete("from");
     url.searchParams.delete("to");
-    if (next === defaultPeriod(options)) url.searchParams.delete("period");
+    if (next === defaultPeriod(periods)) url.searchParams.delete("period");
     else url.searchParams.set("period", next);
     window.history.replaceState(null, "", url);
   };
-  return <PeriodContext value={{ period, options, custom, range, pending, select, pick }}>{children}</PeriodContext>;
+  return <PeriodContext value={{ period, periods, custom, range, pending, select, pick }}>{children}</PeriodContext>;
 }
 
 // The switch for the period of the scope it is in, offering the scope's options, and the dates when Custom
 // is picked.
 export function PeriodPicker() {
-  const { period, options, custom, range, pending, select, pick } = useContext(PeriodContext);
+  const { period, periods, custom, range, pending, select, pick } = useContext(PeriodContext);
   return (
     // The range sits beside the switch where there is room, and below it on a phone.
     <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-      <PeriodSwitch period={period} options={options} custom={Boolean(custom)} onChange={select} />
+      <PeriodSwitch period={period} options={periods.options} custom={Boolean(custom)} onChange={select} />
       {custom && period === "custom" && range && (
         // Keyed by the range, so the inputs start over from the one the page drew.
         <RangePicker key={`${range.from}:${range.to}`} range={range} today={custom.today} pending={pending} onPick={pick} />

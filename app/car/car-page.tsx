@@ -4,6 +4,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { Header } from "@/components/header";
+import { InfoButton } from "@/components/info-button";
 import { Measure } from "@/components/measure";
 import { CarNotices } from "@/components/owner-notices";
 import { supplyFigures, Words } from "@/components/stats/charge-supply";
@@ -86,6 +87,7 @@ function MoreLink({ href, children }: { href: string; children: ReactNode }) {
 
 // Name, model and paint; the odometer, the software (to /updates) and when Uplink last heard from the car.
 function CarHeader({ car, odometer, version, syncedAt, at }: { car: CarDetails; odometer: number | null; version: string | null; syncedAt: string | null; at: number }) {
+  const battery = car.battery;
   // "2025 Model Y Long Range", without repeating the model when the car is named after it.
   const model = [car.year, car.model !== car.name && car.model, car.pack].filter(Boolean).join(" ");
   const subtitle = [model, car.generation, car.paint].filter(Boolean).join(" · ");
@@ -96,11 +98,11 @@ function CarHeader({ car, odometer, version, syncedAt, at }: { car: CarDetails; 
         <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem] text-balance break-words">{car.name}</h1>
         {subtitle && <p className="text-sm text-muted-foreground text-pretty">{subtitle}</p>}
       </div>
-      {(odometer !== null || version) && (
+      {(odometer !== null || version || battery) && (
         <dl className="flex flex-wrap gap-x-10 gap-y-3">
           {odometer !== null && (
             <div className="space-y-1">
-              <dt className="text-[0.8125rem] text-muted-foreground">Odometer</dt>
+              <dt className="text-[0.8125rem] leading-5 text-muted-foreground">Odometer</dt>
               <dd className="font-mono text-lg leading-none font-medium tabular-nums">
                 <Measure text={formatKm(odometer)} size="tile" />
               </dd>
@@ -108,7 +110,7 @@ function CarHeader({ car, odometer, version, syncedAt, at }: { car: CarDetails; 
           )}
           {version && (
             <div className="space-y-1">
-              <dt className="text-[0.8125rem] text-muted-foreground">Software</dt>
+              <dt className="text-[0.8125rem] leading-5 text-muted-foreground">Software</dt>
               <dd className="text-lg leading-none">
                 <Link
                   href="/updates"
@@ -117,6 +119,30 @@ function CarHeader({ car, odometer, version, syncedAt, at }: { car: CarDetails; 
                   className="inline-flex items-center gap-0.5 font-mono font-medium tabular-nums underline decoration-border decoration-dotted underline-offset-4 transition-colors duration-150 hover:decoration-foreground"
                 >
                   {version}
+                  <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />
+                </Link>
+              </dd>
+            </div>
+          )}
+          {/* The latest week's estimate, as on /stats/battery, which it opens. */}
+          {battery && (
+            <div className="space-y-1">
+              {/* Held to one text line, so the ⓘ button doesn't push this figure below its neighbours. */}
+              <dt className="flex h-5 items-center gap-1 text-[0.8125rem] leading-5 text-muted-foreground">
+                Usable capacity
+                <InfoButton label="usable capacity" terms={["kWh", "usable capacity"]}>
+                  <p>
+                    From {battery.readings === 1 ? "1 reading" : `${battery.readings} readings`} in the week of {formatShortDate(battery.weekStart)}.
+                  </p>
+                </InfoButton>
+              </dt>
+              <dd className="text-lg leading-none">
+                <Link
+                  href="/stats/battery"
+                  prefetch={true}
+                  className="inline-flex items-center gap-0.5 font-mono font-medium tabular-nums underline decoration-border decoration-dotted underline-offset-4 transition-colors duration-150 hover:decoration-foreground"
+                >
+                  <Measure text={formatKwh(battery.kwh)} size="tile" />
                   <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />
                 </Link>
               </dd>
@@ -216,23 +242,6 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
         <CarNotices notices={notices} />
       </div>
 
-      {car.battery && (
-        <Section title="Battery" action={<MoreLink href="/stats/battery">Battery trend</MoreLink>}>
-          {/* The latest week's estimate, as on /stats/battery; shown once, here. */}
-          <Figures
-            figures={[
-              {
-                label: "Usable capacity",
-                value: formatKwh(car.battery.kwh),
-                note: `From ${car.battery.readings === 1 ? "1 reading" : `${car.battery.readings} readings`} in the week of ${formatShortDate(car.battery.weekStart)}`,
-              },
-            ]}
-            label="Battery"
-            terms={["kWh", "usable capacity"]}
-          />
-        </Section>
-      )}
-
       {figures.length > 0 && (
         <Section title="Car now">
           {/* The charge tile's note gives the power in kW while charging. */}
@@ -266,10 +275,9 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
             terms={["psi"]}
           />
           {(seen.shared || car.tyrePressure) && (
-            <div className="space-y-1 text-xs text-muted-foreground">
-              {seen.shared && <p>{seen.shared}</p>}
-              {car.tyrePressure && <p>Recommended {car.tyrePressure}</p>}
-            </div>
+            <p className="text-xs text-muted-foreground">
+              {[seen.shared, car.tyrePressure && `Recommended ${car.tyrePressure}`].filter(Boolean).join(" · ")}
+            </p>
           )}
           {/* A warning not shown on a tile: one that doesn't say which tyre, or a tyre with no reading. */}
           {now?.tyreWarning && !tyres.some((t) => t.alert) && <p className="text-sm text-destructive">{now.tyreWarning}</p>}

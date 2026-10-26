@@ -135,12 +135,12 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
       {hasDriving ? (
         <div className="space-y-12">
           {eachFrame(frames, (f) => {
-            const { frame, driving } = fromSince(f, figures.since, now);
-            return <Distance frame={frame} driving={driving} />;
+            const { frame, driving: figures_ } = fromSince(f, figures.since, now);
+            return <Distance frame={frame} driving={figures_} drives={{ list: driving.drives, from: tripsFrom }} />;
           })}
           {eachFrame(frames, (f) => {
-            const { frame, driving } = fromSince(f, figures.since, now);
-            return <EnergyUse frame={frame} driving={driving} />;
+            const { frame, driving: figures_ } = fromSince(f, figures.since, now);
+            return <EnergyUse frame={frame} driving={figures_} />;
           })}
           {/* Seasons are compared across the year, so no single period changes them. */}
           <SeasonEfficiency {...seasons} />

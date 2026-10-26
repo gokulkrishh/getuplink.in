@@ -1,16 +1,61 @@
-import { Fragment } from "react";
+import Link from "next/link";
+import { Fragment, type ReactNode } from "react";
 import { Measure } from "@/components/measure";
 import { showsZero } from "@/lib/format";
+import { statsHref, type View } from "@/components/stats/periods";
 import { measureParts } from "@/lib/measure";
+import type { SlotDays } from "@/lib/periods";
 import { cn } from "@/lib/utils";
 
 // The pieces Bars, BarColumns and StackedBars share. No directive: they render on either side.
 
-// `tip` is an extra line under the value in the hover tip, like "16 of 40 cars". `axis` is a shorter label
-// for under the bar when `label` (the tip's title) is too long to fit there, like "20" for "20 to 40 km/h".
-// `edge` puts `axis` on the column's start boundary, with a tick, instead of centred under it: for blocks
-// of hours, where "6 AM" under the 6 AM to 9 AM bar reads as "at 6 AM" (see Slot).
-export type Bar = { key: string; label: string; value: number; display: string; isCurrent: boolean; blank?: boolean; tip?: string; axis?: string; edge?: boolean };
+// `tip` is what the tip adds under the value, which the chart has no room for: a line, or several, like
+// "16 of 40 cars" or "3 drives" and "1 h 20 min driving". `axis` is a shorter label for under the bar when
+// `label` is too long to fit there, like "20" for "20 to 40 km/h". `edge` puts `axis` on the column's
+// start boundary, with a tick, instead of centred under it: for blocks of hours, where "6 AM" under the
+// 6 AM to 9 AM bar reads as "at 6 AM" (see Slot). `days` is the day, month or year the bar covers, when it
+// covers one: the tip's title in full ("Sun, 26 Oct") and what the column opens (see barOpens).
+export type Bar = { key: string; label: string; value: number; display: string; isCurrent: boolean; blank?: boolean; tip?: string | string[]; axis?: string; edge?: boolean; days?: SlotDays };
+
+// The tip's title: the bar's days in full where it covers a day, a month or a year, else its label.
+export const barTitle = (b: Pick<Bar, "label" | "days">) => b.days?.title ?? b.label;
+
+// The tip's extra lines, as given.
+export const tipLines = (tip: string | string[] | undefined): string[] => (tip === undefined ? [] : Array.isArray(tip) ? tip : [tip]);
+
+// Where a column leads, and the words for it in the tip: a bar of one day opens that day's page; a bar of a
+// month or a year opens the same days on `view`'s Stats page as a range picked by date. A bar of hours leads
+// nowhere, nor does a month or year on a chart that names no page (Home's previews), nor a bar of speeds.
+export type Opens = { href: string; label: string };
+
+export function barOpens(days: SlotDays | undefined, view?: View): Opens | null {
+  if (!days) return null;
+  if (days.kind === "day") return { href: `/stats/day/${days.from}`, label: "Open day" };
+  return view ? { href: statsHref(view, "custom", { from: days.from, to: days.to }), label: `Open ${days.kind}` } : null;
+}
+
+// What a column holds. Tab reaches it, with a ring, so its tip can be read without a pointer (focus shows the
+// tip like hover does, see BarTip); when the column leads somewhere (`opens`) it is a link there, which a
+// click or Enter follows. `words` is the column for screen readers, its label first: the axis label under
+// the bar is visual only, shown only where it fits.
+export function Column({ opens, words, children }: { opens: Opens | null; words: string; children: ReactNode }) {
+  const className = "flex w-full flex-col items-center gap-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring";
+  const sr = <span className="sr-only">{words}</span>;
+  if (opens) {
+    return (
+      <Link href={opens.href} prefetch={false} className={className}>
+        {children}
+        {sr}
+      </Link>
+    );
+  }
+  return (
+    <div tabIndex={0} className={className}>
+      {children}
+      {sr}
+    </div>
+  );
+}
 
 // The widest a bar gets, so one bar in a wide column (or 6 on a desktop) isn't a block. Bars sit centred in their columns.
 export const BAR_MAX = "max-w-12";
@@ -40,7 +85,7 @@ export function AxisLabel({ label, current, edge, first }: { label: string; curr
         // The gap between columns is gap-1, so their boundary is 2px before this one.
         <span aria-hidden="true" className={cn("pointer-events-none absolute top-26 h-1 w-px bg-muted-foreground/40", first ? "left-0" : "-left-0.5")} />
       )}
-      <span data-axis-label data-axis-edge={edge || undefined} className={cn("invisible h-4 text-xs whitespace-nowrap", current ? "text-foreground" : "text-faint")}>
+      <span data-axis-label data-axis-edge={edge || undefined} aria-hidden="true" className={cn("invisible h-4 text-xs whitespace-nowrap", current ? "text-foreground" : "text-faint")}>
         {label}
       </span>
     </>
@@ -79,17 +124,20 @@ export function ValueLabel({ display, unit }: { display: string; unit?: string }
   );
 }
 
-// The value of the column under the pointer or tapped (see TapColumns), like the version chart's tooltip. It overlays the top of
-// the column (so a scrolling strip can't clip it) and leans inwards at the edges. Screen readers get the
-// same values from each column's sr-only text.
-export function BarTip({ title, lines, at, of }: { title: string; lines: (string | null | false)[]; at: number; of: number }) {
-  const side = at < of / 4 ? "left-0" : at > (of * 3) / 4 ? "right-0" : "left-1/2 -translate-x-1/2";
+// The value of the column under the pointer, tapped (see TapColumns) or focused (see Column), like the version
+// chart's tooltip. It overlays the top of the column (so a scrolling strip can't clip it), centred over the
+// bar and nudged inside the chart at its ends (measured in the browser, see useBarTips). Screen readers get
+// the same from each column's sr-only text. With `opens`, it ends with a link to where the column leads: on
+// a phone the first tap shows the tip, and this link is the way on. Hidden, the tip is invisible, not just
+// transparent, so the link takes no tap from the column under it.
+export function BarTip({ title, lines, opens = null }: { title: string; lines: (string | null | false)[]; opens?: Opens | null }) {
   return (
     <span
       aria-hidden="true"
+      data-bar-tip
       className={cn(
-        "pointer-events-none absolute top-0 z-10 border bg-background px-2 py-1 text-xs whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-data-[tapped=true]:opacity-100",
-        side,
+        "pointer-events-none invisible absolute top-0 left-0 z-10 border bg-background px-2 py-1 text-xs whitespace-nowrap opacity-0 transition-opacity duration-150",
+        "group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 group-data-[tapped=true]:visible group-data-[tapped=true]:opacity-100",
       )}
     >
       <span className="text-muted-foreground">{title}</span>
@@ -98,6 +146,12 @@ export function BarTip({ title, lines, at, of }: { title: string; lines: (string
           <Measure text={line as string} />
         </span>
       ))}
+      {opens && (
+        // Not in the Tab order: the column itself is the link a keyboard follows.
+        <Link href={opens.href} prefetch={false} tabIndex={-1} data-tip-link className="pointer-events-auto mt-0.5 block py-0.5 underline decoration-border decoration-dotted underline-offset-4 hover:decoration-foreground">
+          {opens.label}
+        </Link>
+      )}
     </span>
   );
 }

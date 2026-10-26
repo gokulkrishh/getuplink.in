@@ -10,7 +10,7 @@ import { CheckedFooter, OwnerNotices } from "@/components/owner-notices";
 import { ReleaseNotesToggle } from "@/components/release-notes";
 import { AwakeTimeline } from "@/components/stats/awake-timeline";
 import { ByPeriod, PeriodPicker, PeriodScope } from "@/components/stats/period-scope";
-import { customScope, UPDATE_PERIODS } from "@/components/stats/periods";
+import { customScope, PAGE_PERIODS } from "@/components/stats/periods";
 import { VersionHistory } from "@/components/updates/history";
 import { UpdateStats } from "@/components/updates/update-stats";
 import { isPending, UpdateStatus } from "@/components/updates/update-status";
@@ -108,7 +108,7 @@ function CarUpdates({ car, notes, label, range, now }: { car: UpdatesCar; notes:
         {hasStats ? (
           <ByPeriod
             panels={{
-              ...Object.fromEntries(UPDATE_PERIODS.map((p) => [p, <UpdateStats key={p} rows={updates} now={now} covers={p} />])),
+              ...Object.fromEntries(PAGE_PERIODS.updates.options.map((p) => [p, <UpdateStats key={p} rows={updates} now={now} covers={p} />])),
               ...(range && { custom: <UpdateStats rows={updates} now={now} covers={range} /> }),
             }}
           />
@@ -137,7 +137,7 @@ async function Updates({ searchParams }: Pick<PageProps<"/updates">, "searchPara
     <>
       <OwnerNotices data={data} count={cars.length} failedRun={failedRun} />
       {data.kind === "ready" && cars.length > 0 && (
-        <PeriodScope options={UPDATE_PERIODS} custom={customScope(range, now)}>
+        <PeriodScope periods={PAGE_PERIODS.updates} custom={customScope(range, now)}>
           <div className="space-y-24">
             {cars.map((car) => (
               <CarUpdates

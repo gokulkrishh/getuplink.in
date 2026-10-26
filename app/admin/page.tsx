@@ -101,6 +101,15 @@ export default async function Page() {
         )}
       </Group>
 
+      {/* Only when there's something to add: a new model or pack code, e.g. the first Model Y L. */}
+      {data.unknownCars && data.unknownCars.length > 0 && (
+        <Group title="Cars Uplink can't name yet" note="Add these codes to lib/car.ts so the car page names the model and pack.">
+          {data.unknownCars.map((car) => (
+            <Item key={car.userId} label={`User ${car.userId}`} value={car.codes.join(", ")} />
+          ))}
+        </Group>
+      )}
+
       <Group title="Versions" note={data.noVersion > 0 ? `${data.noVersion} more not seen online yet.` : undefined}>
         {data.versions.length === 0 ? (
           <Item label="No car has reported a version yet" value="—" muted />

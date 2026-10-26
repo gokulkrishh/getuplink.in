@@ -2,16 +2,19 @@
 
 import { useRef, useState } from "react";
 import { ChartFrame, EmptyChart, niceMax } from "@/components/stats/bars";
-import { useAxisLabels, useValueLabels } from "@/components/stats/axis-labels";
-import { AxisLabel, BAR_MAX, BarTip, MIN_COLUMN_PX, MIN_COLUMNS, ValueLabel } from "@/components/stats/bar-parts";
+import { useAxisLabels, useBarTips, useValueLabels } from "@/components/stats/axis-labels";
+import { AxisLabel, BAR_MAX, barOpens, BarTip, barTitle, Column, MIN_COLUMN_PX, MIN_COLUMNS, ValueLabel } from "@/components/stats/bar-parts";
+import type { View } from "@/components/stats/periods";
 import { ScrollEnd } from "@/components/stats/scroll-end";
 import { TapColumns } from "@/components/stats/tap-columns";
 import { DECIMALS, formatKwh, formatNumber, showsZero } from "@/lib/format";
+import type { SlotDays } from "@/lib/periods";
 import { cn } from "@/lib/utils";
 
 // `blank` draws the column empty with no tip (a slot ahead of now); without it, columns before the first
-// value are blank (before the history starts). `axis` and `edge` label the x axis as in Bar.
-export type StackedBar = { key: string; label: string; total: number; display: string; isCurrent: boolean; segments: number[]; blank?: boolean; axis?: string; edge?: boolean };
+// value are blank (before the history starts). `axis` and `edge` label the x axis, and `days` is what the
+// column opens, as in Bar.
+export type StackedBar = { key: string; label: string; total: number; display: string; isCurrent: boolean; segments: number[]; blank?: boolean; axis?: string; edge?: boolean; days?: SlotDays };
 export type StackedSeries = { label: string; className: string };
 
 // Each segment, column total and tip line is rounded on its own, to the energy rule (see lib/format.ts).
@@ -21,7 +24,8 @@ const kwh = { format: (n: number) => formatNumber(n, DECIMALS.kWh) };
 // series apart and a 2px gap separates them. The legend sits under the panel, so side-by-side panels
 // line up, and each entry turns its series on or off. With empty, a period with nothing says so in one line
 // instead. As in Bars, every period draws one box and every slot keeps its column; `caption` goes
-// under the legend. With labelEvery, any number of columns, labelled as in Bars.
+// under the legend. With labelEvery, any number of columns, labelled as in Bars. A column of a day, a
+// month or a year opens it, as in Bars (`view` names the page a month or year opens on).
 export function StackedBars({
   bars: all,
   series,
@@ -30,6 +34,7 @@ export function StackedBars({
   labelEvery,
   caption,
   fit = false,
+  view,
 }: {
   bars: StackedBar[];
   series: StackedSeries[];
@@ -39,12 +44,14 @@ export function StackedBars({
   caption?: string;
   // Squeeze every column into the panel's width instead of scrolling sideways, as in Bars.
   fit?: boolean;
+  view?: View;
 }) {
   const [hidden, setHidden] = useState<ReadonlySet<number>>(new Set());
   // Labels show as many as fit, never fewer apart than labelEvery (see useAxisLabels).
   const box = useRef<HTMLDivElement>(null);
   useAxisLabels(box, labelEvery);
   useValueLabels(box);
+  useBarTips(box);
   if (empty && !all.some((b) => b.total > 0 && !showsZero(kwh.format(b.total)))) return <EmptyChart>{empty}</EmptyChart>;
   const dense = all.length > 6;
   const used = series.map((s, i) => ({ ...s, i })).filter(({ i }) => all.some((b) => b.segments[i] > 0));
@@ -75,7 +82,8 @@ export function StackedBars({
     >
       {bars.map((b, k) => {
         const total = shownTotal(b);
-        if (b.blank ?? k < first)
+        // A column that shows as 0.0 kWh draws nothing, has no tip and opens nothing, as in BarColumns.
+        if ((b.blank ?? k < first) || showsZero(kwh.format(total)))
           return (
             <li key={b.key} aria-hidden="true" className="relative flex flex-col items-center gap-2">
               <span className="h-4" />
@@ -83,26 +91,25 @@ export function StackedBars({
               <AxisLabel label={b.axis ?? b.label} edge={b.edge} first={k === 0} />
             </li>
           );
+        const opens = barOpens(b.days, view);
         return (
-          <li key={b.key} className="group relative flex flex-col items-center gap-2">
-            {shows(total) && <BarTip at={k} of={bars.length} lines={[`${formatKwh(total)} in total`, ...breakdown(b)]} title={b.label} />}
-            {dense ? <span className="h-4" /> : <ValueLabel display={kwh.format(total)} unit="kWh" />}
-            <div className="flex h-20 w-full items-end justify-center">
-              {total > 0 && !showsZero(kwh.format(total)) && (
-                <div className={cn("flex w-full flex-col-reverse gap-0.5", BAR_MAX)} style={{ height: `${Math.max(4, (total / max) * 100)}%` }}>
-                  {series.map((s, i) =>
-                    shows(b.segments[i]) && !hidden.has(i) ? (
-                      <div key={s.label} className={cn("min-h-px", s.className)} style={{ flex: `${b.segments[i]} 1 0%` }} />
-                    ) : null,
-                  )}
-                </div>
-              )}
-            </div>
-            <AxisLabel label={b.axis ?? b.label} current={b.isCurrent} edge={b.edge} first={k === 0} />
-            <span className="sr-only">
-              {`${formatKwh(total)}. `}
-              {breakdown(b).join(", ")}
-            </span>
+          <li key={b.key} className="group relative">
+            <BarTip lines={[`${formatKwh(total)} in total`, ...breakdown(b)]} title={barTitle(b)} opens={opens} />
+            <Column opens={opens} words={[barTitle(b), formatKwh(total), ...breakdown(b)].join(", ")}>
+              {dense ? <span className="h-4" /> : <ValueLabel display={kwh.format(total)} unit="kWh" />}
+              <div className="flex h-20 w-full items-end justify-center">
+                {total > 0 && (
+                  <div className={cn("flex w-full flex-col-reverse gap-0.5", BAR_MAX)} style={{ height: `${Math.max(4, (total / max) * 100)}%` }}>
+                    {series.map((s, i) =>
+                      shows(b.segments[i]) && !hidden.has(i) ? (
+                        <div key={s.label} className={cn("min-h-px", s.className)} style={{ flex: `${b.segments[i]} 1 0%` }} />
+                      ) : null,
+                    )}
+                  </div>
+                )}
+              </div>
+              <AxisLabel label={b.axis ?? b.label} current={b.isCurrent} edge={b.edge} first={k === 0} />
+            </Column>
           </li>
         );
       })}

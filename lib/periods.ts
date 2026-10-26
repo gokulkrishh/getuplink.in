@@ -100,7 +100,21 @@ export function previousLabel(period: Period, now: number): string | null {
 // A slot of hours is labelled by its whole span ("6 AM to 9 AM", for the tooltip and screen readers) and
 // carries a short `axis` ("6 AM") with `edge`: the axis writes it on the block's start boundary, like a
 // clock's tick, not centred under the bar, where "6 AM" would read as "at 6 AM".
-export type Slot = { id: number; label: string; from: number; to: number; isCurrent: boolean; ahead: boolean; axis?: string; edge?: boolean };
+// `days` names the IST days a bar of a day, a month or a year covers, where the bar can be opened (see barOpens).
+export type Slot = { id: number; label: string; from: number; to: number; isCurrent: boolean; ahead: boolean; axis?: string; edge?: boolean; days?: SlotDays };
+
+// The IST days a bar of a day, a month or a year covers, as dates ("2026-10-23", both included, none later
+// than today), and which of the three it is: a day's bar opens that day's page, a month's or a year's the
+// same days as a range picked by date. `title` is the bar in full for its tip ("Sun, 26 Oct", "Oct 2026",
+// "2026"), where the axis has room only for "Sun" or "Oct". A bar of hours has none, nor one ahead of now.
+export type SlotDays = { kind: "day" | "month" | "year"; from: string; to: string; title: string };
+
+function slotDays(kind: SlotDays["kind"], from: number, to: number, now: number): SlotDays | undefined {
+  if (from > now) return undefined;
+  const mid = from + DAY_MS / 2;
+  const title = kind === "day" ? `${weekday.format(mid)}, ${formatShortDate(mid)}` : kind === "month" ? `${monthShort(monthIndex(mid))} ${yearOf(monthIndex(mid))}` : String(yearOf(monthIndex(mid)));
+  return { kind, from: dayIso(istDay(from)), to: dayIso(Math.min(istDay(to - 1), istDay(now))), title };
+}
 
 const HOUR_MS = 3_600_000;
 // Hours per bar on a chart of one or two days: every bar is one hour, from an IST hour boundary.
@@ -139,6 +153,7 @@ export function slotsFor(period: Period, now: number): Slot[] {
     to: monthStart(index + 1),
     isCurrent: index === cur,
     ahead: monthStart(index) > now,
+    days: slotDays("month", monthStart(index), monthStart(index + 1), now),
   });
   if (period === "day") {
     // Today hour by hour: when you drove or charged.
@@ -149,7 +164,9 @@ export function slotsFor(period: Period, now: number): Slot[] {
     const today = istDay(now);
     return Array.from({ length: WEEK_DAYS }, (_, k) => {
       const day = today - WEEK_DAYS + 1 + k;
-      return { id: istDayStart(day), label: weekday.format(istDayStart(day) + DAY_MS / 2), from: istDayStart(day), to: istDayStart(day + 1), isCurrent: day === today, ahead: false };
+      const from = istDayStart(day);
+      const to = istDayStart(day + 1);
+      return { id: from, label: weekday.format(from + DAY_MS / 2), from, to, isCurrent: day === today, ahead: false, days: slotDays("day", from, to, now) };
     });
   }
   if (period === "month") {
@@ -158,14 +175,17 @@ export function slotsFor(period: Period, now: number): Slot[] {
     return Array.from({ length: istDay(monthStart(cur + 1)) - first }, (_, k) => {
       const day = first + k;
       const from = istDayStart(day);
-      return { id: from, label: formatShortDate(from + DAY_MS / 2), from, to: istDayStart(day + 1), isCurrent: day === today, ahead: from > now };
+      const to = istDayStart(day + 1);
+      return { id: from, label: formatShortDate(from + DAY_MS / 2), from, to, isCurrent: day === today, ahead: from > now, days: slotDays("day", from, to, now) };
     });
   }
   if (period === "year") return Array.from({ length: 12 }, (_, m) => month(yearOf(cur) * 12 + m));
   if (period === "all") {
     return Array.from({ length: 6 }, (_, k) => {
       const year = yearOf(cur) - 5 + k;
-      return { id: monthStart(year * 12), label: String(year), from: monthStart(year * 12), to: monthStart((year + 1) * 12), isCurrent: year === yearOf(cur), ahead: false };
+      const from = monthStart(year * 12);
+      const to = monthStart((year + 1) * 12);
+      return { id: from, label: String(year), from, to, isCurrent: year === yearOf(cur), ahead: false, days: slotDays("year", from, to, now) };
     });
   }
   throw new Error(`No bars for ${period satisfies never}`);
@@ -350,7 +370,15 @@ export function rangeSlots(range: DayRange, now: number): { slots: Slot[]; slotN
   const span = rangeSpan(range, now);
   const end = Math.min(span.to, istDayStart(range.to + 1));
   const days = rangeDays(range);
-  const slot = (from: number, to: number, label: string): Slot => ({ id: from, label, from, to, isCurrent: now >= from && now < to, ahead: from > now });
+  const slot = (from: number, to: number, label: string, kind: SlotDays["kind"]): Slot => ({
+    id: from,
+    label,
+    from,
+    to,
+    isCurrent: now >= from && now < to,
+    ahead: from > now,
+    days: slotDays(kind, from, to, now),
+  });
   if (days <= 2) {
     const perDay = 24 / SLOT_HOURS;
     // With two days, each bar names its day too ("Sat, 6 AM to 7 AM"), and each midnight is named for it.
@@ -363,7 +391,7 @@ export function rangeSlots(range: DayRange, now: number): { slots: Slot[]; slotN
   if (days <= 45) {
     const slots = Array.from({ length: days }, (_, k) => {
       const day = range.from + k;
-      return slot(istDayStart(day), istDayStart(day + 1), days <= 7 ? weekday.format(istDayStart(day) + DAY_MS / 2) : formatShortDate(istDayStart(day) + DAY_MS / 2));
+      return slot(istDayStart(day), istDayStart(day + 1), days <= 7 ? weekday.format(istDayStart(day) + DAY_MS / 2) : formatShortDate(istDayStart(day) + DAY_MS / 2), "day");
     });
     return { slots, slotName: "day", labelEvery: days <= 7 ? undefined : days <= 14 ? 2 : 7 };
   }
@@ -373,13 +401,13 @@ export function rangeSlots(range: DayRange, now: number): { slots: Slot[]; slotN
     const years = yearOf(first) !== yearOf(last);
     const slots = Array.from({ length: last - first + 1 }, (_, k) => {
       const m = first + k;
-      return slot(Math.max(span.from, monthStart(m)), Math.min(end, monthStart(m + 1)), years ? `${monthShort(m)} ${yearOf(m)}` : monthShort(m));
+      return slot(Math.max(span.from, monthStart(m)), Math.min(end, monthStart(m + 1)), years ? `${monthShort(m)} ${yearOf(m)}` : monthShort(m), "month");
     });
     return { slots, slotName: "month" };
   }
   const slots = Array.from({ length: yearOf(last) - yearOf(first) + 1 }, (_, k) => {
     const year = yearOf(first) + k;
-    return slot(Math.max(span.from, monthStart(year * 12)), Math.min(end, monthStart((year + 1) * 12)), String(year));
+    return slot(Math.max(span.from, monthStart(year * 12)), Math.min(end, monthStart((year + 1) * 12)), String(year), "year");
   });
   // Year labels are four characters, more than a dense chart keeps (see MonthLabel), so each is shown whole.
   return { slots, slotName: "year", labelEvery: slots.length > 6 ? 1 : undefined };

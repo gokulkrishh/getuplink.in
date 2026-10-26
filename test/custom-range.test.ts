@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { customScope, periodQuery, statsHref, UPDATE_PERIODS, urlRange } from "@/components/stats/periods";
+import { customScope, PAGE_PERIODS, parsePeriod, periodQuery, statsHref, urlRange } from "@/components/stats/periods";
 import { periodFrames } from "@/lib/frames";
 import type { DrivingFigures, DrivingPeriod } from "@/lib/driving-figures";
 import { clipSpan, customQuery, customRange, isoDay, reachesBefore, rangeTimeframe, recentSpan } from "@/lib/periods";
@@ -73,11 +73,22 @@ describe("period links", () => {
     expect(statsHref("charging", "custom", { from: "2026-09-01", to: "2026-09-30" })).toBe("/stats/charging?period=custom&from=2026-09-01&to=2026-09-30");
     expect(statsHref("battery", "custom")).toBe("/stats/battery?period=custom");
   });
-  test("each page's default stays out of the URL", () => {
+  test("the period each page opens on stays out of the URL: Week on Home and Stats, Month on Updates", () => {
     expect(statsHref("driving", "week")).toBe("/stats/driving");
+    expect(statsHref("driving", "day")).toBe("/stats/driving?period=day");
+    expect(statsHref("driving", "month")).toBe("/stats/driving?period=month");
     expect(statsHref("driving", "year", { from: "2026-09-01", to: "2026-09-30" })).toBe("/stats/driving?period=year");
-    expect(periodQuery("month", null, UPDATE_PERIODS)).toBe("");
-    expect(periodQuery("year", null, UPDATE_PERIODS)).toBe("?period=year");
+    expect(periodQuery("week", null, PAGE_PERIODS.home)).toBe("");
+    expect(periodQuery("day", null, PAGE_PERIODS.home)).toBe("?period=day");
+    expect(periodQuery("month", null, PAGE_PERIODS.updates)).toBe("");
+    expect(periodQuery("year", null, PAGE_PERIODS.updates)).toBe("?period=year");
+  });
+  test("a page opens on its own period when the URL names none, or one it doesn't offer", () => {
+    expect(parsePeriod(undefined, PAGE_PERIODS.stats)).toBe("week");
+    expect(parsePeriod("day", PAGE_PERIODS.stats)).toBe("day");
+    expect(parsePeriod(undefined, PAGE_PERIODS.home)).toBe("week");
+    expect(parsePeriod("week", PAGE_PERIODS.updates)).toBe("month");
+    expect(parsePeriod("decade", PAGE_PERIODS.home)).toBe("week");
   });
   test("urlRange needs two dates", () => {
     expect(urlRange("2026-09-01", "2026-09-30")).toEqual({ from: "2026-09-01", to: "2026-09-30" });

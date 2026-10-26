@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { likelyLfp, motorLayout, trimLabel, tyrePressureLabel } from "@/lib/car";
+import { likelyLfp, motorLayout, trimLabel, tyrePressureLabel, unknownCodes } from "@/lib/car";
 
 describe("trimLabel", () => {
   test("maps the known pack badges", () => {
@@ -40,5 +40,16 @@ describe("tyrePressureLabel", () => {
   });
   test("missing values show nothing", () => {
     expect(tyrePressureLabel(null, 2.9)).toBeNull();
+  });
+});
+
+describe("unknownCodes", () => {
+  test("known model and pack codes pass", () => {
+    expect(unknownCodes({ car_type: "modely", trim_badging: "74d" })).toEqual([]);
+    expect(unknownCodes({ car_type: "Model3", trim_badging: "50" })).toEqual([]);
+    expect(unknownCodes({})).toEqual([]);
+  });
+  test("a new variant is flagged even when its prefix still names a model", () => {
+    expect(unknownCodes({ car_type: "modelyl", trim_badging: "82d" })).toEqual(['model "modelyl"', 'pack "82d"']);
   });
 });

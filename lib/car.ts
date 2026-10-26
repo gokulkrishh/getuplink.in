@@ -75,6 +75,16 @@ export function trimLabel(trim: string | null | undefined): string | null {
   return (trim && TRIMS[trim.toLowerCase()]) || null;
 }
 
+// The codes the labels above know exactly. A new variant (a Model Y L, a new pack) can still match a model
+// prefix, or hide its pack row, so /admin lists any car reporting a code outside these to add it here.
+const KNOWN_CAR_TYPES = new Set(MODELS.map(([code]) => code));
+export function unknownCodes(config: { car_type?: string | null; trim_badging?: string | null }): string[] {
+  const codes: string[] = [];
+  if (config.car_type && !KNOWN_CAR_TYPES.has(config.car_type.toLowerCase())) codes.push(`model "${config.car_type}"`);
+  if (config.trim_badging && !trimLabel(config.trim_badging)) codes.push(`pack "${config.trim_badging}"`);
+  return codes;
+}
+
 // Tesla doesn't report the cell chemistry. Shanghai-built cars that default to charging to 100% carry
 // LFP packs (LFP is fine kept full; nickel packs default lower), so that pair is a fair guess.
 export function likelyLfp(vin: string | null | undefined, defaultChargeToMax: boolean | null | undefined): boolean {

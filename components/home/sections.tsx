@@ -81,7 +81,7 @@ export function ChargingSection({ frames, bills, listed, chargingSince, now }: {
           caption={barsSpan(frame)}
           empty={hasBars(bars) ? undefined : `No bills ${frame.words}.`}
         >
-          <Bars bars={bars} ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} fit />
+          <Bars bars={bars} view="charging" ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} fit />
         </ChartCard>
         {shown.length === 0 ? (
           <Quiet>No charging sessions {f.frame.words}.</Quiet>
@@ -127,7 +127,7 @@ export function DrivingSection({ frames, figures, drives, now }: { frames: HomeF
     return (
       <div className="space-y-6">
         <ChartCard as="h3" title="Distance" description="Kilometres driven." caption={barsSpan(frame)} empty={empty}>
-          <Bars bars={bars} ariaLabel={`Distance per ${frame.slotName} in km`} unit="km" labelEvery={frame.labelEvery} fit />
+          <Bars bars={bars} view="driving" ariaLabel={`Distance per ${frame.slotName} in km`} unit="km" labelEvery={frame.labelEvery} fit />
         </ChartCard>
         {drives.length > 0 && (
           <div className="space-y-3">

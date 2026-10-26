@@ -26,5 +26,5 @@ Proof: `Month` is pressed on a fresh `/updates` with no `?period`; after the cli
 
 ## Gotchas
 
-- Updates' default is Month, not Day: `UPDATE_PERIODS` in `components/stats/periods.ts` leaves out Day and Week.
+- Updates' default is Month, not Week: `PAGE_PERIODS.updates` in `components/stats/periods.ts` leaves out Day and Week.
 - On phones the History table scrolls sideways; screenshot with `--phone` and check nothing overflows the page.

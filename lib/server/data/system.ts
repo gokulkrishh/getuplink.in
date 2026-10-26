@@ -579,3 +579,27 @@ export async function healthCheckCar(): Promise<{ owner: Owner | null; vin: stri
 export function pruneTelemetryBatch(args: Record<string, unknown>) {
   return db().rpc("prune_telemetry_readings", args);
 }
+
+// Each tracked car's model and pack codes from its latest online check, by user id, for /admin. Few cars, so
+// one small query each. A car never seen online has no codes yet and is left out.
+export async function carCodes(): Promise<{ userId: number; config: { car_type?: string; trim_badging?: string } }[]> {
+  const { data, error } = await db().from("vehicles").select("id, user_id").not("vin", "is", null).is("readings_until", null).order("user_id");
+  if (error) throw new Error(`Reading cars failed: ${error.message}`);
+  const cars = (data ?? []) as { id: string | number; user_id: number }[];
+  const checks = await Promise.all(
+    cars.map(async (car) => {
+      const { data: row, error: rowError } = await db()
+        .from("snapshots")
+        .select("car_type:raw->vehicle_config->>car_type, trim_badging:raw->vehicle_config->>trim_badging")
+        .eq("vehicle_id", car.id)
+        .eq("state", "online")
+        .not("raw->vehicle_config", "is", null)
+        .order("polled_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (rowError) throw new Error(`Reading a car's last check failed: ${rowError.message}`);
+      return row ? { userId: Number(car.user_id), config: row as { car_type?: string; trim_badging?: string } } : null;
+    }),
+  );
+  return checks.filter((c) => c !== null);
+}

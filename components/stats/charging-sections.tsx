@@ -9,7 +9,7 @@ import { type Bill, billsBySlot, billsIn, spendBreakdown } from "@/lib/charging-
 import { DECIMALS, formatDuration, formatKwh, formatMoney, formatMonth, formatNumber, formatPercent, showsZero, sumKnown } from "@/lib/format";
 import { hasBars, knownBars } from "@/components/stats/driving-sections";
 import { LIST_PREVIEW } from "@/lib/list";
-import { inSpan, type Timeframe } from "@/lib/periods";
+import { inSpan, type Slot, type Timeframe } from "@/lib/periods";
 import { barsSpan, EACH_HOUR } from "@/components/stats/chart-caption";
 import { InfoButton } from "@/components/info-button";
 import type { ChargingSession } from "@/lib/server/charging";
@@ -53,7 +53,18 @@ export function Summary({
   const missing = unbilled.filter((s) => inSpan(Date.parse(s.started_at), span)).length;
   // A bar ahead of now (the rest of this year or of today) is blank, not ₹0. To the paisa, rounded with
   // the headline (see knownBars), so the bars add up to it as shown.
-  const { bars, total: cost } = knownBars(slots, billsBySlot(bills, slots), DECIMALS.money, (n) => formatMoney(n, "INR"));
+  const { bars: plain, total: cost } = knownBars(slots, billsBySlot(bills, slots), DECIMALS.money, (n) => formatMoney(n, "INR"));
+  // Each bar's tip adds what the chart can't show: how many bills, the energy they billed and the rates.
+  const detail = (slot: Slot): string[] => {
+    const inSlot = billsIn(bills, slot);
+    if (inSlot.count === 0) return [];
+    return [
+      `${inSlot.count} ${inSlot.count === 1 ? "bill" : "bills"}${inSlot.kwh > 0 ? `, ${formatKwh(inSlot.kwh)}` : ""}`,
+      ...(inSlot.acPerKwh !== null ? [`${formatMoney(inSlot.acPerKwh, "INR")}/kWh on AC`] : []),
+      ...(inSlot.dcPerKwh !== null ? [`${formatMoney(inSlot.dcPerKwh, "INR")}/kWh on DC`] : []),
+    ];
+  };
+  const bars = plain.map((b, k) => ({ ...b, tip: detail(slots[k]) }));
   const ac = acPerKwh !== null || charged.ac > 0;
   const dc = dcPerKwh !== null || charged.dc > 0;
   return (
@@ -76,7 +87,7 @@ export function Summary({
         caption={barsSpan(frame)}
         empty={hasBars(bars) ? undefined : `No bills ${frame.words}.`}
       >
-        <Bars bars={bars} ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} fit />
+        <Bars bars={bars} ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} fit view="charging" />
       </ChartCard>
       {/* What only some periods have (the rates, these lines) goes under the chart, so it stays put on a switch.
           With no bill and no time on a charger, the empty line above says it all. */}
@@ -188,7 +199,7 @@ export function EnergyAdded({
   total = sumKnown(energy.map((e, k) => (slots[k].ahead ? null : sumKnown(e))));
   const bars: StackedBar[] = slots.map((slot, k) => {
     const sum = sumKnown(energy[k]);
-    return { key: String(slot.id), label: slot.label, axis: slot.axis, edge: slot.edge, total: sum, display: formatNumber(sum, DECIMALS.kWh), isCurrent: slot.isCurrent, segments: energy[k], blank: slot.ahead || undefined };
+    return { key: String(slot.id), label: slot.label, axis: slot.axis, edge: slot.edge, days: slot.days, total: sum, display: formatNumber(sum, DECIMALS.kWh), isCurrent: slot.isCurrent, segments: energy[k], blank: slot.ahead || undefined };
   });
   const efficiency = chargeEfficiency(streamOnly.filter((s) => s.kind === "ac" && inSpan(Date.parse(s.started_at), span)));
   // Any column that shows above 0.0 kWh; without one, the empty line stands alone, as on Spend.
@@ -214,7 +225,7 @@ export function EnergyAdded({
         caption={barsSpan(frame)}
         empty={charged ? undefined : `No charging ${frame.words}.`}
       >
-        <StackedBars bars={bars} series={ENERGY_SERIES} ariaLabel={`Energy added per ${frame.slotName}`} labelEvery={frame.labelEvery} fit />
+        <StackedBars bars={bars} series={ENERGY_SERIES} ariaLabel={`Energy added per ${frame.slotName}`} labelEvery={frame.labelEvery} fit view="charging" />
       </ChartCard>
       {efficiency !== null && (
         <p className="flex items-center gap-1.5 text-sm">

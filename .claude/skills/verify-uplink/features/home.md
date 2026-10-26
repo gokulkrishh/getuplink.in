@@ -24,7 +24,7 @@ await page.waitForLoadState("networkidle");
 await page.getByRole("link", { name: "See all trips" }).click(); // lands on /stats/driving
 ```
 
-Proof of the default period: on a fresh `/`, the `Day` button has `aria-pressed="true"` and the URL has no `?period`.
+Proof of the default period: on a fresh `/`, the `Week` button has `aria-pressed="true"` and the URL has no `?period`.
 
 ## Gotchas
 

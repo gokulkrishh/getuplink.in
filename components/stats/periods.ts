@@ -16,17 +16,26 @@ export const PERIODS: { value: Period; label: string }[] = [
 export type HomePeriod = Period | "custom";
 export const HOME_PERIODS: { value: HomePeriod; label: string }[] = [...PERIODS, { value: "custom", label: "Custom" }];
 
-// Updates come too seldom for a week to say anything.
-export const UPDATE_PERIODS: Period[] = ["month", "year", "all"];
+// What a page's switch offers and the period the page opens on. The one it opens on stays out of its URL
+// (see periodQuery and PeriodScope), so each page declares it here once and every link and parser agrees.
+export type PeriodSet = { options: Period[]; opensOn: Period };
 
-// The period a page opens on: Week wherever the switch offers it, else the first option (Month on Updates).
-export function defaultPeriod(allowed?: Period[]): Period {
-  return !allowed || allowed.includes("week") ? "week" : allowed[0];
-}
+const ALL_PERIODS = PERIODS.map(({ value }) => value);
 
-// The period in a URL, if the page offers it (`allowed`, all of PERIODS by default); otherwise the default.
-export function parsePeriod(value: string | string[] | undefined, allowed?: Period[]): Period {
-  return PERIODS.find((p) => p.value === value && (!allowed || allowed.includes(p.value)))?.value ?? defaultPeriod(allowed);
+export const PAGE_PERIODS = {
+  // Home and Stats open on the last 7 days: a week of bars says more than today's hours.
+  home: { options: ALL_PERIODS, opensOn: "week" },
+  stats: { options: ALL_PERIODS, opensOn: "week" },
+  // Updates come too seldom for a day or a week to say anything.
+  updates: { options: ["month", "year", "all"], opensOn: "month" },
+} satisfies Record<string, PeriodSet>;
+
+// The period a page opens on.
+export const defaultPeriod = (page: PeriodSet): Period => page.opensOn;
+
+// The period in a URL, if the page offers it; otherwise the one the page opens on.
+export function parsePeriod(value: string | string[] | undefined, page: PeriodSet): Period {
+  return page.options.find((p) => p === value) ?? defaultPeriod(page);
 }
 
 export type View = "charging" | "driving" | "battery";
@@ -53,14 +62,15 @@ export function urlRange(from: string | null | undefined, to: string | null | un
   return from && to && isoDay(from) !== null && isoDay(to) !== null ? { from, to } : null;
 }
 
-// A page's query for a period: none for the page's default (`allowed` as in parsePeriod), and for Custom
-// its dates, or none, which opens on the last 30 days.
-export function periodQuery(period: HomePeriod, range: DateRange | null = null, allowed?: Period[]): string {
+// A page's query for a period: none for the one the page opens on, and for Custom its dates, or none, which
+// opens on the last 30 days.
+export function periodQuery(period: HomePeriod, range: DateRange | null, page: PeriodSet): string {
   if (period === "custom") return range ? `?period=custom&from=${range.from}&to=${range.to}` : "?period=custom";
-  return period === defaultPeriod(allowed) ? "" : `?period=${period}`;
+  return period === defaultPeriod(page) ? "" : `?period=${period}`;
 }
 
-// A Stats page's URL with a period, and for Custom its dates; the default stays out of it.
+// A Stats page's URL with a period, and for Custom its dates; Week, which Stats opens on, stays out of it.
+// A link from Home carries Home's period over, so Day on Home arrives as ?period=day.
 export function statsHref(view: View, period: HomePeriod, range: DateRange | null = null): string {
-  return `/stats/${view}${periodQuery(period, range)}`;
+  return `/stats/${view}${periodQuery(period, range, PAGE_PERIODS.stats)}`;
 }

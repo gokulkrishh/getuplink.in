@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { barOpens } from "@/components/stats/bar-parts";
 import { energyBySlot, energyIn, firstStartedAt } from "@/lib/charging-figures";
 import { changeToPrevious, compareToPrevious } from "@/lib/dashboard-summary";
 import { formatShortDate } from "@/lib/format";
@@ -256,5 +257,43 @@ describe("custom ranges", () => {
     // The first month counts only from the range's first day.
     expect(months.slots[0].from).toBe(ist("2026-03-15T00:00:00"));
     expect(slots("2020-01-01", "2026-10-25").slotName).toBe("year");
+  });
+});
+
+describe("what a bar opens", () => {
+  const now = ist("2026-10-26T14:00:00");
+  test("a day's bar names its IST day, titled in full", () => {
+    const week = slotsFor("week", now);
+    expect(week[0].days).toEqual({ kind: "day", from: "2026-10-20", to: "2026-10-20", title: "Tue, 20 Oct" });
+    expect(week[6].days).toEqual({ kind: "day", from: "2026-10-26", to: "2026-10-26", title: "Mon, 26 Oct" });
+  });
+  test("a month's bar covers its days up to today; months ahead open nothing", () => {
+    const year = slotsFor("year", now);
+    expect(year[8].days).toEqual({ kind: "month", from: "2026-09-01", to: "2026-09-30", title: "Sep 2026" });
+    expect(year[9].days).toEqual({ kind: "month", from: "2026-10-01", to: "2026-10-26", title: "Oct 2026" });
+    expect(year[10].days).toBeUndefined();
+  });
+  test("a year's bar covers its days; a bar of hours opens nothing", () => {
+    expect(slotsFor("all", now)[5].days).toEqual({ kind: "year", from: "2026-01-01", to: "2026-10-26", title: "2026" });
+    expect(slotsFor("day", now).every((s) => s.days === undefined)).toBe(true);
+    expect(rangeSlots({ from: isoDay("2026-10-25")!, to: isoDay("2026-10-26")! }, now).slots.every((s) => s.days === undefined)).toBe(true);
+  });
+  test("a range's month bar covers only its part of the month", () => {
+    const { slots } = rangeSlots({ from: isoDay("2026-08-15")!, to: isoDay("2026-10-10")! }, now);
+    expect(slots[0].days).toEqual({ kind: "month", from: "2026-08-15", to: "2026-08-31", title: "Aug 2026" });
+    expect(slots[2].days).toEqual({ kind: "month", from: "2026-10-01", to: "2026-10-10", title: "Oct 2026" });
+  });
+  test("a day opens its page; a month or year opens the page's Custom range, only where a page is named", () => {
+    expect(barOpens({ kind: "day", from: "2026-10-20", to: "2026-10-20", title: "Tue, 20 Oct" })).toEqual({ href: "/stats/day/2026-10-20", label: "Open day" });
+    expect(barOpens({ kind: "month", from: "2026-09-01", to: "2026-09-30", title: "Sep 2026" }, "charging")).toEqual({
+      href: "/stats/charging?period=custom&from=2026-09-01&to=2026-09-30",
+      label: "Open month",
+    });
+    expect(barOpens({ kind: "year", from: "2026-01-01", to: "2026-10-26", title: "2026" }, "driving")).toEqual({
+      href: "/stats/driving?period=custom&from=2026-01-01&to=2026-10-26",
+      label: "Open year",
+    });
+    expect(barOpens({ kind: "month", from: "2026-09-01", to: "2026-09-30", title: "Sep 2026" })).toBeNull();
+    expect(barOpens(undefined, "driving")).toBeNull();
   });
 });

@@ -1,4 +1,4 @@
-// Proof run for features/stats-driving.md: Stats > Driving opens on Day, the switch moves to Week (and the
+// Proof run for features/stats-driving.md: Stats > Driving opens on Week, the switch moves to Month (and the
 // URL says so), and a trip row opens that trip's page. Screenshots of each step go to the evidence folder.
 // Usage: bun --install=force .claude/skills/verify-uplink/scripts/drive-driving.mjs [--phone]
 import { join } from "node:path";
@@ -15,14 +15,14 @@ const settle = async () => {
 };
 try {
   await page.goto("/stats/driving", { waitUntil: "networkidle" });
-  console.log(`default  Day pressed=${await pressed("Day")}  ${page.url()}`);
+  console.log(`default  Week pressed=${await pressed("Week")}  ${page.url()}`);
   await page.screenshot({ path: join(dir, "1-default.png"), fullPage: true });
 
-  await page.getByRole("button", { name: /^Week/ }).click();
-  await page.waitForURL(/period=week/);
+  await page.getByRole("button", { name: /^Month/ }).click();
+  await page.waitForURL(/period=month/);
   await settle();
-  console.log(`week     Week pressed=${await pressed("Week")}  ${page.url()}`);
-  await page.screenshot({ path: join(dir, "2-week.png"), fullPage: true });
+  console.log(`month    Month pressed=${await pressed("Month")}  ${page.url()}`);
+  await page.screenshot({ path: join(dir, "2-month.png"), fullPage: true });
 
   const trips = page.locator("section", { has: page.getByRole("heading", { name: "Trips" }) });
   const row = trips.getByRole("link").first();

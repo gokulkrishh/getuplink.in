@@ -1,5 +1,6 @@
 import { BarColumns } from "@/components/stats/bar-columns";
 import { type Bar } from "@/components/stats/bar-parts";
+import type { View } from "@/components/stats/periods";
 import { showsZero } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +32,7 @@ export function Bars({
   fit = false,
   xUnit,
   valueWords,
+  view,
 }: {
   bars: Bar[];
   ariaLabel: string;
@@ -49,13 +51,16 @@ export function Bars({
   xUnit?: string;
   // Words after the value in the tip, like "of driving time".
   valueWords?: string;
+  // The Stats page a bar of a month or a year opens, as a range picked by date (see barOpens). A bar of
+  // one day opens the day's page on any chart.
+  view?: View;
 }) {
   if (empty && !bars.some((b) => b.value > 0 && !showsZero(b.display))) return <EmptyChart>{empty}</EmptyChart>;
   const max = niceMax(Math.max(1, ...bars.map((b) => b.value)));
   return (
     <Captioned caption={caption}>
       <ChartFrame max={max} prefix={prefix} unit={unit} xUnit={xUnit}>
-        <BarColumns bars={bars} max={max} ariaLabel={ariaLabel} labelEvery={labelEvery} unit={unit} valueWords={valueWords} fit={fit} />
+        <BarColumns bars={bars} max={max} ariaLabel={ariaLabel} labelEvery={labelEvery} unit={unit} valueWords={valueWords} fit={fit} view={view} />
       </ChartFrame>
     </Captioned>
   );

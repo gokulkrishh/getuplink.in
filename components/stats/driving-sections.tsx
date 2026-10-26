@@ -4,10 +4,10 @@ import { type Bar, Bars } from "@/components/stats/bars";
 import { barsSpan } from "@/components/stats/chart-caption";
 import { Figures, Value } from "@/components/stats/figures";
 import { type DriveStats } from "@/lib/drive-stats";
-import { DRIVE_DAYS } from "@/lib/drives";
+import { DRIVE_DAYS, type Drive } from "@/lib/drives";
 import { DECIMALS, formatDuration, formatKm, formatKwh, formatNumber, showsZero, sumKnown } from "@/lib/format";
 import type { Frame } from "@/lib/frames";
-import type { Slot } from "@/lib/periods";
+import { inSpan, type Slot } from "@/lib/periods";
 import { Measure } from "@/components/measure";
 
 // The Driving page's sections: distance and energy use with regen for the period, and drive stats.
@@ -26,8 +26,10 @@ function Headline({ value, children }: { value: string; children: ReactNode }) {
   );
 }
 
-// Distance for the period or range, with a bar per slot of it (see Timeframe).
-export function Distance({ frame, driving }: Pick<Frame, "frame" | "driving">) {
+// Distance for the period or range, with a bar per slot of it (see Timeframe). With `drives` (the drives
+// kept, from `from`), each bar's tip adds how many drives it holds and how long they took, for the bars
+// the kept drives cover whole.
+export function Distance({ frame, driving, drives }: Pick<Frame, "frame" | "driving"> & { drives?: { list: Drive[]; from: number } }) {
   const description = "Kilometres driven.";
   // The counters couldn't be read for a range picked by date: say so in the chart's place rather than show 0 km.
   if (!driving) return <ChartCard title="Distance" description={description} empty={`Couldn't read the car's counters ${frame.words}.`} />;
@@ -35,7 +37,15 @@ export function Distance({ frame, driving }: Pick<Frame, "frame" | "driving">) {
   // the first drive of the day doesn't leave a blank gap. A bar with no reading (before tracking began, or
   // ahead of now) is blank, never 0 km; a tracked day without driving is a real 0. The headline is the
   // bars' raw sum (the odometer's rise over the span is the same sum: the bars share their edges).
-  const { bars, total } = knownBars(frame.slots, driving.bars.map((b) => b.km), DECIMALS.km);
+  const { bars: plain, total } = knownBars(frame.slots, driving.bars.map((b) => b.km), DECIMALS.km);
+  const detail = (slot: Slot): string[] => {
+    if (!drives || slot.from < drives.from) return [];
+    const inSlot = drives.list.filter((d) => inSpan(d.start, slot));
+    if (inSlot.length === 0) return [];
+    const seconds = inSlot.reduce((sum, d) => sum + (d.end - d.start), 0) / 1000;
+    return [`${inSlot.length} ${inSlot.length === 1 ? "drive" : "drives"}`, `${formatDuration(seconds)} driving`];
+  };
+  const bars = plain.map((b, k) => ({ ...b, tip: detail(frame.slots[k]) }));
   return (
     <ChartCard
       title="Distance"
@@ -45,7 +55,7 @@ export function Distance({ frame, driving }: Pick<Frame, "frame" | "driving">) {
       summary={hasBars(bars) ? <Headline value={formatKm(total)}>Driven {frame.words}</Headline> : undefined}
       empty={hasBars(bars) ? undefined : `No driving ${frame.words}.`}
     >
-      <Bars bars={bars} ariaLabel={`Distance per ${frame.slotName}`} unit="km" labelEvery={frame.labelEvery} fit />
+      <Bars bars={bars} ariaLabel={`Distance per ${frame.slotName}`} unit="km" labelEvery={frame.labelEvery} fit view="driving" />
     </ChartCard>
   );
 }
@@ -53,7 +63,7 @@ export function Distance({ frame, driving }: Pick<Frame, "frame" | "driving">) {
 // One bar from a slot's figure: blank when the figure is unknown (null) or the slot lies ahead of now.
 export function knownBar(slot: Slot, value: number | null, format: (n: number) => string): Bar {
   const blank = slot.ahead || value === null;
-  return { key: String(slot.id), label: slot.label, axis: slot.axis, edge: slot.edge, value: blank ? 0 : value, display: blank ? "" : format(value), isCurrent: slot.isCurrent, blank };
+  return { key: String(slot.id), label: slot.label, axis: slot.axis, edge: slot.edge, days: slot.days, value: blank ? 0 : value, display: blank ? "" : format(value), isCurrent: slot.isCurrent, blank };
 }
 
 // A bar per slot and their total, from the same values: the total is their raw sum (see sumKnown). Each bar
@@ -84,7 +94,12 @@ export function EnergyUse({ frame, driving }: Pick<Frame, "frame" | "driving">) 
   const slots = frame.slots;
   // Like the total: no figure with no driving is nothing used, with driving it is unknown and left blank.
   // Each headline is its bars' raw sum (see knownBars).
-  const { bars, total: used } = knownBars(slots, values.map((v) => v?.kwh ?? (v?.km === 0 ? 0 : null)), DECIMALS.kWh);
+  const { bars: plain, total: used } = knownBars(slots, values.map((v) => v?.kwh ?? (v?.km === 0 ? 0 : null)), DECIMALS.kWh);
+  // Each bar's tip adds its Wh/km, where the bar has one (drives of at least 1 km).
+  const bars = plain.map((b, k) => {
+    const whPerKm = values[k]?.whPerKm;
+    return whPerKm === null || whPerKm === undefined ? b : { ...b, tip: `${formatNumber(whPerKm, DECIMALS.whPerKm)} Wh/km` };
+  });
   const { bars: regenBars, total: regenTotal } = knownBars(slots, values.map((v) => v?.regenKwh ?? null), DECIMALS.kWh);
   const km = sumKnown(values.map((v) => v?.km));
   return (
@@ -104,7 +119,7 @@ export function EnergyUse({ frame, driving }: Pick<Frame, "frame" | "driving">) 
         }
         empty={hasBars(bars) ? undefined : `No driving ${frame.words}.`}
       >
-        <Bars bars={bars} ariaLabel={`Energy used per ${frame.slotName} in kWh`} unit="kWh" labelEvery={frame.labelEvery} fit />
+        <Bars bars={bars} ariaLabel={`Energy used per ${frame.slotName} in kWh`} unit="kWh" labelEvery={frame.labelEvery} fit view="driving" />
       </ChartCard>
       {regenTotal > 0 && (
         <ChartCard
@@ -121,7 +136,7 @@ export function EnergyUse({ frame, driving }: Pick<Frame, "frame" | "driving">) 
             </p>
           }
         >
-          <Bars bars={regenBars} ariaLabel={`Energy won back by regen per ${frame.slotName} in kWh`} unit="kWh" labelEvery={frame.labelEvery} fit />
+          <Bars bars={regenBars} ariaLabel={`Energy won back by regen per ${frame.slotName} in kWh`} unit="kWh" labelEvery={frame.labelEvery} fit view="driving" />
         </ChartCard>
       )}
     </div>
