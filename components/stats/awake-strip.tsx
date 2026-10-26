@@ -8,7 +8,9 @@ import { Measure } from "@/components/measure";
 const DAY = 86_400_000;
 
 // One day's strip. Hovering, focusing or tapping a run shows its state, time and length above it, in
-// the chart tooltips' style; Escape or a tap elsewhere hides it. The tip is clamped inside the strip.
+// the chart tooltips' style; Escape or a tap elsewhere hides it. The tip is clamped inside the strip and
+// is never wider than it: a long one ("Online · 11:00 AM to 12:24 PM · 1 h 24 min") wraps on a phone
+// rather than run past the screen's edge.
 export function AwakeStrip({ start, runs, classes }: { start: number; runs: Run[]; classes: Record<Presence, string> }) {
   const [active, setActive] = useState<number | null>(null);
   const [left, setLeft] = useState(0);
@@ -56,7 +58,7 @@ export function AwakeStrip({ start, runs, classes }: { start: number; runs: Run[
         <span
           ref={tip}
           aria-hidden="true"
-          className="pointer-events-none absolute bottom-full z-10 mb-1.5 border bg-background px-2 py-1 font-mono text-xs whitespace-nowrap tabular-nums"
+          className="pointer-events-none absolute bottom-full z-10 mb-1.5 w-max max-w-full border bg-background px-2 py-1 font-mono text-xs tabular-nums"
           style={{ left }}
         >
           <Measure text={runLabel(run)} />

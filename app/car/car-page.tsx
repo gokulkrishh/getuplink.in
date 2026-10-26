@@ -17,6 +17,7 @@ import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type CarDetails, loadCarDetails } from "@/lib/server/car";
 import { type CarState, loadCarState, OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadPrimaryVehicle, loadStream } from "@/lib/server/telemetry";
+import { loadTyreArrivals } from "@/lib/server/telemetry-window";
 import { unitNotes } from "@/lib/unit-words";
 import type { Stream } from "@/lib/telemetry";
 import { cn } from "@/lib/utils";
@@ -51,8 +52,12 @@ async function loadLive(id: string, vin: string | null): Promise<Live> {
   if (!owner) redirect(SIGNED_OUT_PATH);
   const at = Date.now();
   // The flags come with the state's read of the last online check.
-  const [{ flags, ...state }, stream] = await Promise.all([loadCarState(owner, { id, vin }, "normal"), vin ? loadStream(owner, vin, PAGE_FIELDS) : {}]);
-  return { state, stream, now: vin ? carNow(stream, at, flags.tyres) : null, notices: flags.notices, at };
+  const [{ flags, ...state }, stream, arrivals] = await Promise.all([
+    loadCarState(owner, { id, vin }, "normal"),
+    vin ? loadStream(owner, vin, PAGE_FIELDS) : {},
+    vin ? loadTyreArrivals(owner, vin, at) : {},
+  ]);
+  return { state, stream, now: vin ? carNow(stream, at, flags.tyres, arrivals) : null, notices: flags.notices, at };
 }
 
 const kw = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
@@ -213,13 +218,13 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
           <Figures
             figures={[
               {
-                label: "Estimated full pack",
+                label: "Usable capacity",
                 value: `${Math.round(car.battery.kwh)} kWh`,
                 note: `From ${car.battery.readings === 1 ? "1 reading" : `${car.battery.readings} readings`} in the week of ${formatShortDate(car.battery.weekStart)}`,
               },
             ]}
           />
-          <p className="text-xs text-muted-foreground">{unitNotes(["kWh", "capacity"])}</p>
+          <p className="text-xs text-muted-foreground">{unitNotes(["kWh", "usable capacity"])}</p>
         </Section>
       )}
 

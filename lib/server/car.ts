@@ -17,7 +17,7 @@ import {
   wheelsLabel,
 } from "@/lib/car";
 import { DEMO } from "@/lib/demo";
-import { istWeek, istWeekStart, num, packEstimates, typicalChargeKw, type WeeklyPack, weeklyPack } from "@/lib/telemetry-derive";
+import { energyPoints, istWeek, istWeekStart, num, typicalChargeKw, type WeeklyPack, weeklyUsable } from "@/lib/telemetry-derive";
 import { demoData, demoStreamSessions } from "./demo";
 import { type Owner, ownerDb } from "./data/owner";
 import { loadReadingsByField } from "./telemetry-window";
@@ -59,7 +59,7 @@ export type CarDetails = {
   supported: string[];
   // The latest check that saw the car online; the details need one.
   checkedAt: string | null;
-  // The latest week's estimated full pack, as the battery trend on /stats/battery has it.
+  // The latest week's usable capacity, as the battery trend on /stats/battery has it.
   battery: WeeklyPack | null;
   lastAcCharge: LastAcCharge | null;
 };
@@ -194,13 +194,13 @@ async function loadLastAcCharge(owner: Owner, vin: string): Promise<LastAcCharge
   return power !== null || supply ? { id: data.id, endedAt: data.ended_at, kw: power, supply } : null;
 }
 
-// The newest IST week's median full-pack estimate (see weeklyPack), from this week's and last week's readings:
+// The newest IST week's usable capacity (see weeklyUsable), from this week's and last week's readings:
 // the battery trend's latest point whenever the car streamed in the last two weeks.
 async function loadLatestWeekPack(owner: Owner, vin: string, now: number): Promise<WeeklyPack | null> {
   const from = new Date(istWeekStart(istWeek(now) - 1)).toISOString();
   const readings = await loadReadingsByField(owner, vin, ["EnergyRemaining", "BatteryLevel"], from, new Date(now).toISOString());
   // Battery health is extra; without it the page still shows everything else.
-  return readings ? (weeklyPack(packEstimates(readings.EnergyRemaining, readings.BatteryLevel)).at(-1) ?? null) : null;
+  return readings ? (weeklyUsable(energyPoints(readings.EnergyRemaining, readings.BatteryLevel)).at(-1) ?? null) : null;
 }
 
 // Null when the owner has no such car.

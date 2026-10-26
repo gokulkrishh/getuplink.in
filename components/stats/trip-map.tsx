@@ -648,7 +648,7 @@ export function TripMap({
         )}
       </ul>
       <p className="text-xs text-muted-foreground">
-        {parts.length > 0 ? "Hover or tap a pin or the route for details. A pin's details link to Google Maps." : "Hover or tap a pin for its details and a link to Google Maps."} Map data © OpenStreetMap contributors, © CARTO.
+        Map data © OpenStreetMap contributors, © CARTO.
       </p>
     </div>
   );

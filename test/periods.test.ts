@@ -206,8 +206,19 @@ describe("the Day period", () => {
     expect(previousSpan("day", now)).toEqual({ from: Date.parse("2026-10-22T00:00:00+05:30"), to: Date.parse("2026-10-23T00:00:00+05:30") });
     expect(previousLabel("day", now)).toBe("yesterday");
     const slots = slotsFor("day", now);
-    expect(slots.map((s) => s.label)).toEqual(["12 AM", "3 AM", "6 AM", "9 AM", "12 PM", "3 PM", "6 PM", "9 PM"]);
-    expect(slots.find((s) => s.isCurrent)!.label).toBe("12 PM");
+    expect(slots.map((s) => s.label)).toEqual([
+      "12 AM to 3 AM",
+      "3 AM to 6 AM",
+      "6 AM to 9 AM",
+      "9 AM to 12 PM",
+      "12 PM to 3 PM",
+      "3 PM to 6 PM",
+      "6 PM to 9 PM",
+      "9 PM to 12 AM",
+    ]);
+    expect(slots.map((s) => s.axis)).toEqual(["12 AM", "3 AM", "6 AM", "9 AM", "12 PM", "3 PM", "6 PM", "9 PM"]);
+    expect(slots.every((s) => s.edge)).toBe(true);
+    expect(slots.find((s) => s.isCurrent)!.label).toBe("12 PM to 3 PM");
   });
 });
 

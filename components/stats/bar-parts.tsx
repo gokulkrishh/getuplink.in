@@ -5,7 +5,9 @@ import { cn } from "@/lib/utils";
 
 // `tip` is an extra line under the value in the hover tip, like "16 of 40 cars". `axis` is a shorter label
 // for under the bar when `label` (the tip's title) is too long to fit there, like "20" for "20 to 40 km/h".
-export type Bar = { key: string; label: string; value: number; display: string; isCurrent: boolean; blank?: boolean; tip?: string; axis?: string };
+// `edge` puts `axis` on the column's start boundary, with a tick, instead of centred under it: for blocks
+// of hours, where "6 AM" under the 6 AM to 9 AM bar reads as "at 6 AM" (see Slot).
+export type Bar = { key: string; label: string; value: number; display: string; isCurrent: boolean; blank?: boolean; tip?: string; axis?: string; edge?: boolean };
 
 // The widest a bar gets, so one bar in a wide column (or 6 on a desktop) isn't a block. Bars sit centred in their columns.
 export const BAR_MAX = "max-w-12";
@@ -24,12 +26,21 @@ export function withUnit(value: string, unit?: string): string {
 }
 
 // A column's x-axis label, written out in full ("6 AM", "Sept", "25 Oct"), never cut short: which labels
-// show is measured in the browser (useAxisLabels), so they start hidden and never collide.
-export function AxisLabel({ label, current }: { label: string; current?: boolean }) {
+// show is measured in the browser (useAxisLabels), so they start hidden and never collide. With `edge`
+// it is centred on the column's start boundary (the gap before it), under a short tick from the baseline,
+// so a block of hours reads like a clock axis: the 6 AM to 9 AM bar sits between "6 AM" and "9 AM".
+export function AxisLabel({ label, current, edge, first }: { label: string; current?: boolean; edge?: boolean; first?: boolean }) {
   return (
-    <span data-axis-label className={cn("invisible h-4 text-xs whitespace-nowrap", current ? "text-foreground" : "text-faint")}>
-      {label}
-    </span>
+    <>
+      {edge && (
+        // The baseline is the value row (h-4) and gap (2) plus the bars' h-20 below the column's top: 104px.
+        // The gap between columns is gap-1, so their boundary is 2px before this one.
+        <span aria-hidden="true" className={cn("pointer-events-none absolute top-26 h-1 w-px bg-muted-foreground/40", first ? "left-0" : "-left-0.5")} />
+      )}
+      <span data-axis-label data-axis-edge={edge || undefined} className={cn("invisible h-4 text-xs whitespace-nowrap", current ? "text-foreground" : "text-faint")}>
+        {label}
+      </span>
+    </>
   );
 }
 

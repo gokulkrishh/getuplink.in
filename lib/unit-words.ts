@@ -14,6 +14,8 @@ export const UNIT_WORDS: Record<string, string> = {
   mV: "mV (millivolts) is a thousandth of a volt, small enough to show the tiny gaps between the battery's cells",
   cell: "The battery is built from many small cells; when they are evenly balanced, they charge and drain together",
   capacity: "Capacity is how much energy the battery holds when full; every battery holds a little less as it ages",
+  "usable capacity": "Usable capacity is the energy the battery gives from 100% down to 0%, from each week's readings; a week shows once its charge moved 15 points",
+  "full pack, per Tesla": "Full pack, per Tesla, is the car's own figure; it includes a reserve kept below 0%, so it reads a few kWh above usable capacity",
   "range at 100%": "Range at 100% is how far the car could go on a full battery, worked out from the range it shows and its charge level",
   "charge cycles": "A charge cycle is one full battery's worth of energy charged, made up of any number of smaller charges",
   "charging efficiency": "Charging efficiency is the share of the charger's energy that reached the battery; the rest is lost as heat or runs the car while it charges",

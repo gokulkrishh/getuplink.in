@@ -5,8 +5,9 @@ import { chargeName, chargeSpot, chargeType } from "@/lib/charge-names";
 import { matchSessions } from "@/lib/charge-sessions";
 import { formatClock, formatKwh, formatShortDate } from "@/lib/format";
 import { cappedFrom } from "@/lib/kept";
-import { num, type Reading } from "@/lib/telemetry-derive";
+import { powerByLevel, powerFigures } from "@/lib/charge-curve";
 import type { ChargingSession } from "./charging";
+import { loadChargeSeries } from "./charge-curve";
 import { cachedPlaceNames, placeKey } from "./place-names";
 import type { SessionInvoiceAmount } from "./receipts";
 import type { StreamChargeSession } from "./stream-charging";
@@ -16,10 +17,17 @@ const MIN = 60_000;
 export const CURVES = 8;
 export const PINNED = 60;
 
-// One DC charge: its stream session, power against battery level, and who ran the charger.
-export type Curve = { id: number; name: string; date: string; supercharger: boolean; points: { x: number; y: number }[] };
-
-const valueAt = (readings: Reading[], t: number) => num(readings.findLast((r) => Date.parse(r.at) <= t)?.value);
+// One DC charge: its stream session, power against battery level, who ran the charger, and its peak and
+// average power as the session page gives them (powerFigures).
+export type Curve = {
+  id: number;
+  name: string;
+  date: string;
+  supercharger: boolean;
+  points: { x: number; y: number }[];
+  peakKw: number | null;
+  avgKw: number | null;
+};
 
 // What names a charge besides the session itself: Tesla's sessions (a Supercharger's site), the attached
 // invoices, and the time for pairing them.
@@ -41,16 +49,19 @@ export async function loadChargingExtras(owner: Owner, vin: string | null, sessi
   const [curves, spots] = await Promise.all([
     Promise.all(
       dc.map(async (s): Promise<Curve | null> => {
-        const from = new Date(Date.parse(s.started_at) - 10 * MIN).toISOString();
-        const r = await loadReadingsByField(owner, vin, ["DCChargingPower", "BatteryLevel"], from, s.ended_at!);
+        // Read as the session page reads it, so the two show the same charge.
+        const r = await loadChargeSeries(owner, s, Date.parse(s.ended_at!), false);
         if (!r) return null;
-        const points = r.DCChargingPower.flatMap((p) => {
-          const kw = num(p.value);
-          const level = valueAt(r.BatteryLevel, Date.parse(p.at));
-          return kw === null || level === null || kw <= 0 ? [] : [{ x: level, y: kw }];
-        });
+        const points = powerByLevel({ power: r.power, level: r.level, start: Date.parse(s.started_at), end: r.end, startLevel: s.start_level, endLevel: s.end_level });
         return points.length >= 2
-          ? { id: s.id, name: nameOf(s)?.text ?? (s.supercharger ? "Supercharger" : "Other DC charger"), date: s.started_at, supercharger: s.supercharger, points }
+          ? {
+              id: s.id,
+              name: nameOf(s)?.text ?? (s.supercharger ? "Supercharger" : "Other DC charger"),
+              date: s.started_at,
+              supercharger: s.supercharger,
+              points,
+              ...powerFigures(r.power, r.end, s.peak_power_kw),
+            }
           : null;
       }),
     ),
