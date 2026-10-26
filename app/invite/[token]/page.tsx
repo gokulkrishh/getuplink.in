@@ -8,7 +8,7 @@ import { startInviteSignIn } from "./actions";
 import { InviteSignIn } from "./invite-sign-in";
 
 // The token never leaves this page in a Referer (Tesla's sign-in page is next), and it's never indexed.
-export const metadata: Metadata = { title: "Invite · Uplink", robots: { index: false }, referrer: "no-referrer" };
+export const metadata: Metadata = { title: "Invite", robots: { index: false }, referrer: "no-referrer" };
 
 // Read per request: the link's state and the caller's address.
 export const instant = false;
