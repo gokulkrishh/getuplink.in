@@ -26,7 +26,6 @@ export function ChargeSupply({ session }: { session: StreamChargeSession }) {
     <ChartCard
       title="Charger"
       description="How the AC charger supplied power."
-      info="As the car reported it."
       unit={supply.volts !== null ? "V" : undefined}
       terms={supply.amps !== null ? ["A"] : []}
     >

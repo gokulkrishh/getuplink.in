@@ -51,7 +51,6 @@ export function SpeedBands({ bins, words = "last 30 days", note }: { bins: Drivi
     <ChartCard
       title="Time at each speed"
       description="Share of driving time at each speed."
-      info="Each bar is a 20 km/h band. The band you drive in most is highlighted."
       summary={<Note note={note} />}
       caption={upper(words)}
     >

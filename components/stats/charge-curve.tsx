@@ -31,7 +31,6 @@ export function ChargeCurve({ points }: { points: CurvePoint[] }) {
       title="Power and battery"
       description="Charging power and battery level through the charge."
       unit="kW"
-      info="Power is on the left scale, battery level on the right."
     >
       <div className="space-y-3">
         <Plot points={points} />
