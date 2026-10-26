@@ -26,7 +26,7 @@ alter table public.vehicles drop constraint vehicles_vin_key;
 
 -- Per user now (version_history_user_*_key, from the shared_cars migration).
 drop index public.version_history_vehicle_detected_key;
-drop index public.version_history_imported_version_key;
+drop index if exists public.version_history_imported_version_key;
 
 -- 2. Supercharger sessions: Tesla's session id, per user.
 alter table public.charging_sessions drop constraint charging_sessions_pkey;
