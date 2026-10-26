@@ -1,7 +1,7 @@
 // A new owner's two setup steps, as plain data and rules: Uplink's virtual key on each car, then the car
 // streaming to Uplink. Read from Tesla by lib/server/setup.ts; tested in test/setup-status.test.ts.
 
-export const KEY_PAIRING_URL = "https://tesla.com/_ak/getuplink.in";
+export const KEY_PAIRING_URL = "https://tesla.com/_ak/app.getuplink.in";
 
 // Tesla's answers, as stored on each vehicles row. Null is unknown: not asked yet, or Tesla didn't say.
 export type Streaming = "synced" | "pending" | "none" | "full";
