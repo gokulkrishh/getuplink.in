@@ -153,20 +153,39 @@ describe("streamed readings of a shared car", () => {
     expect(await seen(A, "VIN_S")).toEqual([70, 75]);
   });
 
-  test("a check closes the window of a car Tesla no longer lists, and opens a new one when it's back", async () => {
+  test("one Tesla list that leaves a car out, empty or not, costs the owner nothing", async () => {
     const { syncWindows } = await import("@/lib/server/poll");
-    // B's Tesla account lists only VIN_B: the shared car left it.
+    for (const listed of [[], ["1"]]) {
+      // A's lists: the shared car missing once, then back.
+      await syncWindows(A, listed, "2026-10-21T00:00:00.000Z");
+      expect(fake.rows("vehicles")[2]).toEqual(expect.objectContaining({ missing_since: "2026-10-21T00:00:00.000Z", readings_until: null }));
+      await syncWindows(A, ["1", "7"], "2026-10-21T06:00:00.000Z");
+      expect(fake.rows("vehicles")[2]).toEqual(expect.objectContaining({ missing_since: null, readings_until: null }));
+      expect(fake.rows("vehicles")[2].readings_from).toBeUndefined(); // still from the start
+      expect(await seen(A, "VIN_S")).toEqual([70, 75]);
+      await pruneTelemetry();
+      expect(readingIds()).toEqual([1, 2, 3, 4]); // only the untracked car's went
+    }
+  });
+
+  test("a car gone from the user's Tesla account for a week closes when it went, and reopens from its return", async () => {
+    const { syncWindows } = await import("@/lib/server/poll");
+    // B's Tesla account lists only VIN_B from 19 Oct: the shared car left it.
     await syncWindows(B, ["2"], "2026-10-19T00:00:00.000Z");
+    await syncWindows(B, ["2"], "2026-10-23T00:00:00.000Z");
+    expect(fake.rows("vehicles")[3].readings_until).toBeNull(); // not yet a week
+    expect(await seen(B, "VIN_S")).toEqual([75]);
+    await syncWindows(B, ["2"], "2026-10-26T00:00:00.000Z");
     expect(fake.rows("vehicles")[3]).toEqual(expect.objectContaining({ readings_from: B_ADDED, readings_until: "2026-10-19T00:00:00.000Z" }));
-    expect(fake.rows("vehicles")[1].readings_until).toBeNull();
     expect(await seen(B, "VIN_S")).toEqual([]);
-    // A's windows are A's own.
+    // B's other car and A's windows are untouched.
+    expect(fake.rows("vehicles")[1]).toEqual(expect.objectContaining({ readings_until: null }));
     expect(fake.rows("vehicles")[2].readings_until).toBeNull();
-    // Back on 25 Oct: what it streamed while away stays hidden.
-    await syncWindows(B, ["2", "7"], "2026-10-25T00:00:00.000Z");
-    expect(fake.rows("vehicles")[3]).toEqual(expect.objectContaining({ readings_from: "2026-10-25T00:00:00.000Z", readings_until: null }));
-    expect(await seen(B, "VIN_S")).toEqual([]);
     expect(await seen(A, "VIN_S")).toEqual([70, 75]);
+    // Bought back on 30 Oct: what it streamed as someone else's stays hidden.
+    await syncWindows(B, ["2", "7"], "2026-10-30T00:00:00.000Z");
+    expect(fake.rows("vehicles")[3]).toEqual(expect.objectContaining({ readings_from: "2026-10-30T00:00:00.000Z", readings_until: null, missing_since: null }));
+    expect(await seen(B, "VIN_S")).toEqual([]);
   });
 
   test("readings aren't one user's table: no per-user write or delete can reach them", async () => {

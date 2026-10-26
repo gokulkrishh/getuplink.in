@@ -8,7 +8,8 @@
 -- receiver change). A user reads a car's readings only through their own car row, the per-user car link:
 -- vehicles (user_id, vin), which now carries the window of time that user may see, readings_from up to
 -- readings_until. A second user who adds a car sees what it streamed from then on, never the time before,
--- and a seller whose car leaves their Tesla account stops seeing it from then. Readings nobody's window
+-- and a seller whose car has been gone from their Tesla account for a week stops seeing it from when it
+-- went. Readings nobody's window
 -- covers are deleted (Delete my data, and the daily retention run), so a car's readings stay while anyone
 -- still tracks it and go when nobody does.
 --
@@ -26,13 +27,18 @@ set lock_timeout = '5s';
 -- constant default is metadata only, kept as the value of every existing row. New links start now.
 alter table public.vehicles add column readings_from timestamptz not null default '-infinity';
 alter table public.vehicles alter column readings_from set default now();
--- Set by the check when the car leaves this user's Tesla account (lib/server/poll.ts); null while it is theirs.
+-- Set by the check once the car has been gone from this user's Tesla account for a while (lib/server/poll.ts
+-- syncWindows); null while it is theirs. missing_since is the first check that didn't list it: one list
+-- that leaves a car out (a Tesla hiccup) must not close the window, since reopening it starts from then and
+-- the time before would be lost to that user.
 alter table public.vehicles add column readings_until timestamptz;
+alter table public.vehicles add column missing_since timestamptz;
 alter table public.vehicles
   add constraint vehicles_readings_window_check check (readings_until is null or readings_until >= readings_from);
 
 comment on column public.vehicles.readings_from is 'This user sees the car''s streamed readings from this time (when they began tracking it).';
 comment on column public.vehicles.readings_until is 'Until this time, when the car left this user''s Tesla account. Null: still theirs.';
+comment on column public.vehicles.missing_since is 'The first check whose Tesla vehicle list left this car out, while it still does. Null: listed.';
 
 -- Car links by VIN: the view's join, who else tracks a car (Delete my data, Disconnect), the prune.
 create index vehicles_vin_idx on public.vehicles (vin) where vin is not null;
@@ -95,24 +101,72 @@ $$;
 
 -- 4. Deleting readings nobody may see any more. One call deletes at most p_limit rows of one VIN and
 -- returns how many; the caller loops until a call deletes fewer, so each transaction stays short and the
--- receiver's inserts never wait on it. A VIN no car row names loses all its rows (an index range scan).
+-- receiver's inserts never wait on it. Three cases, cheapest first:
+--   * no car row names the VIN: all its rows go (a range scan on the index's vin prefix);
+--   * every link is open: only rows older than the earliest readings_from go, per (vin, field), each a
+--     range scan on the (vin, field, created_at) index, so a car tracked from the start costs nothing and
+--     a second user's car costs one index probe per field;
+--   * a link is closed (the car left someone's account): rows outside every window, checked row by row.
+-- Each batch is deleted by id = any(array(...)), primary key lookups: with "id in (subquery)" the planner
+-- prefers a hash join over a scan of the whole table.
 create function public.forget_unseen_readings(p_vin text, p_limit integer)
 returns integer
 language plpgsql
 set search_path = ''
 as $$
 declare
+  links integer;
+  closed boolean;
+  earliest timestamptz;
+  pair record;
+  remaining integer := p_limit;
   deleted integer;
 begin
   if p_limit is null or p_limit < 1 then
     raise exception 'p_limit must be at least 1';
   end if;
-  -- Someone sees all of it: nothing to do (the usual case, a car's first user).
-  if exists (select 1 from public.vehicles v where v.vin = p_vin and v.readings_from = '-infinity' and v.readings_until is null) then
-    return 0;
+  select count(*), bool_or(v.readings_until is not null), min(v.readings_from)
+  into links, closed, earliest
+  from public.vehicles v
+  where v.vin = p_vin;
+
+  if links = 0 then
+    delete from public.telemetry_readings t
+    where t.id = any (array(select x.id from public.telemetry_readings x where x.vin = p_vin limit p_limit));
+    get diagnostics deleted = row_count;
+    return deleted;
   end if;
+
+  if not closed then
+    if earliest = '-infinity' then
+      return 0;
+    end if;
+    for pair in
+      with recursive fields (field) as (
+        (select t.field from public.telemetry_readings t where t.vin = p_vin order by t.field limit 1)
+        union all
+        select (select t.field from public.telemetry_readings t where t.vin = p_vin and t.field > f.field order by t.field limit 1)
+        from fields f
+        where f.field is not null
+      )
+      select fields.field from fields where fields.field is not null
+    loop
+      delete from public.telemetry_readings t
+      where t.id = any (array(
+        select x.id from public.telemetry_readings x
+        where x.vin = p_vin and x.field = pair.field and x.created_at < earliest
+        order by x.created_at
+        limit remaining
+      ));
+      get diagnostics deleted = row_count;
+      remaining := remaining - deleted;
+      exit when remaining <= 0;
+    end loop;
+    return p_limit - remaining;
+  end if;
+
   delete from public.telemetry_readings t
-  where t.id in (
+  where t.id = any (array(
     select x.id
     from public.telemetry_readings x
     where x.vin = p_vin
@@ -123,7 +177,7 @@ begin
           and (v.readings_until is null or x.created_at < v.readings_until)
       )
     limit p_limit
-  );
+  ));
   get diagnostics deleted = row_count;
   return deleted;
 end;
@@ -196,4 +250,5 @@ notify pgrst, 'reload schema';
 --   drop view if exists public.user_telemetry_readings;
 --   drop index if exists public.vehicles_vin_idx;
 --   alter table public.vehicles drop constraint if exists vehicles_readings_window_check;
---   alter table public.vehicles drop column if exists readings_until, drop column if exists readings_from;
+--   alter table public.vehicles drop column if exists missing_since, drop column if exists readings_until,
+--     drop column if exists readings_from;

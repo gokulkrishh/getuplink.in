@@ -73,7 +73,9 @@ Until step 4 is rolled out, two users can't track the same car: the old global k
 
 The Fly receiver keeps writing each reading once per VIN, exactly as today. `fly/telemetry/worker.ts` is unchanged and needs no deploy. Each user reads a car's readings through their own car row (`vehicles (user_id, vin)`, the per-user car link), which now carries the window that user may see:
 - `vehicles.readings_from`: when they began tracking it. It is `-infinity` for the cars that existed before step 4, so the owner keeps all their history, and `now()` for every new link. A second user of a shared car sees what it streams from then on, never the time before.
-- `vehicles.readings_until`: set by the check when the car leaves that user's Tesla vehicle list (`syncWindows` in `lib/server/poll.ts`), so a seller stops seeing what the car streams for its next owner. If the car comes back, it gets a new window from then, and the time away stays hidden.
+- `vehicles.readings_until`: set by the check (`syncWindows` in `lib/server/poll.ts`) once the car has been missing from that user's Tesla vehicle list for 7 days (`GONE_AFTER_MS`), closing at the first check that missed it (`vehicles.missing_since`). A seller then stops seeing what the car streams for its next owner.
+  - A car missing from one list and back on the next keeps its window untouched. Closing on one bad list would be costly: reopening starts the window from that moment, so the owner's history would be hidden and then deleted as nobody's.
+  - A car back after a confirmed close (bought back) gets a new window from its return. The time it was someone else's stays hidden.
 
 The app reads readings only through the view `user_telemetry_readings` (readings joined to car rows, inside each row's window), filtered to the signed-in user by `ownerDb(owner).readings(...)`. `telemetry_readings` is no longer in `OWNER_TABLES`, so no per-user query can write or delete it. `counter_values_at(p_user_id, …)` applies the same window.
 
@@ -119,7 +121,7 @@ The code upserts on `user_id,session_id` and `user_id,vin,started_at`. Rollout t
 
    It refuses to run while `oauth_tokens` still holds a token pair or any `users.email` is set.
 
-Checked in a throwaway PGlite (Postgres 17): every migration in order, with data shaped like production (one owner, the cutover done, a car with 100k readings, sessions and an invoice). It covered the step 3 writes after 1, a second user's copy refused before 2 and accepted after it, the windows, the plans, Delete account by each user, the sweep, the cleanup and its guard.
+Checked in a throwaway PGlite (Postgres 17): every migration in order, with data shaped like production (one owner, the cutover done, a car with 100k readings, sessions and an invoice). It covered the step 3 writes after 1, a second user's copy refused before 2 and accepted after it, the windows, the plans, Delete account by each user, the sweep (5 ms over 1M rows with nothing to delete; 400k rows of a shared car forgotten in under a second, by index range and key lookups), the cleanup and its guard.
 
 ### Rollout
 
@@ -140,7 +142,7 @@ Checked in a throwaway PGlite (Postgres 17): every migration in order, with data
 ### Still open
 
 - A car's streaming config is still set by hand per VIN (`scripts/telemetry-config.mjs`). A second user's car streams only once someone sends its config.
-- A transient Tesla vehicle list that leaves out a car closes that user's window, and the next check opens a new one. The readings in between stay hidden from them.
+- A seller keeps seeing a sold car's stream for up to 7 days, until the close is confirmed. Checks paused by the budget don't advance it.
 - The charging-session trigger (`check_vin_user`) can refuse a second user's first Supercharger sync for a shared car if it runs before their car row exists (the check runs both at once). The next check retries it.
 
 ## Step 5: scale and limits

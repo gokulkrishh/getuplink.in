@@ -55,23 +55,42 @@ const RECENT_STATES = 30;
 
 // A car row is the owner's copy of the car, and their link to its streamed readings: the upsert matches
 // on (user_id, id), its key, never on the id alone, so it can't take over another user's row. It never
-// sends readings_from or readings_until, so a check can't move the owner's window (see syncWindows).
+// sends readings_from, readings_until or missing_since, so a check can't move the owner's window (see
+// syncWindows).
 const CAR_KEY = { onConflict: "user_id,id" };
 
+// How long a car must be missing from the owner's Tesla vehicle list before it counts as gone (sold, or a
+// shared car's access removed). One list that leaves a car out must never close its window: reopening it
+// starts from then, so everything before would be hidden from the owner and then deleted as nobody's.
+export const GONE_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
+
 // The owner's window on each car's streamed readings (vehicles.readings_from .. readings_until, read
-// through ownerDb readings), from the cars Tesla lists for them now. A car that left their Tesla account
-// (sold, or a shared car's access removed) closes now, so they don't see what it streams for its next
-// owner. One that comes back opens a new window from now: the time it was away stays hidden. A new car
-// opens on insert (the column's default). Best effort: a failure leaves the windows as they were.
+// through ownerDb readings), from the cars Tesla lists for them now:
+//   * a car not listed is marked missing_since (the first such check);
+//   * one missing for GONE_AFTER_MS closes at missing_since, so the owner doesn't see what it streams for
+//     its next owner;
+//   * one listed again clears the mark, its window untouched; after a close, it opens a new window from
+//     now (bought back): the time it was someone else's stays hidden.
+// A new car opens on insert (the column's default). Best effort: a failure leaves the windows as they were.
 export async function syncWindows(owner: Owner, listedIds: string[], now: string) {
   const scope = ownerDb(owner);
   const ids = `(${listedIds.map((id) => `"${id}"`).join(",")})`;
   try {
-    let gone = scope.from("vehicles").update({ readings_until: now }).is("readings_until", null);
+    let missing = scope.from("vehicles").update({ missing_since: now }).is("readings_until", null).is("missing_since", null);
+    if (listedIds.length) missing = missing.not("id", "in", ids);
+    await check(missing);
+
+    let gone = scope.from("vehicles").select("id:id::text, missing_since").is("readings_until", null).lte("missing_since", new Date(Date.parse(now) - GONE_AFTER_MS).toISOString());
     if (listedIds.length) gone = gone.not("id", "in", ids);
-    await check(gone);
+    for (const car of (await check(gone)) ?? []) {
+      await check(scope.from("vehicles").update({ readings_until: car.missing_since }).eq("id", car.id).is("readings_until", null));
+    }
+
     if (listedIds.length) {
-      await check(scope.from("vehicles").update({ readings_from: now, readings_until: null }).in("id", listedIds).not("readings_until", "is", null));
+      await check(scope.from("vehicles").update({ missing_since: null }).in("id", listedIds).is("readings_until", null).not("missing_since", "is", null));
+      await check(
+        scope.from("vehicles").update({ readings_from: now, readings_until: null, missing_since: null }).in("id", listedIds).not("readings_until", "is", null),
+      );
     }
   } catch (err) {
     console.warn("Updating the cars' reading windows failed:", messageOf(err));

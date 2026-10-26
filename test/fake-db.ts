@@ -123,6 +123,10 @@ class FakeQuery {
     this.filters.push([`${column} >= ${value}`, (r) => Date.parse(r[column] as string) >= Date.parse(value)]);
     return this;
   }
+  lte(column: string, value: string) {
+    this.filters.push([`${column} <= ${value}`, (r) => typeof r[column] === "string" && Date.parse(r[column] as string) <= Date.parse(value)]);
+    return this;
+  }
   lt(column: string, value: string) {
     this.filters.push([`${column} < ${value}`, (r) => Date.parse(r[column] as string) < Date.parse(value)]);
     return this;
