@@ -34,11 +34,11 @@ export function ChargeRange({ sessions, frame, serialOf }: { sessions: StreamCha
             <Value text={`${from}% to ${to}%`} />
           </p>
           <p className="text-sm text-muted-foreground">
-            Typical start and end, from {finished.length} {finished.length === 1 ? "charge" : "charges"}
+            Typical start and end, from {finished.length} {finished.length === 1 ? "charge" : "charges"} {frame.words}
           </p>
         </div>
       }
-      caption={`${frame.title}, latest ${latest.length === 1 ? "charge" : `${latest.length} charges`}, newest first`}
+      caption={latest.length === 1 ? "Latest charge" : `Latest ${latest.length} charges, newest first`}
     >
       <div>
         <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] border-b pb-2 text-xs text-faint" aria-hidden="true">

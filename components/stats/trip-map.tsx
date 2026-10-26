@@ -657,9 +657,6 @@ export function TripMap({
           </>
         )}
       </ul>
-      <p className="text-sm text-muted-foreground">
-        Map data © OpenStreetMap contributors, © CARTO.
-      </p>
     </div>
   );
 }

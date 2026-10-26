@@ -21,9 +21,10 @@ const KINDS: { kind: DayKind; label: string; className: string }[] = [
 const style = Object.fromEntries(KINDS.map((k) => [k.kind, k])) as Record<DayKind, (typeof KINDS)[number]>;
 
 // The last days as strips, after TeslaMate's timeline: when the car was driving, charging, parked or
-// seen asleep. Hover, focus or tap a stretch for a tooltip with its times. `caption` says what the days
-// cover when they are a range picked by date.
-export function DayTimeline({ days: all7, now, title = "Your days", caption }: { days: Day[]; now: number; title?: string; caption?: string }) {
+// seen asleep. Hover, focus or tap a stretch for a tooltip with its times. `period` names the period once,
+// in the top line (see periodPhrase); `caption` is a caveat under the strips ("Days cover only the last 30
+// days").
+export function DayTimeline({ days: all7, now, title = "Your days", period, caption }: { days: Day[]; now: number; title?: string; period?: string; caption?: string }) {
   const list = useRef<HTMLOListElement>(null);
   const [active, setActive] = useActiveMark<string>(list);
   // Days from before tracking began say nothing, so the strips start at the first tracked one.
@@ -37,13 +38,13 @@ export function DayTimeline({ days: all7, now, title = "Your days", caption }: {
   return (
     <ChartCard
       title={title}
-      description={`What the car was doing ${days.length === 1 ? "through the day" : "each day"}, India time.`}
+      description={`What the car was doing ${days.length === 1 ? "through the day" : "each day"}${period ? `, ${period}` : ""}, India time.`}
       info={
         <>
           <p>Asleep shows only where a check found the car asleep; the rest of a parked stretch may have been asleep too.</p>
         </>
       }
-      summary={caption && <p className="text-sm text-muted-foreground">{caption}</p>}
+      caption={caption}
     >
       <div className="space-y-4">
       <ol ref={list} className="chart-touch space-y-1.5" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>

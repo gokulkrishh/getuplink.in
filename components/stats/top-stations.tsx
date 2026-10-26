@@ -11,7 +11,7 @@ export function TopStations({ rows, title, words }: { rows: StationRow[]; title:
       <div className="space-y-2">
         <h2 className="text-lg font-medium tracking-heading">Where you charge</h2>
         <p className="text-sm text-muted-foreground">
-          {title}.{rows.length === 0 && ` No charges at a named station ${words}.`}
+          {rows.length === 0 ? `No charges at a named station ${words}.` : `${title}.`}
         </p>
       </div>
       {rows.length > 0 && (

@@ -1,4 +1,5 @@
 import { ShowMore } from "@/components/show-more";
+import { periodPhrase } from "@/components/stats/chart-caption";
 import { Value } from "@/components/stats/figures";
 import { formatClock, formatDuration, formatKwh, formatNumber, formatPower, formatRangeKm, formatShortDate } from "@/lib/format";
 import { type DrainSummary, drainSummary, type ParkedNow, type ParkedPeriod, type ParkStats } from "@/lib/drives";
@@ -107,7 +108,7 @@ export function ParkedDrain({
               <p>≥ means parked since before Uplink&apos;s first reading.</p>
             </InfoButton>
           </div>
-          <p className="text-sm text-muted-foreground">Battery lost while parked. Lower is better.</p>
+          <p className="text-sm text-muted-foreground">{rows.length > 0 ? `Battery lost while parked, ${periodPhrase(frame)}. Lower is better.` : "Battery lost while parked. Lower is better."}</p>
         </div>
         {headline && (
           <>

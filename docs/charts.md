@@ -13,14 +13,14 @@ Notes for agents. Every chart in the app goes inside `ChartCard` (`components/ch
   terms={["regen"]}          // optional: other glossary terms for the popover
   info="Each point is the middle value of a 5% step." // optional method notes for the popover
   summary={<Figures figures={peaks} />} // optional: tiles or a headline value above the chart
-  caption="Last 7 days"      // optional: at most one short line, only when needed
+  caption="Readings go back to 25 Sept" // optional: one short caveat line, never the period
   empty="No driving today"   // optional: a note in the chart's place, same height
 >
   <DriveTrace label="Power" points={power} unit="kW" signed from={start} to={end} legs={legs} />
 </ChartCard>
 ```
 
-The card renders the title with an ⓘ beside it, the description, the summary, the chart and then the caption. The ⓘ shows only when `unit`, `terms` or `info` has something to say. The card has no hooks, so server sections and client plots can both use it (the ⓘ is its own client component).
+The card renders the title with an ⓘ beside it, the description, the summary, the chart and then the caption. The period is named once, at the top (see "Name the period once" below). The ⓘ shows only when `unit`, `terms` or `info` has something to say. The card has no hooks, so server sections and client plots can both use it (the ⓘ is its own client component).
 
 - **Unit**: the chart draws its unit once, above the y axis (`ChartFrame`, `DriveTrace`). Don't repeat it in the title or the description. The `unit` prop only picks the popover words. See "Units on every axis and value" below.
 - **No data**: on a page about one thing (a drive, a charge), don't render the card at all. Check `points.length >= 2` in the parent, because a parent can't tell that a child rendered nothing. On a period page (Day, Week, Month), pass `empty` so switching periods doesn't change the page's shape.
@@ -35,7 +35,7 @@ The card renders the title with an ⓘ beside it, the description, the summary, 
 - **Hourly bars**: a drive's distance and energy are split across the hours it ran through. The distance comes from the odometer's last reading before each hour boundary (`counter_values_at`, read in the same single request as the period's other boundaries). The energy is the drive's EnergyRemaining drop, shared out by that distance (`Drive.hourKm`, `driveEnergy`), so it matches the trip list. If the car sent nothing in an hour (no presence field, see `PRESENCE_FIELDS`), that hour is blank, because the car was asleep. If it was awake and parked, the hour is a real 0.
 - **Totals**: the headline is the raw sum of the bars under it (see Precision). For a Year that starts before the 90-day drive window, recent bars take energy from the drives and older ones from the lifetime counter, so its energy total is the raw sum of those bars too.
 - **Start where the data starts**: a chart's bars begin at the later of the period's start and the day its data begins: the first odometer reading for driving, the first session for charging (`fromTracking`, `fromSince`). Bars still run to the period's end, with those ahead of now blank. When the bars are cut short, the words say "since 23 Oct". A chart with 4 days of data draws 4 bars and is never padded to 30 or 90.
-- **Blocks of hours**: a bar or square that covers hours (Day's hourly bars, a custom range of 2 days or less, the charge heatmap) says its whole span wherever it is named: "7 AM to 8 AM" in the tooltip and for screen readers (`formatHours`), never just its start, which reads as "at 7 AM". The caption says what each bar covers ("Kilometres driven each hour today"). The axis writes the start hour on the block's start boundary under a tick (a slot's `axis` and `edge`, see `Slot`), like a clock axis, not centred under the bar. Labels thin to every 2, 3, 6, 12 or 24 hours, so midnight always shows.
+- **Blocks of hours**: a bar or square that covers hours (Day's hourly bars, a custom range of 2 days or less, the charge heatmap) says its whole span wherever it is named: "7 AM to 8 AM" in the tooltip and for screen readers (`formatHours`), never just its start, which reads as "at 7 AM". The axis writes the start hour on the block's start boundary under a tick (a slot's `axis` and `edge`, see `Slot`), like a clock axis, not centred under the bar. Labels thin to every 2, 3, 6, 12 or 24 hours, so midnight always shows.
 
 ## Units on every axis and value
 
@@ -58,13 +58,29 @@ A noun for what is measured, in sentence case, with no unit and no period.
 | Energy added | Energy Added Per Session |
 | Battery level | Battery % over time |
 
+## Name the period once
+
+The owner's rule: every chart and section names its period exactly once, at the top, and never again under the chart.
+
+- **Where**: in the headline sentence when the chart has one ("Added in the last 7 days, 3.1 kWh more than the 7 days before"); otherwise in the summary line ("Most often Sun, 9 PM to 12 AM, 1 charge in the last 7 days") or the description, after a comma ("Battery level, last 7 days.", with `periodPhrase(frame)` from `components/stats/chart-caption.ts`, so All reads "all time", not "in total").
+- **The caption under a chart** is only for what the top doesn't say: a caveat ("Readings go back to 25 Sept", "Days cover only the last 30 days", "Covers only 27 Sept to 26 Oct", "Latest 10 charges, newest first", "A line needs two weeks"), or the bars' span when it differs from the period (All draws whole years: "Each year, 2021 to 2026", `barsSpan`). Never "Last 7 days", "This month" or "Each day in the last 7 days" again under a headline that says it.
+- **Empty**: when `empty` or a note stands in the chart's place, that sentence names the period ("No readings this month."), so the description drops it, and the period is still said once.
+- **Tiles** under a headline don't repeat its period ("130.6 km driven", not "130.6 km driven in the last 7 days"). Tiles that mix spans (Battery health's "now" and the period's) say which each is.
+- `test/period-once.test.ts` fails when a `caption=` names the frame's title or words, or when `barsSpan` repeats a period.
+
+| Good | Bad |
+| --- | --- |
+| Added in the last 7 days. *(chart)* | Added in the last 7 days. *(chart)* Each day in the last 7 days, since 25 Oct |
+| Battery level, this month. *(chart)* Readings go back to 25 Sept | Battery level over time. *(chart)* This month, since 25 Sept |
+| …, 1 charge in the last 7 days. *(grid)* | …, 1 charge *(grid)* Last 7 days |
+
 ## Keep it brief
 
 The owner's rule, for every page: too much text is worse than too little. Keep the meaning, cut the words, and never remove data.
 
 1. **Description**: one short sentence, ideally under about 12 words, saying what the chart shows. Not how to read the axes, and no "hover or tap".
 2. **Units and method go behind the ⓘ.** Glossary words and method notes (how a figure is worked out, what a mark, a gap or a symbol means) go in the info popover, never inline.
-3. **Caption**: at most one short line, only when needed, such as the span ("Last 7 days", "Each day, last 7 days") or a data cut-off ("Readings go back to 25 Sept"), with no trailing period. Drop sentences that repeat the title or description.
+3. **Caption**: at most one short line, only for what the top doesn't say (see "Name the period once"), with no trailing period. Drop sentences that repeat the title or description.
 4. **Advice** (like "Sentry Mode keeps the car awake"): keep it only when it's actionable and fits on one short line. Otherwise move it into the popover.
 5. **Tables**: short column headers. Explanations of columns ("Seen awake is a minimum", "≥ means parked since before the first reading") go in the popover.
 6. **No interaction hints**, anywhere: no "Hover or tap for its value", "Tap a pin", "Click…", not even in the popover. People know how to hover. Screen-reader text and `aria-label`s are fine. A map footer keeps only its attribution.

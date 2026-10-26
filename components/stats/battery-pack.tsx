@@ -1,5 +1,6 @@
 import { ChartCard } from "@/components/chart-card";
 import { BatteryTrend } from "@/components/stats/battery-trend";
+import { periodPhrase } from "@/components/stats/chart-caption";
 import { formatKwh, formatShortDate } from "@/lib/format";
 import { backTo, weeksIn } from "@/lib/kept";
 import type { Timeframe } from "@/lib/periods";
@@ -16,7 +17,7 @@ export function BatteryPack({ trend, frame }: { trend: WeeklyPack[]; frame: Time
   return (
     <ChartCard
       title="Usable capacity by week"
-      description={`Usable capacity, week by week. Latest week ${formatKwh(latest.kwh)}.`}
+      description={`Usable capacity week by week${weeks.length >= 2 ? `, ${periodPhrase(frame)}` : ""}. Latest week ${formatKwh(latest.kwh)}.`}
       unit="kWh"
       terms={["usable capacity"]}
       info="The scale starts near the readings, not at zero, so small changes show."

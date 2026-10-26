@@ -1,5 +1,5 @@
 import { Zap } from "lucide-react";
-import { type ReactNode, Suspense } from "react";
+import { type ReactNode, Suspense, ViewTransition } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Header } from "@/components/header";
 import { PeriodPicker, PeriodScope } from "./period-scope";
@@ -12,10 +12,13 @@ import { ViewTabs, ViewTabsShell } from "./view-tabs";
 export function StatsFrame({ custom, periodSwitch = true, children }: { custom: CustomScope; periodSwitch?: boolean; children: ReactNode }) {
   return (
     <PeriodScope periods={PAGE_PERIODS.stats} custom={custom}>
-      <div className="space-y-12">
-        {periodSwitch && <PeriodPicker />}
-        {children}
-      </div>
+      {/* Fades in over the skeleton when the topic's data arrives (see StatsSkeleton); nothing else moves. */}
+      <ViewTransition enter="stats-in" default="none">
+        <div className="space-y-12">
+          {periodSwitch && <PeriodPicker />}
+          {children}
+        </div>
+      </ViewTransition>
     </PeriodScope>
   );
 }
@@ -50,19 +53,21 @@ export function NotYet({ title, children }: { title: string; children: ReactNode
 export function StatsSkeleton() {
   const block = "bg-muted motion-safe:animate-pulse";
   return (
-    <div role="status" aria-busy="true" className="space-y-12">
-      <span className="sr-only">Loading…</span>
-      {/* Where the period switch will be, so nothing below jumps when it arrives. */}
-      <div className={`h-7 w-72 max-w-full max-sm:h-9 ${block}`} />
-      <div className="space-y-8">
-        <div className="space-y-2">
-          <div className={`h-4 w-28 ${block}`} />
-          <div className={`h-10 w-48 ${block}`} />
-          <div className={`h-4 w-64 ${block}`} />
+    <ViewTransition exit="stats-out" default="none">
+      <div role="status" aria-busy="true" className="space-y-12">
+        <span className="sr-only">Loading…</span>
+        {/* Where the period switch will be, so nothing below jumps when it arrives. */}
+        <div className={`h-7 w-72 max-w-full max-sm:h-9 ${block}`} />
+        <div className="space-y-8">
+          <div className="space-y-2">
+            <div className={`h-4 w-28 ${block}`} />
+            <div className={`h-10 w-48 ${block}`} />
+            <div className={`h-4 w-64 ${block}`} />
+          </div>
+          <div className={`h-36 w-full ${block}`} />
         </div>
-        <div className={`h-36 w-full ${block}`} />
+        <div className={`h-40 w-full ${block}`} />
       </div>
-      <div className={`h-40 w-full ${block}`} />
-    </div>
+    </ViewTransition>
   );
 }

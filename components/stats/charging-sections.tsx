@@ -8,7 +8,7 @@ import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
 import { chargeEfficiency } from "@/lib/charge-sessions";
 import { type Bill, billsBySlot, billsIn, energyIn, spendBreakdown } from "@/lib/charging-figures";
 import { comparedWith, headline } from "@/lib/dashboard-summary";
-import { DECIMALS, formatDuration, formatKwh, formatMoney, formatMonth, formatNumber, formatPercent, showsZero, sumKnown } from "@/lib/format";
+import { DECIMALS, formatDuration, formatKm, formatKwh, formatMoney, formatMonth, formatNumber, formatPercent, showsZero, sumKnown } from "@/lib/format";
 import { hasBars, Headline, knownBars } from "@/components/stats/driving-sections";
 import { LIST_PREVIEW } from "@/lib/list";
 import { inSpan, type Slot, type Span, type Timeframe } from "@/lib/periods";
@@ -42,7 +42,7 @@ export function trackedBefore(frame: Pick<Timeframe, "previous">, chargingSince:
 
 // Spend from real bills only: Tesla's for Superchargers, attached invoices for other chargers, against the
 // span before where tracking covers it (`chargingSince`, see trackedBefore). Then ₹/kWh by charger kind
-// and time on the charger (`charged`, ms by kind, see chargingTime) in one row of tiles, ₹ per 100 km
+// and time on the charger (`charged`, ms by kind, see chargingTime) in one row of tiles with ₹ per 100 km
 // driven in the same period, and how many charges had no bill, so a cheap-looking month isn't mistaken
 // for one.
 export function Summary({
@@ -82,6 +82,7 @@ export function Summary({
   const bars = plain.map((b, k) => ({ ...b, tip: detail(slots[k]) }));
   const ac = acPerKwh !== null || charged.ac > 0;
   const dc = dcPerKwh !== null || charged.dc > 0;
+  const perKm = km !== null && km >= 10 && cost > 0 && missing === 0 ? (cost / km) * 100 : null;
   // "Spent on charging this month, ₹310 less than 1 to 26 Sept": less or more, as money reads plainest.
   const compared = comparedWith(cost, before && billsIn(bills, before).cost, money, frame.previousLabel, { decimals: DECIMALS.money });
   return (
@@ -102,6 +103,9 @@ export function Summary({
       {(count > 0 || ac || dc) && (
         <Figures
           figures={[
+            // What a kilometre cost: the period's bills over the distance driven in it, only when every
+            // charge has a bill (else it reads cheaper than it was) and there's driving enough to divide by.
+            perKm !== null && { label: "Cost per 100 km", value: formatMoney(perKm, "INR"), note: `${formatKm(km!)} driven` },
             { label: "Energy billed", value: formatKwh(kwh) },
             { label: "Bills", value: count },
             acPerKwh !== null && { label: "AC rate", value: `${formatMoney(acPerKwh, "INR")}/kWh`, note: "Slower charging" },
@@ -112,9 +116,6 @@ export function Summary({
           label="bills"
           terms={["kWh", acPerKwh !== null || dcPerKwh !== null ? "₹/kWh" : undefined, ac ? "AC" : undefined, dc ? "DC" : undefined]}
         />
-      )}
-      {km !== null && km >= 10 && cost > 0 && missing === 0 && (
-        <p className="text-sm text-muted-foreground tabular-nums">{formatMoney((cost / km) * 100, "INR")} per 100 km driven</p>
       )}
       {missing > 0 && (
         <p className="text-sm text-faint">

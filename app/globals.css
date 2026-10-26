@@ -301,6 +301,23 @@ html .maplibregl-map {
 ::view-transition-new(.tab-labels) {
   animation: none;
 }
+/* A Stats topic's data fades in over its skeleton (components/stats/stats-frame.tsx): "it loaded". */
+::view-transition-old(.stats-out) {
+  animation: 120ms ease-in both stats-fade-out;
+}
+::view-transition-new(.stats-in) {
+  animation: 180ms ease-out both stats-fade-in;
+}
+@keyframes stats-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes stats-fade-in {
+  from {
+    opacity: 0;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(*),
   ::view-transition-new(*),

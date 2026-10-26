@@ -1,6 +1,7 @@
 "use client";
 
 import { ChartCard } from "@/components/chart-card";
+import { periodPhrase } from "@/components/stats/chart-caption";
 import { Figures } from "@/components/stats/figures";
 import { LineChart } from "@/components/stats/line-chart";
 import { formatCelsius, formatClock, formatKm, formatKwh, formatNumber, formatShortDate } from "@/lib/format";
@@ -42,7 +43,7 @@ export function Temperatures({ temps, frame }: { temps: BatteryExtras["temps"]; 
   return (
     <ChartCard
       title="Temperatures"
-      description="Battery, cabin and outside temperatures."
+      description={drawn ? `Battery, cabin and outside temperatures, ${periodPhrase(frame)}.` : "Battery, cabin and outside temperatures."}
       info={drawn ? GAPS : undefined}
       summary={
         drawn && (
@@ -88,7 +89,7 @@ export function CellBalance({ spread, frame }: { spread: BatteryExtras["cellSpre
   return (
     <ChartCard
       title="Cell balance"
-      description="Gap between the highest and lowest cell. Lower is better."
+      description={shown.length >= 2 ? `Gap between the highest and lowest cell, ${periodPhrase(frame)}. Lower is better.` : "Gap between the highest and lowest cell. Lower is better."}
       unit="mV"
       terms={["cell"]}
       info={
@@ -101,7 +102,7 @@ export function CellBalance({ spread, frame }: { spread: BatteryExtras["cellSpre
         <Figures
           figures={[
             { label: "Gap now", value: mv(now.y), note: `Latest reading, ${when(now.x)}` },
-            widest && { label: "Widest", value: mv(widest.y), note: `${frame.title}, ${when(widest.x)}` },
+            widest && { label: "Widest", value: mv(widest.y), note: when(widest.x) },
           ]}
         />
       }
@@ -130,7 +131,7 @@ export function CapacityByKm({ points, frame }: { points: BatteryExtras["capacit
   return (
     <ChartCard
       title="Capacity by distance"
-      description="Usable capacity each week, against the odometer."
+      description={shown.length >= 2 ? `Usable capacity each week against the odometer, ${periodPhrase(frame)}.` : "Usable capacity each week, against the odometer."}
       unit="kWh"
       terms={["usable capacity"]}
       caption={backTo(frame.span, points[0].weekStart, "Weekly estimates")}
@@ -162,7 +163,7 @@ export function TeslaPackByWeek({ pack, frame }: { pack: BatteryExtras["teslaPac
   return (
     <ChartCard
       title="Full pack by week, per Tesla"
-      description="Full-pack energy, as the car reports it."
+      description={shown.length >= 2 ? `Full-pack energy as the car reports it, ${periodPhrase(frame)}.` : "Full-pack energy, as the car reports it."}
       unit="kWh"
       terms={["full pack, per Tesla"]}
       info={

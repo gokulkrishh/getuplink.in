@@ -9,6 +9,7 @@ import { Distance, DriveStatsSection } from "@/components/stats/driving-sections
 import { customScope, type HomePeriod, PERIODS } from "@/components/stats/periods";
 import { driveStats, withDriveEfficiency } from "@/lib/drive-stats";
 import { type Day, stripsBetween } from "@/lib/day-timeline";
+import { periodPhrase } from "@/components/stats/chart-caption";
 import { DayTimeline } from "@/components/stats/day-timeline";
 import { EfficiencyBands, Places, SpeedBands } from "@/components/stats/driving-extras";
 import { type DrivingExtras, INSIGHT_DAYS, loadDrivingExtrasFor } from "@/lib/server/driving-extra";
@@ -133,7 +134,7 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
   // The insights read a span's newest days only; when that leaves some out, the note names the days read.
   const insightsNote = (key: HomePeriod, span: Span) => {
     const read = byFrame[key]?.insights;
-    return read && read.from < read.to && partial(span, read.from) ? `Covers only ${daysLabel(istDay(read.from), istDay(read.to - 1), now)}.` : undefined;
+    return read && read.from < read.to && partial(span, read.from) ? `Covers only ${daysLabel(istDay(read.from), istDay(read.to - 1), now)}` : undefined;
   };
 
   return (
@@ -150,15 +151,16 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
             <DayTimeline
               days={byFrame[key]?.days ?? []}
               now={now}
-              caption={`${frame.title}.${partial(frame.span, stripsFrom) ? ` Days cover only the last ${AWAKE_DAYS} days.` : ""}`}
+              period={periodPhrase(frame)}
+              caption={partial(frame.span, stripsFrom) ? `Days cover only the last ${AWAKE_DAYS} days` : undefined}
             />
           ))}
-          {eachFrame(frames, (f) => (isLong(f) ? <SpeedBands bins={byFrame[f.key]?.extras.speed ?? []} words={f.frame.words} note={insightsNote(f.key, f.frame.span)} /> : null))}
+          {eachFrame(frames, (f) => (isLong(f) ? <SpeedBands bins={byFrame[f.key]?.extras.speed ?? []} period={periodPhrase(f.frame)} note={insightsNote(f.key, f.frame.span)} /> : null))}
           {eachFrame(frames, ({ key, frame }) => (
-            <EfficiencyBands byTemp={byFrame[key]?.extras.byTemp ?? []} bySpeed={byFrame[key]?.extras.bySpeed ?? []} words={frame.words} note={insightsNote(key, frame.span)} />
+            <EfficiencyBands byTemp={byFrame[key]?.extras.byTemp ?? []} bySpeed={byFrame[key]?.extras.bySpeed ?? []} period={periodPhrase(frame)} note={insightsNote(key, frame.span)} />
           ))}
           {eachFrame(frames, ({ key, frame }) => (
-            <Places places={byFrame[key]?.extras.places ?? []} visited={byFrame[key]?.extras.visited ?? []} words={frame.words} note={insightsNote(key, frame.span)} />
+            <Places places={byFrame[key]?.extras.places ?? []} visited={byFrame[key]?.extras.visited ?? []} period={periodPhrase(frame)} note={insightsNote(key, frame.span)} />
           ))}
           {eachFrame(frames, ({ frame }) => {
             const kept = clipSpan(frame.span, tripsFrom, now);

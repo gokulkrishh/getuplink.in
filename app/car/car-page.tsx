@@ -140,7 +140,9 @@ function CarHeader({ car, odometer, version, syncedAt, at }: { car: CarDetails; 
                 <Link
                   href="/stats/battery"
                   prefetch={true}
-                  className="inline-flex items-center gap-0.5 font-mono font-medium tabular-nums underline decoration-border decoration-dotted underline-offset-4 transition-colors duration-150 hover:decoration-foreground"
+                  // The unit is inline-block, so the dotted underline runs under the number only (a smaller unit
+                  // would sit it at another height).
+                  className="inline-flex items-center gap-0.5 font-mono font-medium tabular-nums underline decoration-border decoration-dotted underline-offset-4 transition-colors duration-150 hover:decoration-foreground [&_span]:inline-block"
                 >
                   <Measure text={formatKwh(battery.kwh)} size="tile" />
                   <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />

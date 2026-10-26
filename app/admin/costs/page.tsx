@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { ExternalLink } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
 import { AdminPage } from "@/components/admin/admin-page";
+import { DEMO } from "@/lib/demo";
 import { Measure } from "@/components/measure";
 import { Figures } from "@/components/stats/figures";
 import {
@@ -45,7 +46,9 @@ const link = "underline decoration-border underline-offset-4 hover:decoration-fo
 async function checkAdmin(): Promise<number> {
   "use cache: private";
   cacheTag(COSTS_TAG);
-  cacheLife({ stale: 60 });
+  // 5 minutes or more lets the page come along with a link's prefetch, so the tabs switch at once (Next's
+  // instant-navigation guide); saves still refresh it at once (updateTag).
+  cacheLife({ stale: 300 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
   if (!(await isAdmin())) notFound();
   return Date.now();
@@ -227,7 +230,7 @@ function totalNote(total: Total): ReactNode {
   ));
 }
 
-export default async function Page() {
+async function Costs() {
   const { data, now } = await loadPage();
   const total = monthlyTotal(data.lines);
   const alerts = costAlerts(data.lines, now);
@@ -235,16 +238,8 @@ export default async function Page() {
   if (data.tesla) parts.tesla = teslaParts(data.tesla, now);
   if (data.google) parts.google = googleParts(data.google);
   return (
-    <AdminPage
-      tab="costs"
-      description={
-        <p>
-          What running Uplink costs this month, in dollars.
-          {data.simulated && " Demo: sample figures, read-only."}
-          {!data.simulated && !data.ready && " Apply the costs migration to add your own."}
-        </p>
-      }
-    >
+    <>
+      {!data.simulated && !data.ready && <p className="text-sm text-muted-foreground">Apply the costs migration to add your own.</p>}
         <Figures
           figures={[{ label: "This month", value: usd(total.usd), note: totalNote(total) }]}
           info="Estimated lines are list prices for what each provider's API reports, refreshed every 6 hours."
@@ -298,6 +293,19 @@ export default async function Page() {
         )}
 
         <p className="text-xs text-faint">As of {formatDateTime(now)}</p>
+    </>
+  );
+}
+
+// The admin check first (a real 404 for anyone else), then the frame and tabs at once, with the costs
+// streaming in under them: the providers' figures can take a moment.
+export default async function Page() {
+  await checkAdmin();
+  return (
+    <AdminPage tab="costs" description={<p>What running Uplink costs this month, in dollars.{DEMO && " Demo: sample figures, read-only."}</p>}>
+      <Suspense fallback={<div role="status" aria-busy="true" className="h-64 bg-muted motion-safe:animate-pulse"><span className="sr-only">Loading…</span></div>}>
+        <Costs />
+      </Suspense>
     </AdminPage>
   );
 }

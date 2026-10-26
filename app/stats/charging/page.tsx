@@ -127,7 +127,7 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
           {bills.some((b) => b.parts) && eachFrame(frames, (f) => <PaidFor bills={bills} frame={fromSince(f, chargingSince, now).frame} />)}
           {streamSessions.length > 0 &&
             eachFrame(frames, (f) => <EnergyAdded sessions={sessions} streamOnly={streamOnly} frame={fromSince(f, chargingSince, now).frame} chargingSince={chargingSince} />)}
-          {eachFrame(frames, ({ frame }) => <ChargeHabits starts={starts(frame.span)} title={frame.title} words={frame.words} />)}
+          {eachFrame(frames, ({ frame }) => <ChargeHabits starts={starts(frame.span)} words={frame.words} />)}
           {streamSessions.length > 0 &&
             eachFrame(frames, ({ frame }) => (
               <ChargeRange sessions={streamSessions.filter(startedIn(frame.span))} frame={frame} serialOf={(s) => streamSerial.get(s.id)} />

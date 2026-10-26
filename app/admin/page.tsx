@@ -21,7 +21,9 @@ const number = new Intl.NumberFormat("en-IN");
 async function loadAdminPage(): Promise<{ data: AdminPage; now: number }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
-  cacheLife({ stale: 60 });
+  // 5 minutes or more lets the page come along with a link's prefetch, so the tabs switch at once (Next's
+  // instant-navigation guide); saves still refresh it at once (updateTag).
+  cacheLife({ stale: 300 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
   if (!(await isAdmin())) notFound();
   // The clock is read inside the cache; reading it while rendering blocks prerendering.

@@ -138,10 +138,10 @@ export function DriveStatsSection({ stats, title, spanDays, partial = false }: {
         <p className="text-sm text-muted-foreground">
           {short ? `${title}, ${covers}` : title}.
         </p>
-        {partial && <p className="text-sm text-faint">Drives cover only the last {DRIVE_DAYS} days.</p>}
       </div>
       {/* Tiles: easier to take in than a long list. */}
       <Figures figures={figures} />
+      {partial && <p className="text-sm text-faint">Drives cover only the last {DRIVE_DAYS} days.</p>}
     </section>
   );
 }

@@ -6,7 +6,9 @@ import { ChartNote } from "@/components/stats/chart-note";
 import { Value } from "@/components/stats/figures";
 import { type ChargeLevel, type ChargeStretch, flatLevelNote, type LevelPoint } from "@/lib/charge-level";
 import { formatClock, formatLevels, formatPercent, formatShortDate } from "@/lib/format";
-import { sinceWords, type Timeframe } from "@/lib/periods";
+import { periodPhrase } from "@/components/stats/chart-caption";
+import { backTo } from "@/lib/kept";
+import type { Timeframe } from "@/lib/periods";
 
 const HOUR = 3_600_000;
 const when = (t: number) => `${formatShortDate(t)}, ${formatClock(t)}`;
@@ -80,15 +82,16 @@ export function ChargeLevelChart({
     .map((c) => ({ start: Math.max(c.start, from), end: Math.min(c.end, to), tip: chargeTip(c, level.points) }));
   const flat = flatLevelNote(points, charging.length, frame.words);
   const latest = level.points[level.points.length - 1];
-  // The readings kept start after the span does: "This month, since 25 Sept", else the span ("This month").
-  // Home names the window's start, as it always has; the Battery page names the first reading seen.
+  // The period is named once, at the top, when the line draws (a note in its place says it itself). The
+  // caption is left for the readings starting after the span does: "Readings go back to 25 Sept". Home
+  // names the window's start, as it always has; the Battery page names the first reading seen.
+  const drawn = points.length >= 2 && !flat;
   const since = heading ? level.points[0].at : level.from;
-  const caption = since > frame.span.from ? sinceWords(frame, formatShortDate(since)).title : frame.title;
   return (
     <ChartCard
       as={heading ? "h2" : "h3"}
       title="Charge level"
-      description="Battery level over time."
+      description={drawn ? `Battery level, ${periodPhrase(frame)}.` : "Battery level over time."}
       summary={
         heading && (
           // The latest level, whatever span is picked; the chart below follows the span.
@@ -102,7 +105,7 @@ export function ChargeLevelChart({
           </p>
         )
       }
-      caption={points.length < 2 || flat ? undefined : caption}
+      caption={drawn ? backTo(frame.span, since, "Readings") : undefined}
     >
       {/* With no readings, or a flat line and no charge (see flatLevelNote), one line stands in for the chart. */}
       {points.length < 2 ? (

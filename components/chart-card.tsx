@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 // Every chart in the app, wrapped the same way (see docs/charts.md): a sentence-case title with an ⓘ beside
 // it, one short line on what the chart shows, optional tiles or a headline value, the chart itself, and at
-// most one short caption under it. The ⓘ opens a popover with the plain words for `unit` and `terms`
+// most one short caption under it. The period is named once, at the top; the caption is for caveats. The ⓘ opens a popover with the plain words for `unit` and `terms`
 // (lib/unit-words.ts) and any `info` (how a figure is worked out); nothing about units shows inline.
 // The unit itself is drawn once, by the chart, above its y axis (as ChartFrame and DriveTrace do). With
 // `empty`, one sentence sits in the chart's place and the caption is left out; on a page where a chart has
@@ -35,7 +35,9 @@ export function ChartCard({
   terms?: string[];
   // Method notes for the ⓘ popover: how a figure is worked out, what a mark or a gap means.
   info?: ReactNode;
-  // One short line under the chart, only when needed ("Last 7 days").
+  // One short line under the chart, only for what the top doesn't say: a caveat ("Readings go back to 25
+  // Sept", "Newest first") or the bars' span when it differs from the period. Never the period itself: that
+  // is named once, in the headline or the description (see docs/charts.md).
   caption?: ReactNode;
   // Tiles or a headline value between the description and the chart.
   summary?: ReactNode;

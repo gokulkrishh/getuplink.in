@@ -26,7 +26,9 @@ const number = new Intl.NumberFormat("en-IN");
 async function loadPage(): Promise<{ data: WaitlistPage; invites: InvitesPage; now: number }> {
   "use cache: private";
   cacheTag(WAITLIST_TAG);
-  cacheLife({ stale: 30 });
+  // 5 minutes or more lets the page come along with a link's prefetch, so the tabs switch at once (Next's
+  // instant-navigation guide); saves still refresh it at once (updateTag).
+  cacheLife({ stale: 300 });
   if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
   if (!(await isAdmin())) notFound();
   const now = Date.now();
