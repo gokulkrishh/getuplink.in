@@ -42,7 +42,8 @@ describe("the sandbox refuses to start outside local dev", () => {
     expect(prod.stderr.toString()).toContain("UPLINK_SANDBOX");
     const vercel = load({ UPLINK_SANDBOX: "1", NODE_ENV: "development", VERCEL: "1" });
     expect(vercel.exitCode).not.toBe(0);
-    expect(load({ UPLINK_SANDBOX: "1", NODE_ENV: "development" }).exitCode).toBe(0);
+    // VERCEL set empty: Bun loads .env.local, which `vercel env pull` fills with VERCEL=1 on a dev machine.
+    expect(load({ UPLINK_SANDBOX: "1", NODE_ENV: "development", VERCEL: "" }).exitCode).toBe(0);
   });
 
   test("the flag alone doesn't turn it on: only next dev does", () => {
