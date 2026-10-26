@@ -7,12 +7,13 @@ import { Header } from "@/components/header";
 import { ChartCard } from "@/components/chart-card";
 import { DriveTrace } from "@/components/stats/drive-lanes";
 import { type Figure, Figures } from "@/components/stats/figures";
-import { TripMap } from "@/components/stats/trip-map";
+import { type MapFact, MapFacts, type MapPin, TripMap } from "@/components/stats/trip-map";
 import { TripTimeline } from "@/components/stats/trip-timeline";
 import { formatClock, formatDate, formatDuration, formatKm, formatKwh } from "@/lib/format";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type DriveDetail, loadDriveDetail } from "@/lib/server/drive-detail";
+import { placeKey, placeNames } from "@/lib/server/place-names";
 import { Measure } from "@/components/measure";
 import { unitNotes } from "@/lib/unit-words";
 
@@ -92,7 +93,17 @@ function Drive({ detail }: { detail: DriveDetail }) {
         <section className="space-y-4">
           <h2 className="text-lg font-medium tracking-heading">Map</h2>
           {route.length >= 2 ? (
-            <TripMap route={route} pins={pins} />
+            <TripMap
+              route={route}
+              pins={mapPins(pins, trip.legs)}
+              speed={speed}
+              legs={trip.legs.map((d) => ({ start: d.start, end: d.end, note: [formatKm(d.km), batteryWords(d.startLevel, d.endLevel)].filter(Boolean).join(", ") }))}
+              below={
+                <Suspense fallback={<MapFacts facts={mapFacts(null, null, tiles)} />}>
+                  <NamedFacts pins={pins} tiles={tiles} />
+                </Suspense>
+              }
+            />
           ) : (
             <p className="text-sm text-muted-foreground">The map shows for trips after your car starts streaming its location.</p>
           )}
@@ -165,6 +176,41 @@ function Drive({ detail }: { detail: DriveDetail }) {
       </div>
     </>
   );
+}
+
+const batteryWords = (a: number | null, b: number | null) => (a !== null && b !== null ? `Battery ${Math.round(a)}% to ${Math.round(b)}%` : null);
+
+// A stop where the battery came back up between legs was a charge: its pin says so, with the levels.
+function mapPins(pins: MapPin[], legs: DriveDetail["trip"]["legs"]): MapPin[] {
+  return pins.map((p) => {
+    // Stop pins are labelled "Stop 1 · ..." in order, the first between legs 1 and 2.
+    const k = Number(/^Stop (\d+)/.exec(p.label)?.[1] ?? 0) - 1;
+    const [before, after] = [legs[k], legs[k + 1]];
+    if (p.kind !== "stop" || k < 0 || !before || !after || before.endLevel === null || after.startLevel === null || after.startLevel <= before.endLevel) return p;
+    return { ...p, kind: "charge", note: `Charged ${Math.round(before.endLevel)}% to ${Math.round(after.startLevel)}%` };
+  });
+}
+
+// The trip's facts under its map, from the tiles above, with where it began and ended when known.
+function mapFacts(from: string | null, to: string | null, tiles: { label: string; value: string }[]): MapFact[] {
+  const tile = (label: string) => tiles.find((t) => t.label === label)?.value;
+  const facts: (MapFact | null)[] = [
+    from ? { label: "From", value: from } : null,
+    to ? { label: "To", value: to } : null,
+    { label: "Distance", value: tile("Distance") ?? "" },
+    { label: "Took", value: tile("Took") ?? "" },
+    tile("Battery") ? { label: "Battery", value: tile("Battery")! } : null,
+  ];
+  return facts.filter((f): f is MapFact => f !== null && f.value !== "");
+}
+
+// Names for the start and end, from the names Uplink keeps for places (looked up once each, see
+// lib/server/place-names). Streams in after the map, so a slow lookup never holds the page.
+async function NamedFacts({ pins, tiles }: { pins: MapPin[]; tiles: { label: string; value: string }[] }) {
+  const ends = [pins.find((p) => p.kind === "start"), pins.findLast((p) => p.kind === "end")];
+  const names = await placeNames(ends.filter((p): p is MapPin => p !== undefined)).catch(() => new Map<string, string>());
+  const name = (p: MapPin | undefined) => (p ? (names.get(placeKey(p)) ?? null) : null);
+  return <MapFacts facts={mapFacts(name(ends[0]), name(ends[1]), tiles)} />;
 }
 
 // Each leg of a trip as a row: when, how far, the energy and battery when known. Each opens its own page.

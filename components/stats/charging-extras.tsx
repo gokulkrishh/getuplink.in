@@ -107,7 +107,7 @@ export function ChargingMap({ pins, frame, note }: { pins: MapPin[]; frame: Time
         </p>
       </div>
       {pins.length > 0 ? (
-        <TripMap pins={pins} label={`${pins.length} charges on a map`} />
+        <TripMap pins={pins} label={`${pins.length} charges on a map`} legend="A charge; bigger pins added more energy" />
       ) : (
         // The map's box, so the page keeps its shape from one period to the next.
         <p className="flex h-72 w-full items-center justify-center border bg-muted dark:bg-card p-4 text-center text-sm text-muted-foreground sm:h-96">
