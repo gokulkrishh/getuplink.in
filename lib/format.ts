@@ -102,6 +102,12 @@ export function formatTempRange(low: number, high: number): string {
   return `${celsius.format(low)} to ${celsius.format(high)} °C`;
 }
 
+// "29.2 kW", "7 kW": charging power, as the session page shows it.
+const kw = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
+export function formatKw(value: number): string {
+  return `${kw.format(value)} kW`;
+}
+
 // "32.4 kWh"
 export function formatKwh(value: number): string {
   return `${value.toFixed(1)} kWh`;

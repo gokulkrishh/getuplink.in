@@ -190,14 +190,19 @@ export async function chargingInsights(owner: Owner) {
     ]).map((r) => ({ station: r.name, charges: r.charges, kwh: r1(r.kwh), spend_inr: r.billed ? Math.round(r.spend) : null })),
     typical_range_pct: finished.length ? { start: Math.round(median(finished.map((s) => s.start_level!))), end: Math.round(median(finished.map((s) => s.end_level!))) } : null,
     hours_charging: { ac: hours("ac"), dc: hours("dc") },
-    recent_dc_charges: extras.curves.map((c) => ({
-      date: istIso(c.date).slice(0, 10),
-      charger: c.name,
-      peak_kw: c.peakKw === null ? null : Math.round(c.peakKw),
-      average_kw: c.avgKw === null ? null : Math.round(c.avgKw),
-      battery_from_pct: Math.round(Math.min(...c.points.map((p) => p.x))),
-      battery_to_pct: Math.round(Math.max(...c.points.map((p) => p.x))),
-    })),
+    recent_dc_charges: extras.curves.map((c) => {
+      const s = streamSessions.find((x) => x.id === c.id);
+      const pct = (level: number | null | undefined, fallback: number) => Math.round(level ?? fallback);
+      return {
+        date: istIso(c.date).slice(0, 10),
+        charger: c.name,
+        peak_kw: c.peakKw === null ? null : r1(c.peakKw),
+        average_kw: c.avgKw === null ? null : r1(c.avgKw),
+        // The session's own levels, as its page shows them; the curve's ends when it has none.
+        battery_from_pct: pct(s?.start_level, Math.min(...c.points.map((p) => p.x))),
+        battery_to_pct: pct(s?.end_level, Math.max(...c.points.map((p) => p.x))),
+      };
+    }),
   };
 }
 
