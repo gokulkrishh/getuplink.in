@@ -30,12 +30,14 @@ function demoView(done: boolean): SetupView {
   return { cars: [car], canSend: true, needsLocation: false, checkedAt: at };
 }
 
-const STEP_WORDS: Record<StepState, string> = { done: "Done", todo: "To do", waiting: "Next", unknown: "Not known yet" };
+// Only states worth saying: a step still to do needs no label.
+const STEP_WORDS: Partial<Record<StepState, string>> = { done: "Done", unknown: "Not known yet" };
 
 function StepBadge({ state }: { state: StepState }) {
+  if (!STEP_WORDS[state]) return null;
   return (
     <span className={cn("inline-flex items-center gap-1.5 text-xs whitespace-nowrap", state === "done" ? "text-foreground" : "text-muted-foreground")}>
-      <span aria-hidden className={cn("size-1.5 rounded-full", state === "done" ? "bg-positive" : state === "todo" ? "bg-foreground" : "bg-faint")} />
+      <span aria-hidden className={cn("size-1.5 rounded-full", state === "done" ? "bg-positive" : "bg-faint")} />
       {STEP_WORDS[state]}
     </span>
   );
