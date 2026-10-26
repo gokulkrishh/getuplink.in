@@ -29,7 +29,7 @@ export function AwakeTimeline({ days: all, now }: { days: DayStrip[]; now: numbe
       description="When the car was awake each day. Updates download only then."
       info={
         <>
-          <p>Newest day on top. Long asleep stretches can explain a late update.</p>
+          <p>Long asleep stretches can explain a late update.</p>
           <p>
             The car doesn&apos;t say when it wakes or sleeps, so each mark is a 15-minute block where it sent data, or where a check (about every 6 hours) found
             it asleep or offline.

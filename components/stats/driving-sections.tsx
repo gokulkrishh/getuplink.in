@@ -111,7 +111,6 @@ export function EnergyUse({ frame, driving }: Frame) {
           description="Energy won back as the car slowed."
           unit="kWh"
           terms={["regen"]}
-          info="It goes back into the battery, making up for part of the energy used."
           caption={barsSpan(frame)}
           summary={
             <p className="text-sm">
