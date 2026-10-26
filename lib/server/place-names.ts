@@ -31,9 +31,11 @@ async function osmTurn(): Promise<void> {
   if (at > now) await new Promise((r) => setTimeout(r, at - now));
 }
 
+// Asks for the rounded spot the name is kept under (`key`, about 100 m), never the car's exact one: only
+// what the name needs leaves Uplink (docs/legal-review.md).
 async function lookUp(p: { lat: number; lng: number }): Promise<string | null> {
   await osmTurn();
-  const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&lat=${p.lat}&lon=${p.lng}`;
+  const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&lat=${p.lat.toFixed(3)}&lon=${p.lng.toFixed(3)}`;
   const res = await fetch(url, { headers: { "User-Agent": osmUserAgent(), "Accept-Language": "en" }, signal: AbortSignal.timeout(5000) });
   if (!res.ok) return null;
   return nominatimName(await res.json());

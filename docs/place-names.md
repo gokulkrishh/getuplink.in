@@ -129,7 +129,7 @@ Expected calls for one car:
 - No bulk or systematic queries (grids, every POI in an area), and no autocomplete. Lookups are only for spots the car parked at, shown on a page.
 - Be able to switch it off without a release: `OSM_LOOKUPS=off`.
 - Attribution, ODbL: "© OpenStreetMap contributors" wherever its names show (the Driving footer, the charging lists' credit, the sheet).
-- Don't send personal data. Only a point is sent, never who parked there.
+- Don't send personal data. Only a point is sent, rounded to the same 3 decimals (about 100 m) it's kept under, never the car's exact spot and never who parked there.
 
 ### Overpass
 

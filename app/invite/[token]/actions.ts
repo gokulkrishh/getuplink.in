@@ -20,10 +20,12 @@ import {
 // "Sign in with Tesla" on an invite page. The token is bound in by the page, never read from the form. It
 // checks the link again (the page may have sat open), then carries it through Tesla's sign-in as a signed,
 // short-lived cookie that only the callback reads. An invite that no longer works goes back to its page,
-// which says why.
-export async function startInviteSignIn(token: string): Promise<void> {
+// which says why. So does a form without the agreement box ticked (the browser requires it; this is for a
+// post made without the page).
+export async function startInviteSignIn(token: string, form: FormData): Promise<void> {
   const now = Date.now();
   const back = `/invite/${encodeURIComponent(token)}`;
+  if (form.get("agree") !== "yes") redirect(back);
   if (!allowInviteLookup(clientAddress(await headers()), now)) redirect(back);
   if ((await lookupInvite(token, now)) !== "unused") redirect(back);
   // Demo mode has no Tesla to sign in with.
