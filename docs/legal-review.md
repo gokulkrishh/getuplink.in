@@ -15,7 +15,7 @@ Change this file when either page changes, or when what the code stores changes.
 | Tesla FAA | Tesla Fleet API Agreement, last updated 21 March 2025: https://digitalassets.tesla.com/tesla-contents/image/upload/Fleet-API-Agreement-EN.pdf |
 | Tesla telemetry docs | https://developer.tesla.com/docs/fleet-api/fleet-telemetry (location fields need `vehicle_location`) |
 | Tesla third-party page | https://www.tesla.com/support/access-third-party-apps |
-| Google GMP terms | Google Maps Platform Terms of Service, last modified 26 Aug 2026: https://cloud.google.com/maps-platform/terms |
+| Google GMP terms | Google Maps Platform Terms of Service, last modified 26 Aug 2026 (the version list starts with 23 Jun 2026 as the previous one): https://cloud.google.com/maps-platform/terms |
 | Google service terms | https://cloud.google.com/maps-platform/terms/maps-service-terms (see `docs/place-names.md`, checked the same day) |
 | E-Commerce Rules | Consumer Protection (E-Commerce) Rules, 2020, G.S.R. 462(E), as summarised at https://www.legitquest.com/act/consumer-protection-e-commerce-rules-2020/91C8 (official PDF not fetched) |
 
@@ -26,7 +26,7 @@ Change this file when either page changes, or when what the code stores changes.
 - **May 2027 (sources say 12 or 13 May):** the core duties, ss. 3 to 17, s. 44(2), and Rules 3 and 5 to 16. Section 44(2) also deletes IT Act s. 43A, which ends the SPDI Rules.
 - **Until then**, IT Act s. 43A and the SPDI Rules are the law in force. They apply to a "body corporate"; see Ask a lawyer.
 
-So the pages say "Uplink follows" these laws, and don't claim rights "under" a DPDP section that isn't in force yet. The pages meet the DPDP duties now, so nothing has to change in May 2027.
+So the pages say "Uplink follows" these laws, and don't claim rights "under" a DPDP section that isn't in force yet. The notice text already covers the DPDP duties. The [Code gaps](#code-gaps) (a consent step, a consent record, other languages) remain to be fixed before May 2027.
 
 ## DPDP Act and Rules
 
@@ -141,7 +141,9 @@ Agreeing (to these terms and the Privacy page), Who can use it (18 or over, your
 ### Elsewhere
 
 - `app/home/page.tsx` FAQ, "How do I delete my data?": now also names Delete account.
-- `app/settings/confirm-actions.tsx` (Disconnect, Delete my data, Delete account) was already accurate, so it's unchanged.
+- `app/settings/confirm-actions.tsx`, Delete my data: its description and confirmation left out invoices and places. Both now name them. Disconnect and Delete account were already accurate.
+- Privacy, Signing in: without location, trips still show (drives come from Gear and Odometer, `lib/drives.ts`), just without a route. The page says so.
+- Privacy, Deleting and Withdrawing: streaming stops only for cars no other Uplink user tracks (`stopStreaming`), and Delete my data keeps the API call counts (only Delete account folds them). Both now said.
 - `app/agents.md` makes no privacy claims that conflict.
 
 ## Code gaps

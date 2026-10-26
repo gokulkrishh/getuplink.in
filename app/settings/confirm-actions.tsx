@@ -145,11 +145,11 @@ export function DeleteMyData() {
     <ConfirmDelete
       id="delete"
       title="Delete my data"
-      description="Permanently deletes your vehicles, history, streamed readings, check logs and Tesla connection."
+      description="Permanently deletes your vehicles, history, streamed readings, invoices, places, check logs and Tesla connection."
       question="Delete all your data?"
       consequence={
         <>
-          This permanently deletes your vehicles, history, streamed readings, check logs and Tesla connection, stops your
+          This permanently deletes your vehicles, history, streamed readings, invoices, places, check logs and Tesla connection, stops your
           car streaming to Uplink and signs you out on every device. It can&apos;t be undone. Your Uplink account stays,
           so you can sign in with Tesla again. Then remove Uplink&apos;s key in your car&apos;s Locks settings.
         </>

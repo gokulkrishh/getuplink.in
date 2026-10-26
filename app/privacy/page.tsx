@@ -78,15 +78,15 @@ export default function PrivacyPage() {
         <ul className={PLAIN_LIST}>
           <li>Profile information. Uplink keeps only your Tesla account id from it, not your name or email.</li>
           <li>Vehicle information, for everything on your car&apos;s pages.</li>
-          <li>Vehicle location, for trips, the charging map and your home state.</li>
+          <li>Vehicle location, for trip routes, the charging map and your home state.</li>
           <li>
             Charging management. Uplink uses it only to read your Supercharger history and invoices. It never starts or
             stops a charge.
           </li>
         </ul>
         <p>
-          You can leave Vehicle location unticked. Tesla then sends no location, and Uplink shows no trips or charging
-          map.
+          You can leave Vehicle location unticked. Tesla then sends no location: trips show no route, and there&apos;s no
+          charging map.
         </p>
         <p>
           On the waitlist, Uplink keeps only your Tesla account id and when you asked. No sign-in tokens, no email and
@@ -196,8 +196,8 @@ export default function PrivacyPage() {
         <ul className={PLAIN_LIST}>
           <li>
             Delete my data in Settings removes your cars, history, snapshots, streamed readings, charging sessions,
-            invoices, places, check logs, connector token and Tesla tokens. It stops your car streaming to Uplink. Your
-            account id stays, so you can sign in again.
+            invoices, places, check logs, connector token and Tesla tokens. It stops your car streaming to Uplink, unless
+            another Uplink user tracks it. Your account id and Tesla API call counts stay, so you can sign in again.
           </li>
           <li>
             Delete account does the same, then removes your account. Your Tesla API call counts stay in Uplink&apos;s
@@ -213,12 +213,16 @@ export default function PrivacyPage() {
       <PlainSection title="Withdrawing consent">
         <p>Any time, as easily as you signed in:</p>
         <ul className={PLAIN_LIST}>
-          <li>Disconnect in Settings removes your Tesla tokens and stops your car streaming. Your history stays.</li>
-          <li>Revoke Uplink&apos;s access, or just its location access, from your Tesla account.</li>
-          <li>Delete my data or Delete account in Settings.</li>
+          <li>
+            Disconnect in Settings removes your Tesla tokens, so Uplink stops reading your car. It stops your car
+            streaming too, unless another Uplink user tracks it. Your history stays.
+          </li>
+          <li>Revoke Uplink&apos;s access from your Tesla account, and Uplink can no longer read your car.</li>
+          <li>Revoke only its location access there, and Tesla stops sending where the car is.</li>
+          <li>Delete my data or Delete account in Settings stops the reading and deletes what was read.</li>
           <li>To leave the waitlist, email us the date you asked.</li>
         </ul>
-        <p>Uplink then stops reading your car. What it read before stays lawful.</p>
+        <p>What Uplink read before you withdrew stays lawful.</p>
       </PlainSection>
 
       <PlainSection title="Your rights">
