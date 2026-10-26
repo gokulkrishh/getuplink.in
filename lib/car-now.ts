@@ -87,6 +87,16 @@ export function measuredAt(value: unknown, now: number): string | null {
   return Number.isFinite(ms) && ms >= Date.UTC(2015, 0, 1) && ms <= now + 5 * 60_000 ? new Date(ms).toISOString() : null;
 }
 
+// measuredAt for a TpmsLastSeenPressureTime* reading: a tyre can't have been measured after the reading
+// that says so arrived, so a time past it (plus the same 5 minutes of slack) is wrong and left out. This
+// car's are: every new value from 23 to 26 Oct 2026 came 12 h 30 min ahead of its own arrival (sent at
+// 8:35 AM IST saying 9:05 PM), so once that time passed it read as a measurement that never happened.
+export function seenAt(reading: { at: string; value: unknown } | undefined, now: number): string | null {
+  if (!reading) return null;
+  const arrived = Date.parse(reading.at);
+  return measuredAt(reading.value, Number.isFinite(arrived) ? Math.min(now, arrived) : now);
+}
+
 // The tyre warnings from the latest online check (vehicle_state's tpms_soft_warning_fl, ...), and when.
 export type CheckedTyres = { at: string; soft: TyreFlags; hard: TyreFlags };
 
@@ -165,7 +175,7 @@ export function carNow(stream: Stream, now: number, checked: CheckedTyres | null
       {
         name,
         pressure: value,
-        measuredAt: measuredAt(v(`TpmsLastSeenPressureTime${suffix}`), now),
+        measuredAt: seenAt(stream[`TpmsLastSeenPressureTime${suffix}`], now),
         updatedAt: reading.at,
         warning,
         alert: warning && `${name} is ${warning}`,

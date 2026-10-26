@@ -1,3 +1,4 @@
+import { PRESENCE_FIELDS } from "@/lib/awake";
 import { CHARGE_FIELDS } from "@/lib/charge-sessions";
 import { DRIVE_DAYS } from "@/lib/drives";
 
@@ -41,11 +42,13 @@ import { DRIVE_DAYS } from "@/lib/drives";
 //   loadDrivingExtras (driving-extra.ts)                VehicleSpeed, OutsideTemp, Location,              30 d, or a picked range
 //                                                       LocatedAtHome, LocatedAtWork, LocatedAtFavorite   clipped to DRIVE_DAYS
 //   chargeLevel (charge-level.ts)                       BatteryLevel, DetailedChargeState                 30 d (LEVEL_DAYS)
-//   loadPresence (awake.ts)                             EnergyRemaining, LifetimeEnergyUsed,              15 d (AWAKE_DAYS + 1)
+//   loadPresence (awake.ts)                             PRESENCE_FIELDS: EnergyRemaining, Soc,            15 d (AWAKE_DAYS + 1)
+//                                                       IsolationResistance, LifetimeEnergyUsed,
 //                                                       SoftwareUpdateDownloadPercentComplete
 //   loadLatestWeekPack (car.ts)                         EnergyRemaining, BatteryLevel                     this IST week and last
 //   loadBatteryExtras (battery-extra.ts)                ModuleTempMax, InsideTemp, OutsideTemp,           7 d (TEMP_DAYS)
-//                                                       BrickVoltageMax, BrickVoltageMin; Odometer        12 weeks
+//                                                       BrickVoltageMax, BrickVoltageMin; Odometer,       12 weeks
+//                                                       NominalFullPackEnergyKwh (also its latest)
 //   syncChargingCars (station-check.ts)                 charging fields                                   45 min
 //   loadStream (telemetry.ts; car, home, updates)       STREAM_FIELDS, CAR_NOW_FIELDS, UPDATE_FIELDS      latest
 //   baselineBefore (stream-charging.ts)                 BatteryLevel, EnergyRemaining, FastCharger*,      latest before a time
@@ -73,15 +76,16 @@ export const READS: { by: string; fields: readonly string[]; window: Window }[] 
   { by: "loadDay", fields: ["Location"], window: DRIVE_DAYS },
   { by: "loadDrivingExtras", fields: ["VehicleSpeed", "OutsideTemp", "Location", "LocatedAtHome", "LocatedAtWork", "LocatedAtFavorite"], window: DRIVE_DAYS },
   { by: "chargeLevel", fields: ["BatteryLevel", "DetailedChargeState"], window: 30 },
-  { by: "loadPresence", fields: ["EnergyRemaining", "LifetimeEnergyUsed", "SoftwareUpdateDownloadPercentComplete"], window: 15 },
+  { by: "loadPresence", fields: PRESENCE_FIELDS, window: 15 },
   { by: "loadLatestWeekPack", fields: ["EnergyRemaining", "BatteryLevel"], window: 14 },
   { by: "loadBatteryExtras", fields: ["ModuleTempMax", "InsideTemp", "OutsideTemp", "BrickVoltageMax", "BrickVoltageMin"], window: 7 },
-  { by: "loadBatteryExtras", fields: ["Odometer"], window: 12 * 7 },
+  { by: "loadBatteryExtras", fields: ["Odometer", "NominalFullPackEnergyKwh"], window: 12 * 7 },
   { by: "syncStreamVersions", fields: ["SoftwareUpdateVersion"], window: 14 },
 ];
 
-// Not read yet, kept anyway: lifetime counters and pack estimates only make sense with their whole
-// history, and they change at most every 5 minutes, so they cost little.
+// Kept forever, whether read or not (NominalFullPackEnergyKwh is read over 12 weeks): lifetime counters and
+// pack figures only make sense with their whole history, and they change at most every 5 minutes, so they
+// cost little.
 export const KEPT_UNREAD = [
   "LifetimeEnergyUsedDrive",
   "LifetimeEnergyChargedKwh",

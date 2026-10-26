@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { awakeDays, runLabel } from "@/lib/awake";
+import { awakeDays, PRESENCE_FIELDS, runLabel } from "@/lib/awake";
 
 // An instant given as IST wall-clock time.
 const ist = (local: string) => Date.parse(`${local}+05:30`);
@@ -42,5 +42,13 @@ describe("awakeDays", () => {
   });
   test("online wins a slot a check found asleep", () => {
     expect(runs([ist("2026-10-20T06:05:00")], [{ at: ist("2026-10-20T06:00:40"), state: "asleep" }]).map((r) => r.state)).toEqual(["online"]);
+  });
+});
+
+describe("PRESENCE_FIELDS", () => {
+  // On 24 Oct 2026 the car streamed 86 readings from 11:00 to 11:15 IST; of the presence fields only
+  // IsolationResistance came. From 12:00 on 25 Oct only Soc did. Both quarter hours showed No data.
+  test("include the fields that were the car's only sign of life in a quarter hour", () => {
+    for (const field of ["IsolationResistance", "Soc", "EnergyRemaining"]) expect(PRESENCE_FIELDS).toContain(field);
   });
 });

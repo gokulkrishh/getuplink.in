@@ -1,5 +1,25 @@
 import { describe, expect, test } from "bun:test";
-import { carNow, measuredAt, tyreFlags, words } from "@/lib/car-now";
+import { carNow, measuredAt, seenAt, tyreFlags, words } from "@/lib/car-now";
+
+describe("seenAt", () => {
+  // The car's own reading: TpmsLastSeenPressureTimeFl arrived 25 Oct 2026 at 10:06:15 PM IST saying
+  // 26 Oct, 10:36:14 AM IST, 12 h 30 min ahead.
+  const reading = { at: "2026-10-25T16:36:15Z", value: 1792991174 };
+  test("a time after the reading arrived is left out, even once it has passed", () => {
+    expect(seenAt(reading, Date.parse("2026-10-25T16:40:00Z"))).toBeNull();
+    expect(seenAt(reading, Date.parse("2026-10-26T09:00:00Z"))).toBeNull();
+  });
+  test("a time before the reading arrived is kept", () => {
+    expect(seenAt({ at: "2026-10-25T16:36:15Z", value: Date.parse("2026-10-25T16:30:00Z") / 1000 }, Date.parse("2026-10-26T09:00:00Z"))).toBe("2026-10-25T16:30:00.000Z");
+  });
+  test("on the car page, the tyre falls back to when its pressure arrived", () => {
+    const state = carNow({ TpmsPressureFl: { at: reading.at, value: 2.75 }, TpmsLastSeenPressureTimeFl: reading }, Date.parse("2026-10-26T09:00:00Z"));
+    expect(state.tyres.map((t) => [t.pressure, t.measuredAt, t.updatedAt])).toEqual([["40 psi", null, reading.at]]);
+  });
+  test("no reading, no time", () => {
+    expect(seenAt(undefined, Date.now())).toBeNull();
+  });
+});
 
 const at = "2026-10-23T08:00:00Z";
 const now = Date.parse("2026-10-25T08:00:00Z");

@@ -6,8 +6,8 @@ import { backTo, weeksIn } from "@/lib/kept";
 import type { Timeframe } from "@/lib/periods";
 import type { WeeklyPack } from "@/lib/telemetry-derive";
 
-// The estimated full pack by week, from the streamed energy remaining and battery level: the weeks that
-// overlap the span, as far back as the estimates go (12 weeks). The page keeps its id outside, since each
+// Usable capacity by week (see weeklyUsable), from the streamed energy remaining and battery level: the
+// weeks that overlap the span, as far back as the estimates go (12 weeks). The page keeps its id outside, since each
 // period draws its own copy.
 export function BatteryPack({ trend, frame }: { trend: WeeklyPack[]; frame: Timeframe }) {
   if (trend.length < 2) return null;
@@ -19,7 +19,7 @@ export function BatteryPack({ trend, frame }: { trend: WeeklyPack[]; frame: Time
       <div className="space-y-2">
         <h2 className="text-lg font-medium tracking-heading">Usable capacity by week</h2>
         <p className="text-sm text-muted-foreground">
-          Estimated full pack, weekly median. Latest week {formatKwh(latest.kwh)}.
+          The energy between 0% and 100%, one figure a week. Latest week {formatKwh(latest.kwh)}.
         </p>
       </div>
       <figure className="space-y-3">
@@ -33,8 +33,8 @@ export function BatteryPack({ trend, frame }: { trend: WeeklyPack[]; frame: Time
           </ChartNote>
         )}
         <figcaption className="text-xs text-muted-foreground">
-          How much energy a full battery holds, as the car estimates it: the middle value of each week&apos;s estimates. The scale starts near the
-          readings, not at zero, so small changes show. {unitNotes(["kWh"])} {frame.title}.{cut && ` ${cut}`}
+          How much energy the battery gives from 100% down to 0%, worked out from each week&apos;s energy-left and charge-level readings. A week
+          shows once its charge moved by at least 10 points. The scale starts near the readings, not at zero, so small changes show. {unitNotes(["kWh"])} {frame.title}.{cut && ` ${cut}`}
         </figcaption>
       </figure>
     </section>

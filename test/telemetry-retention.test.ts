@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { PRESENCE_FIELDS } from "@/lib/awake";
 import { CAR_NOW_FIELDS } from "@/lib/car-now";
 import { CHARGE_FIELDS } from "@/lib/charge-sessions";
 import { DRIVE_DAYS } from "@/lib/drives";
@@ -26,6 +27,14 @@ describe("keepDays", () => {
     expect(withMargin(DRIVE_DAYS)).toBe(120);
     for (const field of ["Location", "VehicleSpeed", "LongitudinalAcceleration", "PackVoltage", "PackCurrent", "GradeEstimatePercent", "Gear", "RatedRange", "OutsideTemp", "LocatedAtHome"])
       expect(keepDays(field)).toBe(120);
+  });
+  test("every field the online strips read is kept past their 15 days", () => {
+    expect(READS.find((r) => r.by === "loadPresence")?.fields).toEqual(PRESENCE_FIELDS);
+    for (const field of ["Soc", "IsolationResistance"]) expect(keepDays(field)).toBe(withMargin(15));
+  });
+  test("Tesla's full-pack figure is read and kept forever", () => {
+    expect(READS.some((r) => r.fields.includes("NominalFullPackEnergyKwh"))).toBe(true);
+    expect(keepDays("NominalFullPackEnergyKwh")).toBeNull();
   });
   test("the week of battery temperatures and cell voltages is kept two weeks", () => {
     for (const field of ["InsideTemp", "BrickVoltageMax", "BrickVoltageMin"]) expect(keepDays(field)).toBe(14);

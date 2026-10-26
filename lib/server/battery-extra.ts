@@ -3,6 +3,7 @@ import type { Owner } from "./data/owner";
 import { MILES_TO_KM } from "@/lib/car";
 import { num, type Reading, type WeeklyPack } from "@/lib/telemetry-derive";
 import { type TeslaPack, teslaPack } from "@/lib/tesla-pack";
+import { trendWindow } from "./battery";
 import { loadStream } from "./telemetry";
 import { loadReadingsByField } from "./telemetry-window";
 
@@ -18,7 +19,7 @@ export type Point = { x: number; y: number };
 export type BatteryExtras = {
   temps: { battery: Point[]; inside: Point[]; outside: Point[] };
   cellSpreadMv: Point[]; // highest minus lowest cell voltage, in mV
-  capacityByKm: (Point & { weekStart: number })[]; // x: odometer km, y: estimated full pack kWh, for the week starting weekStart
+  capacityByKm: (Point & { weekStart: number })[]; // x: odometer km, y: usable capacity kWh, for the week starting weekStart
   // Tesla's own full-pack figure, as last reported, with its weekly median over the trend's weeks.
   teslaPack: TeslaPack | null;
 };
@@ -42,7 +43,8 @@ export async function loadBatteryExtras(owner: Owner, vin: string | null, trend:
   if (!vin) return empty;
   const from = new Date(now - TEMP_DAYS * DAY).toISOString();
   const to = new Date(now).toISOString();
-  const trendFrom = trend.length ? new Date(trend[0].weekStart).toISOString() : from;
+  // The trend's 12 weeks, whether or not each has a usable-capacity figure: Tesla's own figure has its own weeks.
+  const trendFrom = new Date(trendWindow(now).from).toISOString();
   // Tesla only sends its figure when it changes, so the latest is read on its own, of any age.
   const [recent, odo, nominal, latest] = await Promise.all([
     loadReadingsByField(owner, vin, ["ModuleTempMax", "InsideTemp", "OutsideTemp", "BrickVoltageMax", "BrickVoltageMin"], from, to),

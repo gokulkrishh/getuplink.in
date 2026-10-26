@@ -12,6 +12,14 @@ export type DayStrip = { day: number; start: number; runs: Run[] };
 const MIN = 60_000;
 const DAY = 86_400_000;
 export const SLOT_MS = 15 * MIN;
+
+// Fields the car sends every few minutes while it is awake (the pack drains, the counter ticks), plus update
+// downloads. A scan across every field would not be served by the (vin, field, created_at) index, so these
+// stand in for all of them. Soc and IsolationResistance are in because the other three missed 4 of the 66
+// quarter hours the car streamed in from 21 to 25 Oct 2026: 24 Oct 11:00 IST sent 86 readings, among them
+// IsolationResistance but none of the others, and the 25 Oct 12:00 slot had Soc but none of the others.
+export const PRESENCE_FIELDS = ["EnergyRemaining", "IsolationResistance", "LifetimeEnergyUsed", "Soc", "SoftwareUpdateDownloadPercentComplete"];
+
 // The car sends data every few minutes while awake, so readings this close together mean it was awake
 // from the first to the last. A wider gap could hide a sleep.
 const STEADY_GAP_MS = 10 * MIN;

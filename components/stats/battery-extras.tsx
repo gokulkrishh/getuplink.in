@@ -116,7 +116,7 @@ export function CellBalance({ spread, frame }: { spread: BatteryExtras["cellSpre
   );
 }
 
-// Each week's estimated full pack against the odometer, after TeslaMate's capacity by mileage: the weeks
+// Each week's usable capacity against the odometer, after TeslaMate's capacity by mileage: the weeks
 // that overlap the span, as far back as the estimates go (12 weeks).
 export function CapacityByKm({ points, frame }: { points: BatteryExtras["capacityByKm"]; frame: Timeframe }) {
   if (points.length < 2) return null;
@@ -125,7 +125,7 @@ export function CapacityByKm({ points, frame }: { points: BatteryExtras["capacit
     <section className="space-y-6">
       <div className="space-y-2">
         <h2 className="text-lg font-medium tracking-heading">Capacity by distance</h2>
-        <p className="text-sm text-muted-foreground">The estimated full pack each week, against the odometer.</p>
+        <p className="text-sm text-muted-foreground">Usable capacity each week, against the odometer.</p>
       </div>
       <div className="space-y-3">
         {shown.length >= 2 ? (
@@ -133,7 +133,7 @@ export function CapacityByKm({ points, frame }: { points: BatteryExtras["capacit
             series={[{ name: "Capacity", className: "stroke-chart-accent", points: shown }]}
             formatX={(x) => `${number.format(x)} km`}
             formatY={(y) => `${oneDecimal.format(y)} kWh`}
-            label={`Estimated full pack against the odometer, ${frame.title}`}
+            label={`Usable capacity against the odometer, ${frame.title}`}
           />
         ) : (
           <ChartNote>
@@ -143,7 +143,7 @@ export function CapacityByKm({ points, frame }: { points: BatteryExtras["capacit
           </ChartNote>
         )}
         <Caption
-          plotted={`How much energy a full battery holds, as the car estimates it, one point a week, set against the odometer: the km the car had driven by then. ${unitNotes(["kWh"])}`}
+          plotted={`The energy between 0% and 100%, one point a week, set against the odometer: the km the car had driven by then. ${unitNotes(["kWh"])}`}
           frame={frame}
           first={points[0].weekStart}
           chart={shown.length >= 2}
