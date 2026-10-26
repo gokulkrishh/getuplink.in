@@ -11,8 +11,9 @@ import { env } from "./env";
 // TOKEN_ENCRYPTION_KEY, of the invite's created_at and VIN characters, so the admin can copy an unused
 // link again while a copy of the table alone can't make one. Tokens are never logged.
 
+// Demo mode has no secrets and stores no invite: its links are made up and lead nowhere.
 function key(context: string): Buffer {
-  return createHash("sha256").update(`${context}:${env("TOKEN_ENCRYPTION_KEY")}`).digest();
+  return createHash("sha256").update(`${context}:${DEMO ? "demo" : env("TOKEN_ENCRYPTION_KEY")}`).digest();
 }
 
 export function inviteToken(createdAt: string, vinSuffix: string): string {

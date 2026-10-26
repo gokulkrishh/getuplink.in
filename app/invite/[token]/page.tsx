@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { PlainPage } from "@/components/plain-page";
 import { allowInviteLookup, clientAddress, type InviteLookup, lookupInvite } from "@/lib/server/invites";
@@ -24,8 +25,11 @@ const LIMITED = { title: "Too many tries", intro: "Wait a few minutes, then open
 
 async function Invite({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+  const address = clientAddress(await headers());
+  // The link's state reads the clock: only ever at request time.
+  await connection();
   const now = Date.now();
-  if (!allowInviteLookup(clientAddress(await headers()), now)) return <PlainPage home="/home" {...LIMITED} />;
+  if (!allowInviteLookup(address, now)) return <PlainPage home="/home" {...LIMITED} />;
   const state = await lookupInvite(token, now);
   if (state !== "unused") return <PlainPage home="/home" {...MESSAGES[state]} />;
   return (
