@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
+import { KeyRound } from "lucide-react";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
 import { buttonVariants } from "@/components/ui/button";
@@ -73,8 +74,9 @@ function streamingWords(car: CarSetup, canSend: boolean, needsLocation: boolean)
   return "Not known yet";
 }
 
+// Per-car status, only when there's more than one car: with one, the step's own state says it all.
 function CarList({ cars, words }: { cars: CarSetup[]; words: (car: CarSetup) => string }) {
-  if (cars.length < 1) return null;
+  if (cars.length < 2) return null;
   return (
     <ul className="divide-y border-t text-sm">
       {cars.map((car, i) => (
@@ -118,7 +120,8 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
             </p>
           )}
           {key !== "done" && (
-            <a href={KEY_PAIRING_URL} className={cn(buttonVariants({ size: "lg" }), "h-12 w-full text-base sm:w-auto sm:px-8")}>
+            <a href={KEY_PAIRING_URL} className={cn(buttonVariants({ size: "lg" }), "h-12 w-full gap-2 text-base sm:w-auto sm:px-8")}>
+              <KeyRound aria-hidden className="size-5" />
               Add the key in the Tesla app
             </a>
           )}
@@ -156,7 +159,7 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
         {view.checkedAt && <p className="text-xs text-faint">Checked {formatAgo(view.checkedAt, now)}</p>}
       </div>
       <p className="mt-10 text-sm text-muted-foreground">
-        Without these, Uplink still checks your car every 6 hours for its software version, battery and charging.
+        Without these, Uplink still checks your car every 12 hours for its software version, battery and charging.
       </p>
     </>
   );
