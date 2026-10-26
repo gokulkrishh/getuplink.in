@@ -1,8 +1,9 @@
 // Drives and parked drain rebuilt from Fleet Telemetry readings. Pure (no database), so it can be tested
 // with a script; lib/server/driving.ts does the reading.
 //
-// Gear, odometer, battery level and energy are streamed on change, at most every 5 minutes, so every time
-// here is good to about 5 minutes and short drives lose some precision.
+// Battery level, energy and range are streamed on change, at most every 5 minutes, so the reading in force
+// when a drive starts or ends can be minutes old: taken mid-charge, or while still driving. levelAtStart and
+// levelAtEnd pick the readings that belong to the drive, and give none when no reading can be trusted.
 import { MILES_TO_KM } from "@/lib/car";
 import { median, num, type Reading } from "@/lib/telemetry-derive";
 
@@ -24,10 +25,12 @@ export type Drive = {
   start: number; // ms
   end: number;
   km: number;
-  kwh: number | null;
+  kwh: number | null; // EnergyRemaining at the start minus at the end
   whPerKm: number | null; // only for drives of at least 1 km
   startLevel: number | null;
   endLevel: number | null;
+  rangeKm?: number | null; // rated range used
+  chargedBefore?: boolean; // a charge ran between the previous drive and this one
 };
 
 // One stretch parked, like TeslaMate's vampire drain table: what was lost and how hard the car worked.
@@ -58,10 +61,14 @@ export const MIN_PARKED_MS = 6 * HOUR;
 export const WAKE_GAP_MS = 15 * MIN;
 export const DRAIN_DAYS = 30;
 export const DRIVE_DAYS = 90;
-// Odometer and energy counters can arrive a little after the gear; they don't change while parked.
+// The odometer can arrive a little after the gear; it doesn't change while parked.
 const LOOKAHEAD_MS = 10 * MIN;
+// A level read this close before a charge ended is the level it ended at.
+export const CHARGE_END_SLACK_MS = MIN;
+// The first level read this soon after parking is where the drive left the battery.
+export const SETTLE_MS = 5 * MIN;
 
-type Point = { t: number; v: number };
+export type Point = { t: number; v: number };
 
 function numeric(readings: Reading[]): Point[] {
   const points: Point[] = [];
@@ -128,38 +135,67 @@ export function findTrips(gear: Reading[]): Trip[] {
 }
 
 type Series = { odometer: Point[]; battery: Point[]; energy: Point[]; lifetime: Point[]; range: Point[] };
+type Charges = [number, number][];
 
-function describe(trip: Trip, nextStart: number, s: Series): Drive | null {
-  // Counters are read up to a few minutes after the gear shows P, but never into the next drive.
+// The level (battery, energy or range) a drive started at: the last reading before the start, unless a
+// charge ended after it was taken (it shows a level the charge went past) or the first reading inside the
+// drive is higher (a change the car hadn't reported yet). Then the first reading inside the drive. Null
+// with neither.
+export function levelAtStart(points: Point[], trip: Trip, charging: Charges): Point | null {
+  const prev = points.findLast((p) => p.t <= trip.start) ?? null;
+  const inside = points.find((p) => p.t > trip.start && p.t <= trip.end) ?? null;
+  const charged = prev !== null && charging.some(([a, b]) => a <= trip.start && b > prev.t + CHARGE_END_SLACK_MS);
+  if (prev && !charged && !(inside && inside.v > prev.v)) return prev;
+  return inside;
+}
+
+// The level a drive ended at: the first reading at or after park within SETTLE_MS (up to `limit`: the next
+// drive or charge), unless it is higher than the last reading inside the drive (a charge began before the
+// car said so). Otherwise the last reading inside the drive. Null with neither.
+export function levelAtEnd(points: Point[], trip: Trip, limit: number): Point | null {
+  const last = points.findLast((p) => p.t > trip.start && p.t < trip.end) ?? null;
+  const until = Math.min(trip.end + SETTLE_MS, limit);
+  const after = points.find((p) => p.t >= trip.end && p.t <= until) ?? null;
+  if (after && !(last && after.v > last.v)) return after;
+  return last;
+}
+
+// The start and end levels, or null when either is unknown or both are the same reading (nothing was seen
+// to change).
+function levels(points: Point[], trip: Trip, limit: number, charging: Charges): [number, number] | null {
+  const a = levelAtStart(points, trip, charging);
+  const b = levelAtEnd(points, trip, limit);
+  return a && b && a.t < b.t ? [a.v, b.v] : null;
+}
+
+function describe(trip: Trip, nextStart: number, s: Series, charging: Charges): Drive | null {
+  // The odometer is read up to a few minutes after the gear shows P, but never into the next drive.
   const settled = Math.min(trip.end + LOOKAHEAD_MS, nextStart - 1);
   // Gear and odometer arrive every few minutes, so the car is often already moving when the first
   // non-P gear is read. Counting from the last reading before it keeps that distance, and since the
   // previous drive's counters stop just short of this one, consecutive drives add up to the odometer.
-  const before = trip.start - 1;
-  const from = (points: Point[]) => valueAt(points, before) ?? valueAt(points, trip.start);
-  const odoStart = from(s.odometer);
+  const odoStart = valueAt(s.odometer, trip.start - 1) ?? valueAt(s.odometer, trip.start);
   const odoEnd = valueAt(s.odometer, settled);
   if (odoStart === null || odoEnd === null) return null;
   const km = (odoEnd - odoStart) * MILES_TO_KM;
   if (km < MIN_DRIVE_KM) return null;
-  const usedStart = from(s.lifetime);
-  const usedEnd = valueAt(s.lifetime, settled);
-  let kwh: number | null = null;
-  if (usedStart !== null && usedEnd !== null && usedEnd >= usedStart) {
-    kwh = usedEnd - usedStart;
-  } else {
-    const leftStart = from(s.energy);
-    const leftEnd = valueAt(s.energy, settled);
-    if (leftStart !== null && leftEnd !== null && leftStart >= leftEnd) kwh = leftStart - leftEnd;
-  }
+  // Levels after park stop at the next drive or charge.
+  const limit = Math.min(nextStart - 1, ...charging.filter(([a]) => a >= trip.end).map(([a]) => a - 1));
+  // Energy is EnergyRemaining's drop, not LifetimeEnergyUsed's rise: on real drives that counter rose 1.6
+  // to 1.8 times what EnergyRemaining and the battery level both lost (while parked the three agree).
+  const energy = levels(s.energy, trip, limit, charging);
+  const kwh = energy && energy[0] >= energy[1] ? energy[0] - energy[1] : null;
+  const battery = levels(s.battery, trip, limit, charging);
+  const range = levels(s.range, trip, limit, charging);
   return {
     start: trip.start,
     end: trip.end,
     km,
     kwh,
     whPerKm: kwh !== null && km >= 1 ? (kwh * 1000) / km : null,
-    startLevel: valueAt(s.battery, trip.start),
-    endLevel: valueAt(s.battery, trip.end),
+    startLevel: battery?.[0] ?? null,
+    endLevel: battery?.[1] ?? null,
+    rangeKm: range && range[0] >= range[1] ? (range[0] - range[1]) * MILES_TO_KM : null,
   };
 }
 
@@ -174,13 +210,18 @@ function series(input: DriveInputs): Series {
 }
 
 // Drives of at least MIN_DRIVE_KM, newest first.
+// chargedBefore: a charge ran between the previous drive and this one.
 export function buildDrives(input: DriveInputs): Drive[] {
   const trips = findTrips(input.gear);
   const s = series(input);
+  const charging = chargeRanges(input.charge);
   const drives: Drive[] = [];
   trips.forEach((trip, i) => {
-    const drive = describe(trip, trips[i + 1]?.start ?? Infinity, s);
-    if (drive) drives.push(drive);
+    const drive = describe(trip, trips[i + 1]?.start ?? Infinity, s, charging);
+    if (!drive) return;
+    const prevEnd = drives.at(-1)?.end;
+    if (prevEnd !== undefined && charging.some(([a, b]) => a < trip.start && b > prevEnd)) drive.chargedBefore = true;
+    drives.push(drive);
   });
   return drives.reverse();
 }
@@ -233,11 +274,24 @@ export function awakeBetween(times: number[], start: number, end: number): numbe
   return awake + (last - runStart);
 }
 
-function parkStats(s: Series, times: number[], start: number, end: number): ParkStats {
+// How a parked stretch began: a drive ended or a charge did.
+type ParkFrom = "drive" | "charge";
+
+// The level a parked stretch began at. After a drive: the first reading within SETTLE_MS of parking,
+// otherwise the last one before (taken while driving), otherwise the first after. After a charge: the
+// first reading from just before it ended on, since any earlier one was taken mid-charge. Null with none
+// before `end`.
+export function levelAtPark(points: Point[], start: number, end: number, from: ParkFrom): number | null {
+  const firstFrom = (t: number) => points.find((p) => p.t >= t && p.t < end)?.v ?? null;
+  if (from === "charge") return firstFrom(start - CHARGE_END_SLACK_MS);
+  const settled = points.find((p) => p.t >= start && p.t <= Math.min(start + SETTLE_MS, end));
+  return settled?.v ?? valueAt(points, start) ?? firstFrom(start);
+}
+
+function parkStats(s: Series, times: number[], start: number, end: number, from: ParkFrom): ParkStats {
   const hours = (end - start) / HOUR;
-  const at = (points: Point[], t: number) => valueAt(points, t) ?? points.find((p) => p.t >= t)?.v ?? null;
   const drop = (points: Point[]) => {
-    const a = at(points, start);
+    const a = levelAtPark(points, start, end, from);
     const b = valueAt(points, end);
     return a !== null && b !== null && a - b >= 0 ? a - b : null;
   };
@@ -269,19 +323,20 @@ export function parkedDrain(input: DriveInputs, now: number): ParkedPeriod[] {
     const from = trips[i].end;
     const to = trips[i + 1].start;
     // Cut the stretch at every charge that overlaps it.
-    const pieces: [number, number][] = [];
+    const pieces: [number, number, ParkFrom][] = [];
     let cursor = from;
+    let kind: ParkFrom = "drive";
     for (const [a, b] of charging) {
       if (b <= cursor) continue;
       if (a >= to) break;
-      if (a > cursor) pieces.push([cursor, a]);
+      if (a > cursor) pieces.push([cursor, a, kind]);
       cursor = Math.max(cursor, b);
+      kind = "charge";
     }
-    if (cursor < to) pieces.push([cursor, to]);
-    for (const [start, end] of pieces) {
+    if (cursor < to) pieces.push([cursor, to, kind]);
+    for (const [start, end, kind] of pieces) {
       if (end - start < MIN_PARKED_MS || end < now - DRAIN_DAYS * DAY) continue;
-      if (valueAt(s.battery, start) === null) continue;
-      const stats = parkStats(s, times, start, end);
+      const stats = parkStats(s, times, start, end, kind);
       if (stats.lostPercent === null) continue;
       periods.push({
         ...stats,
@@ -321,14 +376,16 @@ export function parkedNow(input: DriveInputs): ParkedNow | null {
   if (charges.some(([, b]) => b === Infinity)) return null;
   let start = trips.at(-1)?.end ?? s.battery[0].t;
   let fromFirstReading = trips.length === 0;
+  let from: ParkFrom = "drive";
   for (const [, b] of charges) {
     if (b > start && b <= latest.t) {
       start = b;
       fromFirstReading = false;
+      from = "charge";
     }
   }
   if (latest.t <= start) return null;
-  return { ...parkStats(s, readingTimes(input), start, latest.t), fromFirstReading };
+  return { ...parkStats(s, readingTimes(input), start, latest.t, from), fromFirstReading };
 }
 
 // parked: every qualifying stretch, oldest first; drain: their median once there are two.

@@ -1,6 +1,7 @@
 import type { Drive } from "@/lib/drives";
 
-// Drives joined into trips: a stop shorter than STOP_MS (a shop, a pickup) keeps going on the same trip.
+// Drives joined into trips: a stop shorter than STOP_MS (a shop, a pickup) keeps going on the same trip,
+// unless the car charged in it (see Drive.chargedBefore); the charge then shows on its own between them.
 // Each leg keeps its own figures; the trip only adds them up, so nothing is guessed. Pure, so tested.
 
 export const STOP_MS = 60 * 60_000;
@@ -22,7 +23,8 @@ export function groupTrips(drives: Drive[]): Trip[] {
   const groups: Drive[][] = [];
   for (const d of sorted) {
     const last = groups.at(-1);
-    if (last && d.start - last.at(-1)!.end < STOP_MS) last.push(d);
+    // A charge between two drives ends the trip: its battery would otherwise read the charge as driving.
+    if (last && !d.chargedBefore && d.start - last.at(-1)!.end < STOP_MS) last.push(d);
     else groups.push([d]);
   }
   return groups
