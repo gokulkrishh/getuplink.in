@@ -79,11 +79,13 @@ Uplink never wakes a car: there is no `wake_up` call anywhere in the app (`test/
 
 Not counted: `scripts/telemetry-config.mjs` and `scripts/register-partner.mjs`, run by hand.
 
-### The biggest cost: the health bot
+### The health check: one Tesla answer an hour
 
-`/api/health/stream` is called by an external bot every 15 minutes, and each run asks Tesla for the car's streaming config and errors: 2 requests. That's 192 requests a day, about **$11.50 a month** at the Data price, more than the whole credit, before any car is checked. It is an estimate until Tesla's category for those two endpoints is known. The status page adds a few more (it records a check at most every 5 minutes while someone is looking).
+`/api/health/stream` is called by an external bot every 15 minutes, and the status page and the poll cron record checks too. Each check needs the car's streaming config and errors from Tesla: 2 requests. Asked every time, the bot alone made 192 requests a day, about $11.50 a month at the Data price, more than the whole credit.
 
-The budget guard (below) doesn't slow the health bot. If the counts confirm this, the owner's options are to call the bot less often, or to have the health check reuse the last config answer for an hour or so.
+So the health check reuses Tesla's answer for an hour (`lib/server/tesla-stream-state.ts`). It is stored in `tesla_answer_cache`, so every server instance shares it, and asked again after an hour or for another car. An answer whose errors read failed isn't kept. The other checks (the receiver reachable, the last reading against the last time online, the database) stay live on every call. The route's JSON says when Tesla was last asked: `config.fetched_at`.
+
+That's 48 requests a day, about **$2.90 a month**, whoever calls. Until the migration adds the table, every check asks Tesla as before. A config change or a new error shows up within the hour, not the 15 minutes. The budget guard doesn't slow the health check.
 
 ### Checks
 
@@ -125,15 +127,17 @@ An estimate at the Data price, with one car streaming about 1,000 signals an hou
 
 | Source | A day | 30 days |
 | --- | --- | --- |
-| Health bot, 192 requests | $0.38 | $11.52 |
+| Health check, 48 requests (one config and errors pair an hour) | $0.10 | $2.88 |
 | Streaming, about 24,000 signals | $0.16 | $4.80 |
 | Checks, about 12 requests | $0.02 | $0.72 |
-| **Total** | **about $0.57** | **about $17** |
+| **Total** | **about $0.28** | **about $8.40** |
 
-So with the defaults, checks would slow to every 12 hours around the 14th and stop around the 18th. **Stopping checks doesn't stop the spend**: the health bot and streaming carry on past $10. If Tesla's "billing limit of 0" means access stops at the credit, streaming could stop mid-month too.
+Before the health check reused its answer (below), the bot alone asked 192 times a day: $11.52 a month, and about $17 in all.
 
-The owner's options, none chosen here:
+So with the defaults, checks would slow to every 12 hours only in the last two or three days of a long month, and wouldn't stop. That rests on the streaming guess: a car that streams twice as much would reach the budget around the 23rd. **Stopping checks doesn't stop the spend**: the health check and streaming carry on past the budget. If Tesla's "billing limit of 0" means access stops at the credit, streaming could stop then too.
+
+The owner's options, if the counts run higher:
 - compare Uplink's figure with Tesla's billing page after a few days, before relying on either;
 - if Tesla prices `fleet_telemetry_config` or `fleet_telemetry_errors` below Data, change `CATEGORY_OF` in `lib/tesla-billing.ts`;
-- call the health bot less often, or have the health check reuse the last config answer for a while;
+- reuse the health check's answer for longer (`TESLA_ANSWER_MS` in `lib/server/tesla-stream-state.ts`), or call the bot less often;
 - raise `TESLA_BUDGET_USD`.

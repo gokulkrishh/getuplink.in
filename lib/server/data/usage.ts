@@ -71,6 +71,31 @@ export async function vinUsers(): Promise<Map<string, number>> {
   return out;
 }
 
+// ---- Tesla answers reused for a while (tesla_answer_cache) ----
+
+export type CachedAnswer = { vin: string; body: unknown; fetched_at: string };
+
+// The stored answer under `name`, or null. Throws MissingSchema before the migration.
+export async function cachedAnswer(name: string): Promise<CachedAnswer | null> {
+  const { data, error } = await db().from("tesla_answer_cache").select("vin, body, fetched_at").eq("name", name).maybeSingle();
+  if (error) fail(error);
+  return data ? { vin: String(data.vin), body: data.body, fetched_at: String(data.fetched_at) } : null;
+}
+
+// Stored under the user whose token asked, so their Delete my data removes it.
+export async function saveAnswer(owner: Owner, name: string, vin: string, body: unknown, fetchedAt: string): Promise<void> {
+  const { error } = await db()
+    .from("tesla_answer_cache")
+    .upsert({ name, user_id: owner.userId, vin, body, fetched_at: fetchedAt }, { onConflict: "name" });
+  if (error) fail(error);
+}
+
+// Delete my data: every answer stored for this user's cars.
+export async function forgetAnswers(owner: Owner): Promise<void> {
+  const { error } = await db().from("tesla_answer_cache").delete().eq("user_id", owner.userId);
+  if (error) fail(error);
+}
+
 // ---- Each user's check schedule ----
 
 export type Schedule = { id: number; next_check_at: string | null; check_lock_until: string | null };

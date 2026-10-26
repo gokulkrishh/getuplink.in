@@ -125,6 +125,27 @@ $$;
 revoke all on function public.fold_signal_days(text[]) from public, anon, authenticated;
 grant execute on function public.fold_signal_days(text[]) to service_role;
 
+-- 2b. Tesla answers the health check reuses for an hour (lib/server/tesla-stream-state.ts): the streaming
+-- config and errors of the car /api/health/stream asks about. The bot calls every 15 minutes; this keeps
+-- Tesla to one pair of requests an hour. One row per name, with the user whose token asked (the car's
+-- own): Delete my data removes it by user, and Delete account cascades.
+create table public.tesla_answer_cache (
+  name text primary key check (length(name) between 1 and 60),
+  user_id bigint not null references public.users (id) on delete cascade,
+  vin text not null,
+  body jsonb not null,
+  fetched_at timestamptz not null
+);
+
+comment on table public.tesla_answer_cache is
+  'Tesla Fleet API answers reused for a while (the health check''s streaming config and errors), shared by every server instance.';
+
+-- For the cascade and Delete my data.
+create index tesla_answer_cache_user_idx on public.tesla_answer_cache (user_id);
+
+alter table public.tesla_answer_cache enable row level security;
+revoke all on table public.tesla_answer_cache from anon, authenticated;
+
 -- 3. Each user's check schedule (lib/server/poll.ts). Null means due now.
 alter table public.users
   add column if not exists next_check_at timestamptz,
@@ -193,6 +214,7 @@ drop index public.poll_runs_one_running_idx;
 --   drop function public.claim_scheduled_check(bigint, timestamptz, timestamptz, timestamptz);
 --   alter table public.users drop column next_check_at, drop column check_lock_until, drop column check_now_at;
 --   drop function public.fold_signal_days(text[]);
+--   drop table public.tesla_answer_cache;
 --   drop function public.count_telemetry_signals(integer);
 --   drop table public.telemetry_signal_days;
 --   drop function public.fold_api_usage(bigint);

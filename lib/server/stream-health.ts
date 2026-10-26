@@ -3,7 +3,8 @@ import tls from "node:tls";
 import { DEMO } from "@/lib/demo";
 import { demoData, demoLastReadingAt } from "./demo";
 import { fleetLastReadingAt, fleetLastSeen, healthCheckCar, pingDatabase, recordHealthChecks } from "./data/system";
-import { fleetGet, NotConnectedError } from "./tesla";
+import { NotConnectedError } from "./tesla";
+import { streamState } from "./tesla-stream-state";
 import { daysUntilExpiry, EXPIRY_WARN_DAYS, shortReason, streamFreshness } from "@/lib/stream-health";
 import { worstStatus, type Status } from "@/lib/status";
 
@@ -24,6 +25,8 @@ export type HealthChecks = {
   carLastOnlineAt: string | null;
   synced: boolean | null;
   expiresAt: string | null;
+  // When Tesla's streaming config and errors were last fetched (reused for up to an hour); null when not asked.
+  teslaFetchedAt: string | null;
 };
 
 function withTimeout<T>(promise: PromiseLike<T>, label: string): Promise<T> {
@@ -57,8 +60,6 @@ function receiverReachable(): Promise<void> {
   });
 }
 
-type TelemetryConfig = { synced?: boolean; key_paired?: boolean; config?: { exp?: number } | null } | null;
-type TelemetryErrors = { fleet_telemetry_errors?: { name?: string; error?: string }[] } | null;
 
 // A check's result: a status and the private problems behind it.
 type Part = { status: Status; problems: string[] };
@@ -86,12 +87,12 @@ async function checkReceiver(): Promise<Part> {
   }
 }
 
-type Stream = Part & { reading: string | null; online: string | null; synced: boolean | null; expiresAt: string | null };
+type Stream = Part & { reading: string | null; online: string | null; synced: boolean | null; expiresAt: string | null; teslaFetchedAt: string | null };
 
 // Readings stopped while the car was online = down. A config that is missing, unsynced, expiring or
 // reporting errors, or a check that couldn't run = degraded.
 async function checkStream(now: number): Promise<Stream> {
-  const out: Stream = { status: "operational", problems: [], reading: null, online: null, synced: null, expiresAt: null };
+  const out: Stream = { status: "operational", problems: [], reading: null, online: null, synced: null, expiresAt: null, teslaFetchedAt: null };
   const flag = (status: Status, problem: string) => {
     out.status = worstStatus(out.status, status);
     out.problems.push(problem);
@@ -131,13 +132,10 @@ async function checkStream(now: number): Promise<Stream> {
       // No account to ask with reads as disconnected, like a missing token.
       if (!car.owner) throw new NotConnectedError();
       const owner = car.owner;
-      const [cfg, errs] = await withTimeout(
-        Promise.all([
-          fleetGet<TelemetryConfig>(owner, `/api/1/vehicles/${vin}/fleet_telemetry_config`),
-          fleetGet<TelemetryErrors>(owner, `/api/1/vehicles/${vin}/fleet_telemetry_errors`).catch((): TelemetryErrors => null),
-        ]),
-        "Asking Tesla",
-      );
+      // Reused for up to an hour (see streamState): the rest of the checks stay live on every call.
+      const state = await withTimeout(streamState(owner, vin, now), "Asking Tesla");
+      const { config: cfg, errors: errs } = state;
+      out.teslaFetchedAt = state.fetchedAt;
       if (!cfg || !cfg.config) {
         flag("degraded", "No streaming config on the car");
       } else {
@@ -176,6 +174,7 @@ export async function runHealthChecks(): Promise<HealthChecks> {
       carLastOnlineAt: vehicle.last_seen_at,
       synced: true,
       expiresAt: new Date(now + 60 * 86_400_000).toISOString(),
+      teslaFetchedAt: new Date(now).toISOString(),
     };
   }
   const [database, receiver, stream] = await Promise.all([checkDatabase(), checkReceiver(), checkStream(now)]);
@@ -191,6 +190,7 @@ export async function runHealthChecks(): Promise<HealthChecks> {
     carLastOnlineAt: stream.online,
     synced: stream.synced,
     expiresAt: stream.expiresAt,
+    teslaFetchedAt: stream.teslaFetchedAt,
   };
 }
 
