@@ -4,6 +4,7 @@ import { stationAt } from "@/lib/stations";
 import type { Owner } from "./data/owner";
 import { cachedPlaceNames, placeKey } from "./place-names";
 import { loadReadingsByField } from "./telemetry-window";
+import { withGoogleNamesBy } from "./google-place-names";
 import { loadUserPlaces } from "./user-places";
 
 const MIN = 60_000;
@@ -28,5 +29,6 @@ export async function loadParkedPlaces(owner: Owner, vin: string | null, starts:
   ]);
   const located = spots.filter((s) => s !== null);
   const places = await cachedPlaceNames(located.map((s) => s.spot)).catch(() => new Map<string, string>());
-  return Object.fromEntries(located.map(({ start, spot }) => [start, spotName(tags, spot, { station: stationAt(spot.lat, spot.lng), place: places.get(placeKey(spot)) })]));
+  // Shown only as the parked rows' place line, so a Google-tagged spot's live name is added (credited there).
+  return withGoogleNamesBy(Object.fromEntries(located.map(({ start, spot }) => [start, spotName(tags, spot, { station: stationAt(spot.lat, spot.lng), place: places.get(placeKey(spot)) })])));
 }

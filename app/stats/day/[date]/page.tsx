@@ -15,14 +15,15 @@ import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type DayDetail, loadDay } from "@/lib/server/day";
 import { dayParam } from "@/lib/day-timeline";
-import { chargeType, needsName } from "@/lib/charge-names";
+import { chargeType, nameAction } from "@/lib/charge-names";
+import { GoogleMapsCredit } from "@/components/google-maps-credit";
 import { NamePlace } from "@/components/name-place";
 import { chargeTotals } from "@/lib/charging-figures";
 import { isoDay } from "@/lib/periods";
 import { istDayStart } from "@/lib/telemetry-derive";
 import { Measure } from "@/components/measure";
 
-export const metadata: Metadata = { title: "Day · Uplink" };
+export const metadata: Metadata = { title: "Day" };
 
 const long = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
 
@@ -109,9 +110,10 @@ function DayView({ detail, now }: { detail: DayDetail; now: number }) {
                       {s.ended_at ? ` to ${formatClock(s.ended_at)}` : ", charging"}
                     </Link>
                     <span className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
-                      <span>{[chargeType(s), name].filter(Boolean).join(" · ")}</span>
+                      <span>{[chargeType(s), spot?.google ?? name].filter(Boolean).join(" · ")}</span>
+                      {spot?.google && <GoogleMapsCredit />}
                       {/* Above the row's link, so it opens the sheet rather than the charge. */}
-                      {spot && (needsName(spot.name) ? <NamePlace target={spot.target} className="relative z-10" /> : spot.target.tag && <NamePlace target={spot.target} compact className="relative z-10" />)}
+                      {spot && nameAction(spot) && <NamePlace target={spot.target} compact={nameAction(spot) === "rename"} className="relative z-10" />}
                     </span>
                   </span>
                   <span className="text-right font-mono">

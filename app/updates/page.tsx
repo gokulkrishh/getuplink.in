@@ -5,7 +5,6 @@ import { Suspense } from "react";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { SyncStreamVersions } from "@/components/background-sync";
 import { AWAKE_MS, CarStatus } from "@/components/car-status";
-import { DemoBar } from "@/components/demo-bar";
 import { Header } from "@/components/header";
 import { CheckedFooter, OwnerNotices } from "@/components/owner-notices";
 import { ReleaseNotesToggle } from "@/components/release-notes";
@@ -15,7 +14,7 @@ import { customScope, UPDATE_PERIODS } from "@/components/stats/periods";
 import { VersionHistory } from "@/components/updates/history";
 import { UpdateStats } from "@/components/updates/update-stats";
 import { isPending, UpdateStatus } from "@/components/updates/update-status";
-import { DEMO, type DemoScenario, parseScenario } from "@/lib/demo";
+import type { DemoScenario } from "@/lib/demo";
 import { newestTime } from "@/lib/last-synced";
 import { customRange, rangeTimeframe, type Timeframe } from "@/lib/periods";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
@@ -25,7 +24,7 @@ import { loadUpdatesPage, type UpdatesCar, type UpdatesPage } from "@/lib/server
 import { updateStats } from "@/lib/telemetry-derive";
 import { currentVersion } from "@/lib/versions";
 
-export const metadata: Metadata = { title: "Updates · Uplink" };
+export const metadata: Metadata = { title: "Updates" };
 
 const heading = "text-lg font-medium tracking-heading";
 
@@ -125,7 +124,7 @@ function CarUpdates({ car, notes, label, range, now }: { car: UpdatesCar; notes:
 
 async function Updates({ searchParams }: Pick<PageProps<"/updates">, "searchParams">) {
   const params = await searchParams;
-  const demo = DEMO ? parseScenario(params.demo) : "normal";
+  const demo: DemoScenario = "normal";
   const { data, now } = await loadOwnUpdates(demo);
   const failedRun = data.kind === "ready" && data.lastRun?.ok === false ? data.lastRun : null;
   const cars = data.kind === "ready" ? data.cars : [];
@@ -136,7 +135,6 @@ async function Updates({ searchParams }: Pick<PageProps<"/updates">, "searchPara
 
   return (
     <>
-      {DEMO && <DemoBar active={demo} path="/updates" />}
       <OwnerNotices data={data} count={cars.length} failedRun={failedRun} />
       {data.kind === "ready" && cars.length > 0 && (
         <PeriodScope options={UPDATE_PERIODS} custom={customScope(range, now)}>

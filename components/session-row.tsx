@@ -119,10 +119,12 @@ export function SessionRow({ item, serial, now, costs }: { item: Listed; serial?
   const { tesla: s, stream, invoice: attached } = item;
   const invoice = s?.invoices.find((i) => i.contentId);
   const named = !s && stream ? (item.spot?.name ?? streamName(stream, attached)) : null;
-  // The owner's own name wins over Tesla's site name too.
-  const tagged = item.spot?.name?.source === "tag" ? item.spot.name.text : null;
+  // The owner's own name wins over Tesla's site name too: typed, or the Google place they picked (live,
+  // credited in the row).
+  const google = item.spot?.google ?? null;
+  const tagged = google ?? (item.spot?.name?.source === "tag" ? item.spot.name.text : null);
   const site = s ? splitSite(s.site_name) : null;
-  const { place, city } = site ? { place: tagged ?? site.place, city: site.city } : { place: stream ? (named?.text ?? chargeType(stream)) : "", city: null };
+  const { place, city } = site ? { place: tagged ?? site.place, city: site.city } : { place: stream ? (google ?? named?.text ?? chargeType(stream)) : "", city: null };
   const stoppedAt = s ? s.stopped_at : (stream?.ended_at ?? null);
   const durationMs = stoppedAt ? Date.parse(stoppedAt) - Date.parse(item.started_at) : 0;
   const durationText = durationMs > 0 ? formatDuration(durationMs / 1000) : null;
@@ -147,6 +149,7 @@ export function SessionRow({ item, serial, now, costs }: { item: Listed; serial?
     clock: formatClock(item.started_at),
     href,
     place,
+    google: google !== null,
     detail: detail.filter(Boolean).join(" · "),
     energy: energy === null ? null : formatKwh(energy),
     cost: !costs

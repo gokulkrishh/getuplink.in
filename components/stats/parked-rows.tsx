@@ -1,5 +1,6 @@
 "use client";
 
+import { GoogleMapsCredit } from "@/components/google-maps-credit";
 import { Measure } from "@/components/measure";
 
 // One stretch parked as the list shows it, every text worked out on the server (see cells in
@@ -11,6 +12,8 @@ export type ParkedRow = {
   when: string;
   // Where it was parked, by its best name (see spotName), when the readings show it.
   place: string | null;
+  // The place is a Google Maps name: credited beside it.
+  placeGoogle?: boolean;
   period: string;
   lost: string;
   // Lost as a phone shows it: the share with the range when that is known.
@@ -35,7 +38,14 @@ const COLUMNS = [
 
 // The stretch going on now says so under when it began, rather than in its length.
 const Now = ({ row }: { row: ParkedRow }) => (row.ongoing ? <span className="block text-xs text-muted-foreground">Still parked</span> : null);
-const Where = ({ row }: { row: ParkedRow }) => (row.place ? <span className="block truncate text-xs text-muted-foreground">{row.place}</span> : null);
+// The name truncates; the credit beside a Google name never does.
+const Where = ({ row }: { row: ParkedRow }) =>
+  row.place ? (
+    <span className="flex min-w-0 items-baseline gap-1.5 text-xs text-muted-foreground">
+      <span className="min-w-0 truncate">{row.place}</span>
+      {row.placeGoogle && <GoogleMapsCredit className="shrink-0" />}
+    </span>
+  ) : null;
 
 export function ParkedTable({ rows, header = true }: { rows: ParkedRow[]; header?: boolean }) {
   return (

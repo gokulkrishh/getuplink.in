@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { chargeName, chargeSpot, chargeType, googleMapsUrl, invoiceName, needsName, spotName, withCarFlag } from "@/lib/charge-names";
+import { chargeName, chargeSpot, chargeType, googleMapsUrl, invoiceName, mapName, nameAction, needsName, shownName, spotName, withCarFlag } from "@/lib/charge-names";
 import type { UserPlace } from "@/lib/user-places";
 
 describe("chargeName", () => {
@@ -56,12 +56,42 @@ describe("withCarFlag", () => {
 });
 
 describe("spotName", () => {
-  const typed: UserPlace = { id: 7, name: "Maple Court", lat: 10, lng: 20, radiusM: 75 };
+  const typed: UserPlace = { id: 7, name: "Maple Court", googlePlaceId: null, lat: 10, lng: 20, radiusM: 75 };
+  const fromGoogle: UserPlace = { id: 8, name: null, googlePlaceId: "ChIJmadeUpOrchardMarket01", lat: 10, lng: 20, radiusM: 75 };
 
   test("a tag in range names the spot, above a station there", () => {
     const named = spotName([typed], { lat: 10.0002, lng: 20 }, { station: "Brightwell, Hillgrove", place: "Hillgrove, Riverton" });
     expect(named.name).toEqual({ text: "Maple Court", source: "tag" });
-    expect(named.target.tag).toEqual({ id: 7, name: "Maple Court" });
+    expect(named.google).toBeNull();
+    expect(named.target.tag).toEqual({ id: 7, name: "Maple Court", googlePlaceId: null });
+  });
+
+  test("a Google-tagged spot's name stays Google-free: the area, for pins and anything else", () => {
+    const named = spotName([fromGoogle], { lat: 10.0002, lng: 20 }, { place: "Hillgrove, Riverton" });
+    expect(named.name).toEqual({ text: "Hillgrove, Riverton", source: "place" });
+    expect(named.google).toBeNull();
+    expect(named.target.tag).toEqual({ id: 8, name: null, googlePlaceId: "ChIJmadeUpOrchardMarket01" });
+    // A row shows the live name once filled in, credited; the area otherwise.
+    expect(shownName(named)).toEqual({ text: "Hillgrove, Riverton", google: false });
+    expect(shownName({ ...named, google: "Orchard Lane Market" })).toEqual({ text: "Orchard Lane Market", google: true });
+  });
+
+  test("a map pin never shows the Google name, even once it is filled in", () => {
+    const named = { ...spotName([fromGoogle], { lat: 10.0002, lng: 20 }, { place: "Hillgrove, Riverton" }), google: "Orchard Lane Market" };
+    expect(mapName(named)).toBe("Hillgrove, Riverton");
+    // With nothing else naming the spot, the pin has no name at all.
+    const bare = { ...spotName([fromGoogle], { lat: 10.0002, lng: 20 }), google: "Orchard Lane Market" };
+    expect(mapName(bare)).toBeNull();
+    // A typed name is the owner's own and shows on the map too.
+    expect(mapName(spotName([typed], { lat: 10.0002, lng: 20 }, { place: "Hillgrove, Riverton" }))).toBe("Maple Court");
+  });
+
+  test("every tagged spot gets the pencil, Google's included; an area-only spot gets Name this place", () => {
+    const at = { lat: 10.0002, lng: 20 };
+    expect(nameAction(spotName([fromGoogle], at, { place: "Hillgrove, Riverton" }))).toBe("rename");
+    expect(nameAction(spotName([typed], at))).toBe("rename");
+    expect(nameAction(spotName([], at, { place: "Hillgrove, Riverton" }))).toBe("name");
+    expect(nameAction(spotName([], at, { station: "Brightwell, Hillgrove" }))).toBeNull();
   });
 
   test("out of range, the other sources in their order", () => {

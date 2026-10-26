@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { metres, nameTarget, parseId, parseName, parsePoint, TAG_RADIUS_M, tagAt, type UserPlace } from "@/lib/user-places";
+import { metres, nameTarget, parseId, parseName, parsePlaceId, parsePoint, TAG_RADIUS_M, tagAt, type UserPlace } from "@/lib/user-places";
 
 // Made-up spots. 0.0001° of latitude is about 11.1 m.
-const HOME: UserPlace = { id: 1, name: "Maple Court", lat: 10, lng: 20, radiusM: TAG_RADIUS_M };
+const HOME: UserPlace = { id: 1, name: "Maple Court", googlePlaceId: null, lat: 10, lng: 20, radiusM: TAG_RADIUS_M };
 const north = (m: number) => ({ lat: HOME.lat + m / 111_195, lng: HOME.lng });
 
 describe("tagAt", () => {
@@ -29,8 +29,20 @@ describe("tagAt", () => {
   });
 
   test("nameTarget carries the spot and its tag", () => {
-    expect(nameTarget([HOME], north(10))).toEqual({ ...north(10), tag: { id: 1, name: "Maple Court" } });
+    expect(nameTarget([HOME], north(10))).toEqual({ ...north(10), tag: { id: 1, name: "Maple Court", googlePlaceId: null } });
     expect(nameTarget([HOME], north(500)).tag).toBeNull();
+  });
+});
+
+describe("parsePlaceId", () => {
+  test("Google's ID characters only, trimmed, of a sane length", () => {
+    expect(parsePlaceId(" ChIJmadeUpOrchardMarket01 ")).toBe("ChIJmadeUpOrchardMarket01");
+    expect(parsePlaceId("ChIJ-made_Up-01")).toBe("ChIJ-made_Up-01");
+    expect(parsePlaceId("short")).toBeNull();
+    expect(parsePlaceId("ChIJ made up 01")).toBeNull();
+    expect(parsePlaceId("ChIJ<script>01")).toBeNull();
+    expect(parsePlaceId("x".repeat(1001))).toBeNull();
+    expect(parsePlaceId(42)).toBeNull();
   });
 });
 

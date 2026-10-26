@@ -70,6 +70,8 @@ export async function loadDrivingExtras(owner: Owner, vin: string | null, allDri
     speed: speedHistogram(timed(r.VehicleSpeed, MILES_TO_KM), drives),
     byTemp,
     bySpeed,
+    // Google-free (google: null), as the MCP export reads it too; the Driving page adds Google names to
+    // the rows it shows (withGoogleNames).
     places: parked.map((p) => ({ ...p, ...spotName(tags, p, { station: stationAt(p.lat, p.lng), place: names.get(placeKey(p)) }) })),
     visited,
   };

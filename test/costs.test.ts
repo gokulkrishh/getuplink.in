@@ -348,7 +348,7 @@ describe("a usage row's breakdown", () => {
       { label: "Vehicle data", value: "1,200 requests" },
       { label: "Streaming config", value: "1 request" },
       { label: "Streamed signals", value: "3,45,678" },
-      { label: "Checks", value: "Every 6 hours", muted: true },
+      { label: "Checks", value: "Every 12 hours", muted: true },
     ]);
   });
 

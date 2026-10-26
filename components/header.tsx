@@ -48,7 +48,7 @@ async function AccountAvatar() {
   return <AvatarBlob seed={await accountSeed()} />;
 }
 
-// Only the admin (users.role = 'admin') sees the Admin, Waitlist and Costs items; for everyone else they're a 404.
+// Only the admin (users.role = 'admin') sees the Admin, Access (waitlist and invites) and Costs items; for everyone else they're a 404.
 async function AdminItem() {
   if (!(await adminSession())) return null;
   return (
@@ -59,7 +59,7 @@ async function AdminItem() {
       </DropdownMenuItem>
       <DropdownMenuItem render={<Link href="/admin/waitlist" prefetch={true} />}>
         <UserPlus aria-hidden />
-        Waitlist
+        Access
       </DropdownMenuItem>
       <DropdownMenuItem render={<Link href="/admin/costs" prefetch={true} />}>
         <ReceiptText aria-hidden />

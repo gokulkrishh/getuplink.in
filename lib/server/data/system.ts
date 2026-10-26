@@ -50,8 +50,11 @@ export async function revokeUserSessions(owner: Owner, at: string): Promise<void
 }
 
 // Delete account: the users row, which cascades to every per-user table. Streamed readings aren't one
-// user's: the caller first deletes those nobody may see any more.
+// user's: the caller first deletes those nobody may see any more. An invite they joined through keeps its
+// row (used, so it can't be used again) but loses the car it named; the foreign key clears used_by.
 export async function deleteUser(owner: Owner): Promise<void> {
+  const invites = await db().from("invites").update({ joined_label: null }).eq("used_by", owner.userId);
+  if (invites.error && !MISSING_TABLE.includes(invites.error.code ?? "")) throw new Error(invites.error.message);
   check(await db().from("users").delete().eq("id", owner.userId));
 }
 
@@ -123,6 +126,112 @@ export async function moveAccount(id: number, from: string[], to: string): Promi
       .in("status", from)
       .neq("role", ADMIN_ROLE)
       .select("id"),
+  ) as unknown[] | null;
+  return (rows?.length ?? 0) === 1;
+}
+
+// A Tesla login joins through an invite: approved at once. A waitlist row already there is moved (approve,
+// as the admin would); otherwise a new row with its Tesla account id. The row it ends as, or null when the
+// account is neither new nor waiting (decided meanwhile).
+export async function approveThroughInvite(sub: string, existing: UserRow | null): Promise<UserRow | null> {
+  if (existing) {
+    if (!(await moveAccount(existing.id, [WAITLIST], APPROVED))) return null;
+  } else {
+    const now = new Date().toISOString();
+    check(
+      await db()
+        .from("users")
+        .upsert({ tesla_sub: sub, status: APPROVED, approved_at: now, updated_at: now }, { onConflict: "tesla_sub", ignoreDuplicates: true }),
+    );
+  }
+  const user = await userBySub(sub);
+  return user?.status === APPROVED ? user : null;
+}
+
+// ---- Invite links (step 7) ----
+
+// Before the invites migration there is no table: invites are unavailable, and sign-in carries on without them.
+export class InvitesUnavailable extends Error {
+  constructor() {
+    super("Invites aren't set up yet");
+  }
+}
+
+function inviteCheck<T>(result: { data: T; error: { message: string; code?: string } | null }): T {
+  if (result.error && MISSING_TABLE.includes(result.error.code ?? "")) throw new InvitesUnavailable();
+  return check(result);
+}
+
+export type InviteRow = {
+  id: number;
+  token_hash: string;
+  vin_suffix: string;
+  label: string | null;
+  created_at: string;
+  expires_at: string;
+  used_at: string | null;
+  used_by: number | null;
+  joined_label: string | null;
+  revoked_at: string | null;
+};
+
+const INVITE_COLUMNS = "id, token_hash, vin_suffix, label, created_at, expires_at, used_at, used_by, joined_label, revoked_at";
+const asInvite = (r: InviteRow): InviteRow => ({ ...r, id: Number(r.id), used_by: r.used_by == null ? null : Number(r.used_by) });
+
+// The invite with this token hash, or null. The caller compares the hash again in constant time.
+export async function inviteByHash(tokenHash: string): Promise<InviteRow | null> {
+  const row = inviteCheck(await db().from("invites").select(INVITE_COLUMNS).eq("token_hash", tokenHash).limit(1).maybeSingle()) as InviteRow | null;
+  return row ? asInvite(row) : null;
+}
+
+export async function inviteById(id: number): Promise<InviteRow | null> {
+  const row = inviteCheck(await db().from("invites").select(INVITE_COLUMNS).eq("id", id).maybeSingle()) as InviteRow | null;
+  return row ? asInvite(row) : null;
+}
+
+export async function insertInvite(row: {
+  token_hash: string;
+  vin_suffix: string;
+  label: string | null;
+  created_by: number;
+  created_at: string;
+  expires_at: string;
+}): Promise<InviteRow> {
+  return asInvite(inviteCheck(await db().from("invites").insert(row).select(INVITE_COLUMNS).single()) as InviteRow);
+}
+
+// The admin's list: the latest invites, newest first, each with the status of the account that joined.
+export async function recentInvites(limit: number): Promise<(InviteRow & { joinedStatus: string | null })[]> {
+  const result = await db().from("invites").select(INVITE_COLUMNS).order("created_at", { ascending: false }).limit(limit);
+  const rows = ((inviteCheck(result) ?? []) as InviteRow[]).map(asInvite);
+  const ids = [...new Set(rows.flatMap((r) => (r.used_by === null ? [] : [r.used_by])))];
+  const users = ids.length ? ((check(await db().from("users").select("id, status").in("id", ids)) ?? []) as { id: number; status: string }[]) : [];
+  const status = new Map(users.map((u) => [Number(u.id), u.status]));
+  return rows.map((r) => ({ ...r, joinedStatus: r.used_by === null ? null : (status.get(r.used_by) ?? null) }));
+}
+
+// Claims an invite for one sign-in: one conditional update, so of two sign-ins racing through the same
+// link only one gets it. True when this call claimed it.
+export async function claimInvite(id: number, now: string): Promise<boolean> {
+  const rows = inviteCheck(
+    await db().from("invites").update({ used_at: now }).eq("id", id).is("used_at", null).is("revoked_at", null).gt("expires_at", now).select("id"),
+  ) as unknown[] | null;
+  return (rows?.length ?? 0) === 1;
+}
+
+// Hands a claim back when the sign-in that claimed it failed before anyone joined.
+export async function releaseInvite(id: number): Promise<void> {
+  inviteCheck(await db().from("invites").update({ used_at: null }).eq("id", id).is("used_by", null));
+}
+
+export async function recordInviteUse(id: number, userId: number, joined: string): Promise<void> {
+  inviteCheck(await db().from("invites").update({ used_by: userId, joined_label: joined }).eq("id", id));
+}
+
+// True when it was unused and is now revoked.
+export async function revokeInviteRow(id: number, now: string): Promise<boolean> {
+  const rows = inviteCheck(
+    await db().from("invites").update({ revoked_at: now }).eq("id", id).is("used_at", null).is("revoked_at", null).select("id"),
   ) as unknown[] | null;
   return (rows?.length ?? 0) === 1;
 }

@@ -10,7 +10,7 @@ import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { Measure } from "@/components/measure";
 import { Figures } from "@/components/stats/figures";
 
-export const metadata: Metadata = { title: "Admin · Uplink" };
+export const metadata: Metadata = { title: "Admin" };
 
 // The admin check runs before anything streams, so a non-admin gets a real 404 status rather than a 200 with
 // the not-found page in it. That means the page waits for the check instead of showing a skeleton first.
@@ -63,7 +63,7 @@ export default async function Page() {
           </p>
           <p className="text-sm">
             <Link href="/admin/waitlist" prefetch={true} className="underline decoration-border underline-offset-4 hover:decoration-foreground">
-              Waitlist
+              Access
             </Link>
             <span aria-hidden className="mx-1.5 text-faint">
               ·

@@ -5,20 +5,25 @@ import { DECIMALS, formatDuration, formatKm, formatNumber, formatShortDate } fro
 import type { Band } from "@/lib/driving-insights";
 import type { DrivingExtras, NamedPlace } from "@/lib/server/driving-extra";
 import { Measure } from "@/components/measure";
+import { GoogleMapsCredit } from "@/components/google-maps-credit";
 import { NamePlace } from "@/components/name-place";
-import { CAR_FLAGS, needsName, withCarFlag } from "@/lib/charge-names";
+import { CAR_FLAGS, mapName, nameAction, shownName, withCarFlag } from "@/lib/charge-names";
 
-// The map's label: the name with the car's flag ("Koramangala, Bengaluru · Home").
-const pinName = (p: NamedPlace, k: number) => withCarFlag(p.name?.text ?? null, p.tag) ?? `Place ${k + 1}`;
+// The map's label: the name with the car's flag ("Koramangala, Bengaluru · Home"). Never Google's name:
+// `name` falls back to the area for a Google-tagged place.
+const pinName = (p: NamedPlace, k: number) => withCarFlag(mapName(p), p.tag) ?? `Place ${k + 1}`;
 
-// The table's name, then the car's flag as a small tag, then "Name this place" or a rename.
+// The table's name (a Google place's, credited, when the owner picked one), then the car's flag as a small
+// tag, then "Name this place" or the pencil.
 function PlaceName({ place: p, k }: { place: NamedPlace; k: number }) {
-  const main = p.name?.text ?? (p.tag ? CAR_FLAGS[p.tag] : `Place ${k + 1}`);
+  const shown = shownName(p);
+  const action = nameAction(p);
   return (
     <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-      <span>{main}</span>
-      {p.name && p.tag && <span className="text-xs text-muted-foreground">· {CAR_FLAGS[p.tag]}</span>}
-      {needsName(p.name) ? <NamePlace target={p.target} /> : p.target.tag && <NamePlace target={p.target} compact />}
+      <span>{shown?.text ?? (p.tag ? CAR_FLAGS[p.tag] : `Place ${k + 1}`)}</span>
+      {shown?.google && <GoogleMapsCredit />}
+      {shown && p.tag && <span className="text-xs text-muted-foreground">· {CAR_FLAGS[p.tag]}</span>}
+      {action && <NamePlace target={p.target} compact={action === "rename"} />}
     </span>
   );
 }
@@ -51,7 +56,6 @@ export function SpeedBands({ bins, words = "last 30 days", note }: { bins: Drivi
     <ChartCard
       title="Time at each speed"
       description="Share of driving time at each speed."
-      info="Each bar is a 20 km/h band. The band you drive in most is highlighted."
       summary={<Note note={note} />}
       caption={upper(words)}
     >
@@ -177,7 +181,7 @@ export function Places({ places, visited, words = "last 30 days", note }: { plac
           </table>
         </div>
       )}
-      <p className="text-xs text-faint">Names you give come first, then OpenStreetMap&apos;s. Home, Work and Favourite are the ones set in your car.</p>
+      <p className="text-xs text-faint">Names you give come first, then OpenStreetMap&apos;s. Places named from Google Maps show their area on the map. Home, Work and Favourite are the ones set in your car.</p>
     </section>
   );
 }

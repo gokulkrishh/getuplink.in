@@ -22,9 +22,8 @@ import { ApiUsage } from "./api-usage";
 import { DeleteAccount, DeleteMyData, DisconnectTesla, SignOutEverywhere } from "./confirm-actions";
 import { BotTemplate, McpConnector } from "./integrations";
 import { Row } from "./row";
-import { YourPlaces } from "./your-places";
 
-export const metadata: Metadata = { title: "Settings · Uplink" };
+export const metadata: Metadata = { title: "Settings" };
 
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -113,10 +112,6 @@ async function Settings() {
           />
         </Group>
       )}
-
-      <Group title="Your places">
-        <YourPlaces />
-      </Group>
 
       <Group title="Integrations">
         <McpConnector status={connector} now={now} />

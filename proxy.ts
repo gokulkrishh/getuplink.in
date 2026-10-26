@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { DEMO } from "@/lib/demo";
 import { EXPIRE_HOST_ONLY_SESSION, isValidSession, requestHost, SESSION_COOKIE, sessionCookieDomain, sessionCookieValues } from "@/lib/session";
+import { METADATA_PATHS } from "@/lib/site";
 import { statsRedirect } from "@/lib/stats-redirect";
 
 // Exact paths reachable without a session. Anything not listed here needs one.
@@ -15,8 +16,7 @@ const PUBLIC_PATHS = new Set([
   "/api/mcp", // the MCP connector: checks its own token from Settings → Integrations
   "/api/public-key",
   "/.well-known/appspecific/com.tesla.3p.public-key.pem",
-  "/favicon.ico",
-  "/icon.svg",
+  ...METADATA_PATHS, // icons, the manifest and link preview images, on every host (lib/site.ts)
   "/home", // public marketing page, served on getuplink.in via the rewrite below
   "/waitlist", // where a sign-in that's waiting for approval lands; says the same to everyone
   "/privacy", // public legal pages, served on both hosts
@@ -30,12 +30,12 @@ const PUBLIC_PATHS = new Set([
 // Locally the same split runs on uplink.localhost (home) and app.uplink.localhost (dashboard), which can
 // share the session cookie like getuplink.in does. Plain localhost (Tesla's local redirect URI) forwards there.
 const MARKETING_HOSTS = new Set(["getuplink.in", "www.getuplink.in", "uplink.localhost", "localhost"]);
-const MARKETING_PATHS = new Set(["/home", "/privacy", "/terms", "/status", "/agents.md", "/robots.txt", "/favicon.ico", "/icon.svg"]);
+const MARKETING_PATHS = new Set(["/home", "/privacy", "/terms", "/status", "/agents.md", "/robots.txt", ...METADATA_PATHS]);
 const APP_ORIGIN = "https://app.getuplink.in";
 
-// The status page has its own host. It serves only /status and the icons; anything else goes to the home page host.
+// The status page has its own host. It serves only /status, the icons and preview images; anything else goes to the home page host.
 const STATUS_HOSTS = new Set(["status.getuplink.in", "status.uplink.localhost"]);
-const STATUS_PATHS = new Set(["/status", "/robots.txt", "/favicon.ico", "/icon.svg"]);
+const STATUS_PATHS = new Set(["/status", "/robots.txt", ...METADATA_PATHS]);
 const HOME_ORIGIN = "https://getuplink.in";
 
 function homeOrigin(url: URL): string {
@@ -86,6 +86,8 @@ export async function proxy(request: NextRequest) {
   if (pathname === "/stats") return NextResponse.redirect(new URL(statsRedirect(request.nextUrl.searchParams), request.url));
 
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
+  // Invite links (/invite/<token>): opened by someone without an account yet. The page checks the token itself.
+  if (pathname.startsWith("/invite/")) return NextResponse.next();
 
   if (DEMO) return NextResponse.next();
   const sent = sessionCookieValues(request.headers.get("cookie"));

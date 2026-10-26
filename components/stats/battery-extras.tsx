@@ -133,7 +133,6 @@ export function CapacityByKm({ points, frame }: { points: BatteryExtras["capacit
       description="Usable capacity each week, against the odometer."
       unit="kWh"
       terms={["usable capacity"]}
-      info="A line that falls means the pack holds less."
       caption={backTo(frame.span, points[0].weekStart, "Weekly estimates")}
       empty={
         shown.length < 2 &&

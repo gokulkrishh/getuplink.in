@@ -3,7 +3,10 @@ import { cache } from "react";
 import { DEMO } from "@/lib/demo";
 import { decrypt, encrypt } from "./crypto";
 import { demoData } from "./demo";
-import { env, fleetApiBase, signupMode } from "./env";
+import { env, fleetApiBase, maxUsers, signupMode } from "./env";
+import { isFull } from "@/lib/admin";
+import { inviteState, joinedLabel, vinMatches } from "@/lib/invites";
+import { inviteForHash } from "./invites";
 import { eraseOwnerRows } from "./data/erase";
 import { foldApiUsage, UNATTRIBUTED } from "./data/usage";
 import { countRequest } from "./usage";
@@ -11,7 +14,14 @@ import { isBillable, kindOf } from "@/lib/tesla-billing";
 import { type Owner, ownerDb } from "./data/owner";
 import {
   APPROVED,
+  approvedCount,
+  approveThroughInvite,
   carsOthersTrack,
+  claimInvite,
+  InvitesUnavailable,
+  recordInviteUse,
+  releaseInvite,
+  type UserRow,
   DECLINED,
   deleteUser,
   joinWaitlist,
@@ -124,10 +134,23 @@ function idTokenSubject(idToken: string | undefined): string {
 
 // The user to start a session for, or why there is none:
 // - "not-owner": sign-up is closed and Uplink doesn't know this Tesla account;
+// - "invite-only": SIGNUP_MODE is invite, and this unknown account came without an invite;
+// - "invite-invalid": the invite expired, was used or revoked, or doesn't exist (or invites aren't set up);
+// - "invite-car": no car on this Tesla account has the VIN the invite names;
+// - "full": every place (MAX_USERS) is taken;
 // - "waitlist": on the waitlist (just joined, or still waiting);
 // - "not-approved": declined or suspended;
 // - "region": not an account the APAC Fleet API serves, so it can't join.
-export type SignInResult = { userId: number; owner: Owner } | "not-owner" | "waitlist" | "not-approved" | "region";
+export type SignInResult =
+  | { userId: number; owner: Owner }
+  | "not-owner"
+  | "invite-only"
+  | "invite-invalid"
+  | "invite-car"
+  | "full"
+  | "waitlist"
+  | "not-approved"
+  | "region";
 
 // Whether Tesla serves this account from the Fleet API Uplink uses (TESLA_FLEET_API_BASE_URL, the
 // North America and Asia-Pacific one): /api/1/users/region names the account's base URL. Tesla gives
@@ -142,12 +165,60 @@ async function servedRegion(accessToken: string): Promise<boolean> {
   return base.replace(/\/$/, "") === fleetApiBase();
 }
 
+// The VINs on the Tesla account signing in, for an invite's check. Counted like every Fleet API request
+// (unattributed: there's no account yet). Throws when Tesla doesn't answer, so the sign-in fails rather
+// than refusing a friend over a hiccup.
+async function accountVins(accessToken: string): Promise<string[]> {
+  const res = await teslaFetch(UNATTRIBUTED, "/api/1/vehicles", { token: accessToken });
+  if (!res.ok) throw new TeslaError(`GET /api/1/vehicles failed (${res.status})`, res.status);
+  const body = (await res.json().catch(() => null)) as { response?: { vin?: unknown }[] | null } | null;
+  return (Array.isArray(body?.response) ? body.response : []).flatMap((car) => (typeof car?.vin === "string" ? [car.vin] : []));
+}
+
+// A sign-in that came through an invite link, for an account that is new or still on the waitlist. The
+// invite must be unused, unexpired and not revoked, a car on the account must end in its 6 VIN characters,
+// and a place must be free. Then one conditional update claims it, and the account is approved. Until the
+// claim nothing is written: a refusal leaves no users row and no tokens, and consumes nothing.
+async function joinThroughInvite(sub: string, user: UserRow | null, accessToken: string, hash: string) {
+  let invite;
+  try {
+    invite = await inviteForHash(hash);
+  } catch (err) {
+    if (err instanceof InvitesUnavailable) return "invite-invalid";
+    throw err;
+  }
+  const now = Date.now();
+  if (!invite || inviteState(invite, now) !== "unused") return "invite-invalid";
+  // A waitlisted account passed this check when it joined.
+  if (!user && !(await servedRegion(accessToken))) return "region";
+  const suffix = invite.vin_suffix;
+  const car = (await accountVins(accessToken)).find((vin) => vinMatches(vin, suffix));
+  if (!car) return "invite-car";
+  // A count then the claim, as approving from the waitlist does (lib/server/waitlist.ts decide).
+  if (isFull(await approvedCount(), maxUsers())) return "full";
+  if (!(await claimInvite(invite.id, new Date(now).toISOString()))) return "invite-invalid";
+  let joined: UserRow | null;
+  try {
+    joined = await approveThroughInvite(sub, user);
+  } catch (err) {
+    await releaseInvite(invite.id).catch(() => {});
+    throw err;
+  }
+  if (!joined) {
+    await releaseInvite(invite.id).catch(() => {});
+    return "not-approved";
+  }
+  await recordInviteUse(invite.id, joined.id, joinedLabel(car));
+  return joined;
+}
+
 // Sign in with Tesla doubles as the dashboard login. Only a Tesla account with an approved users row signs
 // in, and only then are its Tesla tokens stored. Anyone else gets no session and no stored tokens: the
-// pair Tesla just issued is used at most once, for the region check, and dropped.
-// A Tesla account Uplink doesn't know joins the waitlist when SIGNUP_MODE is waitlist (or open, for now;
-// see signupMode): a users row with its Tesla account id and the time, nothing else.
-export async function signIn(code: string): Promise<SignInResult> {
+// pair Tesla just issued is used at most for the region and invite checks, and dropped.
+// A Tesla account Uplink doesn't know joins through an invite link (any SIGNUP_MODE but closed), or the
+// waitlist when SIGNUP_MODE is waitlist (or open, for now; see signupMode): a users row with its Tesla
+// account id and the time, nothing else. SIGNUP_MODE=invite refuses it without an invite.
+export async function signIn(code: string, options: { inviteHash?: string | null } = {}): Promise<SignInResult> {
   const tokens = await tokenRequest({
     grant_type: "authorization_code",
     client_id: env("TESLA_CLIENT_ID"),
@@ -157,11 +228,19 @@ export async function signIn(code: string): Promise<SignInResult> {
     redirect_uri: env("TESLA_REDIRECT_URI"),
   });
   const sub = idTokenSubject(tokens.id_token);
-  const user = await userBySub(sub);
-  if (user?.status === WAITLIST) return "waitlist";
+  let user = await userBySub(sub);
   if (user?.status === DECLINED || user?.status === SUSPENDED) return "not-approved";
+  const mode = signupMode();
+  // An approved account signs in as always; an invite it carries is left unused.
+  if (user?.status !== APPROVED && options.inviteHash && mode !== "closed") {
+    const joined = await joinThroughInvite(sub, user, tokens.access_token, options.inviteHash);
+    if (typeof joined === "string") return joined;
+    user = joined;
+  }
+  if (user?.status === WAITLIST) return "waitlist";
   if (!user) {
-    if (signupMode() === "closed") return "not-owner";
+    if (mode === "closed") return "not-owner";
+    if (mode === "invite") return "invite-only";
     if (!(await servedRegion(tokens.access_token))) return "region";
     await joinWaitlist(sub);
     return "waitlist";

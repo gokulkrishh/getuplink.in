@@ -22,10 +22,10 @@ describe("newestTime", () => {
 describe("lastSyncedText", () => {
   test("recent: just the date and time", () => {
     expect(lastSyncedText(AT, Date.parse(AT) + 20 * 60_000)).toBe("Last synced 25 Oct, 10:42 AM");
-    expect(lastSyncedText(AT, Date.parse(AT) + 6 * HOUR)).toBe("Last synced 25 Oct, 10:42 AM");
+    expect(lastSyncedText(AT, Date.parse(AT) + 12 * HOUR)).toBe("Last synced 25 Oct, 10:42 AM");
   });
-  test("over 6 hours: how long ago first", () => {
-    expect(lastSyncedText(AT, Date.parse(AT) + 7 * HOUR)).toBe("Last synced 7 hours ago, 25 Oct, 10:42 AM");
+  test("over 12 hours: how long ago first", () => {
+    expect(lastSyncedText(AT, Date.parse(AT) + 13 * HOUR)).toBe("Last synced 13 hours ago, 25 Oct, 10:42 AM");
     expect(lastSyncedText(AT, Date.parse(AT) + 25 * HOUR)).toBe("Last synced 1 day ago, 25 Oct, 10:42 AM");
     expect(lastSyncedText(AT, Date.parse(AT) + 50 * HOUR)).toBe("Last synced 2 days ago, 25 Oct, 10:42 AM");
     // Past a week still counts days, rather than printing the date twice.
@@ -41,9 +41,9 @@ describe("syncAge and isStaleSync", () => {
     expect(syncAge(AT, Date.parse(AT) + 23.9 * HOUR)).toBe("23 hours ago");
     expect(syncAge(AT, Date.parse(AT) + 48 * HOUR)).toBe("2 days ago");
   });
-  test("stale only past 6 hours", () => {
-    expect(isStaleSync(AT, Date.parse(AT) + 6 * HOUR)).toBe(false);
-    expect(isStaleSync(AT, Date.parse(AT) + 6 * HOUR + 1)).toBe(true);
+  test("stale only past 12 hours", () => {
+    expect(isStaleSync(AT, Date.parse(AT) + 12 * HOUR)).toBe(false);
+    expect(isStaleSync(AT, Date.parse(AT) + 12 * HOUR + 1)).toBe(true);
     expect(isStaleSync(null, Date.parse(AT))).toBe(false);
   });
 });

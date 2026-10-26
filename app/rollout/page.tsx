@@ -20,7 +20,7 @@ import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadRollout, type RolloutPage } from "@/lib/server/rollout";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "India rollout · Uplink" };
+export const metadata: Metadata = { title: "India rollout" };
 
 const heading = "text-lg font-medium tracking-heading";
 
@@ -165,7 +165,6 @@ async function Rollout() {
       <ChartCard
         title="Versions"
         description="Every version Indian cars run, newest first."
-        info={`Each bar is the version's share of the ${cars(counted)} Uplink counts.`}
       >
         <ul className="divide-y border-t">
           <li className="flex gap-4 py-2 text-xs text-faint" aria-hidden="true">

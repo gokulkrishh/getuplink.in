@@ -8,7 +8,7 @@ import type { Timeframe } from "@/lib/periods";
 import { median } from "@/lib/telemetry-derive";
 import { InfoButton } from "@/components/info-button";
 import { type ParkedRow, ParkedBlocks, ParkedTable } from "@/components/stats/parked-rows";
-import type { SpotName } from "@/lib/charge-names";
+import { type ShownName, shownName, type SpotName } from "@/lib/charge-names";
 
 const HOUR = 3_600_000;
 // A stretch this long says something per day; a shorter one in progress is shown but not summarised.
@@ -20,7 +20,7 @@ const dash = "Unknown";
 type Row = ParkStats & { serial: number; ongoing: boolean; atLeast: boolean };
 
 // The texts of one stretch for the list (see ParkedRows), each "Unknown" when the readings don't show it.
-function cells(r: Row, place: string | null): ParkedRow {
+function cells(r: Row, place: ShownName | null): ParkedRow {
   const lost = r.lostPercent !== null ? `${oneDecimal(r.lostPercent)}%` : dash;
   const range = r.lostKm !== null ? formatRangeKm(r.lostKm) : dash;
   return {
@@ -28,7 +28,8 @@ function cells(r: Row, place: string | null): ParkedRow {
     serial: r.serial,
     ongoing: r.ongoing,
     when: `${formatShortDate(r.start)}, ${formatClock(r.start)}`,
-    place,
+    place: place?.text ?? null,
+    placeGoogle: place?.google ?? false,
     period: `${r.atLeast ? "≥ " : ""}${formatDuration(r.hours * 3600)}`,
     lost,
     lostWithRange: r.lostKm !== null ? `${lost} · ${range}` : lost,
@@ -68,7 +69,7 @@ export function ParkedDrain({
   ];
 
   // The phone blocks and the table share one set of texts, drawn in the browser (see ParkedRows).
-  const texts = rows.map((r) => cells(r, places[r.start]?.name?.text ?? null));
+  const texts = rows.map((r) => cells(r, shownName(places[r.start])));
 
   // The median of finished stretches in the span once there are two; until then the one going on now, if
   // it's long enough to say anything per day.

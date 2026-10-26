@@ -34,7 +34,6 @@ export function ChargeHabits({ starts, title, words }: { starts: number[]; title
     <ChartCard
       title="When you charge"
       description="When charges started, India time."
-      info="By weekday and 3-hour block of the day, from the charges listed on this page."
       summary={
         <p className="text-sm tabular-nums">
           {max === 0 ? (

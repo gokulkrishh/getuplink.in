@@ -12,6 +12,7 @@ import { type Day, dayStrips, stripsBetween } from "@/lib/day-timeline";
 import { DayTimeline } from "@/components/stats/day-timeline";
 import { EfficiencyBands, Places, SpeedBands } from "@/components/stats/driving-extras";
 import { type DrivingExtras, INSIGHT_DAYS, loadDrivingExtras } from "@/lib/server/driving-extra";
+import { withGoogleNames } from "@/lib/server/google-place-names";
 import { AWAKE_DAYS, loadPresence } from "@/lib/server/awake";
 import { loadStreamSessions } from "@/lib/server/stream-charging";
 import { DRIVE_DAYS } from "@/lib/drives";
@@ -27,7 +28,7 @@ import { loadRangeDriving } from "@/lib/server/home";
 import { loadPrimaryVehicle } from "@/lib/server/telemetry";
 import { istDay, istDayStart } from "@/lib/telemetry-derive";
 
-export const metadata: Metadata = { title: "Driving · Uplink" };
+export const metadata: Metadata = { title: "Driving" };
 
 const DAY = 86_400_000;
 
@@ -74,9 +75,11 @@ async function loadDriving(query: CustomQuery | null): Promise<{
     asleep: presence.days.flatMap((d) => d.runs.filter((r) => r.state === "asleep")),
   };
   const days = dayStrips(7, layers, figures.since, now);
+  // The Places table's rows (the 15 shown) with a Google-tagged place's live name; the map keeps `name`.
+  const googled = async (x: DrivingExtras) => ({ ...x, places: await withGoogleNames(x.places.slice(0, 15)) });
   const [extras, rangeExtras, seasons] = await Promise.all([
-    loadDrivingExtras(owner, vin, window.driving.drives, now),
-    insights ? loadDrivingExtras(owner, vin, window.driving.drives, now, insights) : null,
+    loadDrivingExtras(owner, vin, window.driving.drives, now).then(googled),
+    insights ? loadDrivingExtras(owner, vin, window.driving.drives, now, insights).then(googled) : null,
     loadSeasonEfficiency(owner, vin, window.driving.drives, now),
   ]);
   const custom =

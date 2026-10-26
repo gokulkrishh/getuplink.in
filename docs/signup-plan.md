@@ -15,6 +15,7 @@ The owner's decisions are final:
 | 4. Per-user keys, shared cars, drop the single-owner table | Built here, not deployed: three migrations, not applied. Do before approving anyone but the owner |
 | 5. Scale and limits | Built here, not deployed: `MAX_USERS`, per-user checks, API usage counts and the budget guard. Migration written, not applied |
 | 6. Waitlist | Built here, not deployed: waitlist sign-up, region check, `/admin/waitlist`, admin role. Copy for more than one owner and the rollout opt-out not started |
+| 7. Invite only | Built here, not deployed: the home page is invite-only, invite links per car, `SIGNUP_MODE=invite`. Migration written, not applied |
 
 ## Done
 
@@ -220,6 +221,53 @@ Every decision is one server action (`app/admin/waitlist/actions.ts`). It checks
 - copy for more than one owner on the home page and in terms (privacy already says what a request keeps);
 - a rollout opt-out (see `lib/server/rollout.ts`, "phase 6");
 - a way to withdraw a request. A waitlisted or declined person has no session, so only the owner can delete their row today (in SQL).
+
+## Step 7: invite only (built, not deployed)
+
+The owner's decisions: Uplink is invite-only for now. An invite is a link the owner copies and shares
+themselves (Uplink sends nothing), made for one friend's car, single use, for a day.
+
+**Home page.** No public Sign in with Tesla: "Uplink is invite-only for now." and a quiet "Already have
+access? Sign in", so approved accounts still get in. This doesn't depend on `SIGNUP_MODE` or the migration.
+
+**Migration** `supabase/migrations/20261103120000_invites.sql`, not applied. Additive, service role only:
+`invites (token_hash, vin_suffix, label, created_by, created_at, expires_at, used_at, used_by,
+joined_label, revoked_at)`. Before it's applied, Access says invites aren't set up, an invite link reads as
+not working, and sign-in without one is unchanged.
+
+**A link** is `https://app.getuplink.in/invite/<token>`.
+- The admin enters the last 6 characters of the friend's VIN (required, 6 letters or digits) and an optional label. The whole VIN is never asked for or stored.
+- Only the token's sha256 is stored. The token is an HMAC, under a key derived from `TOKEN_ENCRYPTION_KEY`, of the invite's `created_at` and VIN characters. That is how Copy gives an unused link again, while a copy of the table alone can't make one. Rotating the key ends every unused link, as it ends every session.
+- Lookups compare the hash again in constant time. The invite page is limited to 20 lookups per address per 10 minutes, per instance. Tokens are never logged. The page sends no Referer and isn't indexed.
+
+**Sign-in through a link.** The page's button is a server action with the token bound in. It checks the link again, then sets `tiu_invite` (the token hash, signed, 10 minutes, path `/api/auth`) and goes to Tesla. The callback reads the cookie and clears it whatever happens. In `signIn`:
+1. Approved: signs in as always, and the invite stays unused.
+2. Declined or suspended: "Not approved.", and the invite stays unused.
+3. With an invite, in any mode but `closed`, for an account that's new or waiting:
+   - the invite must be unused, unexpired and not revoked ("This invite link has expired or was already used.");
+   - a new account passes the region check;
+   - `GET /api/1/vehicles` with the fresh token (counted, unattributed) must list a car whose VIN ends in the 6 characters, case-insensitively. Otherwise "This invite is for a different car.";
+   - a place must be free under `MAX_USERS` ("Uplink is full for now.");
+   - one conditional update claims the invite (`used_at is null`, not revoked, unexpired), so only one sign-in gets it. The account is then approved: a waiting row is moved, or a new row is made;
+   - `used_by` and `joined_label` (the model from VIN position 4 and the last 4 of the VIN, "Model Y · 4821") are recorded.
+
+   Nothing is written before the claim. A refusal leaves no users row, no tokens and an unused invite.
+4. Without an invite: waiting goes to `/waitlist`. Unknown is "Sign-up is closed." (`closed`), "Uplink is invite-only." (`invite`), or joins the waitlist (`waitlist`/`open`).
+
+The cap is a count, then the claim, as with Approve. Two invites redeemed at once for the last place could take one over.
+
+**Access** (`/admin/waitlist`, the menu's Access item, was Waitlist) keeps "N of 25 places used" at the top. Invites:
+- Create invite link: the link with Copy, and Share where the browser has it.
+- The latest 20 invites, each used, unused, expired or revoked.
+  - Unused: Copy and Revoke.
+  - Expired or revoked: New link, with the same VIN characters and label.
+  - Used: who joined, and Suspend while they're approved.
+
+Waiting requests keep a plain Approve. Every action checks the admin again, uncached.
+
+**Delete account** clears `joined_label` on the invite the account joined through. The foreign key clears `used_by`. The invite stays used.
+
+**Env.** `SIGNUP_MODE=invite` is the new mode. Unset stays `closed`, so a deploy without the env change never opens anything. Production has `SIGNUP_MODE=waitlist` set, so until the owner changes it, unknown accounts can still join the waitlist through Sign in (invite links work there too).
 
 ## Decisions for the owner
 

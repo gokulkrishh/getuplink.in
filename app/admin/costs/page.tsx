@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils";
 import { removeEntry, saveBudget, saveEntry } from "./actions";
 import { EntryForm, NumberForm } from "./forms";
 
-export const metadata: Metadata = { title: "Costs · Admin · Uplink" };
+export const metadata: Metadata = { title: "Costs · Admin" };
 
 // As /admin: the admin check runs before anything streams, so anyone else gets a real 404.
 export const instant = false;

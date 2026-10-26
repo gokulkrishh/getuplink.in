@@ -2,6 +2,7 @@ import { after, NextResponse, type NextRequest } from "next/server";
 import { DEMO } from "@/lib/demo";
 import type { LoginErrorCode } from "@/lib/login-errors";
 import { createSession, EXPIRE_HOST_ONLY_SESSION, isValidSession, safeEqual, SESSION_COOKIE, SESSION_MAX_AGE, requestHost, sessionCookieDomain, STATE_COOKIE } from "@/lib/session";
+import { INVITE_COOKIE, INVITE_COOKIE_PATH, inviteCookieHash } from "@/lib/server/invites";
 import { checkNow } from "@/lib/server/poll";
 import { signIn, type SignInResult } from "@/lib/server/tesla";
 
@@ -23,6 +24,7 @@ export async function GET(request: NextRequest) {
     if (error) url.searchParams.set("error", error);
     const res = NextResponse.redirect(url);
     res.cookies.delete({ name: STATE_COOKIE, path: "/api/auth" });
+    res.cookies.delete({ name: INVITE_COOKIE, path: INVITE_COOKIE_PATH });
     return res;
   };
 
@@ -36,14 +38,16 @@ export async function GET(request: NextRequest) {
 
   let result: SignInResult;
   try {
-    result = await signIn(code);
+    // An invite link opened in this browser (/invite/<token>) rides along as a signed cookie.
+    const inviteHash = inviteCookieHash(request.cookies.get(INVITE_COOKIE)?.value, Date.now());
+    result = await signIn(code, { inviteHash });
   } catch (err) {
     console.error(err);
     return done("/home", "failed");
   }
   // No session, no stored tokens and no check for anyone but an approved user.
   if (result === "waitlist") return done("/waitlist");
-  if (result === "not-owner" || result === "not-approved" || result === "region") return done("/home", result);
+  if (typeof result === "string") return done("/home", result);
 
   // Check this user with the new tokens right away rather than waiting for the cron: on a first sign-in this
   // records the first snapshot, and after a sign-in that replaced refused tokens it clears the failed run's

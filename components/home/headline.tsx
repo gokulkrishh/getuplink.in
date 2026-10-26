@@ -8,8 +8,6 @@ import { DECIMALS, formatDate, formatKm, formatKwh, formatMoney, formatNumber, f
 import { fromTracking, type Slot, type Timeframe, trackingGap } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
-import { barsCaption } from "@/components/stats/chart-caption";
-import { InfoButton } from "@/components/info-button";
 import { type Spark, Sparkline } from "./sparkline";
 
 // The change carries its sign in the text ("+22 km", "−3 kWh"), never an arrow. It is coloured by meaning,
@@ -228,9 +226,6 @@ export function Headline({
       </div>
       {/* One line in every period, so the strip keeps its height (see ByPeriod's steady). */}
       <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <InfoButton label="these figures" terms={["kWh"]}>
-          {`${barsCaption("Small bars: the amount", frame)}.`}
-        </InfoButton>
         {gapText && <span>Tracking since {gapText}</span>}
       </p>
     </div>

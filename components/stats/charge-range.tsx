@@ -28,7 +28,6 @@ export function ChargeRange({ sessions, frame, serialOf }: { sessions: StreamCha
       title="Charge range"
       description={description}
       terms={["AC", "DC"]}
-      info="Each bar fills from the level a charge started at to where it stopped. The typical start and end are the medians."
       summary={
         <div className="space-y-2">
           <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">

@@ -40,7 +40,6 @@ export function DayTimeline({ days: all7, now, title = "Your days", caption }: {
       description={`What the car was doing ${days.length === 1 ? "through the day" : "each day"}, India time.`}
       info={
         <>
-          <p>Midnight to midnight{days.length === 1 ? "" : ", one row a day"}.</p>
           <p>Asleep shows only where a check found the car asleep; the rest of a parked stretch may have been asleep too.</p>
         </>
       }

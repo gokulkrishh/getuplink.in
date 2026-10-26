@@ -14,7 +14,7 @@ Stack: Bun, Next.js 16 (App Router), shadcn/ui, Geist, Recharts, Supabase Postgr
 
 | Path | Purpose |
 | --- | --- |
-| `/login` → `/api/auth/connect` → `/api/auth/callback` | **Sign in with Tesla** is both the dashboard login and the data connection (authorization code + `state` cookie). Only a Tesla account with an approved `users` row signs in (matched on its `id_token` `sub`). With `SIGNUP_MODE=waitlist` an unknown account joins the waitlist instead (its `sub` and the time, no tokens) and lands on `/waitlist`; declined and suspended accounts are told "Not approved." Sign-in sets a signed, httpOnly 30-day session cookie, and `proxy.ts` guards everything else. Tokens are stored AES-256-GCM encrypted in Supabase and refreshed automatically (access tokens last ~8 h, refresh tokens rotate). |
+| `/login` → `/api/auth/connect` → `/api/auth/callback` | **Sign in with Tesla** is both the dashboard login and the data connection (authorization code + `state` cookie). Only a Tesla account with an approved `users` row signs in (matched on its `id_token` `sub`). Uplink is invite-only: the home page has no public sign-in button, only a quiet "Already have access? Sign in". With `SIGNUP_MODE=invite` an unknown account joins only through an invite link and is otherwise told "Uplink is invite-only."; with `SIGNUP_MODE=waitlist` it joins the waitlist instead (its `sub` and the time, no tokens) and lands on `/waitlist`. Declined and suspended accounts are told "Not approved." Sign-in sets a signed, httpOnly 30-day session cookie, and `proxy.ts` guards everything else. Tokens are stored AES-256-GCM encrypted in Supabase and refreshed automatically (access tokens last ~8 h, refresh tokens rotate). |
 | `/api/cron/poll` | Called by Vercel Cron every 15 minutes with `Authorization: Bearer $CRON_SECRET`. Takes up to 4 accounts that are due and, for each, lists vehicles, fetches `vehicle_state` only for online cars, writes a snapshot per vehicle and a `version_history` row when the version changes. |
 | `/api/cron/stations` | Every 15 minutes, same `CRON_SECRET`. Names the charging station of a streamed session in progress or just ended (see Charging station names). With no such session it makes no Tesla call. |
 | `/.well-known/appspecific/com.tesla.3p.public-key.pem` | Serves `TESLA_PUBLIC_KEY_PEM` (rewritten to `/api/public-key`). |
@@ -24,7 +24,8 @@ Stack: Bun, Next.js 16 (App Router), shadcn/ui, Geist, Recharts, Supabase Postgr
 | `/car`, `/settings` | The car's details and battery health; theme, importing past updates and the account. |
 | `/rollout` | India rollout tracker, pooled across every car: versions on Indian cars, when the first got each, cars on each now and the lag behind the global release (from a hand-kept list in `lib/rollout.ts`). Totals only, with a state map of where each version runs. |
 | `/admin` | For the admin only (`users.role = 'admin'`; 404 for anyone else): owners, cars, version spread, failed checks, health checks, and this month's Tesla API estimate, linking to `/admin/costs` for its breakdown. |
-| `/admin/waitlist` | For the admin only: requests waiting, oldest first, with Approve and Decline; approved, suspended and declined accounts with Suspend and Restore. Approve and Restore are refused past `MAX_USERS`. |
+| `/admin/waitlist` | Access, for the admin only: places used, invite links (Create, Copy, Revoke, New link, and Suspend for whoever joined), requests waiting, oldest first, with Approve and Decline; approved, suspended and declined accounts with Suspend and Restore. Approve, Restore and joining by invite are refused past `MAX_USERS`. |
+| `/invite/<token>` | Public: an invite link. Made for one friend's car (the last 6 characters of its VIN), single use, for a day. "Sign in with Tesla" joins as approved only if a car on that Tesla account has that VIN. Only the token's hash is stored. |
 | `/waitlist` | Public: "You're on the waitlist. Sign in again later to check." |
 
 Signing in runs the same check right away, for that account only, at most once every 5 minutes.
@@ -51,9 +52,9 @@ Every variable is listed in [`.env.example`](.env.example). In Vercel: **Project
 | `CRON_SECRET` | `openssl rand -hex 32`. Vercel sends it to the cron route automatically. |
 | `HEALTH_TOKEN` | Optional. `openssl rand -hex 32`. Bearer token for `GET /api/health/stream`, the streaming health check an external bot polls. Unset, the route answers 503. |
 | `TESLA_LOCATION_SCOPE` | Optional. `1` asks Tesla for `vehicle_location` at sign-in, so the 6-hourly check can work out the car's home state (only the state is kept). Enable Vehicle Location in the Tesla developer app first, then sign in again. Unset: the state comes from Supercharger history. |
-| `SIGNUP_MODE` | Optional. `closed` (default): only approved accounts sign in. `waitlist`: an unknown Tesla account in Tesla's NA/APAC region joins the waitlist. `open` acts as `waitlist` for now. |
+| `SIGNUP_MODE` | Optional. `closed` (default): only approved accounts sign in, and invite links don't work. `invite`: an unknown Tesla account joins only through an invite link; without one it's refused. `waitlist`: invite links work, and an unknown Tesla account in Tesla's NA/APAC region joins the waitlist. `open` acts as `waitlist` for now. |
 | `MAX_USERS` | Optional. How many accounts can be approved at once, the admin included. Default 25. |
-| `GOOGLE_MAPS_API_KEY` | Optional. Server-side key with Places API (New) and Geocoding API enabled, for the read-only "Nearby on Google Maps" hints in "Name this place". Each open makes one Nearby Search Pro and one Geocoding call, counted for Admin > Costs. Unset, the sheet offers OpenStreetMap's names and the name field. See `docs/place-names.md`. |
+| `GOOGLE_MAPS_API_KEY` | Optional. Server-side key with Places API (New) and Geocoding API enabled, for the Google places in "Name this place" and the live names of places picked from them. Each sheet open makes one Nearby Search Pro and one Geocoding call; each row or title showing a Google-picked place makes one Place Details Pro call. All are counted for Admin > Costs. Unset, the sheet offers OpenStreetMap's names and the name field, and a Google-picked place shows its area. See `docs/place-names.md`. |
 | `OSM_CONTACT` | Optional. An email or URL for OpenStreetMap's operators, sent in the Nominatim User-Agent. |
 | `OSM_LOOKUPS` | Optional. `off` stops every Nominatim lookup (names already kept still show). |
 | `TESLA_BUDGET_USD` | Optional. What the Tesla developer account may spend in a month, by Uplink's estimate. Checks slow to every 12 hours from 80% of it and pause at 100% until the 1st; streaming carries on. Default 10, Tesla's monthly credit. |
@@ -105,7 +106,7 @@ supabase db push
 
 Do this right after the first deploy: until someone signs in, the first Tesla account to do so becomes the owner.
 
-1. Open https://app.getuplink.in and click **Sign in with Tesla**.
+1. Open https://app.getuplink.in and click **Sign in** (under "Already have access?").
 2. Sign in to Tesla and approve the requested scopes (vehicle data, charging history, offline access).
 3. You land on the dashboard and a first check runs immediately. If the car is asleep, it shows as Asleep with no version until a later check finds it online. Use **Check now** after opening the Tesla app (which wakes the car) to record the version straight away.
 
@@ -153,4 +154,4 @@ Runs `bun dev` with generated data for one car ("Demo car", ten months of update
 
 Sign in with Tesla only works against the registered redirect URI, so local dev at `localhost` can't sign in unless you add a localhost redirect URI to the Tesla app and set `TESLA_REDIRECT_URI` to match.
 
-To let another Tesla account in, approve its `users` row (Admin > Waitlist, or the seeding SQL in [`docs/signup-plan.md`](docs/signup-plan.md)) and sign in with it.
+To let another Tesla account in, send them an invite link (Admin > Access), approve their waitlist row there, or use the seeding SQL in [`docs/signup-plan.md`](docs/signup-plan.md).

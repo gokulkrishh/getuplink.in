@@ -3,8 +3,8 @@ import { formatClock, formatShortDate } from "@/lib/format";
 // When Uplink last heard from a car, in plain words. Every page that says so uses these, from the same two
 // times: the latest check (snapshots.polled_at, any state) and the newest streamed reading. Pure, so tested.
 
-// Checks run every 6 hours, so a car not heard from for longer is overdue and its numbers may be old.
-export const STALE_SYNC_MS = 6 * 60 * 60 * 1000;
+// Checks run every 12 hours, so a car not heard from for longer is overdue and its numbers may be old.
+export const STALE_SYNC_MS = 12 * 60 * 60 * 1000;
 
 // The newest of the times given, or null when there are none.
 export function newestTime(times: (string | null | undefined)[]): string | null {

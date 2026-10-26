@@ -137,7 +137,6 @@ export function VersionHistory({ history, notes, now, until }: { history: Versio
             as="h3"
             title="Software version"
             description="Each step up is a new version arriving."
-            info="Oldest on the left. The line runs on to the latest check."
           >
             <VersionChart changes={[...history].reverse()} until={until} />
           </ChartCard>

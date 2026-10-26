@@ -293,7 +293,7 @@ async function runCheck(owner: Owner, now: string): Promise<{ vehicles: number; 
   return { vehicles, errors };
 }
 
-// The 15-minute cron: checks the users who are due, a few at a time, each about every 6 hours. From the
+// The 15-minute cron: checks the users who are due, a few at a time, each about every 12 hours. From the
 // Tesla budget's first cut point a user is next due in 12 hours; past the budget nobody is checked until
 // the month resets. Streaming is never touched.
 export async function checkDue(clock: () => number = Date.now): Promise<PollResult> {

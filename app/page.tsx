@@ -2,7 +2,6 @@ import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { SyncStreamSessions, SyncStreamVersions } from "@/components/background-sync";
-import { DemoBar } from "@/components/demo-bar";
 import { Header } from "@/components/header";
 import { Headline } from "@/components/home/headline";
 import { NowStrip } from "@/components/home/now-strip";
@@ -23,7 +22,7 @@ import { type CustomFrame, periodFrames } from "@/lib/frames";
 import { customRange, type DayRange, inSpan, rangeTimeframe, type Timeframe } from "@/lib/periods";
 import { MonthlyTable } from "@/components/home/monthly-table";
 import { newestTime } from "@/lib/last-synced";
-import { DEMO, DEMO_SITE, type DemoScenario, parseScenario } from "@/lib/demo";
+import type { DemoScenario } from "@/lib/demo";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type Home, loadHome, loadRangeDriving } from "@/lib/server/home";
@@ -105,7 +104,7 @@ function Totals({ home, custom, now }: { home: Extract<Home, { kind: "ready" }>;
 async function HomeContent({ searchParams }: Pick<PageProps<"/">, "searchParams">) {
   const params = await searchParams;
   // Only demo mode reads the scenario, so the real page stays as it was.
-  const demo = DEMO && !DEMO_SITE ? parseScenario(params.demo) : "normal";
+  const demo: DemoScenario = "normal";
   const { home, now } = await loadOwnHome(demo);
   const failedRun = home.kind === "ready" && home.lastRun?.ok === false ? home.lastRun : null;
   const cars = home.kind === "ready" ? home.cars : [];
@@ -119,8 +118,6 @@ async function HomeContent({ searchParams }: Pick<PageProps<"/">, "searchParams"
 
   return (
     <>
-      {/* The scenario switch is for trying states locally; the public demo just shows the data. */}
-      {DEMO && !DEMO_SITE && <DemoBar active={demo} />}
       <OwnerNotices data={home} count={cars.length} failedRun={failedRun} />
       {home.kind === "ready" && cars.length > 0 && (
         <div className="space-y-12">
