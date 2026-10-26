@@ -27,7 +27,7 @@ import { loadRangeDriving } from "@/lib/server/home";
 import { loadPrimaryVehicle } from "@/lib/server/telemetry";
 import { istDay, istDayStart } from "@/lib/telemetry-derive";
 
-export const metadata: Metadata = { title: "Driving · Uplink" };
+export const metadata: Metadata = { title: "Driving" };
 
 const DAY = 86_400_000;
 

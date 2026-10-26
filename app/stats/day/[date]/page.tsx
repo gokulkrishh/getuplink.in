@@ -22,7 +22,7 @@ import { isoDay } from "@/lib/periods";
 import { istDayStart } from "@/lib/telemetry-derive";
 import { Measure } from "@/components/measure";
 
-export const metadata: Metadata = { title: "Day · Uplink" };
+export const metadata: Metadata = { title: "Day" };
 
 const long = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
 

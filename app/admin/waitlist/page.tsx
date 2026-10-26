@@ -13,7 +13,7 @@ import { type Account, loadWaitlist, WAITLIST_TAG, type WaitlistPage } from "@/l
 import { decideAccount } from "./actions";
 import { DecisionButton } from "./decision-button";
 
-export const metadata: Metadata = { title: "Waitlist · Admin · Uplink" };
+export const metadata: Metadata = { title: "Waitlist · Admin" };
 
 // As /admin: the admin check runs before anything streams, so anyone else gets a real 404.
 export const instant = false;

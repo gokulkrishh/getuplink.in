@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PLAIN_LIST, PlainPage, PlainSection } from "@/components/plain-page";
 
 export const metadata: Metadata = {
-  title: "Privacy · Uplink",
+  title: "Privacy",
   description: "What Uplink stores about you and your car, and how to delete it.",
 };
 

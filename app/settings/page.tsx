@@ -24,7 +24,7 @@ import { BotTemplate, McpConnector } from "./integrations";
 import { Row } from "./row";
 import { YourPlaces } from "./your-places";
 
-export const metadata: Metadata = { title: "Settings · Uplink" };
+export const metadata: Metadata = { title: "Settings" };
 
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (

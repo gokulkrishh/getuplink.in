@@ -25,7 +25,7 @@ import { loadUpdatesPage, type UpdatesCar, type UpdatesPage } from "@/lib/server
 import { updateStats } from "@/lib/telemetry-derive";
 import { currentVersion } from "@/lib/versions";
 
-export const metadata: Metadata = { title: "Updates · Uplink" };
+export const metadata: Metadata = { title: "Updates" };
 
 const heading = "text-lg font-medium tracking-heading";
 

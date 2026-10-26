@@ -3,7 +3,7 @@ import Link from "next/link";
 import { PlainPage } from "@/components/plain-page";
 import { buttonVariants } from "@/components/ui/button";
 
-export const metadata: Metadata = { title: "Page not found · Uplink" };
+export const metadata: Metadata = { title: "Page not found" };
 
 // An address with no page behind it, in the same frame as the other plain pages instead of Next's default.
 export default function NotFound() {

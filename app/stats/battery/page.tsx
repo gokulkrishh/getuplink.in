@@ -21,7 +21,7 @@ import { loadPrimaryVehicle } from "@/lib/server/telemetry";
 import { loadParkedPlaces } from "@/lib/server/parked-places";
 import type { SpotName } from "@/lib/charge-names";
 
-export const metadata: Metadata = { title: "Battery · Uplink" };
+export const metadata: Metadata = { title: "Battery" };
 
 // Session check plus data in one browser-only private cache, so links can prefetch it (see app/page.tsx).
 // Every section comes from the one read of the streamed readings, each kept for its own window (see

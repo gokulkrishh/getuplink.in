@@ -21,7 +21,7 @@ import { stationAt } from "@/lib/stations";
 import type { UserPlace } from "@/lib/user-places";
 import { Measure } from "@/components/measure";
 
-export const metadata: Metadata = { title: "Trip · Uplink" };
+export const metadata: Metadata = { title: "Trip" };
 
 
 // Acceleration as speed gained or lost each second, which reads better than the car's m/s²: 1 m/s² is

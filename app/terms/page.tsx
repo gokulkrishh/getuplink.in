@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PlainPage, PlainSection } from "@/components/plain-page";
 
 export const metadata: Metadata = {
-  title: "Terms · Uplink",
+  title: "Terms",
   description: "The short terms for using Uplink.",
 };
 
