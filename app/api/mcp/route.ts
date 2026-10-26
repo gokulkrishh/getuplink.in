@@ -62,6 +62,7 @@ const handlerFor = (owner: Owner) =>
           kwh_billed: z.number().positive().optional(),
           amount_total: z.number().positive().describe("Total paid in ₹, GST included"),
           gst: z.number().min(0).optional(),
+          energy_amount: z.number().positive().optional().describe("The energy charge in ₹ before GST, only if the invoice prints it as its own line"),
           currency: z.string().length(3).optional().describe("INR"),
           invoice_number: z.string().max(80).optional(),
           source_ref: z.string().max(200).optional().describe('Where it came from, so repeats are skipped: "gmail:<message id>" for email'),

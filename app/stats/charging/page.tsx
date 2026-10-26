@@ -11,12 +11,12 @@ import { TopStations } from "@/components/stats/top-stations";
 import { topStations } from "@/lib/top-stations";
 import { type ChargingExtras, CURVES, heldFrom, loadChargingExtras, PINNED } from "@/lib/server/charging-extra";
 import { withGoogleNamesBy } from "@/lib/server/google-place-names";
-import { EnergyAdded, SessionList, Summary } from "@/components/stats/charging-sections";
+import { EnergyAdded, PaidFor, SessionList, Summary } from "@/components/stats/charging-sections";
 import { eachFrame } from "@/components/home/frames";
 import { customScope } from "@/components/stats/periods";
 import { NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/components/stats/stats-frame";
 import { matchSessions } from "@/lib/charge-sessions";
-import { chargingBills, firstStartedAt } from "@/lib/charging-figures";
+import { chargingBills, chargingTime, firstStartedAt } from "@/lib/charging-figures";
 import type { DrivingFigures } from "@/lib/driving-figures";
 import { type CustomFrame, fromSince, periodFrames } from "@/lib/frames";
 import { backTo, serials } from "@/lib/kept";
@@ -119,15 +119,16 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
         <NotYet title="No charging sessions yet">Your charges will show up here, wherever you plug in.</NotYet>
       ) : (
         <div className="space-y-12">
-          {(bills.length > 0 || unbilled.length > 0) &&
+          {(bills.length > 0 || unbilled.length > 0 || sessions.length > 0) &&
             eachFrame(
               frames,
               (f) => {
                 const { frame, driving } = fromSince(f, chargingSince, now);
-                return <Summary bills={bills} unbilled={unbilled} km={driving?.current.km ?? null} frame={frame} />;
+                return <Summary bills={bills} unbilled={unbilled} charged={chargingTime(sessions, streamOnly, frame.span)} km={driving?.current.km ?? null} frame={frame} />;
               },
               { steady: true },
             )}
+          {bills.some((b) => b.parts) && eachFrame(frames, (f) => <PaidFor bills={bills} frame={fromSince(f, chargingSince, now).frame} />)}
           {streamSessions.length > 0 &&
             eachFrame(frames, (f) => <EnergyAdded sessions={sessions} streamOnly={streamOnly} frame={fromSince(f, chargingSince, now).frame} />, { steady: true })}
           {eachFrame(frames, ({ frame }) => <ChargeHabits starts={starts(frame.span)} title={frame.title} words={frame.words} />, { steady: true })}

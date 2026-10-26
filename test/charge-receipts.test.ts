@@ -89,6 +89,9 @@ describe("invoiceProblem", () => {
     expect(invoiceProblem(invoice({ amountTotal: 0 }), now)).not.toBe(null);
     expect(invoiceProblem(invoice({ gst: 500 }), now)).not.toBe(null);
     expect(invoiceProblem(invoice({ kwhBilled: 400 }), now)).not.toBe(null);
+    expect(invoiceProblem(invoice({ energyAmount: 360 }), now)).not.toBe(null);
+    expect(invoiceProblem(invoice({ energyAmount: 0 }), now)).not.toBe(null);
+    expect(invoiceProblem(invoice({ energyAmount: 340 }), now)).toBe(null);
     expect(invoiceProblem(invoice({ startedAt: ist("2026-08-01T10:00:00"), endedAt: null }), now)).not.toBe(null);
     expect(invoiceProblem(invoice({ startedAt: ist("2026-10-27T10:00:00"), endedAt: null }), now)).not.toBe(null);
     expect(invoiceProblem(invoice({ endedAt: ist("2026-10-21T19:00:00") }), now)).not.toBe(null);
