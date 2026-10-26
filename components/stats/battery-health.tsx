@@ -4,7 +4,7 @@ import { chargeEfficiency } from "@/lib/charge-sessions";
 import type { WeeklyRange } from "@/lib/charge-level";
 import { CONSUMPTION_DAYS, recentConsumption } from "@/lib/drive-stats";
 import type { Drive } from "@/lib/drives";
-import { DECIMALS, formatKwh, formatNumber, formatRangeKm, formatShortDate } from "@/lib/format";
+import { DECIMALS, formatKm, formatKwh, formatNumber, formatRangeKm, formatShortDate } from "@/lib/format";
 import { within } from "@/lib/kept";
 import type { Timeframe } from "@/lib/periods";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
@@ -70,7 +70,7 @@ export function BatteryHealth({
     figures.push({
       label: "Real range at 100%",
       value: `≈ ${formatRangeKm((latestKwh * 1000) / usage.whPerKm)}`,
-      note: `At your ${formatNumber(usage.whPerKm, DECIMALS.whPerKm)} Wh/km over the last ${CONSUMPTION_DAYS} days of driving`,
+      note: `At your ${formatNumber(usage.whPerKm, DECIMALS.whPerKm)} Wh/km, from ${formatKm(usage.km)} driven in the last ${CONSUMPTION_DAYS} days`,
     });
   }
   // The span's tiles are the same in every period (an empty span says so in the tile), so the section keeps

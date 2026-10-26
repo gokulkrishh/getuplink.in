@@ -137,7 +137,7 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
   };
 
   return (
-    <StatsFrame view="driving" custom={customScope(custom?.range ?? null, now)} periodSwitch={hasDriving}>
+    <StatsFrame custom={customScope(custom?.range ?? null, now)} periodSwitch={hasDriving}>
       {hasDriving ? (
         <div className="space-y-12">
           {eachFrame(frames, (f) => {
@@ -191,7 +191,7 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
 
 export default function Page({ searchParams }: PageProps<"/stats/driving">) {
   return (
-    <StatsPage description="How far you drove, the energy it took, and every drive.">
+    <StatsPage view="driving" description="How far you drove, the energy it took, and every drive.">
       <Suspense fallback={<StatsSkeleton />}>
         <Driving searchParams={searchParams} />
       </Suspense>

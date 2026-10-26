@@ -62,7 +62,7 @@ async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "sear
   return (
     // One switch drives every section. Each period draws only what it has (a quiet one is a line, not a
     // box held to a chart's height), so the page may move on a switch.
-    <StatsFrame view="battery" custom={customScope(custom?.range ?? null, now)} periodSwitch={enough}>
+    <StatsFrame custom={customScope(custom?.range ?? null, now)} periodSwitch={enough}>
       {enough ? (
         <div className="space-y-12">
           {eachFrame(frames, ({ frame }) => (
@@ -86,7 +86,7 @@ async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "sear
 
 export default function Page({ searchParams }: PageProps<"/stats/battery">) {
   return (
-    <StatsPage description="How the pack is holding up, and what it loses while parked.">
+    <StatsPage view="battery" description="How the pack is holding up, and what it loses while parked.">
       <Suspense fallback={<StatsSkeleton />}>
         <Battery searchParams={searchParams} />
       </Suspense>

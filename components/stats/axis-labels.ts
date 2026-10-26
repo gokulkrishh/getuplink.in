@@ -112,7 +112,9 @@ export function useBarTips(box: RefObject<HTMLElement | null>) {
         const centre = start + column.width / 2;
         // The bar is at most 48px (BAR_MAX), centred in its column: the tip clears the bar, not the column.
         const half = Math.min(column.width, 48) / 2;
-        const gap = 6;
+        // A small gap, but only inside the column: the pointer crosses it on the way to the tip's link, and
+        // leaving the column would close the tip.
+        const gap = Math.min(6, column.width / 2 - half);
         const wanted = centre < width / 2 ? centre + half + gap : centre - half - gap - w;
         const left = Math.max(0, Math.min(width - w, wanted));
         tip.style.left = `${left - start}px`;

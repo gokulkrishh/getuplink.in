@@ -140,7 +140,10 @@ export function BarTip({ title, lines, opens = null }: { title: string; lines: (
       aria-hidden="true"
       data-bar-tip
       className={cn(
+        // The tip is the hovered column's child, so the pointer can move from the bar onto it (to its link)
+        // without leaving the column: it takes the pointer only while it shows.
         "pointer-events-none invisible absolute top-0 left-0 z-10 border bg-background px-2 py-1 text-xs whitespace-nowrap opacity-0 transition-opacity duration-150",
+        "group-hover:pointer-events-auto group-focus-within:pointer-events-auto group-data-[tapped=true]:pointer-events-auto",
         "group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 group-data-[tapped=true]:visible group-data-[tapped=true]:opacity-100",
       )}
     >
@@ -164,8 +167,10 @@ export function BarTip({ title, lines, opens = null }: { title: string; lines: (
       </span>
       {opens && (
         // Not in the Tab order: the column itself is the link a keyboard follows.
-        <Link href={opens.href} prefetch={false} tabIndex={-1} data-tip-link className="pointer-events-auto mt-0.5 block py-0.5 underline decoration-border decoration-dotted underline-offset-4 hover:decoration-foreground">
-          {opens.label}
+        <Link href={opens.href} prefetch={false} tabIndex={-1} data-tip-link className="mt-1 block py-0.5 underline decoration-border decoration-dotted underline-offset-4 hover:decoration-foreground">
+          {/* A mouse can click the bar or this; a tap pins the tip, and this is the way on. */}
+          <span className="group-data-[tapped=true]:hidden">Click to {opens.label.toLowerCase()}</span>
+          <span className="hidden group-data-[tapped=true]:inline">{opens.label}</span>
         </Link>
       )}
     </span>

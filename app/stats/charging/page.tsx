@@ -114,7 +114,7 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
   const extrasFor = (key: string) => (key === "custom" && custom ? { ...custom.extras, held: custom.held } : { ...extras, held });
 
   return (
-    <StatsFrame view="charging" custom={customScope(custom?.range ?? null, now)} periodSwitch={listed.length > 0}>
+    <StatsFrame custom={customScope(custom?.range ?? null, now)} periodSwitch={listed.length > 0}>
       {listed.length === 0 ? (
         <NotYet title="No charging sessions yet">Your charges will show up here, wherever you plug in.</NotYet>
       ) : (
@@ -170,7 +170,7 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
 
 export default function Page({ searchParams }: PageProps<"/stats/charging">) {
   return (
-    <StatsPage description="What charging cost, the energy it added, and every session.">
+    <StatsPage view="charging" description="What charging cost, the energy it added, and every session.">
       <Suspense fallback={<StatsSkeleton />}>
         <Charging searchParams={searchParams} />
       </Suspense>
