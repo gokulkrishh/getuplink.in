@@ -145,6 +145,8 @@ export function NamePlace({ target, compact = false, className }: { target: Name
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // An IME's Enter only commits the composed text.
+    if (e.nativeEvent.isComposing) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setActive((i) => (options.length === 0 ? -1 : (i + 1) % options.length));
@@ -272,7 +274,8 @@ export function NamePlace({ target, compact = false, className }: { target: Name
                     setError(null);
                   }}
                   onKeyDown={onKeyDown}
-                  disabled={saving}
+                  readOnly={saving}
+                  aria-busy={saving}
                   className="pr-9 pl-8"
                 />
                 {query !== "" && (
