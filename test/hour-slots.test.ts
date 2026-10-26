@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { barsCaption } from "@/components/stats/chart-caption";
 import { MILES_TO_KM } from "@/lib/car";
-import { driveEnergy, driveKmIn } from "@/lib/drive-stats";
+import { driveEnergy, driveKmIn, timeframeEfficiency } from "@/lib/drive-stats";
 import { type CounterColumn, drivingTimeframe, timeframeInstants } from "@/lib/driving-figures";
 import { type Drive, hourKm, istHourStart } from "@/lib/drives";
 import { formatHours } from "@/lib/format";
@@ -186,6 +186,27 @@ describe("charts start where the data starts", () => {
     expect(fromTracking(periodTimeframe("month", now), ist("2026-10-25T10:15:00"), now).frame.labelEvery).toBe(1);
     // Three months: just those three columns, not padded out to six.
     expect(fromTracking(periodTimeframe("year", now), ist("2026-10-23T10:15:00"), now).frame.labelEvery).toBe(1);
+  });
+});
+
+describe("a year that starts before the drives do", () => {
+  test("its energy total is the sum of its bars, counter months and drive months alike", () => {
+    const now = ist("2026-10-26T14:00:00");
+    const frame = periodTimeframe("year", now);
+    // Made-up counter figures: 100 km and 20 kWh a month to July, no driving in August or September,
+    // 50 km in October, nothing yet in November or December.
+    const bar = (k: number) => (k < 7 ? { km: 100, kwh: 20 } : k < 9 ? { km: 0, kwh: null } : k === 9 ? { km: 50, kwh: 9 } : { km: null, kwh: null });
+    const p = {
+      current: { km: 750, whPerKm: null, kwh: 300, regenKwh: null },
+      previous: null,
+      bars: frame.slots.map((_, k) => ({ ...bar(k), whPerKm: null, regenKwh: null })),
+    };
+    const drive: Drive = { start: ist("2026-10-10T09:00:00"), end: ist("2026-10-10T10:00:00"), km: 50, kwh: 7, whPerKm: null, startLevel: null, endLevel: null };
+    const year = timeframeEfficiency(p, frame, [drive], ist("2026-01-01T00:00:00"), now);
+    const sum = year.bars.reduce((s, b) => s + (b.kwh ?? 0), 0);
+    expect(year.bars[9].kwh).toBe(7);
+    expect(sum).toBeCloseTo(147, 9);
+    expect(year.current.kwh).toBeCloseTo(sum, 9);
   });
 });
 

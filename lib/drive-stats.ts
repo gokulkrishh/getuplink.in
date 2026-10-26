@@ -78,9 +78,15 @@ export function timeframeEfficiency(p: DrivingPeriod, frame: Timeframe, drives: 
     bars.map((b) => b.kwh),
     1,
   );
+  // A span older than the drives (a Year from before the window) mixes sources: its recent bars come
+  // from the drives and its older ones from the lifetime counter, which counts parked use too. Its total
+  // is then the bars' sum, so the two agree, when every bar with driving has a figure.
+  const current = fill(p.current, frame.span);
+  const whole = bars.every((b, k) => kwh[k] !== null || !b.km);
+  if (!covered(frame.span) && whole && kwh.some((v) => v !== null)) current.kwh = kwh.reduce<number>((sum, v) => sum + (v ?? 0), 0);
   return {
     ...p,
-    current: fill(p.current, frame.span),
+    current,
     previous: p.previous && frame.previous ? fill(p.previous, frame.previous) : p.previous,
     bars: bars.map((b, k) => ({ ...b, kwh: kwh[k] })),
   };
