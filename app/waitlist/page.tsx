@@ -3,7 +3,7 @@ import Link from "next/link";
 import { PlainPage } from "@/components/plain-page";
 import { buttonVariants } from "@/components/ui/button";
 
-export const metadata: Metadata = { title: "Waitlist · Uplink", robots: { index: false } };
+export const metadata: Metadata = { title: "Waitlist", robots: { index: false } };
 
 // Where a Tesla sign-in lands while its account waits for approval. Static: it says the same to everyone,
 // so a crafted link can't put anything on it.

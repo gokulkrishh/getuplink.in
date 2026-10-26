@@ -5,12 +5,19 @@ import { Suspense } from "react";
 import { PlainPage } from "@/components/plain-page";
 import { formatDateTime, formatShortDate } from "@/lib/format";
 import { loadStatus, recordIfStale, type ComponentStatus } from "@/lib/server/status";
+import { OPEN_GRAPH, STATUS_URL, TWITTER } from "@/lib/site";
 import { overallHeadline, STATUS_WORD, type Status } from "@/lib/status";
 
+const DESCRIPTION = "Whether Uplink's website, database and live car data are working.";
+
+// Served at status.getuplink.in/ (proxy.ts rewrites it to /status), so its links and preview image use that host.
 export const metadata: Metadata = {
-  title: "Status · Uplink",
-  description: "Whether Uplink's website, database and live car data are working.",
+  metadataBase: new URL(STATUS_URL),
+  title: "Status",
+  description: DESCRIPTION,
   robots: { index: true, follow: true },
+  openGraph: { ...OPEN_GRAPH, url: "/", title: "Uplink status", description: DESCRIPTION },
+  twitter: { ...TWITTER, title: "Uplink status", description: DESCRIPTION },
 };
 
 const DOT: Record<Status, string> = {

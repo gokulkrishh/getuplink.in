@@ -12,11 +12,19 @@ import { Logo } from "@/components/logo";
 import { SignInButton } from "@/components/sign-in-button";
 import { buttonVariants } from "@/components/ui/button";
 import { DEMO_URL } from "@/lib/demo";
+import { HOME_URL, OPEN_GRAPH, TAGLINE, TWITTER } from "@/lib/site";
 
+const DESCRIPTION = "Software updates, Supercharger spend, battery and kilometres driven for your Tesla in India. Read-only.";
+
+// Served at getuplink.in/ (proxy.ts rewrites it to /home), so its links and preview image use that host.
 export const metadata: Metadata = {
-  title: "Uplink · Your Tesla's updates, charging and driving, in one place",
-  description: "Software updates, Supercharger spend, battery and kilometres driven for your Tesla in India. Read-only.",
+  metadataBase: new URL(HOME_URL),
+  title: { absolute: "Uplink · Your Tesla's updates, charging and driving, in one place" },
+  description: DESCRIPTION,
   robots: { index: true, follow: true },
+  alternates: { canonical: "/" },
+  openGraph: { ...OPEN_GRAPH, url: "/", title: "Uplink", description: TAGLINE },
+  twitter: { ...TWITTER, title: "Uplink", description: TAGLINE },
 };
 
 const STEPS = [

@@ -29,7 +29,7 @@ import { invoicesBySession } from "@/lib/server/receipts";
 import { loadStreamSessions, type StreamChargeSession } from "@/lib/server/stream-charging";
 import { loadPrimaryVehicle } from "@/lib/server/telemetry";
 
-export const metadata: Metadata = { title: "Charging · Uplink" };
+export const metadata: Metadata = { title: "Charging" };
 
 // Session check plus data in one browser-only private cache, so links can prefetch it (see app/page.tsx).
 // Only what this page shows: both session lists. A range picked by date is an argument, so each one gets

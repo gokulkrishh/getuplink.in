@@ -17,7 +17,7 @@ import { type ChargeDetail, loadChargeDetail } from "@/lib/server/charge-curve";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { InfoButton } from "@/components/info-button";
 
-export const metadata: Metadata = { title: "Charge · Uplink" };
+export const metadata: Metadata = { title: "Charge" };
 
 
 // Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx).

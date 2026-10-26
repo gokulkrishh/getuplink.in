@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { OPEN_GRAPH, SITE_URL, TAGLINE, TWITTER } from "@/lib/site";
 import { THEME_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
@@ -13,10 +14,19 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// The app, demo and invite pages stay out of search (noindex) but still carry Open Graph tags, so a link
+// shared in Slack, WhatsApp, X, LinkedIn or iMessage shows a card. Icons and the preview images come from
+// the file conventions: favicon.ico, icon.svg, apple-icon.png, manifest.ts and opengraph-image.tsx.
+// The home and status pages set their own metadataBase, og:url and image.
 export const metadata: Metadata = {
-  title: "Uplink",
-  description: "Tesla software updates, tracked from India.",
+  metadataBase: new URL(SITE_URL),
+  title: { default: "Uplink", template: "%s · Uplink" },
+  description: TAGLINE,
+  applicationName: "Uplink",
+  appleWebApp: { title: "Uplink" },
   robots: { index: false, follow: false },
+  openGraph: { ...OPEN_GRAPH, title: "Uplink", description: TAGLINE },
+  twitter: { ...TWITTER, title: "Uplink", description: TAGLINE },
 };
 
 export const viewport: Viewport = {
