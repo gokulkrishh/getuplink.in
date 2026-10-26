@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
@@ -127,13 +128,19 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
       <ol>
         <Step n={1} title="Add Uplink's key" state={key}>
           {key !== "done" && (
-            <div className="space-y-2">
-              <a href={KEY_PAIRING_URL} className={cn(buttonVariants(), "gap-2")}>
+            <a
+              href={KEY_PAIRING_URL}
+              className="flex w-full items-center gap-3 border p-3 pr-4 transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring sm:w-fit"
+            >
+              <span className="flex size-10 shrink-0 items-center justify-center bg-foreground text-background">
                 <SolidKey />
-                Add key
-              </a>
-              <p className="text-xs text-muted-foreground">Opens the Tesla app on your phone. Approve the key there or on the car&apos;s screen.</p>
-            </div>
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium">Add key</span>
+                <span className="block text-xs text-muted-foreground">Opens the Tesla app. Approve it there or on the car.</span>
+              </span>
+              <ChevronRight aria-hidden className="ml-2 size-4 shrink-0 text-muted-foreground" />
+            </a>
           )}
           <p className="text-sm text-muted-foreground">
             The key lets your car send its data to Uplink. Uplink sends your car no commands, and you can remove the key in the car&apos;s Locks
