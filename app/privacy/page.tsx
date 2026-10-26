@@ -134,6 +134,12 @@ export default function PrivacyPage() {
         </p>
       </PlainSection>
 
+      <PlainSection title="Contact">
+        <p>
+          Questions, requests or complaints about your data: <a href="mailto:getuplink.app@gmail.com" className="underline decoration-border underline-offset-4 hover:decoration-foreground">getuplink.app@gmail.com</a>.
+        </p>
+      </PlainSection>
+
       <PlainSection title="Changes">
         <p>
           This page shows the date it was last updated.

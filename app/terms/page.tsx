@@ -35,11 +35,15 @@ const SECTIONS = [
     title: "Governing law",
     body: "The laws of India apply.",
   },
+  {
+    title: "Contact",
+    body: "Questions about these terms: getuplink.app@gmail.com.",
+  },
 ];
 
 export default function TermsPage() {
   return (
-    <PlainPage title="Terms" intro="The short terms for using Uplink." meta="Last updated 21 October 2026" current="terms">
+    <PlainPage title="Terms" intro="The short terms for using Uplink." meta="Last updated 26 October 2026" current="terms">
       {SECTIONS.map((section) => (
         <PlainSection key={section.title} title={section.title}>
           <p>{section.body}</p>

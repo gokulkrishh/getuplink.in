@@ -1,0 +1,46 @@
+{
+  "_comment": "Made-up responses in the shapes the providers document (docs/costs.md). No real accounts.",
+  "rdap": {
+    "rdapConformance": ["rdap_level_0", "icann_rdap_response_profile_1", "redacted"],
+    "objectClassName": "domain",
+    "ldhName": "example.in",
+    "status": ["client transfer prohibited"],
+    "events": [
+      { "eventAction": "registration", "eventActor": "namecheap", "eventDate": "2026-10-21T05:15:33.309Z" },
+      { "eventAction": "expiration", "eventDate": "2028-10-20T20:15:33.309Z" },
+      { "eventAction": "last changed", "eventDate": "2026-10-26T05:16:34.013Z" },
+      { "eventAction": "last update of RDAP database", "eventDate": "2026-10-26T06:48:35.439Z" }
+    ]
+  },
+  "flyMachines": [
+    { "id": "made-up-1", "state": "started", "region": "bom", "config": { "guest": { "cpu_kind": "shared", "cpus": 1, "memory_mb": 512 } } },
+    { "id": "made-up-2", "state": "stopped", "region": "bom", "config": { "guest": { "cpu_kind": "shared", "cpus": 1, "memory_mb": 256 } } },
+    { "id": "made-up-3", "state": "destroyed", "region": "bom", "config": { "guest": { "cpu_kind": "performance", "cpus": 2, "memory_mb": 4096 } } }
+  ],
+  "flyVolumes": [
+    { "id": "vol_madeup1", "state": "created", "size_gb": 3, "region": "bom", "attached_machine_id": "made-up-1" },
+    { "id": "vol_madeup2", "state": "created", "size_gb": 1, "region": "bom", "attached_machine_id": null }
+  ],
+  "flyIps": {
+    "ips": [
+      { "ip": "203.0.113.7", "shared": false, "region": "global" },
+      { "ip": "203.0.113.8", "shared": true, "region": "global" },
+      { "ip": "2001:db8::1", "shared": false, "region": "global" },
+      { "ip": "198.51.100.9", "shared": false, "egress": true, "region": "bom" }
+    ]
+  },
+  "supabaseProjects": [
+    { "ref": "abcdefghijklmnopqrst", "organization_slug": "made-up-org", "name": "Example", "region": "ap-south-1", "status": "ACTIVE_HEALTHY" },
+    { "ref": "bcdefghijklmnopqrstu", "organization_slug": "made-up-org", "name": "Paused", "region": "ap-south-1", "status": "INACTIVE" },
+    { "ref": "cdefghijklmnopqrstuv", "organization_slug": "other-org", "name": "Elsewhere", "region": "us-east-1", "status": "ACTIVE_HEALTHY" }
+  ],
+  "supabaseOrg": { "id": "made-up-org", "name": "Made-up org", "plan": "pro", "opt_in_tags": [], "allowed_release_channels": ["ga"] },
+  "supabaseAddons": {
+    "selected_addons": [
+      { "type": "compute_instance", "variant": { "id": "ci_small", "name": "Small", "price": { "description": "$0.0206/hour", "type": "usage", "interval": "hourly", "amount": 0.0206 } } },
+      { "type": "custom_domain", "variant": { "id": "cd_default", "name": "Custom domain", "price": { "description": "$10/month", "type": "fixed", "interval": "monthly", "amount": 10 } } },
+      { "type": "ipv4", "variant": { "id": "ipv4_default", "name": "Dedicated IPv4", "price": { "description": "$0.0055/hour", "type": "fixed", "interval": "hourly", "amount": 0.0055 } } }
+    ],
+    "available_addons": []
+  }
+}

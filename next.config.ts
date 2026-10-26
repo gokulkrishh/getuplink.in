@@ -15,6 +15,24 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  // Nothing off the home page is for search engines or AI crawlers: the app, status and demo hosts, and
+  // /admin and /api anywhere. Pages also carry noindex metadata and robots.txt turns crawlers away; this
+  // header covers crawlers that skip both.
+  async headers() {
+    const noindex = [{ key: "X-Robots-Tag", value: "noindex, nofollow, noarchive, nosnippet, noimageindex" }];
+    return [
+      ...["app.getuplink.in", "status.getuplink.in", "demo.getuplink.in"].map((host) => ({
+        source: "/:path*",
+        has: [{ type: "host" as const, value: host }],
+        headers: noindex,
+      })),
+      { source: "/admin/:path*", headers: noindex },
+      { source: "/admin", headers: noindex },
+      { source: "/api/:path*", headers: noindex },
+      { source: "/settings", headers: noindex },
+      { source: "/waitlist", headers: noindex },
+    ];
+  },
   // Tesla fetches the partner public key from this fixed path.
   async rewrites() {
     return [

@@ -1,77 +1,53 @@
 import "server-only";
-import {
-  type CostLine,
-  DEFAULT_USD_INR,
-  type EntryValues,
-  FIXED_SERVICES,
-  type FixedService,
-  monthWindow,
-  nextRenewal,
-  parseRate,
-} from "@/lib/costs";
+import { type CostLine, type EntryValues, monthWindow, nextRenewal, toUsd } from "@/lib/costs";
 import { DEMO } from "@/lib/demo";
 import { istDay } from "@/lib/status";
 import { type CostEntryRow, costEntries, type CostSetting, costSettings, saveCostSetting } from "../data/costs";
+import { domainLine, readDomain } from "./domain";
+import { flyLine, readFly } from "./fly";
+import { readSupabase, supabaseLine } from "./supabase-billing";
 import { googleLine, googleUsage, safely, teslaLine, teslaUsage } from "./usage";
 import { describeFailure, readVercel, type VercelSnapshot, vercelLine } from "./vercel";
 
-// /admin/costs: one line per service, the exchange rate, and what the forms start with.
+// /admin/costs: one line per service, in dollars, and what the forms for added rows start with.
 
 export const COSTS_TAG = "admin-costs";
 
-
-// How a line is edited: a built-in service by its key, an added row by its id.
-export type Editable = { target: string; values: EntryValues | null; removable: boolean; fixedName: boolean };
-
-export type Rate = { value: number; from: "saved" | "env" | "default"; setAt: string | null };
+// An added row's form: its id and its values.
+export type Editable = { target: string; values: EntryValues };
 
 export type CostsPage = {
   simulated: boolean;
   ready: boolean; // the tables exist
   lines: CostLine[];
   edit: Record<string, Editable>;
-  rate: Rate;
   googleBudgetUsd: number | null;
 };
 
-const SERVICE_ORDER: FixedService[] = ["supabase", "fly", "domain"];
+const cents = (n: number) => String(Math.round(n * 100) / 100);
 
-const values = (r: CostEntryRow): EntryValues => ({
-  name: r.name,
-  amount: String(r.amount),
-  currency: r.currency,
-  period: r.period,
-  renewsOn: r.renews_on ?? "",
-  link: r.link ?? "",
-});
-
+// An owner-added row. One saved in rupees, before the page went dollars only, shows converted ("≈").
 function entryLine(r: CostEntryRow, now: number): CostLine {
-  const builtIn = r.service ? FIXED_SERVICES[r.service] : null;
   return {
-    id: r.service ?? `entry-${r.id}`,
-    name: builtIn?.name ?? r.name,
-    amount: r.amount,
-    currency: r.currency,
+    id: `entry-${r.id}`,
+    name: r.name,
+    amount: toUsd(r.amount, r.currency),
+    approx: r.currency === "INR" || undefined,
     period: r.period,
     resetsOn: r.renews_on ? nextRenewal(r.renews_on, r.period, now) : null,
     source: "fixed",
-    link: builtIn?.link ?? r.link ?? "",
+    link: r.link ?? "",
     state: "ok",
   };
 }
 
-function unsetLine(service: FixedService): CostLine {
-  const s = FIXED_SERVICES[service];
-  return { id: service, name: s.name, amount: null, currency: "USD", period: s.period, resetsOn: null, source: "fixed", link: s.link, state: "not-set" };
-}
-
-export function rateOf(saved: CostSetting | undefined, env: string | undefined): Rate {
-  const stored = parseRate(saved?.value.rate as number | undefined);
-  if (stored) return { value: stored, from: "saved", setAt: saved!.updated_at };
-  const fromEnv = parseRate(env);
-  if (fromEnv) return { value: fromEnv, from: "env", setAt: null };
-  return { value: DEFAULT_USD_INR, from: "default", setAt: null };
-}
+const values = (r: CostEntryRow): EntryValues => ({
+  name: r.name,
+  amount: cents(toUsd(r.amount, r.currency)),
+  period: r.period,
+  renewsOn: r.renews_on ?? "",
+  link: r.link ?? "",
+});
 
 function snapshotOf(saved: CostSetting | undefined): VercelSnapshot | null {
   const v = saved?.value;
@@ -79,44 +55,50 @@ function snapshotOf(saved: CostSetting | undefined): VercelSnapshot | null {
   return { amount: v.amount, plan: typeof v.plan === "string" ? v.plan : null, fetchedAt: v.fetchedAt };
 }
 
+// A provider's read that throws (a failure with nothing cached before) shows as Unavailable. The status was
+// logged where it was thrown (http.ts providerError); the error's own text could carry a URL, so it isn't.
+async function settle<T>(read: () => Promise<T>, what: string, failed: T): Promise<T> {
+  try {
+    return await read();
+  } catch {
+    console.warn(`${what} costs unavailable`);
+    return failed;
+  }
+}
+
 // Sample entries for demo mode: every state the page can show, with made-up figures.
 function demoPage(now: number): CostsPage {
-  const { resetsOn } = monthWindow(now);
-  const inDays = (days: number) => istDay(now + days * 86_400_000);
+  const fetchedAt = new Date(now - 3_600_000).toISOString();
   const lines: CostLine[] = [
-    { id: "vercel", name: "Vercel", amount: 21.4, currency: "USD", period: "monthly", resetsOn, source: "live", link: "https://vercel.com/dashboard/usage", state: "ok", note: "Pro plan" },
-    { id: "supabase", name: "Supabase", amount: 25, currency: "USD", period: "monthly", resetsOn: inDays(9), source: "fixed", link: FIXED_SERVICES.supabase.link, state: "ok" },
-    { id: "fly", name: "Fly.io", amount: 3.88, currency: "USD", period: "monthly", resetsOn: null, source: "fixed", link: FIXED_SERVICES.fly.link, state: "ok" },
-    { ...teslaLine({ estimatedUsd: 12.37 }, now) },
-    { ...googleLine({ geocoding: 1200, placeDetailsPro: 36_500 }, 5, now) },
-    { id: "domain", name: "Domain", amount: 899, currency: "INR", period: "yearly", resetsOn: inDays(12), source: "fixed", link: FIXED_SERVICES.domain.link, state: "ok" },
-    { id: "entry-1", name: "Email", amount: 1.5, currency: "USD", period: "monthly", resetsOn: null, source: "fixed", link: "https://example.com/billing", state: "ok" },
+    vercelLine({ kind: "ok", amount: 21.4, plan: "pro", fetchedAt }, null, now),
+    supabaseLine({ kind: "ok", usd: 25, note: "Pro plan", fetchedAt }, now),
+    flyLine({ kind: "ok", usd: 3.88, machines: 1, fetchedAt }, now),
+    teslaLine({ estimatedUsd: 12.37 }, now),
+    googleLine({ geocoding: 1200, placeDetailsPro: 36_500 }, 5, now),
+    domainLine({ kind: "ok", expires: istDay(now + 12 * 86_400_000), fetchedAt }, now),
+    { id: "entry-1", name: "Email", amount: 1.5, period: "monthly", resetsOn: null, source: "fixed", link: "https://example.com/billing", state: "ok" },
   ];
-  const demoValues = (l: CostLine): EntryValues => ({ name: l.name, amount: String(l.amount), currency: l.currency, period: l.period, renewsOn: l.resetsOn ?? "", link: l.link });
   return {
     simulated: true,
     ready: true,
     lines,
-    edit: {
-      supabase: { target: "supabase", values: demoValues(lines[1]), removable: false, fixedName: true },
-      fly: { target: "fly", values: demoValues(lines[2]), removable: false, fixedName: true },
-      domain: { target: "domain", values: demoValues(lines[5]), removable: false, fixedName: true },
-      "entry-1": { target: "1", values: demoValues(lines[6]), removable: true, fixedName: false },
-    },
-    rate: { value: DEFAULT_USD_INR, from: "saved", setAt: new Date(now - 3 * 86_400_000).toISOString() },
+    edit: { "entry-1": { target: "1", values: { name: "Email", amount: "1.5", period: "monthly", renewsOn: "", link: "https://example.com/billing" } } },
     googleBudgetUsd: 5,
   };
 }
 
-// Every read fails soft: a failed provider shows its last value or Unavailable, a missing table shows
-// "Not set", and nothing here throws past a database outage.
+// Every read fails soft: a failed provider shows its last value or Unavailable, a missing table leaves out
+// the added rows, and nothing here throws past a database outage.
 export async function loadCosts(now: number): Promise<CostsPage> {
   if (DEMO) return demoPage(now);
   const { from } = monthWindow(now);
-  const [entries, settings, vercel, tesla, google] = await Promise.all([
+  const [entries, settings, vercel, supabase, fly, domain, tesla, google] = await Promise.all([
     costEntries().catch((err) => (console.warn("Cost entries unavailable:", err instanceof Error ? err.message : err), null)),
     costSettings().catch((err) => (console.warn("Cost settings unavailable:", err instanceof Error ? err.message : err), null)),
     readVercel(from),
+    settle(readSupabase, "Supabase", { kind: "error" as const }),
+    settle(readFly, "Fly.io", { kind: "error" as const }),
+    settle(readDomain, "Domain", { kind: "error" as const }),
     safely(() => teslaUsage(now), "Tesla"),
     safely(() => googleUsage(from), "Google"),
   ]);
@@ -131,35 +113,20 @@ export async function loadCosts(now: number): Promise<CostsPage> {
 
   const budget = settings?.google_budget_usd?.value.usd;
   const googleBudgetUsd = typeof budget === "number" && budget > 0 ? budget : null;
-  const rows = entries ?? [];
-  const byService = new Map(rows.filter((r) => r.service).map((r) => [r.service as FixedService, r]));
-  const added = rows.filter((r) => !r.service);
-  const fixed = (service: FixedService) => {
-    const r = byService.get(service);
-    return r ? entryLine(r, now) : unsetLine(service);
-  };
+  // Rows for Fly.io, Supabase and the domain from when they were typed in are ignored: they're read live.
+  const added = (entries ?? []).filter((r) => !r.service);
 
   const lines: CostLine[] = [
     vercelLine(vercel, last, now),
-    ...SERVICE_ORDER.slice(0, 2).map(fixed),
+    supabaseLine(supabase, now),
+    flyLine(fly, now),
     teslaLine(tesla, now),
     googleLine(google, googleBudgetUsd, now),
-    fixed("domain"),
+    domainLine(domain, now),
     ...added.map((r) => entryLine(r, now)),
   ];
   const edit: Record<string, Editable> = {};
-  for (const service of SERVICE_ORDER) {
-    const r = byService.get(service);
-    edit[service] = { target: service, values: r ? values(r) : null, removable: false, fixedName: true };
-  }
-  for (const r of added) edit[`entry-${r.id}`] = { target: String(r.id), values: values(r), removable: true, fixedName: false };
+  for (const r of added) edit[`entry-${r.id}`] = { target: String(r.id), values: values(r) };
 
-  return {
-    simulated: false,
-    ready: entries !== null && settings !== null,
-    lines,
-    edit,
-    rate: rateOf(settings?.usd_inr, process.env.USD_INR),
-    googleBudgetUsd,
-  };
+  return { simulated: false, ready: entries !== null && settings !== null, lines, edit, googleBudgetUsd };
 }
