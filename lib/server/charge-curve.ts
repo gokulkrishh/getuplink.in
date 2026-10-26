@@ -9,6 +9,8 @@ import { type FeeLines, feeLines } from "@/lib/charge-fees";
 import { type ChargingSession, loadChargingFees, loadChargingSessions } from "./charging";
 import { demoStreamSessions } from "./demo";
 import { cachedPlaceNames, placeKey } from "./place-names";
+import { loadUserPlaces } from "./user-places";
+import { type NameTarget, nameTarget } from "@/lib/user-places";
 import { selectSessions, type StreamChargeSession, toStreamSession } from "./stream-charging";
 import { type Owner, ownerDb } from "./data/owner";
 import { loadReadingsByField } from "./telemetry-window";
@@ -28,6 +30,8 @@ export type ChargeDetail = {
   fees: FeeLines | null;
   spot: { lat: number; lng: number } | null;
   place: string | null;
+  // The owner's tag for the spot, if any, and what "Name this place" needs.
+  target: NameTarget | null;
 };
 
 async function loadStreamSession(owner: Owner, id: number): Promise<StreamChargeSession | null> {
@@ -83,9 +87,10 @@ export async function loadChargeDetail(owner: Owner, id: number, now: number): P
   const end = session.ended_at ? Date.parse(session.ended_at) : now;
   const curve = chargeCurve(series ?? { power: [], level: [], tempMin: [], tempMax: [], end });
   const spot = chargeSpot(located?.Location ?? [], start);
-  const [fees, places] = await Promise.all([
+  const [fees, places, tags] = await Promise.all([
     twin ? loadChargingFees(owner, twin.session_id).then((f) => feeLines(f, twin.cost_total)) : null,
     spot ? cachedPlaceNames([spot]).catch(() => new Map<string, string>()) : new Map<string, string>(),
+    spot ? loadUserPlaces(owner) : [],
   ]);
-  return { session, tesla: twin, invoice, curve, fees, spot, place: spot ? (places.get(placeKey(spot)) ?? null) : null };
+  return { session, tesla: twin, invoice, curve, fees, spot, place: spot ? (places.get(placeKey(spot)) ?? null) : null, target: spot ? nameTarget(tags, spot) : null };
 }

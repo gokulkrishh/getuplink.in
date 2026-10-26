@@ -33,3 +33,13 @@ export function stationAt(lat: number, lon: number, stations: Station[] = STATIO
   }
   return best ? stationLabel(best) : null;
 }
+
+// Every station's label within MATCH_METRES, nearest first, for the suggestions in "Name this place".
+export function stationsNear(lat: number, lon: number, stations: Station[] = STATIONS): string[] {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [];
+  return stations
+    .map((s) => ({ s, d: metres(lat, lon, s[3], s[4]) }))
+    .filter((x) => x.d <= MATCH_METRES)
+    .sort((a, b) => a.d - b.d)
+    .flatMap(({ s }) => stationLabel(s) ?? []);
+}

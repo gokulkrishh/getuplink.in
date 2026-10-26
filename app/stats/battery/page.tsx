@@ -18,6 +18,8 @@ import { loadWindowStats, type WindowStats } from "@/lib/server/driving";
 import { loadStreamSessions, type StreamChargeSession } from "@/lib/server/stream-charging";
 import { type BatteryExtras, loadBatteryExtras } from "@/lib/server/battery-extra";
 import { loadPrimaryVehicle } from "@/lib/server/telemetry";
+import { loadParkedPlaces } from "@/lib/server/parked-places";
+import type { SpotName } from "@/lib/charge-names";
 
 export const metadata: Metadata = { title: "Battery · Uplink" };
 
@@ -29,6 +31,7 @@ async function loadBattery(query: CustomQuery | null): Promise<{
   window: WindowStats;
   sessions: StreamChargeSession[];
   extras: BatteryExtras;
+  places: Record<number, SpotName>;
   custom: { range: DayRange; frame: Timeframe } | null;
   now: number;
 }> {
@@ -42,12 +45,16 @@ async function loadBattery(query: CustomQuery | null): Promise<{
   const vin = (await loadPrimaryVehicle(owner))?.vin ?? null;
   const range = query && customRange("custom", query.from ?? undefined, query.to ?? undefined, now);
   const [window, sessions] = await Promise.all([loadWindowStats(owner, vin, now), loadStreamSessions(owner)]);
-  const extras = await loadBatteryExtras(owner, vin, window.trend, now);
-  return { window, sessions, extras, custom: range && { range, frame: rangeTimeframe(range, now) }, now };
+  const [extras, places] = await Promise.all([
+    loadBatteryExtras(owner, vin, window.trend, now),
+    // Where each stretch was parked; never fails the page.
+    loadParkedPlaces(owner, vin, [...window.driving.parked.map((p) => p.start), ...(window.driving.parkedNow ? [window.driving.parkedNow.start] : [])]).catch(() => ({})),
+  ]);
+  return { window, sessions, extras, places, custom: range && { range, frame: rangeTimeframe(range, now) }, now };
 }
 
 async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "searchParams">) {
-  const { window, sessions, extras, custom, now } = await loadBattery(customQuery(await searchParams));
+  const { window, sessions, extras, places, custom, now } = await loadBattery(customQuery(await searchParams));
   const { trend, range, level, driving } = window;
   const enough = trend.length >= 2 || range.length > 0 || (level?.points.length ?? 0) >= 2 || driving.parked.length > 0 || driving.parkedNow !== null;
   const frames = timeframes(custom?.frame ?? null, now);
@@ -67,7 +74,7 @@ async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "sear
           {eachFrame(frames, ({ frame }) => <Temperatures temps={extras.temps} frame={frame} />, { steady: true })}
           {/* Not steady: one recharts chart at a time. Its empty state has the chart's box, so nothing moves. */}
           {eachFrame(frames, ({ frame }) => <ChargeLevelChart level={level} now={now} frame={frame} heading />)}
-          {eachFrame(frames, ({ frame }) => <ParkedDrain parked={driving.parked} parkedNow={driving.parkedNow} frame={frame} />)}
+          {eachFrame(frames, ({ frame }) => <ParkedDrain parked={driving.parked} parkedNow={driving.parkedNow} frame={frame} places={places} />)}
         </div>
       ) : (
         <NotYet title="Not enough readings yet">The battery trend shows up after two weeks of readings.</NotYet>

@@ -3,7 +3,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { SyncChargingSessions } from "@/components/background-sync";
-import { listSessions, streamName } from "@/components/session-row";
+import { listSessions, streamName, withSpots } from "@/components/session-row";
 import { ChargeHabits } from "@/components/stats/charge-habits";
 import { ChargeRange } from "@/components/stats/charge-range";
 import { ChargingMap, DcCurves } from "@/components/stats/charging-extras";
@@ -79,7 +79,8 @@ async function loadCharging(query: CustomQuery | null): Promise<{
 async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "searchParams">) {
   const { sessions, streamSessions, invoices, figures, extras, held, custom, now } = await loadCharging(customQuery(await searchParams));
   const { pairs, streamOnly } = matchSessions(sessions, streamSessions, now);
-  const listed = listSessions(pairs, streamOnly, invoices);
+  // Each row named from its spot when the page has it (the latest PINNED charges), the owner's tag first.
+  const listed = withSpots(listSessions(pairs, streamOnly, invoices), extras.spots);
   // Real bills: Tesla's for Superchargers, attached invoices for the rest. A finished charge with
   // neither is counted as unbilled, never priced.
   const bills = chargingBills(sessions, streamOnly, invoices);
@@ -92,13 +93,17 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
   // One number per charge, counted from the oldest, so a charge has the same number in every list here.
   const serial = serials(listed, (l) => l.key);
   const streamSerial = new Map(listed.flatMap((l) => (l.stream ? [[l.stream.id, serial.get(l.key) ?? 0] as const] : [])));
+  const ownName = (s: StreamChargeSession) => {
+    const name = extras.spots[s.id]?.name;
+    return name?.source === "tag" ? name.text : null;
+  };
   const stations = (span: Span) =>
     topStations([
       ...sessions.filter(startedIn(span)).map((s) => ({ name: s.site_name, kwh: s.energy_kwh, cost: s.cost_total })),
       ...streamOnly
         .filter((s) => s.ended_at !== null && startedIn(span)(s))
-        // Named by the station check or the invoice; an area name is a place, not a station.
-        .map((s) => ({ name: streamName(s, invoices.get(s.id))?.text ?? null, kwh: s.energy_added_kwh, cost: invoices.get(s.id)?.amount ?? null })),
+        // Named by the owner's tag, the station check or the invoice; an area name is a place, not a station.
+        .map((s) => ({ name: ownName(s) ?? streamName(s, invoices.get(s.id))?.text ?? null, kwh: s.energy_added_kwh, cost: invoices.get(s.id)?.amount ?? null })),
     ]);
   const starts = (span: Span) => [...sessions, ...streamOnly].filter(startedIn(span)).map((s) => Date.parse(s.started_at));
   // The curves and pins are of the latest charges only (the range's own, for a range): each frame draws

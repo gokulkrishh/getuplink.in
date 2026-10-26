@@ -8,7 +8,7 @@ import { Headline } from "@/components/home/headline";
 import { NowStrip } from "@/components/home/now-strip";
 import { BatterySection, ChargingSection, DrivingSection } from "@/components/home/sections";
 import { CarNotices, CheckedFooter, OwnerNotices } from "@/components/owner-notices";
-import { listSessions } from "@/components/session-row";
+import { listSessions, withSpots } from "@/components/session-row";
 import { eachFrame } from "@/components/home/frames";
 import { PeriodPicker, PeriodScope } from "@/components/stats/period-scope";
 import { customScope } from "@/components/stats/periods";
@@ -93,7 +93,7 @@ function Totals({ home, custom, now }: { home: Extract<Home, { kind: "ready" }>;
         )}
       </section>
       <DrivingSection frames={frames} figures={figures} drives={window.driving.drives} now={now} />
-      <ChargingSection frames={frames} bills={bills} listed={listSessions(pairs, streamOnly, home.invoices)} chargingSince={chargingSince} now={now} />
+      <ChargingSection frames={frames} bills={bills} listed={withSpots(listSessions(pairs, streamOnly, home.invoices), home.spots)} chargingSince={chargingSince} now={now} />
       <BatterySection frames={frames} level={window.level} drain={window.driving.drain} parkedNow={window.driving.parkedNow} now={now} />
       {eachFrame(frames, ({ frame }) => (
         <MonthlyTable rows={monthsIn(frame)} />

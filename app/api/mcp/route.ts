@@ -178,7 +178,7 @@ const handlerFor = (owner: Owner) =>
       "get_driving_insights",
       {
         title: "Driving insights",
-        description: "Last 30 days: share of time at each speed, km per kWh by outside temperature and by speed, and the places the car parks (Home, Work and named areas) with visits and hours parked.",
+        description: "Last 30 days: share of time at each speed, km per kWh by outside temperature and by speed, and the places the car parks (by your own name for them, else a station or area name, with the car's Home, Work or Favourite as car_tag) with visits and hours parked.",
         inputSchema: z.object({}),
         annotations: ro,
       },

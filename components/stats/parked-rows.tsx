@@ -9,6 +9,8 @@ export type ParkedRow = {
   serial: number;
   ongoing: boolean;
   when: string;
+  // Where it was parked, by its best name (see spotName), when the readings show it.
+  place: string | null;
   period: string;
   lost: string;
   // Lost as a phone shows it: the share with the range when that is known.
@@ -33,6 +35,7 @@ const COLUMNS = [
 
 // The stretch going on now says so under when it began, rather than in its length.
 const Now = ({ row }: { row: ParkedRow }) => (row.ongoing ? <span className="block text-xs text-muted-foreground">Still parked</span> : null);
+const Where = ({ row }: { row: ParkedRow }) => (row.place ? <span className="block truncate text-xs text-muted-foreground">{row.place}</span> : null);
 
 export function ParkedTable({ rows, header = true }: { rows: ParkedRow[]; header?: boolean }) {
   return (
@@ -59,6 +62,7 @@ export function ParkedTable({ rows, header = true }: { rows: ParkedRow[]; header
             <td className="py-2.5 pr-3 font-mono text-xs text-faint">{r.serial}</td>
             <td className="py-2.5 pr-3 whitespace-nowrap">
               {r.when}
+              <Where row={r} />
               <Now row={r} />
             </td>
             <td className="py-2.5 pr-3 whitespace-nowrap text-muted-foreground">{r.period}</td>
@@ -91,6 +95,7 @@ export function ParkedBlocks({ rows }: { rows: ParkedRow[] }) {
               <p className="tabular-nums">
                 <span className="mr-2 font-mono text-xs text-faint">#{r.serial}</span>
                 {r.when}
+                <Where row={r} />
                 <Now row={r} />
               </p>
               <span className="text-muted-foreground tabular-nums">{r.period}</span>

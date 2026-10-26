@@ -30,6 +30,7 @@ export const OWNER_TABLES = [
   "stream_charge_sessions",
   "charge_receipts",
   "telemetry_readings",
+  "user_places",
 ] as const;
 export type OwnerTable = (typeof OWNER_TABLES)[number];
 

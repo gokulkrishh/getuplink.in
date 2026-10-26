@@ -1,6 +1,7 @@
 import "server-only";
 import type { Owner } from "./data/owner";
 import { carNow, CAR_NOW_FIELDS } from "@/lib/car-now";
+import { CAR_FLAGS } from "@/lib/charge-names";
 import { chargeEfficiency, matchSessions } from "@/lib/charge-sessions";
 import { billedCharges } from "@/lib/charging-figures";
 import { dayStrips } from "@/lib/day-timeline";
@@ -215,7 +216,6 @@ export async function drivingInsights(owner: Owner) {
   const { vin } = await car(owner);
   const window = await loadWindowStats(owner, vin, now);
   const [x, seasons] = await Promise.all([loadDrivingExtras(owner, vin, window.driving.drives, now), loadSeasonEfficiency(owner, vin, window.driving.drives, now)]);
-  const TAG = { home: "Home", work: "Work", favorite: "Favourite" } as const;
   return {
     // The seasons reach back a year, further than the rest, so they carry their own span.
     period: `last ${INSIGHT_DAYS} days`,
@@ -228,7 +228,9 @@ export async function drivingInsights(owner: Owner) {
       seasons.drivesFrom === null ? null : `Months before ${istIso(monthStart(seasons.drivesFrom)).slice(0, 7)} also count energy used while parked, so older seasons can read higher.`,
     km_per_kwh_by_speed: x.bySpeed.map((b) => ({ band: b.label, drives: b.drives, km: full(b.km), km_per_kwh: full(b.kmPerKwh) })),
     places: x.places.slice(0, 15).map((p) => ({
-      name: p.tag ? TAG[p.tag] : p.name,
+      // The best name known (the owner's, a station's, the area's), and the car's own flag beside it.
+      name: p.name?.text ?? null,
+      car_tag: p.tag ? CAR_FLAGS[p.tag] : null,
       visits: p.visits,
       hours_parked: full(p.parkedMs / 3_600_000),
       last_visit: istIso(p.lastVisit),

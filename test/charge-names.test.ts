@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { chargeName, chargeSpot, chargeType, googleMapsUrl, invoiceName } from "@/lib/charge-names";
+import { chargeName, chargeSpot, chargeType, googleMapsUrl, invoiceName, needsName, spotName, withCarFlag } from "@/lib/charge-names";
+import type { UserPlace } from "@/lib/user-places";
 
 describe("chargeName", () => {
   const invoice = { network: "VoltPoint", station: "Lakeview Fuels, Ring Road, Hillgrove" };
@@ -23,6 +24,59 @@ describe("chargeName", () => {
   test("nothing known is no name, never a guess", () => {
     expect(chargeName({})).toBeNull();
     expect(chargeName({ station: "  ", invoice: { network: " ", station: "" }, site: "", place: "" })).toBeNull();
+  });
+
+  test("the owner's own name ranks above every other source", () => {
+    expect(chargeName({ tag: "Maple Court", station: "Magenta ChargeGrid, BTM Layout", invoice, site: "Bengaluru, Orion Mall", place: "BTM Layout, Bengaluru" })).toEqual({
+      text: "Maple Court",
+      source: "tag",
+    });
+    // A blank tag is no tag.
+    expect(chargeName({ tag: " ", place: "Hillgrove, Riverton" })?.source).toBe("place");
+  });
+});
+
+describe("needsName", () => {
+  test("offered when nothing names the spot, or only its area does", () => {
+    expect(needsName(null)).toBe(true);
+    expect(needsName({ text: "Hillgrove, Riverton", source: "place" })).toBe(true);
+    expect(needsName({ text: "VoltPoint, Lakeview Fuels", source: "invoice" })).toBe(false);
+    expect(needsName({ text: "Maple Court", source: "tag" })).toBe(false);
+  });
+});
+
+describe("withCarFlag", () => {
+  test("the car's flag sits after the name, or stands alone", () => {
+    expect(withCarFlag("Hillgrove, Riverton", "home")).toBe("Hillgrove, Riverton · Home");
+    expect(withCarFlag(null, "favorite")).toBe("Favourite");
+    expect(withCarFlag("Hillgrove, Riverton", null)).toBe("Hillgrove, Riverton");
+    expect(withCarFlag("Home", "home")).toBe("Home");
+    expect(withCarFlag(null, null)).toBeNull();
+  });
+});
+
+describe("spotName", () => {
+  const typed: UserPlace = { id: 7, name: "Maple Court", lat: 10, lng: 20, radiusM: 75, googlePlaceId: null };
+  const fromGoogle: UserPlace = { ...typed, id: 8, name: "Orchard Lane Market", googlePlaceId: "ChIJmadeUpPlaceId0001" };
+
+  test("a tag in range names the spot, on the map too", () => {
+    const named = spotName([typed], { lat: 10.0002, lng: 20 }, { place: "Hillgrove, Riverton" });
+    expect(named.name).toEqual({ text: "Maple Court", source: "tag" });
+    expect(named.map).toBe("Maple Court");
+    expect(named.target.tag).toEqual({ id: 7, name: "Maple Court" });
+  });
+
+  test("a name taken from Google shows in lists but the map falls back", () => {
+    const named = spotName([fromGoogle], { lat: 10, lng: 20 }, { station: "Brightwell, Hillgrove", place: "Hillgrove, Riverton" });
+    expect(named.name?.text).toBe("Orchard Lane Market");
+    expect(named.map).toBe("Brightwell, Hillgrove");
+    expect(spotName([fromGoogle], { lat: 10, lng: 20 }).map).toBeNull();
+  });
+
+  test("out of range, the other sources in their order", () => {
+    const named = spotName([typed], { lat: 10.01, lng: 20 }, { place: "Hillgrove, Riverton" });
+    expect(named.name).toEqual({ text: "Hillgrove, Riverton", source: "place" });
+    expect(named.target.tag).toBeNull();
   });
 });
 

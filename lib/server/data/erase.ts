@@ -45,4 +45,6 @@ export async function eraseOwnerRows(owner: Owner): Promise<void> {
   await deleteIn(owner, "telemetry_readings", "vin", keys.vins);
   await deleteRest(owner, "telemetry_readings");
   await deleteRest(owner, "poll_runs");
+  // The owner's names for places; optional, since the table may not exist yet.
+  await deleteRest(owner, "user_places", true);
 }

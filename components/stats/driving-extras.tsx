@@ -5,9 +5,23 @@ import { DECIMALS, formatDuration, formatKm, formatNumber, formatShortDate } fro
 import type { Band } from "@/lib/driving-insights";
 import type { DrivingExtras, NamedPlace } from "@/lib/server/driving-extra";
 import { Measure } from "@/components/measure";
+import { NamePlace } from "@/components/name-place";
+import { CAR_FLAGS, needsName, withCarFlag } from "@/lib/charge-names";
 
-const TAGS = { home: "Home", work: "Work", favorite: "Favourite" } as const;
-const placeName = (p: NamedPlace, k: number) => (p.tag ? TAGS[p.tag] : (p.name ?? `Place ${k + 1}`));
+// The map's label: names fit for a map pin, with the car's flag ("Koramangala, Bengaluru · Home").
+const pinName = (p: NamedPlace, k: number) => withCarFlag(p.map, p.tag) ?? `Place ${k + 1}`;
+
+// The table's name, then the car's flag as a small tag, then "Name this place" or a rename.
+function PlaceName({ place: p, k }: { place: NamedPlace; k: number }) {
+  const main = p.name?.text ?? (p.tag ? CAR_FLAGS[p.tag] : `Place ${k + 1}`);
+  return (
+    <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+      <span>{main}</span>
+      {p.name && p.tag && <span className="text-xs text-muted-foreground">· {CAR_FLAGS[p.tag]}</span>}
+      {needsName(p.name) ? <NamePlace target={p.target} /> : p.target.tag && <NamePlace target={p.target} compact />}
+    </span>
+  );
+}
 
 // What each insight covers, ending its caption: the last 30 days, or a range picked by date ("from 1 Sept
 // to 30 Sept"); `note` says when that range reaches back past the readings kept.
@@ -104,8 +118,8 @@ export function EfficiencyBands({ byTemp, bySpeed, words = "last 30 days", note 
   );
 }
 
-// Where the car parks, after TeslaMate's locations: Home, Work and Favourite from the car's own settings,
-// other spots by area name, with visits and time parked; then everywhere it went on a map.
+// Where the car parks, after TeslaMate's locations: each spot by its best name (see spotName), with Home,
+// Work and Favourite from the car's own settings beside it, with visits and time parked; then everywhere it went on a map.
 export function Places({ places, visited, words = "last 30 days", note }: { places: NamedPlace[]; visited: DrivingExtras["visited"] } & Covers) {
   if (places.length === 0 && visited.length < 2) return null;
   const pins = places.slice(0, 15).map((p, k) => ({
@@ -114,7 +128,7 @@ export function Places({ places, visited, words = "last 30 days", note }: { plac
     t: p.lastVisit,
     kind: "place" as const,
     size: 6 + Math.min(10, p.visits * 1.5),
-    label: `${placeName(p, k)} · ${p.visits} ${p.visits === 1 ? "visit" : "visits"} · ${formatDuration(p.parkedMs / 1000)} parked`,
+    label: `${pinName(p, k)} · ${p.visits} ${p.visits === 1 ? "visit" : "visits"} · ${formatDuration(p.parkedMs / 1000)} parked`,
   }));
   return (
     <section className="space-y-6">
@@ -151,7 +165,7 @@ export function Places({ places, visited, words = "last 30 days", note }: { plac
                 <tr key={`${p.lat},${p.lng}`}>
                   <td className="w-10 py-3 pr-3 font-mono text-xs text-faint">{k + 1}</td>
                   <th scope="row" className="py-3 pr-4 text-left font-normal">
-                    {placeName(p, k)}
+                    <PlaceName place={p} k={k} />
                   </th>
                   <td className="py-3 pr-4 text-right font-mono">{p.visits}</td>
                   <td className="py-3 pr-4 text-right">{formatDuration(p.parkedMs / 1000)}</td>
@@ -162,7 +176,7 @@ export function Places({ places, visited, words = "last 30 days", note }: { plac
           </table>
         </div>
       )}
-      <p className="text-xs text-faint">Place names from OpenStreetMap. Home, Work and Favourite are the ones set in your car.</p>
+      <p className="text-xs text-faint">Names you give come first, then OpenStreetMap&apos;s. Home, Work and Favourite are the ones set in your car.</p>
     </section>
   );
 }

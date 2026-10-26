@@ -4,7 +4,8 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
 import { OsmCredit, rate, streamName } from "@/components/session-row";
-import { chargeType } from "@/lib/charge-names";
+import { chargeType, needsName } from "@/lib/charge-names";
+import { NamePlace } from "@/components/name-place";
 import { ChargeCurve } from "@/components/stats/charge-curve";
 import { ChargeFees } from "@/components/stats/charge-fees";
 import { ChargeSupply } from "@/components/stats/charge-supply";
@@ -42,8 +43,11 @@ function Charge({ detail }: { detail: ChargeDetail }) {
   const { session: s, tesla, invoice, curve } = detail;
   // Tesla's site for a Supercharger it billed; otherwise the best name known, with the kind of charge
   // under it, or the kind alone.
-  const named = tesla ? null : streamName(s, invoice, detail.place);
-  const { place, city } = tesla ? splitSite(tesla.site_name) : { place: named?.text ?? chargeType(s), city: named ? chargeType(s) : null };
+  // The owner's own name for the spot comes first, over Tesla's site name too.
+  const tag = detail.target?.tag?.name ?? null;
+  const named = tesla ? (tag ? { text: tag, source: "tag" as const } : null) : streamName(s, invoice, detail.place, tag);
+  const site = tesla ? splitSite(tesla.site_name) : null;
+  const { place, city } = site ? { place: named?.text ?? site.place, city: site.city } : { place: named?.text ?? chargeType(s), city: named ? chargeType(s) : null };
   const stoppedAt = tesla?.stopped_at ?? s.ended_at;
   const span = stoppedAt
     ? `${formatClock(s.started_at)} to ${formatClock(stoppedAt)} · ${formatDuration((Date.parse(stoppedAt) - Date.parse(s.started_at)) / 1000)}`
@@ -86,7 +90,10 @@ function Charge({ detail }: { detail: ChargeDetail }) {
   const shown = sections.flatMap((g) => g.rows);
   return (
     <>
-      <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">{place}</h1>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">{place}</h1>
+        {detail.target && (!tesla && needsName(named) ? <NamePlace target={detail.target} /> : detail.target.tag && <NamePlace target={detail.target} compact />)}
+      </div>
       <p className="mt-2 mb-12 text-sm text-muted-foreground tabular-nums">{[city, formatDate(s.started_at), span].filter(Boolean).join(" · ")}</p>
       <div className="space-y-12">
         {curve.points.length >= 2 && <ChargeCurve points={curve.points} />}

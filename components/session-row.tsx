@@ -1,5 +1,5 @@
 import { SessionLine, type SessionView } from "@/components/session-line";
-import { type ChargeName, chargeName, chargeType } from "@/lib/charge-names";
+import { type ChargeName, chargeName, chargeType, type SpotName } from "@/lib/charge-names";
 import { splitSite } from "@/lib/charge-sessions";
 import { formatClock, formatDayLabel, formatDuration, formatKw, formatKwh, formatLevels, formatMoney, formatShortDate, formatTempRange } from "@/lib/format";
 import type { ChargingSession } from "@/lib/server/charging";
@@ -17,7 +17,13 @@ export type RowInvoice = { amount: number; kwhBilled: number | null; hasFile: bo
 // One row of the list: a Tesla Supercharger session (with cost and invoice), or one the car reported
 // itself, with the invoice attached to it when there is one. A Tesla session that the car also reported
 // keeps its own row and gains the peak power.
-export type Listed = { key: string; started_at: string; tesla: ChargingSession | null; stream: StreamChargeSession | null; invoice: RowInvoice | null };
+// spot: the charge's name from where it happened (see spotName), when the page knows the spot.
+export type Listed = { key: string; started_at: string; tesla: ChargingSession | null; stream: StreamChargeSession | null; invoice: RowInvoice | null; spot?: SpotName };
+
+// Each row with its spot's name, for the charges whose spot is known (keyed by stream session id).
+export function withSpots(items: Listed[], spots: Readonly<Record<number, SpotName>>): Listed[] {
+  return items.map((item) => (item.stream && spots[item.stream.id] ? { ...item, spot: spots[item.stream.id] } : item));
+}
 
 // Tesla's sessions (with the car's own record of each, when it has one) and the ones only the car
 // reported, with their attached invoices, newest first (see matchSessions).
@@ -37,8 +43,8 @@ type InvoiceNames = { network?: string; station?: string | null } | null | undef
 // What a session the car reported is called, best source first (see chargeName): the station's name from
 // OpenStreetMap (shown whole: it is "Operator, Area", not Tesla's "City, Site" that splitSite reads), the
 // invoice's network and station, then the cached area name when the page knows the spot.
-export function streamName(s: StreamChargeSession, invoice?: InvoiceNames, place?: string | null): ChargeName | null {
-  return chargeName({ station: s.supercharger ? null : s.station_name, invoice: invoice?.network ? { network: invoice.network, station: invoice.station } : null, place });
+export function streamName(s: StreamChargeSession, invoice?: InvoiceNames, place?: string | null, tag?: string | null): ChargeName | null {
+  return chargeName({ tag, station: s.supercharger ? null : s.station_name, invoice: invoice?.network ? { network: invoice.network, station: invoice.station } : null, place });
 }
 
 // The session's name, or its kind when no name is known.
@@ -48,7 +54,11 @@ export function streamTitle(s: StreamChargeSession, invoice?: InvoiceNames, plac
 
 // Whether any shown row is named from OpenStreetMap, so the page credits it.
 export function hasStationNames(items: Listed[]): boolean {
-  return items.some((item) => !item.tesla && item.stream && streamName(item.stream, item.invoice)?.source === "station");
+  return items.some((item) => {
+    if (item.tesla || !item.stream) return false;
+    const source = (item.spot?.name ?? streamName(item.stream, item.invoice))?.source;
+    return source === "station" || source === "place";
+  });
 }
 
 // ODbL asks for the credit wherever OpenStreetMap's names show.
@@ -108,8 +118,11 @@ export function SessionHeader({ costs, wide = false, numbered = false }: { costs
 export function SessionRow({ item, serial, now, costs }: { item: Listed; serial?: number; now?: number; costs: boolean }) {
   const { tesla: s, stream, invoice: attached } = item;
   const invoice = s?.invoices.find((i) => i.contentId);
-  const named = !s && stream ? streamName(stream, attached) : null;
-  const { place, city } = s ? splitSite(s.site_name) : { place: stream ? (named?.text ?? chargeType(stream)) : "", city: null };
+  const named = !s && stream ? (item.spot?.name ?? streamName(stream, attached)) : null;
+  // The owner's own name wins over Tesla's site name too.
+  const tagged = item.spot?.name?.source === "tag" ? item.spot.name.text : null;
+  const site = s ? splitSite(s.site_name) : null;
+  const { place, city } = site ? { place: tagged ?? site.place, city: site.city } : { place: stream ? (named?.text ?? chargeType(stream)) : "", city: null };
   const stoppedAt = s ? s.stopped_at : (stream?.ended_at ?? null);
   const durationMs = stoppedAt ? Date.parse(stoppedAt) - Date.parse(item.started_at) : 0;
   const durationText = durationMs > 0 ? formatDuration(durationMs / 1000) : null;

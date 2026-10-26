@@ -1,7 +1,9 @@
 import "server-only";
 import type { Owner } from "./data/owner";
 import type { MapPin } from "@/components/stats/trip-map";
-import { chargeName, chargeSpot, chargeType } from "@/lib/charge-names";
+import { chargeName, chargeSpot, chargeType, type SpotName, spotName } from "@/lib/charge-names";
+
+import { loadUserPlaces } from "./user-places";
 import { matchSessions } from "@/lib/charge-sessions";
 import { formatClock, formatKwh, formatShortDate } from "@/lib/format";
 import { cappedFrom } from "@/lib/kept";
@@ -33,20 +35,57 @@ export type Curve = {
 // invoices, and the time for pairing them.
 export type NameSources = { tesla: ChargingSession[]; invoices: ReadonlyMap<number, SessionInvoiceAmount>; now: number };
 
+// The parts that name a charge besides its spot: the station check's name, the invoice, Tesla's site.
+function nameParts(sessions: StreamChargeSession[], sources: NameSources) {
+  const sites = new Map(matchSessions(sources.tesla, sessions, sources.now).pairs.flatMap((p) => (p.stream ? [[p.stream.id, p.tesla.site_name] as const] : [])));
+  return (s: StreamChargeSession, place?: string | null) => {
+    const invoice = sources.invoices.get(s.id);
+    return { station: s.supercharger ? null : s.station_name, invoice: invoice ? { network: invoice.network, station: invoice.station } : null, site: sites.get(s.id), place };
+  };
+}
+
+type Located = { s: StreamChargeSession; t: number; lat: number; lng: number };
+
+// Where each charge started (one small Location read each), named best source first (see spotName): the
+// owner's tag, then the parts above, then the area name already kept, never looked up here.
+async function locateAndName(owner: Owner, vin: string, sessions: StreamChargeSession[], sources: NameSources): Promise<{ located: Located[]; named: Map<number, SpotName> }> {
+  const partsOf = nameParts(sessions, sources);
+  const [spots, tags] = await Promise.all([
+    Promise.all(
+      sessions.map(async (s): Promise<Located | null> => {
+        const t = Date.parse(s.started_at);
+        const r = await loadReadingsByField(owner, vin, ["Location"], new Date(t - 10 * MIN).toISOString(), new Date(t + 10 * MIN).toISOString());
+        const spot = chargeSpot(r?.Location ?? [], t);
+        return spot ? { s, t, ...spot } : null;
+      }),
+    ),
+    loadUserPlaces(owner),
+  ]);
+  const located = spots.filter((p) => p !== null);
+  // Only the spots no better source names need an area name.
+  const places = await cachedPlaceNames(located.filter(({ s }) => !chargeName(partsOf(s)))).catch(() => new Map<string, string>());
+  const named = new Map(located.map(({ s, lat, lng }) => [s.id, spotName(tags, { lat, lng }, partsOf(s, places.get(placeKey({ lat, lng }))))] as const));
+  return { located, named };
+}
+
+// The names of the given charges' spots by session id, for a list of them (the home page's).
+export async function loadChargeSpots(owner: Owner, vin: string | null, sessions: StreamChargeSession[], sources: NameSources): Promise<Record<number, SpotName>> {
+  if (!vin || sessions.length === 0) return {};
+  return Object.fromEntries((await locateAndName(owner, vin, sessions, sources)).named);
+}
+
 // What the charging page adds from the stream: the latest CURVES DC charges as power against battery level
 // (TeslaMate's DC charging curve), and where each of the latest PINNED charges happened, for the map.
-// `sessions` come newest first; see heldFrom for where each list stops. Each pin is named from the best
-// source known (see chargeName); the area name is read from the names already kept, never looked up here.
-export async function loadChargingExtras(owner: Owner, vin: string | null, sessions: StreamChargeSession[], sources: NameSources): Promise<{ curves: Curve[]; pins: MapPin[] }> {
-  if (!vin) return { curves: [], pins: [] };
+// `sessions` come newest first; see heldFrom for where each list stops. spots: each pinned charge's name by
+// session id, for the session list's rows; a pin shows only the names a map may (SpotName.map).
+export type ChargingExtras = { curves: Curve[]; pins: MapPin[]; spots: Record<number, SpotName> };
+
+export async function loadChargingExtras(owner: Owner, vin: string | null, sessions: StreamChargeSession[], sources: NameSources): Promise<ChargingExtras> {
+  if (!vin) return { curves: [], pins: [], spots: {} };
   const finished = sessions.filter((s) => s.ended_at !== null);
   const dc = finished.filter((s) => s.kind === "dc").slice(0, CURVES);
-  const sites = new Map(matchSessions(sources.tesla, finished, sources.now).pairs.flatMap((p) => (p.stream ? [[p.stream.id, p.tesla.site_name] as const] : [])));
-  const nameOf = (s: StreamChargeSession, place?: string | null) => {
-    const invoice = sources.invoices.get(s.id);
-    return chargeName({ station: s.supercharger ? null : s.station_name, invoice: invoice ? { network: invoice.network, station: invoice.station } : null, site: sites.get(s.id), place });
-  };
-  const [curves, spots] = await Promise.all([
+  const partsOf = nameParts(finished, sources);
+  const [curves, { located, named }] = await Promise.all([
     Promise.all(
       dc.map(async (s): Promise<Curve | null> => {
         // Read as the session page reads it, so the two show the same charge.
@@ -56,7 +95,7 @@ export async function loadChargingExtras(owner: Owner, vin: string | null, sessi
         return points.length >= 2
           ? {
               id: s.id,
-              name: nameOf(s)?.text ?? (s.supercharger ? "Supercharger" : "Other DC charger"),
+              name: chargeName(partsOf(s))?.text ?? (s.supercharger ? "Supercharger" : "Other DC charger"),
               date: s.started_at,
               supercharger: s.supercharger,
               points,
@@ -65,21 +104,11 @@ export async function loadChargingExtras(owner: Owner, vin: string | null, sessi
           : null;
       }),
     ),
-    Promise.all(
-      finished.slice(0, PINNED).map(async (s) => {
-        const t = Date.parse(s.started_at);
-        const r = await loadReadingsByField(owner, vin, ["Location"], new Date(t - 10 * MIN).toISOString(), new Date(t + 10 * MIN).toISOString());
-        const spot = chargeSpot(r?.Location ?? [], t);
-        return spot ? { s, t, ...spot } : null;
-      }),
-    ),
+    locateAndName(owner, vin, finished.slice(0, PINNED), sources),
   ]);
-  const located = spots.filter((p) => p !== null);
-  // Only the spots no better source names need an area name.
-  const places = await cachedPlaceNames(located.filter(({ s }) => !nameOf(s))).catch(() => new Map<string, string>());
   const pins = located.map(({ s, t, lat, lng }): MapPin => {
     const kwh = s.energy_added_kwh ?? 0;
-    const name = nameOf(s, places.get(placeKey({ lat, lng })));
+    const name = named.get(s.id)?.map ?? null;
     return {
       lat,
       lng,
@@ -87,12 +116,18 @@ export async function loadChargingExtras(owner: Owner, vin: string | null, sessi
       kind: "charge",
       // 24px for a top-up, up to 44px for a big charge (about 50 kWh).
       size: Math.min(44, 24 + Math.sqrt(kwh) * 2.8),
-      name: name?.text,
-      label: name?.text ?? chargeType(s),
+      name: name ?? undefined,
+      label: name ?? chargeType(s),
       note: [`${formatShortDate(s.started_at)}, ${formatClock(s.started_at)}`, s.energy_added_kwh !== null ? `${formatKwh(s.energy_added_kwh)} added` : null].filter(Boolean).join(" · "),
     };
   });
-  return { curves: curves.filter((c): c is Curve => c !== null), pins };
+  // A curve takes the owner's name for its charger, when they gave one.
+  const tagged = (id: number) => {
+    const name = named.get(id)?.name;
+    return name?.source === "tag" ? name.text : null;
+  };
+  const kept = curves.filter((c): c is Curve => c !== null).map((c) => ({ ...c, name: tagged(c.id) ?? c.name }));
+  return { curves: kept, pins, spots: Object.fromEntries(named) };
 }
 
 // Where the curves and the pins stop, for sessions newest first: the start of the oldest charge each could

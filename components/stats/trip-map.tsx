@@ -29,7 +29,8 @@ export type MapPoint = { lat: number; lng: number; t: number };
 export type MapPin = MapPoint & { kind: "start" | "stop" | "end" | "place" | "charge"; label: string; size?: number; note?: string; name?: string };
 // A leg of a trip, for a chip at its middle: its start and end, and a line saying what it was.
 export type MapLeg = { start: number; end: number; note: string };
-export type MapFact = { label: string; value: string };
+// extra: a control beside the value, such as "Name this place" by the trip's start.
+export type MapFact = { label: string; value: string; extra?: ReactNode };
 
 const NEAR_M = 60; // pins closer than this share one marker (a round trip's start and end)
 // A longer gap between route points starts a new line, so no jump is drawn: between legs and trips on a
@@ -676,7 +677,16 @@ export function MapFacts({ facts }: { facts: MapFact[] }) {
           )}
         >
           <dt className="text-xs text-muted-foreground">{f.label}</dt>
-          <dd className="text-sm text-balance tabular-nums">{f.value}</dd>
+          <dd className="text-sm text-balance tabular-nums">
+            {f.extra ? (
+              <span className="flex flex-wrap items-center gap-x-1.5">
+                <span>{f.value}</span>
+                {f.extra}
+              </span>
+            ) : (
+              f.value
+            )}
+          </dd>
         </div>
       ))}
     </dl>

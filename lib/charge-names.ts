@@ -1,17 +1,21 @@
 import { splitSite } from "@/lib/charge-sessions";
+import { type LatLng, mapName, type NameTarget, tagAt, type UserPlace } from "@/lib/user-places";
 
-// What to call the place a charge happened, best source first. Pure, so tested directly.
+// What to call a place (where a charge happened, where the car parked, where a trip began or ended), best
+// source first. Pure, so tested directly.
 //
+// - tag: the owner's own name for the spot, from Your places (lib/user-places.ts). Always first.
 // - station: the station check's match from OpenStreetMap ("Operator, Area").
 // - invoice: the attached invoice's network and station, as printed.
 // - supercharger: Tesla's site for a Supercharger ("City, Site").
 // - place: the cached area name for the spot (lib/server/place-names.ts).
 //
 // The source travels with the text: OpenStreetMap's names (stations and places) need its credit.
-export type ChargeNameSource = "station" | "invoice" | "supercharger" | "place";
+export type ChargeNameSource = "tag" | "station" | "invoice" | "supercharger" | "place";
 export type ChargeName = { text: string; source: ChargeNameSource };
 
 export type ChargeNameParts = {
+  tag?: string | null;
   station?: string | null;
   invoice?: { network: string | null; station?: string | null } | null;
   site?: string | null;
@@ -31,7 +35,9 @@ export function invoiceName(network: string | null, station?: string | null): st
   return `${net}, ${first}`;
 }
 
-export function chargeName({ station, invoice, site, place }: ChargeNameParts): ChargeName | null {
+export function chargeName({ tag, station, invoice, site, place }: ChargeNameParts): ChargeName | null {
+  const own = clean(tag);
+  if (own) return { text: own, source: "tag" };
   const named = clean(station);
   if (named) return { text: named, source: "station" };
   const billed = invoice ? invoiceName(invoice.network, invoice.station) : null;
@@ -41,6 +47,34 @@ export function chargeName({ station, invoice, site, place }: ChargeNameParts): 
   const area = clean(place);
   if (area) return { text: area, source: "place" };
   return null;
+}
+
+// A spot's name for lists, the name its map pin may show, and what "Name this place" needs. The owner's tag
+// within its radius comes first; one confirmed from a Google suggestion stays off the map (mapName), whose
+// pin falls back to the next source.
+export type SpotName = { name: ChargeName | null; map: string | null; target: NameTarget };
+
+export function spotName(tags: readonly UserPlace[], spot: LatLng, parts: Omit<ChargeNameParts, "tag"> = {}): SpotName {
+  const tag = tagAt(tags, spot);
+  return {
+    name: chargeName({ ...parts, tag: tag?.name }),
+    map: chargeName({ ...parts, tag: mapName(tag) })?.text ?? null,
+    target: { lat: spot.lat, lng: spot.lng, tag: tag ? { id: tag.id, name: tag.name } : null },
+  };
+}
+
+// Whether to offer "Name this place": nothing names the spot, or only its area does.
+export const needsName = (name: ChargeName | null): boolean => !name || name.source === "place";
+
+// The car's own flags for where it parked, kept as a small tag after the name ("Koramangala, Bengaluru ·
+// Home"), or alone when nothing else names the spot.
+export type CarFlag = "home" | "work" | "favorite";
+export const CAR_FLAGS: Record<CarFlag, string> = { home: "Home", work: "Work", favorite: "Favourite" };
+
+export function withCarFlag(name: string | null, flag: CarFlag | null): string | null {
+  const word = flag ? CAR_FLAGS[flag] : null;
+  if (!name) return word;
+  return word && name.toLowerCase() !== word.toLowerCase() ? `${name} · ${word}` : name;
 }
 
 // What kind of charge it was, for when no name is known and as the line under one that is.

@@ -8,6 +8,8 @@ import { type CarState, loadCarState, loadOwnerCars, type OwnerGate, type PollRu
 import { demoFirstWeekStart } from "./demo";
 import { loadDrivingFigures, loadTimeframeDriving, loadWindowStats, type WindowStats } from "./driving";
 import { invoicesBySession } from "./receipts";
+import type { SpotName } from "@/lib/charge-names";
+import { loadChargeSpots } from "./charging-extra";
 import { loadStreamSessions, type StreamChargeSession } from "./stream-charging";
 
 // notices: what Tesla flagged at the car's latest online check (see loadCarFlags).
@@ -24,7 +26,12 @@ type HomeData = {
   window: WindowStats;
   // Third-party invoices attached through the connector, by streamed session id.
   invoices: Awaited<ReturnType<typeof invoicesBySession>>;
+  // The latest charges' names from where they happened, by streamed session id (see loadChargeSpots).
+  spots: Record<number, SpotName>;
 };
+
+// The home list shows three charges a period; the latest few cover them.
+const NAMED_CHARGES = 6;
 
 export type Home = OwnerGate | ({ kind: "ready" } & HomeData);
 
@@ -53,15 +60,19 @@ export async function loadHome(owner: Owner, scenario: DemoScenario, now: number
       loadWindowStats(owner, primary?.vin ?? null, now),
     ]);
     const after = (s: { started_at: string }) => demoSince === undefined || Date.parse(s.started_at) >= demoSince;
+    const shownStream = streamSessions.filter(after);
+    // Names for the latest charges' spots, which the home list shows a few of (the owner's tag first).
+    const spots = await loadChargeSpots(owner, primary?.vin ?? null, shownStream.slice(0, NAMED_CHARGES), { tesla: sessions, invoices, now }).catch(() => ({}));
     return {
       kind: "ready",
       cars,
       lastRun: account.lastRun,
       figures,
       sessions: sessions.filter(after),
-      streamSessions: streamSessions.filter(after),
+      streamSessions: shownStream,
       window: { ...window, driving: { ...window.driving, drives: window.driving.drives.filter((d) => demoSince === undefined || d.start >= demoSince) } },
       invoices,
+      spots,
     };
   } catch (err) {
     if (DEMO) throw err;

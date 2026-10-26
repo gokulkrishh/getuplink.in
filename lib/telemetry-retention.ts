@@ -41,6 +41,8 @@ import { DRIVE_DAYS } from "@/lib/drives";
 //                                                       OutsideTemp, Location, LongitudinalAcceleration,
 //                                                       PackVoltage, PackCurrent, GradeEstimatePercent
 //   loadDay (day.ts)                                    Location                                          days in DRIVE_DAYS
+//   loadParkedPlaces (parked-places.ts)                 Location                                          ±10 min of each stretch's
+//                                                                                                         start, 30 d of stretches
 //   loadDrivingExtras (driving-extra.ts)                VehicleSpeed, OutsideTemp, Location,              30 d, or a picked range
 //                                                       LocatedAtHome, LocatedAtWork, LocatedAtFavorite   clipped to DRIVE_DAYS
 //   chargeLevel (charge-level.ts)                       BatteryLevel, DetailedChargeState                 30 d (LEVEL_DAYS)
@@ -77,6 +79,7 @@ export const READS: { by: string; fields: readonly string[]; window: Window }[] 
     window: DRIVE_DAYS,
   },
   { by: "loadDay", fields: ["Location"], window: DRIVE_DAYS },
+  { by: "loadParkedPlaces", fields: ["Location"], window: 30 },
   { by: "loadDrivingExtras", fields: ["VehicleSpeed", "OutsideTemp", "Location", "LocatedAtHome", "LocatedAtWork", "LocatedAtFavorite"], window: DRIVE_DAYS },
   { by: "chargeLevel", fields: ["BatteryLevel", "DetailedChargeState"], window: 30 },
   { by: "loadPresence", fields: PRESENCE_FIELDS, window: 15 },

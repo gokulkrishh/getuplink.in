@@ -2,7 +2,8 @@ import "server-only";
 import type { Owner } from "./data/owner";
 import type { MapPin, MapPoint } from "@/components/stats/trip-map";
 import { type Day, dayStrips } from "@/lib/day-timeline";
-import { chargeName, chargeSpot, chargeType } from "@/lib/charge-names";
+import { chargeName, chargeSpot, chargeType, type SpotName, spotName } from "@/lib/charge-names";
+import { loadUserPlaces } from "./user-places";
 import { matchSessions } from "@/lib/charge-sessions";
 import { billsIn, chargingBills } from "@/lib/charging-figures";
 import { DRIVE_DAYS } from "@/lib/drives";
@@ -27,7 +28,8 @@ export type DayDetail = {
   trips: Trip[]; // newest first
   // Each charge's real bill: Tesla's for a Supercharger, the attached invoice for the rest, else null.
   // name: the station's, the invoice's or the Supercharger site's, when one is known (see chargeName).
-  charges: { session: StreamChargeSession; cost: number | null; name: string | null }[];
+  // spot: where it started and its names (see spotName), when the readings show it.
+  charges: { session: StreamChargeSession; cost: number | null; name: string | null; spot: SpotName | null }[];
   // The day's spend from real bills, counted as Charging counts it (see chargingBills).
   spent: number;
   route: MapPoint[];
@@ -75,22 +77,30 @@ export async function loadDay(owner: Owner, day: number, now: number): Promise<D
   // Where the car went: each trip's route and its start, stops and end, from one read of the day.
   const located = vin ? ((await loadReadingsByField(owner, vin, ["Location"], new Date(start - 30 * 60_000).toISOString(), new Date(Math.min(end + 30 * 60_000, now)).toISOString()))?.Location ?? []) : [];
   const routes = [...trips].reverse().map((t) => tripRoute(t, located));
-  const charges = dayCharges.map((session) => {
+  const partsOf = (session: StreamChargeSession) => {
     const invoice = invoices.get(session.id);
-    const name = chargeName({ station: session.supercharger ? null : session.station_name, invoice: invoice ? { network: invoice.network, station: invoice.station } : null, site: sites.get(session.id) });
-    return { session, cost: teslaBill.get(session.id) ?? invoice?.amount ?? null, name: name?.text ?? null };
+    return { station: session.supercharger ? null : session.station_name, invoice: invoice ? { network: invoice.network, station: invoice.station } : null, site: sites.get(session.id) };
+  };
+  // Each charge where it started, named best source first (see spotName): the owner's tag, the station,
+  // invoice or Supercharger site, then the area name already kept.
+  const charged = dayCharges.map((session) => ({ session, at: chargeSpot(located, Date.parse(session.started_at)) }));
+  const [places, tags] = await Promise.all([
+    cachedPlaceNames(charged.flatMap(({ session, at }) => (at && !chargeName(partsOf(session)) ? [at] : []))).catch(() => new Map<string, string>()),
+    loadUserPlaces(owner),
+  ]);
+  const charges = charged.map(({ session, at }) => {
+    const invoice = invoices.get(session.id);
+    const spot = at ? spotName(tags, at, { ...partsOf(session), place: places.get(placeKey(at)) }) : null;
+    const name = spot?.name ?? chargeName(partsOf(session));
+    return { session, cost: teslaBill.get(session.id) ?? invoice?.amount ?? null, name: name?.text ?? null, spot };
   });
-  // Each charge where it started, named like the charging map's pins: the area name only when nothing
-  // better is known, from the names already kept.
-  const spots = charges.flatMap((c) => {
-    const spot = chargeSpot(located, Date.parse(c.session.started_at));
-    return spot ? [{ ...c, spot }] : [];
-  });
-  const places = await cachedPlaceNames(spots.filter((c) => !c.name).map((c) => c.spot)).catch(() => new Map<string, string>());
-  const chargePins = spots.map(({ session: s, name, spot }): MapPin => {
-    const shown = name ?? places.get(placeKey(spot)) ?? undefined;
+  const spots = charges.flatMap((c) => (c.spot ? [{ ...c, spot: c.spot }] : []));
+  const chargePins = spots.map(({ session: s, spot }): MapPin => {
+    // A map pin shows only the names a map may (see spotName).
+    const shown = spot.map ?? undefined;
     return {
-      ...spot,
+      lat: spot.target.lat,
+      lng: spot.target.lng,
       t: Date.parse(s.started_at),
       kind: "charge",
       name: shown,

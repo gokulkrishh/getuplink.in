@@ -8,6 +8,7 @@ import type { Timeframe } from "@/lib/periods";
 import { median } from "@/lib/telemetry-derive";
 import { InfoButton } from "@/components/info-button";
 import { type ParkedRow, ParkedBlocks, ParkedTable } from "@/components/stats/parked-rows";
+import type { SpotName } from "@/lib/charge-names";
 
 const HOUR = 3_600_000;
 // A stretch this long says something per day; a shorter one in progress is shown but not summarised.
@@ -19,7 +20,7 @@ const dash = "Unknown";
 type Row = ParkStats & { serial: number; ongoing: boolean; atLeast: boolean };
 
 // The texts of one stretch for the list (see ParkedRows), each "Unknown" when the readings don't show it.
-function cells(r: Row): ParkedRow {
+function cells(r: Row, place: string | null): ParkedRow {
   const lost = r.lostPercent !== null ? `${oneDecimal(r.lostPercent)}%` : dash;
   const range = r.lostKm !== null ? formatRangeKm(r.lostKm) : dash;
   return {
@@ -27,6 +28,7 @@ function cells(r: Row): ParkedRow {
     serial: r.serial,
     ongoing: r.ongoing,
     when: `${formatShortDate(r.start)}, ${formatClock(r.start)}`,
+    place,
     period: `${r.atLeast ? "≥ " : ""}${formatDuration(r.hours * 3600)}`,
     lost,
     lostWithRange: r.lostKm !== null ? `${lost} · ${range}` : lost,
@@ -43,7 +45,18 @@ function cells(r: Row): ParkedRow {
 // the last 30 days. Numbers count from the oldest stretch kept, so each keeps its number in any span.
 // Power is the clearest sign: a car that sleeps draws little; Sentry Mode, cabin overheat protection and apps
 // checking in keep it awake.
-export function ParkedDrain({ parked, parkedNow, frame }: { parked: ParkedPeriod[]; parkedNow: ParkedNow | null; frame: Timeframe }) {
+// places: each stretch's place by its start (see loadParkedPlaces), when known.
+export function ParkedDrain({
+  parked,
+  parkedNow,
+  frame,
+  places = {},
+}: {
+  parked: ParkedPeriod[];
+  parkedNow: ParkedNow | null;
+  frame: Timeframe;
+  places?: Readonly<Record<number, SpotName>>;
+}) {
   if (parked.length === 0 && !parkedNow) return null;
   const { span } = frame;
   const finished = overlapping(parked, span, (p) => p.start, (p) => p.end);
@@ -55,7 +68,7 @@ export function ParkedDrain({ parked, parkedNow, frame }: { parked: ParkedPeriod
   ];
 
   // The phone blocks and the table share one set of texts, drawn in the browser (see ParkedRows).
-  const texts = rows.map(cells);
+  const texts = rows.map((r) => cells(r, places[r.start]?.name?.text ?? null));
 
   // The median of finished stretches in the span once there are two; until then the one going on now, if
   // it's long enough to say anything per day.

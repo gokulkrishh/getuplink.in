@@ -14,6 +14,11 @@ import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type DriveDetail, loadDriveDetail } from "@/lib/server/drive-detail";
 import { placeKey, placeNames } from "@/lib/server/place-names";
+import { loadUserPlaces } from "@/lib/server/user-places";
+import { NamePlace } from "@/components/name-place";
+import { needsName, type SpotName, spotName } from "@/lib/charge-names";
+import { stationAt } from "@/lib/stations";
+import type { UserPlace } from "@/lib/user-places";
 import { Measure } from "@/components/measure";
 
 export const metadata: Metadata = { title: "Trip · Uplink" };
@@ -192,12 +197,21 @@ function mapPins(pins: MapPin[], legs: DriveDetail["trip"]["legs"]): MapPin[] {
   });
 }
 
-// The trip's facts under its map, from the tiles above, with where it began and ended when known.
-function mapFacts(from: string | null, to: string | null, tiles: { label: string; value: string }[]): MapFact[] {
+// The trip's facts under its map, from the tiles above, with where it began and ended when known. They sit
+// on the map's card, so each end shows the name a map may show (SpotName.map), with "Name this place" or a
+// rename beside it.
+function endFact(label: string, end: SpotName | null): MapFact | null {
+  if (!end) return null;
+  const action = needsName(end.name) ? <NamePlace target={end.target} /> : end.target.tag ? <NamePlace target={end.target} compact /> : undefined;
+  if (!end.map && !action) return null;
+  return { label, value: end.map ?? "Unknown", extra: action };
+}
+
+function mapFacts(from: SpotName | null, to: SpotName | null, tiles: { label: string; value: string }[]): MapFact[] {
   const tile = (label: string) => tiles.find((t) => t.label === label)?.value;
   const facts: (MapFact | null)[] = [
-    from ? { label: "From", value: from } : null,
-    to ? { label: "To", value: to } : null,
+    endFact("From", from),
+    endFact("To", to),
     { label: "Distance", value: tile("Distance") ?? "" },
     { label: "Took", value: tile("Took") ?? "" },
     tile("Battery") ? { label: "Battery", value: tile("Battery")! } : null,
@@ -205,12 +219,26 @@ function mapFacts(from: string | null, to: string | null, tiles: { label: string
   return facts.filter((f): f is MapFact => f !== null && f.value !== "");
 }
 
-// Names for the start and end, from the names Uplink keeps for places (looked up once each, see
-// lib/server/place-names). Streams in after the map, so a slow lookup never holds the page.
+// The owner's names for places, in the same private cache as the page's data.
+async function loadTags(): Promise<UserPlace[]> {
+  "use cache: private";
+  cacheTag(OWNER_DATA_TAG);
+  cacheLife({ stale: 60 });
+  const owner = await currentOwner();
+  if (!owner) redirect(SIGNED_OUT_PATH);
+  return loadUserPlaces(owner);
+}
+
+// Names for the start and end, best source first (see spotName): the owner's tag, a charging station, then
+// the area name Uplink keeps (looked up once each, see lib/server/place-names). Streams in after the map, so
+// a slow lookup never holds the page.
 async function NamedFacts({ pins, tiles }: { pins: MapPin[]; tiles: { label: string; value: string }[] }) {
   const ends = [pins.find((p) => p.kind === "start"), pins.findLast((p) => p.kind === "end")];
-  const names = await placeNames(ends.filter((p): p is MapPin => p !== undefined)).catch(() => new Map<string, string>());
-  const name = (p: MapPin | undefined) => (p ? (names.get(placeKey(p)) ?? null) : null);
+  const [names, tags] = await Promise.all([
+    placeNames(ends.filter((p): p is MapPin => p !== undefined)).catch(() => new Map<string, string>()),
+    loadTags(),
+  ]);
+  const name = (p: MapPin | undefined) => (p ? spotName(tags, p, { station: stationAt(p.lat, p.lng), place: names.get(placeKey(p)) }) : null);
   return <MapFacts facts={mapFacts(name(ends[0]), name(ends[1]), tiles)} />;
 }
 
