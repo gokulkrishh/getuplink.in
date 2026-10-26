@@ -154,9 +154,9 @@ export function budgetLevel(spentUsd: number, budgetUsd: number): BudgetLevel {
 const HOUR = 3_600_000;
 
 // How long after a check the next one is due, at each level. Stopped has none.
-export const CHECK_EVERY_MS: Record<Exclude<BudgetLevel, "stopped">, number> = { normal: 6 * HOUR, slow: 12 * HOUR };
+export const CHECK_EVERY_MS: Record<Exclude<BudgetLevel, "stopped">, number> = { normal: 12 * HOUR, slow: 24 * HOUR };
 
-// How often checks run at this level, as words: "Every 6 hours", or "Paused until 1 Nov".
+// How often checks run at this level, as words: "Every 12 hours", or "Paused until 1 Nov".
 export function checkCadence(level: BudgetLevel, resetsAt: string | number | Date): string {
   if (level === "stopped") return `Paused until ${formatShortDate(resetsAt)}`;
   return `Every ${CHECK_EVERY_MS[level] / HOUR} hours`;

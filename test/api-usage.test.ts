@@ -273,22 +273,22 @@ describe("the cron's batches", () => {
     expect(fleetCalls).toEqual([]);
   });
 
-  test("a check makes the user due again in 6 hours, or 12 near the budget", async () => {
+  test("a check makes the user due again in 12 hours, or 24 near the budget", async () => {
     expect((await checkDue(() => NOW)).users).toBe(1);
-    expect(claims[0]).toMatchObject({ fn: "claim_scheduled_check", p_now: at(0), p_next_at: at(6 * HOUR), p_lock_until: at(2 * 60_000) });
+    expect(claims[0]).toMatchObject({ fn: "claim_scheduled_check", p_now: at(0), p_next_at: at(12 * HOUR), p_lock_until: at(2 * 60_000) });
     claims = [];
     usageRows = [{ user_id: 1, kind: "vehicle_data", count: 4200 }]; // $8.40 of $10
     expect((await checkDue(() => NOW)).users).toBe(1);
-    expect(claims[0]).toMatchObject({ p_next_at: at(12 * HOUR) });
+    expect(claims[0]).toMatchObject({ p_next_at: at(24 * HOUR) });
   });
 
-  test("before the migration, a run checks only once the last check is 6 hours old", async () => {
+  test("before the migration, a run checks only once the last check is 12 hours old", async () => {
     missing.add("schedule");
     missing.add("api_usage");
     lastRun = new Date(NOW - HOUR).toISOString();
     expect(await checkDue(() => NOW)).toMatchObject({ skipped: "not due" });
     expect(fleetCalls).toEqual([]);
-    lastRun = new Date(NOW - 6 * HOUR - 1).toISOString();
+    lastRun = new Date(NOW - 12 * HOUR - 1).toISOString();
     expect((await checkDue(() => NOW)).users).toBe(1);
     expect(fleetCalls.some((c) => c.path === "/api/1/vehicles")).toBe(true);
   });

@@ -145,8 +145,8 @@ describe("the budget", () => {
     expect(budgetLevel(4, 50)).toBe("normal");
   });
 
-  test("normal checks every 6 hours, slow every 12", () => {
-    expect(CHECK_EVERY_MS.normal).toBe(6 * 3_600_000);
-    expect(CHECK_EVERY_MS.slow).toBe(12 * 3_600_000);
+  test("normal checks every 12 hours, slow every 24", () => {
+    expect(CHECK_EVERY_MS.normal).toBe(12 * 3_600_000);
+    expect(CHECK_EVERY_MS.slow).toBe(24 * 3_600_000);
   });
 });
