@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
       carLastOnlineAt: checks.carLastOnlineAt,
       synced: checks.synced,
       expiresAt: checks.expiresAt,
+      teslaFetchedAt: checks.teslaFetchedAt,
     }),
   );
 }

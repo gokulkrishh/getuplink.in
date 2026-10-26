@@ -12,7 +12,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { formatShortDate } from "@/lib/format";
+import { DECIMALS, formatNumber, formatShortDate } from "@/lib/format";
 import { compareVersions } from "@/lib/rollout";
 import { type Adoption, ADOPTION_SLOTS, type AdoptionGrain, share } from "@/lib/rollout-adoption";
 
@@ -44,7 +44,7 @@ export function RolloutAdoption({ adoption }: { adoption: Record<AdoptionGrain, 
     key: slot.key,
     label: slot.label,
     value: share(on[k] ?? 0, slot.of),
-    display: String(share(on[k] ?? 0, slot.of)),
+    display: formatNumber(share(on[k] ?? 0, slot.of), DECIMALS.percent),
     isCurrent: k === slots.length - 1,
     // Nothing known yet: the bar stays blank, with no tip.
     blank: slot.of === 0,
@@ -88,7 +88,7 @@ export function RolloutAdoption({ adoption }: { adoption: Record<AdoptionGrain, 
       }
       empty={bars.some((b) => b.value > 0) ? undefined : `No cars ran ${version} in these ${words}`}
     >
-      <Bars bars={bars} ariaLabel={`Share of cars on ${version}, ${spanWords}`} labelEvery={labelEvery} unit="%" fit />
+      <Bars bars={bars} ariaLabel={`Share of cars on ${version}, ${spanWords}`} labelEvery={labelEvery} unit="%" valueWords="of cars" fit />
     </ChartCard>
   );
 }

@@ -4,7 +4,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { Line, LineChart, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import type { CurvePoint } from "@/lib/charge-curve";
-import { formatClock, formatKw } from "@/lib/format";
+import { formatClock, formatKw, formatLevels, formatPercent } from "@/lib/format";
 import { Measure } from "@/components/measure";
 
 const config = {
@@ -34,7 +34,7 @@ export default function ChargeCurvePlot({ points }: { points: CurvePoint[] }) {
   const levels = points.flatMap((p) => (p.level === null ? [] : [p.level]));
   const first = points[0];
   const last = points[points.length - 1];
-  const levelText = levels.length ? `, battery ${Math.round(levels[0])}% to ${Math.round(levels[levels.length - 1])}%` : "";
+  const levelText = levels.length ? `, battery ${formatLevels(levels[0], levels[levels.length - 1])}` : "";
 
   return (
     <div className="relative bg-muted dark:bg-card px-3 pt-6 pb-2">
@@ -90,7 +90,7 @@ export default function ChargeCurvePlot({ points }: { points: CurvePoint[] }) {
                       )}
                       {point.level !== null && (
                         <span className="ml-2 font-mono tabular-nums">
-                          <Measure text={`${Math.round(point.level)}%`} />
+                          <Measure text={formatPercent(point.level)} />
                         </span>
                       )}
                       <span className="ml-2 text-muted-foreground">{formatClock(point.t)}</span>

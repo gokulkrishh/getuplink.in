@@ -3,7 +3,7 @@
 import { ChartCard } from "@/components/chart-card";
 import { Figures } from "@/components/stats/figures";
 import { LineChart } from "@/components/stats/line-chart";
-import { formatCelsius, formatClock, formatKm, formatKwh, formatShortDate } from "@/lib/format";
+import { formatCelsius, formatClock, formatKm, formatKwh, formatNumber, formatShortDate } from "@/lib/format";
 import { backTo, weeksIn, within } from "@/lib/kept";
 import type { Timeframe } from "@/lib/periods";
 import type { BatteryExtras, Point } from "@/lib/server/battery-extra";
@@ -13,7 +13,6 @@ const DAY = 24 * HOUR;
 // Readings further apart than this break the line: the car was asleep or out of reach, not reading.
 const GAP = 3 * HOUR;
 const when = (t: number) => `${formatShortDate(t)}, ${formatClock(t)}`;
-const number = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 const inFrame = (points: Point[], frame: Timeframe) => within(points, frame.span, (p) => p.x);
 // The first reading held across the series, for the note on how far back they go.
 const firstOf = (series: Point[][]) => {
@@ -84,7 +83,7 @@ export function CellBalance({ spread, frame }: { spread: BatteryExtras["cellSpre
   const now = spread.at(-1)!;
   const shown = inFrame(spread, frame);
   const widest = shown.length > 0 ? shown.reduce((a, p) => (p.y > a.y ? p : a)) : null;
-  const mv = (y: number) => `${number.format(y)} mV`;
+  const mv = (y: number) => `${formatNumber(y, 0)} mV`;
   const cut = backTo(frame.span, spread[0].x, "Readings");
   return (
     <ChartCard

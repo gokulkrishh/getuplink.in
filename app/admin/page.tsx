@@ -3,8 +3,9 @@ import Link from "next/link";
 import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { Header } from "@/components/header";
-import { formatDateTime } from "@/lib/format";
-import { type AdminPage, isAdmin, loadAdmin, RECENT_DAYS, USAGE_DAYS } from "@/lib/server/admin";
+import { formatCount, formatDateTime, formatUsd } from "@/lib/format";
+import { type BudgetLevel, type Kind, KIND_NAMES } from "@/lib/tesla-billing";
+import { type AdminPage, isAdmin, loadAdmin, RECENT_DAYS } from "@/lib/server/admin";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { Measure } from "@/components/measure";
@@ -18,6 +19,7 @@ export const instant = false;
 
 const heading = "text-lg font-medium tracking-heading";
 const number = new Intl.NumberFormat("en-IN");
+const CHECKS: Record<BudgetLevel, string> = { normal: "every 6 hours", slow: "every 12 hours", stopped: "paused until the 1st" };
 
 async function loadAdminPage(): Promise<{ data: AdminPage; now: number }> {
   "use cache: private";
@@ -65,6 +67,12 @@ export default async function Page() {
             <Link href="/admin/waitlist" prefetch={true} className="underline decoration-border underline-offset-4 hover:decoration-foreground">
               Waitlist
             </Link>
+            <span aria-hidden className="mx-1.5 text-faint">
+              ·
+            </span>
+            <Link href="/admin/costs" prefetch={true} className="underline decoration-border underline-offset-4 hover:decoration-foreground">
+              Costs
+            </Link>
           </p>
         </header>
 
@@ -104,21 +112,26 @@ export default async function Page() {
           ))}
         </Group>
 
-        {api.kind === "simulated" ? (
-          <Group title={`Tesla API, last ${USAGE_DAYS} days`} note="Simulated for the demo.">
-            <Item label="Requests" value={number.format(api.requests)} />
-            <Item label="Cost" value={`$${api.costUsd.toFixed(2)}`} />
-          </Group>
-        ) : (
-          <Group
-            title={`Tesla API, last ${USAGE_DAYS} days`}
-            note="Requests aren't counted yet. Each check makes a few, so checks run is a lower bound."
-          >
-            <Item label="Requests" value="Not tracked yet" muted />
-            <Item label="Cost" value="Not tracked yet" muted />
-            <Item label="Checks run, a lower bound" value={number.format(api.checks)} />
-          </Group>
-        )}
+        <Group
+          title="Tesla API this month"
+          note={
+            api.counted
+              ? `Uplink's own count, at Tesla's prices; Tesla's billing page is the source of truth. Checks: ${CHECKS[api.budget.level]}, budget ${formatUsd(api.budget.budgetUsd)}.`
+              : "Not counted yet: the api_usage migration isn't applied."
+          }
+        >
+          {api.counted ? (
+            <>
+              <Item label="Estimated cost" value={formatUsd(api.usage.costUsd)} />
+              {api.kinds.map((k) => (
+                <Item key={k.kind} label={KIND_NAMES[k.kind as Kind] ?? k.kind} value={`${formatCount(k.count)} ${k.count === 1 ? "request" : "requests"}`} />
+              ))}
+              <Item label="Streamed signals" value={formatCount(api.signals)} />
+            </>
+          ) : (
+            <Item label="Requests" value="Not counted yet" muted />
+          )}
+        </Group>
 
         <p className="text-xs text-faint">As of {formatDateTime(now)}</p>
       </div>

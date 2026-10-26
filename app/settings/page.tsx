@@ -8,7 +8,7 @@ import { ThemePicker } from "@/components/theme-picker";
 import { buttonVariants } from "@/components/ui/button";
 import { DEMO, DEMO_URL } from "@/lib/demo";
 import { STATES } from "@/lib/india-states";
-import { formatAgo, formatDate, formatSeen } from "@/lib/format";
+import { formatAgo, formatDate, formatSeen, formatShortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { lastCheckAt, OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -16,6 +16,9 @@ import { ownHomeState, type OwnHomeState } from "@/lib/server/home-state";
 import { lastReadingAt } from "@/lib/server/telemetry";
 import { accountInfo, type AccountInfo } from "@/lib/server/tesla";
 import { connectorTokenStatus, type ConnectorTokenStatus } from "@/lib/server/connector-token";
+import { ownerIsAdmin } from "@/lib/server/admin";
+import { loadUsage, type UsageView } from "@/lib/server/usage";
+import { ApiUsage, checkCadence } from "./api-usage";
 import { DeleteAccount, DeleteMyData, DisconnectTesla, SignOutEverywhere } from "./confirm-actions";
 import { BotTemplate, McpConnector } from "./integrations";
 import { Row } from "./row";
@@ -39,6 +42,7 @@ async function loadSettings(): Promise<{
   lastReading: string | null;
   home: OwnHomeState;
   connector: ConnectorTokenStatus;
+  usage: UsageView;
   now: number;
 }> {
   "use cache: private";
@@ -46,7 +50,7 @@ async function loadSettings(): Promise<{
   cacheLife({ stale: 60 });
   const owner = await currentOwner();
   if (!owner) redirect(SIGNED_OUT_PATH);
-  const [account, lastCheck, lastReading, home, connector] = await Promise.all([
+  const [account, lastCheck, lastReading, home, connector, usage] = await Promise.all([
     accountInfo(owner),
     lastCheckAt(owner),
     lastReadingAt(owner),
@@ -57,13 +61,22 @@ async function loadSettings(): Promise<{
     }),
     // Never fails the page either: shown as not set up.
     connectorTokenStatus(owner).catch(() => null),
+    // Never fails the page: loadUsage reads as "not counted yet" when it can't read the counts.
+    ownerIsAdmin(owner)
+      .catch(() => false)
+      .then((admin) => loadUsage(owner, admin)),
   ]);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
-  return { account, lastCheck, lastReading, home, connector, now: Date.now() };
+  return { account, lastCheck, lastReading, home, connector, usage, now: Date.now() };
 }
 
 async function Settings() {
-  const { account, lastCheck, lastReading, home, connector, now } = await loadSettings();
+  const { account, lastCheck, lastReading, home, connector, usage, now } = await loadSettings();
+  // Past the Tesla budget checks slow down, then pause until the month resets (lib/server/poll.ts).
+  const cadence =
+    usage.budget.level === "stopped"
+      ? `Full checks paused until ${formatShortDate(usage.resetsAt)}`
+      : `Full check ${checkCadence(usage).toLowerCase()}`;
   const connectedDescription = account.connectedSince ? `Connected since ${formatDate(account.connectedSince)}` : "Connected";
 
   return (
@@ -76,7 +89,7 @@ async function Settings() {
             <>
               <p>Your car sends updates while it&apos;s awake. Uplink never wakes it.</p>
               <p className="text-faint">
-                {lastCheck ? `Full check every 6 hours, last at ${formatSeen(lastCheck, now)}` : "Full check every 6 hours"}
+                {lastCheck ? `${cadence}, last at ${formatSeen(lastCheck, now)}` : cadence}
               </p>
             </>
           }
@@ -84,6 +97,10 @@ async function Settings() {
         />
         <HomeState home={home} />
       </Group>
+
+      <div className="mt-10">
+        <ApiUsage usage={usage} />
+      </div>
 
       {!DEMO && (
         <Group title="Demo">

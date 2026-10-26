@@ -52,3 +52,44 @@ export function useAxisLabels(box: RefObject<HTMLElement | null>, minStride = 1)
     return () => observer.disconnect();
   });
 }
+
+const MODES = ["full", "bare", "none"] as const;
+const VALUE_GAP = 3; // px kept between two values above bars
+
+// Picks how a bar chart's values above its bars show (see ValueLabel), measured in the browser: with their
+// unit ("46.2 km") when no two touch and none runs past the chart, else bare numbers ("46.2"), else none,
+// leaving the value to the tip. One choice for the whole chart, so every value reads alike. Runs again
+// when the chart resizes, so a desktop can show units a phone has no room for.
+export function useValueLabels(box: RefObject<HTMLElement | null>) {
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const layout = () => {
+      const labels = [...el.querySelectorAll<HTMLElement>("[data-value-label]")];
+      const { left: start, right: end, width } = el.getBoundingClientRect();
+      if (labels.length === 0 || width === 0) return;
+      const apply = (mode: (typeof MODES)[number]) =>
+        labels.forEach((label) => {
+          const bare = label.querySelector<HTMLElement>('[data-value="bare"]');
+          const full = label.querySelector<HTMLElement>('[data-value="full"]')!;
+          full.classList.toggle("hidden", mode === "bare" && bare !== null);
+          bare?.classList.toggle("hidden", mode !== "bare");
+          label.classList.toggle("invisible", mode === "none");
+        });
+      for (const mode of MODES) {
+        apply(mode);
+        if (mode === "none") break;
+        const boxes = labels.map((label) => label.getBoundingClientRect());
+        const fits = boxes.every((b, k) => b.left >= start - 1 && b.right <= end + 1 && (k === 0 || boxes[k - 1].right + VALUE_GAP <= b.left));
+        if (fits) break;
+      }
+      // Bare numbers get their unit once, at the start of the value row in the y gutter ("km 17.0 15.7 …").
+      const unit = el.closest(".chart-touch")?.querySelector<HTMLElement>("[data-value-unit]");
+      unit?.classList.toggle("hidden", !labels[0].querySelector('[data-value="bare"]:not(.hidden)'));
+    };
+    layout();
+    const observer = new ResizeObserver(layout);
+    observer.observe(el);
+    return () => observer.disconnect();
+  });
+}

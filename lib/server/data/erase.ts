@@ -1,6 +1,7 @@
 import "server-only";
 import { ownedRows } from "./owned";
 import { type Owner, ownerDb, type OwnerTable } from "./owner";
+import { foldSignalDays, forgetAnswers, MissingSchema } from "./usage";
 
 // Postgres 42P01 / PostgREST PGRST205: a table whose migration never ran, so there is nothing to delete.
 const MISSING_TABLE = ["42P01", "PGRST205"];
@@ -47,4 +48,14 @@ export async function eraseOwnerRows(owner: Owner): Promise<void> {
   await deleteRest(owner, "poll_runs");
   // The owner's names for places; optional, since the table may not exist yet.
   await deleteRest(owner, "user_places", true);
+  // The streamed-signal counts keep their numbers but lose the VINs. After the readings, so the daily
+  // recount can't bring them back. Best effort: a count is never worth failing a deletion.
+  const vins = keys.vins.filter((v): v is string => typeof v === "string" && v !== "");
+  await foldSignalDays(vins).catch((err: Error) => {
+    if (!(err instanceof MissingSchema)) console.warn("Clearing the signal counts' VINs failed:", err.message);
+  });
+  // The health check's stored Tesla answers about these cars.
+  await forgetAnswers(owner).catch((err: Error) => {
+    if (!(err instanceof MissingSchema)) console.warn("Clearing stored Tesla answers failed:", err.message);
+  });
 }

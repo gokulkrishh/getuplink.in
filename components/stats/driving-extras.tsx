@@ -38,10 +38,11 @@ export function SpeedBands({ bins, words = "last 30 days", note }: { bins: Drivi
   const shares = bins.map((b) => b.share * 100);
   const bars = bins.map((b, k) => ({
     key: String(b.from),
-    // The tip names the band; the axis gives where it starts ("20"), like a histogram's, so all six fit
-    // under their bars on a phone.
+    // The tip names the whole band ("40 to 60 km/h"); the axis marks the band edges under ticks, like a
+    // histogram's ("0", "20" … "100+", titled km/h), so the first bar reads as 0 to 20 and all fit on a phone.
     label: b.to === null ? `${b.from}+ km/h` : `${b.from} to ${b.to} km/h`,
     axis: b.to === null ? `${b.from}+` : String(b.from),
+    edge: true,
     value: shares[k],
     display: formatNumber(shares[k], DECIMALS.percent),
     isCurrent: b.share === Math.max(...bins.map((x) => x.share)) && k >= 0,
@@ -50,11 +51,11 @@ export function SpeedBands({ bins, words = "last 30 days", note }: { bins: Drivi
     <ChartCard
       title="Time at each speed"
       description="Share of driving time at each speed."
-      info="Each bar is a 20 km/h band, labelled by the speed it starts at. The band you drive in most is highlighted."
+      info="Each bar is a 20 km/h band. The band you drive in most is highlighted."
       summary={<Note note={note} />}
       caption={upper(words)}
     >
-      <Bars bars={bars} ariaLabel="Share of driving time by speed in km/h" unit="%" fit />
+      <Bars bars={bars} ariaLabel="Share of driving time by speed in km/h" unit="%" xUnit="km/h" valueWords="of driving time" fit />
     </ChartCard>
   );
 }

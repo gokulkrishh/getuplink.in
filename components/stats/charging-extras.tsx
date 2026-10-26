@@ -38,7 +38,7 @@ export function DcCurves({ curves, frame, note }: { curves: (Curve & { serial?: 
         description="Charging power by battery level. It drops as the battery fills."
         unit="kW"
         terms={["kWh", "DC"]}
-        info={`Power up the side, battery level along the bottom. Each point is the middle value in a ${BAND}% step of battery level.`}
+        info={`Each point is the middle value in a ${BAND}% step of battery level.`}
         caption={curves.length > 0 ? `${frame.title}, ${curves.length} DC ${curves.length === 1 ? "charge" : "charges"}` : undefined}
         empty={curves.length === 0 ? `No DC charging curves ${frame.words}` : undefined}
       >

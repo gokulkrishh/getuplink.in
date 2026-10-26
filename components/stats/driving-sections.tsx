@@ -5,7 +5,7 @@ import { barsSpan } from "@/components/stats/chart-caption";
 import { Figures, Value } from "@/components/stats/figures";
 import { type DriveStats } from "@/lib/drive-stats";
 import { DRIVE_DAYS } from "@/lib/drives";
-import { DECIMALS, formatDuration, formatKm, formatKwh, formatNumber, formatShortDate, sumKnown } from "@/lib/format";
+import { DECIMALS, formatDuration, formatKm, formatKwh, formatNumber, formatShortDate, showsZero, sumKnown } from "@/lib/format";
 import type { Frame } from "@/lib/frames";
 import { inSpan, type Slot, type Timeframe } from "@/lib/periods";
 import type { DayKm } from "@/lib/telemetry-derive";
@@ -70,7 +70,8 @@ export function knownBars(
 }
 
 // Whether a bar chart has anything to draw; without, its card shows a note in the chart's place.
-export const hasBars = (bars: Bar[]) => bars.some((b) => b.value > 0);
+// A bar that shows as 0.0 draws nothing (see showsZero), so it doesn't count.
+export const hasBars = (bars: Bar[]) => bars.some((b) => b.value > 0 && !showsZero(b.display));
 
 // Energy used driving in the period and each bar, in kWh: from the streamed lifetime energy counter, or
 // from the drives where the counter has no reading from before the span (see withDriveEfficiency). Then
