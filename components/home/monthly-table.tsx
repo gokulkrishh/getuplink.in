@@ -39,13 +39,13 @@ export function MonthlyTable({ rows, empty }: { rows: MonthRow[]; empty?: string
                   <th scope="row" className="py-3 pr-4 text-left font-normal whitespace-nowrap">
                     {formatMonth(monthStart(r.month))}
                   </th>
-                  <td className="py-3 pr-4 text-right font-mono">{r.km > 0 ? <Measure text={formatKm(r.km)} /> : <span className="font-sans">None</span>}</td>
-                  <td className="py-3 pr-4 text-right whitespace-nowrap">{r.drivingMs ? formatDuration(r.drivingMs / 1000) : "None"}</td>
+                  <td className="py-3 pr-4 text-right font-mono">{r.km > 0 ? <Measure text={formatKm(r.km)} /> : <span className="font-sans">—</span>}</td>
+                  <td className="py-3 pr-4 text-right whitespace-nowrap">{r.drivingMs ? formatDuration(r.drivingMs / 1000) : "—"}</td>
                   <td className="py-3 pr-4 text-right font-mono">{r.kwhUsed !== null ? <Measure text={formatKwh(r.kwhUsed)} /> : "Unknown"}</td>
-                  <td className="py-3 pr-4 text-right font-mono">{r.charges > 0 ? r.charges : <span className="font-sans">None</span>}</td>
-                  <td className="py-3 pr-4 text-right font-mono">{r.charges > 0 ? <Measure text={formatKwh(r.kwhAdded)} /> : <span className="font-sans">None</span>}</td>
+                  <td className="py-3 pr-4 text-right font-mono">{r.charges > 0 ? r.charges : <span className="font-sans">—</span>}</td>
+                  <td className="py-3 pr-4 text-right font-mono">{r.charges > 0 ? <Measure text={formatKwh(r.kwhAdded)} /> : <span className="font-sans">—</span>}</td>
                   <td className="py-3 text-right">
-                    {r.charges > 0 ? <span className="font-mono">{money.format(r.spend)}</span> : "None"}
+                    {r.charges > 0 ? <span className="font-mono">{money.format(r.spend)}</span> : "—"}
                     {r.unbilled > 0 && <span className="block text-xs text-muted-foreground">{r.unbilled} without a bill</span>}
                   </td>
                 </tr>

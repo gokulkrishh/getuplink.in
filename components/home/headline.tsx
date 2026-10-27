@@ -6,7 +6,7 @@ import { type Bill, billsBySlot, billsIn, energyBySlot, energyIn } from "@/lib/c
 import { type Change, changeToPrevious, compareToPrevious } from "@/lib/dashboard-summary";
 import type { DrivingPeriod } from "@/lib/driving-figures";
 import { DECIMALS, formatDate, formatKm, formatKwh, formatMoney, formatNumber, formatShortDate, showsZero, sumKnown } from "@/lib/format";
-import { fromTracking, noneWords, type Slot, type Timeframe, trackingGap } from "@/lib/periods";
+import { fromTracking, type Slot, type Timeframe, trackingGap } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { type Spark, Sparkline } from "./sparkline";
@@ -201,7 +201,7 @@ export function Headline({
   const number = (decimals: number) => (n: number | null) => (n === null ? "" : formatNumber(n, decimals));
   // A cell with no figure says one thing: the counters couldn't be read (a range picked by date), or there
   // was none in the period, as the figure would show it ("0.0 km" is none; see showsZero).
-  const emptyWords = (n: number | null, decimals: number) => (n === null ? "Couldn't read" : showsZero(formatNumber(n, decimals)) ? noneWords(frame) : null);
+  const emptyWords = (n: number | null, decimals: number) => (n === null ? "Couldn't read" : showsZero(formatNumber(n, decimals)) ? "—" : null);
 
   return (
     <div className="space-y-3">

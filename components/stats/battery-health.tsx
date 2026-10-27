@@ -78,7 +78,7 @@ export function BatteryHealth({
   // kind has ever been measured.
   const ever = sessions.filter((s) => s.ended_at !== null && s.energy_added_kwh !== null);
   const none = `No finished charges ${frame.words}`;
-  figures.push({ label: "Energy charged", value: added > 0 ? formatKwh(added) : "None", note: added > 0 ? `${finished.length} ${finished.length === 1 ? "charge" : "charges"} ${frame.words}` : none });
+  figures.push({ label: "Energy charged", value: added > 0 ? formatKwh(added) : "—", note: added > 0 ? `${finished.length} ${finished.length === 1 ? "charge" : "charges"} ${frame.words}` : none });
   if (latestKwh) figures.push({ label: "Charge cycles", value: (added / latestKwh).toFixed(1), note: words });
   if (chargeEfficiency(ever.filter((s) => s.kind === "ac")) !== null) figures.push({ label: "AC efficiency", value: ac !== null ? percent(ac) : "—", note: ac !== null ? efficiency : `No AC charge to measure ${frame.words}` });
   if (chargeEfficiency(ever.filter((s) => s.kind === "dc")) !== null) figures.push({ label: "DC efficiency", value: dc !== null ? percent(dc) : "—", note: dc !== null ? efficiency : `No DC charge to measure ${frame.words}` });

@@ -67,14 +67,14 @@ function DayView({ detail, now }: { detail: DayDetail; now: number }) {
   const used = trips.every((t) => t.kwh !== null) ? sumKnown(trips.map((t) => t.kwh)) : null;
   const charged = chargeTotals(detail.charges.map((c) => ({ kwh: c.session.energy_added_kwh, cost: c.cost })));
   // Spent is the same bills total as Stats > Charging; charges without a bill are noted under it.
-  // A day without driving or charging says "None", not "0 km" or "₹0", which reads like a measured zero.
+  // A day without driving or charging shows a dash, not "0 km" or "₹0", which reads like a measured zero.
   const drove = trips.length > 0;
   const plugged = detail.charges.length > 0;
   const tiles: Figure[] = [
-    { label: "Driven", value: drove ? formatKm(km) : "None" },
-    { label: "Energy used", value: !drove ? "None" : used !== null ? formatKwh(used) : "Unknown" },
-    { label: "Charged", value: !plugged ? "None" : charged.kwh !== null ? formatKwh(charged.kwh) : "Unknown" },
-    { label: "Spent", value: !plugged ? "None" : formatMoney(detail.spent, "INR"), note: charged.unbilled > 0 ? `${charged.unbilled} without a bill` : undefined },
+    { label: "Driven", value: drove ? formatKm(km) : "—" },
+    { label: "Energy used", value: !drove ? "—" : used !== null ? formatKwh(used) : "Unknown" },
+    { label: "Charged", value: !plugged ? "—" : charged.kwh !== null ? formatKwh(charged.kwh) : "Unknown" },
+    { label: "Spent", value: !plugged ? "—" : formatMoney(detail.spent, "INR"), note: charged.unbilled > 0 ? `${charged.unbilled} without a bill` : undefined },
   ];
   return (
     <>
