@@ -112,7 +112,11 @@ function handleLine(line: string) {
     badLines++;
     return;
   }
-  const vin = clean(typeof data.Vin === "string" && data.Vin ? data.Vin : typeof obj.vin === "string" ? obj.vin : "");
+  // The top-level vin is the one fleet-telemetry took from the car's client certificate, so it wins. A
+  // payload naming a different car is dropped, so one car can't write readings for another.
+  const certVin = clean(typeof obj.vin === "string" ? obj.vin : "");
+  const bodyVin = clean(typeof data.Vin === "string" ? data.Vin : "");
+  const vin = certVin ? (bodyVin && bodyVin !== certVin ? "" : certVin) : bodyVin;
   const createdAt = typeof data.CreatedAt === "string" ? data.CreatedAt : "";
   if (!vin || Number.isNaN(Date.parse(createdAt))) {
     badLines++;

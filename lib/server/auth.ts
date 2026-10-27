@@ -9,8 +9,8 @@ import { sessionUser } from "./tesla";
 export type { Owner } from "./data/owner";
 
 // proxy.ts only checks the cookie's signature (no database). Server code that shows or changes data also
-// checks the user it names is still approved and the session wasn't revoked by "Sign out everywhere" or
-// "Disconnect Tesla", and gets the account it is for: every per-user read and write takes that Owner.
+// checks the user it names is still approved and the session wasn't revoked by Sign out, "Sign out
+// everywhere" or "Disconnect Tesla", and gets the account it is for: every per-user read and write takes that Owner.
 export async function currentOwner(): Promise<Owner | null> {
   if (DEMO) return DEMO_OWNER;
   const cookie = (await cookies()).get(SESSION_COOKIE)?.value;
@@ -21,7 +21,7 @@ export async function currentOwner(): Promise<Owner | null> {
   // a hiccup signing everyone out.
   const user = await sessionUser(claims.userId);
   // A deleted account, or one no longer approved, has no valid session.
-  if (user?.status !== APPROVED) return null;
+  if (user?.status !== APPROVED || user.signed_out_sessions.includes(claims.issuedAt)) return null;
   const validAfter = new Date(user.sessions_valid_after).getTime();
   // -infinity (never revoked) reads as 0.
   return claims.issuedAt >= (Number.isFinite(validAfter) ? validAfter : 0) ? ownerOf(user) : null;

@@ -4,17 +4,17 @@ import { currentErrors } from "@/lib/stream-health";
 
 const at = (h: number) => new Date(Date.UTC(2026, 9, 26) + h * 3_600_000).toISOString();
 
-test("failed checks close together are one issue, with every reason found", () => {
+test("failed checks close together are one issue, and what they found never leaves the server", () => {
   const list = incidents([
-    { component: "Car data stream", status: "degraded", problems: ["A"], checked_at: at(0) },
-    { component: "Car data stream", status: "down", problems: ["B"], checked_at: at(1) },
-    { component: "Car data stream", status: "degraded", problems: ["A"], checked_at: at(10) },
-    { component: "Database", status: "down", problems: [], checked_at: at(1) },
+    { component: "Car data stream", status: "degraded", checked_at: at(0) },
+    { component: "Car data stream", status: "down", checked_at: at(1) },
+    { component: "Car data stream", status: "degraded", checked_at: at(10) },
+    { component: "Database", status: "down", checked_at: at(1) },
   ]);
-  expect(list.map((i) => [i.component, i.status, i.from, i.to, i.problems])).toEqual([
-    ["Car data stream", "degraded", at(10), at(10), ["A"]],
-    ["Database", "down", at(1), at(1), []],
-    ["Car data stream", "down", at(0), at(1), ["A", "B"]],
+  expect(list).toEqual([
+    { component: "Car data stream", status: "degraded", from: at(10), to: at(10) },
+    { component: "Database", status: "down", from: at(1), to: at(1) },
+    { component: "Car data stream", status: "down", from: at(0), to: at(1) },
   ]);
 });
 

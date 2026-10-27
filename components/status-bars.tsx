@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
-export type StatusBar = { day: string; label: string; words: string; className: string; problems: string[] };
+export type StatusBar = { day: string; label: string; words: string; className: string };
 
 // The status page's 90 day bars, with a tip for the day under the pointer, or the day tapped on a phone:
-// the date, how it went, and what the checks found that day. A tap outside the bars closes it.
+// the date and how it went. A tap outside the bars closes it.
 export function StatusBars({ bars, label }: { bars: StatusBar[]; label: string }) {
   const [active, setActive] = useState<number | null>(null);
   const bar = active === null ? null : bars[active];
@@ -20,7 +20,7 @@ export function StatusBars({ bars, label }: { bars: StatusBar[]; label: string }
             key={b.day}
             type="button"
             role="listitem"
-            aria-label={`${b.label}: ${b.words}${b.problems.length ? `. ${b.problems.join(". ")}` : ""}`}
+            aria-label={`${b.label}: ${b.words}`}
             onPointerEnter={(e) => e.pointerType === "mouse" && setActive(k)}
             onClick={() => setActive((a) => (a === k ? null : k))}
             onFocus={() => setActive(k)}
@@ -36,11 +36,6 @@ export function StatusBars({ bars, label }: { bars: StatusBar[]; label: string }
         >
           <p className="font-medium">{bar.label}</p>
           <p className="text-muted-foreground">{bar.words}</p>
-          {bar.problems.map((p) => (
-            <p key={p} className="mt-1 text-muted-foreground">
-              {p}
-            </p>
-          ))}
         </div>
       )}
     </div>

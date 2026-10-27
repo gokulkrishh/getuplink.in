@@ -482,6 +482,10 @@ export async function disconnectTesla(owner: Owner): Promise<void> {
     .from("user_tokens")
     .upsert({ access_token_enc: null, refresh_token_enc: null, expires_at: null, refreshing_until: null, updated_at: now }, { onConflict: "user_id" });
   if (error) throw new Error(`Disconnecting failed: ${error.message}`);
+  // The AI connector stops too: without Tesla access Uplink can't see a shared car leave the account, so an
+  // old connector could otherwise keep reading it.
+  const connector = await ownerDb(owner).from("connector_token").delete();
+  if (connector.error && connector.error.code !== "42P01") throw new Error(`Disconnecting failed: ${connector.error.message}`);
   await revokeUserSessions(owner, now).catch((err: Error) => {
     throw new Error(`Disconnecting failed: ${err.message}`);
   });

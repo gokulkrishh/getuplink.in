@@ -24,7 +24,18 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     const noindex = [{ key: "X-Robots-Tag", value: "noindex, nofollow, noarchive, nosnippet, noimageindex" }];
+    // On every page: no other site may frame Uplink, browsers don't guess file types, links to other sites
+    // carry only the origin, HTTPS always, and no camera or microphone, and location only for the map's own button.
+    const security = [
+      { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+      { key: "X-Frame-Options", value: "DENY" },
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
+      { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self), payment=(), usb=()" },
+    ];
     return [
+      { source: "/:path*", headers: security },
       ...["app.getuplink.in", "status.getuplink.in", "demo.getuplink.in"].map((host) => ({
         source: "/:path*",
         has: [{ type: "host" as const, value: host }],

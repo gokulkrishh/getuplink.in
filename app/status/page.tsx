@@ -32,21 +32,7 @@ const BAR: Record<Status | "none", string> = { ...DOT, none: "bg-muted" };
 
 const dayLabel = (day: string) => formatShortDate(`${day}T00:00:00+05:30`);
 
-// What the checks found on each IST day an issue touched, for that day's tip.
-function problemsByDay(list: Incident[]): Map<string, string[]> {
-  const out = new Map<string, string[]>();
-  for (const i of list) {
-    for (let t = Date.parse(i.from); t <= Date.parse(i.to) + 86_400_000; t += 86_400_000) {
-      const day = istDay(Math.min(t, Date.parse(i.to)));
-      const seen = out.get(day) ?? [];
-      out.set(day, [...new Set([...seen, ...i.problems])]);
-    }
-  }
-  return out;
-}
-
-function Component({ item, issues }: { item: ComponentStatus; issues: Incident[] }) {
-  const found = problemsByDay(issues);
+function Component({ item }: { item: ComponentStatus }) {
   return (
     <section>
       <div className="flex items-baseline justify-between gap-4">
@@ -63,7 +49,6 @@ function Component({ item, issues }: { item: ComponentStatus; issues: Incident[]
           label: dayLabel(bar.day),
           words: bar.status ? STATUS_WORD[bar.status] : "No checks",
           className: BAR[bar.status ?? "none"],
-          problems: bar.status && bar.status !== "operational" ? (found.get(bar.day) ?? []) : [],
         }))}
       />
       <div className="mt-2 flex justify-between text-xs text-faint">
@@ -81,8 +66,8 @@ function span(i: Incident): string {
   return i.from === i.to ? at(i.from) : `${at(i.from)} to ${istDay(Date.parse(i.from)) === istDay(Date.parse(i.to)) ? formatClock(i.to) : at(i.to)}`;
 }
 
-// The latest issues, newest first: which part, when and for how long, and what the checks found. Only checks
-// that recorded a reason are read (checks before 27 Oct didn't keep one), so each issue says why.
+// The latest issues, newest first: which part, and when and for how long. What the checks found is never shown
+// here: it can hold Tesla's error text, VINs included. Checks before 27 Oct kept no reason and aren't read.
 function PastIssues({ list }: { list: Incident[] }) {
   return (
     <section className="space-y-3">
@@ -102,9 +87,6 @@ function PastIssues({ list }: { list: Incident[] }) {
                 {span(i)}
                 {i.from !== i.to && ` · ${formatDuration((Date.parse(i.to) - Date.parse(i.from)) / 1000)}`}
               </p>
-              {i.problems.map((p) => (
-                <p key={p}>{p}</p>
-              ))}
             </li>
           ))}
         </ol>
@@ -123,7 +105,7 @@ async function Components() {
         {headline ? headline.text : "No checks yet"}
       </p>
       {components.map((item) => (
-        <Component key={item.name} item={item} issues={incidents.filter((i) => i.component === item.name)} />
+        <Component key={item.name} item={item} />
       ))}
       {checkedAt && <p className="text-sm text-muted-foreground">Last checked {formatDateTime(checkedAt)}</p>}
       <PastIssues list={incidents} />

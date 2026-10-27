@@ -23,10 +23,12 @@ export type UserRow = {
   tesla_sub: string;
   status: string;
   sessions_valid_after: string;
+  // Issued-at times (ms) of sessions signed out one at a time (Sign out).
+  signed_out_sessions: number[];
   created_at: string;
 };
 
-const USER_COLUMNS = "id, tesla_sub, status, sessions_valid_after, created_at";
+const USER_COLUMNS = "id, tesla_sub, status, sessions_valid_after, signed_out_sessions, created_at";
 
 export const ownerOf = (user: Pick<UserRow, "id" | "tesla_sub">): Owner => asOwner(Number(user.id), user.tesla_sub);
 
@@ -34,14 +36,30 @@ export const ownerOf = (user: Pick<UserRow, "id" | "tesla_sub">): Owner => asOwn
 export async function userById(id: number): Promise<UserRow | null> {
   const { data, error } = await db().from("users").select(USER_COLUMNS).eq("id", id).maybeSingle();
   if (error) throw new Error(`Reading account failed: ${error.message}`);
-  return data ? { ...(data as UserRow), id: Number(data.id) } : null;
+  return data ? userRow(data) : null;
 }
+
+// Postgres bigint arrives as a number or a string, depending on its size.
+const userRow = (data: Record<string, unknown>): UserRow => ({
+  ...(data as UserRow),
+  id: Number(data.id),
+  signed_out_sessions: ((data.signed_out_sessions as unknown[] | null) ?? []).map(Number),
+});
 
 // The user a Tesla sign-in is for, or null for a Tesla account Uplink doesn't know.
 export async function userBySub(sub: string): Promise<UserRow | null> {
   const { data, error } = await db().from("users").select(USER_COLUMNS).eq("tesla_sub", sub).maybeSingle();
   if (error) throw new Error(`Reading account failed: ${error.message}`);
-  return data ? { ...(data as UserRow), id: Number(data.id) } : null;
+  return data ? userRow(data) : null;
+}
+
+// Sign out: the one session issued at `issuedAt` stops working. Entries past a session's lifetime are
+// dropped, so the list stays short.
+export async function signOutSession(userId: number, issuedAt: number, keepAfter: number): Promise<void> {
+  const user = await userById(userId);
+  if (!user) return;
+  const kept = user.signed_out_sessions.filter((t) => t > keepAfter && t !== issuedAt);
+  check(await db().from("users").update({ signed_out_sessions: [...kept, issuedAt] }).eq("id", userId));
 }
 
 // "Sign out everywhere" and disconnect: the user's sessions issued before `at` stop working.
@@ -244,7 +262,8 @@ export async function accountCount(): Promise<number> {
   return count ?? 0;
 }
 
-// The MCP connector token with this hash and the approved user it belongs to, or null when there is none.
+// The MCP connector token with this hash and the approved user it belongs to, or null when there is none
+// or the account has no Tesla access.
 // The caller compares the hash again in constant time.
 export async function connectorTokenAccount(tokenHash: string): Promise<{ owner: Owner; tokenHash: string; usedAt: string | null } | null> {
   const { data, error } = await db().from("connector_token").select("user_id, token_hash, used_at").eq("token_hash", tokenHash).limit(1).maybeSingle();
@@ -255,6 +274,10 @@ export async function connectorTokenAccount(tokenHash: string): Promise<{ owner:
   if (!data) return null;
   const user = await userById(Number(data.user_id));
   if (user?.status !== APPROVED) return null;
+  // Only while the account has Tesla access: after a disconnect Uplink can't see a shared car leave the
+  // account, so the connector stops reading.
+  const tesla = await db().from("user_tokens").select("refresh_token_enc").eq("user_id", user.id).maybeSingle();
+  if (tesla.error || !tesla.data?.refresh_token_enc) return null;
   return { owner: ownerOf(user), tokenHash: data.token_hash as string, usedAt: (data.used_at as string | null) ?? null };
 }
 
@@ -545,10 +568,10 @@ export async function healthHistory(since: string, latest: number): Promise<{ da
 
 // The latest `limit` checks that weren't working and recorded why, newest first, for the status page's
 // latest issues. Bounded, so the page never reads the whole history.
-export type FailedCheck = { component: string; status: string; problems: string[] | null; checked_at: string };
+export type FailedCheck = { component: string; status: string; checked_at: string };
 export async function failedHealthChecks(since: string, limit: number): Promise<FailedCheck[]> {
   return check(
-    await db().from("health_checks").select("component, status, problems, checked_at").neq("status", "operational").neq("problems", "{}").gte("checked_at", since).order("checked_at", { ascending: false }).limit(limit),
+    await db().from("health_checks").select("component, status, checked_at").neq("status", "operational").neq("problems", "{}").gte("checked_at", since).order("checked_at", { ascending: false }).limit(limit),
   ) as FailedCheck[];
 }
 

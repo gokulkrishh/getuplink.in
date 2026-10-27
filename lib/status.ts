@@ -78,11 +78,11 @@ export function overallHeadline(current: (Status | null)[]): { status: Status; t
   return { status, text: HEADLINES[status] };
 }
 
-// A run of failed checks on one part, close enough together to be one issue, with the worst status and what
-// the checks found. Checks come every few minutes while anyone looks and at least every few hours from the
+// A run of failed checks on one part, close enough together to be one issue, with the worst status. What the
+// checks found stays private (the token-protected health route): the public page never reads it. Checks come every few minutes while anyone looks and at least every few hours from the
 // cron, so failures under INCIDENT_GAP_MS apart are one issue.
-export type Incident = { component: string; status: Status; from: string; to: string; problems: string[] };
-export type FailedRow = { component: string; status: string; problems: string[] | null; checked_at: string };
+export type Incident = { component: string; status: Status; from: string; to: string };
+export type FailedRow = { component: string; status: string; checked_at: string };
 const INCIDENT_GAP_MS = 3 * 3_600_000;
 
 // Newest first.
@@ -95,9 +95,8 @@ export function incidents(rows: FailedRow[]): Incident[] {
     if (last && Date.parse(r.checked_at) - Date.parse(last.to) <= INCIDENT_GAP_MS) {
       last.to = r.checked_at;
       last.status = worstStatus(last.status, r.status);
-      for (const p of r.problems ?? []) if (!last.problems.includes(p)) last.problems.push(p);
     } else {
-      const next = { component: r.component, status: r.status, from: r.checked_at, to: r.checked_at, problems: [...(r.problems ?? [])] };
+      const next = { component: r.component, status: r.status, from: r.checked_at, to: r.checked_at };
       open.set(r.component, next);
       out.push(next);
     }
