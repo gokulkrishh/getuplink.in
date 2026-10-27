@@ -1,4 +1,5 @@
 import { ScrollX } from "@/components/scroll-x";
+import { AiNotes } from "@/components/home/week-tips";
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import Link from "next/link";
@@ -103,7 +104,7 @@ function Drive({ detail, view, words, now }: { detail: DriveDetail; view: DriveV
             <h2 className="text-lg font-medium tracking-heading">How this {what} went</h2>
             {/* The figures from code; the AI adds only why, in one line, when it has written one. */}
             <Figures figures={wentTiles} />
-            {words.summary?.ai && <p className="text-sm text-muted-foreground">{line("summary")}</p>}
+            {words.summary?.ai && <AiNotes title="Summary" notes={[words.summary.text]} />}
           </section>
         )}
         {/* Every number in one set of tiles: easier to take in than a long list. */}

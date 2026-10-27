@@ -2,38 +2,35 @@
 
 import { ChevronRight, Sparkles } from "lucide-react";
 import { useState } from "react";
-import { InfoButton } from "@/components/info-button";
 
 // The box, the same while loading, so the page doesn't move when the tips arrive. Two lines of tip text
 // are held, so turning between a short and a long tip doesn't move it either.
 const BOX = "space-y-2 border px-4 py-3";
 
-// Home's AI tips on the week (lib/week-wording.ts), one at a time. The next button shows the next one; the
-// tips are written once a day, so turning them costs nothing.
-export function WeekTips({ tips }: { tips: string[] }) {
+// Text the AI wrote, in one box style wherever it stands alone: Home's tips on the week
+// (lib/week-wording.ts) and a drive's summary (lib/drive-wording.ts). Several notes show one at a time; the
+// next button turns them, and they were written ahead, so turning costs nothing.
+export function AiNotes({ title, notes: tips }: { title: string; notes: string[] }) {
   const [at, setAt] = useState(0);
   if (tips.length === 0) return null;
   const tip = tips[at % tips.length];
   return (
-    <section aria-label="Tips" className={BOX}>
+    <section aria-label={title} className={BOX}>
       <div className="flex h-6 items-center justify-between gap-3">
         <div className="flex items-center gap-1.5 text-sm font-medium">
-          <InfoButton
-            label="AI tips"
-            ariaLabel="Written by AI"
-            icon={<Sparkles className="size-3.5" aria-hidden="true" />}
-            className="size-5 text-muted-foreground"
-          >
-            Written by AI from this week&apos;s figures.
-          </InfoButton>
-          {/* Shimmers once as the tips arrive; turning to the next one doesn't replay it. */}
-          <span className="ai-shimmer">Tips</span>
+          {/* The AI mark. */}
+          <span className="flex size-5 items-center justify-center text-muted-foreground">
+            <Sparkles className="size-3.5" aria-hidden="true" />
+            <span className="sr-only">Written by AI</span>
+          </span>
+          {/* Shimmers once as the notes arrive; turning to the next one doesn't replay it. */}
+          <span className="ai-shimmer">{title}</span>
         </div>
         {tips.length > 1 && (
           <button
             type="button"
             onClick={() => setAt((k) => (k + 1) % tips.length)}
-            aria-label={`Next tip, ${(at % tips.length) + 1} of ${tips.length}`}
+            aria-label={`Next, ${(at % tips.length) + 1} of ${tips.length}`}
             className="tap-target inline-flex items-center gap-1.5 rounded-sm text-xs text-muted-foreground tabular-nums transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
           >
             {(at % tips.length) + 1} of {tips.length}
@@ -48,8 +45,8 @@ export function WeekTips({ tips }: { tips: string[] }) {
   );
 }
 
-// In the tips' place while they load: plain blocks, since a week may turn out to have no tips.
-export function WeekTipsSkeleton() {
+// In the notes' place while they load: plain blocks, since there may turn out to be none.
+export function AiNotesSkeleton() {
   return (
     <div className={BOX} data-skeleton="tips" aria-hidden="true">
       <div className="flex h-6 items-center">

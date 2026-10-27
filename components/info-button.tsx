@@ -15,20 +15,15 @@ function subscribe(change: () => void) {
 const canHover = () => window.matchMedia(HOVER).matches;
 
 // The ⓘ beside a chart's or tile group's title (see docs/charts.md). It opens a small popover with the
-// note passed as children: one or two sentences the page itself doesn't say. Hover or keyboard focus opens it on a desktop, a tap on a phone; a tap outside or Esc closes
-// it. `label` names what it's about ("Parked drain") for screen readers. Renders nothing when there's
-// nothing to say. `icon` swaps the ⓘ for another mark that opens the same way (the AI mark, AiLine);
-// `ariaLabel` then names the button in full.
+// note passed as children: one or two sentences the page itself doesn't say. Hover or keyboard focus
+// opens it on a desktop, a tap on a phone; a tap outside or Esc closes it. `label` names what it's about
+// ("Parked drain") for screen readers. Renders nothing when there's nothing to say.
 export function InfoButton({
   label,
-  ariaLabel,
-  icon,
   children,
   className,
 }: {
   label: string;
-  ariaLabel?: string;
-  icon?: ReactNode;
   children?: ReactNode;
   className?: string;
 }) {
@@ -41,7 +36,7 @@ export function InfoButton({
       <Popover.Trigger
         openOnHover={hover}
         delay={150}
-        aria-label={ariaLabel ?? `About ${label}`}
+        aria-label={`About ${label}`}
         onFocus={(e) => e.currentTarget.matches(":focus-visible") && setOpen(true)}
         onBlur={(e) => !popup.current?.contains(e.relatedTarget as Node | null) && e.relatedTarget && setOpen(false)}
         className={cn(
@@ -49,7 +44,7 @@ export function InfoButton({
           className,
         )}
       >
-        {icon ?? <Info className="size-4" aria-hidden="true" />}
+        <Info className="size-4" aria-hidden="true" />
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Positioner side="bottom" align="start" sideOffset={6} collisionPadding={16} className="z-50">

@@ -17,7 +17,7 @@ import { periodFrames } from "@/lib/frames";
 import { daysLabel } from "@/lib/periods";
 import { istDay, istDayStart } from "@/lib/telemetry-derive";
 import { after, connection } from "next/server";
-import { WeekTips, WeekTipsSkeleton } from "@/components/home/week-tips";
+import { AiNotes, AiNotesSkeleton } from "@/components/home/week-tips";
 import { quietWeek, type WeekFacts, weekFacts } from "@/lib/week-wording";
 import { generateWeekTips, loadWeekTips } from "@/lib/server/week-wording";
 import { newestTime } from "@/lib/last-synced";
@@ -66,7 +66,7 @@ async function Tips({ vehicleId, day, facts }: { vehicleId: string; day: number;
   const key = { vehicleId, day };
   const stored = await loadWeekTips(owner, key, facts);
   if (stored.generate) after(() => generateWeekTips(owner, key, facts));
-  return <WeekTips tips={stored.tips} />;
+  return <AiNotes title="Tips" notes={stored.tips} />;
 }
 
 // The four headline numbers, then driving, charging and battery, over the last 7 days.
@@ -103,7 +103,7 @@ function Totals({ home, routes, now }: { home: Extract<Home, { kind: "ready" }>;
         {/* The AI's tips on the week stream in after the rest, in a box of the same size. */}
         {/* A quiet week has no tips, so no box. */}
         {primaryId && !quietWeek(facts) && (
-          <Suspense fallback={<WeekTipsSkeleton />}>
+          <Suspense fallback={<AiNotesSkeleton />}>
             <Tips vehicleId={primaryId} day={istDayStart(istDay(now))} facts={facts} />
           </Suspense>
         )}
@@ -182,7 +182,7 @@ function HomeSkeleton() {
           <p className="text-sm"><span className={line}>Here&apos;s your car&apos;s last 7 days, 21 Oct to 27 Oct.</span></p>
         </div>
         <div className="h-[391px] border bg-muted/40 motion-safe:animate-pulse sm:h-[174px]" />
-        <WeekTipsSkeleton />
+        <AiNotesSkeleton />
       </div>
     </div>
   );
