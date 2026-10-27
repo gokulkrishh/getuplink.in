@@ -3,7 +3,7 @@ import { barOpens } from "@/components/stats/bar-parts";
 import { energyBySlot, energyIn, firstStartedAt } from "@/lib/charging-figures";
 import { changeToPrevious, compareToPrevious } from "@/lib/dashboard-summary";
 import { formatShortDate } from "@/lib/format";
-import { dayIso, defaultRange, inSpan, isoDay, monthIndex, monthStart, parseRange, periodSpan, previousLabel, previousSpan, rangeSlots, rangeSpan, rangeTimeframe, slotsFor, sumBySlot, trackingGap } from "@/lib/periods";
+import { dayIso, defaultRange, inSpan, isoDay, monthIndex, monthShort, monthStart, parseRange, periodSpan, previousLabel, previousSpan, rangeSlots, rangeSpan, rangeTimeframe, slotsFor, sumBySlot, trackingGap } from "@/lib/periods";
 import { istDayStart } from "@/lib/telemetry-derive";
 
 // An instant given as IST wall-clock time.
@@ -269,7 +269,7 @@ describe("what a bar opens", () => {
   });
   test("a month's bar covers its days up to today; months ahead open nothing", () => {
     const year = slotsFor("year", now);
-    expect(year[8].days).toEqual({ kind: "month", from: "2026-09-01", to: "2026-09-30", title: "Sep 2026" });
+    expect(year[8].days).toEqual({ kind: "month", from: "2026-09-01", to: "2026-09-30", title: `${monthShort(monthIndex(ist("2026-09-15T12:00:00")))} 2026` }); // "Sep" or "Sept", by ICU version
     expect(year[9].days).toEqual({ kind: "month", from: "2026-10-01", to: "2026-10-26", title: "Oct 2026" });
     expect(year[10].days).toBeUndefined();
   });
