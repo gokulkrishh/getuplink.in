@@ -443,24 +443,24 @@ const httpsLink = z
     } catch {
       return false;
     }
-  }, "Links must start with https://");
+  }, "Use a link that starts with https.");
 
 const amount = z
   .string()
   .trim()
   .transform((v) => v.replace(/[,$\s]/g, ""))
-  .pipe(z.string().regex(/^\d+(\.\d{1,2})?$/, "Enter an amount in dollars, like 12.50"))
+  .pipe(z.string().regex(/^\d+(\.\d{1,2})?$/, "Enter an amount in dollars, like 12.50."))
   .transform(Number)
-  .refine((n) => n <= 9_999_999_999.99, "That amount is too large");
+  .refine((n) => n <= 9_999_999_999.99, "That amount is too large.");
 
 const optional = (s: unknown) => (typeof s === "string" && s.trim() === "" ? undefined : s);
 
 export const entrySchema = z.object({
-  name: z.string().trim().min(1, "Give it a name").max(80, "Keep the name under 80 characters"),
+  name: z.string().trim().min(1, "Give it a name.").max(80, "Keep the name under 80 characters."),
   amount,
-  currency: z.preprocess((v) => v ?? "USD", z.literal("USD", { error: "Enter amounts in dollars" })),
+  currency: z.preprocess((v) => v ?? "USD", z.literal("USD", { error: "Enter amounts in dollars." })),
   period: z.enum(PERIODS),
-  renewsOn: z.preprocess(optional, z.string().refine(isDate, "Enter a date").optional()),
+  renewsOn: z.preprocess(optional, z.string().refine(isDate, "Enter a date.").optional()),
   link: z.preprocess(optional, httpsLink.optional()),
 });
 
@@ -479,9 +479,9 @@ const budget = z
   .string()
   .trim()
   .transform((v) => v.replace(/[,$\s]/g, ""))
-  .pipe(z.string().regex(/^\d+(\.\d{1,4})?$/, "Enter the budget as a number"))
+  .pipe(z.string().regex(/^\d+(\.\d{1,4})?$/, "Enter the budget as a number."))
   .transform(Number)
-  .refine((n) => n > 0 && n < 100_000, "Enter the budget above 0");
+  .refine((n) => n > 0 && n < 100_000, "Enter a budget above 0.");
 
 // The Google budget in USD; empty clears it (null).
 export function parseBudget(value: unknown): Parsed<number | null> {

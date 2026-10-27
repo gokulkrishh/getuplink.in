@@ -78,7 +78,7 @@ async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "sear
           {eachFrame(frames, ({ frame }) => <ParkedDrain parked={driving.parked} parkedNow={driving.parkedNow} frame={frame} places={places} />)}
         </div>
       ) : (
-        <NotYet title="Not enough readings yet">The battery trend shows up after two weeks.</NotYet>
+        <NotYet title="Not enough data yet">The battery trend shows up after two weeks.</NotYet>
       )}
     </StatsFrame>
   );
@@ -86,7 +86,7 @@ async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "sear
 
 export default function Page({ searchParams }: PageProps<"/stats/battery">) {
   return (
-    <StatsPage view="battery" description="How the pack is holding up, and what it loses while parked.">
+    <StatsPage view="battery" description="How the battery is holding up, and what it loses while parked.">
       <Suspense fallback={<StatsSkeleton />}>
         <Battery searchParams={searchParams} />
       </Suspense>

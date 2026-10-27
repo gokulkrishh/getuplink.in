@@ -20,7 +20,7 @@ export function BatteryPack({ trend, frame }: { trend: WeeklyPack[]; frame: Time
       description={`Usable capacity week by week${weeks.length >= 2 ? `, ${periodPhrase(frame)}` : ""}. Latest week ${formatKwh(latest.kwh)}.`}
       unit="kWh"
       terms={["usable capacity"]}
-      info="The scale starts near the readings, not at zero, so small changes show."
+      info="The scale starts near your figures, not at zero, so small changes show."
       caption={cut}
       empty={
         weeks.length < 2 &&

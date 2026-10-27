@@ -100,7 +100,7 @@ const SECTIONS: { title: string; body: ReactNode }[] = [
   },
   {
     title: "Law and disputes",
-    body: "The laws of India apply, and courts in India decide disputes. Please write to us first, so we can try to sort it out.",
+    body: "The laws of India apply, and courts in India decide disputes. Write to us first, so we can try to sort it out.",
   },
   {
     title: "Contact",
@@ -110,7 +110,7 @@ const SECTIONS: { title: string; body: ReactNode }[] = [
 
 export default function TermsPage() {
   return (
-    <PlainPage title="Terms" intro="The short terms for using Uplink." meta="Last updated 26 October 2026" current="terms">
+    <PlainPage title="Terms" intro="The short terms for using Uplink." meta="Last updated 27 October 2026" current="terms">
       {SECTIONS.map((section) => (
         <PlainSection key={section.title} title={section.title}>
           <p>{section.body}</p>

@@ -136,7 +136,7 @@ export function Places({ places, visited, period = "last 30 days", note }: { pla
         <h2 className="text-lg font-medium tracking-heading">Places</h2>
         <p className="text-sm text-muted-foreground">Where you went and parked, {period}.</p>
       </div>
-      {(pins.length > 0 || visited.length >= 2) && <TripMap route={visited} pins={pins} label="Everywhere the car went, with where it parked" legend="A place it parked; bigger pins had more visits" />}
+      {(pins.length > 0 || visited.length >= 2) && <TripMap route={visited} pins={pins} label="Everywhere the car went, with where it parked" legend="A place it parked. Bigger pins had more visits." />}
       {places.length > 0 && (
         <div className="overflow-x-auto">
           <table className="w-full min-w-md text-sm tabular-nums">

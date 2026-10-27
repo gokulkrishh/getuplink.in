@@ -60,7 +60,7 @@ export function Temperatures({ temps, frame }: { temps: BatteryExtras["temps"]; 
         )
       }
       caption={cut}
-      empty={!drawn && `No temperature readings ${frame.words}.`}
+      empty={!drawn && `No temperature data ${frame.words}.`}
     >
       <LineChart
         series={series}
@@ -101,13 +101,13 @@ export function CellBalance({ spread, frame }: { spread: BatteryExtras["cellSpre
       summary={
         <Figures
           figures={[
-            { label: "Gap now", value: mv(now.y), note: `Latest reading, ${when(now.x)}` },
+            { label: "Gap now", value: mv(now.y), note: `Latest, ${when(now.x)}` },
             widest && { label: "Widest", value: mv(widest.y), note: when(widest.x) },
           ]}
         />
       }
       caption={cut}
-      empty={shown.length < 2 && `No cell voltage readings ${frame.words}.`}
+      empty={shown.length < 2 && `No cell voltage data ${frame.words}.`}
     >
       <LineChart
         series={[{ name: "Gap", className: "stroke-chart-accent", points: shown }]}
@@ -116,7 +116,7 @@ export function CellBalance({ spread, frame }: { spread: BatteryExtras["cellSpre
         formatY={mv}
         unit="mV"
         gap={GAP}
-        label={`Cell voltage gap at each reading, ${frame.title}, in millivolts`}
+        label={`Cell voltage gap over time, ${frame.title}, in millivolts`}
         yFrom={0}
       />
     </ChartCard>

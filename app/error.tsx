@@ -13,7 +13,7 @@ export default function Error({ error, retry }: { error: unknown; retry: () => v
   }, [error]);
 
   return (
-    <PlainPage title="Something went wrong" intro="Uplink couldn't load this page. Try again in a moment.">
+    <PlainPage title="Couldn't load this page" intro="Try again in a moment.">
       <div className="flex flex-wrap gap-3">
         <Button type="button" size="lg" onClick={() => retry()}>
           Try again

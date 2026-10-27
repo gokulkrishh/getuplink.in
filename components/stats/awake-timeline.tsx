@@ -25,7 +25,7 @@ export function AwakeTimeline({ days: all, now }: { days: DayStrip[]; now: numbe
   const onlineDays = days.filter((d) => d.runs.some((r) => r.state === "online")).length;
   return (
     <ChartCard
-      title="Online and asleep"
+      title="Awake and asleep"
       description="When the car was awake each day. Updates download only then."
       info={
         <>
@@ -35,7 +35,7 @@ export function AwakeTimeline({ days: all, now }: { days: DayStrip[]; now: numbe
       }
       summary={
         <p className="text-sm tabular-nums">
-          {first > 0 ? `Online on ${onlineDays} of ${days.length} days ${span}` : `Online on ${onlineDays} of the last ${days.length} days`}
+          {first > 0 ? `Awake on ${onlineDays} of ${days.length} days ${span}` : `Awake on ${onlineDays} of the last ${days.length} days`}
         </p>
       }
     >

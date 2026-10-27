@@ -105,7 +105,7 @@ export function ParkedDrain({
               {headline && <p>{headline.basis}</p>}
               <p>Energy is what the battery lost. Average power is how fast it lost it.</p>
               <p>Seen awake is only the time the car was sending data, so the real time may be longer.</p>
-              <p>≥ means parked since before Uplink&apos;s first reading.</p>
+              <p>≥ means parked since before tracking started.</p>
             </InfoButton>
           </div>
           <p className="text-sm text-muted-foreground">{rows.length > 0 ? `Battery lost while parked, ${periodPhrase(frame)}. Lower is better.` : "Battery lost while parked. Lower is better."}</p>

@@ -223,7 +223,7 @@ export function DriveTrace({
                   aria-live="polite"
                 >
                   <span className="block text-muted-foreground">{formatClock(cursor)}</span>
-                  <span className="block font-mono">{hit ? <Measure text={words(hit.v)} /> : <span className="font-sans text-muted-foreground">No reading here</span>}</span>
+                  <span className="block font-mono">{hit ? <Measure text={words(hit.v)} /> : <span className="font-sans text-muted-foreground">No data here</span>}</span>
                 </div>
               </>
             )}

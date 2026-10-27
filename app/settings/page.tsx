@@ -81,7 +81,7 @@ async function Settings() {
           title="Live data"
           description={
             <>
-              <p>Your car sends updates while it&apos;s awake. Uplink never wakes it.</p>
+              <p>Your car sends data while it&apos;s awake. Uplink never wakes it.</p>
               <p className="text-faint">
                 {lastCheck ? `${cadence}, last at ${formatSeen(lastCheck, now)}` : cadence}
               </p>

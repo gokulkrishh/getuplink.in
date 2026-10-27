@@ -322,12 +322,12 @@ describe("what the owner types", () => {
     ]) {
       expect(parseEntry({ ...ok, ...bad }).ok).toBe(false);
     }
-    expect(parseEntry({ ...ok, currency: "INR" })).toEqual({ ok: false, message: "Enter amounts in dollars" });
+    expect(parseEntry({ ...ok, currency: "INR" })).toEqual({ ok: false, message: "Enter amounts in dollars." });
   });
 
   test("links must be https: no javascript:, data: or plain http", () => {
     for (const link of ["javascript:alert(1)", "data:text/html,hi", "http://example.com", "example.com", "https//x"]) {
-      expect(parseEntry({ ...ok, link })).toEqual({ ok: false, message: "Links must start with https://" });
+      expect(parseEntry({ ...ok, link })).toEqual({ ok: false, message: "Use a link that starts with https." });
     }
   });
 

@@ -4,7 +4,7 @@ import { chargeEfficiency } from "@/lib/charge-sessions";
 import type { WeeklyRange } from "@/lib/charge-level";
 import { CONSUMPTION_DAYS, recentConsumption } from "@/lib/drive-stats";
 import type { Drive } from "@/lib/drives";
-import { DECIMALS, formatKm, formatKwh, formatNumber, formatRangeKm, formatShortDate } from "@/lib/format";
+import { DECIMALS, formatKm, formatKwh, formatNumber, formatPercent, formatRangeKm, formatShortDate } from "@/lib/format";
 import { within } from "@/lib/kept";
 import type { Timeframe } from "@/lib/periods";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
@@ -20,7 +20,7 @@ function vsBest<T>(weeks: T[], value: (w: T) => number, format: (n: number) => s
   const best = weeks.reduce((a, w) => (value(w) > value(a) ? w : a));
   if (weeks.length < 2 || best === latest) return { now: format(value(latest)), note: weeks.length < 2 ? "Latest week" : "Latest week, the best on record" };
   const change = (value(latest) - value(best)) / value(best);
-  return { now: format(value(latest)), note: `Latest week, ${Math.abs(change * 100).toFixed(1)}% below the best week, ${format(value(best))}` };
+  return { now: format(value(latest)), note: `Latest week, ${formatPercent(Math.abs(change * 100), 1)} below the best week, ${format(value(best))}` };
 }
 
 // Battery health after TeslaMate's dashboard, from what the car streamed. Usable capacity and range at
@@ -87,7 +87,7 @@ export function BatteryHealth({
   return (
     <ChartCard
       title="Battery health"
-      description="What the pack holds now, against its best week."
+      description="What the battery holds now, against its best week."
       unit="kWh"
       terms={["usable capacity", ...(teslaPack ? ["full pack, per Tesla"] : []), "range at 100%", "charge cycles", "charging efficiency", "AC and DC"]}
       info={

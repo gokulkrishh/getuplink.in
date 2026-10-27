@@ -4,11 +4,11 @@ export const LOGIN_ERRORS = {
   expired: "Sign-in expired. Try again.",
   failed: "Couldn't sign you in with Tesla. Try again.",
   "not-owner": "Sign-up is closed. Only approved Tesla accounts can sign in.",
-  "invite-only": "Uplink is invite-only.",
-  "invite-invalid": "This invite link has expired or was already used.",
-  "invite-car": "This invite is for a different car.",
-  full: "Uplink is full for now.",
-  "not-approved": "Not approved.",
+  "invite-only": "Uplink is invite-only for now. Open your invite link to sign in.",
+  "invite-invalid": "This invite link has expired or was already used. Ask for a new one.",
+  "invite-car": "This invite is for a different car. Sign in with the Tesla account that has the invited car.",
+  full: "Uplink is full for now. Sign in again later to check.",
+  "not-approved": "This Tesla account can't use Uplink right now.",
   region: "Uplink is for Tesla accounts in India and Asia-Pacific only.",
 } as const;
 

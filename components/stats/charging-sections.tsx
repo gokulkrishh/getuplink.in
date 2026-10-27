@@ -295,7 +295,7 @@ export function SessionList({ sessions, all = sessions }: { sessions: Listed[]; 
               )}
             </div>
             <p className="pt-1 text-right text-xs text-faint tabular-nums">
-              {rows.length} {rows.length === 1 ? "session" : "sessions"}
+              {rows.length} {rows.length === 1 ? "charge" : "charges"}
               {billed.count > 0 && `, ${formatMoney(billed.cost, billed.currency)} billed`}
             </p>
           </section>

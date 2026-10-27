@@ -4,10 +4,16 @@
 export type Status = "operational" | "degraded" | "down";
 
 export const STATUS_WORD: Record<Status, string> = {
-  operational: "Operational",
-  degraded: "Degraded",
+  operational: "Working",
+  degraded: "Having problems",
   down: "Down",
 };
+
+// What the status page calls each checked part. The stored names stay as they are, so past checks still match.
+export const COMPONENT_LABEL: Record<string, string> = { "Car data stream": "Live car data" };
+export function componentLabel(name: string): string {
+  return COMPONENT_LABEL[name] ?? name;
+}
 
 const RANK: Record<Status, number> = { operational: 0, degraded: 1, down: 2 };
 
@@ -59,9 +65,9 @@ export function uptimePercent(rows: DailyRow[], days: Set<string>): number | nul
 }
 
 export const HEADLINES: Record<Status, string> = {
-  operational: "All systems operational",
-  degraded: "Some systems degraded",
-  down: "Outage",
+  operational: "Everything is working",
+  degraded: "Some parts have problems",
+  down: "Part of Uplink is down",
 };
 
 // The line at the top of the page. Null when nothing has been checked yet.

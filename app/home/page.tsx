@@ -48,7 +48,7 @@ const SHOWCASE = [
   },
   {
     title: "Ask your AI about your car",
-    body: "Connect Claude, ChatGPT, Grok or an always-on bot to Uplink over MCP.",
+    body: "Connect Claude, ChatGPT, Grok or an always-on bot to Uplink.",
     points: [
       "Drives, trips and kilometres driven",
       "Charging spend and battery health",
@@ -62,7 +62,7 @@ const SHOWCASE = [
 const CAN = [
   "Software version and update progress",
   "Battery, charging and odometer",
-  "Supercharger sessions and invoices",
+  "Supercharger charges and invoices",
   "Trips, with where the car went",
 ];
 
@@ -76,7 +76,7 @@ const FAQ = [
     q: "Why add Uplink's key to my car?",
     a: "It lets your car send live data. It can't unlock or drive, and you can remove it in Locks settings.",
   },
-  { q: "Which cars work?", a: "Any Tesla the Fleet API supports, including the Indian Model Y." },
+  { q: "Which cars work?", a: "Any Tesla that works with apps like Uplink, including the Indian Model Y." },
   {
     q: "How do I delete my data?",
     a: "Use Delete my data in Settings, or Delete account to remove your account too. Then remove Uplink's key in your car's Locks settings.",

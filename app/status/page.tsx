@@ -6,7 +6,7 @@ import { PlainPage } from "@/components/plain-page";
 import { formatDateTime, formatShortDate } from "@/lib/format";
 import { loadStatus, recordIfStale, type ComponentStatus } from "@/lib/server/status";
 import { OPEN_GRAPH, STATUS_URL, TWITTER } from "@/lib/site";
-import { overallHeadline, STATUS_WORD, type Status } from "@/lib/status";
+import { componentLabel, overallHeadline, STATUS_WORD, type Status } from "@/lib/status";
 
 const DESCRIPTION = "Whether Uplink's website, database and live car data are working.";
 
@@ -30,20 +30,20 @@ const DOT: Record<Status, string> = {
 const BAR: Record<Status | "none", string> = { ...DOT, none: "bg-muted" };
 
 function barTitle(day: string, status: Status | null): string {
-  return `${formatShortDate(`${day}T00:00:00+05:30`)}: ${status ?? "no data"}`;
+  return `${formatShortDate(`${day}T00:00:00+05:30`)}: ${status ? STATUS_WORD[status] : "No data"}`;
 }
 
 function Component({ item }: { item: ComponentStatus }) {
   return (
     <section>
       <div className="flex items-baseline justify-between gap-4">
-        <h2 className="text-lg font-medium tracking-heading">{item.name}</h2>
+        <h2 className="text-lg font-medium tracking-heading">{componentLabel(item.name)}</h2>
         <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
           <span aria-hidden="true" className={`size-2 ${item.current ? DOT[item.current] : "bg-muted"}`} />
           {item.current ? STATUS_WORD[item.current] : "Not checked yet"}
         </span>
       </div>
-      <div className="mt-3 flex h-8 gap-px" role="img" aria-label={`${item.name}, last ${item.bars.length} days`}>
+      <div className="mt-3 flex h-8 gap-px" role="img" aria-label={`${componentLabel(item.name)}, last ${item.bars.length} days`}>
         {item.bars.map((bar) => (
           <div key={bar.day} title={barTitle(bar.day, bar.status)} className={`flex-1 ${BAR[bar.status ?? "none"]}`} />
         ))}

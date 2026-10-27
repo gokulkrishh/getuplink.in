@@ -173,7 +173,7 @@ function Drive({ detail, view, words, now }: { detail: DriveDetail; view: DriveV
                 description={line("power")}
                 unit="kW"
                 terms={["regen"]}
-                info="Energy here is an estimate from the power readings. Energy used above is the battery's own figure."
+                info="Energy here is worked out from the car's power figures. Energy used above is the battery's own figure."
                 summary={<Figures figures={peaks.power} />}
               >
                 <DriveTrace label="Power" points={power} unit="kW" signed split={POWER_SIDES} {...axis} />
@@ -222,7 +222,7 @@ function Drive({ detail, view, words, now }: { detail: DriveDetail; view: DriveV
           </section>
         )}
         {(topKmh === null || outsideC === null || accel.length < 2) && (
-          <p className="text-sm text-faint">Speed, acceleration and outside temperature show once your car streams them.</p>
+          <p className="text-sm text-faint">Speed, acceleration and outside temperature show once your car sends them.</p>
         )}
       </div>
     </>

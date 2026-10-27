@@ -28,7 +28,7 @@ function tipLeft(cursor: number, tip: number, plot: number): number {
 // HTML axes, so their text stays 12px on a phone, and an SVG stretched to the plot that draws only the
 // lines. The x axis spans the data's own steps, not 0 to 100%. A line breaks where a step has no charges,
 // rather than drawing across it. Hover, tap or drag for each line's value in that step; a line with nothing
-// there says "No reading here". A vertical swipe still scrolls the page, and a tap elsewhere hides it.
+// there says "No data here". A vertical swipe still scrolls the page, and a tap elsewhere hides it.
 export function DcCurvePlot({ series, band, label }: { series: CurveSeries[]; band: number; label: string }) {
   const plot = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -165,7 +165,7 @@ export function DcCurvePlot({ series, band, label }: { series: CurveSeries[]; ba
                           <Measure text={formatKw(p.y)} />
                         </span>
                       ) : (
-                        <span className="text-muted-foreground">No reading here</span>
+                        <span className="text-muted-foreground">No data here</span>
                       )}
                     </span>
                   ))}

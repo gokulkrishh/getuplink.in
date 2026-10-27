@@ -69,7 +69,7 @@ function keyWords(car: CarSetup): string {
 function streamingWords(car: CarSetup, canSend: boolean, needsLocation: boolean): string {
   if (car.streaming === "synced") return "Live";
   if (car.keyPaired !== true) return "Waiting for the key";
-  if (car.streaming === "pending") return "Starts when the car is next online";
+  if (car.streaming === "pending") return "Starts when the car is next awake";
   if (car.streaming === "full") return "The car has no room for another app";
   if (car.streaming === "none") return !canSend ? "Uplink will turn this on" : needsLocation ? "Needs location access" : "Turning on";
   return "Not known yet";
@@ -147,7 +147,7 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
         <Step n={2} title="Turn on live data" state={streaming}>
           <p className="text-sm text-muted-foreground">
             {canSend
-              ? "Once the key is added, Uplink turns on live data. The car starts sending the next time it's online."
+              ? "Once the key is added, Uplink turns on live data. The car starts sending the next time it's awake."
               : "Once the key is added, Uplink turns this on for you."}
           </p>
           {canSend && view.needsLocation && streaming !== "done" && (

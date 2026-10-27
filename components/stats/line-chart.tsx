@@ -190,7 +190,7 @@ export function LineChart({
                 >
                   <span className="block text-muted-foreground">{formatX(cursor)}</span>
                   {hits.length === 0 ? (
-                    <span className="block text-muted-foreground">No reading here</span>
+                    <span className="block text-muted-foreground">No data here</span>
                   ) : (
                     hits.map(({ s, p }) => (
                       <span key={s.name} className="flex items-center gap-1.5 font-mono">

@@ -116,7 +116,7 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
   return (
     <StatsFrame custom={customScope(custom?.range ?? null, now)} periodSwitch={listed.length > 0}>
       {listed.length === 0 ? (
-        <NotYet title="No charging sessions yet">Your charges will show up here, wherever you plug in.</NotYet>
+        <NotYet title="No charges yet">Your charges will show up here, wherever you plug in.</NotYet>
       ) : (
         <div className="space-y-12">
           {(bills.length > 0 || unbilled.length > 0 || sessions.length > 0) &&
@@ -170,7 +170,7 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
 
 export default function Page({ searchParams }: PageProps<"/stats/charging">) {
   return (
-    <StatsPage view="charging" description="What charging cost, the energy it added, and every session.">
+    <StatsPage view="charging" description="What charging cost, the energy it added, and every charge.">
       <Suspense fallback={<StatsSkeleton />}>
         <Charging searchParams={searchParams} />
       </Suspense>

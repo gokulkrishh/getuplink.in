@@ -22,7 +22,7 @@ async function run(work: () => Promise<unknown>) {
     return json(await work());
   } catch (err) {
     console.error("MCP tool failed:", messageOf(err));
-    return { ...json({ error: "Uplink couldn't do that just now. Try again later." }), isError: true };
+    return { ...json({ error: "Uplink couldn't do that. Try again in a moment." }), isError: true };
   }
 }
 

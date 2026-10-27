@@ -8,16 +8,9 @@ import type { OwnerGate, PollRun } from "@/lib/server/dashboard";
 
 // What a page that reads the car shows when it can't (see OwnerGate), and the footer under the cars.
 
+// Only the plain sentence: the raw Tesla error stays in the logs and the poll runs, never on screen.
 function RunError({ error }: { error: string }) {
-  return (
-    <div className="space-y-2">
-      <p>{describeRunError(error)}</p>
-      <details className="text-xs">
-        <summary className="text-faint hover:text-muted-foreground">Details</summary>
-        <p className="mt-2 font-mono break-all text-muted-foreground">{error}</p>
-      </details>
-    </div>
-  );
+  return <p>{describeRunError(error)}</p>;
 }
 
 function Notice({ title, children }: { title: string; children: React.ReactNode }) {
@@ -52,18 +45,14 @@ export function OwnerNotices({ data, count, failedRun }: { data: OwnerGate | { k
 
       {data.kind === "error" && (
         <Notice title="Couldn't load your car">
-          <p>Reload the page. If it keeps happening, check the Supabase settings in Vercel.</p>
-          <details className="text-xs">
-            <summary className="text-faint hover:text-muted-foreground">Details</summary>
-            <p className="mt-2 font-mono break-all">{data.message}</p>
-          </details>
+          <p>Reload the page, or try again in a moment.</p>
         </Notice>
       )}
 
       {data.kind === "disconnected" && (
         <Notice title="Connect your Tesla account">
           <p>
-            Uplink needs read-only access. It never wakes the car, so a version shows once the car is online.
+            Uplink needs read-only access. It never wakes the car, so a version shows once the car is awake.
           </p>
           <SignInButton />
         </Notice>
@@ -75,7 +64,7 @@ export function OwnerNotices({ data, count, failedRun }: { data: OwnerGate | { k
             <RunError error={failedRun.error} />
           </Notice>
         ) : (
-          <EmptyState icon={<CarFront className="size-7 text-faint" aria-hidden="true" />} title="No vehicles yet">
+          <EmptyState icon={<CarFront className="size-7 text-faint" aria-hidden="true" />} title="No cars yet">
             No cars found on your Tesla account yet.
           </EmptyState>
         )

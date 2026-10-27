@@ -140,7 +140,7 @@ function Charge({ detail, now }: { detail: ChargeDetail; now: number }) {
             <div className="flex items-center gap-1.5">
               <h2 className="text-lg font-medium tracking-heading">Session</h2>
               <InfoButton
-                label="this session"
+                label="this charge"
                 terms={[
                   curve.points.length < 2 && shown.some(([label]) => label.endsWith("power")) ? "kW" : undefined,
                   shown.some(([label]) => label.startsWith("Energy")) ? "kWh" : undefined,

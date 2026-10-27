@@ -198,9 +198,9 @@ describe("saving", () => {
   });
 
   test("bad input is refused with a message: rupees, a javascript: link", async () => {
-    expect(await saveEntry("new", null, form({ ...entry, link: "javascript:alert(1)" }))).toBe("Links must start with https://");
-    expect(await saveEntry("new", null, form({ ...entry, currency: "INR" }))).toBe("Enter amounts in dollars");
-    expect(await saveEntry("new", null, form({ ...entry, amount: "₹500" }))).toBe("Enter an amount in dollars, like 12.50");
+    expect(await saveEntry("new", null, form({ ...entry, link: "javascript:alert(1)" }))).toBe("Use a link that starts with https.");
+    expect(await saveEntry("new", null, form({ ...entry, currency: "INR" }))).toBe("Enter amounts in dollars.");
+    expect(await saveEntry("new", null, form({ ...entry, amount: "₹500" }))).toBe("Enter an amount in dollars, like 12.50.");
     expect(fake.rows("cost_entries")).toEqual([]);
   });
 

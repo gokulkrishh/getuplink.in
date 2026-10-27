@@ -126,7 +126,7 @@ export function DriveStatsSection({ stats, title, spanDays, partial = false }: {
   const figures = [
     { label: "Distance", value: formatKm(stats.km) },
     { label: "Trips", value: compactNumber.format(stats.trips), note: `${compactNumber.format(stats.drives)} ${stats.drives === 1 ? "drive" : "drives"}` },
-    { label: "Typical drive", value: formatKm(stats.medianKm), note: "The median" },
+    { label: "Typical drive", value: formatKm(stats.medianKm), note: "Half are longer" },
     { label: "Longest drive", value: formatKm(stats.longestKm) },
     { label: "Time driving", value: formatDuration(stats.hours * 3600) },
     { label: "Per day", value: formatKm(stats.kmPerDay), note: "On average" },

@@ -113,7 +113,7 @@ export function ChargingSection({ frames, bills, listed, chargingSince, now }: {
     );
   };
   return (
-    <Section title="Charging" view="charging" more="See all sessions">
+    <Section title="Charging" view="charging" more="See all charges">
       {eachFrame(frames, body)}
     </Section>
   );
@@ -208,9 +208,9 @@ export function BatterySection({
                 {
                   label: "Parked for",
                   value: `${ongoing.fromFirstReading ? "≥ " : ""}${formatDuration(ongoing.hours * 3600)}`,
-                  note: ongoing.fromFirstReading ? "Since Uplink's first reading" : undefined,
+                  note: ongoing.fromFirstReading ? "Since tracking started" : undefined,
                 },
-                ongoing.watts !== null && { label: "Avg power", value: formatPower(ongoing.watts) },
+                ongoing.watts !== null && { label: "Average power", value: formatPower(ongoing.watts) },
                 lost !== null && { label: "Lost", value: formatPercent(lost, 1), note: usually ? `Usually ${usually}` : undefined },
               ]}
               label="Parked now"

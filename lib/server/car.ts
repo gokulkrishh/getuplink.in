@@ -142,7 +142,7 @@ function details(
     checkedVersion: check?.version ? { version: check.version, at: check.polledAt } : null,
     polledOdometer: check && typeof state.odometer === "number" && state.odometer > 0 ? { miles: state.odometer, at: check.polledAt } : null,
     supported: [
-      state.sentry_mode_available && "Sentry mode",
+      state.sentry_mode_available && "Sentry Mode",
       state.dashcam_clip_save_supported && "Dashcam",
       state.webcam_supported && "Cabin camera",
       check?.supercharging && "Supercharging",

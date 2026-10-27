@@ -36,13 +36,13 @@ const STORED = [
   "Whether Tesla shows an unpaid Supercharger balance or the car at a service centre",
   "Battery level, range, charge limit, charging state and battery temperature",
   "Odometer at each update",
-  "Everything your car streams while it's awake: driving (speed, gear, pedals, acceleration), battery and charging, climate and cabin, tyres, doors and locks, Sentry Mode and navigation. Not what's playing, and not your phone's name",
+  "Everything your car sends while it's awake: driving (speed, gear, pedals, acceleration), battery and charging, climate and cabin, tyres, doors and locks, Sentry Mode and navigation. Not what's playing, and not your phone's name",
   "Where the car is while it's awake, including trip routes, stops and navigation destinations",
-  "Tesla Supercharger sessions: site, time, energy, cost and each fee on the bill. The invoice itself is fetched from Tesla when you open it, not stored",
+  "Tesla Supercharger charges: site, time, energy, cost and each fee on the bill. The invoice itself is fetched from Tesla when you open it, not stored",
   "Invoices from other charging networks that you add through the connector: the network, station, times, energy, amount, GST, invoice number, the email's message id if it came from email and, if you send it, the file. The file is kept as the network made it, so it may show your name, phone number or part of a card number",
   "Names you give places, with the spot and its radius. For a place you pick from Google Maps, only Google's ID for it",
   "Each car's home state, such as Karnataka, for the India rollout map",
-  "The name of the charging station each session happened at, such as Statiq, Koramangala",
+  "The name of the charging station each charge happened at, such as Statiq, Koramangala",
   "A log of each check of your car, and how many Tesla API calls your account made",
   "Your connector token, stored only as a hash, and when it was last used",
   "If you joined through an invite: the last 6 characters of the invited car's VIN, the inviter's note on it, and the car's model and last 4 VIN characters once you join",
@@ -59,7 +59,7 @@ export default function PrivacyPage() {
     <PlainPage
       title="Privacy"
       intro="What Uplink stores about you and your car, who else gets it, and how to delete it."
-      meta="Last updated 26 October 2026"
+      meta="Last updated 27 October 2026"
       current="privacy"
     >
       <PlainSection title="Who we are">
@@ -130,7 +130,7 @@ export default function PrivacyPage() {
             The location it reads then is used to find the state and the station, and isn&apos;t stored.
           </li>
           <li>
-            Once you add Uplink&apos;s key to your car, the car streams changes to Uplink while it&apos;s awake: every
+            Once you add Uplink&apos;s key to your car, the car sends changes to Uplink while it&apos;s awake: every
             field Tesla&apos;s Fleet Telemetry offers for your car, including its location.
           </li>
         </ul>
@@ -147,7 +147,7 @@ export default function PrivacyPage() {
         <ul className={PLAIN_LIST}>
           <li>Supabase stores the database and invoice files in Mumbai.</li>
           <li>Vercel hosts the app. Its servers for Uplink run in Mumbai, and pages are served from Vercel&apos;s worldwide network.</li>
-          <li>Fly.io runs the receiver your car streams to, in Singapore. It passes readings on to the database.</li>
+          <li>Fly.io runs the receiver your car sends live data to, in Singapore. It passes the data on to the database.</li>
           <li>
             Tesla, which Uplink asks for your car&apos;s data. Tesla may use what Uplink sends it under{" "}
             <Out href="https://www.tesla.com/legal/privacy">Tesla&apos;s Privacy Notice</Out>.
@@ -198,9 +198,9 @@ export default function PrivacyPage() {
         <p>Until you delete it, except these.</p>
         <ul className={PLAIN_LIST}>
           <li>
-            Streamed readings are kept as long as a page shows them: charging, battery, odometer, lifetime counters and
-            software updates for good; trip routes, speed and location for 120 days; a few cabin, battery and tyre readings
-            for 14 to 22 days; the rest for 7 days. The latest reading of each kind is always kept, so the car page can
+            Live data from your car is kept as long as a page shows it: charging, battery, odometer, lifetime counters and
+            software updates for good; trip routes, speed and location for 120 days; a few cabin, battery and tyre figures
+            for 14 to 22 days; the rest for 7 days. The latest figure of each kind is always kept, so the car page can
             show it.
           </li>
           <li>Where the car was at the start of each charge is kept with that charge, for the charging map.</li>
@@ -213,8 +213,8 @@ export default function PrivacyPage() {
       <PlainSection title="Deleting your data">
         <ul className={PLAIN_LIST}>
           <li>
-            Delete my data in Settings removes your cars, history, snapshots, streamed readings, charging sessions,
-            invoices, places, check logs, connector token and Tesla tokens. It stops your car streaming to Uplink, unless
+            Delete my data in Settings removes your cars, history, snapshots, live data, charges,
+            invoices, places, check logs, connector token and Tesla tokens. It stops your car sending live data to Uplink, unless
             another Uplink user tracks it. Your account id and Tesla API call counts stay, so you can sign in again.
           </li>
           <li>
@@ -223,7 +223,7 @@ export default function PrivacyPage() {
             inviter&apos;s note.
           </li>
           <li>
-            On a car another Uplink user also tracks, the readings from their time with it stay theirs.
+            On a car another Uplink user also tracks, the data from their time with it stays theirs.
           </li>
           <li>After either, remove Uplink&apos;s key in your car&apos;s Locks settings.</li>
         </ul>
@@ -234,7 +234,7 @@ export default function PrivacyPage() {
         <ul className={PLAIN_LIST}>
           <li>
             Disconnect in Settings removes your Tesla tokens, so Uplink stops reading your car. It stops your car
-            streaming too, unless another Uplink user tracks it. Your history stays.
+            sending live data too, unless another Uplink user tracks it. Your history stays.
           </li>
           <li>Revoke Uplink&apos;s access from your Tesla account, and Uplink can no longer read your car.</li>
           <li>Revoke only its location access there, and Tesla stops sending where the car is.</li>
@@ -270,7 +270,7 @@ export default function PrivacyPage() {
       <PlainSection title="Security">
         <p>
           Tesla tokens are encrypted. The connector token is stored only as a hash. Data travels over TLS, and your
-          car&apos;s stream uses mutual TLS. Only Uplink&apos;s servers can read the database.
+          car&apos;s live data uses mutual TLS. Only Uplink&apos;s servers can read the database.
         </p>
       </PlainSection>
 

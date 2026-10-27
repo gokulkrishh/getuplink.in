@@ -32,7 +32,7 @@ const COLUMNS = [
   { label: "Lost", width: "", right: true },
   { label: "Range", width: "", right: true },
   { label: "Energy", width: "", right: true },
-  { label: "Avg power", width: "", right: true },
+  { label: "Average power", width: "", right: true },
   { label: "Seen awake", width: "w-24", right: true },
 ];
 
@@ -96,7 +96,7 @@ export function ParkedBlocks({ rows }: { rows: ParkedRow[] }) {
         const figures = [
           ["Lost", r.lostWithRange],
           ["Energy", r.energy],
-          ["Avg power", r.power],
+          ["Average power", r.power],
           ["Seen awake", r.awake],
         ];
         return (

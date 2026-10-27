@@ -56,7 +56,7 @@ export function McpConnector({ status, now }: { status: ConnectorTokenStatus; no
 
   return (
     <Row
-      title="MCP connector"
+      title="AI connector"
       description="Lets an AI like Claude, ChatGPT or Grok read your charging and driving, and attach invoices. It can't delete anything or reach your car."
       control={<p className="text-sm text-muted-foreground">{tokenSummary(status, now)}</p>}
     >

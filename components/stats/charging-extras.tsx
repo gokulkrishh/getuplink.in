@@ -98,7 +98,7 @@ export function ChargingMap({ pins, frame, note }: { pins: MapPin[]; frame: Time
         {pins.length > 0 && <p className="text-sm text-muted-foreground">{frame.title}. Bigger pins added more energy.</p>}
       </div>
       {pins.length > 0 ? (
-        <TripMap pins={pins} label={`${pins.length} charges on a map`} legend="A charge; bigger pins added more energy" />
+        <TripMap pins={pins} label={`${pins.length} charges on a map`} legend="A charge. Bigger pins added more energy." />
       ) : (
         <p className="text-sm text-muted-foreground">No charges with a location {frame.words}.</p>
       )}
