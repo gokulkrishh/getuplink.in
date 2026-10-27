@@ -56,12 +56,12 @@ describe("the number guard", () => {
   });
 
   test("passes numbers copied from the facts", () => {
-    expect(lineProblem("summary", "This drive used 112 Wh/km, 5% more than your usual 107 Wh/km, with hard braking at 7:18 AM and 7:20 AM.", facts)).toBeNull();
+    expect(lineProblem("power", "This drive used 112 Wh/km, 5% more than your usual 107 Wh/km, with hard braking at 7:18 AM and 7:20 AM.", facts)).toBeNull();
   });
 
   test("rejects an invented number", () => {
     // 7% isn't in the facts (it's 5%), nor is a difference worked out from them (112 - 107 = 5 would pass only by luck).
-    expect(lineProblem("summary", "This drive used 112 Wh/km, 7% more than usual.", facts)).toBe("number");
+    expect(lineProblem("power", "This drive used 112 Wh/km, 7% more than usual.", facts)).toBe("number");
     expect(lineProblem("speed", "You averaged 41 km/h.", facts)).toBe("number");
     // A time's minutes can't launder a figure: "15" alone isn't a fact.
     expect(lineProblem("speed", "You went 15 km/h faster than usual.", facts)).toBe("number");
@@ -79,19 +79,19 @@ describe("the number guard", () => {
 
   test("rejects talk about the input or the writer", () => {
     // What the live model wrote for a drive with no acceleration readings.
-    expect(lineProblem("summary", "This drive used 112 Wh/km. The facts don't include hard braking, so I can't say how smooth it was.", facts)).toBe("meta");
+    expect(lineProblem("power", "This drive used 112 Wh/km, and the facts don't include hard braking, so I can't say how smooth it was.", facts)).toBe("meta");
   });
 
   test("rejects the usual when there is none", () => {
     const none = describeDrive(input({ usual: { whPerKm: null, hard: null } })).facts;
-    expect(lineProblem("summary", "This drive used 112 Wh/km, above your usual.", none)).toBe("usual");
+    expect(lineProblem("power", "This drive used 112 Wh/km, above your usual.", none)).toBe("usual");
   });
 });
 
 describe("checkWording", () => {
   const { facts } = describeDrive(input());
   const reply = {
-    summary: "This drive used 112 Wh/km, 5% more than your usual 107 Wh/km, with 2 hard brakes.",
+    summary: "Most of the extra went on the hard braking at 7:18 AM.",
     speed: "You topped out at 59 km/h.",
     power: "The battery gave about 9 kWh.", // not in the facts
     acceleration: "You braked hard at 7:18 AM and 7:20 AM.",
@@ -166,5 +166,14 @@ describe("wording v2 guards", () => {
     const facts = { charts: [] } as unknown as Parameters<typeof lineProblem>[2];
     expect(lineProblem("summary", "There were 4 hard brakes, and no usual figure is available to compare those against.", facts, new Set(["4"]))).toBe("meta");
     expect(lineProblem("speed", "Speed mostly stayed between 28 to 68 km/h.", facts, new Set(["28", "68"]))).toBe("style");
+  });
+});
+
+describe("the summary adds why", () => {
+  test("a summary that repeats the tiles' figures doesn't show", async () => {
+    const { lineProblem } = await import("@/lib/drive-wording");
+    const { facts } = describeDrive(input());
+    expect(lineProblem("summary", `The drive covered ${facts.distance} over ${facts.took}.`, facts)).toBe("repeats");
+    expect(lineProblem("summary", "Most of the extra went on the hard braking at 7:18 AM.", facts)).toBeNull();
   });
 });

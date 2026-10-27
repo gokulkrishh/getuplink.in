@@ -19,7 +19,7 @@ export function AiLine({ line }: { line: ShownLine }) {
       >
         {AI_WORDS}
       </InfoButton>
-      {line.text}
+      <span className="ai-shimmer">{line.text}</span>
     </>
   );
 }

@@ -383,6 +383,28 @@ html .maplibregl-map {
     }
   }
 }
+/* AI-written text: one light sweep across it when the page shows it, so it's noticed as AI's, then still.
+   Muted like other secondary text. Nothing moves for anyone who prefers reduced motion. */
+@utility ai-shimmer {
+  color: var(--muted-foreground);
+  @media (prefers-reduced-motion: no-preference) {
+    background: linear-gradient(100deg, var(--muted-foreground) 40%, var(--foreground) 50%, var(--muted-foreground) 60%);
+    background-size: 250% 100%;
+    background-position: 100% 0;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: ai-shimmer 1.6s ease-out 0.3s 1 both;
+  }
+}
+@keyframes ai-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0% 0;
+  }
+}
 /* Charts on touch screens: a tap shows a tip, so a press shouldn't select the labels or open the
    copy menu. Only where nothing can hover, so text in a chart stays selectable with a mouse. */
 @utility chart-touch {

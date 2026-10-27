@@ -30,7 +30,19 @@ const RULES: [RegExp, string][] = [
 
 const sources = [...files("app"), ...files("components")].map((path) => ({ path, text: readFileSync(path, "utf8") }));
 
+// The uplink-copy skill's "Never on screen" words. Admin, privacy, terms and status may name services and
+// technical terms with a plain clause, so they're left out of this one.
+const TECH_WORDS = /\b(median|telemetry|stream(ed|ing)?|endpoint|payload|cron|null|undefined|NaN|percentile|readings)\b/i;
+const TECH_EXEMPT = /app\/(admin|privacy|terms|status|agents\.md|api)\//;
+
 describe("user-facing copy follows AGENTS.md", () => {
+  test("no technical words on owner screens (uplink-copy skill)", () => {
+    const hits = sources
+      .filter(({ path }) => !TECH_EXEMPT.test(path))
+      .flatMap(({ path, text }) => jsxText(text).filter((t) => TECH_WORDS.test(t)).map((t) => `${path}: ${t}`));
+    expect(hits).toEqual([]);
+  });
+
   for (const [rule, why] of RULES) {
     test(why, () => {
       const hits = sources.flatMap(({ path, text }) => jsxText(text).filter((t) => rule.test(t)).map((t) => `${path}: ${t}`));

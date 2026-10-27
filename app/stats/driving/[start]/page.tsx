@@ -108,7 +108,7 @@ function Drive({ detail, view, words }: { detail: DriveDetail; view: DriveView; 
             </div>
             {/* The figures from code; the AI adds only why, in one line, when it has written one. */}
             <Figures figures={wentTiles} />
-            {words.summary?.ai && <p className="text-base">{line("summary")}</p>}
+            {words.summary?.ai && <p className="text-sm text-muted-foreground">{line("summary")}</p>}
           </section>
         )}
         {/* Every number in one set of tiles: easier to take in than a long list. */}
@@ -142,7 +142,7 @@ function Drive({ detail, view, words }: { detail: DriveDetail; view: DriveView; 
               }
             />
           ) : (
-            <p className="text-sm text-muted-foreground">The map shows for trips after your car starts streaming its location.</p>
+            <p className="text-sm text-muted-foreground">The map shows once your car starts sending its location.</p>
           )}
         </section>
         {trip.stops > 0 && (

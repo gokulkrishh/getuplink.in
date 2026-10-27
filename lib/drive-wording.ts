@@ -10,7 +10,7 @@ import { CHART_LINES, type DriveFacts, type DriveWords, type WordingField } from
 
 export const WORDING_MODEL = "anthropic/claude-haiku-5.5";
 // Bumped when the prompt or the facts' shape changes, so stored wording is written again.
-export const PROMPT_VERSION = 3;
+export const PROMPT_VERSION = 4;
 // OpenRouter's list price for the model, per token, for when a reply leaves out its cost.
 export const PRICE_PER_TOKEN = { input: 0.1 / 1e6, output: 0.5 / 1e6 };
 
@@ -77,9 +77,21 @@ function factNumbers(facts: DriveFacts): Set<string> {
 
 const sentences = (text: string) => text.split(/(?<=[.?])\s+/).filter((s) => s.trim() !== "");
 
+// The figures the page already shows above the summary (its tiles and the trip line), with their units: a
+// summary that repeats one says nothing new. Counts match as "2 hard", "2 stops".
+function repeatsShown(text: string, facts: DriveFacts): boolean {
+  const shown = [facts.distance, facts.took, facts.efficiency?.whPerKm, facts.efficiency?.usual, facts.battery?.start, facts.battery?.end, facts.battery?.used, facts.energyUsed];
+  const counts = facts.hard ? [`${facts.hard.brakes} hard`, `${facts.hard.starts} hard`] : [];
+  // Battery levels and % changes are left out: a climb's "5%" isn't the battery's 5%.
+  const figures = [...shown, ...counts, facts.stops > 0 ? `${facts.stops} stop` : null].filter((f): f is string => f != null && !f.endsWith("%"));
+  return figures.some((f) => new RegExp(`(^|[^\\d.,])${f.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(text));
+}
+
 // Why a line can't show, or null when it can.
 export function lineProblem(field: WordingField, text: string, facts: DriveFacts, known = factNumbers(facts)): string | null {
   if (/[!→←–—]|->/.test(text)) return "style";
+  // The summary only adds why: a number the tiles already show means it's restating them.
+  if (field === "summary" && repeatsShown(text, facts)) return "repeats";
   if (!/[.?]$/.test(text)) return "unfinished";
   // Talk about the input or the writer ("The facts don't include…", "I can't say"), not the drive.
   if (/\b(facts?|data|I|I'm|I'd|JSON|null|available|unavailable|missing|unknown)\b/.test(text)) return "meta";

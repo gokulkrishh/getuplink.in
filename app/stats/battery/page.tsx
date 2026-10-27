@@ -78,7 +78,7 @@ async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "sear
           {eachFrame(frames, ({ frame }) => <ParkedDrain parked={driving.parked} parkedNow={driving.parkedNow} frame={frame} places={places} />)}
         </div>
       ) : (
-        <NotYet title="Not enough readings yet">The battery trend shows up after two weeks of readings.</NotYet>
+        <NotYet title="Not enough readings yet">The battery trend shows up after two weeks.</NotYet>
       )}
     </StatsFrame>
   );
