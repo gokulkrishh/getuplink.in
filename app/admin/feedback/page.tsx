@@ -135,46 +135,85 @@ async function loadVotes(): Promise<KindSummary[] | null> {
 }
 
 const VOTES_READ = 1000;
+// A kind gets a verdict only from this many votes: one or two say little.
+const MIN_VOTES = 5;
 // Under this share useful a kind needs work; from WORKING it is working well.
 const NEEDS_WORK = 0.5;
 const WORKING = 0.75;
 
+function verdict(k: KindSummary): { words: string; tone: string } {
+  if (k.useful + k.notUseful < MIN_VOTES) return { words: "Too few votes", tone: "text-faint" };
+  if (k.share < NEEDS_WORK) return { words: "Needs work", tone: "text-chart-worse" };
+  return k.share >= WORKING ? { words: "Working well", tone: "text-chart-better" } : { words: "Mixed", tone: "text-muted-foreground" };
+}
+
+// The votes at a glance: totals, then one bar per kind of tip split into useful (green) and not useful (red),
+// the most voted first, each bar as long as its votes against the busiest kind. The tips voted on sit under
+// each kind behind a fold, for when a kind needs a closer look.
 async function TipVotes() {
   const kinds = await loadVotes();
+  const useful = (kinds ?? []).reduce((a, k) => a + k.useful, 0);
+  const notUseful = (kinds ?? []).reduce((a, k) => a + k.notUseful, 0);
+  const total = useful + notUseful;
+  const sorted = [...(kinds ?? [])].sort((a, b) => b.useful + b.notUseful - (a.useful + a.notUseful));
+  const most = Math.max(1, ...sorted.map((k) => k.useful + k.notUseful));
   return (
-    <section className="space-y-4">
+    <section className="space-y-6">
       <div className="space-y-1">
-        <h2 className="text-lg font-medium tracking-heading">Tips</h2>
-        <p className="text-sm text-muted-foreground">How owners voted on each kind of AI tip. The kinds that need work come first.</p>
+        <h2 className="text-lg font-medium tracking-heading">Tip votes</h2>
+        <p className="text-sm text-muted-foreground">How owners voted on each kind of AI tip.</p>
       </div>
       {kinds === null ? (
         <p className="text-sm text-faint">Tip votes aren&apos;t set up yet. Apply the tip votes migration.</p>
       ) : kinds.length === 0 ? (
         <p className="text-sm text-faint">No votes yet.</p>
       ) : (
-        <ol className="divide-y border-y">
-          {kinds.map((k) => (
-            <li key={`${k.scope}:${k.kind}`} className="space-y-2 py-4">
-              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                <span className="text-sm font-medium">{kindLabel(k.kind)}</span>
-                <span className="text-muted-foreground">{SCOPE_LABELS[k.scope as TipScope] ?? k.scope}</span>
-                <span className={cn("ml-auto font-medium", k.share < NEEDS_WORK ? "text-chart-worse" : k.share >= WORKING ? "text-chart-better" : "text-muted-foreground")}>
-                  {k.share < NEEDS_WORK ? "Needs work" : k.share >= WORKING ? "Working well" : "Mixed"}
-                </span>
-              </p>
-              <p className="text-xs text-muted-foreground tabular-nums">
-                {number.format(k.useful)} useful · {number.format(k.notUseful)} not useful · {Math.round(k.share * 100)}% useful
-              </p>
-              <ul className="space-y-1 text-sm">
-                {k.examples.map((e, n) => (
-                  <li key={n} className="break-words">
-                    <span className="text-xs text-muted-foreground">{e.vote === 1 ? "Useful" : "Not useful"}:</span> {e.tip}
+        <>
+          <Figures
+            figures={[
+              { label: "Votes", value: number.format(total) },
+              { label: "Useful", value: `${Math.round((useful / total) * 100)}%`, note: `${number.format(useful)} of ${number.format(total)}` },
+              { label: "Kinds voted on", value: number.format(kinds.length) },
+            ]}
+          />
+          <div className="space-y-4">
+            <p className="flex gap-4 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5"><span className="size-2 bg-chart-better" aria-hidden="true" />Useful</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2 bg-chart-worse" aria-hidden="true" />Not useful</span>
+            </p>
+            <ol className="space-y-4">
+              {sorted.map((k) => {
+                const n = k.useful + k.notUseful;
+                const v = verdict(k);
+                return (
+                  <li key={`${k.scope}:${k.kind}`} className="space-y-1.5">
+                    <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
+                      <span className="font-medium">{kindLabel(k.kind)}</span>
+                      <span className="text-xs text-muted-foreground">{SCOPE_LABELS[k.scope as TipScope] ?? k.scope}</span>
+                      <span className={cn("ml-auto text-xs", v.tone)}>{v.words}</span>
+                    </p>
+                    <div className="flex h-2 bg-muted" role="img" aria-label={`${k.useful} useful, ${k.notUseful} not useful`} style={{ width: `${(n / most) * 100}%` }}>
+                      <span className="h-full bg-chart-better" style={{ width: `${(k.useful / n) * 100}%` }} />
+                      <span className="h-full bg-chart-worse" style={{ width: `${(k.notUseful / n) * 100}%` }} />
+                    </div>
+                    <details className="group text-xs text-muted-foreground">
+                      <summary className="cursor-pointer list-none tabular-nums hover:text-foreground [&::-webkit-details-marker]:hidden">
+                        {number.format(k.useful)} useful · {number.format(k.notUseful)} not useful · <span className="underline decoration-dotted underline-offset-4">tips voted on</span>
+                      </summary>
+                      <ul className="mt-2 space-y-1 text-sm text-foreground">
+                        {k.examples.map((e, m) => (
+                          <li key={m} className="break-words">
+                            <span className="text-xs text-muted-foreground">{e.vote === 1 ? "Useful" : "Not useful"}:</span> {e.tip}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
                   </li>
-                ))}
-              </ul>
-            </li>
-          ))}
-        </ol>
+                );
+              })}
+            </ol>
+          </div>
+        </>
       )}
     </section>
   );
