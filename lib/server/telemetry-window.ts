@@ -1,7 +1,8 @@
 import "server-only";
 import { firstArrival, TYRE_SEEN_FIELDS } from "@/lib/car-now";
 import { DEMO } from "@/lib/demo";
-import type { Reading } from "@/lib/telemetry-derive";
+import { HARD_MS2 } from "@/lib/drive-verdict";
+import { num, type Reading } from "@/lib/telemetry-derive";
 import { demoReadings } from "./demo";
 import { type Owner, ownerDb } from "./data/owner";
 import { MAX_PAGES, PAGE } from "./telemetry";
@@ -36,6 +37,40 @@ export async function loadReadingsByField(owner: Owner, vin: string, fields: str
     for (const r of data ?? []) byField[r.field as string]?.push({ at: r.created_at as string, value: r.value as unknown });
   }
   return byField;
+}
+
+const ACCEL = "LongitudinalAcceleration";
+// A cap well past any month of hard moments (a few a drive); a read that hits it can't be trusted.
+const HARD_CAP = PAGE * MAX_PAGES;
+
+// The hard moments' raw material for the usual-drive comparison (see usualHardMoments): the acceleration
+// readings at or past HARD_MS2 either way in [from, to), and when acceleration first streamed. The car
+// sends one reading a second while driving, so a month of them is far too many rows; the filter keeps
+// only the hard ones (jsonb numbers compare as numbers). Null when the read fails or hits the cap.
+export async function loadHardAccel(owner: Owner, vin: string, from: string, to: string): Promise<{ hard: Reading[]; since: string | null } | null> {
+  if (DEMO) {
+    const all = demoReadings(ACCEL, "1970-01-01T00:00:00.000Z");
+    return { hard: demoReadings(ACCEL, from, to).filter((r) => Math.abs(num(r.value) ?? 0) >= HARD_MS2), since: all[0]?.at ?? null };
+  }
+  const [hard, first] = await Promise.all([
+    ownerDb(owner)
+      .readings("created_at, value")
+      .eq("vin", vin)
+      .eq("field", ACCEL)
+      .gte("created_at", from)
+      .lt("created_at", to)
+      .or(`value.gte.${HARD_MS2},value.lte.${-HARD_MS2}`)
+      .order("created_at", { ascending: true })
+      .limit(HARD_CAP),
+    ownerDb(owner).readings("created_at").eq("vin", vin).eq("field", ACCEL).order("created_at", { ascending: true }).limit(1).maybeSingle(),
+  ]);
+  if (hard.error || first.error) {
+    console.warn("Hard acceleration readings unavailable:", (hard.error ?? first.error)?.message);
+    return null;
+  }
+  const rows = hard.data ?? [];
+  if (rows.length >= HARD_CAP) return null;
+  return { hard: rows.map((r) => ({ at: r.created_at as string, value: r.value as unknown })), since: (first.data?.created_at as string | undefined) ?? null };
 }
 
 export const TYRE_ARRIVAL_DAYS = 14;

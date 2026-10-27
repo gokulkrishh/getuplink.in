@@ -3,10 +3,11 @@ import { type CostLine, type EntryValues, type GoogleCounts, monthWindow, nextRe
 import { DEMO } from "@/lib/demo";
 import { istDay } from "@/lib/status";
 import { type CostEntryRow, costEntries, type CostSetting, costSettings, saveCostSetting } from "../data/costs";
+import { driveWordingCostSince } from "../data/system";
 import { domainLine, readDomain } from "./domain";
 import { flyLine, readFly } from "./fly";
 import { readSupabase, supabaseLine } from "./supabase-billing";
-import { googleLine, googleUsage, safely, teslaLine, type TeslaUsage, teslaUsage } from "./usage";
+import { googleLine, googleUsage, openRouterLine, safely, teslaLine, type TeslaUsage, teslaUsage } from "./usage";
 import { describeFailure, readVercel, type VercelSnapshot, vercelLine } from "./vercel";
 
 // /admin/costs: one line per service, in dollars, and what the forms for added rows start with.
@@ -100,7 +101,7 @@ async function demoPage(now: number): Promise<CostsPage> {
 export async function loadCosts(now: number): Promise<CostsPage> {
   if (DEMO) return demoPage(now);
   const { from } = monthWindow(now);
-  const [entries, settings, vercel, supabase, fly, domain, tesla, google] = await Promise.all([
+  const [entries, settings, vercel, supabase, fly, domain, tesla, google, openRouter] = await Promise.all([
     costEntries().catch((err) => (console.warn("Cost entries unavailable:", err instanceof Error ? err.message : err), null)),
     costSettings().catch((err) => (console.warn("Cost settings unavailable:", err instanceof Error ? err.message : err), null)),
     readVercel(from),
@@ -109,6 +110,7 @@ export async function loadCosts(now: number): Promise<CostsPage> {
     settle(readDomain, "Domain", { kind: "error" as const }),
     safely(() => teslaUsage(now), "Tesla"),
     safely(() => googleUsage(from), "Google"),
+    safely(() => driveWordingCostSince(from), "OpenRouter"),
   ]);
 
   const failure = describeFailure(vercel);
@@ -130,6 +132,7 @@ export async function loadCosts(now: number): Promise<CostsPage> {
     flyLine(fly, now),
     teslaLine(tesla, now),
     googleLine(google, googleBudgetUsd, now),
+    openRouterLine(openRouter, now),
     domainLine(domain, now),
     ...added.map((r) => entryLine(r, now)),
   ];

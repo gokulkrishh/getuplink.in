@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { after } from "next/server";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
 import { ChartCard } from "@/components/chart-card";
-import { DriveTrace } from "@/components/stats/drive-lanes";
+import { InfoButton } from "@/components/info-button";
+import { DriveTrace, type Side } from "@/components/stats/drive-lanes";
 import { type Figure, Figures } from "@/components/stats/figures";
 import { type MapFact, MapFacts, type MapPin, TripMap } from "@/components/stats/trip-map";
 import { TripTimeline } from "@/components/stats/trip-timeline";
@@ -18,6 +20,12 @@ import { loadUserPlaces } from "@/lib/server/user-places";
 import { NamePlace } from "@/components/name-place";
 import { ROW_LINK, RowChevron } from "@/components/row-chevron";
 import { nameAction, type SpotName, spotName } from "@/lib/charge-names";
+import { HARD_WORDS, isFlat, USUAL_WORDS } from "@/lib/drive-verdict";
+import { describeDrive, type DriveView, type WordingField } from "@/lib/drive-facts";
+import { pickWords, type ShownLine } from "@/lib/drive-wording";
+import { generateDriveWording, loadDriveWording } from "@/lib/server/drive-wording";
+import type { Owner } from "@/lib/server/data/owner";
+import { AiLine } from "@/components/ai-line";
 import { stationAt } from "@/lib/stations";
 import type { UserPlace } from "@/lib/user-places";
 import { Measure } from "@/components/measure";
@@ -29,25 +37,30 @@ export const metadata: Metadata = { title: "Trip" };
 // 3.6 km/h each second.
 const ACCEL_UNIT = "km/h per second";
 const MS2_TO_KMHS = 3.6;
-// The battery chart shows only when the level fell by at least this many points; otherwise its tile says it.
-const BATTERY_CHART_POINTS = 10;
+// Each signed trace coloured by what its sign means (see "Colour by meaning" in docs/charts.md), with the
+// words the tooltip and legend use for each side.
+const POWER_SIDES: { above: Side; below: Side } = { above: { tone: "cool", words: "Drawing" }, below: { tone: "charge", words: "Regen" } };
+const ACCEL_SIDES: { above: Side; below: Side } = { above: { tone: "cool", words: "Speeding up" }, below: { tone: "warm", words: "Braking" } };
+const GRADE_SIDES: { above: Side; below: Side } = { above: { tone: "warm", words: "Uphill" }, below: { tone: "cool", words: "Downhill" } };
 
 // Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx).
-async function loadDetail(start: number, leg: boolean): Promise<DriveDetail | null> {
+// The owner comes back too, for the wording written after the response (see DriveLoader).
+async function loadDetail(start: number, leg: boolean): Promise<{ owner: Owner; detail: DriveDetail | null }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
   const owner = await currentOwner();
   if (!owner) redirect(SIGNED_OUT_PATH);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
-  return loadDriveDetail(owner, start, Date.now(), leg);
+  return { owner, detail: await loadDriveDetail(owner, start, Date.now(), leg) };
 }
 
 // One trip on one page: a single drive, or drives with short stops between (see groupTrips). Its totals,
 // the route on a map with its start, stops and end, a timeline of legs and stops, then the battery and
 // speed across the whole trip.
-function Drive({ detail }: { detail: DriveDetail }) {
-  const { battery, speed, rangeUsedKm, topKmh, outsideC, route, pins, accel, power, grade } = detail;
+// `words` holds each line's text, the AI's or the code's (see lib/drive-facts.ts and lib/drive-wording.ts).
+function Drive({ detail, view, words }: { detail: DriveDetail; view: DriveView; words: Partial<Record<WordingField, ShownLine>> }) {
+  const { speed, rangeUsedKm, topKmh, outsideC, route, pins, accel, power, grade } = detail;
   // The trip's totals are its legs' raw sums, each rounded on its own when shown.
   const { trip } = detail;
   const drivingMs = trip.legs.reduce((sum, d) => sum + (d.end - d.start), 0);
@@ -71,9 +84,11 @@ function Drive({ detail }: { detail: DriveDetail }) {
   const axis = { from: trip.start, to: trip.end, legs: trip.legs };
   const accelKmhs = accel.map((p) => ({ t: p.t, v: p.v * MS2_TO_KMHS }));
   const peaks = highlights(power, accelKmhs);
-  const inDrive = battery.filter((p) => p.t <= trip.end);
-  const levels = inDrive.map((p) => p.v);
-  const batteryShown = levels.length >= 2 && Math.max(...levels) - Math.min(...levels) >= BATTERY_CHART_POINTS ? inDrive : [];
+  // Hard moments come from the car's own m/s² (see lib/drive-verdict.ts); the chart marks them in km/h
+  // per second.
+  const { moments, batteryShown } = view;
+  const line = (field: WordingField) => (words[field] ? <AiLine line={words[field]} /> : null);
+  const what = trip.stops ? "trip" : "drive";
   return (
     <>
       <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">{trip.stops ? "Trip" : "Drive"}</h1>
@@ -81,6 +96,18 @@ function Drive({ detail }: { detail: DriveDetail }) {
         {formatDate(trip.start)} · {formatClock(trip.start)} to {formatClock(trip.end)}
       </p>
       <div className="space-y-12">
+        {words.summary && (
+          <section className="space-y-2">
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-lg font-medium tracking-heading">How this {what} went</h2>
+              <InfoButton label={`How this ${what} went`}>
+                <p>{USUAL_WORDS}</p>
+                <p>{HARD_WORDS}</p>
+              </InfoButton>
+            </div>
+            <p className="text-base">{line("summary")}</p>
+          </section>
+        )}
         {/* Every number in one set of tiles: easier to take in than a long list. */}
         <section>
           <Figures
@@ -131,7 +158,7 @@ function Drive({ detail }: { detail: DriveDetail }) {
               </p>
             </div>
             {speed.length >= 2 && (
-              <ChartCard as="h3" title="Speed" description="How fast the car went.">
+              <ChartCard as="h3" title="Speed" description={line("speed")} info="Mostly is the middle half of the readings while moving.">
                 <DriveTrace label="Speed" points={speed} unit="km/h" {...axis} />
               </ChartCard>
             )}
@@ -139,39 +166,52 @@ function Drive({ detail }: { detail: DriveDetail }) {
               <ChartCard
                 as="h3"
                 title="Power"
-                description="Power drawn from the battery. Below zero is regen."
+                description={line("power")}
                 unit="kW"
                 terms={["regen"]}
+                info="Energy here is added up from the power readings, one a second, so it is approximate; Energy used above is the battery's own figure."
                 summary={<Figures figures={peaks.power} />}
               >
-                <DriveTrace label="Power" points={power} unit="kW" signed {...axis} />
+                <DriveTrace label="Power" points={power} unit="kW" signed split={POWER_SIDES} {...axis} />
               </ChartCard>
             )}
             {accel.length >= 2 && (
               <ChartCard
                 as="h3"
                 title="Acceleration"
-                description="Speeding up above zero, braking below."
+                description={line("acceleration")}
                 unit={ACCEL_UNIT}
+                info={HARD_WORDS}
                 summary={<Figures figures={peaks.accel} />}
               >
-                <DriveTrace label="Acceleration" points={accelKmhs} unit={ACCEL_UNIT} signed digits={1} {...axis} />
+                <DriveTrace
+                  label="Acceleration"
+                  points={accelKmhs}
+                  unit={ACCEL_UNIT}
+                  signed
+                  digits={1}
+                  split={ACCEL_SIDES}
+                  marks={{ points: (moments ?? []).map((m) => ({ t: m.t, v: m.v * MS2_TO_KMHS })), words: "Hard" }}
+                  {...axis}
+                />
               </ChartCard>
             )}
             {grade.length >= 2 && (
               <ChartCard
                 as="h3"
                 title="Road grade"
-                description="Uphill above zero, downhill below."
+                description={line("grade")}
                 terms={["grade"]}
+                info="Flat is within 1% up or down. A climb or descent stays at 2% or more for 30 seconds; shorter is reading noise."
               >
-                <DriveTrace label="Road grade" points={grade} unit="%" signed digits={1} {...axis} />
+                {/* A flat drive has nothing to draw: the one line above says it. */}
+                {!isFlat(grade) && <DriveTrace label="Road grade" points={grade} unit="%" signed digits={1} split={{ ...GRADE_SIDES, area: true }} {...axis} />}
               </ChartCard>
             )}
             {/* Battery barely moves on a short drive, and the Battery tile above already says "70% to 69%". A flat
                 line adds nothing, so the chart only shows when the level fell by BATTERY_CHART_POINTS or more. */}
             {batteryShown.length >= 2 && (
-              <ChartCard as="h3" title="Battery level" description="Charge left as the drive went on.">
+              <ChartCard as="h3" title="Battery level" description={line("battery")}>
                 <DriveTrace label="Battery level" points={batteryShown} unit="%" max={100} {...axis} />
               </ChartCard>
             )}
@@ -308,9 +348,16 @@ function highlights(power: { t: number; v: number }[], accel: { t: number; v: nu
 async function DriveLoader({ params, searchParams }: Pick<PageProps<"/stats/driving/[start]">, "params" | "searchParams">) {
   const [{ start }, query] = await Promise.all([params, searchParams]);
   if (!/^\d{12,14}$/.test(start)) notFound();
-  const detail = await loadDetail(Number(start), query.leg !== undefined);
+  const { owner, detail } = await loadDetail(Number(start), query.leg !== undefined);
   if (!detail) notFound();
-  return <Drive detail={detail} />;
+  // The words: the AI's when stored for these exact facts, else the code sentences. Read on every view,
+  // outside the cache above, so wording written after the last view shows now. With none stored, it is
+  // written after this response (never making the page wait) and shows on the next view.
+  const view = describeDrive(detail);
+  const key = { vehicleId: detail.vehicleId, start: detail.trip.start, scope: detail.trip.legs.length > 1 ? "trip" : "drive" } as const;
+  const stored = await loadDriveWording(owner, key, view.facts);
+  if (stored.generate) after(() => generateDriveWording(owner, key, view.facts));
+  return <Drive detail={detail} view={view} words={pickWords(view.code, stored.words)} />;
 }
 
 function DriveSkeleton() {

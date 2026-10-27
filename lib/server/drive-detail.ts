@@ -7,7 +7,8 @@ import { groupTrips, type Trip } from "@/lib/trips";
 import { tripRoute } from "@/lib/trip-route";
 import { loadWindowStats } from "./driving";
 import { loadPrimaryVehicle } from "./telemetry";
-import { loadReadingsByField } from "./telemetry-window";
+import { loadHardAccel, loadReadingsByField } from "./telemetry-window";
+import { USUAL_DAYS, usualHardMoments, usualWhPerKm } from "@/lib/drive-verdict";
 
 const MIN = 60_000;
 
@@ -17,6 +18,7 @@ export type TracePoint = { t: number; v: number };
 // streamed during it. Speed and outside temperature only exist once the car streams them
 // (scripts/telemetry-config.mjs); until then those parts are null.
 export type DriveDetail = {
+  vehicleId: string; // the owner's car row, which keys the drive's stored wording
   trip: Trip;
   battery: TracePoint[]; // %
   speed: TracePoint[]; // km/h
@@ -28,6 +30,9 @@ export type DriveDetail = {
   grade: TracePoint[]; // road grade %, uphill positive, while moving
   route: MapPoint[]; // where the car was, while each leg was under way
   pins: MapPin[]; // the start, each stop and the end
+  // The owner's usual, from their other drives in the last USUAL_DAYS (see lib/drive-verdict.ts): Wh/km,
+  // and hard starts and stops a drive. Each null until there are enough drives to compare.
+  usual: { whPerKm: number | null; hard: number | null };
 };
 
 const points = (readings: Reading[], from: number, to: number, scale = 1): TracePoint[] =>
@@ -43,8 +48,9 @@ const valueAt = (list: TracePoint[], t: number) => list.findLast((p) => p.t <= t
 // The trip that starts at `start` (ms), or with `leg`, just the drive that does (a leg of a longer trip;
 // the first leg starts when its trip does).
 export async function loadDriveDetail(owner: Owner, start: number, now: number, leg = false): Promise<DriveDetail | null> {
-  const vin = (await loadPrimaryVehicle(owner))?.vin ?? null;
-  if (!vin) return null;
+  const car = await loadPrimaryVehicle(owner);
+  const vin = car?.vin ?? null;
+  if (!car || !vin) return null;
   const drives = (await loadWindowStats(owner, vin, now)).driving.drives;
   const drive0 = drives.find((d) => d.start === start);
   if (!drive0) return null;
@@ -54,7 +60,10 @@ export async function loadDriveDetail(owner: Owner, start: number, now: number, 
   // A little either side, so the values in force at the start and end are there.
   const from = new Date(drive.start - 30 * MIN).toISOString();
   const to = new Date(drive.end + 10 * MIN).toISOString();
-  const byField = (await loadReadingsByField(owner, vin, ["BatteryLevel", "VehicleSpeed", "OutsideTemp", "Location", "LongitudinalAcceleration", "PackVoltage", "PackCurrent", "GradeEstimatePercent"], from, to)) ?? {};
+  const [byField, hardAccel] = await Promise.all([
+    loadReadingsByField(owner, vin, ["BatteryLevel", "VehicleSpeed", "OutsideTemp", "Location", "LongitudinalAcceleration", "PackVoltage", "PackCurrent", "GradeEstimatePercent"], from, to).then((r) => r ?? {}),
+    loadHardAccel(owner, vin, new Date(now - USUAL_DAYS * 86_400_000).toISOString(), new Date(now + 1).toISOString()),
+  ]);
   const read = (field: string) => [...(byField[field] ?? [])].sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
 
   // Range used is the legs' own (see lib/drives.ts), so a stop's parked use or a charge isn't counted.
@@ -89,8 +98,16 @@ export async function loadDriveDetail(owner: Owner, start: number, now: number, 
   const sorted = raw.map((p) => p.v).sort((a, b) => a - b);
   const flip = sorted.length > 0 && sorted[Math.floor(sorted.length / 2)] < 0 ? -1 : 1;
   const power = raw.map((p) => ({ t: p.t, v: p.v * flip }));
+  // The usual to judge this trip against, from the other drives (never this trip's own legs).
+  const own = new Set(trip.legs.map((d) => d.start));
+  const others = drives.filter((d) => !own.has(d.start));
+  const usual = {
+    whPerKm: usualWhPerKm(others, trip.start, now),
+    hard: hardAccel ? usualHardMoments(points(hardAccel.hard, 0, Infinity), others, trip.start, now, hardAccel.since === null ? null : Date.parse(hardAccel.since)) : null,
+  };
 
   return {
+    vehicleId: car.id,
     trip,
     accel,
     power,
@@ -102,5 +119,6 @@ export async function loadDriveDetail(owner: Owner, start: number, now: number, 
     rangeUsedKm,
     topKmh: speed.length ? Math.max(...speed.map((p) => p.v)) : null,
     outsideC: temps.length ? median(temps) : null,
+    usual,
   };
 }

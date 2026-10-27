@@ -236,9 +236,9 @@ describe("the page's data", () => {
     expect(fetched[0].auth).toBeNull();
   });
 
-  test("the order: Vercel, Supabase, Fly.io, Tesla, Google, the domain, then added rows", async () => {
+  test("the order: Vercel, Supabase, Fly.io, Tesla, Google, OpenRouter, the domain, then added rows", async () => {
     fake.rows("cost_entries").push({ id: 3, service: null, name: "Email", amount: "1.50", currency: "USD", period: "monthly", renews_on: null, link: null, updated_at: "x" });
-    expect((await loadCosts(NOW)).lines.map((l) => l.id)).toEqual(["vercel", "supabase", "fly", "tesla", "google", "domain", "entry-3"]);
+    expect((await loadCosts(NOW)).lines.map((l) => l.id)).toEqual(["vercel", "supabase", "fly", "tesla", "google", "openrouter", "domain", "entry-3"]);
   });
 
   test("the domain: Namecheap's renewal a year, renewing on RDAP's expiry", async () => {

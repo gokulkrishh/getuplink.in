@@ -19,15 +19,20 @@ const canHover = () => window.matchMedia(HOVER).matches;
 // method notes passed as children, then the plain words for each unit or term (from the glossary,
 // lib/unit-words.ts). Hover or keyboard focus opens it on a desktop, a tap on a phone; a tap outside or Esc closes
 // it. `label` names what it's about ("Parked drain") for screen readers. Renders nothing when there's
-// nothing to say.
+// nothing to say. `icon` swaps the ⓘ for another mark that opens the same way (the AI mark, AiLine);
+// `ariaLabel` then names the button in full.
 export function InfoButton({
   label,
+  ariaLabel,
   terms = [],
+  icon,
   children,
   className,
 }: {
   label: string;
+  ariaLabel?: string;
   terms?: (string | undefined)[];
+  icon?: ReactNode;
   children?: ReactNode;
   className?: string;
 }) {
@@ -41,7 +46,7 @@ export function InfoButton({
       <Popover.Trigger
         openOnHover={hover}
         delay={150}
-        aria-label={`About ${label}`}
+        aria-label={ariaLabel ?? `About ${label}`}
         onFocus={(e) => e.currentTarget.matches(":focus-visible") && setOpen(true)}
         onBlur={(e) => !popup.current?.contains(e.relatedTarget as Node | null) && e.relatedTarget && setOpen(false)}
         className={cn(
@@ -49,7 +54,7 @@ export function InfoButton({
           className,
         )}
       >
-        <Info className="size-4" aria-hidden="true" />
+        {icon ?? <Info className="size-4" aria-hidden="true" />}
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Positioner side="bottom" align="start" sideOffset={6} collisionPadding={16} className="z-50">

@@ -8,7 +8,7 @@ import {
   monthWindow,
   TESLA_MONTHLY_CREDIT_USD,
 } from "@/lib/costs";
-import { googleUsageFor } from "../data/system";
+import { driveWordingCostSince, googleUsageFor } from "../data/system";
 import type { KindCount } from "@/lib/tesla-billing";
 import { accountKinds, type BudgetState, stateFor, type UserCost } from "../usage";
 
@@ -78,6 +78,26 @@ export function googleLine(counts: GoogleCounts | null, budgetUsd: number | null
     link: GOOGLE_BILLING_LINK,
     state: counts ? "ok" : "not-tracked",
     budget: budgetUsd,
+  };
+}
+
+// ---- OpenRouter: the drive page's AI wording ----
+
+// Each call's cost is stored with its wording (drive_wording.cost_usd), so the month's spend is their sum.
+export const OPENROUTER_LINK = "https://openrouter.ai/activity";
+
+export function openRouterLine(spentUsd: number | null, now: number): CostLine {
+  const { resetsOn } = monthWindow(now);
+  return {
+    id: "openrouter",
+    name: "OpenRouter",
+    amount: spentUsd,
+    period: "monthly",
+    resetsOn,
+    source: "live",
+    link: OPENROUTER_LINK,
+    state: spentUsd === null ? "not-tracked" : "ok",
+    note: "AI wording on drive pages, Claude Haiku",
   };
 }
 

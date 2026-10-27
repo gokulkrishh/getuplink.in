@@ -50,6 +50,8 @@ export async function eraseOwnerRows(owner: Owner): Promise<void> {
   await deleteRest(owner, "poll_runs");
   // The owner's names for places; optional, since the table may not exist yet.
   await deleteRest(owner, "user_places", true);
+  // The drive page's AI wording; optional, since the table may not exist yet.
+  await deleteRest(owner, "drive_wording", true);
   // The streamed-signal counts of cars nobody tracks any more keep their numbers but lose the VINs. After
   // the readings, so the daily recount can't bring them back. A shared car's stay: its stream goes on. Best
   // effort: a count is never worth failing a deletion.

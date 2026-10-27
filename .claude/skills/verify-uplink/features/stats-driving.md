@@ -9,7 +9,7 @@ Everything about drives for a period. On Week (the default): Distance (bars, wit
 - Under the Distance chart, one line like "14.5 kWh used, 2.6 kWh won back with regen, 111 Wh/km, 4 Wh/km better than the 7 days before." (only the parts known; with no energy reading the caption names the bars' span instead).
 - Places map (MapLibre) and the place list; "Name this place" opens a naming sheet.
 - Trips table (desktop) and trip list (phone); each row links to `/stats/driving/<start>`.
-- Trip page: h1 "Drive", legs table (rows link to `?leg`), route map.
+- Trip page: h1 "Drive", "How this drive went" (Wh/km and hard starts and stops against the owner's usual; facts only under 5 other drives), legs table (rows link to `?leg`), route map, then Speed, Power, Acceleration, Road grade and Battery level, each opening with a one-sentence verdict. In demo, about two drives in three show AI wording: a sparkles button "Written by AI" before the summary and each chart line, whose tip reads "Written by AI from this drive's figures."; the rest show the code sentences with no mark. Power, Acceleration and Road grade are coloured by sign with a legend; hard moments are red dots; a flat drive shows no grade chart, just "Flat all the way."
 
 ## How to get to it (user POV)
 

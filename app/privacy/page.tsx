@@ -179,7 +179,13 @@ export default function PrivacyPage() {
           counts tries by IP address for a few minutes, in memory only.
         </p>
         <p>
-          Vercel, Supabase and Fly.io are US companies. The receiver, and some of these services, handle data outside
+          To word a drive&apos;s page, Uplink sends that drive&apos;s figures (distance, times, Wh/km, hard brakes and
+          starts, speed, energy, road grade and battery %) to OpenRouter, which passes them to Anthropic&apos;s Claude.
+          Never your location, place names, VIN or anything that names you. Uplink asks for providers that don&apos;t
+          keep or train on it, and stores the text with your drive.
+        </p>
+        <p>
+          Vercel, Supabase, Fly.io, OpenRouter and Anthropic are US companies. The receiver, and some of these services, handle data outside
           India.
         </p>
         <p>
