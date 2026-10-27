@@ -14,7 +14,7 @@ When asked to fix something (a bug, a layout problem, a copy or style issue), ch
 
 ## Writing copy
 
-Every word a user sees (labels, descriptions, ⓘ notes, captions, empty states, errors, buttons, Settings, Admin, the home page) follows these rules. Check any string you add or change against them.
+Every word a user sees (labels, descriptions, ⓘ notes, captions, empty states, errors, buttons, Settings, Admin, the home page) follows these rules. Check any string you add or change against them. Before adding, changing or reviewing any user-facing string, load the `uplink-copy` skill (`.claude/skills/uplink-copy/SKILL.md`): it holds the word list, house style and patterns.
 
 - **Written for car owners, not developers.** Most readers own a Tesla and have never seen code. Use everyday words; no technical terms like median, g, telemetry, API, stream or readings. This matters most in ⓘ tooltips: one or two short sentences that answer "what does this mean for me?".
 - **Human and plain.** Write the way a calm friend would say it. No jargon, no hype, no exclamation marks, no "Oops".
