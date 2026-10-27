@@ -11,6 +11,7 @@ import { supplyFigures, Words } from "@/components/stats/charge-supply";
 import { type Figure, Figures } from "@/components/stats/figures";
 import { Vin } from "@/components/vin";
 import { odometerKm } from "@/lib/car";
+import { rotationLine, tyreRotation } from "@/lib/tyre-rotation";
 import { CAR_NOW_FIELDS, type CarNow, carNow, shutSummary, tyreSeen } from "@/lib/car-now";
 import { formatClock, formatKm, formatKw, formatKwh, formatPercent, formatRangeKm, formatShortDate } from "@/lib/format";
 import { isStaleSync, lastSyncedText, newestTime } from "@/lib/last-synced";
@@ -201,6 +202,7 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
   const figures = nowFigures(state, now, shutSummary(stream, rhd));
   const tyres = now?.tyres ?? [];
   const seen = tyreSeen(tyres, at);
+  const rotation = tyreRotation(odometer);
 
   const specs = shown<ReactNode>([
     ["Drive", car.drive],
@@ -255,11 +257,13 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
         </Section>
       )}
 
-      {tyres.length > 0 && (
+      {(tyres.length > 0 || rotation) && (
         <section className="space-y-3">
           <h2 className="text-lg font-medium tracking-heading">Tyres</h2>
+          {/* When to rotate them, counted from new on Tesla's every 10,000 km (lib/tyre-rotation.ts). */}
+          {rotation && <p className="text-sm text-muted-foreground">{rotationLine(rotation)}</p>}
           {/* Laid out like the car: fronts on top, left on the left, two by two at every width. */}
-          <Figures
+          {tyres.length > 0 && <Figures
             className="sm:grid-cols-2"
             figures={tyres.map((t, k) => ({
               label: t.name,
@@ -275,7 +279,7 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
             }))}
             label="Tyres"
             terms={["psi"]}
-          />
+          />}
           {(seen.shared || car.tyrePressure) && (
             <p className="text-xs text-muted-foreground">
               {[seen.shared, car.tyrePressure && `Recommended ${car.tyrePressure}`].filter(Boolean).join(" · ")}

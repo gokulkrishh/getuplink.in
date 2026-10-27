@@ -21,6 +21,7 @@ import { AiLine } from "@/components/ai-line";
 import { type WeekFacts, weekFacts } from "@/lib/week-wording";
 import { generateWeekLine, loadWeekLine } from "@/lib/server/week-wording";
 import { newestTime } from "@/lib/last-synced";
+import { rotationNotice, tyreRotation } from "@/lib/tyre-rotation";
 import type { DemoScenario } from "@/lib/demo";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -132,7 +133,7 @@ async function HomeContent() {
         <div className="space-y-12">
           {cars.map((car) => (
             <div key={car.vehicle.id} className="space-y-6">
-              <CarNotices notices={car.notices} />
+              <CarNotices notices={car.vehicle.id === primaryId ? [...car.notices, ...rotationNotice(tyreRotation(home.figures.odometerKm))] : car.notices} />
               <NowStrip
                 car={car}
                 odometerKm={car.vehicle.id === primaryId ? home.figures.odometerKm : null}
