@@ -39,7 +39,8 @@ export function BatteryGauge({ snapshot, parked = null }: { snapshot: Snapshot; 
           <Measure text={`${level}%`} size="headline" />
         </span>
         {snapshot.battery_range_km != null && (
-          <span className="text-base text-muted-foreground tabular-nums">{formatRangeKm(snapshot.battery_range_km)}</span>
+          // Tesla's estimate, so "about".
+          <span className="text-base text-muted-foreground tabular-nums">about {formatRangeKm(snapshot.battery_range_km)}</span>
         )}
       </p>
       <div

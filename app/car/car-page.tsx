@@ -180,7 +180,8 @@ const SHUT_ROWS = new Set(["Locked", "Doors", "Windows", "Charge port door"]);
 // The charge and range from the latest online check, newer streamed values laid over it, then carNow's
 // rows, with locks, doors, windows and the charge port door as one tile. Temperatures are measures; the
 // rest are words.
-function nowFigures(state: Omit<CarState, "flags">, now: CarNow | null, shut: string | null): Figure[] {
+// `ownKm` is the range at the owner's own driving, when it can be worked out (see ownRange).
+function nowFigures(state: Omit<CarState, "flags">, now: CarNow | null, shut: string | null, ownKm: number | null): Figure[] {
   const s = state.lastOnline;
   const figures: Figure[] = [];
   if (s?.battery_level != null) {
@@ -195,7 +196,9 @@ function nowFigures(state: Omit<CarState, "flags">, now: CarNow | null, shut: st
         : undefined;
     figures.push({ label: "Charge", value: formatPercent(s.battery_level), note });
   }
-  if (s?.battery_range_km != null) figures.push({ label: "Range", value: formatRangeKm(s.battery_range_km) });
+  // Tesla's figure is an estimate on a test cycle, so it says so; the owner's own driving gives another.
+  if (s?.battery_range_km != null)
+    figures.push({ label: "Range", value: formatRangeKm(s.battery_range_km), note: ownKm !== null ? `Tesla's estimate. At your driving, about ${formatRangeKm(ownKm)}.` : "Tesla's estimate." });
   let shutShown = false;
   for (const [label, value] of now?.rows ?? []) {
     if (SHUT_ROWS.has(label)) {
@@ -208,6 +211,13 @@ function nowFigures(state: Omit<CarState, "flags">, now: CarNow | null, shut: st
   return figures;
 }
 
+// What's left in the pack (the level of the usable capacity) over the owner's average consumption: the
+// last 30 days', or since the first drive while tracking is younger.
+function ownRange(level: number | null, usableKwh: number | null, averages: Average[]): number | null {
+  const average = averages.find((a) => a.label.startsWith("Last")) ?? averages.at(-1);
+  return level === null || usableKwh === null || !average ? null : ((level / 100) * usableKwh * 1000) / average.whPerKm;
+}
+
 function Car({ car, live }: { car: CarDetails; live: Live }) {
   const { state, stream, now, notices, at } = live;
   const reading = (field: string) => stream[field];
@@ -215,7 +225,7 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
   const version = currentVersion(car.rowVersion, car.checkedVersion, reading("Version") && { version: reading("Version").value, at: reading("Version").at });
   const syncedAt = newestTime([state.latest?.polled_at, state.streamAt]);
   const rhd = car.steering === "Right-hand drive" ? true : car.steering === "Left-hand drive" ? false : null;
-  const figures = nowFigures(state, now, shutSummary(stream, rhd));
+  const figures = nowFigures(state, now, shutSummary(stream, rhd), ownRange(state.lastOnline?.battery_level ?? null, car.battery?.kwh ?? null, live.averages));
   const tyres = now?.tyres ?? [];
   const seen = tyreSeen(tyres, at);
   const rotation = tyreRotation(odometer);
