@@ -1,10 +1,10 @@
 "use client";
 
-import { RefreshCw, Sparkles } from "lucide-react";
+import { ChevronRight, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { InfoButton } from "@/components/info-button";
 
-// Home's AI tips on the week (lib/week-wording.ts), one at a time. The arrows button shows the next; the
+// Home's AI tips on the week (lib/week-wording.ts), one at a time. The next button shows the next one; the
 // tips are written once a day, so turning them costs nothing.
 export function WeekTips({ tips }: { tips: string[] }) {
   const [at, setAt] = useState(0);
@@ -33,7 +33,7 @@ export function WeekTips({ tips }: { tips: string[] }) {
             className="tap-target inline-flex items-center gap-1.5 rounded-sm text-xs text-muted-foreground tabular-nums transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
           >
             {(at % tips.length) + 1} of {tips.length}
-            <RefreshCw className="size-3.5" aria-hidden="true" />
+            <ChevronRight className="size-3.5" aria-hidden="true" />
           </button>
         )}
       </div>
