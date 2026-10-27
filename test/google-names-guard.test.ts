@@ -24,7 +24,6 @@ describe("Google place names stay off the map and out of exports", () => {
   });
 
   test("pins take their names through mapName", () => {
-    expect(read("lib/server/day.ts")).toContain("mapName(spot)");
     expect(read("lib/server/charging-extra.ts")).toContain("mapName(named.get(s.id))");
     expect(read("components/stats/driving-extras.tsx")).toContain("withCarFlag(mapName(p), p.tag)");
   });
@@ -34,7 +33,7 @@ describe("Google place names stay off the map and out of exports", () => {
     expect(lookup).toContain('DETAILS_FIELDS = "displayName"');
     expect(lookup).toContain('cache: "no-store"');
     expect(lookup).not.toMatch(/new Map<string, string>\(\)|^const \w+ = new Map/m);
-    for (const path of ["lib/server/google-place-names.ts", "lib/server/charging-extra.ts", "lib/server/parked-places.ts", "lib/server/day.ts", "lib/server/charge-curve.ts", "app/stats/driving/page.tsx", "app/stats/charging/page.tsx"])
+    for (const path of ["lib/server/google-place-names.ts", "lib/server/charging-extra.ts", "lib/server/parked-places.ts", "lib/server/charge-curve.ts", "app/stats/driving/page.tsx", "app/stats/charging/page.tsx"])
       expect(read(path)).not.toMatch(/^\s*"use cache(: remote)?";/m);
   });
 

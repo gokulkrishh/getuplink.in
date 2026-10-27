@@ -10,7 +10,7 @@ type Span = { start: number; end: number };
 
 const DAY = 86_400_000;
 
-// "2026-10-23", a day's page address (/stats/day/2026-10-23), in IST.
+// "2026-10-23", a day in IST, as Stats' Custom range takes it (?from=2026-10-23&to=2026-10-23).
 export const dayParam = (day: number) => new Date(istDayStart(day) + 12 * 3_600_000).toISOString().slice(0, 10);
 
 // Paints `span` over the segments, splitting any it covers.

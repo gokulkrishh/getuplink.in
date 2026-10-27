@@ -210,7 +210,7 @@ Where you can, prefer a unit people already understand. The drive page shows acc
 | `components/stats/driving-extras.tsx` | Efficiency | Wh/km figures |
 | `components/stats/driving-extras.tsx` | Places | Map of everywhere the car went |
 | `components/stats/season-efficiency.tsx` | Efficiency by season | Tiles: Wh/km per Indian season |
-| `components/stats/day-timeline.tsx` | Timeline (Driving page, day page) | Strips of driving, parked and charging by time of day |
+| `components/stats/day-timeline.tsx` | Timeline (Driving page) | Strips of driving, parked and charging by time of day |
 | `components/stats/trip-timeline.tsx` | Timeline (drive page) | Legs and stops of a trip |
 | `components/stats/trip-map.tsx` | Map (drive page, day page) | Route with start, stops and end |
 | `components/stats/charging-sections.tsx` | Spend | Bars: Supercharger bill per slot |

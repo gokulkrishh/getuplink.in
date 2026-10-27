@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef } from "react";
 import { ChartCard } from "@/components/chart-card";
 import { FloatTip, useActiveMark } from "@/components/stats/float-tip";
+import { statsHref } from "@/components/stats/periods";
 import { type Day, type DayKind, dayParam } from "@/lib/day-timeline";
 import { formatClock, formatDayLabel, formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -50,7 +51,7 @@ export function DayTimeline({ days: all7, now, title = "Your days", period, capt
       <ol ref={list} className="chart-touch space-y-1.5" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
         {[...days].reverse().map((d) => (
           <li key={d.day} className="flex items-center gap-3">
-            <Link href={`/stats/day/${dayParam(d.day)}`} className="w-16 shrink-0 text-xs text-muted-foreground underline decoration-border decoration-dotted underline-offset-4 hover:text-foreground hover:decoration-foreground">
+            <Link href={statsHref("driving", "custom", { from: dayParam(d.day), to: dayParam(d.day) })} className="w-16 shrink-0 text-xs text-muted-foreground underline decoration-border decoration-dotted underline-offset-4 hover:text-foreground hover:decoration-foreground">
               {formatDayLabel(d.start, now)}
             </Link>
             <div className="relative h-4 flex-1">

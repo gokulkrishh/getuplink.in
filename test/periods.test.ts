@@ -283,8 +283,8 @@ describe("what a bar opens", () => {
     expect(slots[0].days).toEqual({ kind: "month", from: "2026-08-15", to: "2026-08-31", title: "Aug 2026" });
     expect(slots[2].days).toEqual({ kind: "month", from: "2026-10-01", to: "2026-10-10", title: "Oct 2026" });
   });
-  test("a day opens its page; a month or year opens the page's Custom range, only where a page is named", () => {
-    expect(barOpens({ kind: "day", from: "2026-10-20", to: "2026-10-20", title: "Tue, 20 Oct" })).toEqual({ href: "/stats/day/2026-10-20", label: "Open day" });
+  test("a day, month or year opens its days as the Stats page's Custom range; a day on Driving when none is named", () => {
+    expect(barOpens({ kind: "day", from: "2026-10-20", to: "2026-10-20", title: "Tue, 20 Oct" })).toEqual({ href: "/stats/driving?period=custom&from=2026-10-20&to=2026-10-20", label: "Open day" });
     expect(barOpens({ kind: "month", from: "2026-09-01", to: "2026-09-30", title: "Sep 2026" }, "charging")).toEqual({
       href: "/stats/charging?period=custom&from=2026-09-01&to=2026-09-30",
       label: "Open month",

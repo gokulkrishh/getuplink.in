@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { OPEN_GRAPH, SITE_URL, TAGLINE, TWITTER } from "@/lib/site";
 import { THEME_SCRIPT } from "@/lib/theme";
+import { Suspense } from "react";
+import { TopLoader } from "@/components/top-loader";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -43,6 +45,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body className="flex min-h-full flex-col">
+        {/* Reads the address, so it waits behind Suspense and never holds up a page's static shell. */}
+        <Suspense fallback={null}>
+          <TopLoader />
+        </Suspense>
         <main className="flex w-full flex-1 flex-col">{children}</main>
       </body>
     </html>

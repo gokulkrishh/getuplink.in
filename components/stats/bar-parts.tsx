@@ -34,8 +34,10 @@ export type Opens = { href: string; label: string };
 
 export function barOpens(days: SlotDays | undefined, view?: View): Opens | null {
   if (!days) return null;
-  if (days.kind === "day") return { href: `/stats/day/${days.from}`, label: "Open day" };
-  return view ? { href: statsHref(view, "custom", { from: days.from, to: days.to }), label: `Open ${days.kind}` } : null;
+  // A bar opens its days as the Stats page's Custom range: a day on Driving when no page is named, a month or
+  // year only where one is.
+  const page = view ?? (days.kind === "day" ? "driving" : null);
+  return page ? { href: statsHref(page, "custom", { from: days.from, to: days.to }), label: `Open ${days.kind}` } : null;
 }
 
 // What a column holds. Tab reaches it, with a ring, so its tip can be read without a pointer (focus shows the
@@ -169,8 +171,9 @@ export function BarTip({ title, lines, opens = null }: { title: string; lines: (
         // Not in the Tab order: the column itself is the link a keyboard follows.
         <Link href={opens.href} prefetch={false} tabIndex={-1} data-tip-link className="mt-1 block py-0.5 underline decoration-border decoration-dotted underline-offset-4 hover:decoration-foreground">
           {/* A mouse can click the bar or this; a tap pins the tip, and this is the way on. */}
-          <span className="group-data-[tapped=true]:hidden">Click to {opens.label.toLowerCase()}</span>
-          <span className="hidden group-data-[tapped=true]:inline">{opens.label}</span>
+          {/* The same words for a day, a month or a year: the tip's title already says which. */}
+          <span className="group-data-[tapped=true]:hidden">Click to open</span>
+          <span className="hidden group-data-[tapped=true]:inline">Open</span>
         </Link>
       )}
     </span>

@@ -18,6 +18,10 @@ const nextConfig: NextConfig = {
   // Nothing off the home page is for search engines or AI crawlers: the app, status and demo hosts, and
   // /admin and /api anywhere. Pages also carry noindex metadata and robots.txt turns crawlers away; this
   // header covers crawlers that skip both.
+  // The day page is gone: a day opens on Stats > Driving as a one-day Custom range. Old links land there.
+  async redirects() {
+    return [{ source: "/stats/day/:date(\\d{4}-\\d{2}-\\d{2})", destination: "/stats/driving?period=custom&from=:date&to=:date", permanent: true }];
+  },
   async headers() {
     const noindex = [{ key: "X-Robots-Tag", value: "noindex, nofollow, noarchive, nosnippet, noimageindex" }];
     return [
