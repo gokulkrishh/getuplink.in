@@ -1,3 +1,4 @@
+import { type InvoiceDetail, keptDetails, storedDetails } from "@/lib/invoice-details";
 import "server-only";
 import { parseInvoiceTime, parseRangeEnd } from "@/lib/mcp-ranges";
 import { createHash } from "node:crypto";
@@ -146,6 +147,7 @@ export type AttachInput = {
   replace?: boolean;
   file_base64?: string;
   line_items?: SentLine[];
+  details?: InvoiceDetail[];
 };
 
 // The file's type from its first bytes, never from a name the AI gives it.
@@ -174,6 +176,14 @@ async function saveLines(owner: Owner, sessionId: number, items: StoredItems | n
   // Name the Rounding line reconcile added, so a count one more than was sent isn't a puzzle.
   const rounding = items.lines.find((l) => l.label === "Rounding" && l.kind === "other");
   return `Lines saved: ${items.lines.length}.${rounding ? ` One is a ₹${rounding.amount.toFixed(2)} Rounding line Uplink added so they add up to the total.` : ""}`;
+}
+
+// Details sent again for an invoice already saved: kept over the old ones when any are worth keeping.
+async function addDetails(owner: Owner, sessionId: number, sent: InvoiceDetail[] | undefined) {
+  const kept = keptDetails(sent);
+  if (kept.length === 0) return;
+  const { error } = await ownerDb(owner).from("charge_receipts").update({ details: kept }).eq("session_id", sessionId);
+  if (error) console.warn("Saving invoice details failed:", error.code);
 }
 
 // Lines sent for an invoice already saved, checked against what it was saved with.
@@ -216,6 +226,7 @@ export async function attachInvoice(owner: Owner, input: AttachInput) {
   if (seen.data && !input.replace) {
     const saved = seen.data as { session_id: number; amount_total: number; gst: number | null; invoice_path: string | null };
     const sessionId = Number(saved.session_id);
+    await addDetails(owner, sessionId, input.details);
     if (!input.line_items?.length) return { status: "already_attached", session_id: sessionId };
     return { status: "already_attached", session_id: sessionId, lines: await addLines(owner, sessionId, saved, input.line_items) };
   }
@@ -256,6 +267,7 @@ export async function attachInvoice(owner: Owner, input: AttachInput) {
     existing &&
     (file ? existing.invoice_path === `${session.id}/${digest}.${file.ext}` : existing.network.toLowerCase() === invoice.network.toLowerCase() && Number(existing.amount_total) === invoice.amountTotal);
   if (existing && !input.replace && same && input.line_items?.length) {
+    await addDetails(owner, session.id, input.details);
     return { status: "already_attached", session_id: session.id, lines: await addLines(owner, session.id, existing, input.line_items) };
   }
   if (existing && !input.replace) {
@@ -286,6 +298,8 @@ export async function attachInvoice(owner: Owner, input: AttachInput) {
     source_ref: input.source_ref ?? null,
     source: input.source_ref?.startsWith("gmail:") ? "gmail" : "chat",
     added_at: new Date(now).toISOString(),
+    // A replaced invoice keeps none of the old one's details.
+    details: keptDetails(input.details).length ? keptDetails(input.details) : null,
   };
   const { error } = await ownerDb(owner).from("charge_receipts").upsert(row, { onConflict: "session_id" });
   if (error) {
@@ -438,6 +452,11 @@ export type SessionInvoice = {
   kwhBilled: number | null;
   hasFile: boolean;
   lines: InvoiceLine[] | null;
+  // As printed: the invoice's number, its own start and end (ISO), and its other details.
+  invoiceNumber: string | null;
+  startedAt: string | null;
+  endedAt: string | null;
+  details: InvoiceDetail[];
 };
 
 // The invoice attached to one session, for its page. Never fails the page: a read error (or a
@@ -446,9 +465,11 @@ export async function sessionInvoice(owner: Owner, sessionId: number): Promise<S
   if (DEMO) {
     const { demoInvoices } = await import("./demo");
     const i = demoInvoices().get(sessionId);
-    return i ? { network: i.network, station: i.station, amountTotal: i.amount, gst: i.gst, energyAmount: i.energyAmount, kwhBilled: i.kwhBilled, hasFile: false, lines: i.lines } : null;
+    return i
+      ? { network: i.network, station: i.station, amountTotal: i.amount, gst: i.gst, energyAmount: i.energyAmount, kwhBilled: i.kwhBilled, hasFile: false, lines: i.lines, invoiceNumber: i.invoiceNumber, startedAt: i.startedAt, endedAt: i.endedAt, details: i.details }
+      : null;
   }
-  const columns = "network, station, amount_total, gst, kwh_billed, invoice_path";
+  const columns = "network, station, amount_total, gst, kwh_billed, invoice_path, invoice_number, started_at, ended_at, details";
   const read = (cols: string) => ownerDb(owner).from("charge_receipts").select(cols).eq("session_id", sessionId).maybeSingle();
   let { data, error } = await read(`${columns}, ${ENERGY}`);
   if (noEnergyColumn(error)) ({ data, error } = await read(columns));
@@ -468,6 +489,10 @@ export async function sessionInvoice(owner: Owner, sessionId: number): Promise<S
     kwhBilled: amount(row.kwh_billed),
     hasFile: Boolean(row.invoice_path),
     lines,
+    invoiceNumber: (row.invoice_number as string | null) ?? null,
+    startedAt: (row.started_at as string | null) ?? null,
+    endedAt: (row.ended_at as string | null) ?? null,
+    details: storedDetails(row.details),
   };
 }
 

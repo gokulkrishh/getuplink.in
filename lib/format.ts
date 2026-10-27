@@ -56,6 +56,14 @@ export function formatDuration(seconds: number): string {
   return minutes % 60 ? `${hours} h ${minutes % 60} min` : `${hours} h`;
 }
 
+// To the second, for a span whose ends were seen to the second, like a charge's start and end: "29 min 58 s",
+// "2 h 35 min 12 s". formatDuration rounds to the minute for spans read every few minutes.
+export function formatDurationExact(seconds: number): string {
+  const total = Math.round(seconds);
+  const [h, m, s] = [Math.floor(total / 3600), Math.floor((total % 3600) / 60), total % 60];
+  return [h && `${h} h`, (h || m) && `${m} min`, (s || total === 0) && `${s} s`].filter(Boolean).join(" ");
+}
+
 // Power drawn while parked is small, so it reads in watts ("24 W", "4.5 W" under 10) and in kW only from
 // 1 kW ("1.2 kW").
 export function formatPower(watts: number): string {

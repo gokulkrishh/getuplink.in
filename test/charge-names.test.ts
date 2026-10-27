@@ -9,8 +9,12 @@ describe("chargeName", () => {
     expect(chargeName({ station: null, invoice, place: "Hillgrove, Riverton" })).toEqual({ text: "VoltPoint, Lakeview Fuels", source: "invoice" });
   });
 
-  test("the station check's match comes first", () => {
+  test("an invoice's station comes before the station check's match: the bill names the exact station", () => {
     expect(chargeName({ station: "Magenta ChargeGrid, BTM Layout", invoice, site: "Bengaluru, Orion Mall", place: "BTM Layout, Bengaluru" })).toEqual({
+      text: "VoltPoint, Lakeview Fuels",
+      source: "invoice",
+    });
+    expect(chargeName({ station: "Magenta ChargeGrid, BTM Layout", invoice: null, place: "BTM Layout, Bengaluru" })).toEqual({
       text: "Magenta ChargeGrid, BTM Layout",
       source: "station",
     });

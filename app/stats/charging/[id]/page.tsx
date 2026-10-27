@@ -10,11 +10,10 @@ import { NamePlace } from "@/components/name-place";
 import { ChargeCurve } from "@/components/stats/charge-curve";
 import { ChargeFees } from "@/components/stats/charge-fees";
 import { ChargeSupply } from "@/components/stats/charge-supply";
-import { DownloadInvoice, InvoiceLines } from "@/components/stats/invoice-lines";
+import { InvoiceSection } from "@/components/stats/invoice-lines";
 import { Figures } from "@/components/stats/figures";
 import { splitSite } from "@/lib/charge-sessions";
-import { invoiceParts } from "@/lib/charging-figures";
-import { formatClock, formatDate, formatDuration, formatKw, formatKwh, formatLevels, formatMoney, formatTempRange, withDayWord } from "@/lib/format";
+import { formatClock, formatDate, formatDurationExact, formatKw, formatKwh, formatLevels, formatMoney, formatTempRange, withDayWord } from "@/lib/format";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargeDetail, loadChargeDetail } from "@/lib/server/charge-curve";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -64,22 +63,16 @@ function Charge({ detail, now }: { detail: ChargeDetail; now: number }) {
       ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`Tesla Supercharger ${tesla.site_name}`)}`
       : null;
   const stoppedAt = tesla?.stopped_at ?? s.ended_at;
-  const span = stoppedAt
-    ? `${formatClock(s.started_at)} to ${formatClock(stoppedAt)} · ${formatDuration((Date.parse(stoppedAt) - Date.parse(s.started_at)) / 1000)}`
-    : `From ${formatClock(s.started_at)} · In progress`;
+  // Under the title only the day and the times, as on a drive page; how long it took is a figure below.
+  const span = stoppedAt ? `${formatClock(s.started_at)} to ${formatClock(stoppedAt)}` : `From ${formatClock(s.started_at)}, still charging`;
+  // The charge's start and end are seen to the second, so its length is too.
+  const took = stoppedAt ? formatDurationExact((Date.parse(stoppedAt) - Date.parse(s.started_at)) / 1000) : null;
   const peak = s.peak_power_kw ?? curve.peakKw;
   const energy = tesla?.energy_kwh ?? s.energy_added_kwh;
   const currency = tesla?.currency ?? "INR";
   // The stored temperatures can carry over from long before an AC charge, so only DC falls back to them.
   const tempLow = curve.tempMinC ?? (s.kind === "dc" ? s.temp_start_c : null);
   const tempHigh = curve.tempMaxC ?? (s.kind === "dc" ? s.temp_max_c : null);
-  // The invoice's own split (energy and fees before GST), the way the Spend breakdown counts it. When its
-  // own lines were sent, they're listed under the session instead, so the tiles leave them out.
-  const lines = invoice?.lines ?? null;
-  const part = (label: string) => {
-    const found = invoice && !lines ? invoiceParts({ amount: invoice.amountTotal, gst: invoice.gst, energyAmount: invoice.energyAmount })?.find((p) => p.label === label) : undefined;
-    return found ? formatMoney(found.amount, "INR") : null;
-  };
   // Related figures sit together: what the battery did, how fast it charged, and what it cost.
   const groups: { title: string; rows: [string, string | null][] }[] = [
     {
@@ -93,20 +86,13 @@ function Charge({ detail, now }: { detail: ChargeDetail; now: number }) {
     {
       title: "Power",
       rows: [
+        ["Time charging", took],
         ["Peak power", peak ? formatKw(peak) : null],
         ["Average power", curve.avgKw ? formatKw(curve.avgKw) : null],
       ],
     },
-    {
-      title: "Bill",
-      rows: [
-        ["Cost", cost(tesla, invoice, energy, currency, s)],
-        ["Energy billed", invoice?.kwhBilled ? formatKwh(invoice.kwhBilled) : null],
-        ["Energy charge", part("Energy")],
-        ["Fees", part("Fees")],
-        ["GST", invoice?.gst && !lines ? formatMoney(invoice.gst, "INR") : null],
-      ],
-    },
+    // An attached invoice has its own section below, with everything it printed.
+    { title: "Bill", rows: [["Cost", invoice ? null : cost(tesla, null, energy, currency, s)]] },
   ];
   const sections = groups
     .map((g) => ({ title: g.title, rows: g.rows.filter((r): r is [string, string] => r[1] !== null) }))
@@ -115,20 +101,21 @@ function Charge({ detail, now }: { detail: ChargeDetail; now: number }) {
   return (
     <>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">{place}</h1>
+        <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">
+          {/* The name opens the spot in Google Maps, dotted like the other links beside it. */}
+          {mapsHref ? (
+            <a href={mapsHref} target="_blank" rel="noopener" title="Open in Google Maps" className="underline decoration-dotted decoration-muted-foreground underline-offset-4 transition-colors hover:decoration-foreground">
+              {place}
+            </a>
+          ) : (
+            place
+          )}
+        </h1>
         {google && <GoogleMapsCredit />}
         {detail.target && action && <NamePlace target={detail.target} compact={action === "rename"} />}
       </div>
       <p className="mt-2 mb-12 text-sm text-muted-foreground tabular-nums">
         {[city, withDayWord(formatDate(s.started_at), s.started_at, now), span].filter(Boolean).join(" · ")}
-        {mapsHref && (
-          <>
-            {" · "}
-            <a href={mapsHref} target="_blank" rel="noopener" className="underline decoration-border underline-offset-4 transition-colors duration-150 hover:text-foreground hover:decoration-foreground">
-              Open in Google Maps
-            </a>
-          </>
-        )}
       </p>
       <div className="space-y-12">
         {curve.points.length >= 2 && <ChargeCurve points={curve.points} />}
@@ -162,16 +149,10 @@ function Charge({ detail, now }: { detail: ChargeDetail; now: number }) {
             ))}
           </section>
         )}
-        {invoice && lines && <InvoiceLines lines={lines} total={invoice.amountTotal} network={invoice.network} href={invoice.hasFile ? `/api/charging/receipt/${s.id}` : undefined} />}
+        {invoice && <InvoiceSection invoice={invoice} href={invoice.hasFile ? `/api/charging/receipt/${s.id}` : undefined} received={energy} />}
         <ChargeFees fees={detail.fees} currency={currency} />
         <ChargeSupply session={s} />
       </div>
-      {/* With its lines, the invoice downloads from their table; without, from here. */}
-      {invoice?.hasFile && !lines && (
-        <div className="mt-6">
-          <DownloadInvoice href={`/api/charging/receipt/${s.id}`} />
-        </div>
-      )}
     </>
   );
 }

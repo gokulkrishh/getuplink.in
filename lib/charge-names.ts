@@ -5,8 +5,8 @@ import { type LatLng, type NameTarget, tagAt, targetTag, type UserPlace } from "
 // source first. Pure, so tested directly.
 //
 // - tag: the owner's own typed name for the spot (lib/user-places.ts). Always first.
+// - invoice: the attached invoice's network and station, as printed: the bill names the exact station.
 // - station: the station check's match from OpenStreetMap ("Operator, Area").
-// - invoice: the attached invoice's network and station, as printed.
 // - supercharger: Tesla's site for a Supercharger ("City, Site").
 // - place: the cached area name for the spot (lib/server/place-names.ts).
 //
@@ -38,10 +38,10 @@ export function invoiceName(network: string | null, station?: string | null): st
 export function chargeName({ tag, station, invoice, site, place }: ChargeNameParts): ChargeName | null {
   const own = clean(tag);
   if (own) return { text: own, source: "tag" };
-  const named = clean(station);
-  if (named) return { text: named, source: "station" };
   const billed = invoice ? invoiceName(invoice.network, invoice.station) : null;
   if (billed) return { text: billed, source: "invoice" };
+  const named = clean(station);
+  if (named) return { text: named, source: "station" };
   const siteName = clean(site);
   if (siteName) return { text: `Supercharger, ${splitSite(siteName).place}`, source: "supercharger" };
   const area = clean(place);

@@ -4,7 +4,7 @@ import { hasWords } from "@/lib/unit-words";
 import { fitFont, Measure } from "@/components/measure";
 import { cn } from "@/lib/utils";
 
-// A value is big, and shrinks only as a long one needs to fit its tile (fitFont); one that isn't text
+// A value is big, and shrinks only as the row's longest needs to fit its tile (fitFont); one that isn't text
 // (a name in words) scales with the tile instead.
 const VALUE = "font-mono leading-none font-medium tracking-tight whitespace-nowrap tabular-nums";
 
@@ -40,6 +40,8 @@ export function Figures({
 }) {
   const shown = figures.filter((f): f is Figure => Boolean(f));
   if (shown.length === 0) return null;
+  // One size for the row's text values: each tile shrinks to what the longest needs (fitFont).
+  const rowFont = fitFont(shown.flatMap((f) => (typeof f.value === "string" || typeof f.value === "number") && f.value !== "—" ? [String(f.value)] : []));
   const columns = shown.length <= 4 ? shown.length : 3;
   const left = shown.length % columns;
   const button = Boolean(info) || hasWords(terms);
@@ -66,7 +68,7 @@ export function Figures({
           {f.value === "—" ? (
             <dd className={cn(VALUE, "text-faint")}>—</dd>
           ) : typeof f.value === "string" || typeof f.value === "number" ? (
-            <dd className={VALUE} style={fitFont(String(f.value))}>
+            <dd className={VALUE} style={rowFont}>
               <Measure text={String(f.value)} size="tile" />
             </dd>
           ) : (

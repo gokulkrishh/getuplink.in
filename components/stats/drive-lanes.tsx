@@ -34,6 +34,25 @@ export type Tone = keyof typeof TONES;
 // One side of a split trace: its colour, and the word that names its sign in the tooltip and the legend.
 export type Side = { tone: Tone; words: string };
 
+const PX_PER_POINT = 4;
+
+// A long drive has a reading every second or so, far more than the plot has pixels: drawn as is, the line
+// is a solid smear and the hover jumps between readings a pixel apart. So one reading per few pixels: in
+// each slice of time, the one that reached furthest from zero (the hardest brake, the biggest regen), so
+// peaks still show. Short drives, with room for every reading, are drawn whole.
+export function thinned(points: Point[], from: number, to: number, width: number): Point[] {
+  const slots = Math.max(60, Math.floor(width / PX_PER_POINT));
+  if (points.length <= slots) return points;
+  const slice = (to - from) / slots;
+  const kept = new Map<number, Point>();
+  for (const p of points) {
+    const k = Math.min(slots - 1, Math.floor((p.t - from) / slice));
+    const was = kept.get(k);
+    if (!was || Math.abs(p.v) > Math.abs(was.v)) kept.set(k, p);
+  }
+  return [...kept.values()].sort((a, b) => a.t - b.t);
+}
+
 // One measure streamed during a drive (speed, power, …) over the drive's own time, `from` to `to`, in the
 // chart panel: a y axis with its unit above it, the line, and clock times along the bottom. Every trace on a
 // page shares `from` and `to` and the same gutter, so their time axes line up when stacked. The axes are
@@ -95,9 +114,11 @@ export function DriveTrace({
     return () => document.removeEventListener("pointerdown", away);
   }, [at]);
 
-  const shown = points.filter((p) => p.t >= from && p.t <= to);
-  if (shown.length < 2 || to <= from) return null;
-  const vs = shown.map((p) => p.v);
+  const raw = points.filter((p) => p.t >= from && p.t <= to);
+  if (raw.length < 2 || to <= from) return null;
+  const shown = thinned(raw, from, to, width);
+  // The axis and the summary for screen readers keep every reading's reach, not just the drawn ones.
+  const vs = raw.map((p) => p.v);
   const top = Math.max(0, ...vs);
   const bottom = Math.min(0, ...vs);
   const hi = max ?? (top > 0 ? niceTop(top) : signed ? 0 : 1);

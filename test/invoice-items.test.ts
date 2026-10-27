@@ -129,12 +129,12 @@ describe("display", () => {
     { label: "Idle fee", kind: "idle", amount: 0 },
   ];
 
-  test("session page: charges in the invoice's order, then taxes, with kWh at rate and the tax rate", () => {
-    const rows = lineRows(lines);
-    expect(rows.map((r) => r.label)).toEqual(["Energy charges", "Promo", "Idle fee", "CGST", "SGST 9%"]);
-    expect(rows[0].detail).toMatch(/^10(\.0)? kWh at ₹10(\.00)?\/kWh$/);
-    expect(rows.slice(1).map((r) => r.detail)).toEqual([null, null, "9%", null]);
-    expect(rows.map((r) => r.amount)).toEqual([100, -10, 0, 10.8, 10.8]);
+  test("session page: charges in the invoice's order, then taxes, then a round-off, with kWh, rate and the tax rate", () => {
+    const rows = lineRows([...lines, { label: "Round off", kind: "other", amount: 0.01 }, { label: "Charging fee", kind: "energy", amount: 206.37, kwh: 14.74, rate: 14 }]);
+    expect(rows.map((r) => r.label)).toEqual(["Energy charges", "Promo", "Idle fee", "Charging fee", "CGST", "SGST 9%", "Round off"]);
+    expect(rows.map((r) => r.kwh)).toEqual(["10 kWh", null, null, "14.74 kWh", null, null, null]);
+    expect(rows.map((r) => r.rate)).toEqual(["₹10.00/kWh", null, null, "₹14.00/kWh", "9%", null, null]);
+    expect(rows.map((r) => r.amount)).toEqual([100, -10, 0, 206.37, 10.8, 10.8, 0.01]);
   });
 
   test("a bill with lines splits by kind, discounts included, and adds up in What you paid for", () => {

@@ -75,6 +75,13 @@ describe("attaching with line_items", () => {
     expect(fake.rows("charge_receipts")).toHaveLength(1);
   });
 
+  test("details are kept with the invoice, added when it's sent again, and personal ones dropped", async () => {
+    await attachInvoice(A, { ...INVOICE, details: [{ label: "Paid by", value: "App Wallet" }, { label: "Mobile", value: "9845000000" }] });
+    expect(receipt()?.details).toEqual([{ label: "Paid by", value: "App Wallet" }]);
+    await attachInvoice(A, { ...INVOICE, details: [{ label: "Station ID", value: "12438" }] });
+    expect(receipt()?.details).toEqual([{ label: "Station ID", value: "12438" }]);
+  });
+
   test("a Rounding line Uplink adds is named in the reply", async () => {
     const short = LINES.map((l) => (l.label === "Session fee" ? { ...l, amount: 19.99 } : l));
     expect(await attachInvoice(A, { ...INVOICE, line_items: short })).toMatchObject({

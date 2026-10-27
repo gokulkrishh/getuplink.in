@@ -1,7 +1,10 @@
 import { createMcpHandler } from "mcp-handler";
+import { revalidateTag } from "next/cache";
+import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { z } from "zod";
 import { DEMO } from "@/lib/demo";
 import { APP_URL, HOME_URL } from "@/lib/site";
+import { detailsInput } from "@/lib/invoice-details";
 import { lineItemsInput } from "@/lib/invoice-items";
 import { messageOf } from "@/lib/errors";
 import { isoDay } from "@/lib/periods";
@@ -85,9 +88,16 @@ const handlerFor = (owner: Owner) =>
           replace: z.boolean().optional().describe("Replace an existing invoice, only if the owner asked"),
           file_base64: z.string().max(4_300_000).optional().describe("The invoice PDF, PNG or JPEG, base64, up to 3 MB"),
           line_items: lineItemsInput.optional(),
+          details: detailsInput.optional(),
         }),
       },
-      (input) => run(() => attachInvoice(owner, input)),
+      // A saved invoice shows on the owner's pages at once, not when their cached copy expires.
+      (input) =>
+        run(async () => {
+          const result = await attachInvoice(owner, input);
+          if (["attached", "replaced", "already_attached"].includes(String(result.status))) revalidateTag(OWNER_DATA_TAG, { expire: 0 });
+          return result;
+        }),
     );
 
     server.registerTool(

@@ -31,15 +31,20 @@ export function Measure({ text, size = "inline" }: { text: string; size?: keyof 
 
 // A tile value's font size (Figures, the home headline): as big as 1.75rem, shrinking only as far as the
 // value needs to fit its tile, never below 1rem. A mono digit is 0.6em wide; a tile unit (text-xs) is about
-// 0.45rem a character plus its gaps. The tile is the @container.
-export function fitFont(text: string): CSSProperties {
-  let digits = 0;
-  let unit = 0;
-  for (const part of measureParts(text)) {
-    if (part.unit) unit += part.text.length * 0.45 + 0.625;
-    else digits += part.text.length;
-  }
-  return { fontSize: `clamp(1rem, calc((100cqi - ${unit}rem) / ${(Math.max(digits, 1) * 0.6).toFixed(2)}), 1.75rem)` };
+// 0.45rem a character plus its gaps. The tile is the @container. Given a row's values, every one gets the
+// size the longest needs, so a row of tiles reads at one size.
+export function fitFont(texts: string | string[]): CSSProperties {
+  const fits = [texts].flat().map((text) => {
+    let digits = 0;
+    let unit = 0;
+    for (const part of measureParts(text)) {
+      if (part.unit) unit += part.text.length * 0.45 + 0.625;
+      else digits += part.text.length;
+    }
+    return `calc((100cqi - ${unit}rem) / ${(Math.max(digits, 1) * 0.6).toFixed(2)})`;
+  });
+  if (fits.length === 0) return {};
+  return { fontSize: `clamp(1rem, ${fits.length === 1 ? fits[0] : `min(${fits.join(", ")})`}, 1.75rem)` };
 }
 
 // A big headline value, inside the headline's mono text.

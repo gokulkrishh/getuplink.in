@@ -2,6 +2,7 @@
 
 import { type ReactNode, useState, useTransition } from "react";
 import { CopyButton } from "@/components/copy-button";
+import { FoldToggle } from "@/components/fold-toggle";
 import { GrokBotIcon } from "@/components/icons/grok-bot";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { BOT_INSTRUCTIONS, BOT_NAME, BOT_TEMPLATE_URL, CONNECTOR_URL } from "@/lib/bot-template";
@@ -28,12 +29,11 @@ function Copyable({ label, value }: { label: string; value: string }) {
 function ManualInstructions({ copy, children }: { copy?: string; children: ReactNode }) {
   return (
     <details className="group border">
-      <summary className="flex cursor-pointer items-center justify-between gap-3 px-3 py-2.5 text-sm">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-sm transition-colors hover:bg-muted/50 [&::-webkit-details-marker]:hidden">
         Manual instructions
         <span className="flex items-center gap-3">
           {copy && <CopyButton text={copy} />}
-          <span className="text-sm text-muted-foreground group-open:hidden">Show</span>
-          <span className="hidden text-sm text-muted-foreground group-open:inline">Hide</span>
+          <FoldToggle />
         </span>
       </summary>
       <div className="space-y-2 border-t px-3 py-3">{children}</div>

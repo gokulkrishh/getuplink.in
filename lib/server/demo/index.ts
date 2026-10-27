@@ -1,3 +1,4 @@
+import type { InvoiceDetail } from "@/lib/invoice-details";
 import "server-only";
 import { buildSessions, CHARGE_FIELDS } from "@/lib/charge-sessions";
 import type { DemoScenario } from "@/lib/demo";
@@ -150,7 +151,19 @@ export function demoStreamSessions(): StreamChargeSession[] {
 // what the car added, at ₹21/kWh (₹19.50 of it energy, the rest a service fee) with 18% GST, every other
 // one so some show "Cost not available". The first one also has its lines, as the bot sends them
 // with line_items: energy, a session fee, CGST and SGST at 9% each, and the round-off.
-type DemoInvoice = { amount: number; kwhBilled: number | null; network: string; station: string | null; gst: number; energyAmount: number; lines: InvoiceLine[] | null };
+type DemoInvoice = {
+  amount: number;
+  kwhBilled: number | null;
+  network: string;
+  station: string | null;
+  gst: number;
+  energyAmount: number;
+  lines: InvoiceLine[] | null;
+  invoiceNumber: string | null;
+  startedAt: string | null;
+  endedAt: string | null;
+  details: InvoiceDetail[];
+};
 
 const cents = (n: number) => Math.round(n * 100) / 100;
 
@@ -176,7 +189,18 @@ export function demoInvoices(): Map<number, DemoInvoice> {
       if (k % 2 === 1 && s.station_name) return;
       const kwhBilled = Math.round(s.energy_added_kwh! * 1.04 * 100) / 100;
       const amount = Math.round(kwhBilled * 21 * 1.18 * 100) / 100;
-      out.set(s.id, { amount, kwhBilled, lines: k === 0 ? demoLines(kwhBilled, amount) : null, ...(s.station_name ? { network: s.station_name.split(",")[0], station: null } : { network: "VoltPoint", station: "Lakeview Fuels, Ring Road" }), gst: Math.round((amount - amount / 1.18) * 100) / 100, energyAmount: Math.round(kwhBilled * 19.5 * 100) / 100 });
+      // The first one, with its lines, also has the details a bill prints, as the bot sends them.
+      const details: InvoiceDetail[] = k === 0 ? [{ label: "Duration", value: "21 mins 48 secs" }, { label: "Paid by", value: "App wallet" }, { label: "Station ID", value: "VP-1042" }, { label: "Charger ID", value: "VP-1042-DC2" }] : [];
+      out.set(s.id, {
+        amount,
+        kwhBilled,
+        lines: k === 0 ? demoLines(kwhBilled, amount) : null,
+        invoiceNumber: k === 0 ? `VP-2026-${String(s.id).padStart(5, "0")}` : null,
+        startedAt: s.started_at,
+        endedAt: s.ended_at,
+        details,
+        ...(s.station_name ? { network: s.station_name.split(",")[0], station: null } : { network: "VoltPoint", station: "Lakeview Fuels, Ring Road" }), gst: Math.round((amount - amount / 1.18) * 100) / 100, energyAmount: Math.round(kwhBilled * 19.5 * 100) / 100,
+      });
     });
   return out;
 }

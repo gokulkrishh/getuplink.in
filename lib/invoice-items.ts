@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { formatKwh, formatMoney, formatNumber } from "@/lib/format";
+import { formatMoney, formatNumber } from "@/lib/format";
 
 // A charging invoice's own lines, as the owner's AI sends them with attach_charge_invoice
 // (app/api/mcp/route.ts), and the checks that decide whether they're kept. Pure: no network, no database.
@@ -145,17 +145,21 @@ export const KIND_LABELS: Record<LineKind, string> = {
 
 // The lines of one invoice for its session page, as printed: charges first in the invoice's order, then
 // taxes. detail is "23.4 kWh at ₹18.50/kWh" where the line prints both, or the tax rate.
-export type LineRow = { label: string; detail: string | null; amount: number };
+// One row of the invoice table: kWh as printed (to the hundredth, as bills print it), the rate per kWh, or a
+// tax line's percentage in the rate column.
+export type LineRow = { label: string; kwh: string | null; rate: string | null; amount: number };
 
 const percent = (n: number) => `${formatNumber(n, Number.isInteger(n) ? 0 : 2)}%`;
+export const printedKwh = (n: number) => `${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(n)} kWh`;
 
+// Charges in the invoice's order, then taxes, then a round-off or other line just above the total.
 export function lineRows(lines: readonly InvoiceLine[]): LineRow[] {
-  const detail = (l: InvoiceLine): string | null => {
-    if (l.kwh !== undefined && l.rate !== undefined) return `${formatKwh(l.kwh)} at ${formatMoney(l.rate, "INR")}/kWh`;
-    if (l.kwh !== undefined) return formatKwh(l.kwh);
-    if (l.taxRate !== undefined && !l.label.includes("%")) return percent(l.taxRate);
-    return null;
-  };
-  const row = (l: InvoiceLine): LineRow => ({ label: l.label, detail: detail(l), amount: l.amount });
-  return [...lines.filter((l) => l.kind !== "tax").map(row), ...lines.filter((l) => l.kind === "tax").map(row)];
+  const row = (l: InvoiceLine): LineRow => ({
+    label: l.label,
+    kwh: l.kwh !== undefined ? printedKwh(l.kwh) : null,
+    rate: l.rate !== undefined ? `${formatMoney(l.rate, "INR")}/kWh` : l.taxRate !== undefined && !l.label.includes("%") ? percent(l.taxRate) : null,
+    amount: l.amount,
+  });
+  const charges = lines.filter((l) => l.kind !== "tax" && l.kind !== "other");
+  return [...charges, ...lines.filter((l) => l.kind === "tax"), ...lines.filter((l) => l.kind === "other")].map(row);
 }
