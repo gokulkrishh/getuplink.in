@@ -292,7 +292,8 @@ describe("the invite cookie", () => {
     expect(inviteCookieHash(value, now)).toBe(hash);
     expect(inviteCookieHash(value, now + 11 * 60 * 1000)).toBeNull();
     expect(inviteCookieHash(value.replace(hash, "b".repeat(64)), now)).toBeNull();
-    expect(inviteCookieHash(`${value.slice(0, -1)}0`, now)).toBeNull();
+    // A changed last character: "0" unless it already is one (1 time in 16), which would change nothing.
+    expect(inviteCookieHash(`${value.slice(0, -1)}${value.endsWith("0") ? "1" : "0"}`, now)).toBeNull();
     expect(inviteCookieHash(undefined, now)).toBeNull();
   });
 });
