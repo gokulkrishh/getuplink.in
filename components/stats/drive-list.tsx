@@ -1,4 +1,3 @@
-import { ShowMore } from "@/components/show-more";
 import { type TripRow, TripRows } from "@/components/stats/trip-rows";
 import type { Drive } from "@/lib/drives";
 import { groupTrips, type Trip } from "@/lib/trips";
@@ -25,11 +24,11 @@ function tripRow(trip: Trip, serial: number, now: number, route: string | null):
 }
 
 // Trips as a plain table: number, date, times, distance with the time it took, and energy with the battery
-// it used. On a phone, a list of two-line rows instead. `header` is off for a continuation behind Show more.
+// it used. On a phone, a list of two-line rows instead. With `preview`, the rest wait behind "Show N more".
 // The browser draws the rows from their texts (see TripRows), so a long list costs the page little.
 // `routes`: where each trip went, by its start (lib/server/trip-places.ts).
-export function TripTable({ trips, serialOf, now, header = true, routes = {} }: { trips: Trip[]; serialOf: (trip: Trip) => number; now: number; header?: boolean; routes?: Record<number, string> }) {
-  return <TripRows rows={trips.map((t) => tripRow(t, serialOf(t), now, routes[t.start] ?? null))} header={header} />;
+export function TripTable({ trips, serialOf, now, preview, routes = {} }: { trips: Trip[]; serialOf: (trip: Trip) => number; now: number; preview?: number; routes?: Record<number, string> }) {
+  return <TripRows rows={trips.map((t) => tripRow(t, serialOf(t), now, routes[t.start] ?? null))} preview={preview} />;
 }
 
 // Trips from the last 90 days, newest first: drives with stops under an hour between them are one trip
@@ -48,12 +47,7 @@ export function DriveList({ drives, now, routes }: { drives: Drive[]; now: numbe
           {trips.length} {trips.length === 1 ? "trip" : "trips"} · {drives.length} {drives.length === 1 ? "drive" : "drives"}
         </p>
       </div>
-      <TripTable trips={trips.slice(0, LIST_PREVIEW)} serialOf={serialOf} now={now} routes={routes} />
-      {trips.length > LIST_PREVIEW && (
-        <ShowMore count={trips.length - LIST_PREVIEW}>
-          <TripTable trips={trips.slice(LIST_PREVIEW)} serialOf={serialOf} now={now} header={false} routes={routes} />
-        </ShowMore>
-      )}
+      <TripTable trips={trips} serialOf={serialOf} now={now} preview={LIST_PREVIEW} routes={routes} />
     </section>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { Map, MapControls, MapMarker, MapPopup, MarkerContent, useMap } from "@/components/ui/map";
+import type { Map as MapLibreMap } from "maplibre-gl";
 import { Zap } from "lucide-react";
 import { Component, type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { googleMapsUrl } from "@/lib/charge-names";
@@ -209,22 +210,33 @@ function RouteLines({ parts, journey, colors, onHover }: { parts: MapPoint[][]; 
   return null;
 }
 
-// Fits everything with room for the pins, their labels, the zoom buttons and the attribution, again
-// whenever the box changes size (a phone turned) or the pins change (another period picked).
-function FitView({ bounds, pad }: { bounds: [[number, number], [number, number]]; pad: number }) {
+type Bounds = [[number, number], [number, number]];
+
+// Everything in view, with room for the pins, their labels, the map's buttons and the attribution.
+function fitAll(map: MapLibreMap, bounds: Bounds, pad: number, duration = 0) {
+  const { clientWidth: w, clientHeight: h } = map.getContainer();
+  if (!w || !h) return;
+  const side = Math.min(pad, w / 4);
+  const padding = { top: Math.min(pad + 8, h / 4), bottom: Math.min(pad + 8, h / 4), left: side, right: Math.min(side + 40, w / 3) };
+  map.fitBounds(bounds, { padding, maxZoom: 15, duration });
+}
+
+// The zoom buttons, and one that brings the map back to everything after zooming or moving it.
+function Controls({ bounds, pad }: { bounds: Bounds; pad: number }) {
+  const { map } = useMap();
+  return <MapControls position="top-right" onReset={() => map && fitAll(map, bounds, pad, 300)} />;
+}
+
+// Fits everything (fitAll) on load, and again whenever the box changes size (a phone turned) or the pins
+// change (another period picked).
+function FitView({ bounds, pad }: { bounds: Bounds; pad: number }) {
   const { map, isLoaded } = useMap();
   const key = bounds.flat().join(",");
   useEffect(() => {
     if (!isLoaded || !map) return;
     // The credit stays as a small (i) button, and in full under the map.
     map.getContainer().querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
-    const fit = () => {
-      const { clientWidth: w, clientHeight: h } = map.getContainer();
-      if (!w || !h) return;
-      const side = Math.min(pad, w / 4);
-      const padding = { top: Math.min(pad + 8, h / 4), bottom: Math.min(pad + 8, h / 4), left: side, right: Math.min(side + 40, w / 3) };
-      map.fitBounds(bounds, { padding, maxZoom: 15, duration: 0 });
-    };
+    const fit = () => fitAll(map, bounds, pad);
     fit();
     let width = map.getContainer().clientWidth;
     const observer = new ResizeObserver(() => {
@@ -538,7 +550,7 @@ export function TripMap({
         >
           <MapBoundary>
             <Map bounds={bounds} fitBoundsOptions={{ padding: 48, maxZoom: 15 }} cooperativeGestures>
-              <MapControls position="top-right" />
+              <Controls bounds={bounds} pad={biggest / 2 + 28} />
               <FitView bounds={bounds} pad={biggest / 2 + 28} />
               {parts.length > 0 && <RouteLines parts={parts} journey={journey} colors={colors} onHover={onHover} />}
               {legChips.map(({ at, n, leg }) => (

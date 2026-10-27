@@ -18,7 +18,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { X, Minus, Plus, Locate, Maximize, Loader2 } from "lucide-react";
+import { X, Minus, Plus, Locate, Maximize, Loader2, RotateCcw } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -862,6 +862,8 @@ type MapControlsProps = {
   className?: string;
   /** Callback with user coordinates when located */
   onLocate?: (coords: { longitude: number; latitude: number }) => void;
+  /** Shows a button that brings the map back to its first view */
+  onReset?: () => void;
 };
 
 const positionClasses = {
@@ -917,6 +919,7 @@ function MapControls({
   showFullscreen = false,
   className,
   onLocate,
+  onReset,
 }: MapControlsProps) {
   const { map } = useMap();
   const [waitingForLocation, setWaitingForLocation] = useState(false);
@@ -985,6 +988,13 @@ function MapControls({
           </ControlButton>
           <ControlButton onClick={handleZoomOut} label="Zoom out">
             <Minus className="size-4" />
+          </ControlButton>
+        </ControlGroup>
+      )}
+      {onReset && (
+        <ControlGroup>
+          <ControlButton onClick={onReset} label="Show everything again">
+            <RotateCcw className="size-4" />
           </ControlButton>
         </ControlGroup>
       )}

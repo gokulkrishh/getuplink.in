@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { ScrollX } from "@/components/scroll-x";
+import { ShowMoreButton } from "@/components/show-more";
 import Link from "next/link";
 import { Measure } from "@/components/measure";
 import { ROW_LINK, RowChevron } from "@/components/row-chevron";
@@ -96,8 +98,12 @@ function TripListRow({ row }: { row: TripRow }) {
 }
 
 // Trips as a plain table: number, date, times, distance with the time it took, and energy with the battery
-// it used. On a phone, a list of two-line rows instead. `header` is off for a continuation behind Show more.
-export function TripRows({ rows, header = true }: { rows: TripRow[]; header?: boolean }) {
+// it used. On a phone, a list of two-line rows instead. With `preview`, only that many show until "Show N
+// more"; the rest join the same table, so it scrolls sideways as one.
+export function TripRows({ rows: all, preview }: { rows: TripRow[]; preview?: number }) {
+  const [open, setOpen] = useState(false);
+  const more = preview !== undefined && all.length > preview;
+  const rows = more && !open ? all.slice(0, preview) : all;
   return (
     <>
       <ul className="divide-y border-t sm:hidden">
@@ -114,24 +120,23 @@ export function TripRows({ rows, header = true }: { rows: TripRow[]; header?: bo
               <col key={c.label} className={c.width} />
             ))}
           </colgroup>
-          {header && (
-            <thead>
-              <tr className="border-b text-left text-xs text-faint">
-                {COLUMNS.map((c) => (
-                  <th key={c.label} scope="col" className={`pb-2 pr-3 font-normal ${c.right ? "text-right" : ""}`}>
-                    {c.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-          )}
-          <tbody className={`divide-y ${header ? "" : "border-t"}`}>
+          <thead>
+            <tr className="border-b text-left text-xs text-faint">
+              {COLUMNS.map((c) => (
+                <th key={c.label} scope="col" className={`pb-2 pr-3 font-normal ${c.right ? "text-right" : ""}`}>
+                  {c.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y">
             {rows.map((r) => (
               <TripTableRow key={r.start} row={r} />
             ))}
           </tbody>
         </table>
       </ScrollX>
+      {more && <ShowMoreButton count={all.length - preview} open={open} onToggle={() => setOpen(!open)} />}
     </>
   );
 }
