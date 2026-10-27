@@ -43,10 +43,12 @@ describe("Home's AI week tips", () => {
     expect(tipProblem("A busy week. Lots of trips. Well done.", facts)).toBe("sentences");
     expect(tipProblem("What a week!", facts)).toBe("style");
     expect(tipProblem("Short trips can wear the battery's health.", facts)).toBe("topic");
+    expect(tipProblem("Two of your four trips were short.", facts)).toBe("number");
+    expect(tipProblem("2 of your 4 trips were short.", facts)).toBeNull();
   });
 
   test("at most three tips, and a reply that isn't JSON gives none", () => {
-    expect(checkWeekTips({ tips: ["One.", "Two.", "Three.", "Four."] }, facts)).toHaveLength(3);
+    expect(checkWeekTips({ tips: ["A.", "B.", "C.", "D."] }, facts)).toHaveLength(3);
     expect(checkWeekTips("not json", facts)).toEqual([]);
   });
 

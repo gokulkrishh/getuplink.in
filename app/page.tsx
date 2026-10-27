@@ -17,8 +17,8 @@ import { periodFrames } from "@/lib/frames";
 import { daysLabel } from "@/lib/periods";
 import { istDay, istDayStart } from "@/lib/telemetry-derive";
 import { after, connection } from "next/server";
-import { WeekTips } from "@/components/home/week-tips";
-import { type WeekFacts, weekFacts } from "@/lib/week-wording";
+import { WeekTips, WeekTipsSkeleton } from "@/components/home/week-tips";
+import { quietWeek, type WeekFacts, weekFacts } from "@/lib/week-wording";
 import { generateWeekTips, loadWeekTips } from "@/lib/server/week-wording";
 import { newestTime } from "@/lib/last-synced";
 import { rotationNotice, tyreRotation } from "@/lib/tyre-rotation";
@@ -82,6 +82,7 @@ function Totals({ home, routes, now }: { home: Extract<Home, { kind: "ready" }>;
   const frames = periodFrames(figures, null, window.driving.drives, now).filter((f) => f.key === "week");
   // Real bills, counted as Charging counts them: Tesla's for Superchargers, attached invoices for the rest.
   const bills = chargingBills(home.sessions, streamOnly, home.invoices);
+  const facts = weekFacts(frames[0].frame, frames[0].driving, window.driving.drives, bills, energyIn(home.sessions, streamOnly, frames[0].frame.span));
   return (
     <div className="space-y-12">
       <section aria-label="Totals" className="space-y-6">
@@ -99,10 +100,11 @@ function Totals({ home, routes, now }: { home: Extract<Home, { kind: "ready" }>;
           ),
           { steady: true },
         )}
-        {/* The AI's tips on the week stream in after the rest; until then, and when there are none, nothing. */}
-        {primaryId && (
-          <Suspense fallback={null}>
-            <Tips vehicleId={primaryId} day={istDayStart(istDay(now))} facts={weekFacts(frames[0].frame, frames[0].driving, window.driving.drives, bills, energyIn(home.sessions, streamOnly, frames[0].frame.span))} />
+        {/* The AI's tips on the week stream in after the rest, in a box of the same size. */}
+        {/* A quiet week has no tips, so no box. */}
+        {primaryId && !quietWeek(facts) && (
+          <Suspense fallback={<WeekTipsSkeleton />}>
+            <Tips vehicleId={primaryId} day={istDayStart(istDay(now))} facts={facts} />
           </Suspense>
         )}
       </section>
@@ -153,30 +155,34 @@ async function HomeContent() {
   );
 }
 
-// Shown while the page loads: faint blocks in the shape of the car strip and the totals.
+// Shown while the page loads: faint blocks in the shape of the car strip, the greeting, the tiles and the
+// tips, built from the same classes so nothing moves when the page arrives. Each line holds placeholder
+// words in a transparent colour, so it takes the real line's height. Sized for the usual state: no update
+// on its way (the version is one line) and tiles with a comparison under each value.
 function HomeSkeleton() {
-  const block = "bg-muted motion-safe:animate-pulse";
+  const line = "bg-muted text-transparent motion-safe:animate-pulse";
   return (
     <div role="status" aria-busy="true" className="space-y-12">
       <span className="sr-only">Loading…</span>
-      <div className="space-y-4">
-        <div className={`h-4 w-40 ${block}`} />
-        <div className={`h-12 w-40 ${block}`} />
-        <div className={`h-1 w-full max-w-sm ${block}`} />
-        <div className={`h-4 w-48 ${block}`} />
-      </div>
-      <div className="space-y-6">
-        <div className={`h-8 w-64 ${block}`} />
-        <div className="grid grid-cols-2 gap-px border bg-border bg-clip-padding dark:border-transparent dark:bg-background sm:grid-cols-4">
-          {[0, 1, 2, 3].map((k) => (
-            <div key={k} className="space-y-2 bg-background p-3 sm:p-4 dark:bg-card">
-              <div className={`h-3 w-16 ${block}`} />
-              <div className={`h-6 w-20 ${block}`} />
-              <div className={`h-10 w-full ${block}`} />
-              <div className={`h-6 w-full ${block}`} />
-            </div>
-          ))}
+      <div className="space-y-5" aria-hidden="true">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <p className="text-sm"><span className={line}>Tesla · Model Y, Pearl White</span></p>
+          <p className="min-h-5.5 text-sm"><span className={line}>Asleep, checked 5 min ago</span></p>
         </div>
+        <p className="-mt-3 text-sm"><span className={line}>2026.38.4 · 3,434.9 km</span></p>
+        <div className="space-y-3">
+          <p className="font-mono text-[2.25rem] font-medium"><span className={line}>67%</span></p>
+          <div className="h-0.5 max-w-60 bg-border" />
+          <p className="text-sm"><span className={line}>Parked 2 h 10 min · Limit 80%</span></p>
+        </div>
+      </div>
+      <div className="space-y-6" aria-hidden="true">
+        <div className="space-y-1">
+          <p className="text-xl"><span className={line}>Good afternoon</span></p>
+          <p className="text-sm"><span className={line}>Here&apos;s your car&apos;s last 7 days, 21 Oct to 27 Oct.</span></p>
+        </div>
+        <div className="h-[391px] border bg-muted/40 motion-safe:animate-pulse sm:h-[174px]" />
+        <WeekTipsSkeleton />
       </div>
     </div>
   );

@@ -13,7 +13,7 @@ import { formatKm, formatKwh, formatMoney } from "@/lib/format";
 import type { Timeframe } from "@/lib/periods";
 import { groupTrips } from "@/lib/trips";
 
-export const WEEK_PROMPT_VERSION = 4;
+export const WEEK_PROMPT_VERSION = 5;
 export const MAX_TIPS = 3;
 
 // Only figures: no places, car, account or clock times.
@@ -67,7 +67,7 @@ You get the last 7 days' facts as JSON. Write "tips": up to ${MAX_TIPS} tips, ea
 Rules:
 - Plain and short, the way a friend who owns a Tesla would say it. No hype, no exclamation marks, no emoji, no greeting.
 - Use only the facts given. A null or missing fact is simply not mentioned: never talk about "the facts", "the data" or yourself.
-- Copy every number exactly as it appears in the facts, with its unit. Never work out a new number: no sums, differences, averages, ratios or rounding, and don't spell numbers as words.
+- Copy every number exactly as it appears in the facts, with its unit. Never work out a new number: no sums, differences, averages, ratios or rounding, and write every count in digits: "2 of your 4 trips", never "two of your four".
 - Don't repeat a day's distance: the chart shows it.
 - Nothing about the battery's health, safety, tyres or the driver's skill. Don't name places, people or the car.`;
 
@@ -98,7 +98,9 @@ export function weekRequest(facts: WeekFacts) {
   };
 }
 
-const RATIO_WORDS = /\b(twice|double|doubled|triple|tripled|half|halved|thrice)\b/i;
+// Counts read as digits ("2 of your 4 trips"); "once" is fine.
+const NUMBER_WORDS = /\b(two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/i;
+const RATIO_WORDS =/\b(twice|double|doubled|triple|tripled|half|halved|thrice)\b/i;
 
 // Why a tip can't show, or null when it can.
 export function tipProblem(text: string, facts: WeekFacts): string | null {
@@ -107,7 +109,7 @@ export function tipProblem(text: string, facts: WeekFacts): string | null {
   if (/\b(facts?|data|I|I'm|JSON|null|available|missing|unknown|hello|hi|good (morning|afternoon|evening))\b/i.test(text)) return "meta";
   if (text.split(/(?<=[.?])\s+/).filter(Boolean).length > 2) return "sentences";
   if (text.split(/\s+/).length > 35) return "long";
-  if (RATIO_WORDS.test(text)) return "number";
+  if (RATIO_WORDS.test(text) || NUMBER_WORDS.test(text)) return "number";
   if (/\b(health|degrad|safe|safety|tyres?|tires?)/i.test(text)) return "topic";
   const known = new Set(numbersIn(JSON.stringify(modelFacts(facts))));
   for (const n of numbersIn(text)) if (!known.has(n)) return "number";
