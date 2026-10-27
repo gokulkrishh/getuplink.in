@@ -137,6 +137,9 @@ async function loadVotes(): Promise<KindSummary[] | null> {
 const VOTES_READ = 1000;
 // A kind gets a verdict only from this many votes: one or two say little.
 const MIN_VOTES = 5;
+// Below this many votes in all, the bars say little: the tips voted not useful are listed instead, since
+// they're what to fix.
+const CHART_FROM = 20;
 // Under this share useful a kind needs work; from WORKING it is working well.
 const NEEDS_WORK = 0.5;
 const WORKING = 0.75;
@@ -195,6 +198,30 @@ async function TipVotes() {
               { label: "Kinds voted on", value: number.format(sorted.length) },
             ]}
           />
+          {total < CHART_FROM ? (
+            <div className="space-y-3">
+              <h3 className="text-base font-medium tracking-heading">Voted not useful</h3>
+              {sorted.every((k) => k.notUseful === 0) ? (
+                <p className="text-sm text-muted-foreground">None yet.</p>
+              ) : (
+                <ul className="divide-y border-y">
+                  {sorted.flatMap((k) =>
+                    k.examples
+                      .filter((e) => e.vote === -1)
+                      .map((e, m) => (
+                        <li key={`${k.kind}:${m}`} className="space-y-1 py-3 text-sm">
+                          <p className="text-xs text-muted-foreground">
+                            {kindLabel(k.kind)} · {k.pages.join(", ")}
+                          </p>
+                          <p className="break-words">{e.tip}</p>
+                        </li>
+                      )),
+                  )}
+                </ul>
+              )}
+              <p className="text-xs text-faint">The chart by kind shows from {CHART_FROM} votes.</p>
+            </div>
+          ) : (
           <div className="space-y-4">
             <p className="flex gap-4 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1.5"><span className="size-2 bg-chart-better" aria-hidden="true" />Useful</span>
@@ -232,6 +259,7 @@ async function TipVotes() {
               })}
             </ol>
           </div>
+          )}
         </>
       )}
     </section>
