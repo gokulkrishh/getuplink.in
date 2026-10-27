@@ -10,7 +10,7 @@ import { TripTable } from "@/components/stats/drive-list";
 import { type Figure, Figures } from "@/components/stats/figures";
 import { TripMap } from "@/components/stats/trip-map";
 import { buttonVariants } from "@/components/ui/button";
-import { formatClock, formatKm, formatKwh, formatMoney, sumKnown } from "@/lib/format";
+import { formatClock, formatKm, formatKwh, formatMoney, sumKnown, withDayWord } from "@/lib/format";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type DayDetail, loadDay } from "@/lib/server/day";
@@ -21,7 +21,7 @@ import { NamePlace } from "@/components/name-place";
 import { ROW_LINK, RowChevron } from "@/components/row-chevron";
 import { chargeTotals } from "@/lib/charging-figures";
 import { isoDay } from "@/lib/periods";
-import { istDayStart } from "@/lib/telemetry-derive";
+import { istDay, istDayStart } from "@/lib/telemetry-derive";
 import { Measure } from "@/components/measure";
 
 export const metadata: Metadata = { title: "Day" };
@@ -80,7 +80,7 @@ function DayView({ detail, now }: { detail: DayDetail; now: number }) {
     <>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">{long.format(istDayStart(detail.day) + 12 * 3_600_000)}</h1>
+          <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">{withDayWord(long.format(istDayStart(detail.day) + 12 * 3_600_000), istDayStart(detail.day) + 12 * 3_600_000, now)}</h1>
           <p className="mt-2 text-sm text-muted-foreground tabular-nums">
             {/* Only what happened: "1 trip", "2 charges", or both. */}
             {[
@@ -136,7 +136,7 @@ function DayView({ detail, now }: { detail: DayDetail; now: number }) {
             </ul>
           </section>
         )}
-        {detail.trips.length === 0 && detail.charges.length === 0 && <p className="text-sm text-muted-foreground">No drives or charges this day.</p>}
+        {detail.trips.length === 0 && detail.charges.length === 0 && <p className="text-sm text-muted-foreground">No drives or charges {istDay(now) === detail.day ? "today" : "this day"}.</p>}
       </div>
     </>
   );

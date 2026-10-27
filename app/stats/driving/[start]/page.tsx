@@ -11,7 +11,7 @@ import { DriveTrace, type Side } from "@/components/stats/drive-lanes";
 import { type Figure, Figures } from "@/components/stats/figures";
 import { type MapFact, MapFacts, type MapPin, TripMap } from "@/components/stats/trip-map";
 import { TripTimeline } from "@/components/stats/trip-timeline";
-import { formatCelsius, formatClock, formatDate, formatDuration, formatKm, formatKw, formatNumber, formatKwh, formatLevels, formatRangeKm, formatSpeed } from "@/lib/format";
+import { formatCelsius, formatClock, formatDate, formatDuration, formatKm, formatKw, formatNumber, formatKwh, formatLevels, formatRangeKm, formatSpeed, withDayWord } from "@/lib/format";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type DriveDetail, loadDriveDetail } from "@/lib/server/drive-detail";
@@ -45,21 +45,22 @@ const GRADE_SIDES: { above: Side; below: Side } = { above: { tone: "warm", words
 
 // Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx).
 // The owner comes back too, for the wording written after the response (see DriveLoader).
-async function loadDetail(start: number, leg: boolean): Promise<{ owner: Owner; detail: DriveDetail | null }> {
+async function loadDetail(start: number, leg: boolean): Promise<{ owner: Owner; detail: DriveDetail | null; now: number }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
   const owner = await currentOwner();
   if (!owner) redirect(SIGNED_OUT_PATH);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
-  return { owner, detail: await loadDriveDetail(owner, start, Date.now(), leg) };
+  const now = Date.now();
+  return { owner, detail: await loadDriveDetail(owner, start, now, leg), now };
 }
 
 // One trip on one page: a single drive, or drives with short stops between (see groupTrips). Its totals,
 // the route on a map with its start, stops and end, a timeline of legs and stops, then the battery and
 // speed across the whole trip.
 // `words` holds each line's text, the AI's or the code's (see lib/drive-facts.ts and lib/drive-wording.ts).
-function Drive({ detail, view, words }: { detail: DriveDetail; view: DriveView; words: Partial<Record<WordingField, ShownLine>> }) {
+function Drive({ detail, view, words, now }: { detail: DriveDetail; view: DriveView; words: Partial<Record<WordingField, ShownLine>>; now: number }) {
   const { speed, rangeUsedKm, topKmh, outsideC, route, pins, accel, power, grade } = detail;
   // The trip's totals are its legs' raw sums, each rounded on its own when shown.
   const { trip } = detail;
@@ -94,7 +95,7 @@ function Drive({ detail, view, words }: { detail: DriveDetail; view: DriveView; 
     <>
       <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">{trip.stops ? "Trip" : "Drive"}</h1>
       <p className="mt-2 mb-12 text-sm text-muted-foreground tabular-nums">
-        {formatDate(trip.start)} · {formatClock(trip.start)} to {formatClock(trip.end)}
+        {withDayWord(formatDate(trip.start), trip.start, now)} · {formatClock(trip.start)} to {formatClock(trip.end)}
       </p>
       <div className="space-y-12">
         {wentTiles.length > 0 && (
@@ -351,7 +352,7 @@ function highlights(power: { t: number; v: number }[], accel: { t: number; v: nu
 async function DriveLoader({ params, searchParams }: Pick<PageProps<"/stats/driving/[start]">, "params" | "searchParams">) {
   const [{ start }, query] = await Promise.all([params, searchParams]);
   if (!/^\d{12,14}$/.test(start)) notFound();
-  const { owner, detail } = await loadDetail(Number(start), query.leg !== undefined);
+  const { owner, detail, now } = await loadDetail(Number(start), query.leg !== undefined);
   if (!detail) notFound();
   // The words: the AI's when stored for these exact facts, else the code sentences. Read on every view,
   // outside the cache above, so wording written after the last view shows now. With none stored, it is
@@ -360,7 +361,7 @@ async function DriveLoader({ params, searchParams }: Pick<PageProps<"/stats/driv
   const key = { vehicleId: detail.vehicleId, start: detail.trip.start, scope: detail.trip.legs.length > 1 ? "trip" : "drive" } as const;
   const stored = await loadDriveWording(owner, key, view.facts);
   if (stored.generate) after(() => generateDriveWording(owner, key, view.facts));
-  return <Drive detail={detail} view={view} words={pickWords(view.code, stored.words)} />;
+  return <Drive detail={detail} view={view} words={pickWords(view.code, stored.words)} now={now} />;
 }
 
 function DriveSkeleton() {

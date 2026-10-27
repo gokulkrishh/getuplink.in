@@ -15,7 +15,7 @@ import { InvoiceLines } from "@/components/stats/invoice-lines";
 import { Figures } from "@/components/stats/figures";
 import { splitSite } from "@/lib/charge-sessions";
 import { invoiceParts } from "@/lib/charging-figures";
-import { formatClock, formatDate, formatDuration, formatKw, formatKwh, formatLevels, formatMoney, formatTempRange } from "@/lib/format";
+import { formatClock, formatDate, formatDuration, formatKw, formatKwh, formatLevels, formatMoney, formatTempRange, withDayWord } from "@/lib/format";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargeDetail, loadChargeDetail } from "@/lib/server/charge-curve";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -25,14 +25,15 @@ export const metadata: Metadata = { title: "Charge" };
 
 
 // Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx).
-async function loadDetail(id: number): Promise<ChargeDetail | null> {
+async function loadDetail(id: number): Promise<{ detail: ChargeDetail | null; now: number }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
   const owner = await currentOwner();
   if (!owner) redirect(SIGNED_OUT_PATH);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
-  return loadChargeDetail(owner, id, Date.now());
+  const now = Date.now();
+  return { detail: await loadChargeDetail(owner, id, now), now };
 }
 
 // Tesla's bill for a Supercharger, an attached invoice for anything else (₹/kWh on the kWh billed, as
@@ -43,7 +44,7 @@ function cost(tesla: ChargeDetail["tesla"], invoice: ChargeDetail["invoice"], en
   return !s.supercharger && s.ended_at ? "Not available" : null;
 }
 
-function Charge({ detail }: { detail: ChargeDetail }) {
+function Charge({ detail, now }: { detail: ChargeDetail; now: number }) {
   const { session: s, tesla, invoice, curve } = detail;
   // Tesla's site for a Supercharger it billed, with its city under it; otherwise the best name known, or
   // the kind of charge when there's no name.
@@ -120,7 +121,7 @@ function Charge({ detail }: { detail: ChargeDetail }) {
         {detail.target && action && <NamePlace target={detail.target} compact={action === "rename"} />}
       </div>
       <p className="mt-2 mb-12 text-sm text-muted-foreground tabular-nums">
-        {[city, formatDate(s.started_at), span].filter(Boolean).join(" · ")}
+        {[city, withDayWord(formatDate(s.started_at), s.started_at, now), span].filter(Boolean).join(" · ")}
         {mapsHref && (
           <>
             {" · "}
@@ -180,9 +181,9 @@ function Charge({ detail }: { detail: ChargeDetail }) {
 async function ChargeLoader({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!/^\d{1,15}$/.test(id)) notFound();
-  const detail = await loadDetail(Number(id));
+  const { detail, now } = await loadDetail(Number(id));
   if (!detail) notFound();
-  return <Charge detail={detail} />;
+  return <Charge detail={detail} now={now} />;
 }
 
 function ChargeSkeleton() {

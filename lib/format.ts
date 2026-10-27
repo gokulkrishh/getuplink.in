@@ -158,6 +158,12 @@ export function formatSeen(value: string | number | Date, now: number): string {
   return formatDate(value) === formatDate(now) ? formatTime(value) : `${formatShortDate(value)}, ${formatTime(value)}`;
 }
 
+// "Today, 27 Oct 2026" or "Yesterday, …": a full date led by Today or Yesterday when it is one (IST).
+export function withDayWord(date: string, value: string | number | Date, now: number): string {
+  const days = istDay(now) - istDay(new Date(value).getTime());
+  return days === 0 ? `Today, ${date}` : days === 1 ? `Yesterday, ${date}` : date;
+}
+
 // "Today", "Yesterday" or "19 Oct" (IST). `now` is passed in for the same reason as formatSeen.
 export function formatDayLabel(value: string | number | Date, now: number): string {
   const days = istDay(now) - istDay(new Date(value).getTime());
