@@ -65,7 +65,7 @@ export function BatteryGauge({ snapshot, parked = null, align = "start" }: { sna
         </div>
       </div>
       {state && (
-        <p className={cn("flex items-center gap-1.5 text-sm text-muted-foreground tabular-nums", end && "sm:justify-end sm:text-right")}>
+        <p className={cn("flex items-center gap-1.5 text-sm text-faint tabular-nums", end && "sm:justify-end sm:text-right")}>
           {charging && <Zap className="size-3.5 shrink-0" aria-hidden="true" />}
           {state}
         </p>
