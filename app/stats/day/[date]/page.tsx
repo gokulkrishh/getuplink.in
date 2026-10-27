@@ -82,7 +82,13 @@ function DayView({ detail, now }: { detail: DayDetail; now: number }) {
         <div>
           <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">{long.format(istDayStart(detail.day) + 12 * 3_600_000)}</h1>
           <p className="mt-2 text-sm text-muted-foreground tabular-nums">
-            {detail.trips.length} {detail.trips.length === 1 ? "trip" : "trips"} · {detail.charges.length} {detail.charges.length === 1 ? "charge" : "charges"}
+            {/* Only what happened: "1 trip", "2 charges", or both. */}
+            {[
+              detail.trips.length > 0 && `${detail.trips.length} ${detail.trips.length === 1 ? "trip" : "trips"}`,
+              detail.charges.length > 0 && `${detail.charges.length} ${detail.charges.length === 1 ? "charge" : "charges"}`,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
           </p>
         </div>
         <DayNav detail={detail} />
