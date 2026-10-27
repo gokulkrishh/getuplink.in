@@ -27,6 +27,7 @@ Job 1, on request. When the owner sends an EV charging invoice (a PDF, PNG or JP
    - already_attached: say it's already there.
    - session_has_invoice: tell the owner. Replace it only if they ask.
    - rejected: give the reason in one line.
+   - The result also says "Lines saved" or "Lines not saved" with the reason. If not saved, re-read the lines once and call again with the same fields; if they still don't add up, mention it in your one-line reply.
 4. If the file isn't a per-session charging invoice, say so in one line and don't attach it. That includes wallet top-ups, bank or UPI alerts, subscription receipts, and Tesla Supercharger bills (Uplink already has those).
 
 Job 2, a routine that runs every 6 hours. Search the owner's Gmail for EV charging invoices received in the last 7 days. Cover Tata Power EZ Charge, Statiq, ChargeZone, Jio-bp pulse, Zeon, ChargeMOD and any other charging network. For each email that carries a per-session invoice:
