@@ -46,7 +46,7 @@ function Cell({
   // The span compared with, as the delta's second line shows it.
   span: string;
   spark: Spark;
-  tone?: "charge";
+  tone?: "charge" | "use";
 }) {
   return (
     <PeriodLink
@@ -239,6 +239,7 @@ export function Headline({
         <Cell
           view="driving"
           label="Energy used"
+          tone="use"
           value={number(DECIMALS.kWh)(used.value)}
           unit="kWh"
           empty={emptyWords(used.value, DECIMALS.kWh)}

@@ -15,10 +15,12 @@ export type Spark = { kind: "bars" | "line"; values: (number | null)[]; current:
 // it leaves the same height blank; the tile's number already says so (see Headline's Cell). Hover a slot, or tap it on a touch screen, for its
 // label and value; the tile is a link, so a tap on the sparkline opens the tip instead of following it, and
 // a tap anywhere else closes it. Screen readers get the tile's number and sentence instead.
-// Bars take the colour of what they count: charging's green for energy added, the chart blue otherwise.
+// Bars take the colour of what they count: amber for energy drawn from the battery, charging's green for
+// energy added, the chart blue otherwise.
 const TONES = {
   accent: { current: "fill-chart-accent", active: "fill-chart-accent/80", rest: "fill-chart-accent/40 group-hover:fill-chart-accent/60" },
   charge: { current: "fill-charge", active: "fill-charge/80", rest: "fill-charge/40 group-hover:fill-charge/60" },
+  use: { current: "fill-chart-2", active: "fill-chart-2/80", rest: "fill-chart-2/40 group-hover:fill-chart-2/60" },
 };
 
 export function Sparkline({ kind, values, current, tips, tone = "accent" }: Spark & { tone?: keyof typeof TONES }) {
