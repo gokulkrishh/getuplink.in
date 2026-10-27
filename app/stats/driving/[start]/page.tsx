@@ -20,7 +20,7 @@ import { loadUserPlaces } from "@/lib/server/user-places";
 import { NamePlace } from "@/components/name-place";
 import { ROW_LINK, RowChevron } from "@/components/row-chevron";
 import { nameAction, type SpotName, spotName } from "@/lib/charge-names";
-import { HARD_WORDS, isFlat, USUAL_WORDS } from "@/lib/drive-verdict";
+import { HARD_WORDS, isFlat, MIN_USUAL_DRIVES, USUAL_WORDS } from "@/lib/drive-verdict";
 import { describeDrive, type DriveView, type WordingField } from "@/lib/drive-facts";
 import { pickWords, type ShownLine } from "@/lib/drive-wording";
 import { generateDriveWording, loadDriveWording } from "@/lib/server/drive-wording";
@@ -89,6 +89,7 @@ function Drive({ detail, view, words }: { detail: DriveDetail; view: DriveView; 
   const { moments, batteryShown } = view;
   const line = (field: WordingField) => (words[field] ? <AiLine line={words[field]} /> : null);
   const what = trip.stops ? "trip" : "drive";
+  const wentTiles = howItWent(view.facts);
   return (
     <>
       <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">{trip.stops ? "Trip" : "Drive"}</h1>
@@ -96,8 +97,8 @@ function Drive({ detail, view, words }: { detail: DriveDetail; view: DriveView; 
         {formatDate(trip.start)} · {formatClock(trip.start)} to {formatClock(trip.end)}
       </p>
       <div className="space-y-12">
-        {words.summary && (
-          <section className="space-y-2">
+        {wentTiles.length > 0 && (
+          <section className="space-y-3">
             <div className="flex items-center gap-1.5">
               <h2 className="text-lg font-medium tracking-heading">How this {what} went</h2>
               <InfoButton label={`How this ${what} went`}>
@@ -105,7 +106,9 @@ function Drive({ detail, view, words }: { detail: DriveDetail; view: DriveView; 
                 <p>{HARD_WORDS}</p>
               </InfoButton>
             </div>
-            <p className="text-base">{line("summary")}</p>
+            {/* The figures from code; the AI adds only why, in one line, when it has written one. */}
+            <Figures figures={wentTiles} />
+            {words.summary?.ai && <p className="text-base">{line("summary")}</p>}
           </section>
         )}
         {/* Every number in one set of tiles: easier to take in than a long list. */}
@@ -381,3 +384,40 @@ export default function Page({ params, searchParams }: PageProps<"/stats/driving
     </div>
   );
 }
+
+// "How this drive went" as two tiles: Wh/km against the usual, and the hard moments (with the usual when
+// there is one). Each only when the drive has it.
+function howItWent({ efficiency, hard }: DriveView["facts"]): Figure[] {
+  const tiles: Figure[] = [];
+  if (efficiency) {
+    const vs = efficiency.vsUsual;
+    tiles.push({
+      label: "Energy use",
+      value: efficiency.whPerKm,
+      note:
+        vs === null || efficiency.usual === null ? (
+          `Your usual shows after ${MIN_USUAL_DRIVES} drives`
+        ) : vs.way === "close" ? (
+          `Close to your usual ${efficiency.usual}`
+        ) : (
+          <>
+            <span className={vs.way === "better" ? "text-chart-better" : "text-chart-worse"}>
+              {vs.by} {vs.way === "better" ? "less" : "more"}
+            </span>{" "}
+            than your usual {efficiency.usual}
+          </>
+        ),
+    });
+  }
+  if (hard) {
+    const n = hard.brakes + hard.starts;
+    const parts = [hard.brakes > 0 && `${hard.brakes} ${hard.brakes === 1 ? "brake" : "brakes"}`, hard.starts > 0 && `${hard.starts} ${hard.starts === 1 ? "start" : "starts"}`].filter(Boolean).join(", ");
+    tiles.push({
+      label: "Hard moments",
+      value: String(n),
+      note: [n === 0 ? "No hard starts or stops" : parts, hard.usual !== null && `your usual ${hard.usual}`].filter(Boolean).join(" · "),
+    });
+  }
+  return tiles;
+}
+

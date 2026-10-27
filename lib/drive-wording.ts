@@ -10,22 +10,22 @@ import { CHART_LINES, type DriveFacts, type DriveWords, type WordingField } from
 
 export const WORDING_MODEL = "anthropic/claude-haiku-5.5";
 // Bumped when the prompt or the facts' shape changes, so stored wording is written again.
-export const PROMPT_VERSION = 1;
+export const PROMPT_VERSION = 3;
 // OpenRouter's list price for the model, per token, for when a reply leaves out its cost.
 export const PRICE_PER_TOKEN = { input: 0.1 / 1e6, output: 0.5 / 1e6 };
 
 export const SYSTEM_PROMPT = `You write the short text on a Tesla owner's drive page in Uplink, an app for owners in India.
 
 You get one drive's facts as JSON. Write:
-- "summary": how the drive went, in at most 2 sentences. Lead with energy use (Wh/km) against the owner's usual, then how smooth it was (hard brakes and hard starts) against their usual. Leave out any part whose facts are null.
+- "summary": one sentence on WHY the drive used the energy it did, shown under tiles that already give the Wh/km, the usual and the hard-moment counts. Don't repeat those figures. Point to what in the facts most likely explains it: climbs or descents and when, regen won back, speed, or hard moments and when. If nothing in the facts explains it, set it to null.
 - One line for each chart named in "charts", in its own field ("speed", "power", "acceleration", "grade", "battery"): one sentence each, saying what that chart shows for this drive. Set every other field to null.
 
 Rules:
 - Plain, short sentences, the way a calm friend would say it. No hype, no exclamation marks, no emoji.
 - Mention only the facts given. A null or missing fact is simply not mentioned: never say what is missing, and never talk about "the facts", "the data" or yourself.
 - Copy every number exactly as it appears in the facts, with its unit. Never work out a new number: no sums, differences, averages, ratios or rounding, and don't spell numbers as words.
-- When "usual" is null, don't compare with the usual and don't use the word "usual".
-- Write levels and spans like "58% to 51%" and "30 to 45 km/h". Never use arrows, dashes or en dashes for a span.
+- When "usual" is null, don't compare with the usual and don't use the word "usual". When only one part has a usual, compare only that part and state the other plainly, without saying there's nothing to compare it with.
+- Write levels and spans like "58% to 51%" and "30 to 45 km/h" (never "between 30 to 45"). Never use arrows, dashes or en dashes for a span.
 - Times are 12-hour, as given, like "7:15 AM".
 - No advice, and nothing about the car's health, the battery's health, safety or the driver's skill.
 - Don't name places, people or the car.`;
@@ -82,9 +82,12 @@ export function lineProblem(field: WordingField, text: string, facts: DriveFacts
   if (/[!→←–—]|->/.test(text)) return "style";
   if (!/[.?]$/.test(text)) return "unfinished";
   // Talk about the input or the writer ("The facts don't include…", "I can't say"), not the drive.
-  if (/\b(facts?|data|I|I'm|I'd|JSON|null)\b/.test(text)) return "meta";
+  if (/\b(facts?|data|I|I'm|I'd|JSON|null|available|unavailable|missing|unknown)\b/.test(text)) return "meta";
+  if (/\bno usual\b|\bnothing to compare\b/i.test(text)) return "meta";
+  // "between 28 to 68 km/h": the span reads "28 to 68 km/h".
+  if (/\bbetween\b[^.]*\bto\b/i.test(text)) return "style";
   const n = sentences(text).length;
-  if (field === "summary" ? n > 2 : n !== 1) return "sentences";
+  if (n !== 1) return "sentences";
   const hasUsual = facts.efficiency?.usual != null || facts.hard?.usual != null;
   if (!hasUsual && /\busual\b/i.test(text)) return "usual";
   if (RATIO_WORDS.test(text)) return "number";

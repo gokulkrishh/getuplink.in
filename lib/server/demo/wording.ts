@@ -11,22 +11,12 @@ const and = (items: string[]) => (items.length <= 1 ? (items[0] ?? "") : `${item
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 function summary(f: DriveFacts): string | null {
-  const parts: string[] = [];
-  const e = f.efficiency;
-  if (e) {
-    if (e.usual && e.vsUsual) {
-      if (e.vsUsual.way === "close") parts.push(`This ${f.kind} used ${e.whPerKm}, about the same as your usual ${e.usual}.`);
-      else parts.push(`This ${f.kind} used ${e.whPerKm}, ${e.vsUsual.by} ${e.vsUsual.way === "better" ? "less" : "more"} than your usual ${e.usual}.`);
-    } else parts.push(`This ${f.kind} used ${e.whPerKm} over ${f.distance}.`);
-  }
-  const h = f.hard;
-  if (h) {
-    const counted = [h.brakes > 0 ? plural(h.brakes, "hard brake") : null, h.starts > 0 ? plural(h.starts, "hard start") : null].filter((x): x is string => x !== null);
-    if (counted.length === 0) parts.push("You drove smoothly, with no hard brakes or starts.");
-    else if (h.usual !== null) parts.push(`There ${h.brakes + h.starts === 1 ? "was" : "were"} ${and(counted)}, ${h.vsUsual === "more than usual" ? "more than" : "no more than"} your usual ${h.usual}.`);
-    else parts.push(`There ${h.brakes + h.starts === 1 ? "was" : "were"} ${and(counted)}.`);
-  }
-  return parts.length ? parts.join(" ") : null;
+  // One sentence on why, as the model writes it: the tiles above already give the figures.
+  const climbs = f.grade?.climbs;
+  if (climbs) return `Most of the energy went on the climbs, the steepest ${climbs.steepest} at ${climbs.at}.`;
+  if (f.power?.regen) return `Regen won back ${f.power.regen} on the way.`;
+  if (f.hard && f.hard.brakeTimes.length > 0) return `The hard braking at ${f.hard.brakeTimes[0]} cost a little extra.`;
+  return null;
 }
 
 function lines(f: DriveFacts): DriveWords {

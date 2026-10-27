@@ -56,7 +56,7 @@ describe("the number guard", () => {
   });
 
   test("passes numbers copied from the facts", () => {
-    expect(lineProblem("summary", "This drive used 112 Wh/km, 5% more than your usual 107 Wh/km. You braked hard 2 times, at 7:18 AM and 7:20 AM.", facts)).toBeNull();
+    expect(lineProblem("summary", "This drive used 112 Wh/km, 5% more than your usual 107 Wh/km, with hard braking at 7:18 AM and 7:20 AM.", facts)).toBeNull();
   });
 
   test("rejects an invented number", () => {
@@ -91,7 +91,7 @@ describe("the number guard", () => {
 describe("checkWording", () => {
   const { facts } = describeDrive(input());
   const reply = {
-    summary: "This drive used 112 Wh/km, 5% more than your usual 107 Wh/km. There were 2 hard brakes, no more than your usual 2.",
+    summary: "This drive used 112 Wh/km, 5% more than your usual 107 Wh/km, with 2 hard brakes.",
     speed: "You topped out at 59 km/h.",
     power: "The battery gave about 9 kWh.", // not in the facts
     acceleration: "You braked hard at 7:18 AM and 7:20 AM.",
@@ -157,5 +157,14 @@ describe("demo wording", async () => {
     const words = demoWording(facts, some);
     expect(Object.keys(words ?? {}).sort()).toEqual(["acceleration", "grade", "power", "speed", "summary"]);
     expect(demoWording(facts, none)).toBeNull();
+  });
+});
+
+describe("wording v2 guards", () => {
+  test("a summary that says a comparison is missing, or a 'between … to' span, doesn't show", async () => {
+    const { lineProblem } = await import("@/lib/drive-wording");
+    const facts = { charts: [] } as unknown as Parameters<typeof lineProblem>[2];
+    expect(lineProblem("summary", "There were 4 hard brakes, and no usual figure is available to compare those against.", facts, new Set(["4"]))).toBe("meta");
+    expect(lineProblem("speed", "Speed mostly stayed between 28 to 68 km/h.", facts, new Set(["28", "68"]))).toBe("style");
   });
 });
