@@ -40,9 +40,8 @@ async function Invite({ params }: { params: Promise<{ token: string }> }) {
     >
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Signing in lets Uplink read your car through Tesla: its software, charging, battery, drives and, if you allow
-          it, where it goes. Tesla&apos;s page lists each kind, and you can untick location. You can delete it all in
-          Settings.
+          Signing in lets Uplink read your car&apos;s software, charging, battery and drives, and its location if you
+          allow it. You can untick location on Tesla&apos;s page, and delete everything in Settings.
         </p>
         <InviteSignIn action={startInviteSignIn.bind(null, token)} />
         <p className="text-sm text-muted-foreground">Sign in with the Tesla account that has the invited car. The link works once.</p>

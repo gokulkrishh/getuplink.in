@@ -74,7 +74,7 @@ function CarUpdates({ car, notes, label, range, now }: { car: UpdatesCar; notes:
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Asleep at every check so far. Open the Tesla app to wake the car; this page updates on its own.
+            Asleep at every check so far. Open the Tesla app to wake the car. This page updates on its own.
           </p>
         )}
       </header>

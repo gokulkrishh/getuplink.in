@@ -41,7 +41,7 @@ export function DayTimeline({ days: all7, now, title = "Your days", period, capt
       description={`What the car was doing ${days.length === 1 ? "through the day" : "each day"}${period ? `, ${period}` : ""}, India time.`}
       info={
         <>
-          <p>Uplink only knows the car was asleep when it checked and found it so. A parked stretch marked Parked may have been asleep for part of it too.</p>
+          <p>Asleep shows where a check found the car asleep. Uplink doesn&apos;t see every sleep, so some of it shows as Parked.</p>
         </>
       }
       caption={caption}

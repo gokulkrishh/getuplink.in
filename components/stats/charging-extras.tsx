@@ -42,7 +42,7 @@ export function DcCurves({ curves, frame, note }: { curves: (Curve & { serial?: 
         }
         unit="kW"
         terms={["kWh", "DC"]}
-        info={`Each point is the middle value in a ${BAND}% step of battery level.`}
+        info="Each point is the typical charging power at that battery level."
         empty={curves.length === 0 ? `No DC charging curves ${frame.words}.` : undefined}
       >
         <DcCurvePlot series={series} band={BAND} label={`Typical DC charging power against battery level, ${frame.title}`} />

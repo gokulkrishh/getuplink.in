@@ -50,7 +50,7 @@ export function NowStrip({ car, odometerKm, parkedNow, now }: { car: HomeCar; od
       {battery && <BatteryGauge snapshot={battery} parked={parkedNow} />}
       {!version && (
         <p className="text-sm text-muted-foreground">
-          Asleep at every check so far. Open the Tesla app to wake the car; this page updates on its own.
+          Asleep at every check so far. Open the Tesla app to wake the car. This page updates on its own.
         </p>
       )}
       <UpdateBanner snapshot={lastOnline} installed={vehicle.current_version} version={version} odometerKm={odometerKm} />

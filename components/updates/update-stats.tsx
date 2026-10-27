@@ -19,7 +19,7 @@ export function UpdateStats({ rows, now, covers }: { rows: UpdateRow[]; now: num
   if (!stats) return null;
   const count = updatesIn(rows, covers, now);
   const items = [
-    stats.avgWaitSec !== null && { label: "Average wait, available to installed", value: formatDays(stats.avgWaitSec) },
+    stats.avgWaitSec !== null && { label: "Average wait from offered to installed", value: formatDays(stats.avgWaitSec) },
     { label: `Updates ${typeof covers === "string" ? PERIOD_WORDS[covers] : covers.words}`, value: String(count) },
     { label: "Average time between updates", value: formatDays(stats.avgGapSec) },
     { label: "Longest on one version", value: formatDays(stats.longestSec) },

@@ -46,7 +46,7 @@ function lagWords(days: number): string {
 
 // The owner's car against India, in one line.
 function yourCarWords(car: YourCar): string {
-  if (car.kind === "waiting") return `${car.version} is waiting on your car`;
+  if (car.kind === "waiting") return `${car.version} is waiting to install on your car`;
   if (car.kind === "newest") return "You're on the newest version";
   return `You're ${car.versions} ${car.versions === 1 ? "version" : "versions"} behind: ${car.newest} is on ${cars(car.cars)}`;
 }
@@ -146,7 +146,7 @@ async function Rollout() {
               <ArrivingRow key={a.version} a={a} n={k + 1} notes={releaseNotes} />
             ))}
           </ul>
-          <p className="text-sm text-faint">Updates Tesla has offered but cars haven&apos;t installed yet, and how many cars already run each.</p>
+          <p className="text-sm text-faint">Updates offered to cars but not installed yet, and how many cars already run each.</p>
         </section>
       )}
 
@@ -180,11 +180,11 @@ async function Rollout() {
 
       <div className="space-y-2 text-xs text-faint">
         <p>
-          Pooled across every car Uplink tracks. Totals only, never a single car. An offer counts from
-          each car&apos;s last check while it was awake.
+          Counts cover every car Uplink tracks, as totals only, never a single car. An offer counts from the
+          car&apos;s last check while awake.
         </p>
         <p>
-          A car&apos;s state comes from its location or, until then, its Superchargers.
+          A car&apos;s state comes from its location, or from its Supercharger visits until location is allowed.
         </p>
         <p>Global dates come from a hand-kept list of public first sightings. A version not on it shows no lag.</p>
         <p>Release notes are Tesla&apos;s, fetched once per version from a car that ran or was offered it.</p>

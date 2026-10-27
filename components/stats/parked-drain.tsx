@@ -82,14 +82,14 @@ export function ParkedDrain({
         watts: watts.length >= 2 ? median(watts) : null,
         perDay: drain.percentPerDay,
         kmPerDay: drain.kmPerDay,
-        basis: `The headline is the median of ${finished.length} stretches parked 6 hours or more, ${frame.words}.`,
+        basis: `The headline is typical of ${finished.length} stretches parked 6 hours or more, ${frame.words}.`,
       }
     : now && now.lostPercent !== null
       ? {
           watts: now.watts,
           perDay: (now.lostPercent / now.hours) * 24,
           kmPerDay: now.lostKm !== null ? (now.lostKm / now.hours) * 24 : null,
-          basis: "The headline is from the stretch the car is parked in now. A median shows after two finished stretches of 6 hours or more.",
+          basis: "The headline is from the stretch the car is parked in now. A typical figure shows after two stretches of 6 hours or more.",
         }
       : null;
   const first = Math.min(parked[0]?.start ?? Infinity, parkedNow?.start ?? Infinity);
@@ -103,8 +103,8 @@ export function ParkedDrain({
             <h2 className="text-lg font-medium tracking-heading">Parked drain</h2>
             <InfoButton label="Parked drain" terms={["% a day", "W", "kWh"]}>
               {headline && <p>{headline.basis}</p>}
-              <p>Energy is what the pack lost. Average power is that energy over the time parked.</p>
-              <p>Seen awake counts only the time the car was sending data, so it&apos;s a minimum.</p>
+              <p>Energy is what the battery lost. Average power is how fast it lost it.</p>
+              <p>Seen awake is only the time the car was sending data, so the real time may be longer.</p>
               <p>≥ means parked since before Uplink&apos;s first reading.</p>
             </InfoButton>
           </div>

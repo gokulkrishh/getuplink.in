@@ -304,7 +304,7 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
         <Section title="Last AC charge" action={<MoreLink href={`/stats/charging/${ac.id}`}>See charge</MoreLink>}>
           <Figures
             figures={[
-              ac.kw !== null && { label: "Power", value: formatKw(ac.kw), note: "Its typical draw" },
+              ac.kw !== null && { label: "Power", value: formatKw(ac.kw), note: "Typical draw" },
               ...(ac.supply ? supplyFigures(ac.supply) : []),
             ]}
             label="Last AC charge"

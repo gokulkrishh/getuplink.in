@@ -147,12 +147,12 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
         <Step n={2} title="Turn on live data" state={streaming}>
           <p className="text-sm text-muted-foreground">
             {canSend
-              ? "Once the key is on, Uplink turns on live data for you. The car starts sending the next time it's online."
-              : "Once the key is on, Uplink will turn this on for you."}
+              ? "Once the key is added, Uplink turns on live data. The car starts sending the next time it's online."
+              : "Once the key is added, Uplink turns this on for you."}
           </p>
           {canSend && view.needsLocation && streaming !== "done" && (
             <p className="text-sm">
-              Live data includes where your car is, which Tesla shares only if you allow location.{" "}
+              Live data includes where your car is. Tesla shares that only if you allow location.{" "}
               <a href="/api/auth/connect" className="underline decoration-border underline-offset-4 hover:decoration-foreground">
                 Sign in again
               </a>{" "}

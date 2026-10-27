@@ -156,7 +156,7 @@ export function PaidFor({ bills, frame }: { bills: Bill[]; frame: Timeframe }) {
         <div className="flex items-center gap-1.5">
           <h2 className="text-lg font-medium tracking-heading">What you paid for</h2>
           <InfoButton label="what you paid for">
-            Supercharger lines are as Tesla bills them. Other lines are from the invoices you attached, line by line where they add up; a bill that doesn&apos;t split its amount is counted as not itemised.
+            Supercharger lines are as Tesla bills them. Other lines come from the invoices you attached. A bill with no breakdown counts as not itemised.
           </InfoButton>
         </div>
         <p className="text-sm text-muted-foreground">Your spend {frame.words}, line by line from the bills.</p>
@@ -223,7 +223,7 @@ export function EnergyAdded({
       <ChartCard
         title="Energy added"
         description="Energy into the battery, by charger type."
-        info="Supercharger energy is from Tesla's bills; third-party DC and AC are from the car's own readings."
+        info="Supercharger energy is from Tesla's bills. Other charging is from the car's own figures."
         unit="kWh"
         terms={["AC", "DC"]}
         summary={charged ? <Headline value={formatKwh(total)}>{headline(`Added ${frame.words}`, compared)}</Headline> : undefined}
@@ -236,7 +236,7 @@ export function EnergyAdded({
         <p className="flex items-center gap-1.5 text-sm">
           AC charging efficiency <span className="font-mono font-medium tabular-nums"><Measure text={formatPercent(efficiency * 100)} /></span>
           <InfoButton label="AC charging efficiency" terms={["charging efficiency"]}>
-            Estimated from the car&apos;s own readings.
+            Estimated from the car&apos;s own figures.
           </InfoButton>
         </p>
       )}

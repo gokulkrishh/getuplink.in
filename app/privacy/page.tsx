@@ -125,8 +125,8 @@ export default function PrivacyPage() {
         <p>Two ways.</p>
         <ul className={PLAIN_LIST}>
           <li>
-            Uplink checks Tesla&apos;s Fleet API about every 12 hours, less often when it nears its monthly Tesla budget,
-            and while a charge is in progress, once more to name the station. It only reads a car that is already online.
+            Uplink checks Tesla&apos;s Fleet API about every 12 hours, and less often as it nears its monthly Tesla
+            budget. During a charge it checks once more, to name the station. It only reads a car that is already online.
             The location it reads then is used to find the state and the station, and isn&apos;t stored.
           </li>
           <li>
@@ -175,7 +175,7 @@ export default function PrivacyPage() {
           <li>Authorities, only when Indian law requires it.</li>
         </ul>
         <p>
-          Vercel sees your IP address, and Fly.io your car&apos;s, and each keeps short logs of requests. An invite link
+          Vercel sees your IP address and Fly.io sees your car&apos;s. Each keeps short logs of requests. An invite link
           counts tries by IP address for a few minutes, in memory only.
         </p>
         <p>
@@ -283,7 +283,7 @@ export default function PrivacyPage() {
 
       <PlainSection title="Age">
         <p>
-          Uplink is for adults. Don&apos;t sign in if you&apos;re under 18; an invite asks you to confirm it. An account
+          Uplink is for adults. Don&apos;t sign in if you&apos;re under 18. An invite asks you to confirm this. An account
           found to be a child&apos;s is deleted.
         </p>
       </PlainSection>

@@ -57,7 +57,7 @@ export function RolloutAdoption({ adoption }: { adoption: Record<AdoptionGrain, 
       title="Adoption over time"
       description="Share of cars on the picked version."
       unit="%"
-      info={`Each bar is the share at the end of ${spanWords}, out of the cars whose version Uplink had seen by then. Each car counts from its first recorded version, never before.`}
+      info={`Each bar is the share of cars on this version at the end of ${spanWords}. A car counts only from the day Uplink first saw its version.`}
       summary={
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">

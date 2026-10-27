@@ -25,7 +25,7 @@ const timeTicks = (points: Point[]) => {
   const xs = points.map((p) => p.x);
   return xs.length > 0 && Math.max(...xs) - Math.min(...xs) <= 2 * DAY ? formatClock : formatShortDate;
 };
-const GAPS = "A break in a line is a time with no readings, such as while the car slept.";
+const GAPS = "A gap in a line is a time the car sent nothing, such as while it slept.";
 
 // Battery, cabin and outside temperature over the span, as far back as the readings go (the last week),
 // after TeslaMate's temperatures. The figures are the latest reading in the span.
@@ -94,7 +94,7 @@ export function CellBalance({ spread, frame }: { spread: BatteryExtras["cellSpre
       terms={["cell"]}
       info={
         <>
-          <p>The gap widens while driving and charging hard, and settles back at rest. A gap that keeps growing over months is worth a service check.</p>
+          <p>The gap widens during hard driving or charging and settles at rest. A gap that keeps growing over months is worth a service check.</p>
           {shown.length >= 2 && <p>{GAPS}</p>}
         </>
       }
@@ -168,8 +168,8 @@ export function TeslaPackByWeek({ pack, frame }: { pack: BatteryExtras["teslaPac
       terms={["full pack, per Tesla"]}
       info={
         <>
-          <p>The middle value of each week&apos;s reports. A line that falls means the pack holds less.</p>
-          <p>The car only sends this figure when it changes, so a week with no new figure has no point.</p>
+          <p>The car&apos;s own figure for a full battery, one typical value a week. A falling line means the battery holds less.</p>
+          <p>The car sends this figure only when it changes, so some weeks have no point.</p>
         </>
       }
       caption={backTo(frame.span, weeks[0].weekStart, "Weekly reports")}

@@ -161,7 +161,7 @@ function Drive({ detail, view, words }: { detail: DriveDetail; view: DriveView; 
               </p>
             </div>
             {speed.length >= 2 && (
-              <ChartCard as="h3" title="Speed" description={line("speed")} info="Mostly is the middle half of the readings while moving.">
+              <ChartCard as="h3" title="Speed" description={line("speed")} info="Mostly is the speed range the car stayed in for most of the drive.">
                 <DriveTrace label="Speed" points={speed} unit="km/h" {...axis} />
               </ChartCard>
             )}
@@ -172,7 +172,7 @@ function Drive({ detail, view, words }: { detail: DriveDetail; view: DriveView; 
                 description={line("power")}
                 unit="kW"
                 terms={["regen"]}
-                info="Energy here is added up from the power readings, one a second, so it is approximate; Energy used above is the battery's own figure."
+                info="Energy here is an estimate from the power readings. Energy used above is the battery's own figure."
                 summary={<Figures figures={peaks.power} />}
               >
                 <DriveTrace label="Power" points={power} unit="kW" signed split={POWER_SIDES} {...axis} />
@@ -205,7 +205,7 @@ function Drive({ detail, view, words }: { detail: DriveDetail; view: DriveView; 
                 title="Road grade"
                 description={line("grade")}
                 terms={["grade"]}
-                info="Flat is within 1% up or down. A climb or descent stays at 2% or more for 30 seconds; shorter is reading noise."
+                info="Flat means nearly level. A climb or descent is a slope that lasts at least half a minute. Shorter bumps are ignored."
               >
                 {/* A flat drive has nothing to draw: the one line above says it. */}
                 {!isFlat(grade) && <DriveTrace label="Road grade" points={grade} unit="%" signed digits={1} split={{ ...GRADE_SIDES, area: true }} {...axis} />}

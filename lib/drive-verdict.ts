@@ -35,8 +35,8 @@ const STRETCH_GAP_MS = 10_000;
 const DAY = 86_400_000;
 
 // The words behind the ⓘ, shared by the drive's verdict and the acceleration chart.
-export const HARD_WORDS = `A hard start or stop is a change of ${formatNumber(HARD_G, 1)} g, about ${formatSpeed(HARD_MS2 * 3.6)} gained or lost in one second.`;
-export const USUAL_WORDS = `Your usual is the middle value of your other drives in the last ${USUAL_DAYS} days, once there are ${MIN_USUAL_DRIVES} of them.`;
+export const HARD_WORDS = "A hard start or stop is when the car speeds up or slows down sharply, like braking suddenly.";
+export const USUAL_WORDS = `Your usual is a typical drive from the last ${USUAL_DAYS} days. It shows once you've done ${MIN_USUAL_DRIVES} drives.`;
 
 export type HardMoment = { t: number; v: number; kind: "start" | "brake" };
 
