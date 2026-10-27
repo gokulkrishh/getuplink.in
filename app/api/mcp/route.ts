@@ -68,7 +68,7 @@ const handlerFor = (owner: Owner) =>
       {
         title: "Attach a charging invoice",
         description:
-          "Saves a third-party charging invoice (any network but Tesla Superchargers) to the session it was for. Uplink finds the session by time, kWh and network, or checks the session_id you pass after the owner picked one. Returns status: attached, already_attached, candidates (ask the owner, then call again with session_id), no_session (retry later), session_has_invoice, or rejected with a reason. With line_items, `lines` says whether they were saved; lines that don't add up to amount_total aren't, and the invoice is saved without them. To add lines to an invoice already attached, send the same invoice again with them.",
+          "Saves a third-party charging invoice (any network but Tesla Superchargers) to the session it was for. Uplink finds the session by time, kWh and network, or checks the session_id you pass after the owner picked one. Returns status: attached, replaced (replace: true saved over the session's invoice), already_attached, candidates (ask the owner, then call again with session_id), no_session (retry later), session_has_invoice, or rejected with a reason. With line_items, `lines` says whether they were saved; lines that don't add up to amount_total aren't, and the invoice is saved without them. To add lines to an invoice already attached, send the same invoice again with them.",
         inputSchema: z.object({
           network: z.string().min(1).max(80).describe("Charging network as printed, e.g. ChargeMOD, Tata Power EZ Charge"),
           station: z.string().max(160).optional(),

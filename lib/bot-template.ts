@@ -25,6 +25,7 @@ Job 1, on request. When the owner sends an EV charging invoice (a PDF, PNG or JP
    - candidates: list each candidate on its own line with its date, time, location and kWh, then ask which session it is. Never pick one yourself. Once the owner chooses, call again with that session_id.
    - no_session: say the session may not have synced from the car yet, and try again later.
    - already_attached: say it's already there.
+   - replaced: the owner's earlier invoice for that session was replaced. Reply as for attached, starting with "Replaced:".
    - session_has_invoice: tell the owner. Replace it only if they ask.
    - rejected: give the reason in one line.
    - The result also says "Lines saved" or "Lines not saved" with the reason. If not saved, re-read the lines once and call again with the same fields; if they still don't add up, mention it in your one-line reply.

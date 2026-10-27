@@ -170,7 +170,10 @@ async function saveLines(owner: Owner, sessionId: number, items: StoredItems | n
     if (!LINE_COLUMNS_MISSING.includes(error.code)) console.warn("Saving invoice lines failed:", error.code);
     return items ? (LINE_COLUMNS_MISSING.includes(error.code) ? "Lines not saved: Uplink can't store lines yet." : "Lines not saved: try again later.") : null;
   }
-  return items ? `Lines saved: ${items.lines.length}.` : null;
+  if (!items) return null;
+  // Name the Rounding line reconcile added, so a count one more than was sent isn't a puzzle.
+  const rounding = items.lines.find((l) => l.label === "Rounding" && l.kind === "other");
+  return `Lines saved: ${items.lines.length}.${rounding ? ` One is a ₹${rounding.amount.toFixed(2)} Rounding line Uplink added so they add up to the total.` : ""}`;
 }
 
 // Lines sent for an invoice already saved, checked against what it was saved with.
@@ -209,7 +212,8 @@ export async function attachInvoice(owner: Owner, input: AttachInput) {
       ? await ownerDb(owner).from("charge_receipts").select(SEEN).ilike("network", invoice.network).eq("invoice_number", input.invoice_number).maybeSingle()
       : { data: null, error: null };
   if (seen.error) throw new Error(`Reading invoices failed: ${seen.error.message}`);
-  if (seen.data) {
+  // replace: true goes on to save over it below, on its session.
+  if (seen.data && !input.replace) {
     const saved = seen.data as { session_id: number; amount_total: number; gst: number | null; invoice_path: string | null };
     const sessionId = Number(saved.session_id);
     if (!input.line_items?.length) return { status: "already_attached", session_id: sessionId };
@@ -301,7 +305,7 @@ export async function attachInvoice(owner: Owner, input: AttachInput) {
     await saveLines(owner, session.id, null);
   }
   const attached = describe(session, { ...row, gst: row.gst ?? null, energy_amount: invoice.energyAmount ?? null, kwh_billed: row.kwh_billed ?? null });
-  return { status: "attached", session: attached, ...(lines && { lines }) };
+  return { status: existing ? "replaced" : "attached", session: attached, ...(lines && { lines }) };
 }
 
 const monthOf = (iso: string) => istIso(iso).slice(0, 7);

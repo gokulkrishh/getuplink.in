@@ -67,6 +67,21 @@ describe("attaching with line_items", () => {
     expect(await attachInvoice(A, { ...plain, amount_total: 150, line_items: LINES })).toMatchObject({ status: "session_has_invoice" });
   });
 
+  test("replace: true for an invoice seen before saves over it and says replaced", async () => {
+    await attachInvoice(A, INVOICE);
+    const result = await attachInvoice(A, { ...INVOICE, station: "Made-up Station", replace: true, line_items: LINES });
+    expect(result).toMatchObject({ status: "replaced", lines: "Lines saved: 4." });
+    expect(receipt()).toMatchObject({ station: "Made-up Station" });
+    expect(fake.rows("charge_receipts")).toHaveLength(1);
+  });
+
+  test("a Rounding line Uplink adds is named in the reply", async () => {
+    const short = LINES.map((l) => (l.label === "Session fee" ? { ...l, amount: 19.99 } : l));
+    expect(await attachInvoice(A, { ...INVOICE, line_items: short })).toMatchObject({
+      lines: "Lines saved: 5. One is a ₹0.01 Rounding line Uplink added so they add up to the total.",
+    });
+  });
+
   test("a replaced invoice keeps none of the old one's lines", async () => {
     await attachInvoice(A, { ...INVOICE, line_items: LINES });
     await attachInvoice(A, { ...INVOICE, source_ref: "chat:other", amount_total: 142, replace: true });
