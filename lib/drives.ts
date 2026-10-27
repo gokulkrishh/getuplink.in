@@ -147,8 +147,10 @@ type Charges = [number, number][];
 // drive is higher (a change the car hadn't reported yet). Then the first reading inside the drive. Null
 // with neither.
 export function levelAtStart(points: Point[], trip: Trip, charging: Charges): Point | null {
-  const prev = points.findLast((p) => p.t <= trip.start) ?? null;
-  const inside = points.find((p) => p.t > trip.start && p.t <= trip.end) ?? null;
+  // A reading at the start instant came with the first non-P gear, so the car was already moving: like the
+  // odometer, the start level is the reading before it.
+  const prev = points.findLast((p) => p.t < trip.start) ?? null;
+  const inside = points.find((p) => p.t >= trip.start && p.t <= trip.end) ?? null;
   const charged = prev !== null && charging.some(([a, b]) => a <= trip.start && b > prev.t + CHARGE_END_SLACK_MS);
   if (prev && !charged && !(inside && inside.v > prev.v)) return prev;
   return inside;

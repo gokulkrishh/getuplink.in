@@ -94,6 +94,19 @@ const base = (over: Partial<DriveInputs>): DriveInputs => ({
 });
 
 describe("drive levels in general", () => {
+  test("a reading sent with the first D is mid-drive: the start is the reading before, as for the odometer", () => {
+    // 23 Oct 2026: readings every 5 minutes, the car already moving when D was first sent. Reading the
+    // start from the D batch gave 0.14 kWh over 3.5 km (40 Wh/km); from the batch before, 0.38 kWh.
+    const [d] = buildDrives(base({
+      gear: [m(0, "ShiftStateP"), m(5, "ShiftStateD"), m(10, "ShiftStateP")],
+      odometer: [m(0, 100), m(5, 101), m(10, 102.17)],
+      energy: [m(0, 38.5), m(5, 38.26), m(10, 38.12)],
+      battery: [m(0, 60.39), m(5, 59.81), m(10, 59.65)],
+    }));
+    expect(d.kwh).toBeCloseTo(0.38, 5);
+    expect([d.startLevel, d.endLevel]).toEqual([60.39, 59.65]);
+  });
+
   test("a drive right after a charge starts from the first reading inside it", () => {
     const [d] = buildDrives(base({
       battery: [m(5, 50), m(55, 78), m(65, 80), m(75, 78), m(82, 77.8)],
