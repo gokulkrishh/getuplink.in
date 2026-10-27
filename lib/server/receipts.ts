@@ -2,6 +2,7 @@ import "server-only";
 import { parseInvoiceTime, parseRangeEnd } from "@/lib/mcp-ranges";
 import { createHash } from "node:crypto";
 import { type Invoice, invoiceProblem, matchInvoice, pickedSessionFits, type ReceiptSession } from "@/lib/charge-receipts";
+import { type InvoiceLine, reconcile, type SentLine, type StoredItems, storedLines } from "@/lib/invoice-items";
 import { loadDrivingFigures } from "./driving";
 import { selectSessions, toStreamSession } from "./stream-charging";
 import { DEMO } from "@/lib/demo";
@@ -52,6 +53,29 @@ async function receiptsFor(owner: Owner, ids: number[]): Promise<Map<number, Rec
     if (noEnergyColumn(error)) ({ data, error } = await read(RECEIPT_COLUMNS));
     if (error) throw new Error(`Reading invoices failed: ${error.message}`);
     for (const r of data as unknown as ReceiptRow[]) out.set(Number(r.session_id), r);
+  }
+  return out;
+}
+
+// The invoices' own lines, where they were sent and still add up (lib/invoice-items.ts storedLines), in a
+// read of their own: before migration 20261104120000 the column is missing (42703) and every other figure
+// still reads. Never fails: an invoice without lines shows Before GST and GST.
+async function linesFor(owner: Owner, ids: number[]): Promise<Map<number, InvoiceLine[]>> {
+  const out = new Map<number, InvoiceLine[]>();
+  for (let i = 0; i < ids.length; i += IDS_PER_READ) {
+    const { data, error } = await ownerDb(owner)
+      .from("charge_receipts")
+      .select("session_id, invoice_path, amount_total, line_items")
+      .in("session_id", ids.slice(i, i + IDS_PER_READ))
+      .not("line_items", "is", null);
+    if (error) {
+      if (error.code !== "42703") console.warn("Invoice lines unavailable:", error.message);
+      return out;
+    }
+    for (const r of data as { session_id: number; invoice_path: string | null; amount_total: number; line_items: unknown }[]) {
+      const lines = storedLines(r.line_items, { invoicePath: r.invoice_path, amountTotal: Number(r.amount_total) });
+      if (lines) out.set(Number(r.session_id), lines);
+    }
   }
   return out;
 }
@@ -121,6 +145,7 @@ export type AttachInput = {
   session_id?: number;
   replace?: boolean;
   file_base64?: string;
+  line_items?: SentLine[];
 };
 
 // The file's type from its first bytes, never from a name the AI gives it.
@@ -131,6 +156,33 @@ function sniff(bytes: Buffer): { type: string; ext: string } | null {
   return null;
 }
 
+const LINE_COLUMNS_MISSING = ["42703", "PGRST204"];
+
+// An invoice's lines, or null to clear them (a replaced invoice). The result is one line for the AI, or null
+// when there's nothing to say. Before migration 20261104120000 the columns are missing: the invoice stays
+// saved without lines.
+async function saveLines(owner: Owner, sessionId: number, items: StoredItems | null): Promise<string | null> {
+  const { error } = await ownerDb(owner)
+    .from("charge_receipts")
+    .update({ line_items: items, lines_at: items ? new Date().toISOString() : null })
+    .eq("session_id", sessionId);
+  if (error) {
+    if (!LINE_COLUMNS_MISSING.includes(error.code)) console.warn("Saving invoice lines failed:", error.code);
+    return items ? (LINE_COLUMNS_MISSING.includes(error.code) ? "Lines not saved: Uplink can't store lines yet." : "Lines not saved: try again later.") : null;
+  }
+  return items ? `Lines saved: ${items.lines.length}.` : null;
+}
+
+// Lines sent for an invoice already saved, checked against what it was saved with.
+async function addLines(owner: Owner, sessionId: number, saved: { amount_total: number; gst: number | null; invoice_path: string | null }, sent: SentLine[]) {
+  const checked = reconcile(sent, { amountTotal: Number(saved.amount_total), gst: amount(saved.gst) }, saved.invoice_path ?? null);
+  return checked.ok ? saveLines(owner, sessionId, checked.items) : checked.message;
+}
+
+// line_items: the invoice's printed lines. Kept only when they add up (lib/invoice-items.ts reconcile);
+// otherwise the invoice is saved as before and `lines` says why they weren't. Sent again for an invoice
+// already saved (the same source or invoice number, or the same file or amount on its session), they're
+// added to it, without a second invoice.
 export async function attachInvoice(owner: Owner, input: AttachInput) {
   const now = Date.now();
   const startedAt = parseInvoiceTime(input.started_at);
@@ -150,13 +202,19 @@ export async function attachInvoice(owner: Owner, input: AttachInput) {
   if ((input.currency ?? "INR").toUpperCase() !== "INR") return { status: "rejected", reason: "Only invoices in INR are supported." };
 
   // Seen before: the scheduled run sees the same emails every 6 hours.
+  const SEEN = "session_id, amount_total, gst, invoice_path";
   const seen = input.source_ref
-    ? await ownerDb(owner).from("charge_receipts").select("session_id").eq("source_ref", input.source_ref).maybeSingle()
+    ? await ownerDb(owner).from("charge_receipts").select(SEEN).eq("source_ref", input.source_ref).maybeSingle()
     : input.invoice_number
-      ? await ownerDb(owner).from("charge_receipts").select("session_id").ilike("network", invoice.network).eq("invoice_number", input.invoice_number).maybeSingle()
+      ? await ownerDb(owner).from("charge_receipts").select(SEEN).ilike("network", invoice.network).eq("invoice_number", input.invoice_number).maybeSingle()
       : { data: null, error: null };
   if (seen.error) throw new Error(`Reading invoices failed: ${seen.error.message}`);
-  if (seen.data) return { status: "already_attached", session_id: Number(seen.data.session_id) };
+  if (seen.data) {
+    const saved = seen.data as { session_id: number; amount_total: number; gst: number | null; invoice_path: string | null };
+    const sessionId = Number(saved.session_id);
+    if (!input.line_items?.length) return { status: "already_attached", session_id: sessionId };
+    return { status: "already_attached", session_id: sessionId, lines: await addLines(owner, sessionId, saved, input.line_items) };
+  }
 
   let file: { bytes: Buffer; type: string; ext: string } | null = null;
   if (input.file_base64) {
@@ -188,13 +246,20 @@ export async function attachInvoice(owner: Owner, input: AttachInput) {
   }
 
   const existing = (await receiptsFor(owner, [session.id])).get(session.id);
+  const digest = file ? createHash("sha256").update(file.bytes).digest("hex").slice(0, 16) : null;
+  // The same invoice sent again with its lines: the same file, or with no file the same network and amount.
+  const same =
+    existing &&
+    (file ? existing.invoice_path === `${session.id}/${digest}.${file.ext}` : existing.network.toLowerCase() === invoice.network.toLowerCase() && Number(existing.amount_total) === invoice.amountTotal);
+  if (existing && !input.replace && same && input.line_items?.length) {
+    return { status: "already_attached", session_id: session.id, lines: await addLines(owner, session.id, existing, input.line_items) };
+  }
   if (existing && !input.replace) {
     return { status: "session_has_invoice", reason: "This session already has an invoice. Call again with replace: true only if the owner says so.", session: describe(session, existing) };
   }
 
   let invoicePath: string | null = existing?.invoice_path ?? null;
   if (file) {
-    const digest = createHash("sha256").update(file.bytes).digest("hex").slice(0, 16);
     invoicePath = `${session.id}/${digest}.${file.ext}`;
     const { error } = await ownerDb(owner).invoices().upload(invoicePath, file.bytes, { contentType: file.type, upsert: true });
     if (error) throw new Error(`Saving the invoice file failed: ${error.message}`);
@@ -227,7 +292,16 @@ export async function attachInvoice(owner: Owner, input: AttachInput) {
   if (existing?.invoice_path && existing.invoice_path !== invoicePath) {
     await ownerDb(owner).invoices().remove([existing.invoice_path]);
   }
-  return { status: "attached", session: describe(session, { ...row, gst: row.gst ?? null, energy_amount: invoice.energyAmount ?? null, kwh_billed: row.kwh_billed ?? null }) };
+  let lines: string | null = null;
+  if (input.line_items?.length) {
+    const checked = reconcile(input.line_items, { amountTotal: invoice.amountTotal, gst: invoice.gst ?? null }, invoicePath);
+    lines = checked.ok ? await saveLines(owner, session.id, checked.items) : checked.message;
+  } else if (existing) {
+    // A replaced invoice keeps none of the old one's lines.
+    await saveLines(owner, session.id, null);
+  }
+  const attached = describe(session, { ...row, gst: row.gst ?? null, energy_amount: invoice.energyAmount ?? null, kwh_billed: row.kwh_billed ?? null });
+  return { status: "attached", session: attached, ...(lines && { lines }) };
 }
 
 const monthOf = (iso: string) => istIso(iso).slice(0, 7);
@@ -304,7 +378,8 @@ export async function drivingSummary(owner: Owner) {
 // The invoice for each of these sessions that has one, for every spend figure and session row. hasFile:
 // the invoice's file is stored, so the row can offer it. Never fails the page: a read error (or a
 // database without the table yet) shows as no invoices.
-// gst and energyAmount are as printed, for the Spend breakdown; null when the invoice didn't say.
+// gst and energyAmount are as printed, for the Spend breakdown; null when the invoice didn't say. lines:
+// the invoice's own lines when they were read and add up, else null.
 export type SessionInvoiceAmount = {
   amount: number;
   gst: number | null;
@@ -313,6 +388,7 @@ export type SessionInvoiceAmount = {
   network: string;
   station: string | null;
   hasFile: boolean;
+  lines: InvoiceLine[] | null;
 };
 
 export async function invoicesBySession(owner: Owner, ids: number[]): Promise<Map<number, SessionInvoiceAmount>> {
@@ -322,12 +398,12 @@ export async function invoicesBySession(owner: Owner, ids: number[]): Promise<Ma
     // The demo stores no files (the invoice route answers 404 there).
     return new Map(ids.flatMap((id) => {
       const i = all.get(id);
-      return i ? [[id, { amount: i.amount, gst: i.gst, energyAmount: i.energyAmount, kwhBilled: i.kwhBilled, network: i.network, station: i.station, hasFile: false }] as const] : [];
+      return i ? [[id, { amount: i.amount, gst: i.gst, energyAmount: i.energyAmount, kwhBilled: i.kwhBilled, network: i.network, station: i.station, hasFile: false, lines: i.lines }] as const] : [];
     }));
   }
   if (ids.length === 0) return new Map();
   try {
-    const rows = await receiptsFor(owner, ids);
+    const [rows, lines] = await Promise.all([receiptsFor(owner, ids), linesFor(owner, ids)]);
     return new Map(
       [...rows].map(([id, r]) => [
         id,
@@ -339,6 +415,7 @@ export async function invoicesBySession(owner: Owner, ids: number[]): Promise<Ma
           network: r.network,
           station: r.station ?? null,
           hasFile: Boolean(r.invoice_path),
+          lines: lines.get(id) ?? null,
         },
       ]),
     );
@@ -356,6 +433,7 @@ export type SessionInvoice = {
   energyAmount: number | null;
   kwhBilled: number | null;
   hasFile: boolean;
+  lines: InvoiceLine[] | null;
 };
 
 // The invoice attached to one session, for its page. Never fails the page: a read error (or a
@@ -364,7 +442,7 @@ export async function sessionInvoice(owner: Owner, sessionId: number): Promise<S
   if (DEMO) {
     const { demoInvoices } = await import("./demo");
     const i = demoInvoices().get(sessionId);
-    return i ? { network: i.network, station: i.station, amountTotal: i.amount, gst: i.gst, energyAmount: i.energyAmount, kwhBilled: i.kwhBilled, hasFile: false } : null;
+    return i ? { network: i.network, station: i.station, amountTotal: i.amount, gst: i.gst, energyAmount: i.energyAmount, kwhBilled: i.kwhBilled, hasFile: false, lines: i.lines } : null;
   }
   const columns = "network, station, amount_total, gst, kwh_billed, invoice_path";
   const read = (cols: string) => ownerDb(owner).from("charge_receipts").select(cols).eq("session_id", sessionId).maybeSingle();
@@ -376,6 +454,7 @@ export async function sessionInvoice(owner: Owner, sessionId: number): Promise<S
   }
   if (!data) return null;
   const row = data as unknown as Record<string, unknown>;
+  const lines = row.invoice_path ? (await linesFor(owner, [sessionId])).get(sessionId) ?? null : null;
   return {
     network: row.network as string,
     station: (row.station as string | null) ?? null,
@@ -384,6 +463,7 @@ export async function sessionInvoice(owner: Owner, sessionId: number): Promise<S
     energyAmount: amount(row.energy_amount),
     kwhBilled: amount(row.kwh_billed),
     hasFile: Boolean(row.invoice_path),
+    lines,
   };
 }
 

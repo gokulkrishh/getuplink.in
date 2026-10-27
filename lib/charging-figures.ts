@@ -1,3 +1,4 @@
+import { type InvoiceLine, KIND_LABELS, paise } from "@/lib/invoice-items";
 import { inSpan, type Slot, type Span, sumBySlot } from "@/lib/periods";
 
 // What charging cost and added in a span, counted the way the Charging page counts it. Pass Tesla's
@@ -49,17 +50,22 @@ export type Bill = { started_at: string; cost: number; kwh: number | null; kind:
 export type BillPart = { from: "supercharger" | "invoice"; label: string; amount: number };
 
 // The invoices attached to streamed sessions, by session id (see invoicesBySession). gst and
-// energyAmount are as printed, null when the invoice didn't say.
-export type InvoiceAmounts = ReadonlyMap<number, { amount: number; kwhBilled: number | null; gst?: number | null; energyAmount?: number | null }>;
+// energyAmount are as printed, null when the invoice didn't say; lines are the invoice's own, as sent with
+// the invoice, when they add up (lib/invoice-items.ts storedLines).
+type InvoiceAmount = { amount: number; kwhBilled: number | null; gst?: number | null; energyAmount?: number | null; lines?: readonly InvoiceLine[] | null };
+export type InvoiceAmounts = ReadonlyMap<number, InvoiceAmount>;
 
-const paise = (n: number) => Math.round(n * 100);
-
-// An invoice's parts: energy, fees and GST when it prints both the energy line and the GST; before GST
-// and GST when it only prints the GST. Anything less isn't split: the rest could be fees or tax.
-export function invoiceParts(invoice: { amount: number; gst?: number | null; energyAmount?: number | null }): BillPart[] | null {
-  const { amount, gst, energyAmount } = invoice;
-  if (gst == null || !(gst >= 0) || paise(gst) > paise(amount)) return null;
+// An invoice's parts. With its own lines, one part per line, named by kind (Energy, Fees, Idle fees,
+// Parking, Discounts, GST, Other) so the same charge adds up across networks. Otherwise energy, fees and
+// GST when it prints both the energy line and the GST; before GST and GST when it only prints the GST.
+// Anything less isn't split: the rest could be fees or tax.
+export function invoiceParts(invoice: Omit<InvoiceAmount, "kwhBilled">): BillPart[] | null {
+  const { amount, gst, energyAmount, lines } = invoice;
   const part = (label: string, value: number): BillPart => ({ from: "invoice", label, amount: value });
+  if (lines?.length && lines.reduce((sum, l) => sum + paise(l.amount), 0) === paise(amount)) {
+    return lines.map((l) => part(KIND_LABELS[l.kind], l.amount));
+  }
+  if (gst == null || !(gst >= 0) || paise(gst) > paise(amount)) return null;
   if (energyAmount != null && energyAmount > 0 && paise(energyAmount) + paise(gst) <= paise(amount)) {
     const fees = (paise(amount) - paise(energyAmount) - paise(gst)) / 100;
     return [part("Energy", energyAmount), ...(fees > 0 ? [part("Fees", fees)] : []), part("GST", gst)];
@@ -132,7 +138,8 @@ export type SpendBreakdown = {
   total: number;
 };
 
-const INVOICE_ORDER = ["Energy", "Fees", "Before GST", "GST"];
+// Charges, then discounts, then tax.
+const INVOICE_ORDER = ["Energy", "Fees", "Idle fees", "Parking", "Other", "Before GST", "Discounts", "GST"];
 
 export function spendBreakdown(bills: Bill[], span: Span): SpendBreakdown | null {
   const inside = bills.filter(within(span));
@@ -151,7 +158,8 @@ export function spendBreakdown(bills: Bill[], span: Span): SpendBreakdown | null
     for (const p of parts) sums[p.from].set(p.label, (sums[p.from].get(p.label) ?? 0) + paise(p.amount));
   }
   const lines = (m: Map<string, number>, order: (a: string, b: string) => number) =>
-    [...m].filter(([, v]) => v > 0).sort(([a], [b]) => order(a, b)).map(([label, v]) => ({ label, amount: v / 100 }));
+    // Discounts are negative: every line but a zero one counts, so the lines add up to the total.
+    [...m].filter(([, v]) => v !== 0).sort(([a], [b]) => order(a, b)).map(([label, v]) => ({ label, amount: v / 100 }));
   const rank = (label: string) => (INVOICE_ORDER.includes(label) ? INVOICE_ORDER.indexOf(label) : INVOICE_ORDER.length);
   return {
     // Charging first, then Tesla's other fees by name.

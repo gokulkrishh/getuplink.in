@@ -156,7 +156,7 @@ export function PaidFor({ bills, frame }: { bills: Bill[]; frame: Timeframe }) {
         <div className="flex items-center gap-1.5">
           <h2 className="text-lg font-medium tracking-heading">What you paid for</h2>
           <InfoButton label="what you paid for">
-            Supercharger lines are as Tesla bills them. Energy, fees and GST are from the invoices you attached; a bill that doesn&apos;t split its amount is counted as not itemised.
+            Supercharger lines are as Tesla bills them. Other lines are from the invoices you attached, line by line where they add up; a bill that doesn&apos;t split its amount is counted as not itemised.
           </InfoButton>
         </div>
         <p className="text-sm text-muted-foreground">Your spend {frame.words}, line by line from the bills.</p>

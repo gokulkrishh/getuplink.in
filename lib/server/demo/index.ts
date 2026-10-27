@@ -2,6 +2,7 @@ import "server-only";
 import { buildSessions, CHARGE_FIELDS } from "@/lib/charge-sessions";
 import type { DemoScenario } from "@/lib/demo";
 import type { CounterColumn } from "@/lib/driving-figures";
+import type { InvoiceLine } from "@/lib/invoice-items";
 import { stationAt } from "@/lib/stations";
 import type { Stream } from "@/lib/telemetry";
 import { istDay, istDayStart, num, type Reading } from "@/lib/telemetry-derive";
@@ -147,8 +148,25 @@ export function demoStreamSessions(): StreamChargeSession[] {
 
 // Invoices for the demo's third-party DC charges, as the Grok bot would attach them: billed a little over
 // what the car added, at ₹21/kWh (₹19.50 of it energy, the rest a service fee) with 18% GST, every other
-// one so some show "Cost not available".
-type DemoInvoice = { amount: number; kwhBilled: number | null; network: string; station: string | null; gst: number; energyAmount: number };
+// one so some show "Cost not available". The first one also has its lines, as the bot sends them
+// with line_items: energy, a session fee, CGST and SGST at 9% each, and the round-off.
+type DemoInvoice = { amount: number; kwhBilled: number | null; network: string; station: string | null; gst: number; energyAmount: number; lines: InvoiceLine[] | null };
+
+const cents = (n: number) => Math.round(n * 100) / 100;
+
+function demoLines(kwhBilled: number, amount: number): InvoiceLine[] {
+  const energy = cents(kwhBilled * 19.5);
+  const fee = cents(kwhBilled * 1.5);
+  const tax = cents((energy + fee) * 0.09);
+  const lines: InvoiceLine[] = [
+    { label: "Energy charges", kind: "energy", amount: energy, kwh: kwhBilled, rate: 19.5 },
+    { label: "Session fee", kind: "fee", amount: fee },
+    { label: "CGST", kind: "tax", amount: tax, taxRate: 9 },
+    { label: "SGST", kind: "tax", amount: tax, taxRate: 9 },
+  ];
+  const rest = Math.round(amount * 100) - lines.reduce((sum, l) => sum + Math.round(l.amount * 100), 0);
+  return rest === 0 ? lines : [...lines, { label: "Round off", kind: "other", amount: rest / 100 }];
+}
 
 export function demoInvoices(): Map<number, DemoInvoice> {
   const out = new Map<number, DemoInvoice>();
@@ -158,7 +176,7 @@ export function demoInvoices(): Map<number, DemoInvoice> {
       if (k % 2 === 1 && s.station_name) return;
       const kwhBilled = Math.round(s.energy_added_kwh! * 1.04 * 100) / 100;
       const amount = Math.round(kwhBilled * 21 * 1.18 * 100) / 100;
-      out.set(s.id, { amount, kwhBilled, ...(s.station_name ? { network: s.station_name.split(",")[0], station: null } : { network: "VoltPoint", station: "Lakeview Fuels, Ring Road" }), gst: Math.round((amount - amount / 1.18) * 100) / 100, energyAmount: Math.round(kwhBilled * 19.5 * 100) / 100 });
+      out.set(s.id, { amount, kwhBilled, lines: k === 0 ? demoLines(kwhBilled, amount) : null, ...(s.station_name ? { network: s.station_name.split(",")[0], station: null } : { network: "VoltPoint", station: "Lakeview Fuels, Ring Road" }), gst: Math.round((amount - amount / 1.18) * 100) / 100, energyAmount: Math.round(kwhBilled * 19.5 * 100) / 100 });
     });
   return out;
 }

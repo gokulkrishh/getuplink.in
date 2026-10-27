@@ -1,6 +1,7 @@
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { DEMO } from "@/lib/demo";
+import { lineItemsInput } from "@/lib/invoice-items";
 import { messageOf } from "@/lib/errors";
 import { isoDay } from "@/lib/periods";
 import type { Owner } from "@/lib/server/auth";
@@ -53,7 +54,7 @@ const handlerFor = (owner: Owner) =>
       {
         title: "Attach a charging invoice",
         description:
-          "Saves a third-party charging invoice (any network but Tesla Superchargers) to the session it was for. Uplink finds the session by time, kWh and network, or checks the session_id you pass after the owner picked one. Returns status: attached, already_attached, candidates (ask the owner, then call again with session_id), no_session (retry later), session_has_invoice, or rejected with a reason.",
+          "Saves a third-party charging invoice (any network but Tesla Superchargers) to the session it was for. Uplink finds the session by time, kWh and network, or checks the session_id you pass after the owner picked one. Returns status: attached, already_attached, candidates (ask the owner, then call again with session_id), no_session (retry later), session_has_invoice, or rejected with a reason. With line_items, `lines` says whether they were saved; lines that don't add up to amount_total aren't, and the invoice is saved without them. To add lines to an invoice already attached, send the same invoice again with them.",
         inputSchema: z.object({
           network: z.string().min(1).max(80).describe("Charging network as printed, e.g. ChargeMOD, Tata Power EZ Charge"),
           station: z.string().max(160).optional(),
@@ -62,13 +63,14 @@ const handlerFor = (owner: Owner) =>
           kwh_billed: z.number().positive().optional(),
           amount_total: z.number().positive().describe("Total paid in ₹, GST included"),
           gst: z.number().min(0).optional(),
-          energy_amount: z.number().positive().optional().describe("The energy charge in ₹ before GST, only if the invoice prints it as its own line"),
+          energy_amount: z.number().positive().optional().describe("Older field: the energy charge in ₹ before GST. Send line_items instead"),
           currency: z.string().length(3).optional().describe("INR"),
           invoice_number: z.string().max(80).optional(),
           source_ref: z.string().max(200).optional().describe('Where it came from, so repeats are skipped: "gmail:<message id>" for email'),
           session_id: z.number().int().positive().optional().describe("Only after the owner picked a session from candidates"),
           replace: z.boolean().optional().describe("Replace an existing invoice, only if the owner asked"),
           file_base64: z.string().max(4_300_000).optional().describe("The invoice PDF, PNG or JPEG, base64, up to 3 MB"),
+          line_items: lineItemsInput.optional(),
         }),
       },
       (input) => run(() => attachInvoice(owner, input)),

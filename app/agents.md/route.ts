@@ -59,7 +59,7 @@ All tools but one only read. Times without an offset are read as IST, for exampl
 
 ### Attaching an invoice
 
-\`attach_charge_invoice\` needs \`network\` (as printed), \`started_at\` and \`amount_total\` (₹, GST included). Also send what the invoice shows: \`station\`, \`ended_at\`, \`kwh_billed\`, \`gst\`, \`energy_amount\` (the energy line before GST, when printed), \`invoice_number\`, and the file as \`file_base64\` (PDF, PNG or JPEG, up to 3 MB). For an email, set \`source_ref\` to \`gmail:<message id>\` so a repeat is skipped.
+\`attach_charge_invoice\` needs \`network\` (as printed), \`started_at\` and \`amount_total\` (₹, GST included). Also send what the invoice shows: \`station\`, \`ended_at\`, \`kwh_billed\`, \`gst\`, \`invoice_number\`, the file as \`file_base64\` (PDF, PNG or JPEG, up to 3 MB), and \`line_items\`: every line printed, each with \`label\`, \`kind\` (energy, fee, idle, parking, discount, tax or other), \`amount\` (₹ as printed, discounts negative) and, where printed, \`kwh\`, \`rate\` (₹/kWh) and \`tax_rate\` (9 for CGST 9%). Lines that don't add up to \`amount_total\` aren't saved, and the result's \`lines\` says why; send the same invoice again with corrected lines to add them. For an email, set \`source_ref\` to \`gmail:<message id>\` so a repeat is skipped.
 
 It returns a status:
 
