@@ -23,14 +23,18 @@ function Copyable({ label, value }: { label: string; value: string }) {
   );
 }
 
-// Steps or text for setting something up by hand, closed until opened.
-function ManualInstructions({ children }: { children: ReactNode }) {
+// Steps or text for setting something up by hand, closed until opened. With `copy`, a Copy button sits in
+// the closed row, so the text can be copied without opening it (a button inside a summary doesn't toggle it).
+function ManualInstructions({ copy, children }: { copy?: string; children: ReactNode }) {
   return (
     <details className="group border">
-      <summary className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
+      <summary className="flex cursor-pointer items-center justify-between gap-3 px-3 py-2.5 text-sm">
         Manual instructions
-        <span className="text-sm text-muted-foreground group-open:hidden">Show</span>
-        <span className="hidden text-sm text-muted-foreground group-open:inline">Hide</span>
+        <span className="flex items-center gap-3">
+          {copy && <CopyButton text={copy} />}
+          <span className="text-sm text-muted-foreground group-open:hidden">Show</span>
+          <span className="hidden text-sm text-muted-foreground group-open:inline">Hide</span>
+        </span>
       </summary>
       <div className="space-y-2 border-t px-3 py-3">{children}</div>
     </details>
@@ -123,11 +127,8 @@ export function BotTemplate() {
           {BOT_TEMPLATE_URL && "In Grok Bot, choose Add to Grok, then paste the connector token above. "}
           For any other bot, paste the manual instructions.
         </p>
-        <ManualInstructions>
+        <ManualInstructions copy={BOT_INSTRUCTIONS}>
           <pre className="text-sm leading-relaxed break-words whitespace-pre-wrap text-muted-foreground select-all">{BOT_INSTRUCTIONS}</pre>
-          <div className="flex justify-end">
-            <CopyButton text={BOT_INSTRUCTIONS} />
-          </div>
         </ManualInstructions>
       </div>
     </Row>
