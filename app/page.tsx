@@ -17,9 +17,9 @@ import { periodFrames } from "@/lib/frames";
 import { daysLabel } from "@/lib/periods";
 import { istDay, istDayStart } from "@/lib/telemetry-derive";
 import { after, connection } from "next/server";
-import { AiLine } from "@/components/ai-line";
+import { WeekTips } from "@/components/home/week-tips";
 import { type WeekFacts, weekFacts } from "@/lib/week-wording";
-import { generateWeekLine, loadWeekLine } from "@/lib/server/week-wording";
+import { generateWeekTips, loadWeekTips } from "@/lib/server/week-wording";
 import { newestTime } from "@/lib/last-synced";
 import { rotationNotice, tyreRotation } from "@/lib/tyre-rotation";
 import type { DemoScenario } from "@/lib/demo";
@@ -56,21 +56,17 @@ function greeting(now: number): string {
   return hour >= 4 && hour < 12 ? "Good morning" : hour >= 12 && hour < 17 ? "Good afternoon" : "Good evening";
 }
 
-// Today's AI line on the week (lib/server/week-wording.ts): the stored one, or none and one written after
-// the response for the next visit.
-async function WeekLine({ vehicleId, day, facts }: { vehicleId: string; day: number; facts: WeekFacts }) {
+// Today's AI tips on the week (lib/server/week-wording.ts): the stored ones, or none and some written
+// after the response for the next visit.
+async function Tips({ vehicleId, day, facts }: { vehicleId: string; day: number; facts: WeekFacts }) {
   // Outside the cached scope, the session check reads the clock, so this part renders per request.
   await connection();
   const owner = await currentOwner();
   if (!owner) return null;
   const key = { vehicleId, day };
-  const stored = await loadWeekLine(owner, key, facts);
-  if (stored.generate) after(() => generateWeekLine(owner, key, facts));
-  return stored.line ? (
-    <p className="pt-1 text-sm text-muted-foreground">
-      <AiLine line={{ text: stored.line, ai: true }} about="Written by AI from this week's figures." />
-    </p>
-  ) : null;
+  const stored = await loadWeekTips(owner, key, facts);
+  if (stored.generate) after(() => generateWeekTips(owner, key, facts));
+  return <WeekTips tips={stored.tips} />;
 }
 
 // The four headline numbers, then driving, charging and battery, over the last 7 days.
@@ -103,10 +99,10 @@ function Totals({ home, routes, now }: { home: Extract<Home, { kind: "ready" }>;
           ),
           { steady: true },
         )}
-        {/* The AI's line on the week streams in after the rest; until then, and when there's none, nothing. */}
+        {/* The AI's tips on the week stream in after the rest; until then, and when there are none, nothing. */}
         {primaryId && (
           <Suspense fallback={null}>
-            <WeekLine vehicleId={primaryId} day={istDayStart(istDay(now))} facts={weekFacts(frames[0].frame, frames[0].driving, window.driving.drives, bills, energyIn(home.sessions, streamOnly, frames[0].frame.span))} />
+            <Tips vehicleId={primaryId} day={istDayStart(istDay(now))} facts={weekFacts(frames[0].frame, frames[0].driving, window.driving.drives, bills, energyIn(home.sessions, streamOnly, frames[0].frame.span))} />
           </Suspense>
         )}
       </section>

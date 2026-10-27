@@ -1,9 +1,9 @@
-// Home's AI line under the greeting: one sentence on how the last 7 days went, from figures the code works
+// Home's AI tips under the tiles: up to three short tips on the last 7 days, from figures the code works
 // out (weekFacts). Pure, so the prompt and the checks are tested (test/week-wording.test.ts);
-// lib/server/week-wording.ts makes the call and stores it, once a day.
+// lib/server/week-wording.ts makes the call and stores them, once a day.
 //
-// As on the drive page (lib/drive-wording.ts): every number in the line must be one the facts hold, the
-// style rules hold, and a line that fails isn't shown.
+// As on the drive page (lib/drive-wording.ts): every number in a tip must be one the facts hold, the
+// style rules hold, and a tip that fails isn't shown.
 import { z } from "zod";
 import { numbersIn, WORDING_MODEL } from "@/lib/drive-wording";
 import type { Bill } from "@/lib/charging-figures";
@@ -13,16 +13,16 @@ import { formatKm, formatKwh, formatMoney } from "@/lib/format";
 import type { Timeframe } from "@/lib/periods";
 import { groupTrips } from "@/lib/trips";
 
-export const WEEK_PROMPT_VERSION = 3;
+export const WEEK_PROMPT_VERSION = 4;
+export const MAX_TIPS = 3;
 
-// Only figures and weekday names: no places, car, account or clock times.
+// Only figures: no places, car, account or clock times.
 export type WeekFacts = {
   distance: string | null;
   distanceWeekBefore: string | null;
-  // The days the car drove, with how far: "Friday", "46.6 km".
-  drivenDays: { day: string; distance: string }[];
   trips: number;
-  longestTrip: { distance: string; day: string } | null;
+  // Trips under SHORT_KM: a cold start costs more per km on a short trip.
+  shortTrips: number;
   energyUsed: string | null;
   efficiency: string | null;
   efficiencyWeekBefore: string | null;
@@ -33,23 +33,20 @@ export type WeekFacts = {
   costPerKwh: string | null;
 };
 
-const weekday = new Intl.DateTimeFormat("en-GB", { weekday: "long", timeZone: "Asia/Kolkata" });
-const day = (t: number) => weekday.format(t);
+const SHORT_KM = 5;
 const whPerKm = (n: number | null) => (n === null ? null : `${Math.round(n)} Wh/km`);
 
 export function weekFacts(frame: Timeframe, driving: DrivingPeriod | null, drives: Drive[], bills: Bill[], energyAdded: number): WeekFacts {
-  const { span, slots } = frame;
+  const { span } = frame;
   const inSpan = (t: number) => t >= span.from && t < span.to;
   const trips = groupTrips(drives.filter((d) => inSpan(d.start)));
-  const longest = trips.reduce<(typeof trips)[number] | null>((a, t) => (t.km !== null && (a === null || (a.km ?? 0) < t.km) ? t : a), null);
   const billed = bills.filter((b) => inSpan(Date.parse(b.started_at)));
   const spent = billed.reduce((a, b) => a + b.cost, 0);
   return {
     distance: driving?.current.km ? formatKm(driving.current.km) : null,
     distanceWeekBefore: driving?.previous?.km ? formatKm(driving.previous.km) : null,
-    drivenDays: (driving?.bars ?? []).flatMap((b, k) => (b.km && b.km >= 0.1 && slots[k] ? [{ day: day(slots[k].from + 43_200_000), distance: formatKm(b.km) }] : [])),
     trips: trips.length,
-    longestTrip: longest?.km ? { distance: formatKm(longest.km), day: day(longest.start) } : null,
+    shortTrips: trips.filter((t) => t.km < SHORT_KM).length,
     energyUsed: driving?.current.kwh ? formatKwh(driving.current.kwh) : null,
     efficiency: whPerKm(driving?.current.whPerKm ?? null),
     efficiencyWeekBefore: whPerKm(driving?.previous?.whPerKm ?? null),
@@ -63,27 +60,25 @@ export function weekFacts(frame: Timeframe, driving: DrivingPeriod | null, drive
 // Nothing worth a line: no driving and no charging.
 export const quietWeek = (f: WeekFacts) => f.distance === null && f.energyAdded === null && f.spent === null;
 
-export const WEEK_SYSTEM_PROMPT = `You write one line on a Tesla owner's home page in Uplink, an app for owners in India. It sits under a greeting and above four tiles that show the week's distance, energy used, energy added and spend.
+export const WEEK_SYSTEM_PROMPT = `You write tips on a Tesla owner's home page in Uplink, an app for owners in India. They sit under four tiles that show the week's distance, energy used, energy added and spend, and a chart of distance per day.
 
-You get the last 7 days' facts as JSON, without the four totals the tiles show. Write "line": one sentence on what stood out this week, the way a friend who looked at the numbers would put it. Pick one or two things: the busiest days, the longest trip, how efficiency compares with the week before, or what charging cost per kWh. If nothing stands out, set it to null.
+You get the last 7 days' facts as JSON. Write "tips": up to ${MAX_TIPS} tips, each one or two short sentences, that tell the owner something the tiles and chart don't: how efficiency compares with the week before and what usually moves it (speed, short trips, climate), what charging cost per kWh, or a habit worth knowing. Tie each tip to a fact. Fewer good tips beat three weak ones; with nothing worth saying, return an empty list.
 
 Rules:
-- Plain and short. No hype, no exclamation marks, no emoji, no greeting.
+- Plain and short, the way a friend who owns a Tesla would say it. No hype, no exclamation marks, no emoji, no greeting.
 - Use only the facts given. A null or missing fact is simply not mentioned: never talk about "the facts", "the data" or yourself.
 - Copy every number exactly as it appears in the facts, with its unit. Never work out a new number: no sums, differences, averages, ratios or rounding, and don't spell numbers as words.
-- Days are weekday names as given, like "Friday". Put each day's distance right after its own day ("Friday's 46.6 km"); never pair them with "respectively".
-- No advice, and nothing about the car's health, the battery's health, safety or the driver's skill.
-- Don't name places, people or the car.`;
+- Don't repeat a day's distance: the chart shows it.
+- Nothing about the battery's health, safety, tyres or the driver's skill. Don't name places, people or the car.`;
 
 export const WEEK_SCHEMA = {
   type: "object",
-  properties: { line: { type: ["string", "null"] } },
-  required: ["line"],
+  properties: { tips: { type: "array", items: { type: "string" } } },
+  required: ["tips"],
   additionalProperties: false,
 } as const;
 
-// What the model sees: the facts without the four totals the tiles under the line already show, so the
-// line says something they don't. The week before's distance stays, to compare with.
+// What the model sees: the facts without the four totals the tiles show so the tips say something they don't. The week before's distance stays, to compare with.
 export function modelFacts(facts: WeekFacts) {
   const { distance: _d, energyUsed: _u, energyAdded: _a, spent: _s, ...rest } = facts;
   return rest;
@@ -97,63 +92,42 @@ export function weekRequest(facts: WeekFacts) {
       { role: "user", content: JSON.stringify(modelFacts(facts)) },
     ],
     reasoning: { effort: "none" },
-    response_format: { type: "json_schema", json_schema: { name: "week_line", strict: true, schema: WEEK_SCHEMA } },
+    response_format: { type: "json_schema", json_schema: { name: "week_tips", strict: true, schema: WEEK_SCHEMA } },
     provider: { data_collection: "deny" },
-    max_tokens: 200,
+    max_tokens: 400,
   };
 }
 
 const RATIO_WORDS = /\b(twice|double|doubled|triple|tripled|half|halved|thrice)\b/i;
 
-// Why the line can't show, or null when it can.
-export function weekLineProblem(text: string, facts: WeekFacts): string | null {
+// Why a tip can't show, or null when it can.
+export function tipProblem(text: string, facts: WeekFacts): string | null {
   if (/[!→←–—]|->/.test(text)) return "style";
   if (!/[.?]$/.test(text)) return "unfinished";
   if (/\b(facts?|data|I|I'm|JSON|null|available|missing|unknown|hello|hi|good (morning|afternoon|evening))\b/i.test(text)) return "meta";
-  if (text.split(/(?<=[.?])\s+/).filter(Boolean).length !== 1) return "sentences";
+  if (text.split(/(?<=[.?])\s+/).filter(Boolean).length > 2) return "sentences";
   if (text.split(/\s+/).length > 35) return "long";
   if (RATIO_WORDS.test(text)) return "number";
-  if (/\brespectively\b/i.test(text)) return "pairing";
+  if (/\b(health|degrad|safe|safety|tyres?|tires?)/i.test(text)) return "topic";
   const known = new Set(numbersIn(JSON.stringify(modelFacts(facts))));
   for (const n of numbersIn(text)) if (!known.has(n)) return "number";
-  if (!distancesOnTheirDays(text, facts)) return "pairing";
   return null;
 }
 
-// Each distance in the line sits with a day it belongs to: a day's own total or the longest trip's day.
-// The model has swapped them ("Friday and Monday, with 46.2 km and 46.6 km"), and both numbers exist, so
-// the number check alone passes it.
-function distancesOnTheirDays(text: string, facts: WeekFacts): boolean {
-  const days = new Map<string, Set<string>>();
-  const add = (day: string, km: string) => days.set(day, (days.get(day) ?? new Set()).add(km));
-  for (const d of facts.drivenDays) add(d.day, d.distance);
-  if (facts.longestTrip) add(facts.longestTrip.day, facts.longestTrip.distance);
-  const dayAt = [...text.matchAll(/\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/g)].map((m) => ({ day: m[1], at: m.index ?? 0 }));
-  for (const m of text.matchAll(/(\d[\d,]*(?:\.\d+)?) km\b/g)) {
-    const km = `${m[1]} km`;
-    const owners = [...days].filter(([, kms]) => kms.has(km)).map(([day]) => day);
-    if (owners.length === 0 || dayAt.length === 0) continue;
-    const nearest = dayAt.reduce((a, d) => (Math.abs(d.at - (m.index ?? 0)) < Math.abs(a.at - (m.index ?? 0)) ? d : a));
-    if (!owners.includes(nearest.day)) return false;
-  }
-  return true;
-}
+const reply = z.object({ tips: z.array(z.string().trim().min(1).max(300)).max(10) });
 
-const reply = z.object({ line: z.string().trim().min(1).max(300).nullable() });
-
-// The line from a model reply (its JSON text, or the parsed object) when it passes, else null.
-export function checkWeekLine(raw: unknown, facts: WeekFacts): string | null {
+// The tips from a model reply (its JSON text, or the parsed object) that pass, at most MAX_TIPS.
+export function checkWeekTips(raw: unknown, facts: WeekFacts): string[] {
   let value = raw;
   if (typeof raw === "string") {
     try {
       value = JSON.parse(raw);
     } catch {
-      return null;
+      return [];
     }
   }
   const parsed = reply.safeParse(value);
-  const line = parsed.success ? parsed.data.line : null;
-  return line && weekLineProblem(line, facts) === null ? line : null;
+  return parsed.success ? parsed.data.tips.filter((t) => tipProblem(t, facts) === null).slice(0, MAX_TIPS) : [];
 }
 
 export function weekFactsKey(facts: WeekFacts): string {
