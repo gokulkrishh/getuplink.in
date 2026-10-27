@@ -9,6 +9,7 @@ import { DECIMALS, formatDate, formatKm, formatKwh, formatMoney, formatNumber, f
 import { fromTracking, type Slot, type Timeframe, trackingGap } from "@/lib/periods";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
+import { cn } from "@/lib/utils";
 import { type Spark, Sparkline } from "./sparkline";
 
 // The change carries its sign in the text ("+22 km", "−3 kWh"), never an arrow. It is coloured by meaning,
@@ -58,7 +59,7 @@ function Cell({
       </p>
       {empty ? (
         // Sits on the number's baseline, so the row lines up with a tile that has one.
-        <p className="flex min-h-7 items-end text-sm leading-none text-muted-foreground">{empty}</p>
+        <p className={cn("flex min-h-7 items-end leading-none", empty === "—" ? "font-mono text-[1.75rem] text-faint" : "text-sm text-muted-foreground")}>{empty}</p>
       ) : (
         <p className="font-mono leading-none font-medium tracking-tight whitespace-nowrap tabular-nums" style={fitFont(unit ? `${value} ${unit}` : value)}>
           {value}

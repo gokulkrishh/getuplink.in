@@ -62,7 +62,10 @@ export function Figures({
             {f.key}
             {f.label}
           </dt>
-          {typeof f.value === "string" || typeof f.value === "number" ? (
+          {/* "—": nothing happened (no drive, no charge), drawn faint so it doesn't read as a figure. */}
+          {f.value === "—" ? (
+            <dd className={cn(VALUE, "text-faint")}>—</dd>
+          ) : typeof f.value === "string" || typeof f.value === "number" ? (
             <dd className={VALUE} style={fitFont(String(f.value))}>
               <Measure text={String(f.value)} size="tile" />
             </dd>
