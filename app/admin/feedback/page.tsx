@@ -141,7 +141,26 @@ const MIN_VOTES = 5;
 const NEEDS_WORK = 0.5;
 const WORKING = 0.75;
 
-function verdict(k: KindSummary): { words: string; tone: string } {
+// One row per kind of tip, whichever pages it showed on: a parked-loss tip is the same kind on Home and on
+// Battery. The pages it came from are named beside it.
+type KindRow = Omit<KindSummary, "scope"> & { pages: string[] };
+function byKind(list: KindSummary[]): KindRow[] {
+  const rows = new Map<string, KindRow>();
+  for (const k of list) {
+    const page = SCOPE_LABELS[k.scope as TipScope] ?? k.scope;
+    const row = rows.get(k.kind);
+    if (!row) rows.set(k.kind, { kind: k.kind, useful: k.useful, notUseful: k.notUseful, share: 0, examples: [...k.examples], pages: [page] });
+    else {
+      row.useful += k.useful;
+      row.notUseful += k.notUseful;
+      row.examples.push(...k.examples);
+      if (!row.pages.includes(page)) row.pages.push(page);
+    }
+  }
+  return [...rows.values()].map((r) => ({ ...r, share: r.useful / Math.max(1, r.useful + r.notUseful), examples: r.examples.slice(0, 5) }));
+}
+
+function verdict(k: Pick<KindSummary, "useful" | "notUseful" | "share">): { words: string; tone: string } {
   if (k.useful + k.notUseful < MIN_VOTES) return { words: "Too few votes", tone: "text-faint" };
   if (k.share < NEEDS_WORK) return { words: "Needs work", tone: "text-chart-worse" };
   return k.share >= WORKING ? { words: "Working well", tone: "text-chart-better" } : { words: "Mixed", tone: "text-muted-foreground" };
@@ -155,7 +174,7 @@ async function TipVotes() {
   const useful = (kinds ?? []).reduce((a, k) => a + k.useful, 0);
   const notUseful = (kinds ?? []).reduce((a, k) => a + k.notUseful, 0);
   const total = useful + notUseful;
-  const sorted = [...(kinds ?? [])].sort((a, b) => b.useful + b.notUseful - (a.useful + a.notUseful));
+  const sorted = byKind(kinds ?? []).sort((a, b) => b.useful + b.notUseful - (a.useful + a.notUseful));
   const most = Math.max(1, ...sorted.map((k) => k.useful + k.notUseful));
   return (
     <section className="space-y-6">
@@ -173,7 +192,7 @@ async function TipVotes() {
             figures={[
               { label: "Votes", value: number.format(total) },
               { label: "Useful", value: `${Math.round((useful / total) * 100)}%`, note: `${number.format(useful)} of ${number.format(total)}` },
-              { label: "Kinds voted on", value: number.format(kinds.length) },
+              { label: "Kinds voted on", value: number.format(sorted.length) },
             ]}
           />
           <div className="space-y-4">
@@ -186,10 +205,10 @@ async function TipVotes() {
                 const n = k.useful + k.notUseful;
                 const v = verdict(k);
                 return (
-                  <li key={`${k.scope}:${k.kind}`} className="space-y-1.5">
+                  <li key={k.kind} className="space-y-1.5">
                     <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
                       <span className="font-medium">{kindLabel(k.kind)}</span>
-                      <span className="text-xs text-muted-foreground">{SCOPE_LABELS[k.scope as TipScope] ?? k.scope}</span>
+                      <span className="text-xs text-muted-foreground">{k.pages.join(", ")}</span>
                       <span className={cn("ml-auto text-xs", v.tone)}>{v.words}</span>
                     </p>
                     <div className="flex h-2 bg-muted" role="img" aria-label={`${k.useful} useful, ${k.notUseful} not useful`} style={{ width: `${(n / most) * 100}%` }}>

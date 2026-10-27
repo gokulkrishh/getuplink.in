@@ -32,19 +32,21 @@ export async function saveTipVote(owner: Owner, input: TipVoteInput): Promise<vo
 }
 
 // What the tips box needs: the owner's votes on this page's tips, by tip, and their net votes per finding kind
-// on this kind of page, for the ranking. Never throws.
+// on every page, for the ranking. Never throws.
 export async function loadTipVotes(owner: Owner, scope: TipScope, entity: string): Promise<{ votes: Record<string, Vote>; net: Record<string, number> }> {
   const none = { votes: {}, net: {} };
   if (DEMO) return none;
   try {
-    const { data, error } = await ownerDb(owner).from("tip_votes").select("entity, kind, tip, vote").eq("scope", scope).order("updated_at", { ascending: false }).limit(RANKING_VOTES);
+    // Every page's votes: a kind of tip is the same kind wherever it shows (parked loss on Home and on
+    // Battery), so a vote on one page moves it on the others too.
+    const { data, error } = await ownerDb(owner).from("tip_votes").select("scope, entity, kind, tip, vote").order("updated_at", { ascending: false }).limit(RANKING_VOTES);
     if (error) {
       if (!MISSING.includes(error.code)) console.warn("Tip votes unavailable:", error.message);
       return none;
     }
-    const rows = (data ?? []).map((r) => ({ entity: r.entity as string, kind: r.kind as string, tip: r.tip as string, vote: Number(r.vote) }));
+    const rows = (data ?? []).map((r) => ({ scope: r.scope as string, entity: r.entity as string, kind: r.kind as string, tip: r.tip as string, vote: Number(r.vote) }));
     return {
-      votes: Object.fromEntries(rows.filter((r) => r.entity === entity).map((r) => [r.tip, r.vote === 1 ? 1 : -1])),
+      votes: Object.fromEntries(rows.filter((r) => r.scope === scope && r.entity === entity).map((r) => [r.tip, r.vote === 1 ? 1 : -1])),
       net: netByKind(rows),
     };
   } catch (err) {
