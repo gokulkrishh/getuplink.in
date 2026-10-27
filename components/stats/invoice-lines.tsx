@@ -1,7 +1,6 @@
 import { ScrollX } from "@/components/scroll-x";
 import { Download } from "lucide-react";
 import { FoldToggle } from "@/components/fold-toggle";
-import { InfoButton } from "@/components/info-button";
 import { buttonVariants } from "@/components/ui/button";
 import { invoiceParts } from "@/lib/charging-figures";
 import { lineRows, printedKwh } from "@/lib/invoice-items";
@@ -40,10 +39,7 @@ export function InvoiceSection({ invoice, href, received }: { invoice: SessionIn
   return (
     <section className="space-y-6">
       <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-1.5">
-          <h2 className="text-lg font-medium tracking-heading">{invoice.network} invoice</h2>
-          <InfoButton label="the invoice">As printed on the invoice you attached. Its lines show only when they add up to the total.</InfoButton>
-        </div>
+        <h2 className="text-lg font-medium tracking-heading">{invoice.network} invoice</h2>
         {href && <DownloadInvoice href={href} />}
       </div>
       {rows.length > 0 && (

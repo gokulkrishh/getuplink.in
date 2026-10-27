@@ -40,11 +40,6 @@ export function DayTimeline({ days: all7, now, title = "Your days", period, capt
     <ChartCard
       title={title}
       description={`What the car was doing ${days.length === 1 ? "through the day" : "each day"}${period ? `, ${period}` : ""}, India time.`}
-      info={
-        <>
-          <p>Asleep shows where a check found the car asleep. Uplink doesn&apos;t see every sleep, so some of it shows as Parked.</p>
-        </>
-      }
       caption={caption}
     >
       <div className="space-y-4">

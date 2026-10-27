@@ -15,7 +15,6 @@ import { LIST_PREVIEW } from "@/lib/list";
 import { serials } from "@/lib/kept";
 import { inSpan, type Slot, type Span, type Timeframe } from "@/lib/periods";
 import { barsSpan } from "@/components/stats/chart-caption";
-import { InfoButton } from "@/components/info-button";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { Measure } from "@/components/measure";
@@ -88,7 +87,6 @@ export function Summary({
     <section className="space-y-8">
       <ChartCard
         title="Spend"
-        info="From Tesla's Supercharger bills and the invoices you attached."
         // With no bills, the empty line says so alone; a ₹0.00 headline over it would say it twice.
         summary={hasBars(bars) ? <Headline value={money(cost)}>{headline(`Spent on charging ${frame.words}`, compared)}</Headline> : undefined}
         caption={barsSpan(frame)}
@@ -112,7 +110,6 @@ export function Summary({
             charged.dc > 0 && { label: "Time on DC", value: formatDuration(charged.dc / 1000) },
           ]}
           label="bills"
-          terms={["kWh", acPerKwh !== null || dcPerKwh !== null ? "₹/kWh" : undefined, ac ? "AC" : undefined, dc ? "DC" : undefined]}
         />
       )}
       {missing > 0 && (
@@ -151,12 +148,7 @@ export function PaidFor({ bills, frame }: { bills: Bill[]; frame: Timeframe }) {
   return (
     <section className="space-y-3">
       <div className="space-y-1">
-        <div className="flex items-center gap-1.5">
-          <h2 className="text-lg font-medium tracking-heading">What you paid for</h2>
-          <InfoButton label="what you paid for">
-            Supercharger lines are as Tesla bills them. Other lines come from the invoices you attached. A bill with no breakdown counts as not itemised.
-          </InfoButton>
-        </div>
+        <h2 className="text-lg font-medium tracking-heading">What you paid for</h2>
         <p className="text-sm text-muted-foreground">Your spend {frame.words}, line by line from the bills.</p>
       </div>
       <div className="divide-y border-t border-b text-sm">
@@ -221,9 +213,6 @@ export function EnergyAdded({
       <ChartCard
         title="Energy added"
         description="Energy into the battery, by charger type."
-        info="Supercharger energy is from Tesla's bills. Other charging is from the car's own figures."
-        unit="kWh"
-        terms={["AC", "DC"]}
         summary={charged ? <Headline value={formatKwh(total)}>{headline(`Added ${frame.words}`, compared)}</Headline> : undefined}
         caption={barsSpan(frame)}
         empty={charged ? undefined : `No charging ${frame.words}.`}
@@ -233,9 +222,6 @@ export function EnergyAdded({
       {efficiency !== null && (
         <p className="flex items-center gap-1.5 text-sm">
           AC charging efficiency <span className="font-mono font-medium tabular-nums"><Measure text={formatPercent(efficiency * 100)} /></span>
-          <InfoButton label="AC charging efficiency" terms={["charging efficiency"]}>
-            Estimated from the car&apos;s own figures.
-          </InfoButton>
         </p>
       )}
     </section>

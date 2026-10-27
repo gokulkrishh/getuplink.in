@@ -9,9 +9,7 @@ Notes for agents. Every chart in the app goes inside `ChartCard` (`components/ch
   as="h3"                    // h2 when the chart is the section, h3 under a section's own h2
   title="Power"              // what is measured: sentence case, no unit
   description="Power drawn from the battery. Below zero is regen." // one short sentence
-  unit="kW"                  // its plain words go in the ⓘ popover, from lib/unit-words.ts
-  terms={["regen"]}          // optional: other glossary terms for the popover
-  info="Each point is the middle value of a 5% step." // optional method notes for the popover
+  info="Energy here is worked out from the car's power figures." // optional: a note the page doesn't say
   summary={<Figures figures={peaks} />} // optional: tiles or a headline value above the chart
   caption="Readings go back to 25 Sept" // optional: one short caveat line, never the period
   empty="No driving today"   // optional: a note in the chart's place, same height
@@ -20,7 +18,7 @@ Notes for agents. Every chart in the app goes inside `ChartCard` (`components/ch
 </ChartCard>
 ```
 
-The card renders the title with an ⓘ beside it, the description, the summary, the chart and then the caption. The period is named once, at the top (see "Name the period once" below). The ⓘ shows only when `unit`, `terms` or `info` has something to say. The card has no hooks, so server sections and client plots can both use it (the ⓘ is its own client component).
+The card renders the title with an ⓘ beside it, the description, the summary, the chart and then the caption. The period is named once, at the top (see "Name the period once" below). The ⓘ shows only when `info` is given. The card has no hooks, so server sections and client plots can both use it (the ⓘ is its own client component).
 
 - **Unit**: the chart draws its unit once, above the y axis (`ChartFrame`, `DriveTrace`). Don't repeat it in the title or the description. The `unit` prop only picks the popover words. See "Units on every axis and value" below.
 - **No data**: on a page about one thing (a drive, a charge), don't render the card at all. Check `points.length >= 2` in the parent, because a parent can't tell that a child rendered nothing. On a period page (Day, Week, Month), pass `empty` so switching periods doesn't change the page's shape.
@@ -51,7 +49,7 @@ Speed and Battery level stay a single `chart-accent` line. A flat drive (grade w
 
 ## Verdicts on the drive page
 
-Every trace chart on the drive page opens with one sentence that judges the readings, built in `lib/drive-verdict.ts` and only from the data: Speed ("Top 62 km/h, mostly 30 to 45 km/h."), Power ("About 3.1 kWh drawn, 0.4 kWh won back by regen (13%)."), Acceleration ("Gentle: no hard starts or stops." or "2 hard brakes, at 9:59 PM and 10:03 PM."), Road grade ("Mostly flat." / "One climb at 10:03 PM, up to 5%.") and Battery level ("Used 1% over 3.7 km."). The page opens with "How this drive went": Wh/km against the owner's usual (the median of their other drives in the last 30 days, once there are 5) and smoothness (hard starts and stops, at or past 0.3 g, against the usual count a drive). With fewer than 5 other drives it states facts only. A climb or descent is a stretch at or beyond 2% for at least 30 s (short dips merged, and at least half its readings steep), so a noisy flat road reads "Mostly flat.", never "47 climbs"; one brake is one hard moment, however many readings it spans. The thresholds (`HARD_G`, `USUAL_DAYS`, `MIN_USUAL_DRIVES`, `FLAT_GRADE`, `CLIMB_GRADE`, `MIN_SLOPE_MS`) live in that one file, with their words for the ⓘ.
+Every trace chart on the drive page opens with one sentence that judges the readings, built in `lib/drive-verdict.ts` and only from the data: Speed ("Top 62 km/h, mostly 30 to 45 km/h."), Power ("About 3.1 kWh drawn, 0.4 kWh won back by regen (13%)."), Acceleration ("Gentle: no hard starts or stops." or "2 hard brakes, at 9:59 PM and 10:03 PM."), Road grade ("Mostly flat." / "One climb at 10:03 PM, up to 5%.") and Battery level ("Used 1% over 3.7 km."). The page opens with "How this drive went": Wh/km against the owner's usual (the median of their other drives in the last 30 days, once there are 5) and smoothness (hard starts and stops, at or past 0.3 g, against the usual count a drive). With fewer than 5 other drives it states facts only. A climb or descent is a stretch at or beyond 2% for at least 30 s (short dips merged, and at least half its readings steep), so a noisy flat road reads "Mostly flat.", never "47 climbs"; one brake is one hard moment, however many readings it spans. The thresholds (`HARD_G`, `USUAL_DAYS`, `MIN_USUAL_DRIVES`, `FLAT_GRADE`, `CLIMB_GRADE`, `MIN_SLOPE_MS`) live in that one file.
 
 Those sentences are the fallback. Once written, the same lines come from AI (`lib/drive-wording.ts`, `lib/server/drive-wording.ts`): `anthropic/claude-haiku-5.5` through OpenRouter, given only the figures `lib/drive-facts.ts` builds (formatted as shown, clock times, no places or identifiers). Each line is checked before it shows: style (no "!", arrows or dashes, sentence count), no "usual" without one, no talk about the input, and every number must be one the facts hold. A line that fails shows its code sentence. An AI line starts with a small sparkles mark (`AiLine` in `components/ai-line.tsx`, the ⓘ's popover with "Written by AI from this drive's figures."); a code sentence has none. Wording is written once per drive after the response (`after()`), stored in `drive_wording` keyed by a hash of the facts, and shows from the next view. The demo uses stand-in wording on about two drives in three (`lib/server/demo/wording.ts`).
 
@@ -97,7 +95,7 @@ The owner's rule: every chart and section names its period exactly once, at the 
 The owner's rule, for every page: too much text is worse than too little. Keep the meaning, cut the words, and never remove data.
 
 1. **Description**: one short sentence, ideally under about 12 words, saying what the chart shows. Not how to read the axes, and no "hover or tap".
-2. **Units and method go behind the ⓘ.** Glossary words and method notes (how a figure is worked out, what a mark, a gap or a symbol means) go in the info popover, never inline.
+2. **The ⓘ is rare.** Use one only for a note the page can't say itself and an owner needs: which of two figures to trust, when to act. One or two short sentences (test/info-length.test.ts). Units aren't explained; owners know kWh, kW and km/h from the car.
 3. **Caption**: at most one short line, only for what the top doesn't say (see "Name the period once"), with no trailing period. Drop sentences that repeat the title or description.
 4. **Advice** (like "Sentry Mode keeps the car awake"): keep it only when it's actionable and fits on one short line. Otherwise move it into the popover.
 5. **Tables**: short column headers. Explanations of columns ("Seen awake is a minimum", "≥ means parked since before the first reading") go in the popover.
@@ -147,50 +145,16 @@ The same number always shows the same digits: on its bar, in the bar's tooltip, 
 
 ## The info popover
 
-`InfoButton` (`components/info-button.tsx`) is a small ⓘ that opens a popover: method notes first, then the glossary words for each unit or term. Hover or keyboard focus opens it on a desktop, a tap on a phone; a tap outside or Esc closes it. It renders nothing when there's nothing to say.
+`InfoButton` (`components/info-button.tsx`) is a small ⓘ that opens a popover with one or two sentences. Hover or keyboard focus opens it on a desktop, a tap on a phone; a tap outside or Esc closes it. It renders nothing without children.
 
 ```tsx
-<InfoButton label="Parked drain" terms={["% a day", "W", "kWh"]}>
-  <p>Seen awake counts only the time the car was sending data, so it's a minimum.</p>
-</InfoButton>
+<InfoButton label="Power">Energy here is worked out from the car's power figures.</InfoButton>
 ```
 
 - `label` names what it's about; the button's accessible name is "About {label}".
-- `terms` are glossary keys from `lib/unit-words.ts`. Unknown or undefined keys are skipped.
-- Children are the method notes: a string, or one `<p>` per note.
+- **Charts**: `ChartCard` draws it beside the title from `info`. **Tiles**: `Figures` takes `info` and `label`.
+- A symbol on screen that needs words (like "≥") gets a footnote under the list, shown only when the symbol is.
 
-Where it goes:
-
-- **Charts**: `ChartCard` draws it beside the title from `unit`, `terms` and `info`.
-- **Tiles**: `Figures` takes `terms`, `info` and `label` and draws it in the grid's top-right corner. Tiles inside a `ChartCard` `summary` put their terms on the card instead, so a card has one ⓘ.
-- **Anything else** (Parked drain, the charge session's tiles): put `InfoButton` beside the heading, in a `flex items-center gap-1.5` row.
-
-## Units and the glossary
-
-Every unit or term a non-technical owner might not know gets a short plain explanation in the ⓘ popover wherever it appears: a chart, a tile or a table. The words live in one place, `lib/unit-words.ts` (`UNIT_WORDS`, `unitWords(unit)`, `unitNotes([units])`, `hasWords([units])`). Pass keys as `terms`; don't write the words inline. Add new terms to the glossary rather than writing them in a component.
-
-Obvious units are never explained: km, km/h, %, °C, ₹ and min.
-
-Current entries:
-
-| Key | Says |
-| --- | --- |
-| kWh | energy, the same unit as on an electricity bill |
-| kW | power, how fast energy flows at a moment |
-| km/h per second | how much speed the car gained or lost in one second |
-| m/s² | how quickly the car sped up or slowed down: 1 m/s² is 3.6 km/h each second |
-| Wh/km | energy for each kilometre, in watt-hours (1,000 Wh is 1 kWh); lower is more efficient |
-| ₹/kWh | the price of one kWh, like a unit on an electricity bill |
-| % a day | how much battery the car lost each day while parked |
-| psi | tyre pressure |
-| grade | how steep the road is: 5% rises 5 metres for every 100 metres driven |
-| regen | the motor slowing the car and sending energy back into the battery |
-| V | the push behind the electricity; a home socket gives about 230 V |
-| A | how much current flowed; more amps at the same volts charges faster |
-| AC | slower charging from a wall charger or socket, through the car's own charger |
-| DC | fast charging, like a Supercharger, where the station feeds the battery directly |
-
-Where you can, prefer a unit people already understand. The drive page shows acceleration as km/h per second (the car's m/s² × 3.6) instead of m/s². Its tiles say "8.8 km/h" with the note "Gained in one second, at 8:27 AM", because the full unit doesn't fit a phone tile.
 
 ## Building blocks
 
@@ -198,7 +162,6 @@ Where you can, prefer a unit people already understand. The drive page shows acc
 - `DriveTrace`, in `components/stats/drive-lanes.tsx` (the file kept its old name): a single-series line over a time span. It has HTML axes, breaks at gaps and shows a tooltip.
 - `Bars`, `ChartFrame`, `Captioned` and `EmptyChart`, in `components/stats/bars.tsx`: bar charts.
 - `LineChart`, in `components/stats/line-chart.tsx`: lines over a 600-wide `viewBox`, so its 11px text renders at about 7px on a 390px phone. Move its axes to HTML following the `DriveTrace` pattern.
-- The glossary: `lib/unit-words.ts`.
 
 ## Charts that move to ChartCard in phase 2
 
@@ -236,4 +199,4 @@ Where you can, prefer a unit people already understand. The drive page shows acc
 | `components/rollout-adoption.tsx` | Rollout adoption | Bars: cars on each version |
 | `components/rollout-map.tsx` | Rollout map | India's states shaded by cars on a version |
 
-Maps, timelines and tile-only sections still take the same short title and description. Tiles explain their units through the ⓘ popover.
+Maps, timelines and tile-only sections still take the same short title and description.

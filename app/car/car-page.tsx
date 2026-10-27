@@ -4,7 +4,6 @@ import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { Header } from "@/components/header";
-import { InfoButton } from "@/components/info-button";
 import { Measure } from "@/components/measure";
 import { CarNotices } from "@/components/owner-notices";
 import { supplyFigures, Words } from "@/components/stats/charge-supply";
@@ -128,15 +127,7 @@ function CarHeader({ car, odometer, version, syncedAt, at }: { car: CarDetails; 
           {/* The latest week's estimate, as on /stats/battery, which it opens. */}
           {battery && (
             <div className="space-y-1">
-              {/* Held to one text line, so the ⓘ button doesn't push this figure below its neighbours. */}
-              <dt className="flex h-5 items-center gap-1 text-[0.8125rem] leading-5 text-muted-foreground">
-                Usable capacity
-                <InfoButton label="usable capacity" terms={["kWh", "usable capacity"]}>
-                  <p>
-                    From {battery.readings === 1 ? "1 reading" : `${battery.readings} readings`} in the week of {formatShortDate(battery.weekStart)}.
-                  </p>
-                </InfoButton>
-              </dt>
+              <dt className="flex h-5 items-center gap-1 text-[0.8125rem] leading-5 text-muted-foreground">Usable capacity</dt>
               <dd className="text-lg leading-none">
                 <Link
                   href="/stats/battery"
@@ -252,7 +243,6 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
           <Figures
             figures={figures}
             label="Car now"
-            terms={state.lastOnline?.charging_state === "Charging" && (state.lastOnline.charge_power_kw ?? 0) > 0 ? ["kW"] : []}
           />
         </Section>
       )}
@@ -278,7 +268,6 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
                 ) : undefined,
             }))}
             label="Tyres"
-            terms={["psi"]}
           />}
           {(seen.shared || car.tyrePressure) && (
             <p className="text-xs text-muted-foreground">
@@ -312,7 +301,6 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
               ...(ac.supply ? supplyFigures(ac.supply) : []),
             ]}
             label="Last AC charge"
-            terms={["kW", "V", "A"]}
           />
           <p className="text-xs text-muted-foreground tabular-nums">
             Ended {formatShortDate(ac.endedAt)}, {formatClock(ac.endedAt)}

@@ -8,7 +8,6 @@ import { backTo, overlapping } from "@/lib/kept";
 import { LIST_PREVIEW } from "@/lib/list";
 import type { Timeframe } from "@/lib/periods";
 import { median } from "@/lib/telemetry-derive";
-import { InfoButton } from "@/components/info-button";
 import { type ParkedRow, ParkedBlocks, ParkedTable } from "@/components/stats/parked-rows";
 import { type ShownName, shownName, type SpotName } from "@/lib/charge-names";
 
@@ -83,14 +82,12 @@ export function ParkedDrain({
         watts: watts.length >= 2 ? median(watts) : null,
         perDay: drain.percentPerDay,
         kmPerDay: drain.kmPerDay,
-        basis: `The headline is typical of ${finished.length} stretches parked 6 hours or more, ${frame.words}.`,
       }
     : now && now.lostPercent !== null
       ? {
           watts: now.watts,
           perDay: (now.lostPercent / now.hours) * 24,
           kmPerDay: now.lostKm !== null ? (now.lostKm / now.hours) * 24 : null,
-          basis: "The headline is from the stretch the car is parked in now. A typical figure shows after two stretches of 6 hours or more.",
         }
       : null;
   const first = Math.min(parked[0]?.start ?? Infinity, parkedNow?.start ?? Infinity);
@@ -100,15 +97,7 @@ export function ParkedDrain({
     <section className="space-y-8">
       <div className="space-y-2">
         <div className="space-y-1">
-          <div className="flex items-center gap-1.5">
-            <h2 className="text-lg font-medium tracking-heading">Parked drain</h2>
-            <InfoButton label="Parked drain" terms={["% a day", "W", "kWh"]}>
-              {headline && <p>{headline.basis}</p>}
-              <p>Energy is what the battery lost. Average power is how fast it lost it.</p>
-              <p>Seen awake is only the time the car was sending data, so the real time may be longer.</p>
-              <p>≥ means parked since before tracking started.</p>
-            </InfoButton>
-          </div>
+          <h2 className="text-lg font-medium tracking-heading">Parked drain</h2>
           <p className="text-sm text-muted-foreground">{rows.length > 0 ? `Battery lost while parked, ${periodPhrase(frame)}. Lower is better.` : "Battery lost while parked. Lower is better."}</p>
         </div>
         {headline && (
@@ -156,6 +145,7 @@ export function ParkedDrain({
           </ScrollX>
         </div>
       )}
+      {rows.some((r) => r.atLeast) && <p className="text-xs text-faint">≥ means parked since before tracking started.</p>}
       {cut && <p className="text-xs text-faint">{cut}</p>}
     </section>
   );

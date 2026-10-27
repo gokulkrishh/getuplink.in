@@ -88,14 +88,6 @@ export function BatteryHealth({
     <ChartCard
       title="Battery health"
       description="What the battery holds now, against its best week."
-      unit="kWh"
-      terms={["usable capacity", ...(teslaPack ? ["full pack, per Tesla"] : []), "range at 100%", "charge cycles", "charging efficiency", "AC and DC"]}
-      info={
-        <>
-          <p>Best week means the best Uplink has seen since you connected, not a new battery.</p>
-          <p>Range at 100% is Tesla&apos;s own estimate. Real range is what your last {CONSUMPTION_DAYS} days of driving suggest.</p>
-        </>
-      }
     >
       <Figures figures={figures} />
     </ChartCard>

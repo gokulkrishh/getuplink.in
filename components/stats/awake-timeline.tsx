@@ -27,12 +27,6 @@ export function AwakeTimeline({ days: all, now }: { days: DayStrip[]; now: numbe
     <ChartCard
       title="Awake and asleep"
       description="When the car was awake each day. Updates download only then."
-      info={
-        <>
-          <p>A long sleep can explain a late update.</p>
-          <p>Online shows when the car sent data. Asleep shows when a check found it asleep. In between, Uplink doesn&apos;t know.</p>
-        </>
-      }
       summary={
         <p className="text-sm tabular-nums">
           {first > 0 ? `Awake on ${onlineDays} of ${days.length} days ${span}` : `Awake on ${onlineDays} of the last ${days.length} days`}

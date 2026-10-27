@@ -2,7 +2,6 @@ import { ScrollX } from "@/components/scroll-x";
 import type { ReactNode } from "react";
 import { hasCosts, type Listed, SessionHeader, SessionRow } from "@/components/session-row";
 import { ChartCard } from "@/components/chart-card";
-import { InfoButton } from "@/components/info-button";
 import { Bars } from "@/components/stats/bars";
 import { barsSpan } from "@/components/stats/chart-caption";
 import { ChargeLevelChart } from "@/components/stats/charge-level";
@@ -29,15 +28,12 @@ import { MoreLink } from "./more-link";
 
 const ROWS = 3;
 
-// A section with one chart titles it here: the chart card goes without its own title, and its ⓘ comes up as `info`.
-function Section({ title, view, more, info, children }: { title: string; view: View; more: string; info?: ReactNode; children: ReactNode }) {
+// A section with one chart titles it here: the chart card goes without its own title.
+function Section({ title, view, more, children }: { title: string; view: View; more: string; children: ReactNode }) {
   return (
     <section className="space-y-6">
       <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-1.5">
-          <h2 className="text-xl font-semibold tracking-heading">{title}</h2>
-          {info && <InfoButton label={title}>{info}</InfoButton>}
-        </div>
+        <h2 className="text-xl font-semibold tracking-heading">{title}</h2>
         <MoreLink view={view}>{more}</MoreLink>
       </div>
       {children}
@@ -114,7 +110,7 @@ export function ChargingSection({ frames, bills, listed, chargingSince, now }: {
     );
   };
   return (
-    <Section title="Charging" view="charging" more="See all charges" info="Spend is from Tesla's Supercharger bills and the invoices you attached.">
+    <Section title="Charging" view="charging" more="See all charges">
       {eachFrame(frames, body)}
     </Section>
   );
@@ -212,7 +208,6 @@ export function BatterySection({
                 lost !== null && { label: "Lost", value: formatPercent(lost, 1), note: usually ? `Usually ${usually}` : undefined },
               ]}
               label="Parked now"
-              terms={ongoing.watts !== null ? ["W"] : []}
             />
           </>
         )}

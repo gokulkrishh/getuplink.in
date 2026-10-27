@@ -27,7 +27,6 @@ export function ChargeRange({ sessions, frame, serialOf }: { sessions: StreamCha
     <ChartCard
       title="Charge range"
       description={description}
-      terms={["AC", "DC"]}
       summary={
         <div className="space-y-2">
           <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">

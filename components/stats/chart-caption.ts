@@ -1,11 +1,6 @@
 import type { Slot, Span } from "@/lib/periods";
 
-// Plain words under a chart: what it plots, over which bars, and what a unit means, for an owner who
-// doesn't read kWh or kW at a glance.
-
-// What a unit measures, said once under a chart that uses it: the glossary lives in lib/unit-words.ts,
-// shared with tiles.
-export { UNIT_WORDS, unitNotes, unitWords } from "@/lib/unit-words";
+// Plain words under a chart: what it plots and over which bars.
 
 // The bars a chart draws and the span they stand for. `title` heads the span ("Last 7 days", "This year",
 // "1 Sept to 30 Sept"); `words` ends a sentence ("today", "on 24 Oct"); `slotName` names one bar ("day",

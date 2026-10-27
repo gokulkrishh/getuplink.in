@@ -109,7 +109,6 @@ export function EfficiencyBands({ byTemp, bySpeed, period = "last 30 days", note
     <ChartCard
       title="Efficiency"
       description={`How far each kWh took you, ${period}. Higher is better.`}
-      unit="kWh"
       caption={note}
     >
       <div className="space-y-6">

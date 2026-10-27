@@ -15,15 +15,6 @@ export function SeasonEfficiency({ seasons, drivesFrom }: Seasons) {
     <ChartCard
       title="Efficiency by season"
       description="Energy for each km, by season. Lower is better."
-      unit="Wh/km"
-      info={
-        <>
-          <p>Winter is Dec to Feb, summer Mar to May, monsoon Jun to Sept and post-monsoon Oct and Nov.</p>
-          {drivesFrom !== null && (
-            <p>Before {monthShort(drivesFrom)}, energy used while parked (Sentry Mode, climate) counts too, so older seasons can read a little higher.</p>
-          )}
-        </>
-      }
       caption={seasons.length > 1 ? (comparison ?? undefined) : seasonWaiting(seasons[0].season)}
     >
       <Figures figures={figures} />

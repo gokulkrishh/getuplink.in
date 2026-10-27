@@ -5,8 +5,8 @@ import { cn } from "@/lib/utils";
 
 // Every chart in the app, wrapped the same way (see docs/charts.md): a sentence-case title with an ⓘ beside
 // it, one short line on what the chart shows, optional tiles or a headline value, the chart itself, and at
-// most one short caption under it. The period is named once, at the top; the caption is for caveats. The ⓘ opens a popover with the plain words for `unit` and `terms`
-// (lib/unit-words.ts) and any `info` (how a figure is worked out); nothing about units shows inline.
+// most one short caption under it. The period is named once, at the top; the caption is for caveats. The ⓘ opens `info`, a note the page
+// doesn't already say; a chart without one has no ⓘ.
 // The unit itself is drawn once, by the chart, above its y axis (as ChartFrame and DriveTrace do). With
 // `empty`, one sentence sits in the chart's place and the caption is left out; on a page where a chart has
 // no data, don't render the card at all.
@@ -15,8 +15,6 @@ import { cn } from "@/lib/utils";
 export function ChartCard({
   title,
   description,
-  unit,
-  terms = [],
   info,
   caption,
   summary,
@@ -30,10 +28,6 @@ export function ChartCard({
   title?: string;
   // "Battery lost while parked. Lower is better.": one short sentence on what it shows.
   description?: ReactNode; // Left out when the title and headline already say it all.
-  // Like "kW" or "Wh/km". Its plain words go in the ⓘ popover, when it has any.
-  unit?: string;
-  // Other glossary terms the chart or its tiles use, like "grade" or "regen", explained after the unit.
-  terms?: string[];
   // Method notes for the ⓘ popover: how a figure is worked out, what a mark or a gap means.
   info?: ReactNode;
   // One short line under the chart, only for what the top doesn't say: a caveat ("Readings go back to 25
@@ -55,7 +49,7 @@ export function ChartCard({
         {title && (
           <div className="flex items-center gap-1.5">
             <Heading className={cn("font-medium tracking-heading", Heading === "h2" ? "text-lg" : "text-base")}>{title}</Heading>
-            <InfoButton label={title} terms={[unit, ...terms]}>
+            <InfoButton label={title}>
               {info}
             </InfoButton>
           </div>

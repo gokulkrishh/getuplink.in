@@ -7,7 +7,6 @@ import { after } from "next/server";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
 import { ChartCard } from "@/components/chart-card";
-import { InfoButton } from "@/components/info-button";
 import { DriveTrace, type Side } from "@/components/stats/drive-lanes";
 import { type Figure, Figures } from "@/components/stats/figures";
 import { type MapFact, MapFacts, type MapPin, TripMap } from "@/components/stats/trip-map";
@@ -21,7 +20,7 @@ import { loadUserPlaces } from "@/lib/server/user-places";
 import { NamePlace } from "@/components/name-place";
 import { ROW_LINK, RowChevron } from "@/components/row-chevron";
 import { nameAction, type SpotName, spotName } from "@/lib/charge-names";
-import { HARD_WORDS, isFlat, MIN_USUAL_DRIVES, USUAL_WORDS } from "@/lib/drive-verdict";
+import { isFlat, MIN_USUAL_DRIVES } from "@/lib/drive-verdict";
 import { describeDrive, type DriveView, type WordingField } from "@/lib/drive-facts";
 import { pickWords, type ShownLine } from "@/lib/drive-wording";
 import { generateDriveWording, loadDriveWording } from "@/lib/server/drive-wording";
@@ -101,13 +100,7 @@ function Drive({ detail, view, words, now }: { detail: DriveDetail; view: DriveV
       <div className="space-y-12">
         {wentTiles.length > 0 && (
           <section className="space-y-3">
-            <div className="flex items-center gap-1.5">
-              <h2 className="text-lg font-medium tracking-heading">How this {what} went</h2>
-              <InfoButton label={`How this ${what} went`}>
-                <p>{USUAL_WORDS}</p>
-                <p>{HARD_WORDS}</p>
-              </InfoButton>
-            </div>
+            <h2 className="text-lg font-medium tracking-heading">How this {what} went</h2>
             {/* The figures from code; the AI adds only why, in one line, when it has written one. */}
             <Figures figures={wentTiles} />
             {words.summary?.ai && <p className="text-sm text-muted-foreground">{line("summary")}</p>}
@@ -126,7 +119,6 @@ function Drive({ detail, view, words, now }: { detail: DriveDetail; view: DriveV
               ),
             }))}
             label={trip.stops ? "this trip" : "this drive"}
-            terms={trip.kwh !== null ? ["kWh"] : []}
           />
         </section>
         <section className="space-y-4">
@@ -163,7 +155,7 @@ function Drive({ detail, view, words, now }: { detail: DriveDetail; view: DriveV
               </p>
             </div>
             {speed.length >= 2 && (
-              <ChartCard as="h3" title="Speed" description={line("speed")} info="Mostly is the speed range the car stayed in for most of the drive.">
+              <ChartCard as="h3" title="Speed" description={line("speed")}>
                 <DriveTrace label="Speed" points={speed} unit="km/h" {...axis} />
               </ChartCard>
             )}
@@ -172,8 +164,6 @@ function Drive({ detail, view, words, now }: { detail: DriveDetail; view: DriveV
                 as="h3"
                 title="Power"
                 description={line("power")}
-                unit="kW"
-                terms={["regen"]}
                 info="Energy here is worked out from the car's power figures. Energy used above is the battery's own figure."
                 summary={<Figures figures={peaks.power} />}
               >
@@ -185,8 +175,6 @@ function Drive({ detail, view, words, now }: { detail: DriveDetail; view: DriveV
                 as="h3"
                 title="Acceleration"
                 description={line("acceleration")}
-                unit={ACCEL_UNIT}
-                info={HARD_WORDS}
                 summary={<Figures figures={peaks.accel} />}
               >
                 <DriveTrace
@@ -206,8 +194,7 @@ function Drive({ detail, view, words, now }: { detail: DriveDetail; view: DriveV
                 as="h3"
                 title="Road grade"
                 description={line("grade")}
-                terms={["grade"]}
-                info="Flat means nearly level. A climb or descent is a slope that lasts at least half a minute. Shorter bumps are ignored."
+                info="A climb or descent is a slope that lasts at least half a minute. Shorter bumps are ignored."
               >
                 {/* A flat drive has nothing to draw: the one line above says it. */}
                 {!isFlat(grade) && <DriveTrace label="Road grade" points={grade} unit="%" signed digits={1} split={{ ...GRADE_SIDES, area: true }} {...axis} />}

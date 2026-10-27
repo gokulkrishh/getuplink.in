@@ -25,7 +25,6 @@ const timeTicks = (points: Point[]) => {
   const xs = points.map((p) => p.x);
   return xs.length > 0 && Math.max(...xs) - Math.min(...xs) <= 2 * DAY ? formatClock : formatShortDate;
 };
-const GAPS = "A gap in a line is a time the car sent nothing, such as while it slept.";
 
 // Battery, cabin and outside temperature over the span, as far back as the readings go (the last week),
 // after TeslaMate's temperatures. The figures are the latest reading in the span.
@@ -44,7 +43,6 @@ export function Temperatures({ temps, frame }: { temps: BatteryExtras["temps"]; 
     <ChartCard
       title="Temperatures"
       description={drawn ? `Battery, cabin and outside temperatures, ${periodPhrase(frame)}.` : "Battery, cabin and outside temperatures."}
-      info={drawn ? GAPS : undefined}
       summary={
         drawn && (
           <div className="space-y-2">
@@ -90,14 +88,7 @@ export function CellBalance({ spread, frame }: { spread: BatteryExtras["cellSpre
     <ChartCard
       title="Cell balance"
       description={shown.length >= 2 ? `Gap between the highest and lowest cell, ${periodPhrase(frame)}. Lower is better.` : "Gap between the highest and lowest cell. Lower is better."}
-      unit="mV"
-      terms={["cell"]}
-      info={
-        <>
-          <p>The gap widens during hard driving or charging and settles at rest. A gap that keeps growing over months is worth a service check.</p>
-          {shown.length >= 2 && <p>{GAPS}</p>}
-        </>
-      }
+      info="A gap that keeps growing over months is worth a service check."
       summary={
         <Figures
           figures={[
@@ -132,8 +123,6 @@ export function CapacityByKm({ points, frame }: { points: BatteryExtras["capacit
     <ChartCard
       title="Capacity by distance"
       description={shown.length >= 2 ? `Usable capacity each week against the odometer, ${periodPhrase(frame)}.` : "Usable capacity each week, against the odometer."}
-      unit="kWh"
-      terms={["usable capacity"]}
       caption={backTo(frame.span, points[0].weekStart, "Weekly estimates")}
       empty={
         shown.length < 2 &&
@@ -164,14 +153,6 @@ export function TeslaPackByWeek({ pack, frame }: { pack: BatteryExtras["teslaPac
     <ChartCard
       title="Full pack by week, per Tesla"
       description={shown.length >= 2 ? `Full-pack energy as the car reports it, ${periodPhrase(frame)}.` : "Full-pack energy, as the car reports it."}
-      unit="kWh"
-      terms={["full pack, per Tesla"]}
-      info={
-        <>
-          <p>The car&apos;s own figure for a full battery, one typical value a week. A falling line means the battery holds less.</p>
-          <p>The car sends this figure only when it changes, so some weeks have no point.</p>
-        </>
-      }
       caption={backTo(frame.span, weeks[0].weekStart, "Weekly reports")}
       empty={
         shown.length < 2 &&

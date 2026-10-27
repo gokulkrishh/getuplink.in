@@ -30,7 +30,6 @@ export function ChargeCurve({ points }: { points: CurvePoint[] }) {
     <ChartCard
       title="Power and battery"
       description="Charging power and battery level through the charge."
-      unit="kW"
     >
       <div className="space-y-3">
         <Plot points={points} />
