@@ -1,12 +1,14 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Logo } from "@/components/logo";
+import { STATUS_URL } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 const PAGES = [
   { key: "privacy", href: "/privacy", label: "Privacy" },
   { key: "terms", href: "/terms", label: "Terms" },
-  { key: "status", href: "/status", label: "Status" },
+  // Its own host: a client-side fetch of /status would be redirected across origins and blocked.
+  { key: "status", href: STATUS_URL, label: "Status" },
 ] as const;
 
 type Page = (typeof PAGES)[number]["key"];

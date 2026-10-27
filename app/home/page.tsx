@@ -12,7 +12,7 @@ import { LoginError } from "@/components/login-error";
 import { Logo } from "@/components/logo";
 import { buttonVariants } from "@/components/ui/button";
 import { DEMO_URL } from "@/lib/demo";
-import { HOME_URL, OPEN_GRAPH, TAGLINE, TWITTER } from "@/lib/site";
+import { HOME_URL, OPEN_GRAPH, STATUS_URL, TAGLINE, TWITTER } from "@/lib/site";
 
 const DESCRIPTION = "Software updates, Supercharger spend, battery and kilometres driven for your Tesla in India. Read-only.";
 
@@ -258,7 +258,7 @@ export default function HomePage() {
           <Link href="/terms" className="text-muted-foreground transition-colors duration-150 hover:text-foreground">
             Terms
           </Link>
-          <Link href="/status" className="text-muted-foreground transition-colors duration-150 hover:text-foreground">
+          <Link href={STATUS_URL} className="text-muted-foreground transition-colors duration-150 hover:text-foreground">
             Status
           </Link>
         </nav>

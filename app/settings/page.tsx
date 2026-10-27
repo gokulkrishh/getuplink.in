@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { STATUS_URL } from "@/lib/site";
 import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -135,7 +136,7 @@ export default function SettingsPage() {
         <Link href="/terms" className="hover:text-foreground transition-colors duration-150">
           Terms
         </Link>
-        <Link href="/status" prefetch={false} className="hover:text-foreground transition-colors duration-150">
+        <Link href={STATUS_URL} className="hover:text-foreground transition-colors duration-150">
           Status
         </Link>
       </footer>
