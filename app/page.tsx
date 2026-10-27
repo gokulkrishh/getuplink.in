@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { SyncStreamSessions, SyncStreamVersions } from "@/components/background-sync";
 import { Header } from "@/components/header";
+import { SkBlock, SkHead, SkSection } from "@/components/skeleton";
 import { Headline } from "@/components/home/headline";
 import { NowStrip } from "@/components/home/now-strip";
 import { BatterySection, ChargingSection, DrivingSection } from "@/components/home/sections";
@@ -189,6 +190,18 @@ function HomeSkeleton() {
         <div className="h-[391px] border bg-muted/40 motion-safe:animate-pulse sm:h-[174px]" />
         <AiNotesSkeleton />
       </div>
+      {/* Driving, charging and battery below, each its heading and a block of its usual height, so the
+          loading page reaches as far down as the page does. */}
+      {[
+        ["Driving", "h-[529px] sm:h-[435px]"],
+        ["Charging", "h-[586px] sm:h-[471px]"],
+        ["Battery", "h-[426px] sm:h-[336px]"],
+      ].map(([title, height]) => (
+        <SkSection key={title}>
+          <SkHead title={title} />
+          <SkBlock className={`${height} border bg-muted/40`} />
+        </SkSection>
+      ))}
     </div>
   );
 }

@@ -618,6 +618,7 @@ export function ChargeSkeleton() {
         <Ph>Bengaluru · Today, 27 Oct 2026 · 4:08 PM to 6:20 PM</Ph>
       </p>
       <div className="space-y-12">
+        <AiNotesSkeleton />
         <SkSection>
           <SkHead title="Power and battery level" description="Charging power and battery level through the charge." />
           <div className="space-y-3" aria-hidden="true">

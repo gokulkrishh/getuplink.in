@@ -9,6 +9,7 @@ import { ChartCard } from "@/components/chart-card";
 import { ReleaseNotesToggle } from "@/components/release-notes";
 import { RolloutAdoption } from "@/components/rollout-adoption";
 import { RolloutMap } from "@/components/rollout-map";
+import { SkBlock, SkHead, SkSection } from "@/components/skeleton";
 import { ShareBar } from "@/components/rollout-share-bar";
 import { DEMO } from "@/lib/demo";
 import { formatShortDate } from "@/lib/format";
@@ -212,10 +213,18 @@ function RolloutSkeleton() {
         <div className={`h-10 w-56 ${block}`} />
         <div className={`h-4 w-32 ${block}`} />
       </div>
-      <div className="space-y-4">
-        <div className={`h-3 w-16 ${block}`} />
-        <div className={`h-32 w-full ${block}`} />
-      </div>
+      {/* Each section: its heading and a block of its usual height, so the loading page is as long as the page. */}
+      {[
+        ["Arriving now", "h-[335px] sm:h-[260px]"],
+        ["Where it runs", "h-[721px] sm:h-[738px]"],
+        ["Adoption over time", "h-[338px] sm:h-[232px]"],
+        ["Versions", "h-[871px] sm:h-[632px]"],
+      ].map(([title, height]) => (
+        <SkSection key={title}>
+          <SkHead title={title} />
+          <SkBlock className={`${height} border bg-muted/40`} />
+        </SkSection>
+      ))}
     </div>
   );
 }
