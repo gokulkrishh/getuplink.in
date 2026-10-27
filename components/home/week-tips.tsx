@@ -22,7 +22,8 @@ export function WeekTips({ tips }: { tips: string[] }) {
           >
             Written by AI from this week&apos;s figures.
           </InfoButton>
-          Tips
+          {/* Shimmers once as the tips arrive; turning to the next one doesn't replay it. */}
+          <span className="ai-shimmer">Tips</span>
         </div>
         {tips.length > 1 && (
           <button
@@ -36,7 +37,7 @@ export function WeekTips({ tips }: { tips: string[] }) {
           </button>
         )}
       </div>
-      <p key={at} className="ai-shimmer text-sm text-muted-foreground" aria-live="polite">
+      <p className="text-sm text-muted-foreground" aria-live="polite">
         {tip}
       </p>
     </section>
