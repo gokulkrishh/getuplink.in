@@ -148,8 +148,8 @@ export function demoStreamSessions(): StreamChargeSession[] {
 }
 
 // Invoices for the demo's third-party DC charges, as the Grok bot would attach them: billed a little over
-// what the car added, at ₹21/kWh (₹19.50 of it energy, the rest a service fee) with 18% GST, every other
-// one so some show "Cost not available". The first one also has its lines, as the bot sends them
+// what the car added, at ₹17.50/kWh (₹16.50 of it energy, the rest a service fee) with 18% GST (₹20.65 in
+// all, as Indian CCS networks charge), every fourth one left out so some show "Cost not available". The first one also has its lines, as the bot sends them
 // with line_items: energy, a session fee, CGST and SGST at 9% each, and the round-off.
 type DemoInvoice = {
   amount: number;
@@ -165,14 +165,16 @@ type DemoInvoice = {
   details: InvoiceDetail[];
 };
 
+const ENERGY_RATE = 16.5; // ₹ a kWh before GST
+const FEE_RATE = 1; // ₹ a kWh, the service fee
 const cents = (n: number) => Math.round(n * 100) / 100;
 
 function demoLines(kwhBilled: number, amount: number): InvoiceLine[] {
-  const energy = cents(kwhBilled * 19.5);
-  const fee = cents(kwhBilled * 1.5);
+  const energy = cents(kwhBilled * ENERGY_RATE);
+  const fee = cents(kwhBilled * FEE_RATE);
   const tax = cents((energy + fee) * 0.09);
   const lines: InvoiceLine[] = [
-    { label: "Energy charges", kind: "energy", amount: energy, kwh: kwhBilled, rate: 19.5 },
+    { label: "Energy charges", kind: "energy", amount: energy, kwh: kwhBilled, rate: ENERGY_RATE },
     { label: "Session fee", kind: "fee", amount: fee },
     { label: "CGST", kind: "tax", amount: tax, taxRate: 9 },
     { label: "SGST", kind: "tax", amount: tax, taxRate: 9 },
@@ -186,9 +188,9 @@ export function demoInvoices(): Map<number, DemoInvoice> {
   demoStreamSessions()
     .filter((s) => s.kind === "dc" && !s.supercharger && s.ended_at !== null && s.energy_added_kwh)
     .forEach((s, k) => {
-      if (k % 2 === 1 && s.station_name) return;
+      if (k % 4 === 3 && s.station_name) return;
       const kwhBilled = Math.round(s.energy_added_kwh! * 1.04 * 100) / 100;
-      const amount = Math.round(kwhBilled * 21 * 1.18 * 100) / 100;
+      const amount = Math.round(kwhBilled * (ENERGY_RATE + FEE_RATE) * 1.18 * 100) / 100;
       // The first one, with its lines, also has the details a bill prints, as the bot sends them.
       const details: InvoiceDetail[] = k === 0 ? [{ label: "Duration", value: "21 mins 48 secs" }, { label: "Paid by", value: "App wallet" }, { label: "Station ID", value: "VP-1042" }, { label: "Charger ID", value: "VP-1042-DC2" }] : [];
       out.set(s.id, {
@@ -199,7 +201,7 @@ export function demoInvoices(): Map<number, DemoInvoice> {
         startedAt: s.started_at,
         endedAt: s.ended_at,
         details,
-        ...(s.station_name ? { network: s.station_name.split(",")[0], station: null } : { network: "VoltPoint", station: "Lakeview Fuels, Ring Road" }), gst: Math.round((amount - amount / 1.18) * 100) / 100, energyAmount: Math.round(kwhBilled * 19.5 * 100) / 100,
+        ...(s.station_name ? { network: s.station_name.split(",")[0], station: null } : { network: "VoltPoint", station: "Lakeview Fuels, Ring Road" }), gst: Math.round((amount - amount / 1.18) * 100) / 100, energyAmount: Math.round(kwhBilled * ENERGY_RATE * 100) / 100,
       });
     });
   return out;

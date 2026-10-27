@@ -24,20 +24,24 @@ const DAYS = 296; // the car is ten months old
 const WINDOW_DAYS = 90; // detailed readings (battery, drives, updates) cover the last 90 days; charging covers every day
 const STATUS_DAYS = 90; // the status page's health checks
 const START_KM = 18;
-const NOW_KM = 3335;
-const NOW_LEVEL = 61;
+const NOW_KM = 9000;
+const NOW_LEVEL = 62;
 const CHARGE_LIMIT = 80;
 const FULL_RANGE_KM = 434; // rated range at 100%
-const DRIVE_WH_PER_KM = 128; // drawn from the pack while driving; regen gives back REGEN_SHARE of it
+const DRIVE_WH_PER_KM = 130; // drawn from the pack while driving; regen gives back REGEN_SHARE of it
 const REGEN_SHARE = 0.15;
 const PARKED_KWH_PER_DAY = 0.25;
 // How hard each season is on efficiency in Bengaluru: AC in summer, rain, wipers and demisting in the
 // monsoon. Only before the last two weeks, whose driving is fitted to the week comparison and the level now.
-const SEASON_ENERGY: Record<Season, number> = { winter: 0.97, summer: 1.03, monsoon: 1.18, postMonsoon: 1 };
+const SEASON_ENERGY: Record<Season, number> = { winter: 0.97, summer: 1.03, monsoon: 1.12, postMonsoon: 1 };
 const AC_KW = 7.2; // 230 V x 32 A, single phase
 const AC_EFFICIENCY = 0.92; // wall to pack
 const DC_EFFICIENCY = 0.95;
-const RATE_INR = 24;
+// Tesla's Supercharger price in India, GST included: ₹24 a kWh, ₹26 in the evening peak (6 to 10 PM).
+const rateInr = (t: number) => {
+  const hour = ((t + 5.5 * HOUR) % DAY) / HOUR;
+  return hour >= 18 && hour < 22 ? 26 : 24;
+};
 // The car lives in Bengaluru: weekend detours stop in town, long trips on the way to Mysuru.
 const CITY_SITES = ["Bengaluru, Nexus Koramangala", "Bengaluru, Phoenix Marketcity Whitefield", "Bengaluru, Mall of Asia Hebbal"];
 const HIGHWAY_SITES = ["Mysuru, Mall of Mysore", "Maddur, Bengaluru-Mysuru Expressway"];
@@ -181,21 +185,25 @@ export function generateDemo(now: number): DemoData {
   // What each day holds. Detours and long trips stop at a fast charger.
   const special = new Map<number, Trip[]>();
   const precharge = new Set<number>(); // the evening before a long trip is a charge to the limit
+  // Every weekend holds a day out with one public DC charge, Tesla's Supercharger; now and then a long
+  // Saturday to Mysuru, and every fourth week a midweek errand that tops up at a third-party CCS charger.
   for (let d = first + 3; d <= today - 14; d++) {
+    if (dow(d) !== 6) continue;
     const rng = rngFor(3, d);
     const roll = rng();
-    if (dow(d) === 6 && roll < 0.06) {
+    const week = Math.floor(d / 7);
+    if (roll < 0.1) {
       special.set(d, [{ start: at(d, between(rng, 6.5, 8)), km: Math.round(between(rng, 200, 300)), mult: 1, kind: "long", stop: { supercharger: true, at: 0.6 } }]);
       precharge.add(d - 1);
-    } else if (weekend(d) && roll > 0.93) {
-      special.set(d, [{ start: at(d, between(rng, 10, 13)), km: Math.round(between(rng, 60, 100)), mult: 1, kind: "detour", stop: { supercharger: true, at: 0.45 } }]);
+    } else {
+      const day = rng() < 0.5 && d + 1 <= today - 14 ? d + 1 : d;
+      special.set(day, [{ start: at(day, between(rng, 10, 13)), km: Math.round(between(rng, 60, 100)), mult: 1, kind: "detour", stop: { supercharger: true, at: 0.45 } }]);
     }
-  }
-  // Two quick top-ups at a third-party CCS charger.
-  for (const ago of [23, 61]) {
-    const d = today - ago;
-    const rng = rngFor(8, d);
-    special.set(d, [{ start: at(d, between(rng, 10, 13)), km: Math.round(between(rng, 40, 70)), mult: 1, kind: "detour", stop: { supercharger: false, at: 0.5 } }]);
+    if (week % 4 === 1) {
+      const mid = d - 3;
+      const midRng = rngFor(8, mid);
+      special.set(mid, [{ start: at(mid, between(midRng, 17, 18.5)), km: Math.round(between(midRng, 40, 70)), mult: 1, kind: "detour", stop: { supercharger: false, at: 0.5 } }]);
+    }
   }
 
   const trips: Trip[] = [];
@@ -207,34 +215,35 @@ export function generateDemo(now: number): DemoData {
     if (planned) {
       trips.push(...planned.map((t) => ({ ...t, mult: mult() })));
     } else if (weekend(d)) {
-      if (rng() < 0.6) {
+      if (rng() < 0.85) {
         const count = rng() < 0.4 ? 2 : 1;
-        for (let k = 0; k < count; k++) trips.push({ start: at(d, between(rng, 10 + k * 4, 13 + k * 4)), km: between(rng, 6, 28), mult: mult(), kind: "regular" });
+        for (let k = 0; k < count; k++) trips.push({ start: at(d, between(rng, 10 + k * 4, 13 + k * 4)), km: between(rng, 8, 24), mult: mult(), kind: "regular" });
       }
-    } else if (rng() < 0.45) {
-      trips.push({ start: at(d, between(rng, 7, 9.5)), km: between(rng, 4, 11), mult: mult(), kind: "regular" });
-      trips.push({ start: at(d, between(rng, 17, 19.5)), km: between(rng, 4, 11), mult: mult(), kind: "regular" });
+    } else if (rng() < 0.85) {
+      // The office commute, about 10 to 20 km each way.
+      trips.push({ start: at(d, between(rng, 7, 9.5)), km: between(rng, 10, 20), mult: mult(), kind: "regular" });
+      trips.push({ start: at(d, between(rng, 17, 19.5)), km: between(rng, 10, 20), mult: mult(), kind: "regular" });
     }
   }
   // The days since the last charge: enough driving to be at NOW_LEVEL now, scaled to fit below.
-  const after: [number, number, number][] = [
-    [today - 4, 10.5, 12],
-    [today - 3, 8, 6],
-    [today - 3, 18.5, 6],
-    [today - 1, 11, 22],
-    [today, 8.3, 7],
-  ];
-  for (const [d, hour, km] of after) trips.push({ start: at(d, hour), km, mult: 1.03, kind: "regular", after: true });
-  // The nine days before those: an office commute on weekdays and one errand on weekend days, so the
-  // week before this one drives about as far as this one.
-  for (let d = today - 13; d <= today - 5; d++) {
+  // Since the last charge, two days ago. Weekdays: the office commute both ways. Weekends: two errands.
+  for (let d = today - 1; d <= today; d++) {
+    const hours = d === today ? [8.3] : weekend(d) ? [10.5, 16] : [8.3, 18.5];
+    for (const hour of hours) trips.push({ start: at(d, hour), km: d === today ? 5 : 10 + ((d * 7 + Math.round(hour * 3)) % 9), mult: 1.03, kind: "regular", after: true });
+  }
+  // The twelve days before those: an office commute on weekdays and an errand on weekend days, so the week
+  // before this one drives about as far as this one. Nine and six days ago are days out with a Supercharger
+  // stop, so each of the two weeks holds a bill.
+  for (let d = today - 13; d <= today - 2; d++) {
     const rng = rngFor(17, d);
     const mult = () => between(rng, 0.95, 1.06);
-    if (weekend(d)) {
-      trips.push({ start: at(d, between(rng, 10.5, 12.5)), km: round(between(rng, 14, 20), 1), mult: mult(), kind: "regular", pinned: true });
+    if (d === today - 9 || d === today - 6) {
+      trips.push({ start: at(d, between(rng, 10.5, 11.5)), km: round(between(rng, 78, 92), 1), mult: mult(), kind: "detour", stop: { supercharger: true, at: 0.5 }, pinned: true });
+    } else if (weekend(d)) {
+      trips.push({ start: at(d, between(rng, 10.5, 12.5)), km: round(between(rng, 14, 22), 1), mult: mult(), kind: "regular", pinned: true });
     } else {
-      trips.push({ start: at(d, between(rng, 8, 9.2)), km: round(between(rng, 7, 9), 1), mult: mult(), kind: "regular", pinned: true });
-      trips.push({ start: at(d, between(rng, 18, 19.5)), km: round(between(rng, 7, 9), 1), mult: mult(), kind: "regular", pinned: true });
+      trips.push({ start: at(d, between(rng, 8, 9.2)), km: round(between(rng, 11, 17), 1), mult: mult(), kind: "regular", pinned: true });
+      trips.push({ start: at(d, between(rng, 18, 19.5)), km: round(between(rng, 11, 17), 1), mult: mult(), kind: "regular", pinned: true });
     }
   }
   const done = (t: Trip) => t.start + (t.km * 2 + 20) * MIN <= now - 15 * MIN;
@@ -242,7 +251,7 @@ export function generateDemo(now: number): DemoData {
 
   // Energy since the last charge (at 80%) fixes how far the final days were driven.
   const netKwhPerKm = (DRIVE_WH_PER_KM / 1000) * (1 - REGEN_SHARE);
-  const sinceRef = at(today - 4, 3);
+  const sinceRef = at(today - 1, 3);
   const needKwh = ((CHARGE_LIMIT - NOW_LEVEL) / 100) * packKwh(now, now) - (PARKED_KWH_PER_DAY * (now - sinceRef)) / DAY;
   const afterTrips = kept.filter((t) => t.after);
   const afterScale = needKwh / afterTrips.reduce((sum, t) => sum + t.km * t.mult * netKwhPerKm, 0);
@@ -260,10 +269,10 @@ export function generateDemo(now: number): DemoData {
     ...kept.map((trip) => ({ start: trip.start, trip })),
   ];
   // Every evening is a chance to charge at home: the car does when it is below some level (usually about 58%).
-  // The last charge, five days ago, is fixed, and none follows it, so the level now is known.
-  for (let d = first + 2; d <= today - 5; d++) {
+  // The last charge, two days ago, is fixed, and none follows it, so the level now is known.
+  for (let d = first + 2; d <= today - 2; d++) {
     const rng = rngFor(9, d);
-    events.push({ start: at(d, between(rng, 20.5, 23)), ac: { final: d === today - 5, force: precharge.has(d), below: between(rng, 50, 66) } });
+    events.push({ start: at(d, between(rng, 20.5, 23)), ac: { final: d === today - 2, force: precharge.has(d), below: between(rng, 50, 66) } });
   }
   // At 23:18 IST, over 10 minutes before the night check (23:30), so that check finds the car asleep.
   for (let d = first; d <= today; d++) if (at(d, 23.3) <= now) events.push({ start: at(d, 23.3) });
@@ -532,7 +541,7 @@ export function generateDemo(now: number): DemoData {
         started_at: new Date(start - MIN).toISOString(),
         stopped_at: new Date(end + MIN).toISOString(),
         energy_kwh: kwh,
-        cost_total: round(kwh * RATE_INR, 2),
+        cost_total: round(kwh * rateInr(start), 2),
         currency: "INR",
         invoices: [{ fileName: "invoice.pdf", contentId: `demo-invoice-${sessionNo}`, invoiceType: "CHARGING" }],
       });
