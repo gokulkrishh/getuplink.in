@@ -159,7 +159,8 @@ export default function PrivacyPage() {
           </li>
           <li>
             OpenStreetMap&apos;s Nominatim: a spot&apos;s coordinates, rounded to about 100 metres, with nothing about you,
-            to look up the area name.
+            to look up the area name. Area and charging station names come from OpenStreetMap, ©{" "}
+            <Out href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</Out>, under the ODbL licence.
           </li>
           <li>CARTO serves the map tiles to your browser, so it sees your IP address and the part of the map you view.</li>
           <li>

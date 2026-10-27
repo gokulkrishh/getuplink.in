@@ -1,17 +1,16 @@
-import { ReceiptText } from "lucide-react";
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
-import { OsmCredit, rate, streamName } from "@/components/session-row";
+import { rate, streamName } from "@/components/session-row";
 import { chargeType, googleMapsUrl, nameAction } from "@/lib/charge-names";
 import { GoogleMapsCredit } from "@/components/google-maps-credit";
 import { NamePlace } from "@/components/name-place";
 import { ChargeCurve } from "@/components/stats/charge-curve";
 import { ChargeFees } from "@/components/stats/charge-fees";
 import { ChargeSupply } from "@/components/stats/charge-supply";
-import { InvoiceLines } from "@/components/stats/invoice-lines";
+import { DownloadInvoice, InvoiceLines } from "@/components/stats/invoice-lines";
 import { Figures } from "@/components/stats/figures";
 import { splitSite } from "@/lib/charge-sessions";
 import { invoiceParts } from "@/lib/charging-figures";
@@ -163,17 +162,16 @@ function Charge({ detail, now }: { detail: ChargeDetail; now: number }) {
             ))}
           </section>
         )}
-        {invoice && lines && <InvoiceLines lines={lines} total={invoice.amountTotal} network={invoice.network} />}
+        {invoice && lines && <InvoiceLines lines={lines} total={invoice.amountTotal} network={invoice.network} href={invoice.hasFile ? `/api/charging/receipt/${s.id}` : undefined} />}
         <ChargeFees fees={detail.fees} currency={currency} />
         <ChargeSupply session={s} />
       </div>
-      {invoice?.hasFile && (
-        <a href={`/api/charging/receipt/${s.id}`} target="_blank" rel="noopener" className="mt-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 transition-colors duration-150 hover:text-foreground hover:underline">
-          <ReceiptText className="size-4" aria-hidden="true" />
-          {invoice.network} invoice
-        </a>
+      {/* With its lines, the invoice downloads from their table; without, from here. */}
+      {invoice?.hasFile && !lines && (
+        <div className="mt-6">
+          <DownloadInvoice href={`/api/charging/receipt/${s.id}`} />
+        </div>
       )}
-      {!google && (named?.source === "station" || named?.source === "place") && <OsmCredit className="mt-8" />}
     </>
   );
 }

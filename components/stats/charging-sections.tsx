@@ -1,5 +1,5 @@
 import type { TipRow } from "@/components/stats/bar-parts";
-import { hasCosts, hasStationNames, type Listed, OsmCredit, SessionHeader, SessionRow } from "@/components/session-row";
+import { hasCosts, type Listed, SessionHeader, SessionRow } from "@/components/session-row";
 import { ShowMore } from "@/components/show-more";
 import { ChartCard } from "@/components/chart-card";
 import { Bars } from "@/components/stats/bars";
@@ -299,7 +299,6 @@ export function SessionList({ sessions, all = sessions }: { sessions: Listed[]; 
       })}
     </div>
     </div>
-    {hasStationNames(sessions) && <OsmCredit />}
     </section>
   );
 }

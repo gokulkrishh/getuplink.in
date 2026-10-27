@@ -52,28 +52,6 @@ export function streamTitle(s: StreamChargeSession, invoice?: InvoiceNames, plac
   return streamName(s, invoice, place)?.text ?? chargeType(s);
 }
 
-// Whether any shown row is named from OpenStreetMap, so the page credits it.
-export function hasStationNames(items: Listed[]): boolean {
-  return items.some((item) => {
-    if (item.tesla || !item.stream) return false;
-    const source = (item.spot?.name ?? streamName(item.stream, item.invoice))?.source;
-    return source === "station" || source === "place";
-  });
-}
-
-// ODbL asks for the credit wherever OpenStreetMap's names show.
-export function OsmCredit({ className }: { className?: string }) {
-  return (
-    <p className={cn("text-xs text-faint", className)}>
-      Place names ©{" "}
-      <a href="https://www.openstreetmap.org/copyright" className="underline underline-offset-2 hover:text-foreground">
-        OpenStreetMap contributors
-      </a>
-      , ODbL
-    </p>
-  );
-}
-
 function levels(s: StreamChargeSession): string | null {
   return s.start_level !== null && s.end_level !== null ? formatLevels(s.start_level, s.end_level) : null;
 }

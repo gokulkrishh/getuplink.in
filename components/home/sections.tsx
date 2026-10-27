@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { hasCosts, hasStationNames, type Listed, OsmCredit, SessionHeader, SessionRow } from "@/components/session-row";
+import { hasCosts, type Listed, SessionHeader, SessionRow } from "@/components/session-row";
 import { ChartCard } from "@/components/chart-card";
 import { InfoButton } from "@/components/info-button";
 import { Bars } from "@/components/stats/bars";
@@ -107,7 +107,6 @@ export function ChargingSection({ frames, bills, listed, chargingSince, now }: {
                 <SessionRow key={item.key} item={item} now={now} costs={costs} />
               ))}
             </Rows>
-            {hasStationNames(shown) && <OsmCredit className="mt-3" />}
           </div>
         )}
       </div>

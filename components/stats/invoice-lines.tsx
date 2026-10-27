@@ -1,17 +1,23 @@
+import { Download } from "lucide-react";
 import { InfoButton } from "@/components/info-button";
+import { buttonVariants } from "@/components/ui/button";
 import { Measure } from "@/components/measure";
 import { type InvoiceLine, lineRows } from "@/lib/invoice-items";
 import { formatMoney } from "@/lib/format";
 
 // An attached invoice's own lines, under the session: charges, then taxes, then the total. Only shown when
-// the lines were sent with it and add up to what was paid (lib/invoice-items.ts storedLines).
-export function InvoiceLines({ lines, total, network }: { lines: readonly InvoiceLine[]; total: number; network: string }) {
+// the lines were sent with it and add up to what was paid (lib/invoice-items.ts storedLines). With `href`,
+// the file itself downloads from the table's heading.
+export function InvoiceLines({ lines, total, network, href }: { lines: readonly InvoiceLine[]; total: number; network: string; href?: string }) {
   const rows = lineRows(lines);
   return (
     <section className="space-y-4">
-      <div className="flex items-center gap-1.5">
-        <h2 className="text-lg font-medium tracking-heading">{network} invoice</h2>
-        <InfoButton label="the invoice lines">As printed on the invoice you attached. Shown only when the lines add up to the total.</InfoButton>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-1.5">
+          <h2 className="text-lg font-medium tracking-heading">{network} invoice</h2>
+          <InfoButton label="the invoice lines">As printed on the invoice you attached. Shown only when the lines add up to the total.</InfoButton>
+        </div>
+        {href && <DownloadInvoice href={href} />}
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm tabular-nums">
@@ -54,5 +60,14 @@ export function InvoiceLines({ lines, total, network }: { lines: readonly Invoic
         </table>
       </div>
     </section>
+  );
+}
+
+export function DownloadInvoice({ href }: { href: string }) {
+  return (
+    <a href={href} target="_blank" rel="noopener" className={buttonVariants({ variant: "outline", size: "sm" })}>
+      <Download className="size-4" aria-hidden="true" />
+      Download invoice
+    </a>
   );
 }
