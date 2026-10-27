@@ -33,9 +33,8 @@ export function Headline({ value, children }: { value: string; children: ReactNo
 // bar's tip adds its kWh and Wh/km (see energyLines), and the one line under the chart sums the period's
 // energy and regen (see energyCaption). One chart says what three (Distance, Energy use, Regen) did.
 export function Distance({ frame, driving }: Pick<Frame, "frame" | "driving">) {
-  const description = "Kilometres driven, and the energy it took.";
   // The counters couldn't be read for a range picked by date: say so in the chart's place rather than show 0 km.
-  if (!driving) return <ChartCard title="Distance" description={description} empty={`Couldn't read the car's counters ${frame.words}.`} />;
+  if (!driving) return <ChartCard title="Distance" empty={`Couldn't read the car's counters ${frame.words}.`} />;
   // A period without driving still shows, at 0 km with a note in place of the chart, so picking Day before
   // the first drive of the day doesn't leave a blank gap. A bar with no reading (before tracking began, or
   // ahead of now) is blank, never 0 km; a tracked day without driving is a real 0. The headline is the
@@ -47,7 +46,6 @@ export function Distance({ frame, driving }: Pick<Frame, "frame" | "driving">) {
   return (
     <ChartCard
       title="Distance"
-      description={description}
       // The energy line is the chart's one caption; without an energy reading, the bars' span is.
       caption={energyCaption(driving, frame.previousLabel) ?? barsSpan(frame)}
       // With nothing driven, the empty line says so alone; a 0.0 km headline over it would say it twice.

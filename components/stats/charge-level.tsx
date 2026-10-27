@@ -6,7 +6,6 @@ import { ChartNote } from "@/components/stats/chart-note";
 import { Value } from "@/components/stats/figures";
 import { type ChargeLevel, type ChargeStretch, flatLevelNote, type LevelPoint } from "@/lib/charge-level";
 import { formatClock, formatLevels, formatPercent, formatShortDate } from "@/lib/format";
-import { periodPhrase } from "@/components/stats/chart-caption";
 import { backTo } from "@/lib/kept";
 import type { Timeframe } from "@/lib/periods";
 
@@ -91,7 +90,7 @@ export function ChargeLevelChart({
     <ChartCard
       as={heading ? "h2" : "h3"}
       title="Charge level"
-      description={drawn ? `Battery level, ${periodPhrase(frame)}.` : "Battery level over time."}
+      description={drawn ? `${frame.title}.` : undefined}
       summary={
         heading && (
           // The latest level, whatever span is picked; the chart below follows the span.

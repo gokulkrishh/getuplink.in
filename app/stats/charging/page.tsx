@@ -158,7 +158,7 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
             ) : (
               <section className="space-y-2">
                 <h2 className="text-lg font-medium tracking-heading">Charging sessions</h2>
-                <p className="text-sm text-muted-foreground">No charging sessions {frame.words}.</p>
+                <p className="text-sm text-muted-foreground">No charges {frame.words}.</p>
               </section>
             );
           })}

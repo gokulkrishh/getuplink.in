@@ -138,7 +138,7 @@ function Charge({ detail, now }: { detail: ChargeDetail; now: number }) {
             {/* The units the tiles use, in plain words, and what kind of charge this was. The chart above
                 already explains kW when it shows. */}
             <div className="flex items-center gap-1.5">
-              <h2 className="text-lg font-medium tracking-heading">Session</h2>
+              <h2 className="text-lg font-medium tracking-heading">Details</h2>
               <InfoButton
                 label="this charge"
                 terms={[

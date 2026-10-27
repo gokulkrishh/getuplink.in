@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { hasCosts, hasStationNames, type Listed, OsmCredit, SessionHeader, SessionRow } from "@/components/session-row";
 import { ChartCard } from "@/components/chart-card";
+import { InfoButton } from "@/components/info-button";
 import { Bars } from "@/components/stats/bars";
 import { barsSpan } from "@/components/stats/chart-caption";
 import { ChargeLevelChart } from "@/components/stats/charge-level";
@@ -27,11 +28,15 @@ import { MoreLink } from "./more-link";
 
 const ROWS = 3;
 
-function Section({ title, view, more, children }: { title: string; view: View; more: string; children: ReactNode }) {
+// A section with one chart titles it here: the chart card goes without its own title, and its ⓘ comes up as `info`.
+function Section({ title, view, more, info, children }: { title: string; view: View; more: string; info?: ReactNode; children: ReactNode }) {
   return (
     <section className="space-y-6">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-lg font-medium tracking-heading">{title}</h2>
+        <div className="flex items-center gap-1.5">
+          <h2 className="text-xl font-semibold tracking-heading">{title}</h2>
+          {info && <InfoButton label={title}>{info}</InfoButton>}
+        </div>
         <MoreLink view={view}>{more}</MoreLink>
       </div>
       {children}
@@ -87,10 +92,6 @@ export function ChargingSection({ frames, bills, listed, chargingSince, now }: {
     return (
       <div className="space-y-6">
         <ChartCard
-          as="h3"
-          title="Spend"
-          description="What charging cost."
-          info="From Tesla's Supercharger bills and the invoices you attached."
           summary={hasBars(bars) ? <Opening>{headline(`${money(total)} on charging ${frame.words}`, compared)}</Opening> : undefined}
           caption={barsSpan(frame)}
           empty={hasBars(bars) ? undefined : `No bills ${frame.words}.`}
@@ -98,7 +99,7 @@ export function ChargingSection({ frames, bills, listed, chargingSince, now }: {
           <Bars bars={bars} view="charging" valueLabel="Spent" ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} fit />
         </ChartCard>
         {shown.length === 0 ? (
-          <Quiet>No charging sessions {f.frame.words}.</Quiet>
+          <Quiet>No charges {f.frame.words}.</Quiet>
         ) : (
           <div>
             <Rows header={<SessionHeader costs={costs} wide />}>
@@ -113,7 +114,7 @@ export function ChargingSection({ frames, bills, listed, chargingSince, now }: {
     );
   };
   return (
-    <Section title="Charging" view="charging" more="See all charges">
+    <Section title="Charging" view="charging" more="See all charges" info="Spend is from Tesla's Supercharger bills and the invoices you attached.">
       {eachFrame(frames, body)}
     </Section>
   );
@@ -143,9 +144,6 @@ export function DrivingSection({ frames, figures, drives, now }: { frames: HomeF
     return (
       <div className="space-y-6">
         <ChartCard
-          as="h3"
-          title="Distance"
-          description="Kilometres driven."
           summary={!empty ? <Opening>{headline(`${formatKm(total)} ${frame.words}`, compared)}</Opening> : undefined}
           caption={barsSpan(frame)}
           empty={empty}

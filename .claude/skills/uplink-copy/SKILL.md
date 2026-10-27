@@ -98,6 +98,7 @@ Never show a guessed time, length, cost or number. Show what was seen and say wh
 **Buttons and links.** Verb first, names the action: "Download invoice", "Show release notes", "Check again", "Sign in with Tesla". Never "OK", "Yes", "Submit", "Click here". Link text makes sense alone.
 
 **Section description.** One sentence on what the owner sees. Method and unit notes go behind the ⓘ.
+Leave it out when it only restates the title or the headline under it: "Distance" needs no "Kilometres driven.", "Spend" no "What charging cost.". A description earns its line only by adding something the owner wouldn't otherwise know.
 
 **ⓘ tooltip.** Answer "what does this mean for me?", then, only if needed, one sentence on how it's worked out in everyday words.
 - Good: "A line that falls means the battery holds less."

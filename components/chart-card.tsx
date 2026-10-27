@@ -25,10 +25,11 @@ export function ChartCard({
   className,
   children,
 }: {
-  // "Speed": what is measured, sentence case, no unit.
-  title: string;
+  // "Speed": what is measured, sentence case, no unit. Left out when the chart is its section's only one and
+  // the section's title names it.
+  title?: string;
   // "Battery lost while parked. Lower is better.": one short sentence on what it shows.
-  description: ReactNode;
+  description?: ReactNode; // Left out when the title and headline already say it all.
   // Like "kW" or "Wh/km". Its plain words go in the ⓘ popover, when it has any.
   unit?: string;
   // Other glossary terms the chart or its tiles use, like "grade" or "regen", explained after the unit.
@@ -51,13 +52,15 @@ export function ChartCard({
   return (
     <section className={cn("space-y-4", className)}>
       <div className="space-y-1">
-        <div className="flex items-center gap-1.5">
-          <Heading className={cn("font-medium tracking-heading", Heading === "h2" ? "text-lg" : "text-base")}>{title}</Heading>
-          <InfoButton label={title} terms={[unit, ...terms]}>
-            {info}
-          </InfoButton>
-        </div>
-        <p className="text-sm text-muted-foreground">{description}</p>
+        {title && (
+          <div className="flex items-center gap-1.5">
+            <Heading className={cn("font-medium tracking-heading", Heading === "h2" ? "text-lg" : "text-base")}>{title}</Heading>
+            <InfoButton label={title} terms={[unit, ...terms]}>
+              {info}
+            </InfoButton>
+          </div>
+        )}
+        {description && <p className="text-sm text-muted-foreground">{description}</p>}
       </div>
       {summary}
       {empty ? <EmptyChart>{empty}</EmptyChart> : <Captioned caption={caption}>{children}</Captioned>}

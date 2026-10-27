@@ -106,7 +106,7 @@ export function SessionHeader({ costs, wide = false, numbered = false }: { costs
     <div className={cn(columns(wide, costs, numbered), "grid gap-x-4 pb-2 text-xs text-faint")} aria-hidden="true">
       {numbered && <span>#</span>}
       <span>Date</span>
-      <span>Session</span>
+      <span>Charge</span>
       <span className="text-right">Energy</span>
       {costs && <span className="text-right">Cost</span>}
       <span />

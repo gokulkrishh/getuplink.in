@@ -12,16 +12,13 @@ import { DECIMALS, formatDuration, formatKm, formatKwh, formatMoney, formatMonth
 import { hasBars, Headline, knownBars } from "@/components/stats/driving-sections";
 import { LIST_PREVIEW } from "@/lib/list";
 import { inSpan, type Slot, type Span, type Timeframe } from "@/lib/periods";
-import { barsSpan, EACH_HOUR } from "@/components/stats/chart-caption";
+import { barsSpan } from "@/components/stats/chart-caption";
 import { InfoButton } from "@/components/info-button";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { Measure } from "@/components/measure";
 
 // The Charging page's sections: spend, energy added by charger kind, and every session by month.
-
-// "each day", "each hour": one bar of the period, for a chart's description.
-const eachSlot = ({ slotName }: Timeframe) => (slotName === "hour" ? EACH_HOUR : `each ${slotName}`);
 
 // What a month of the session list was billed: Tesla's bills and the invoices attached, as in Summary.
 function totals(rows: Listed[]) {
@@ -89,7 +86,6 @@ export function Summary({
     <section className="space-y-8">
       <ChartCard
         title="Spend"
-        description={`What you paid to charge ${eachSlot(frame)}.`}
         info="From Tesla's Supercharger bills and the invoices you attached."
         // With no bills, the empty line says so alone; a ₹0.00 headline over it would say it twice.
         summary={hasBars(bars) ? <Headline value={money(cost)}>{headline(`Spent on charging ${frame.words}`, compared)}</Headline> : undefined}
