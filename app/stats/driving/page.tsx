@@ -192,7 +192,7 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
 
 export default function Page({ searchParams }: PageProps<"/stats/driving">) {
   return (
-    <StatsPage view="driving" description="How far you drove, the energy it took, and every drive.">
+    <StatsPage view="driving" description="Where your kilometres went, and how efficiently.">
       <Suspense fallback={<StatsSkeleton />}>
         <Driving searchParams={searchParams} />
       </Suspense>

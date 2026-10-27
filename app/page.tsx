@@ -9,22 +9,22 @@ import { BatterySection, ChargingSection, DrivingSection } from "@/components/ho
 import { CarNotices, CheckedFooter, OwnerNotices } from "@/components/owner-notices";
 import { listSessions, withSpots } from "@/components/session-row";
 import { eachFrame } from "@/components/home/frames";
-import { PeriodPicker, PeriodScope } from "@/components/stats/period-scope";
-import { customScope } from "@/components/stats/periods";
+import { PeriodScope } from "@/components/stats/period-scope";
 import { matchSessions } from "@/lib/charge-sessions";
-import { billedCharges, chargingBills, firstStartedAt } from "@/lib/charging-figures";
+import { chargingBills, energyIn, firstStartedAt } from "@/lib/charging-figures";
 import { withDriveEfficiency } from "@/lib/drive-stats";
-import type { DrivingPeriod } from "@/lib/driving-figures";
-import { DRIVE_DAYS } from "@/lib/drives";
-import { monthlyRows } from "@/lib/monthly";
-import { type CustomFrame, periodFrames } from "@/lib/frames";
-import { customRange, type DayRange, inSpan, rangeTimeframe, type Timeframe } from "@/lib/periods";
-import { MonthlyTable } from "@/components/home/monthly-table";
+import { periodFrames } from "@/lib/frames";
+import { daysLabel } from "@/lib/periods";
+import { istDay, istDayStart } from "@/lib/telemetry-derive";
+import { after } from "next/server";
+import { AiLine } from "@/components/ai-line";
+import { type WeekFacts, weekFacts } from "@/lib/week-wording";
+import { generateWeekLine, loadWeekLine } from "@/lib/server/week-wording";
 import { newestTime } from "@/lib/last-synced";
 import type { DemoScenario } from "@/lib/demo";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
-import { type Home, loadHome, loadRangeDriving } from "@/lib/server/home";
+import { type Home, loadHome } from "@/lib/server/home";
 
 // The session check and the data share one private scope: the result lives only in this browser's
 // router cache (never a server cache), so a header link's prefetch can carry it. The check still runs
@@ -43,45 +43,50 @@ async function loadOwnHome(demo: DemoScenario): Promise<{ home: Home; now: numbe
   return { home: await loadHome(owner, demo, now), now };
 }
 
-// The primary car's driving figures for a range picked by date, read at that range's own instants. Kept in
-// the same private scope as loadOwnHome, one entry per range.
-async function loadOwnRange(demo: DemoScenario, vin: string | null, range: DayRange, now: number): Promise<DrivingPeriod | null> {
-  "use cache: private";
-  cacheTag(OWNER_DATA_TAG);
-  cacheLife({ stale: 60 });
-  const owner = await currentOwner();
-  if (!owner) redirect(SIGNED_OUT_PATH);
-  return loadRangeDriving(owner, demo, vin, rangeTimeframe(range, now), now);
+// "Good morning" before noon, "Good afternoon" until 5 PM, "Good evening" after, India time.
+function greeting(now: number): string {
+  const hour = new Date(now + 330 * 60_000).getUTCHours();
+  return hour >= 4 && hour < 12 ? "Good morning" : hour >= 12 && hour < 17 ? "Good afternoon" : "Good evening";
 }
 
-// The period switch, the four headline numbers, then driving, charging, battery and the months: each in
-// every period, so the switch needs no server trip (see ByPeriod), and in the range picked by date when
-// there is one.
-function Totals({ home, custom, now }: { home: Extract<Home, { kind: "ready" }>; custom: CustomFrame | null; now: number }) {
+// Today's AI line on the week (lib/server/week-wording.ts): the stored one, or none and one written after
+// the response for the next visit.
+async function WeekLine({ vehicleId, day, facts }: { vehicleId: string; day: number; facts: WeekFacts }) {
+  const owner = await currentOwner();
+  if (!owner) return null;
+  const key = { vehicleId, day };
+  const stored = await loadWeekLine(owner, key, facts);
+  if (stored.generate) after(() => generateWeekLine(owner, key, facts));
+  return stored.line ? (
+    <p className="pt-1 text-sm text-muted-foreground">
+      <AiLine line={{ text: stored.line, ai: true }} about="Written by AI from this week's figures." />
+    </p>
+  ) : null;
+}
+
+// The four headline numbers, then driving, charging and battery, over the last 7 days.
+function Totals({ home, now }: { home: Extract<Home, { kind: "ready" }>; now: number }) {
   const { pairs, streamOnly } = matchSessions(home.sessions, home.streamSessions, now);
   const { window } = home;
   const figures = withDriveEfficiency(home.figures, window.driving.drives, now);
   const chargingSince = firstStartedAt(home.sessions, home.streamSessions);
-  const frames = periodFrames(figures, custom, window.driving.drives, now);
+  const primary = home.cars.find((car) => car.vehicle.vin)?.vehicle;
+  const carName = primary?.display_name || null;
+  const primaryId = primary ? String(primary.id) : null;
+  // Home shows the last 7 days only (PAGE_PERIODS.home); the other periods are Stats'.
+  const frames = periodFrames(figures, null, window.driving.drives, now).filter((f) => f.key === "week");
   // Real bills, counted as Charging counts them: Tesla's for Superchargers, attached invoices for the rest.
   const bills = chargingBills(home.sessions, streamOnly, home.invoices);
-  const charges = billedCharges(home.sessions, streamOnly, home.invoices);
-  // The months of a period, each counting only what falls inside the period, so the rows add up to the
-  // headline. A period inside one month has a single row that repeats the headline, so it shows none.
-  const monthsIn = ({ span }: Timeframe) => {
-    const rows = monthlyRows(
-      window.driving.drives.filter((d) => inSpan(d.start, span)),
-      charges.filter((c) => inSpan(Date.parse(c.started_at), span)),
-      Math.max(span.from, now - DRIVE_DAYS * 86_400_000),
-      Math.min(span.to - 1, now),
-      window.days,
-    );
-    return rows.length > 1 ? rows : [];
-  };
   return (
     <div className="space-y-12">
       <section aria-label="Totals" className="space-y-6">
-        <PeriodPicker />
+        {/* A greeting by the time of day in India, then the week it covers: the period, named once. */}
+        <div className="space-y-1">
+          <h2 className="text-xl font-medium tracking-heading">{greeting(now)}</h2>
+          <p className="text-sm text-muted-foreground">
+            Here&apos;s {carName ? `${carName}'s` : "your"} last 7 days, {daysLabel(istDay(frames[0].frame.span.from), istDay(Math.min(frames[0].frame.span.to - 1, now)), now)}.
+          </p>
+        </div>
         {eachFrame(
           frames,
           ({ key, frame, driving }) => (
@@ -89,19 +94,21 @@ function Totals({ home, custom, now }: { home: Extract<Home, { kind: "ready" }>;
           ),
           { steady: true },
         )}
+        {/* The AI's line on the week streams in after the rest; until then, and when there's none, nothing. */}
+        {primaryId && (
+          <Suspense fallback={null}>
+            <WeekLine vehicleId={primaryId} day={istDayStart(istDay(now))} facts={weekFacts(frames[0].frame, frames[0].driving, window.driving.drives, bills, energyIn(home.sessions, streamOnly, frames[0].frame.span))} />
+          </Suspense>
+        )}
       </section>
       <DrivingSection frames={frames} figures={figures} drives={window.driving.drives} now={now} />
       <ChargingSection frames={frames} bills={bills} listed={withSpots(listSessions(pairs, streamOnly, home.invoices), home.spots)} chargingSince={chargingSince} now={now} />
       <BatterySection frames={frames} level={window.level} parked={window.driving.parked} parkedNow={window.driving.parkedNow} now={now} />
-      {eachFrame(frames, ({ frame }) => (
-        <MonthlyTable rows={monthsIn(frame)} />
-      ))}
     </div>
   );
 }
 
-async function HomeContent({ searchParams }: Pick<PageProps<"/">, "searchParams">) {
-  const params = await searchParams;
+async function HomeContent() {
   // Only demo mode reads the scenario, so the real page stays as it was.
   const demo: DemoScenario = "normal";
   const { home, now } = await loadOwnHome(demo);
@@ -109,11 +116,6 @@ async function HomeContent({ searchParams }: Pick<PageProps<"/">, "searchParams"
   const cars = home.kind === "ready" ? home.cars : [];
   // The primary car, as loadHome picks it: the first with a VIN. The odometer is its.
   const primaryId = cars.find((car) => car.vehicle.vin)?.vehicle.id;
-  // Custom's range is drawn by the server, so only a URL that asks for it pays for its counters. Without
-  // dates it opens on the last 30 days.
-  const range = home.kind === "ready" ? customRange(params.period, params.from, params.to, now) : null;
-  const vin = cars.find((car) => car.vehicle.vin)?.vehicle.vin ?? null;
-  const custom: CustomFrame | null = range && { range, frame: rangeTimeframe(range, now), driving: await loadOwnRange(demo, vin, range, now) };
 
   return (
     <>
@@ -131,8 +133,8 @@ async function HomeContent({ searchParams }: Pick<PageProps<"/">, "searchParams"
               />
             </div>
           ))}
-          <PeriodScope custom={customScope(range, now)}>
-            <Totals home={home} custom={custom} now={now} />
+          <PeriodScope>
+            <Totals home={home} now={now} />
           </PeriodScope>
           {cars.some((car) => car.latest?.error) && (
             <p className="text-sm text-muted-foreground">The car went to sleep during the last check. Uplink will try again.</p>
@@ -175,13 +177,13 @@ function HomeSkeleton() {
   );
 }
 
-export default function Page({ searchParams }: PageProps<"/">) {
+export default function Page() {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
       <Header />
       <h1 className="sr-only">Your car</h1>
       <Suspense fallback={<HomeSkeleton />}>
-        <HomeContent searchParams={searchParams} />
+        <HomeContent />
       </Suspense>
       <Suspense>
         <SyncStreamVersions />

@@ -1,5 +1,6 @@
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { formatKm } from "@/lib/format";
 import type { Snapshot } from "@/lib/server/dashboard";
@@ -45,14 +46,18 @@ export function UpdateBanner({
     <Link
       href="/updates"
       prefetch={true}
-      className="group flex items-center justify-between gap-4 border px-4 py-3 text-sm transition-colors duration-150 hover:border-muted-foreground/50"
+      // A boxed banner only while an update is on its way; otherwise the version is one quiet line.
+      className={cn(
+        "group items-center gap-4 text-sm transition-colors duration-150",
+        pending ? "flex justify-between border px-4 py-3 hover:border-muted-foreground/50" : "inline-flex w-fit text-muted-foreground hover:text-foreground",
+      )}
     >
       {/* Progress moves while it downloads or installs, so the page keeps itself fresh. */}
       {moving && <AutoRefresh />}
       <span className="min-w-0 space-y-1">
         {version && (
           <span className="flex items-center gap-2 tabular-nums">
-            <span className="truncate font-mono">{version}</span>
+            <span className="truncate">{version}</span>
             {odometerKm !== null && <span className="shrink-0 text-muted-foreground">· {formatKm(odometerKm)}</span>}
           </span>
         )}
@@ -69,10 +74,8 @@ export function UpdateBanner({
           </span>
         )}
       </span>
-      <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground group-hover:text-foreground">
-        Details
-        <ChevronRight className="size-3" aria-hidden="true" />
-      </span>
+      {/* The line itself is the link to Updates; a chevron says so. */}
+      <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-[color,translate] duration-150 group-hover:translate-x-0.5 group-hover:text-foreground" aria-hidden="true" />
     </Link>
   );
 }

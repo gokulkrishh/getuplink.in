@@ -23,8 +23,9 @@ export type PeriodSet = { options: Period[]; opensOn: Period };
 const ALL_PERIODS = PERIODS.map(({ value }) => value);
 
 export const PAGE_PERIODS = {
-  // Home and Stats open on the last 7 days: a week of bars says more than today's hours.
-  home: { options: ALL_PERIODS, opensOn: "week" },
+  // Home is a glance at the last 7 days, with no switch: other periods are picked on Stats. Stats opens on
+  // the week too: a week of bars says more than today's hours.
+  home: { options: ["week"], opensOn: "week" },
   stats: { options: ALL_PERIODS, opensOn: "week" },
   // Updates come too seldom for a day or a week to say anything.
   updates: { options: ["month", "year", "all"], opensOn: "month" },

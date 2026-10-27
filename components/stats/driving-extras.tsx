@@ -7,7 +7,7 @@ import type { DrivingExtras, NamedPlace } from "@/lib/server/driving-extra";
 import { Measure } from "@/components/measure";
 import { GoogleMapsCredit } from "@/components/google-maps-credit";
 import { NamePlace } from "@/components/name-place";
-import { CAR_FLAGS, mapName, nameAction, shownName, withCarFlag } from "@/lib/charge-names";
+import { CAR_FLAGS, mapName, nameAction, shownName, withCarFlag, googleMapsUrl } from "@/lib/charge-names";
 
 // The map's label: the name with the car's flag ("Koramangala, Bengaluru · Home"). Never Google's name:
 // `name` falls back to the area for a Google-tagged place.
@@ -20,7 +20,10 @@ function PlaceName({ place: p, k }: { place: NamedPlace; k: number }) {
   const action = nameAction(p);
   return (
     <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-      <span>{shown?.text ?? (p.tag ? CAR_FLAGS[p.tag] : `Place ${k + 1}`)}</span>
+      {/* The name opens the spot in Google Maps, dotted like the charge page's title. */}
+      <a href={googleMapsUrl(p)} target="_blank" rel="noopener" title="Open in Google Maps" className="underline decoration-dotted decoration-muted-foreground underline-offset-4 transition-colors hover:decoration-foreground">
+        {shown?.text ?? (p.tag ? CAR_FLAGS[p.tag] : `Place ${k + 1}`)}
+      </a>
       {shown?.google && <GoogleMapsCredit />}
       {shown && p.tag && <span className="text-xs text-muted-foreground">· {CAR_FLAGS[p.tag]}</span>}
       {action && <NamePlace target={p.target} compact={action === "rename"} />}

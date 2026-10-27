@@ -1,5 +1,6 @@
 "use client";
 
+import { useTopLoading } from "@/components/top-loader";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createContext, useContext, useState, useTransition, type ReactNode } from "react";
 import { dayIso, isoDay } from "@/lib/periods";
@@ -59,6 +60,8 @@ export function PeriodScope({ periods = PAGE_PERIODS.home, custom, children }: {
   const params = useSearchParams();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  // Picking dates loads the range from the server: the bar across the top shows it.
+  useTopLoading(pending);
   const raw = params.get("period");
   const period: HomePeriod = custom && raw === "custom" ? "custom" : parsePeriod(raw ?? undefined, periods);
   const range = custom ? (urlRange(params.get("from"), params.get("to")) ?? custom.range) : null;

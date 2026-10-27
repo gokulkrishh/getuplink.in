@@ -47,13 +47,16 @@ export function NowStrip({ car, odometerKm, parkedNow, now }: { car: HomeCar; od
           />
         </p>
       </div>
+      {/* The software version and odometer, under the car's name: what it runs, then its battery. */}
+      <div className="-mt-3">
+        <UpdateBanner snapshot={lastOnline} installed={vehicle.current_version} version={version} odometerKm={odometerKm} />
+      </div>
       {battery && <BatteryGauge snapshot={battery} parked={parkedNow} />}
       {!version && (
         <p className="text-sm text-muted-foreground">
           Asleep at every check so far. Open the Tesla app to wake the car. This page updates on its own.
         </p>
       )}
-      <UpdateBanner snapshot={lastOnline} installed={vehicle.current_version} version={version} odometerKm={odometerKm} />
     </section>
   );
 }

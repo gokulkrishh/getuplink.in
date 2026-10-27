@@ -7,7 +7,8 @@ export const AI_WORDS = "Written by AI from this drive's figures.";
 // A line of text that may be the AI's (lib/drive-wording.ts). The AI's starts with a small sparkles mark
 // whose tip says so, opening like the ⓘ beside it; a code sentence shows as plain text. Spans only, so it
 // sits inside a <p> (ChartCard's description).
-export function AiLine({ line }: { line: ShownLine }) {
+// `about` is the tip's words, for a line that isn't about a drive (Home's week).
+export function AiLine({ line, about = AI_WORDS }: { line: ShownLine; about?: string }) {
   if (!line.ai) return <>{line.text}</>;
   // The mark in its own column, the text wrapping beside it, so every line of it starts at the same edge.
   return (
@@ -18,7 +19,7 @@ export function AiLine({ line }: { line: ShownLine }) {
         icon={<Sparkles className="size-3.5" aria-hidden="true" />}
         className="mt-px size-5 shrink-0 text-muted-foreground"
       >
-        {AI_WORDS}
+        {about}
       </InfoButton>
       <span className="ai-shimmer min-w-0">{line.text}</span>
     </span>

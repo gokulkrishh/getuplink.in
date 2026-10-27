@@ -1,7 +1,8 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Moon } from "lucide-react";
+import Link from "next/link";
 import { fitFont } from "@/components/measure";
 import { PeriodLink } from "@/components/home/more-link";
-import type { View } from "@/components/stats/periods";
+import { statsHref, type View } from "@/components/stats/periods";
 import { type Bill, billsBySlot, billsIn, energyBySlot, energyIn } from "@/lib/charging-figures";
 import { type Change, changeToPrevious, compareToPrevious } from "@/lib/dashboard-summary";
 import type { DrivingPeriod } from "@/lib/driving-figures";
@@ -37,7 +38,7 @@ function Cell({
   label: string;
   value: string;
   unit?: string;
-  // "None today", "Couldn't read": the one thing the cell says when it has no figure.
+  // "—": the one thing the cell says when it has no figure.
   empty: string | null;
   change: Change | null;
   // compareToPrevious's wording of the same change: "13 km more than the 7 days before".
@@ -200,9 +201,28 @@ export function Headline({
     span: shortLabel,
   });
   const number = (decimals: number) => (n: number | null) => (n === null ? "" : formatNumber(n, decimals));
-  // A cell with no figure says one thing: the counters couldn't be read (a range picked by date), or there
-  // was none in the period, as the figure would show it ("0.0 km" is none; see showsZero).
-  const emptyWords = (n: number | null, decimals: number) => (n === null ? "Couldn't read" : showsZero(formatNumber(n, decimals)) ? "—" : null);
+  // A cell with no figure, read or not, shows a grey "—": nothing to show for the week.
+  const emptyWords = (n: number | null, decimals: number) => (n === null || showsZero(formatNumber(n, decimals)) ? "—" : null);
+  const quietWeek = [driven.value, used.value, added.value, spent.value].every((v) => v === null || v === 0);
+
+  // A week with no driving and no charging is one line, not four empty tiles.
+  if (quietWeek)
+    return (
+      <div className="flex items-center gap-4 border px-5 py-6 dark:border-transparent dark:bg-card">
+        <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+          <Moon className="size-5" aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="font-medium">A quiet week</p>
+          <p className="text-sm text-muted-foreground">No driving or charging in the last 7 days.{gapText && ` Tracking since ${gapText}.`}</p>
+        </div>
+        {/* The way to something that did happen: the month on Stats. */}
+        <Link href={statsHref("driving", "month")} className="inline-flex shrink-0 items-center gap-0.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
+          This month
+          <ChevronRight className="size-4" aria-hidden="true" />
+        </Link>
+      </div>
+    );
 
   return (
     <div className="space-y-3">
@@ -244,10 +264,6 @@ export function Headline({
           spark={spent.spark}
         />
       </div>
-      {/* One line in every period, so the strip keeps its height (see ByPeriod's steady). */}
-      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        {gapText && <span>Tracking since {gapText}</span>}
-      </p>
     </div>
   );
 }

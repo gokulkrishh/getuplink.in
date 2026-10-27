@@ -86,7 +86,7 @@ async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "sear
 
 export default function Page({ searchParams }: PageProps<"/stats/battery">) {
   return (
-    <StatsPage view="battery" description="How the battery is holding up, and what it loses while parked.">
+    <StatsPage view="battery" description="How your battery is ageing, and what it loses while parked.">
       <Suspense fallback={<StatsSkeleton />}>
         <Battery searchParams={searchParams} />
       </Suspense>

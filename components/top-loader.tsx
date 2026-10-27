@@ -9,6 +9,18 @@ import { useEffect, useRef, useState } from "react";
 // seconds, for a link that turned out to go nowhere new.
 const GIVE_UP_MS = 15_000;
 
+// Work that loads a page without a link, like picking dates (router.replace in a transition), shows the
+// bar through this hook: on while `pending`, then filled when it ends.
+type Bar = { start: () => void; finish: () => void };
+let bar: Bar | null = null;
+export function useTopLoading(pending: boolean) {
+  useEffect(() => {
+    if (!pending) return;
+    bar?.start();
+    return () => bar?.finish();
+  }, [pending]);
+}
+
 export function TopLoader() {
   const path = usePathname();
   const search = useSearchParams().toString();
@@ -20,6 +32,15 @@ export function TopLoader() {
     for (const t of timers.current) window.clearTimeout(t);
     timers.current = [];
   };
+
+  // Fills the bar and lets it fade, when one is running.
+  function finish() {
+    if (!loading.current) return;
+    loading.current = false;
+    clear();
+    setProgress(100);
+    timers.current.push(window.setTimeout(() => setProgress(null), 250));
+  }
 
   useEffect(() => {
     const start = () => {
@@ -45,23 +66,19 @@ export function TopLoader() {
       if (url.pathname === location.pathname && url.search === location.search) return;
       start();
     };
+    bar = { start, finish };
     document.addEventListener("click", onClick, true);
     window.addEventListener("popstate", start);
     return () => {
       document.removeEventListener("click", onClick, true);
       window.removeEventListener("popstate", start);
+      bar = null;
       clear();
     };
   }, []);
 
   // The new address is here: fill the bar, then let it fade.
-  useEffect(() => {
-    if (!loading.current) return;
-    loading.current = false;
-    clear();
-    setProgress(100);
-    timers.current.push(window.setTimeout(() => setProgress(null), 250));
-  }, [path, search]);
+  useEffect(() => finish(), [path, search]);
 
   return (
     <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-[100] h-0.5">

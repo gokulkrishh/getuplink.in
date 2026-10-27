@@ -48,7 +48,7 @@ export function BatteryGauge({ snapshot, parked = null }: { snapshot: Snapshot; 
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label={`Battery ${level}%${limit != null ? `, limit ${limit}%` : ""}`}
-        className="relative h-1 max-w-sm bg-border"
+        className="relative h-0.5 max-w-60 bg-border"
       >
         <div className="relative h-full overflow-hidden bg-foreground" style={{ width: `${level}%` }}>
           {charging && (
@@ -56,7 +56,7 @@ export function BatteryGauge({ snapshot, parked = null }: { snapshot: Snapshot; 
           )}
         </div>
         {limit != null && (
-          <span aria-hidden="true" className="absolute -top-1 h-3 w-px bg-muted-foreground" style={{ left: `${limit}%` }} />
+          <span aria-hidden="true" className="absolute -top-1 h-2.5 w-px bg-muted-foreground" style={{ left: `${limit}%` }} />
         )}
       </div>
       {state && (

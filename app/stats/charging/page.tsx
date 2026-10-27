@@ -170,7 +170,7 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
 
 export default function Page({ searchParams }: PageProps<"/stats/charging">) {
   return (
-    <StatsPage view="charging" description="What charging cost, the energy it added, and every charge.">
+    <StatsPage view="charging" description="Every charge, and what it really cost you.">
       <Suspense fallback={<StatsSkeleton />}>
         <Charging searchParams={searchParams} />
       </Suspense>

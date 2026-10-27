@@ -41,7 +41,10 @@ export function TopStations({ rows, title, words }: { rows: StationRow[]; title:
                 <tr key={r.name}>
                   <td className="py-3 pr-3 font-mono text-xs text-faint">{k + 1}</td>
                   <th scope="row" className="py-3 pr-4 text-left font-normal">
-                    {r.name}
+                    {/* A station is grouped by name, so Google Maps searches for it by name. */}
+                    <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.name)}`} target="_blank" rel="noopener" title="Open in Google Maps" className="underline decoration-dotted decoration-muted-foreground underline-offset-4 transition-colors hover:decoration-foreground">
+                      {r.name}
+                    </a>
                   </th>
                   <td className="py-3 pr-4 text-right font-mono">{r.charges}</td>
                   <td className="py-3 pr-4 text-right font-mono"><Measure text={formatKwh(r.kwh)} /></td>
