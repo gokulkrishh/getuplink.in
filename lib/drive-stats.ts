@@ -62,7 +62,12 @@ export const CONSUMPTION_DAYS = 30;
 // distance it rests on. Null under MIN_EFFICIENCY_KM, where a figure would be mostly noise, or with no
 // drive that has an energy figure. Never guessed from a rated figure.
 export function recentConsumption(drives: Drive[], now: number): { whPerKm: number; km: number } | null {
-  const span = { from: now - CONSUMPTION_DAYS * DAY, to: now };
+  return consumptionIn(drives, { from: now - CONSUMPTION_DAYS * DAY, to: now });
+}
+
+// The average consumption over the drives in a span (see driveEnergy), with the distance it rests on, as
+// the car's own trip meters show it. Null under MIN_EFFICIENCY_KM or with no drive that has an energy figure.
+export function consumptionIn(drives: Drive[], span: Span): { whPerKm: number; km: number } | null {
   const km = drives.reduce((sum, d) => sum + (d.kwh === null ? 0 : driveKmIn(d, span)), 0);
   const { whPerKm } = driveEnergy(drives, span);
   return whPerKm === null || km < MIN_EFFICIENCY_KM ? null : { whPerKm, km };

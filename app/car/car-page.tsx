@@ -10,6 +10,11 @@ import { supplyFigures, Words } from "@/components/stats/charge-supply";
 import { type Figure, Figures } from "@/components/stats/figures";
 import { Vin } from "@/components/vin";
 import { odometerKm } from "@/lib/car";
+import { consumptionIn, CONSUMPTION_DAYS } from "@/lib/drive-stats";
+import { formatWhPerKm } from "@/lib/seasons";
+import type { Drive } from "@/lib/drives";
+import { loadWindowStats } from "@/lib/server/driving";
+import { loadStreamSessions } from "@/lib/server/stream-charging";
 import { rotationLine, tyreRotation } from "@/lib/tyre-rotation";
 import { CAR_NOW_FIELDS, type CarNow, carNow, shutSummary, tyreSeen } from "@/lib/car-now";
 import { formatClock, formatKm, formatKw, formatKwh, formatPercent, formatRangeKm, formatShortDate } from "@/lib/format";
@@ -38,7 +43,9 @@ async function loadCar(id: string | null): Promise<CarDetails | null> {
 // The streamed fields the page reads beyond carNow's: the odometer and the version.
 const PAGE_FIELDS = [...CAR_NOW_FIELDS, "Odometer", "Version"];
 
-type Live = { state: Omit<CarState, "flags">; stream: Stream; now: CarNow | null; notices: string[]; at: number };
+// The car's average consumption, as its own trip meters show it, worked out from the drives Uplink saw.
+type Average = { label: string; whPerKm: number; km: number };
+type Live = { state: Omit<CarState, "flags">; stream: Stream; now: CarNow | null; notices: string[]; at: number; averages: Average[] };
 
 // The car's state now, in the same private cache as the page: the latest check and newest streamed reading
 // the way home reads them (loadCarState, so "Last synced" matches home), the battery with newer streamed
@@ -52,12 +59,30 @@ async function loadLive(id: string, vin: string | null): Promise<Live> {
   if (!owner) redirect(SIGNED_OUT_PATH);
   const at = Date.now();
   // The flags come with the state's read of the last online check.
-  const [{ flags, ...state }, stream, arrivals] = await Promise.all([
+  const [{ flags, ...state }, stream, arrivals, window, lastCharges] = await Promise.all([
     loadCarState(owner, { id, vin }, "normal"),
     vin ? loadStream(owner, vin, PAGE_FIELDS) : {},
     vin ? loadTyreArrivals(owner, vin, at) : {},
+    loadWindowStats(owner, vin, at),
+    vin ? loadStreamSessions(owner, 5) : [],
   ]);
-  return { state, stream, now: vin ? carNow(stream, at, flags.tyres, arrivals) : null, notices: flags.notices, at };
+  return { state, stream, now: vin ? carNow(stream, at, flags.tyres, arrivals) : null, notices: flags.notices, at, averages: averages(window.driving.drives, lastCharges.find((c) => c.vin === vin && c.ended_at !== null)?.ended_at ?? null, at) };
+}
+
+// Since the last charge, the last 30 days, and since the first drive Uplink saw, each when it has enough
+// driving to mean something (see consumptionIn). The 30 days are left out while tracking is younger.
+function averages(drives: Drive[], lastChargeEnd: string | null, at: number): Average[] {
+  const first = drives.reduce((a, d) => Math.min(a, d.start), Infinity);
+  const month = at - CONSUMPTION_DAYS * 86_400_000;
+  const spans: [string, number | null][] = [
+    ["Since last charge", lastChargeEnd ? Date.parse(lastChargeEnd) : null],
+    [`Last ${CONSUMPTION_DAYS} days`, first < month ? month : null],
+    [Number.isFinite(first) ? `Since ${formatShortDate(first)}` : "", Number.isFinite(first) ? first : null],
+  ];
+  return spans.flatMap(([label, from]) => {
+    const c = from === null ? null : consumptionIn(drives, { from, to: at });
+    return c ? [{ label, ...c }] : [];
+  });
 }
 
 
@@ -244,6 +269,13 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
             figures={figures}
             label="Car now"
           />
+        </Section>
+      )}
+
+      {live.averages.length > 0 && (
+        <Section title="Average consumption">
+          {/* Like the car's trip meters: energy per km over the driving in each span. */}
+          <Figures figures={live.averages.map((a) => ({ label: a.label, value: formatWhPerKm(a.whPerKm), note: `Over ${formatKm(a.km)}` }))} label="Average consumption" />
         </Section>
       )}
 
