@@ -611,3 +611,56 @@ export async function carCodes(): Promise<{ userId: number; config: { car_type?:
   );
   return checks.filter((c) => c !== null);
 }
+
+export type FeedbackRow = {
+  id: number;
+  user_id: number;
+  created_at: string;
+  bother: string | null;
+  topic: string;
+  message: string;
+  page_path: string;
+  page_title: string | null;
+  viewport: string | null;
+  user_agent: string | null;
+  theme: string | null;
+  app_version: string | null;
+  status: FeedbackStatus;
+  car: string | null;
+};
+
+export type FeedbackStatus = "new" | "read" | "done";
+
+// One page of every owner's feedback, newest first, each with the owner's first car's name, and how many
+// there are in all.
+export async function feedbackPage(offset: number, limit: number): Promise<{ rows: FeedbackRow[]; total: number }> {
+  const { data, count, error } = await db().from("feedback").select("*", { count: "exact" }).order("created_at", { ascending: false }).range(offset, offset + limit - 1);
+  if (error) throw new Error(`Reading feedback failed: ${error.message}`);
+  const rows = (data ?? []) as Omit<FeedbackRow, "car">[];
+  if (!rows.length) return { rows: [], total: count ?? 0 };
+  const ids = [...new Set(rows.map((r) => Number(r.user_id)))];
+  const cars = (check(await db().from("vehicles").select("user_id, display_name, model").in("user_id", ids)) ?? []) as { user_id: number; display_name: string | null; model: string | null }[];
+  const carOf = new Map<number, string>();
+  for (const c of cars) if (!carOf.has(Number(c.user_id))) carOf.set(Number(c.user_id), [c.display_name, c.model].filter(Boolean).join(" · "));
+  return { rows: rows.map((r) => ({ ...r, id: Number(r.id), user_id: Number(r.user_id), car: carOf.get(Number(r.user_id)) || null })), total: count ?? 0 };
+}
+
+// The counts Admin's tiles show, each its own count query so the page never loads every row.
+export async function feedbackCounts(since: string): Promise<{ new: number; week: number; lot: number; broken: number }> {
+  const head = () => db().from("feedback").select("id", { count: "exact", head: true });
+  const results = await Promise.all([head().eq("status", "new"), head().gte("created_at", since), head().eq("bother", "lot"), head().eq("topic", "broken")]);
+  for (const r of results) if (r.error) throw new Error(`Counting feedback failed: ${r.error.message}`);
+  const [fresh, week, lot, broken] = results.map((r) => r.count ?? 0);
+  return { new: fresh, week, lot, broken };
+}
+
+// How many messages the admin hasn't read yet, for the dot on the Feedback tab.
+export async function newFeedbackCount(): Promise<number> {
+  const { count, error } = await db().from("feedback").select("id", { count: "exact", head: true }).eq("status", "new");
+  if (error) throw new Error(`Counting feedback failed: ${error.message}`);
+  return count ?? 0;
+}
+
+export async function setFeedbackStatus(id: number, status: FeedbackStatus): Promise<void> {
+  check(await db().from("feedback").update({ status }).eq("id", id));
+}

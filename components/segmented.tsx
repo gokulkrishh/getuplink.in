@@ -4,7 +4,8 @@ import Link from "next/link";
 import { type ReactNode, startTransition, useId, useOptimistic, ViewTransition } from "react";
 import { cn } from "@/lib/utils";
 
-type Option<T> = { value: T; label: string; icon?: ReactNode };
+// `dot`: something new behind this tab, marked with a small dot after its label.
+type Option<T> = { value: T; label: string; icon?: ReactNode; dot?: boolean };
 
 // The label in one grid cell with an invisible medium-weight copy of itself, so the cell is always as
 // wide as the picked label and going medium doesn't move the neighbours. `phoneHidden` keeps the label
@@ -118,6 +119,7 @@ export function TabLinks<T extends string>({
           )}
         >
           <Label label={option.label} />
+          {option.dot && <span className="absolute top-1.5 -right-2 size-1.5 rounded-full bg-chart-accent" aria-label="New" />}
           {value === option.value && <Indicator name={name} className="inset-x-0 -bottom-px h-px bg-foreground" />}
         </Link>
       ))}

@@ -1,0 +1,174 @@
+"use client";
+
+import { Dialog } from "@base-ui/react/dialog";
+import { Check, SmilePlus, X } from "lucide-react";
+import { useState, useTransition } from "react";
+import { sendFeedback } from "@/app/feedback/actions";
+import { Button } from "@/components/ui/button";
+import { BOTHER, type Bother, botherLabel, isProblem, MESSAGE_MAX, type Topic, TOPICS, topicLabel } from "@/lib/feedback";
+import { cn } from "@/lib/utils";
+
+// The theme the owner is looking at: their pick, else the system's.
+function theme(): "light" | "dark" {
+  const picked = document.documentElement.dataset.theme;
+  if (picked === "light" || picked === "dark") return picked;
+  return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function Choices<T extends string>({ legend, options, value, onChange }: { legend: string; options: readonly { value: T; label: string }[]; value: T | null; onChange: (v: T) => void }) {
+  return (
+    <fieldset className="space-y-2">
+      <legend className="text-sm font-medium">{legend}</legend>
+      <div className="flex flex-wrap gap-2">
+        {options.map((o) => (
+          <label
+            key={o.value}
+            className={cn(
+              "cursor-pointer border px-3 py-1.5 text-sm transition-colors hover:bg-muted has-focus-visible:outline-2 has-focus-visible:outline-ring",
+              value === o.value && "border-foreground bg-foreground text-background hover:bg-foreground",
+            )}
+          >
+            <input type="radio" className="sr-only" checked={value === o.value} onChange={() => onChange(o.value)} />
+            {o.label}
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
+// The feedback button in the corner of every signed-in page. The form asks how Uplink feels, what it's
+// about and what happened; the page, screen size, browser and theme go with it, so a report can be found
+// without asking again (Admin > Feedback).
+export function FeedbackButton() {
+  const [open, setOpen] = useState(false);
+  // Read when the form opens, not with usePathname, so the button doesn't hold up a page's static shell.
+  const [path, setPath] = useState("");
+  const [bother, setBother] = useState<Bother | null>(null);
+  const [topic, setTopic] = useState<Topic | null>(null);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
+  const [pending, start] = useTransition();
+  const problem = isProblem(topic);
+  const ready = topic !== null && (!problem || bother !== null) && message.trim().length > 0;
+  // The words box asks what fits the topic.
+  const prompt =
+    topic === "idea"
+      ? { label: "What's your idea?", hint: "What would make Uplink better for you." }
+      : topic === "praise"
+        ? { label: "What do you like?", hint: "What works well, so it stays that way." }
+        : { label: "What happened?", hint: "What you saw, and what you expected." };
+
+  const reset = () => {
+    setBother(null);
+    setTopic(null);
+    setMessage("");
+    setError(null);
+    setSent(false);
+  };
+  const send = () =>
+    start(async () => {
+      if (!topic) return;
+      const result = await sendFeedback({
+        bother: problem ? bother : null,
+        topic,
+        message,
+        pagePath: `${location.pathname}${location.search}`.slice(0, 300),
+        pageTitle: document.title.slice(0, 200),
+        viewport: `${innerWidth}x${innerHeight}`,
+        userAgent: navigator.userAgent.slice(0, 400),
+        theme: theme(),
+      });
+      if (result.ok) setSent(true);
+      else setError(result.error);
+    });
+
+  return (
+    <Dialog.Root
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) setPath(location.pathname);
+        if (!next && sent) reset();
+      }}
+    >
+      <Dialog.Trigger
+        aria-label="Send feedback"
+        className="fixed right-4 bottom-4 z-40 inline-flex size-11 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+      >
+        <SmilePlus className="size-5" aria-hidden="true" />
+      </Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40" />
+        <Dialog.Popup className="fixed inset-x-0 bottom-0 z-50 max-h-[90dvh] overflow-y-auto border bg-background p-5 text-sm text-foreground outline-none sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-96">
+          <div className="mb-5 flex items-center justify-between gap-4">
+            <Dialog.Title className="text-lg font-medium tracking-heading">{sent ? "Feedback sent" : "Send feedback"}</Dialog.Title>
+            <Dialog.Close aria-label="Close" className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+              <X className="size-4" aria-hidden="true" />
+            </Dialog.Close>
+          </div>
+          {sent ? (
+            // What was sent, read back, so the owner sees it landed and what it said.
+            <div className="space-y-5">
+              <div className="flex items-start gap-3">
+                <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-charge/15 text-charge">
+                  <Check className="size-5" aria-hidden="true" />
+                </span>
+                <div className="space-y-1">
+                  <p className="font-medium">Thanks for telling us.</p>
+                  <p className="text-muted-foreground">It goes straight to the person who builds Uplink, who reads every one.</p>
+                </div>
+              </div>
+              <figure className="space-y-2 border bg-muted/40 p-3">
+                <figcaption className="flex flex-wrap gap-1.5 text-xs">
+                  <span className="border px-2 py-0.5">{topic && topicLabel(topic)}</span>
+                  {problem && bother && <span className="border px-2 py-0.5">{botherLabel(bother)}</span>}
+                </figcaption>
+                <blockquote className="line-clamp-4 whitespace-pre-wrap">{message.trim()}</blockquote>
+                <p className="text-xs text-faint">From {path}</p>
+              </figure>
+              <div className="flex items-center gap-3">
+                <Dialog.Close render={<Button className="flex-1">Done</Button>} />
+                <Button variant="outline" className="flex-1" onClick={reset}>
+                  Send more
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <form
+              className="space-y-5"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (ready) send();
+              }}
+            >
+              <Choices legend="What's it about?" options={TOPICS} value={topic} onChange={setTopic} />
+              {problem && <Choices legend="How much is it bothering you?" options={BOTHER} value={bother} onChange={setBother} />}
+              <label className="block space-y-2">
+                <span className="text-sm font-medium">{prompt.label}</span>
+                <textarea
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  maxLength={MESSAGE_MAX}
+                  rows={4}
+                  placeholder={prompt.hint}
+                  className="block w-full resize-y border bg-background px-3 py-2 text-sm placeholder:text-faint focus-visible:outline-2 focus-visible:outline-ring"
+                />
+              </label>
+              <p className="text-xs text-muted-foreground">Sent with the page you&apos;re on ({path}), your screen size and browser, so it&apos;s easy to find.</p>
+              {error && (
+                <p role="alert" className="text-sm text-destructive">
+                  {error}
+                </p>
+              )}
+              <Button type="submit" disabled={!ready || pending} className="w-full">
+                {pending ? "Sending…" : "Send feedback"}
+              </Button>
+            </form>
+          )}
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}

@@ -6,6 +6,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { logout } from "@/app/actions";
 import { AvatarBlob } from "@/components/avatar-blob";
+import { FeedbackButton } from "@/components/feedback-button";
 import { Logo } from "@/components/logo";
 import {
   DropdownMenu,
@@ -90,6 +91,8 @@ async function SetupGate() {
 export function Header({ current, setup = true }: { current?: Section; setup?: boolean }) {
   return (
     <>
+    {/* Every signed-in page has the header, so the feedback button rides with it. */}
+    <FeedbackButton />
     <header className="mb-16 flex items-center justify-between gap-4 text-sm">
       <Link href="/" prefetch={true} className="tap-target flex shrink-0 items-center gap-2.5 font-medium">
         <Logo className="size-5" />
