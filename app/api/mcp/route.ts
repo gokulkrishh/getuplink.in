@@ -1,6 +1,7 @@
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { DEMO } from "@/lib/demo";
+import { APP_URL, HOME_URL } from "@/lib/site";
 import { lineItemsInput } from "@/lib/invoice-items";
 import { messageOf } from "@/lib/errors";
 import { isoDay } from "@/lib/periods";
@@ -27,6 +28,19 @@ async function run(work: () => Promise<unknown>) {
 }
 
 const time = z.string().describe("ISO date or time. Without an offset it's read as IST, e.g. 2026-10-21T19:10");
+
+// The title and icon an AI app shows beside the connector; without icons it draws a letter. A plain const:
+// mcp-handler types serverInfo as name and version only, but hands the whole object to the SDK's server.
+const SERVER_INFO = {
+  name: "uplink",
+  title: "Uplink",
+  version: "1.0.0",
+  websiteUrl: HOME_URL,
+  icons: [
+    { src: `${APP_URL}/icon-512.png`, mimeType: "image/png", sizes: ["512x512"] },
+    { src: `${APP_URL}/icon-192.png`, mimeType: "image/png", sizes: ["192x192"] },
+  ],
+};
 
 // The tools, bound to the account the token belongs to: every read and write is that account's. The
 // handler builds a new server per request anyway (stateless), so binding per request costs nothing.
@@ -188,7 +202,7 @@ const handlerFor = (owner: Owner) =>
       () => run(() => drivingInsights(owner)),
     );
   },
-  { serverInfo: { name: "uplink", version: "1.0.0" } },
+  { serverInfo: SERVER_INFO },
 );
 
 async function guarded(request: Request): Promise<Response> {
