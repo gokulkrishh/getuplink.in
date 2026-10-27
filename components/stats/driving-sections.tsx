@@ -117,25 +117,21 @@ export const hasBars = (bars: Bar[]) => bars.some((b) => b.value > 0 && !showsZe
 // longest, time at the wheel and distance a day. Counted, never projected. `spanDays` is how long the span
 // has run; when the stats cover fewer days (tracking began later, or the drives kept stop short), the
 // caption says how many. `partial` says the drives reach back only DRIVE_DAYS.
-export function DriveStatsSection({ stats, title, spanDays, partial = false }: { stats: DriveStats | null; title: string; spanDays: number; partial?: boolean }) {
+export function DriveStatsSection({ stats, title, partial = false }: { stats: DriveStats | null; title: string; partial?: boolean }) {
   if (!stats) return null;
-  const covers = `${Math.max(1, Math.round(stats.days))} ${Math.round(stats.days) === 1 ? "day" : "days"}`;
-  const short = Math.round(stats.days) < Math.round(spanDays);
+  // Distance and distance per day are the Distance chart's: the odometer counts every metre, while drives
+  // leave out moves too short to count as one, so a second total here would disagree with it.
   const figures = [
-    { label: "Distance", value: formatKm(stats.km) },
     { label: "Trips", value: compactNumber.format(stats.trips), note: `${compactNumber.format(stats.drives)} ${stats.drives === 1 ? "drive" : "drives"}` },
     { label: "Typical drive", value: formatKm(stats.medianKm), note: "Half are longer" },
     { label: "Longest drive", value: formatKm(stats.longestKm) },
     { label: "Time driving", value: formatDuration(stats.hours * 3600) },
-    { label: "Per day", value: formatKm(stats.kmPerDay), note: "On average" },
   ];
   return (
     <section className="space-y-4">
       <div className="space-y-1">
         <h2 className="text-lg font-medium tracking-heading">Drive stats</h2>
-        <p className="text-sm text-muted-foreground">
-          {short ? `${title}, ${covers}` : title}.
-        </p>
+        <p className="text-sm text-muted-foreground">{title}.</p>
       </div>
       {/* Tiles: easier to take in than a long list. */}
       <Figures figures={figures} />

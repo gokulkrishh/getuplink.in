@@ -2,7 +2,7 @@ import { ShowMore } from "@/components/show-more";
 import { type TripRow, TripRows } from "@/components/stats/trip-rows";
 import type { Drive } from "@/lib/drives";
 import { groupTrips, type Trip } from "@/lib/trips";
-import { formatClock, formatDayLabel, formatDuration, formatKm, formatKwh, sumKnown } from "@/lib/format";
+import { formatClock, formatDayLabel, formatDuration, formatKm, formatKwh } from "@/lib/format";
 import { LIST_PREVIEW } from "@/lib/list";
 
 // A trip's texts for the table (see TripRows). How much of the battery it took is "9%", with the start and
@@ -35,9 +35,9 @@ export function TripTable({ trips, serialOf, now, header = true }: { trips: Trip
 // `all`, so a list cut to a range keeps each trip's number.
 export function DriveList({ drives, all = drives, now }: { drives: Drive[]; all?: Drive[]; now: number }) {
   if (drives.length === 0) return null;
-  // The total is the trips' raw km added up, rounded once when shown, like each row.
+  // No km total here: the Distance chart has it from the odometer, which also counts moves too short to be
+  // a drive, so a sum of these would disagree with it.
   const trips = groupTrips(drives);
-  const totalKm = sumKnown(trips.map((t) => t.km));
   const numbered = all === drives ? trips : groupTrips(all);
   const serialOf = (t: Trip) => numbered.length - numbered.findIndex((n) => n.start === t.start);
   return (
@@ -45,7 +45,7 @@ export function DriveList({ drives, all = drives, now }: { drives: Drive[]; all?
       <div className="space-y-1">
         <h2 className="text-lg font-medium tracking-heading">Trips</h2>
         <p className="text-sm text-muted-foreground tabular-nums">
-          {trips.length} {trips.length === 1 ? "trip" : "trips"} · {drives.length} {drives.length === 1 ? "drive" : "drives"} · {formatKm(totalKm)}
+          {trips.length} {trips.length === 1 ? "trip" : "trips"} · {drives.length} {drives.length === 1 ? "drive" : "drives"}
         </p>
       </div>
       <TripTable trips={trips.slice(0, LIST_PREVIEW)} serialOf={serialOf} now={now} />

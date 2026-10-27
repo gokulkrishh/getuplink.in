@@ -169,7 +169,6 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
               <DriveStatsSection
                 stats={driveStats(inFrame, kept.from, figures.since, kept.to)}
                 title={frame.title}
-                spanDays={(Math.min(frame.span.to, now) - frame.span.from) / DAY}
                 partial={partial(frame.span, tripsFrom)}
               />
             );
