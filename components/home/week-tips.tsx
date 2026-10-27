@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, Sparkles, ThumbsDown, ThumbsUp } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { voteTip } from "@/app/tip-actions";
 import type { Tip, TipScope } from "@/lib/ai-tips";
 import type { Vote } from "@/lib/tip-votes";
@@ -25,29 +25,27 @@ const CONTROL =
 // Text the AI wrote, in one box style wherever it stands alone: the tips on Home, a drive, Stats > Charging
 // and a charge (lib/ai-tips.ts), and a drive's summary (lib/drive-wording.ts). Several notes show one at a
 // time; the next button turns them, and they were written ahead, so turning costs nothing. With `vote`, each
-// note can be marked useful or not. Useful stays lit and can be taken back. Not useful hides the note, with
-// Undo until the box is turned, and asks for another in its place.
+// note can be marked useful or not. Useful stays lit and can be taken back. Not useful takes the note out of
+// the box: while another is written in its place the box says so, with Undo, then shows the new one.
 export function AiNotes({ title, notes: given, vote }: { title: string; notes: (Pick<Tip, "text"> & Partial<Pick<Tip, "kind">>)[]; vote?: NoteVotes }) {
   const [at, setAt] = useState(0);
   // Tips swapped in for ones voted down join the end, and the box turns to them.
   const [added, setAdded] = useState<Tip[]>([]);
-  const [swapping, setSwapping] = useState(false);
-  // Notes voted not useful leave the box. The latest one can come back with Undo.
+  // Notes voted not useful, out of the box for good.
   const [hidden, setHidden] = useState<string[]>([]);
-  const [lastHidden, setLastHidden] = useState<Tip | null>(null);
+  // The note just voted not useful, while another is written in its place. Undo brings it back.
+  const [replacing, setReplacing] = useState<Tip | null>(null);
+  // The same, for the answer to check it wasn't undone while it was being written.
+  const waiting = useRef<Tip | null>(null);
   const tips = [...given, ...added].filter((t) => !hidden.includes(t.text));
   const [votes, setVotes] = useState<Record<string, Vote>>(vote?.votes ?? {});
   // The vote just cast, so only its answer slides in: one from an earlier visit shows still.
   const [justVoted, setJustVoted] = useState<string | null>(null);
   const [, startTransition] = useTransition();
-  if (tips.length === 0 && !lastHidden && !swapping) return null;
-  const current = tips.length > 0 ? tips[at % tips.length] : null;
+  if (tips.length === 0 && !replacing) return null;
+  const current = !replacing && tips.length > 0 ? tips[at % tips.length] : null;
   const tip = current?.text ?? "";
   const kind = current?.kind;
-  const turn = (step: number) => {
-    setLastHidden(null);
-    setAt((k) => (k + tips.length + step) % tips.length);
-  };
   const send = (input: Parameters<typeof voteTip>[0]) => startTransition(() => void voteTip(input));
   const cast = (value: Vote) => {
     if (!vote || !kind) return;
@@ -55,34 +53,39 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
     const next = votes[tip] === value ? 0 : value;
     setVotes(({ [tip]: _, ...rest }) => (next === 0 ? rest : { ...rest, [tip]: next }));
     setJustVoted(next === 0 ? null : tip);
-    setLastHidden(null);
     const input = { scope: vote.scope, entity: vote.entity, kind, tip, vote: next };
     if (next !== -1) return send(input);
-    // Not useful: the tip leaves the box, the next one shows in its place, and another is asked for.
+    // Not useful: the note leaves, and the next one takes its place.
     setHidden((h) => [...h, tip]);
-    setLastHidden({ text: tip, kind });
     const left = tips.length - 1;
     setAt((k) => (left > 0 ? k % left : 0));
     if (!vote.swap) return send(input);
-    setSwapping(true);
+    // Another is asked for: the box waits for it, then turns to it.
+    const down = { text: tip, kind };
+    waiting.current = down;
+    setReplacing(down);
     startTransition(async () => {
       const fresh = await voteTip(input, vote.swap);
-      setSwapping(false);
-      if (fresh && ![...given, ...added].some((t) => t.text === fresh.text)) {
-        setAdded((a) => [...a, fresh]);
-        setAt(left);
-      }
+      const current = waiting.current === down;
+      // Undone meanwhile: the new note still joins the end, but the box stays where it is.
+      if (fresh) setAdded((a) => (a.some((t) => t.text === fresh.text) || given.some((t) => t.text === fresh.text) ? a : [...a, fresh]));
+      if (!current) return;
+      waiting.current = null;
+      setReplacing(null);
+      if (fresh) setAt(left);
     });
   };
-  // Undo on a hidden tip: the vote is taken back and the tip returns where the box is.
-  const unhide = () => {
-    if (!vote || !lastHidden?.kind) return;
-    const { text, kind: hiddenKind } = lastHidden;
+  // Undo while the replacement is written: the vote is taken back and the note returns.
+  const undo = () => {
+    if (!vote || !replacing?.kind) return;
+    const { text, kind: downKind } = replacing;
     setHidden((h) => h.filter((t) => t !== text));
     setVotes(({ [text]: _, ...rest }) => rest);
-    setLastHidden(null);
     setJustVoted(null);
-    send({ scope: vote.scope, entity: vote.entity, kind: hiddenKind, tip: text, vote: 0 });
+    waiting.current = null;
+    setReplacing(null);
+    setAt([...given, ...added].filter((t) => t.text === text || !hidden.includes(t.text)).findIndex((t) => t.text === text));
+    send({ scope: vote.scope, entity: vote.entity, kind: downKind, tip: text, vote: 0 });
   };
   const thumb = (value: Vote, label: string, Icon: typeof ThumbsUp) => (
     <button
@@ -108,15 +111,15 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
         </div>
         <div className="flex items-center gap-3">
           {/* ‹ 2 of 3 ›: back and on, each wrapping round. */}
-          {tips.length > 1 && (
+          {current && tips.length > 1 && (
             <div className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums">
-              <button type="button" onClick={() => turn(-1)} aria-label="Previous tip" className={cn(CONTROL, "size-6 justify-center")}>
+              <button type="button" onClick={() => setAt((k) => (k + tips.length - 1) % tips.length)} aria-label="Previous tip" className={cn(CONTROL, "size-6 justify-center")}>
                 <ChevronLeft className="size-3.5" aria-hidden="true" />
               </button>
               <span aria-live="polite">
                 {(at % tips.length) + 1} of {tips.length}
               </span>
-              <button type="button" onClick={() => turn(1)} aria-label="Next tip" className={cn(CONTROL, "size-6 justify-center")}>
+              <button type="button" onClick={() => setAt((k) => (k + 1) % tips.length)} aria-label="Next tip" className={cn(CONTROL, "size-6 justify-center")}>
                 <ChevronRight className="size-3.5" aria-hidden="true" />
               </button>
             </div>
@@ -124,8 +127,8 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
         </div>
       </div>
       {/* Tips (with votes) hold TIPS_LINES; a one-line note such as a drive's summary holds two lines, as before. */}
-      <p className={cn("text-sm text-muted-foreground", vote ? TIPS_LINES : NOTE_LINES)} aria-live="polite">
-        {current ? tip : swapping ? "" : "No other tips for now."}
+      <p className={cn("text-sm text-muted-foreground", vote ? TIPS_LINES : NOTE_LINES, replacing && "animate-pulse")} aria-live="polite">
+        {replacing ? "Finding you another tip…" : tip}
       </p>
     </section>
   );
@@ -135,17 +138,15 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
   return (
     <div>
       {box}
-      <div className={cn("flex h-8 items-center justify-end", !votes[tip] && !lastHidden && !swapping && "-mr-1")}>
-        {/* Before a vote: the question and both thumbs. After: what was chosen, and Undo to take it back. A tip
-            voted not useful has left the box: its Undo stays until the box is turned. */}
-        {swapping || lastHidden ? (
+      <div className={cn("flex h-8 items-center justify-end", !votes[tip] && !replacing && "-mr-1")}>
+        {/* Before a vote: the question and both thumbs. After: what was chosen, and Undo to take it back. While a
+            note voted not useful is replaced, Undo brings it back. */}
+        {replacing ? (
           <span className="flex items-center gap-2 text-xs text-muted-foreground motion-safe:animate-vote-in" aria-live="polite">
-            {swapping ? "Finding you another tip…" : "Tip hidden"}
-            {lastHidden && (
-              <button type="button" onClick={unhide} className="tap-target rounded-sm underline decoration-dotted underline-offset-4 transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
-                Undo
-              </button>
-            )}
+            Tip hidden
+            <button type="button" onClick={undo} className="tap-target rounded-sm underline decoration-dotted underline-offset-4 transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+              Undo
+            </button>
           </span>
         ) : (
           kind &&
