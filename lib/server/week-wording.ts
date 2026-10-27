@@ -13,6 +13,9 @@ import { type Owner, ownerDb } from "./data/owner";
 
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 const TIMEOUT_MS = 15_000;
+const RETRY_MS = 3_600_000;
+// Replies that fail their checks are asked again, up to this many times in one go.
+const TRIES = 3;
 const MISSING = ["42P01", "PGRST205", "23514"];
 
 const apiKey = () => process.env.OPENROUTER_API_KEY?.trim() || null;
@@ -34,7 +37,7 @@ export async function loadWeekLine(owner: Owner, key: WeekKey, facts: WeekFacts)
   try {
     const { data, error } = await ownerDb(owner)
       .from("drive_wording")
-      .select("facts_hash, wording, model")
+      .select("facts_hash, wording, model, created_at")
       .eq("vehicle_id", key.vehicleId)
       .eq("drive_start", new Date(key.day).toISOString())
       .eq("scope", "week")
@@ -44,9 +47,12 @@ export async function loadWeekLine(owner: Owner, key: WeekKey, facts: WeekFacts)
       return { line: null, generate: false };
     }
     // Written today already: kept for the day even as the figures move, so the page isn't paid for on
-    // every visit. It passed its checks when written.
-    // A line from an older prompt or model is written again.
-    if (data && (data.wording as { v?: unknown } | null)?.v === WEEK_PROMPT_VERSION && data.model === WORDING_MODEL) return { line: storedLine(data.wording), generate: false };
+    // every visit. It passed its checks when written. A day with no line (every reply failed its checks)
+    // tries again after RETRY_MS. A line from an older prompt or model is written again.
+    if (data && (data.wording as { v?: unknown } | null)?.v === WEEK_PROMPT_VERSION && data.model === WORDING_MODEL) {
+      const line = storedLine(data.wording);
+      if (line !== null || Date.now() - Date.parse(data.created_at) < RETRY_MS) return { line, generate: false };
+    }
     return { line: null, generate: apiKey() !== null };
   } catch (err) {
     console.warn("Week line unavailable:", messageOf(err));
@@ -62,8 +68,8 @@ function storedLine(wording: unknown): string | null {
 
 const writing = new Set<string>();
 
-// Writes and stores today's line. Run after the response; never throws. A reply that fails its checks is
-// stored as no line, so today isn't paid for twice.
+// Writes and stores today's line. Run after the response; never throws. When every try fails its checks,
+// no line is stored, and loadWeekLine asks again an hour later.
 export async function generateWeekLine(owner: Owner, key: WeekKey, facts: WeekFacts): Promise<void> {
   const token = apiKey();
   if (DEMO || !token || quietWeek(facts)) return;
@@ -71,20 +77,24 @@ export async function generateWeekLine(owner: Owner, key: WeekKey, facts: WeekFa
   if (writing.has(id)) return;
   writing.add(id);
   try {
-    const res = await fetch(ENDPOINT, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "X-Title": "Uplink" },
-      body: JSON.stringify(weekRequest(facts)),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
-    if (!res.ok) {
-      console.warn("Week line not written: OpenRouter", res.status);
-      return;
+    let line: string | null = null;
+    let cost = 0;
+    for (let k = 0; k < TRIES && line === null; k++) {
+      const res = await fetch(ENDPOINT, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "X-Title": "Uplink" },
+        body: JSON.stringify(weekRequest(facts)),
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+      if (!res.ok) {
+        console.warn("Week line not written: OpenRouter", res.status);
+        return;
+      }
+      const body = (await res.json()) as { choices?: { message?: { content?: string | null } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number | null } };
+      line = checkWeekLine(body.choices?.[0]?.message?.content ?? "", facts);
+      const u = body.usage;
+      cost += typeof u?.cost === "number" ? u.cost : u?.prompt_tokens != null && u.completion_tokens != null ? u.prompt_tokens * PRICE_PER_TOKEN.input + u.completion_tokens * PRICE_PER_TOKEN.output : 0;
     }
-    const body = (await res.json()) as { choices?: { message?: { content?: string | null } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number | null } };
-    const line = checkWeekLine(body.choices?.[0]?.message?.content ?? "", facts);
-    const u = body.usage;
-    const cost = typeof u?.cost === "number" ? u.cost : u?.prompt_tokens != null && u.completion_tokens != null ? u.prompt_tokens * PRICE_PER_TOKEN.input + u.completion_tokens * PRICE_PER_TOKEN.output : null;
     const { error } = await ownerDb(owner)
       .from("drive_wording")
       .upsert(
