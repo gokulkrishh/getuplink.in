@@ -167,14 +167,16 @@ function HomeSkeleton() {
           <p className="flex items-center gap-2 text-sm"><span className={line}>2026.38.4 · 3,434.9 km</span></p>
           <p className="text-sm"><span className={line}>Synced 5 min ago</span></p>
         </div>
-        <div className="space-y-3 sm:w-72 sm:shrink-0 sm:text-right">
-          <p className="flex flex-wrap items-baseline gap-x-2 sm:justify-end">
-            <span className="font-mono text-[2.25rem] font-medium tracking-tight"><span className={line}>67%</span></span>
-            <span className="text-base"><span className={line}>about 294 km</span></span>
+        <div className="space-y-1 sm:w-60 sm:shrink-0">
+          <p className="flex h-5 items-baseline gap-x-2 leading-5 sm:justify-end">
+            <span className="font-mono text-base font-medium"><span className={line}>67%</span></span>
+            <span className="text-sm"><span className={line}>about 294 km</span></span>
           </p>
-          <div className="relative h-0.5 max-w-60 bg-border sm:ml-auto">
-            <div className="h-full w-2/3 bg-muted-foreground/30 motion-safe:animate-pulse" />
-            <span className="absolute -top-1 h-2.5 w-px bg-muted-foreground/40" style={{ left: "80%" }} />
+          <div className="flex h-5 items-center">
+            <div className="relative h-0.5 w-full max-w-60 bg-border">
+              <div className="h-full w-2/3 bg-muted-foreground/30 motion-safe:animate-pulse" />
+              <span className="absolute -top-1 h-2.5 w-px bg-muted-foreground/40" style={{ left: "80%" }} />
+            </div>
           </div>
           <p className="flex items-center gap-1.5 text-sm sm:justify-end"><span className={line}>Parked 2 h 10 min · Limit 80%</span></p>
         </div>

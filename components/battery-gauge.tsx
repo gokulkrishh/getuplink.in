@@ -2,7 +2,6 @@ import { Zap } from "lucide-react";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { formatDuration, formatKw, formatRangeKm, formatTimeToFull } from "@/lib/format";
 import type { Snapshot } from "@/lib/server/dashboard";
-import { Measure } from "@/components/measure";
 import { cn } from "@/lib/utils";
 
 // What the car is doing, in one line under the level. Charging: the power and the limit, then how long is
@@ -33,39 +32,41 @@ export function BatteryGauge({ snapshot, parked = null, align = "start" }: { sna
   const limit = snapshot.charge_limit != null ? Math.min(100, Math.max(0, snapshot.charge_limit)) : null;
   const charging = snapshot.charging_state === "Charging";
   const state = batteryState(snapshot, parked);
+  // Three rows of one text line each (the level, the meter, the state), so on Home they line up with the
+  // name, version and sync lines beside them. The level is one step larger than the text around it.
   return (
-    <div className={cn("space-y-3", end && "sm:w-72 sm:shrink-0 sm:text-right")}>
+    <div className={cn("space-y-1", end && "sm:w-60 sm:shrink-0")}>
       {/* Streamed power and level move while charging, so the page keeps itself fresh. */}
       {charging && <AutoRefresh />}
-      <p className={cn("flex flex-wrap items-baseline gap-x-2", end && "sm:justify-end")}>
-        <span className="font-mono text-[2.25rem] font-medium tracking-tight tabular-nums">
-          <Measure text={`${level}%`} size="headline" />
-        </span>
+      <p className={cn("flex h-5 items-baseline gap-x-2 leading-5", end && "sm:justify-end")}>
+        <span className="font-mono text-base font-medium tabular-nums">{level}%</span>
         {snapshot.battery_range_km != null && (
           // Tesla's estimate, so "about".
-          <span className="text-base text-muted-foreground tabular-nums">about {formatRangeKm(snapshot.battery_range_km)}</span>
+          <span className="text-sm text-muted-foreground tabular-nums">about {formatRangeKm(snapshot.battery_range_km)}</span>
         )}
       </p>
-      <div
-        role="meter"
-        aria-valuenow={level}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={`Battery ${level}%${limit != null ? `, limit ${limit}%` : ""}`}
-        className={cn("relative h-0.5 max-w-60 bg-border", end && "sm:ml-auto")}
-      >
-        <div className="relative h-full overflow-hidden bg-foreground" style={{ width: `${level}%` }}>
-          {charging && (
-            <span className="absolute inset-y-0 -left-1/2 w-1/2 bg-linear-to-r from-transparent via-background/50 to-transparent motion-safe:animate-shimmer" />
+      <div className="flex h-5 items-center">
+        <div
+          role="meter"
+          aria-valuenow={level}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`Battery ${level}%${limit != null ? `, limit ${limit}%` : ""}`}
+          className="relative h-0.5 w-full max-w-60 bg-border"
+        >
+          <div className="relative h-full overflow-hidden bg-foreground" style={{ width: `${level}%` }}>
+            {charging && (
+              <span className="absolute inset-y-0 -left-1/2 w-1/2 bg-linear-to-r from-transparent via-background/50 to-transparent motion-safe:animate-shimmer" />
+            )}
+          </div>
+          {limit != null && (
+            <span aria-hidden="true" className="absolute -top-1 h-2.5 w-px bg-muted-foreground" style={{ left: `${limit}%` }} />
           )}
         </div>
-        {limit != null && (
-          <span aria-hidden="true" className="absolute -top-1 h-2.5 w-px bg-muted-foreground" style={{ left: `${limit}%` }} />
-        )}
       </div>
       {state && (
         <p className={cn("flex items-center gap-1.5 text-sm text-muted-foreground tabular-nums", end && "sm:justify-end sm:text-right")}>
-          {charging && <Zap className="size-3.5" aria-hidden="true" />}
+          {charging && <Zap className="size-3.5 shrink-0" aria-hidden="true" />}
           {state}
         </p>
       )}
