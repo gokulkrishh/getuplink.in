@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { barsSpan, periodPhrase } from "@/components/stats/chart-caption";
+import { barsSpan } from "@/components/stats/chart-caption";
 import { fromTracking, type Period, periodTimeframe, rangeTimeframe } from "@/lib/periods";
 
 // Every chart names its period once, at the top (its headline, summary line or description); the caption
@@ -25,6 +25,26 @@ function files(path: string): string[] {
 // A caption built from the frame's title or words ("Last 7 days", "in the last 7 days"), or from props that
 // carry them, is the period said again under the chart.
 const PERIOD_IN_CAPTION = /\bcaption[=:]\s*\{?[^\n]*\b(?:frame\.(?:title|words)|title|words|upper\(words\))\b/;
+
+// The page names its period once: Stats' period switch, or Home's greeting line. Section text built from a
+// frame's words ("in the last 7 days") says it again.
+// Screen-reader labels may name it: they're read without the switch.
+const PERIOD_IN_TEXT = /\bframe\.(words|title)\b/;
+const LABEL = /\b(aria-)?label=/;
+
+describe("sections never name the period the page already shows", () => {
+  test("no text is built from a frame's words or title", () => {
+    const hits: string[] = [];
+    for (const file of ["app", "components"].flatMap(files)) {
+      readFileSync(file, "utf8")
+        .split("\n")
+        .forEach((line, k) => {
+          if (!/^\s*\/\//.test(line) && PERIOD_IN_TEXT.test(line) && !LABEL.test(line)) hits.push(`${relative(ROOT, file)}:${k + 1}: ${line.trim()}`);
+        });
+    }
+    expect(hits).toEqual([]);
+  });
+});
 
 describe("captions never name the period", () => {
   test("no caption is built from a frame's title or words", () => {
@@ -62,11 +82,5 @@ describe("captions never name the period", () => {
 
   test("All's bars name their own span, whole years", () => {
     expect(barsSpan(periodTimeframe("all", now))).toMatch(/^Each year, \d{4} to 2026$/);
-  });
-
-  test("the top line's period reads as a phrase, All as all time", () => {
-    expect(periodPhrase(periodTimeframe("week", now))).toBe("last 7 days");
-    expect(periodPhrase(periodTimeframe("all", now))).toBe("all time");
-    expect(periodPhrase(fromTracking(periodTimeframe("month", now), Date.UTC(2026, 9, 23), now).frame)).toBe("this month, since 23 Oct");
   });
 });

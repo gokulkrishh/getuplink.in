@@ -5,14 +5,13 @@ import { formatKwh, formatMoney } from "@/lib/format";
 
 
 // Where you charge most in the span, by energy, with how often and what the bills came to, ranked from 1.
-// `title` names the span and `words` ends "No named stations …" for a span without any.
-export function TopStations({ rows, title, words }: { rows: StationRow[]; title: string; words: string }) {
+export function TopStations({ rows }: { rows: StationRow[] }) {
   return (
     <section className="space-y-4">
       <div className="space-y-2">
         <h2 className="text-lg font-medium tracking-heading">Where you charge</h2>
         <p className="text-sm text-muted-foreground">
-          {rows.length === 0 ? `No charges at a named station ${words}.` : `${title}.`}
+          {rows.length === 0 ? "No charges at a named station." : "The stations you charged at most."}
         </p>
       </div>
       {rows.length > 0 && (

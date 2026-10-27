@@ -80,7 +80,7 @@ export function ChargingSection({ frames, bills, listed, chargingSince, now }: {
     const money = (n: number) => formatMoney(n, currency);
     const { bars, total } = knownBars(frame.slots, billsBySlot(bills, frame.slots), DECIMALS.money, money);
     const shown = listed.filter((item) => inSpan(Date.parse(item.started_at), f.frame.span)).slice(0, ROWS);
-    if (!hasBars(bars) && shown.length === 0) return <Quiet>No charging {f.frame.words}.</Quiet>;
+    if (!hasBars(bars) && shown.length === 0) return <Quiet>No charging.</Quiet>;
     const costs = hasCosts(shown);
     // "₹1,240.00 on charging this month, ₹310.00 less than 1 to 26 Sept", where tracking covers the span
     // before (see trackedBefore), as the Spent tile compares.
@@ -89,14 +89,14 @@ export function ChargingSection({ frames, bills, listed, chargingSince, now }: {
     return (
       <div className="space-y-6">
         <ChartCard
-          summary={hasBars(bars) ? <Opening>{headline(`${money(total)} on charging ${frame.words}`, compared)}</Opening> : undefined}
+          summary={hasBars(bars) ? <Opening>{headline(`${money(total)} on charging`, compared)}</Opening> : undefined}
           caption={barsSpan(frame)}
-          empty={hasBars(bars) ? undefined : `No bills ${frame.words}.`}
+          empty={hasBars(bars) ? undefined : "No bills."}
         >
           <Bars bars={bars} view="charging" valueLabel="Spent" ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} fit />
         </ChartCard>
         {shown.length === 0 ? (
-          <Quiet>No charges {f.frame.words}.</Quiet>
+          <Quiet>No charges.</Quiet>
         ) : (
           <div>
             <Rows header={<SessionHeader costs={costs} wide numbered />}>
@@ -133,14 +133,14 @@ export function DrivingSection({ frames, figures, drives, routes, now }: { frame
     // Tracking began before the trips' window and the period reaches back past it.
     const partial = f.frame.span.from < tripsFrom && (figures.since === null || figures.since < tripsFrom);
     // A period with no distance and no trips is one line, as in ChargingSection.
-    if (driving && !hasBars(bars) && shown.length === 0) return <Quiet>No driving {f.frame.words}.</Quiet>;
-    const empty = !driving ? "Couldn't read the distance for these dates." : hasBars(bars) ? undefined : `No driving ${frame.words}.`;
+    if (driving && !hasBars(bars) && shown.length === 0) return <Quiet>No driving.</Quiet>;
+    const empty = !driving ? "Couldn't read the distance for these dates." : hasBars(bars) ? undefined : "No driving.";
     // "130.6 km in the last 7 days, 21.7 km more than the 7 days before", as the Driven tile compares.
     const compared = comparedWith(total, driving?.previous?.km ?? null, "km", frame.previousLabel, { decimals: DECIMALS.km });
     return (
       <div className="space-y-6">
         <ChartCard
-          summary={!empty ? <Opening>{headline(`${formatKm(total)} ${frame.words}`, compared)}</Opening> : undefined}
+          summary={!empty ? <Opening>{headline(formatKm(total), compared)}</Opening> : undefined}
           caption={barsSpan(frame)}
           empty={empty}
         >
@@ -148,7 +148,7 @@ export function DrivingSection({ frames, figures, drives, routes, now }: { frame
         </ChartCard>
         {drives.length > 0 && (
           <div className="space-y-3">
-            {shown.length > 0 ? <TripTable trips={shown} serialOf={(t) => shown.indexOf(t) + 1} now={now} routes={routes} /> : <Quiet>No trips {f.frame.words}.</Quiet>}
+            {shown.length > 0 ? <TripTable trips={shown} serialOf={(t) => shown.indexOf(t) + 1} now={now} routes={routes} /> : <Quiet>No trips.</Quiet>}
             {partial && <p className="text-sm text-faint">Trips cover only the last {DRIVE_DAYS} days.</p>}
           </div>
         )}
@@ -186,8 +186,7 @@ export function BatterySection({
     const finished = overlapping(parked, span, (p) => p.start, (p) => p.end);
     // The usual loss a day is context for what this stretch has lost; with no loss to show it stands alone.
     const summary = drainSummary(finished);
-    // "a day this month"; All's "in total" would read wrong after "a day", so it says only "a day".
-    const usually = summary && `${formatPercent(summary.percentPerDay, 1)} a day${frame.period === "all" ? "" : ` ${frame.words}`}`;
+    const usually = summary && `${formatPercent(summary.percentPerDay, 1)} a day`;
     const lost = ongoing?.lostPercent ?? null;
     if (!ongoing && !usually) return null;
     // Stretches are kept for DRAIN_DAYS, so a longer period says how far back the usual loss reaches.

@@ -13,7 +13,7 @@ export const TESLA_ANSWER_MS = 60 * 60_000;
 const NAME = "stream_health";
 
 export type TelemetryConfig = { synced?: boolean; key_paired?: boolean; config?: { exp?: number } | null } | null;
-export type TelemetryErrors = { fleet_telemetry_errors?: { name?: string; error?: string }[] } | null;
+export type TelemetryErrors = { fleet_telemetry_errors?: { name?: string; error?: string; error_name?: string; created_at?: string }[] } | null;
 export type StreamState = { config: TelemetryConfig; errors: TelemetryErrors; fetchedAt: string };
 
 // Whether a stored answer can stand in for asking Tesla now: about the same car, and young enough.

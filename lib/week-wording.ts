@@ -16,7 +16,7 @@ import { ROTATE_EVERY_KM, tyreRotation } from "@/lib/tyre-rotation";
 
 export const WEEK_TIPS: TipSurface = {
   scope: "week",
-  version: 7,
+  version: 9,
   context:
     "The tips sit on the home page under the last 7 days' totals: distance, energy used, energy added and spend. Say something the totals don't. Call the 7 days \"this week\".",
 };

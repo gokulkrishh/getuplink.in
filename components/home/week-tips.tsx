@@ -15,8 +15,9 @@ const TIPS_LINES = "min-h-25 sm:min-h-10";
 const NOTE_LINES = "min-h-15 sm:min-h-10";
 
 // Where the notes' votes go: the kind of page, the page (a day's start, a drive's start or a charge's id) and
-// the owner's votes so far, by tip.
-export type NoteVotes = { scope: TipScope; entity: string; votes: Record<string, Vote> };
+// the owner's votes so far, by tip. `swap` is where the tips are kept (the car and their time), so a tip
+// voted down can be swapped for another (lib/server/ai-tips.ts replaceTip).
+export type NoteVotes = { scope: TipScope; entity: string; votes: Record<string, Vote>; swap?: { vehicleId: string; at: number } };
 
 const CONTROL =
   "tap-target inline-flex items-center gap-1.5 rounded-sm text-xs text-muted-foreground tabular-nums transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring";
@@ -25,8 +26,12 @@ const CONTROL =
 // and a charge (lib/ai-tips.ts), and a drive's summary (lib/drive-wording.ts). Several notes show one at a
 // time; the next button turns them, and they were written ahead, so turning costs nothing. With `vote`, each
 // note can be marked useful or not; the choice stays lit and can be changed.
-export function AiNotes({ title, notes: tips, vote }: { title: string; notes: (Pick<Tip, "text"> & Partial<Pick<Tip, "kind">>)[]; vote?: NoteVotes }) {
+export function AiNotes({ title, notes: given, vote }: { title: string; notes: (Pick<Tip, "text"> & Partial<Pick<Tip, "kind">>)[]; vote?: NoteVotes }) {
   const [at, setAt] = useState(0);
+  // Tips swapped in for ones voted down join the end, and the box turns to them.
+  const [added, setAdded] = useState<Tip[]>([]);
+  const [swapping, setSwapping] = useState(false);
+  const tips = [...given, ...added];
   const [votes, setVotes] = useState<Record<string, Vote>>(vote?.votes ?? {});
   // The vote just cast, so only its answer slides in: one from an earlier visit shows still.
   const [justVoted, setJustVoted] = useState<string | null>(null);
@@ -39,7 +44,21 @@ export function AiNotes({ title, notes: tips, vote }: { title: string; notes: (P
     const next = votes[tip] === value ? 0 : value;
     setVotes(({ [tip]: _, ...rest }) => (next === 0 ? rest : { ...rest, [tip]: next }));
     setJustVoted(next === 0 ? null : tip);
-    startTransition(() => voteTip({ scope: vote.scope, entity: vote.entity, kind, tip, vote: next }));
+    const input = { scope: vote.scope, entity: vote.entity, kind, tip, vote: next };
+    if (next !== -1 || !vote.swap) {
+      startTransition(() => void voteTip(input));
+      return;
+    }
+    // Not useful: ask for another tip in its place, and turn to it when it comes.
+    setSwapping(true);
+    startTransition(async () => {
+      const fresh = await voteTip(input, vote.swap);
+      setSwapping(false);
+      if (fresh && !tips.some((t) => t.text === fresh.text)) {
+        setAdded((a) => [...a, fresh]);
+        setAt(tips.length);
+      }
+    });
   };
   const thumb = (value: Vote, label: string, Icon: typeof ThumbsUp) => (
     <button
@@ -92,12 +111,12 @@ export function AiNotes({ title, notes: tips, vote }: { title: string; notes: (P
   return (
     <div>
       {box}
-      <div className="-mr-1 flex h-8 items-center justify-end">
+      <div className={cn("flex h-8 items-center justify-end", !votes[tip] && "-mr-1")}>
         {/* Before a vote: the question and both thumbs. After: what was chosen, and Undo to take it back. */}
         {kind &&
           (votes[tip] ? (
             <span className={cn("flex items-center gap-2 text-xs text-muted-foreground", justVoted === tip && "motion-safe:animate-vote-in")} aria-live="polite">
-              {votes[tip] === 1 ? "You found this useful" : "You didn't find this useful"}
+              {votes[tip] === 1 ? "You found this useful" : swapping ? "Finding you another tip…" : "You didn't find this useful"}
               <button type="button" onClick={() => cast(votes[tip])} className="tap-target rounded-sm underline decoration-dotted underline-offset-4 transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
                 Undo
               </button>

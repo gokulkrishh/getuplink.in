@@ -77,3 +77,30 @@ export function overallHeadline(current: (Status | null)[]): { status: Status; t
   const status = known.reduce(worstStatus);
   return { status, text: HEADLINES[status] };
 }
+
+// A run of failed checks on one part, close enough together to be one issue, with the worst status and what
+// the checks found. Checks come every few minutes while anyone looks and at least every few hours from the
+// cron, so failures under INCIDENT_GAP_MS apart are one issue.
+export type Incident = { component: string; status: Status; from: string; to: string; problems: string[] };
+export type FailedRow = { component: string; status: string; problems: string[] | null; checked_at: string };
+const INCIDENT_GAP_MS = 3 * 3_600_000;
+
+// Newest first.
+export function incidents(rows: FailedRow[]): Incident[] {
+  const open = new Map<string, Incident>();
+  const out: Incident[] = [];
+  for (const r of [...rows].sort((a, b) => Date.parse(a.checked_at) - Date.parse(b.checked_at))) {
+    if (!isStatus(r.status) || r.status === "operational") continue;
+    const last = open.get(r.component);
+    if (last && Date.parse(r.checked_at) - Date.parse(last.to) <= INCIDENT_GAP_MS) {
+      last.to = r.checked_at;
+      last.status = worstStatus(last.status, r.status);
+      for (const p of r.problems ?? []) if (!last.problems.includes(p)) last.problems.push(p);
+    } else {
+      const next = { component: r.component, status: r.status, from: r.checked_at, to: r.checked_at, problems: [...(r.problems ?? [])] };
+      open.set(r.component, next);
+      out.push(next);
+    }
+  }
+  return out.reverse();
+}

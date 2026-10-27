@@ -25,7 +25,7 @@ describe("keepDays", () => {
   });
   test("drive fields last the drive window plus a margin", () => {
     expect(withMargin(DRIVE_DAYS)).toBe(120);
-    for (const field of ["Location", "VehicleSpeed", "LongitudinalAcceleration", "PackVoltage", "PackCurrent", "GradeEstimatePercent", "Gear", "RatedRange", "OutsideTemp", "LocatedAtHome"])
+    for (const field of ["Location", "VehicleSpeed", "LongitudinalAcceleration", "PackVoltage", "PackCurrent", "GradeEstimatePercent", "Gear", "RatedRange", "OutsideTemp", "LocatedAtHome", "HvacPower", "HvacACEnabled", "HvacLeftTemperatureRequest", "HvacRightTemperatureRequest", "InsideTemp"])
       expect(keepDays(field)).toBe(120);
   });
   test("every field the online strips read is kept past their 15 days", () => {
@@ -39,13 +39,13 @@ describe("keepDays", () => {
     expect(READS.some((r) => r.fields.includes("NominalFullPackEnergyKwh"))).toBe(true);
     expect(keepDays("NominalFullPackEnergyKwh")).toBeNull();
   });
-  test("the week of battery temperatures and cell voltages is kept two weeks", () => {
-    for (const field of ["InsideTemp", "BrickVoltageMax", "BrickVoltageMin"]) expect(keepDays(field)).toBe(14);
+  test("the week of cell voltages is kept two weeks", () => {
+    for (const field of ["BrickVoltageMax", "BrickVoltageMin"]) expect(keepDays(field)).toBe(14);
   });
   test("fields nothing reads, or only reads the latest of, get the default", () => {
     for (const field of ["LateralAcceleration", "PedalPosition", "BrakePedal", "DiTorqueActualR", "GpsHeading", "SomeNewField"]) expect(keepDays(field)).toBe(DEFAULT_KEEP_DAYS);
     // The newest row of each field is always kept (in SQL), so the latest-value readers need nothing more.
-    for (const field of CAR_NOW_FIELDS.filter((f) => !["InsideTemp", "OutsideTemp", ...TYRE_SEEN_FIELDS].includes(f))) expect(keepDays(field)).toBe(DEFAULT_KEEP_DAYS);
+    for (const field of CAR_NOW_FIELDS.filter((f) => !["InsideTemp", "OutsideTemp", "HvacPower", "HvacACEnabled", "HvacLeftTemperatureRequest", "HvacRightTemperatureRequest", ...TYRE_SEEN_FIELDS].includes(f))) expect(keepDays(field)).toBe(DEFAULT_KEEP_DAYS);
     for (const field of UPDATE_FIELDS) expect(keepDays(field) === null || keepDays(field)! >= DEFAULT_KEEP_DAYS).toBe(true);
   });
 });

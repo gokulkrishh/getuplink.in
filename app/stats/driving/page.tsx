@@ -9,7 +9,6 @@ import { Distance, DriveStatsSection } from "@/components/stats/driving-sections
 import { customScope, type HomePeriod, PERIODS } from "@/components/stats/periods";
 import { driveStats, withDriveEfficiency } from "@/lib/drive-stats";
 import { type Day, stripsBetween } from "@/lib/day-timeline";
-import { periodPhrase } from "@/components/stats/chart-caption";
 import { DayTimeline } from "@/components/stats/day-timeline";
 import { EfficiencyBands, Places, SpeedBands } from "@/components/stats/driving-extras";
 import { type DrivingExtras, INSIGHT_DAYS, loadDrivingExtrasFor } from "@/lib/server/driving-extra";
@@ -32,6 +31,7 @@ import {
   type Span,
   type Timeframe,
 } from "@/lib/periods";
+import { DrivingSkeleton } from "@/components/stats/skeletons";
 import { NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/components/stats/stats-frame";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -144,47 +144,46 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
     <StatsFrame custom={customScope(custom?.range ?? null, now)} periodSwitch={hasDriving}>
       {hasDriving ? (
         <div className="space-y-12">
-          {eachFrame(frames, (f) => {
-            const { frame, driving: figures_ } = fromSince(f, figures.since, now);
-            return <Distance frame={frame} driving={figures_} />;
-          })}
-          {/* Seasons are compared across the year, so no single period changes them; they show on the long spans only (see isLong). */}
-          {eachFrame(frames, (f) => (isLong(f) ? <SeasonEfficiency {...seasons} /> : null))}
-          {eachFrame(frames, ({ key, frame }) => (
-            <DayTimeline
-              days={byFrame[key]?.days ?? []}
-              now={now}
-              period={periodPhrase(frame)}
-              caption={partial(frame.span, stripsFrom) ? `Days cover only the last ${AWAKE_DAYS} days` : undefined}
-            />
-          ))}
-          {eachFrame(frames, (f) => (isLong(f) ? <SpeedBands bins={byFrame[f.key]?.extras.speed ?? []} period={periodPhrase(f.frame)} note={insightsNote(f.key, f.frame.span)} /> : null))}
-          {eachFrame(frames, ({ key, frame }) => (
-            <EfficiencyBands byTemp={byFrame[key]?.extras.byTemp ?? []} bySpeed={byFrame[key]?.extras.bySpeed ?? []} period={periodPhrase(frame)} note={insightsNote(key, frame.span)} />
-          ))}
-          {eachFrame(frames, ({ key, frame }) => (
-            <Places places={byFrame[key]?.extras.places ?? []} visited={byFrame[key]?.extras.visited ?? []} period={periodPhrase(frame)} note={insightsNote(key, frame.span)} />
-          ))}
+          {/* The period's drive figures lead the page, then the distance, then the deeper charts. */}
           {eachFrame(frames, ({ frame }) => {
             const kept = clipSpan(frame.span, tripsFrom, now);
             const inFrame = driving.drives.filter((d) => inSpan(d.start, frame.span));
             return (
               <DriveStatsSection
                 stats={driveStats(inFrame, kept.from, figures.since, kept.to)}
-                title={frame.title}
                 partial={partial(frame.span, tripsFrom)}
               />
             );
           })}
+          {eachFrame(frames, (f) => {
+            const { frame, driving: figures_ } = fromSince(f, figures.since, now);
+            return <Distance frame={frame} driving={figures_} />;
+          })}
+          {eachFrame(frames, ({ key, frame }) => (
+            <EfficiencyBands byTemp={byFrame[key]?.extras.byTemp ?? []} bySpeed={byFrame[key]?.extras.bySpeed ?? []} byAc={byFrame[key]?.extras.byAc ?? []} note={insightsNote(key, frame.span)} />
+          ))}
           {eachFrame(frames, ({ frame }) => {
             const inFrame = driving.drives.filter((d) => inSpan(d.start, frame.span));
             return (
               <div className="space-y-3">
-                {inFrame.length > 0 ? <DriveList drives={inFrame} now={now} routes={routes} /> : <p className="text-sm text-muted-foreground">No trips {frame.words}.</p>}
+                {inFrame.length > 0 ? <DriveList drives={inFrame} now={now} routes={routes} /> : <p className="text-sm text-muted-foreground">No trips.</p>}
                 {partial(frame.span, tripsFrom) && <p className="text-sm text-faint">Trips cover only the last {DRIVE_DAYS} days.</p>}
               </div>
             );
           })}
+          {eachFrame(frames, ({ key, frame }) => (
+            <Places places={byFrame[key]?.extras.places ?? []} visited={byFrame[key]?.extras.visited ?? []} note={insightsNote(key, frame.span)} />
+          ))}
+          {eachFrame(frames, ({ key, frame }) => (
+            <DayTimeline
+              days={byFrame[key]?.days ?? []}
+              now={now}
+              caption={partial(frame.span, stripsFrom) ? `Days cover only the last ${AWAKE_DAYS} days` : undefined}
+            />
+          ))}
+          {eachFrame(frames, (f) => (isLong(f) ? <SpeedBands bins={byFrame[f.key]?.extras.speed ?? []} note={insightsNote(f.key, f.frame.span)} /> : null))}
+          {/* Seasons are compared across the year, so no single period changes them; they show on the long spans only (see isLong). */}
+          {eachFrame(frames, (f) => (isLong(f) ? <SeasonEfficiency {...seasons} /> : null))}
         </div>
       ) : (
         <NotYet title="Not enough driving yet">Distance and energy use show up after a couple of days of driving.</NotYet>
@@ -196,7 +195,7 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
 export default function Page({ searchParams }: PageProps<"/stats/driving">) {
   return (
     <StatsPage view="driving" description="Where your kilometres went, and how efficiently.">
-      <Suspense fallback={<StatsSkeleton />}>
+      <Suspense fallback={<StatsSkeleton><DrivingSkeleton /></StatsSkeleton>}>
         <Driving searchParams={searchParams} />
       </Suspense>
     </StatsPage>

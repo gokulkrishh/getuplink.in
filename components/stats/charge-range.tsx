@@ -18,7 +18,7 @@ export function ChargeRange({ sessions, frame, serialOf }: { sessions: StreamCha
   const latest = [...finished].sort((a, b) => Date.parse(b.started_at) - Date.parse(a.started_at)).slice(0, LISTED);
   const description = "Where charges started and stopped.";
   if (finished.length === 0) {
-    return <ChartCard title="Charge range" description={description} empty={`No finished charges ${frame.words}.`} />;
+    return <ChartCard title="Charge range" description={description} empty={"No finished charges."} />;
   }
   const from = Math.round(median(finished.map((s) => s.start_level!)));
   const to = Math.round(median(finished.map((s) => s.end_level!)));
@@ -33,7 +33,7 @@ export function ChargeRange({ sessions, frame, serialOf }: { sessions: StreamCha
             <Value text={`${from}% to ${to}%`} />
           </p>
           <p className="text-sm text-muted-foreground">
-            Typical start and end, from {finished.length} {finished.length === 1 ? "charge" : "charges"} {frame.words}
+            Typical start and end, from {finished.length} {finished.length === 1 ? "charge" : "charges"}
           </p>
         </div>
       }

@@ -22,10 +22,9 @@ const KINDS: { kind: DayKind; label: string; className: string }[] = [
 const style = Object.fromEntries(KINDS.map((k) => [k.kind, k])) as Record<DayKind, (typeof KINDS)[number]>;
 
 // The last days as strips, after TeslaMate's timeline: when the car was driving, charging, parked or
-// seen asleep. Hover, focus or tap a stretch for a tooltip with its times. `period` names the period once,
-// in the top line (see periodPhrase); `caption` is a caveat under the strips ("Days cover only the last 30
-// days").
-export function DayTimeline({ days: all7, now, title = "Your days", period, caption }: { days: Day[]; now: number; title?: string; period?: string; caption?: string }) {
+// seen asleep. Hover, focus or tap a stretch for a tooltip with its times. The page's period switch names the
+// period; `caption` is a caveat under the strips ("Days cover only the last 30 days").
+export function DayTimeline({ days: all7, now, title = "Your days", caption }: { days: Day[]; now: number; title?: string; caption?: string }) {
   const list = useRef<HTMLOListElement>(null);
   const [active, setActive] = useActiveMark<string>(list);
   // Days from before tracking began say nothing, so the strips start at the first tracked one.
@@ -39,7 +38,7 @@ export function DayTimeline({ days: all7, now, title = "Your days", period, capt
   return (
     <ChartCard
       title={title}
-      description={`What the car was doing ${days.length === 1 ? "through the day" : "each day"}${period ? `, ${period}` : ""}, India time.`}
+      description={`What the car was doing ${days.length === 1 ? "through the day" : "each day"}, India time.`}
       caption={caption}
     >
       <div className="space-y-4">

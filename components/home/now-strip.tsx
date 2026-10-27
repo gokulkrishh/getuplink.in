@@ -19,15 +19,18 @@ export function NowStrip({ car, odometerKm, parkedNow, now }: { car: HomeCar; od
   const battery = lastOnline?.battery_level != null ? lastOnline : null;
   const version = currentVersion(vehicle.current_version, lastOnline && { version: lastOnline.car_version, at: lastOnline.polled_at });
   return (
-    <section aria-label="Your car now" className="space-y-5">
+    // One row from sm up: who the car is, what it runs and when it last synced on the left; the battery on
+    // the right. On a phone the battery follows under them.
+    <section aria-label="Your car now" className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
       {awake && <AutoRefresh />}
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <div className="min-w-0 space-y-1 sm:flex-1">
         {/* Plain text: the header's Car link already opens the car's page. */}
-        <h2 className="min-w-0 truncate text-sm">
+        <h2 className="truncate text-sm">
           <span className="font-medium text-foreground">{vehicle.display_name || "Tesla"}</span>
           {carLabel && <span className="text-muted-foreground"> · {carLabel}</span>}
         </h2>
-        <p className="shrink-0 text-sm text-faint tabular-nums">
+        <UpdateBanner snapshot={lastOnline} installed={vehicle.current_version} version={version} odometerKm={odometerKm} />
+        <p className="text-sm text-faint tabular-nums">
           {/* A recent streamed reading means the car is awake now, even between checks. */}
           <CarStatus
             state={latest?.state ?? null}
@@ -35,21 +38,11 @@ export function NowStrip({ car, odometerKm, parkedNow, now }: { car: HomeCar; od
             seenAt={streamAt && (!vehicle.last_seen_at || Date.parse(streamAt) > Date.parse(vehicle.last_seen_at)) ? streamAt : vehicle.last_seen_at}
             checkedAt={latest?.polled_at ?? null}
             now={now}
-            // Leads the line on phones, ends it from sm up.
-            tipClassName="sm:right-0 sm:left-auto"
           />
         </p>
+        {!version && <p className="text-sm text-muted-foreground">Asleep at every check so far. Open the Tesla app to wake the car. This page updates on its own.</p>}
       </div>
-      {/* The software version and odometer, under the car's name: what it runs, then its battery. */}
-      <div className="-mt-3">
-        <UpdateBanner snapshot={lastOnline} installed={vehicle.current_version} version={version} odometerKm={odometerKm} />
-      </div>
-      {battery && <BatteryGauge snapshot={battery} parked={parkedNow} />}
-      {!version && (
-        <p className="text-sm text-muted-foreground">
-          Asleep at every check so far. Open the Tesla app to wake the car. This page updates on its own.
-        </p>
-      )}
+      {battery && <BatteryGauge snapshot={battery} parked={parkedNow} align="end" />}
     </section>
   );
 }

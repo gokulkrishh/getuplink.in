@@ -113,17 +113,29 @@ export function PeriodPicker() {
 
 const EARLIEST = "2012-01-01";
 
-// Two date inputs boxed like the switch above them. A range is picked once both days are dates and the
-// first is not after the second; the browser's own picker opens on tap, in the page's colour scheme.
+// Why a range can't be picked, in words, or null when it can. A typed date can fall outside what the
+// browser's picker offers, so the check doesn't trust min and max.
+export function rangeProblem({ from, to }: DateRange, today: string): string | null {
+  if (isoDay(from) === null || isoDay(to) === null) return "Enter both dates.";
+  if (from < EARLIEST || to < EARLIEST) return "Pick a date from 2012 on.";
+  if (from > today || to > today) return "Pick dates up to today.";
+  if (from > to) return "Pick a start date on or before the end date.";
+  return null;
+}
+
+// Two date inputs boxed like the switch above them. A range is picked once it passes rangeProblem; until
+// then the boxes are marked and a line says what to fix. The browser's own picker opens on tap, in the
+// page's colour scheme.
 function RangePicker({ range, today, pending, onPick }: { range: DateRange; today: string; pending: boolean; onPick: (range: DateRange) => void }) {
   const [draft, setDraft] = useState(range);
+  const problem = rangeProblem(draft, today);
   const change = (which: keyof DateRange, value: string) => {
     const next = { ...draft, [which]: value };
     setDraft(next);
-    if (isoDay(next.from) !== null && isoDay(next.to) !== null && next.from <= next.to) onPick(next);
+    if (rangeProblem(next, today) === null) onPick(next);
   };
   const field = (which: keyof DateRange, label: string, min: string, max: string) => (
-    <label className={cn("inline-flex h-7 items-center border text-[0.8rem] max-sm:h-9 focus-within:outline-2 focus-within:-outline-offset-2", pending && "bg-muted motion-safe:animate-pulse")}>
+    <label className={cn("inline-flex h-7 items-center border text-[0.8rem] max-sm:h-9 focus-within:outline-2 focus-within:-outline-offset-2", problem && "border-destructive", pending && "bg-muted motion-safe:animate-pulse")}>
       <span className="pl-2.5 text-muted-foreground max-sm:pl-3">{label}</span>
       <input
         type="date"
@@ -131,6 +143,8 @@ function RangePicker({ range, today, pending, onPick }: { range: DateRange; toda
         min={min}
         max={max}
         required
+        aria-invalid={problem !== null}
+        aria-describedby={problem ? "range-problem" : undefined}
         onChange={(e) => change(which, e.target.value)}
         className="h-full bg-transparent px-2 font-mono tabular-nums outline-none max-sm:px-3"
       />
@@ -144,6 +158,11 @@ function RangePicker({ range, today, pending, onPick }: { range: DateRange; toda
       <span role="status" className="sr-only">
         {pending ? "Loading the range…" : ""}
       </span>
+      {problem && (
+        <p id="range-problem" className="w-full text-xs text-destructive">
+          {problem}
+        </p>
+      )}
     </div>
   );
 }

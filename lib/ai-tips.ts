@@ -66,6 +66,17 @@ export type TipSurface = {
   noPeriod?: boolean;
 };
 
+// The owner's car, for the prompt: its name as the app shows it ("2025 Model Y Long Range, all-wheel drive")
+// and whether its battery is LFP, which Tesla wants charged differently. Null when not known.
+export type TipCar = { name: string; lfp: boolean } | null;
+
+// What Tesla suggests for charging this car, by battery chemistry.
+function batteryRule(car: TipCar): string {
+  return car?.lfp
+    ? "Its battery is LFP: Tesla suggests charging it to 100% at least once a week, and keeping it at 100% day to day is fine."
+    : "Tesla suggests a daily charge limit of 90% or less, and 100% only just before a long trip. Never suggest keeping the battery full, parking with a full charge or charging to 100% for everyday use.";
+}
+
 export type TipScope = "week" | "drive_tips" | "trip_tips" | "charging" | "charge" | "battery";
 
 // One tip as shown, with the kind of finding it came from, so the owner's votes count against that kind.
@@ -96,11 +107,14 @@ export function topFindings(findings: Finding[]): Finding[] {
 
 // What the model sees for each finding: its kind, its figures and its hint. Never the score or the demo line.
 export function modelFindings(sent: Finding[]) {
-  return sent.map((f) => ({ kind: f.kind, ...f.facts, ...(f.hint ? { hint: f.hint } : {}) }));
+  // Without a hint, the finding says so outright: the model otherwise invents advice to round a tip off.
+  return sent.map((f) => ({ kind: f.kind, ...f.facts, ...(f.hint ? { hint: f.hint } : { advice: "none: one sentence with the figures only" }) }));
 }
 
-export function systemPrompt(surface: TipSurface): string {
-  return `You write tips for a Tesla owner in Uplink, an app for owners in India. ${surface.context}
+export function systemPrompt(surface: TipSurface, car: TipCar = null): string {
+  return `You write tips for the owner of a Tesla${car ? ` ${car.name}` : ""}, a battery electric car, in Uplink, an app for owners in India. ${surface.context}
+
+Write for this car as Tesla describes it. It is electric, not petrol: no fuel tank, no idling, no engine to warm up. ${batteryRule(car)}
 
 You get findings as JSON, the most useful first. Each has a "kind", figures from the owner's own data, and sometimes a "hint": the general reason behind it or what helps. Write "tips": up to ${MAX_TIPS} tips, each one or two short sentences, that tell the owner what to do and why, using the figures. One tip per finding, in the order given. Give each tip as {"kind": the kind of the finding it comes from, "text": the tip}. Fewer good tips beat weak ones. With nothing worth saying, return an empty list.
 
@@ -110,7 +124,7 @@ Rules:
 - Copy every number exactly as it is written, with its unit. Never work out a new number: no sums, differences, averages, ratios or rounding. Write every count in digits: "2 of your 4 trips", never "two of your four".
 - Write a span like "58% to 51%" or "30 to 45 km/h", never with arrows or dashes.
 - Keep each tip to 20 words or fewer: one short sentence with the figures, then at most one short sentence on what to do. Use only the part of a hint that fits.
-- Any advice comes from a finding or its hint. Don't add advice of your own.
+- Any advice comes from a finding's hint, and only that hint's advice. A finding marked "advice": "none" gets exactly one sentence with its figures and nothing after it: no advice, no reason, no comment.
 - Never guess why something happened, and never name a cause the finding doesn't hold (such as Sentry Mode, apps, air conditioning or speed). Never say how much a change would save beyond the figures given.
 - Name a charging station or its town only as it is written. Don't name any other place, a person or the car.
 - Nothing about the battery's health or wear, safety, tyre wear or the driver's skill.`;
@@ -143,12 +157,12 @@ export function votesNote(votes: PastVotes | null): string | null {
 
 // The request body for OpenRouter's chat completions: thinking off, strict JSON, and only providers that
 // don't keep or train on the data.
-export function tipsRequest(surface: TipSurface, sent: Finding[], votes: PastVotes | null = null) {
+export function tipsRequest(surface: TipSurface, sent: Finding[], votes: PastVotes | null = null, car: TipCar = null) {
   const note = votesNote(votes);
   return {
     model: WORDING_MODEL,
     messages: [
-      { role: "system", content: systemPrompt(surface) },
+      { role: "system", content: systemPrompt(surface, car) },
       ...(note ? [{ role: "system", content: note }] : []),
       { role: "user", content: JSON.stringify(modelFindings(sent)) },
     ],
@@ -170,6 +184,10 @@ const TOPIC = /\b(health|healthy|degrad\w*|wear\w*|worn|tread|grip|safe|safely|s
 const TYRES = /\b(tyres?|tires?)\b/i;
 // Findings that may name the tyres, for a rotation that's due.
 const TYRE_KINDS = new Set(["tyreRotation"]);
+// Advice wrong for an electric car's battery, whatever the model was told.
+const BAD_EV_ADVICE = /\b(park(ed|ing)? (it )?with a full|idl(e|ing)\b|warm(ing)? up the engine)/i;
+// Charging to or keeping 100%, which Tesla suggests only for an LFP battery (see batteryRule).
+const FULL_ADVICE = /\b(leave (it )?(full|at 100)|keep(ing)? (it |the battery )?(at )?(full|100)|charg(e|ing) (it )?to 100|top(ping)? (it )?up to 100)/i;
 
 const sentences = (text: string) => text.split(/(?<=[.?])\s+/).filter((s) => s.trim() !== "");
 
@@ -201,6 +219,7 @@ export function tipProblem(text: string, sent: Finding[], known = knownNumbers(s
   if (text.length > MAX_CHARS || text.split(/\s+/).length > 32) return "long";
   if (RATIO_WORDS.test(text) || NUMBER_WORDS.test(text)) return "number";
   if (TOPIC.test(text)) return "topic";
+  if (BAD_EV_ADVICE.test(text)) return "advice";
   if (TYRES.test(text) && !sent.some((f) => TYRE_KINDS.has(f.kind))) return "topic";
   for (const n of numbersIn(text)) if (!known.has(n)) return "number";
   return null;
@@ -210,7 +229,7 @@ const reply = z.object({ tips: z.array(z.object({ kind: z.string().trim(), text:
 
 // The tips from a model reply (its JSON text, or the parsed object) that pass, at most MAX_TIPS. A tip must
 // name the kind of a finding sent, at most one tip a kind.
-export function checkTips(raw: unknown, sent: Finding[], surface?: TipSurface): Tip[] {
+export function checkTips(raw: unknown, sent: Finding[], surface?: TipSurface, car: TipCar = null): Tip[] {
   let value = raw;
   if (typeof raw === "string") {
     try {
@@ -228,6 +247,10 @@ export function checkTips(raw: unknown, sent: Finding[], surface?: TipSurface): 
   for (const t of parsed.data.tips) {
     const finding = byKind.get(t.kind);
     if (!finding || used.has(t.kind) || tipProblem(t.text, sent, known) !== null || unshownCause(t.text, finding) !== null) continue;
+    // A finding without a hint gets its figures only, in one sentence: any second sentence is advice of the
+    // model's own.
+    if (!finding.hint && sentences(t.text).length > 1) continue;
+    if (!car?.lfp && FULL_ADVICE.test(t.text)) continue;
     if (surface?.noPeriod && PERIOD.test(t.text)) continue;
     used.add(t.kind);
     out.push(t);
@@ -246,12 +269,12 @@ export function demoTips(sent: Finding[]): Tip[] {
 
 // The findings sent, with the surface's version and the model, as one stable string (keys sorted): what a
 // stored row's facts_hash is taken over, so new figures, a new prompt or a new model writes the tips again.
-export function tipsKey(surface: TipSurface, sent: Finding[]): string {
+export function tipsKey(surface: TipSurface, sent: Finding[], car: TipCar = null): string {
   const sorted = (v: unknown): unknown =>
     Array.isArray(v) ? v.map(sorted) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b)).map(([k, x]) => [k, sorted(x)])) : v;
   // By kind, so a vote that only reorders the same findings keeps the tips voted on.
   const byKind = modelFindings(sent).sort((a, b) => a.kind.localeCompare(b.kind));
-  return JSON.stringify({ scope: surface.scope, v: surface.version, model: WORDING_MODEL, findings: sorted(byKind) });
+  return JSON.stringify({ scope: surface.scope, v: surface.version, model: WORDING_MODEL, car, findings: sorted(byKind) });
 }
 
 // "1 charge", "3 charges".

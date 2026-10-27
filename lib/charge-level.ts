@@ -61,7 +61,7 @@ export function weeklyFullRange(range: Reading[], level: Reading[]): WeeklyRange
 // other and no charge ran. Then the chart gives way to the sentence, "Stayed at 61% today." or "Went from
 // 61% to 59% in the last 7 days, with no charging." Null when the line is worth drawing.
 export const FLAT_PERCENT = 2;
-export function flatLevelNote(points: LevelPoint[], charges: number, words: string): string | null {
+export function flatLevelNote(points: LevelPoint[], charges: number): string | null {
   if (points.length < 2 || charges > 0) return null;
   const levels = points.map((p) => p.level);
   const low = Math.min(...levels);
@@ -69,5 +69,5 @@ export function flatLevelNote(points: LevelPoint[], charges: number, words: stri
   if (high - low > FLAT_PERCENT) return null;
   const first = points[0].level;
   const last = points[points.length - 1].level;
-  return first === last ? `Stayed at ${formatPercent(first)} ${words}.` : `Went from ${formatLevels(first, last)} ${words}, with no charging.`;
+  return first === last ? `Stayed at ${formatPercent(first)}.` : `Went from ${formatLevels(first, last)}, with no charging.`;
 }

@@ -39,7 +39,9 @@ import { DRIVE_DAYS } from "@/lib/drives";
 //                                                       DetailedChargeState
 //   loadDriveDetail (drive-detail.ts)                   BatteryLevel, RatedRange, VehicleSpeed,           drives in DRIVE_DAYS
 //                                                       OutsideTemp, Location, LongitudinalAcceleration,
-//                                                       PackVoltage, PackCurrent, GradeEstimatePercent
+//                                                       PackVoltage, PackCurrent, GradeEstimatePercent,
+//                                                       HvacPower, HvacACEnabled, InsideTemp,
+//                                                       HvacLeft/RightTemperatureRequest
 //   loadDay (day.ts)                                    Location                                          days in DRIVE_DAYS
 //   loadParkedPlaces (parked-places.ts)                 Location                                          ±10 min of each stretch's
 //                                                                                                         start, 30 d of stretches
@@ -75,12 +77,12 @@ export const READS: { by: string; fields: readonly string[]; window: Window }[] 
   { by: "loadWindowStats", fields: ["Gear", "Odometer", "BatteryLevel", "EnergyRemaining", "LifetimeEnergyUsed", "RatedRange", "DetailedChargeState"], window: DRIVE_DAYS },
   {
     by: "loadDriveDetail",
-    fields: ["BatteryLevel", "RatedRange", "VehicleSpeed", "OutsideTemp", "Location", "LongitudinalAcceleration", "PackVoltage", "PackCurrent", "GradeEstimatePercent"],
+    fields: ["BatteryLevel", "RatedRange", "VehicleSpeed", "OutsideTemp", "Location", "LongitudinalAcceleration", "PackVoltage", "PackCurrent", "GradeEstimatePercent", "HvacPower", "HvacACEnabled", "HvacLeftTemperatureRequest", "HvacRightTemperatureRequest", "InsideTemp"],
     window: DRIVE_DAYS,
   },
   { by: "loadDay", fields: ["Location"], window: DRIVE_DAYS },
   { by: "loadParkedPlaces", fields: ["Location"], window: 30 },
-  { by: "loadDrivingExtras", fields: ["VehicleSpeed", "OutsideTemp", "Location", "LocatedAtHome", "LocatedAtWork", "LocatedAtFavorite"], window: DRIVE_DAYS },
+  { by: "loadDrivingExtras", fields: ["VehicleSpeed", "OutsideTemp", "Location", "LocatedAtHome", "LocatedAtWork", "LocatedAtFavorite", "HvacPower", "HvacACEnabled", "HvacLeftTemperatureRequest", "HvacRightTemperatureRequest"], window: DRIVE_DAYS },
   { by: "chargeLevel", fields: ["BatteryLevel", "DetailedChargeState"], window: 30 },
   { by: "loadPresence", fields: PRESENCE_FIELDS, window: 15 },
   { by: "loadTyreArrivals", fields: TYRE_SEEN_FIELDS, window: 14 },

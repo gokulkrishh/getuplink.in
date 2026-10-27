@@ -10,7 +10,7 @@ import { median, num } from "@/lib/telemetry-derive";
 
 export const CHARGING_TIPS: TipSurface = {
   scope: "charging",
-  version: 2,
+  version: 4,
   noPeriod: true,
   context:
     "The tips sit at the top of the Charging page, over everything the owner has charged so far. Don't name a period such as \"this week\": the page's period switch shows that.",
@@ -18,7 +18,7 @@ export const CHARGING_TIPS: TipSurface = {
 
 export const CHARGE_TIPS: TipSurface = {
   scope: "charge",
-  version: 2,
+  version: 4,
   context: "The tips sit on one charge's page, under its name, the day and the times. Call it \"this charge\".",
 };
 

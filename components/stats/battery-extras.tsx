@@ -1,7 +1,6 @@
 "use client";
 
 import { ChartCard } from "@/components/chart-card";
-import { periodPhrase } from "@/components/stats/chart-caption";
 import { Figures } from "@/components/stats/figures";
 import { LineChart } from "@/components/stats/line-chart";
 import { formatCelsius, formatClock, formatKm, formatKwh, formatNumber, formatShortDate } from "@/lib/format";
@@ -42,7 +41,7 @@ export function Temperatures({ temps, frame }: { temps: BatteryExtras["temps"]; 
   return (
     <ChartCard
       title="Temperatures"
-      description={drawn ? `Battery, cabin and outside temperatures, ${periodPhrase(frame)}.` : "Battery, cabin and outside temperatures."}
+      description="Battery, cabin and outside temperatures."
       summary={
         drawn && (
           <div className="space-y-2">
@@ -58,7 +57,7 @@ export function Temperatures({ temps, frame }: { temps: BatteryExtras["temps"]; 
         )
       }
       caption={cut}
-      empty={!drawn && `No temperature data ${frame.words}.`}
+      empty={!drawn && "No temperature data."}
     >
       <LineChart
         series={series}
@@ -87,7 +86,7 @@ export function CellBalance({ spread, frame }: { spread: BatteryExtras["cellSpre
   return (
     <ChartCard
       title="Cell balance"
-      description={shown.length >= 2 ? `Gap between the highest and lowest cell, ${periodPhrase(frame)}. Lower is better.` : "Gap between the highest and lowest cell. Lower is better."}
+      description="Gap between the highest and lowest cell. Lower is better."
       info="A gap that keeps growing over months is worth a service check."
       summary={
         <Figures
@@ -98,7 +97,7 @@ export function CellBalance({ spread, frame }: { spread: BatteryExtras["cellSpre
         />
       }
       caption={cut}
-      empty={shown.length < 2 && `No cell voltage data ${frame.words}.`}
+      empty={shown.length < 2 && "No cell voltage data."}
     >
       <LineChart
         series={[{ name: "Gap", className: "stroke-chart-accent", points: shown }]}
@@ -122,13 +121,13 @@ export function CapacityByKm({ points, frame }: { points: BatteryExtras["capacit
   return (
     <ChartCard
       title="Capacity by distance"
-      description={shown.length >= 2 ? `Usable capacity each week against the odometer, ${periodPhrase(frame)}.` : "Usable capacity each week, against the odometer."}
+      description="Usable capacity each week, against the odometer."
       caption={backTo(frame.span, points[0].weekStart, "Weekly estimates")}
       empty={
         shown.length < 2 &&
         (shown.length === 1
           ? `Week of ${formatShortDate(shown[0].weekStart)}: ${formatKwh(shown[0].y)} at ${formatKm(shown[0].x)}. A line needs two weeks.`
-          : `No weekly estimate ${frame.words}.`)
+          : "No weekly estimate.")
       }
     >
       <LineChart
@@ -152,13 +151,13 @@ export function TeslaPackByWeek({ pack, frame }: { pack: BatteryExtras["teslaPac
   return (
     <ChartCard
       title="Full pack by week, per Tesla"
-      description={shown.length >= 2 ? `Full-pack energy as the car reports it, ${periodPhrase(frame)}.` : "Full-pack energy, as the car reports it."}
+      description="Full-pack energy, as the car reports it."
       caption={backTo(frame.span, weeks[0].weekStart, "Weekly reports")}
       empty={
         shown.length < 2 &&
         (shown.length === 1
           ? `Week of ${formatShortDate(shown[0].weekStart)}: ${formatKwh(shown[0].kwh)}. A line needs two weeks.`
-          : `No new figure from Tesla ${frame.words}.`)
+          : "No new figure from Tesla.")
       }
     >
       <LineChart

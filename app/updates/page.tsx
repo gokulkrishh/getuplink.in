@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { Loading, Ph, SkBlock, SkHead, SkLine, SkSection, SkShowMore } from "@/components/skeleton";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { SyncStreamVersions } from "@/components/background-sync";
 import { AWAKE_MS, CarStatus } from "@/components/car-status";
@@ -159,24 +160,97 @@ async function Updates({ searchParams }: Pick<PageProps<"/updates">, "searchPara
   );
 }
 
+// Faint blocks in the shape of one car's page, section by section, in the sections' own layout classes. Sized
+// for the usual state: no update on its way (the pending-update block sits between the version and History).
 function UpdatesSkeleton() {
-  const block = "bg-muted motion-safe:animate-pulse";
   return (
-    <div role="status" aria-busy="true" className="space-y-12">
-      <span className="sr-only">Loading…</span>
-      <div className="space-y-3">
-        <div className={`h-4 w-20 ${block}`} />
-        <div className={`h-10 w-56 ${block}`} />
-      </div>
-      <div className="space-y-2">
-        <div className={`h-3 w-14 ${block}`} />
-        <div className={`h-4 w-40 ${block}`} />
-      </div>
-      <div className="space-y-4">
-        <div className={`h-3 w-14 ${block}`} />
-        <div className={`h-20 w-full ${block}`} />
-      </div>
-    </div>
+    <Loading className="space-y-12">
+      <header className="space-y-1" aria-hidden="true">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <p className="text-sm"><Ph>Software</Ph></p>
+          <p className="text-sm"><Ph>Synced 2 minutes ago</Ph></p>
+        </div>
+        <p className="font-mono text-4xl font-medium tracking-tight"><Ph>2026.38.5.1</Ph></p>
+        <div className="pt-2">
+          <p className="text-sm leading-[1.125rem]"><Ph>Release notes</Ph></p>
+        </div>
+      </header>
+      <section className="space-y-4" aria-hidden="true">
+        <div className="space-y-1">
+          <p className={heading}><Ph>History</Ph></p>
+          <p className="text-sm"><Ph>9 versions</Ph></p>
+        </div>
+        <SkSection>
+          <SkHead title="Software version" description="Each step up is a new version arriving." level="h3" />
+          <SkBlock className="h-[104px] max-sm:h-[124px]" />
+        </SkSection>
+        <div className="overflow-hidden pt-6 max-sm:-mx-1 max-sm:px-1">
+          <div className="max-sm:min-w-xl">
+          <div className="history-cols pb-2 text-xs">
+            <p className="pl-5"><Ph>Versions</Ph></p>
+            {["Received", "Installed", "Odometer"].map((h) => (
+              <span key={h} className="text-right"><Ph>{h}</Ph></span>
+            ))}
+          </div>
+          <ul className="text-sm">
+            {[0, 1, 2].map((k) => (
+              <li key={k} className="history-cols border-t py-[11px] max-sm:py-[13.5px]">
+                <span className="pl-5 font-mono"><Ph>2026.38.5.1</Ph></span>
+                {["16 Oct", "18 Oct", "8,584.0km"].map((v) => (
+                  <span key={v} className="text-right whitespace-nowrap"><Ph>{v}</Ph></span>
+                ))}
+                <span className="col-span-full -mt-1 pb-0.5 pl-5 text-xs"><Ph>Downloaded in 45 min · Installed in 32 min</Ph></span>
+              </li>
+            ))}
+          </ul>
+          <SkShowMore />
+          </div>
+        </div>
+      </section>
+      <section className="space-y-4" aria-hidden="true">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <p className={heading}><Ph>Stats</Ph></p>
+          <div className="inline-flex max-w-full border">
+            {["Month", "Year", "All", "Custom"].map((label) => (
+              <span key={label} className="tap-target inline-flex h-7 items-center justify-center px-2.5 text-[0.8rem] max-sm:h-9 max-sm:px-2"><Ph>{label}</Ph></span>
+            ))}
+          </div>
+        </div>
+        <dl className="divide-y border-t">
+          {["Average wait from offered to installed", "Updates this month", "Average time between updates", "Longest on one version"].map((label) => (
+            <div key={label} className="flex items-baseline justify-between gap-4 py-3 text-sm">
+              <dt><Ph>{label}</Ph></dt>
+              <dd className="font-mono font-medium"><Ph>2 days</Ph></dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+      <SkSection>
+        <SkHead title="Awake and asleep" description="When the car was awake each day. Updates download only then." />
+        <SkLine>Awake on 14 of the last 14 days</SkLine>
+        <div className="space-y-3" aria-hidden="true">
+          <div className="space-y-3 bg-muted px-3 pt-4 pb-3 motion-safe:animate-pulse dark:bg-card">
+            <ol className="space-y-1.5">
+              {Array.from({ length: 14 }, (_, k) => (
+                <li key={k} className="flex items-center gap-3">
+                  <span className="w-16 shrink-0 text-xs"><Ph>Yesterday</Ph></span>
+                  <div className="h-4 flex-1 bg-background/60" />
+                </li>
+              ))}
+            </ol>
+            <div className="h-4" />
+          </div>
+          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+            {["Online", "Asleep", "Offline", "No data"].map((label) => (
+              <li key={label} className="inline-flex items-center gap-1.5">
+                <span className="size-2 bg-muted" />
+                <Ph>{label}</Ph>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </SkSection>
+    </Loading>
   );
 }
 

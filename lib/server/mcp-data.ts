@@ -226,6 +226,7 @@ export async function drivingInsights(owner: Owner) {
     wh_per_km_by_season: seasons.seasons.map((s) => ({ season: seasonName(s.season), months: seasonMonths(s), wh_per_km: full(s.whPerKm), kwh: full(s.kwh) })),
     wh_per_km_by_season_note:
       seasons.drivesFrom === null ? null : `Months before ${istIso(monthStart(seasons.drivesFrom)).slice(0, 7)} also count energy used while parked, so older seasons can read higher.`,
+    km_per_kwh_by_ac_setting: x.byAc.map((b) => ({ band: b.label, drives: b.drives, km: full(b.km), km_per_kwh: full(b.kmPerKwh) })),
     km_per_kwh_by_speed: x.bySpeed.map((b) => ({ band: b.label, drives: b.drives, km: full(b.km), km_per_kwh: full(b.kmPerKwh) })),
     places: x.places.slice(0, 15).map((p) => ({
       // The best name known (the owner's, a station's, the area's), and the car's own flag beside it.

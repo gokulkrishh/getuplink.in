@@ -36,6 +36,36 @@ describe("efficiencyBands", () => {
   });
 });
 
+describe("efficiencyBands by AC setting", () => {
+  const r = (min: number, value: unknown) => ({ at: new Date(t0 + min * MIN).toISOString(), value });
+  const On = "HvacPowerStateOn";
+  const climate = {
+    // Off from before the first drive; on from minute 100 to 140 (the second and third drives); off again, so the last drive is off too.
+    power: [r(-10, "HvacPowerStateOff"), r(100, On), r(140, "HvacPowerStateOff")],
+    ac: [],
+    // 22 °C, nudged to 24 °C halfway through the third drive.
+    left: [r(-10, 22), r(130, 24)],
+    right: [],
+    inside: [],
+    outside: [],
+  };
+  const drives = [drive(0, 60, 40, 8), drive(105, 115, 4, 1), drive(120, 140, 8, 2), drive(300, 310, 2, 0.4)];
+
+  test("groups by the set temperature a drive mostly ran at; AC off is its own row; a drive with no climate readings is left out", () => {
+    const { byAc } = efficiencyBands(drives, [], climate);
+    expect(byAc.map((b) => [b.label, b.drives, b.kmPerKwh])).toEqual([
+      ["AC off", 2, 5],
+      ["21 to 23 °C", 1, 4],
+      ["23 to 25 °C", 1, 4],
+    ]);
+  });
+
+  test("with no climate readings there is no table", () => {
+    expect(efficiencyBands(drives, []).byAc).toEqual([]);
+    expect(efficiencyBands(drives, [], { power: [], ac: [], left: [], right: [], inside: [], outside: [] }).byAc).toEqual([]);
+  });
+});
+
 describe("places", () => {
   test("joins parking spots within 150 m, with visits, time parked and the car's Home flag", () => {
     const drives = [drive(0, 10, 2, 0.4), drive(70, 80, 2, 0.4), drive(200, 210, 2, 0.4)];

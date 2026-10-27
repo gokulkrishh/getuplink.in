@@ -65,3 +65,11 @@ export function shortReason(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
   return msg.replace(/\s+/g, " ").slice(0, 80);
 }
+
+// The kinds of the errors Tesla lists that came after the newest reading: an error the stream has since
+// recovered from (readings arrived after it) is history, not a problem now. Without a reading, all count.
+export function currentErrors(errors: { error_name?: string; created_at?: string }[] | undefined, lastReading: string | null): string[] {
+  const since = lastReading ? Date.parse(lastReading) : -Infinity;
+  const live = (errors ?? []).filter((e) => !e.created_at || !(Date.parse(e.created_at) <= since));
+  return [...new Set(live.map((e) => e.error_name || "unknown"))];
+}

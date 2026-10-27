@@ -19,11 +19,12 @@ import { budgetState, type BudgetState } from "@/lib/server/usage";
 import { checkCadence, nextReset } from "@/lib/tesla-billing";
 import { DeleteAccount, DeleteMyData, DisconnectTesla, SignOutEverywhere } from "./confirm-actions";
 import { BotTemplate, McpConnector } from "./integrations";
+import { Loading, Ph } from "@/components/skeleton";
 import { Row } from "./row";
 
 export const metadata: Metadata = { title: "Settings" };
 
-function Group({ title, children }: { title: string; children: React.ReactNode }) {
+function Group({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="mt-10 first:mt-0">
       <h2 className="mb-2 text-lg font-medium tracking-heading">{title}</h2>
@@ -77,9 +78,9 @@ async function Settings() {
   return (
     <>
       <Group title="General">
-        <Row title="Theme" description="Saved in this browser." control={<ThemePicker />} />
+        <Row title={<Ph>Theme</Ph>} description="Saved in this browser." control={<ThemePicker />} />
         <Row
-          title="Live data"
+          title={<Ph>Live data</Ph>}
           description={
             <>
               <p>Your car sends data while it&apos;s awake. Uplink never wakes it.</p>
@@ -102,10 +103,10 @@ async function Settings() {
         {account.connected ? (
           <DisconnectTesla description={connectedDescription} />
         ) : (
-          <Row title="Tesla account" description="Not connected" />
+          <Row title={<Ph>Tesla account</Ph>} description="Not connected" />
         )}
         <Row
-          title="Sign out everywhere"
+          title={<Ph>Sign out everywhere</Ph>}
           description="Signs out every device, including this one."
           control={
             <SignOutEverywhere />
@@ -121,12 +122,92 @@ async function Settings() {
   );
 }
 
+// Faint blocks in the shape of the groups and their rows, built from the same Group and Row. The two
+// integrations are a row each with a block under it for what opens there (the connector's steps and token).
+function SettingsSkeleton() {
+  const button = <div className="h-9 w-24 bg-muted motion-safe:animate-pulse max-sm:h-10" aria-hidden="true" />;
+  const text = (words: string) => <Ph>{words}</Ph>;
+  const group = (title: string, ...rows: React.ReactNode[]) => <Group title={<Ph>{title}</Ph>}>{rows}</Group>;
+  return (
+    <Loading>
+        {group(
+          "General",
+          <Row
+            key="theme"
+            title={<Ph>Theme</Ph>}
+            description={text("Saved in this browser.")}
+            control={
+              <div className="inline-flex border text-sm">
+                {["System", "Light", "Dark"].map((label) => (
+                  <span key={label} className="px-3 py-1.5 max-sm:py-2">
+                    <Ph>{label}</Ph>
+                  </span>
+                ))}
+              </div>
+            }
+          />,
+          <Row
+            key="live"
+            title={<Ph>Live data</Ph>}
+            description={
+              <>
+                <p>{text("Your car sends data while it's awake. Uplink never wakes it.")}</p>
+                <p>{text("Full check every 12 hours, last at 4:51 PM IST")}</p>
+              </>
+            }
+            control={<p className="text-sm whitespace-nowrap">{text("Synced 2 minutes ago")}</p>}
+          />,
+          <Row
+            key="home"
+            title={<Ph>Home state</Ph>}
+            description={<p>{text("For the India rollout map. Uplink keeps only the state, never where your car is.")}</p>}
+            control={
+              <p className="text-right text-sm">
+                {text("Karnataka")}
+                <span className="block text-sm">{text("from your car's location")}</span>
+              </p>
+            }
+          />,
+        )}
+        {group(
+          "Integrations",
+          <Row
+            key="mcp"
+            title={<Ph>AI connector</Ph>}
+            description={<p>{text("Lets an AI like Claude, ChatGPT or Grok read your charging and driving, and attach invoices. It can't delete anything or reach your car.")}</p>}
+            control={<p className="text-sm">{text("Not set up")}</p>}
+          >
+            <div className="mt-3 h-[174px] bg-muted motion-safe:animate-pulse max-sm:h-[214px]" />
+          </Row>,
+          <Row
+            key="bot"
+            title={<Ph>Uplink Bot</Ph>}
+            description={<p>{text("An always-on AI bot that finds charging invoices in Gmail, or in chat, and attaches them to your charges.")}</p>}
+            control={button}
+          >
+            <div className="mt-3 h-[106px] bg-muted motion-safe:animate-pulse max-sm:h-[169px]" />
+          </Row>,
+        )}
+        {group(
+          "Account",
+          <Row key="tesla" title={<Ph>Tesla account</Ph>} description={<p>{text("Connected since 4 Jan 2026")}</p>} control={button} />,
+          <Row key="out" title={<Ph>Sign out everywhere</Ph>} description={<p>{text("Signs out every device, including this one.")}</p>} control={button} />,
+        )}
+        {group(
+          "Your data",
+          <Row key="data" title={<Ph>Delete my data</Ph>} description={<p>{text("Deletes everything Uplink holds about your cars and disconnects Tesla.")}</p>} control={button} />,
+          <Row key="acct" title={<Ph>Delete account</Ph>} description={<p>{text("Deletes all your data and your Uplink account.")}</p>} control={button} />,
+        )}
+    </Loading>
+  );
+}
+
 export default function SettingsPage() {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
       <Header current="settings" setup={false} />
       <h1 className="mb-8 text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">Settings</h1>
-      <Suspense fallback={<div role="status" aria-busy="true" className="h-64 bg-muted motion-safe:animate-pulse"><span className="sr-only">Loading…</span></div>}>
+      <Suspense fallback={<SettingsSkeleton />}>
         <Settings />
       </Suspense>
       <footer className="mt-16 flex justify-end gap-4 text-xs text-muted-foreground">
@@ -149,7 +230,7 @@ function HomeState({ home }: { home: OwnHomeState }) {
   const from = home.source === "location" ? "from your car's location" : "from your Supercharger history";
   return (
     <Row
-      title="Home state"
+      title={<Ph>Home state</Ph>}
       description={
         <>
           <p>For the India rollout map. Uplink keeps only the state, never where your car is.</p>

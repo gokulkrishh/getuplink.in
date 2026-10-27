@@ -14,7 +14,7 @@ import { istDay, median } from "@/lib/telemetry-derive";
 
 export const BATTERY_TIPS: TipSurface = {
   scope: "battery",
-  version: 2,
+  version: 4,
   noPeriod: true,
   context:
     "The tips sit at the top of the Battery page, above charts of the battery level and what the car lost while parked. Don't name a period such as \"this week\": the page's period switch shows that.",

@@ -1,6 +1,7 @@
 import { ScrollX } from "@/components/scroll-x";
 import { cn } from "@/lib/utils";
 import { ChartCard } from "@/components/chart-card";
+import { EfficiencyViews } from "@/components/stats/efficiency-views";
 import { TripMap } from "@/components/stats/trip-map";
 import { DECIMALS, formatDuration, formatKm, formatNumber, formatShortDate } from "@/lib/format";
 import type { Band } from "@/lib/driving-insights";
@@ -32,13 +33,12 @@ function PlaceName({ place: p, k }: { place: NamedPlace; k: number }) {
   );
 }
 
-// What each insight covers, named once in its top line after a comma (`period`, see periodPhrase: "this
-// year", "1 Sept to 30 Sept"); `note` is the caveat under it when the period reaches back past the readings
-// kept ("Covers only 27 Sept to 26 Oct").
-type Covers = { period?: string; note?: string };
+// The page's period switch names what each insight covers; `note` is the caveat under it when the period
+// reaches back past the readings kept ("Covers only 27 Sept to 26 Oct").
+type Covers = { note?: string };
 
 // How long you spend at each speed, after TeslaMate's speed histogram.
-export function SpeedBands({ bins, period = "last 30 days", note }: { bins: DrivingExtras["speed"] } & Covers) {
+export function SpeedBands({ bins, note }: { bins: DrivingExtras["speed"] } & Covers) {
   if (bins.length === 0) return null;
   // Each band's share is rounded on its own, so the shown shares can add up to a point off 100%.
   const shares = bins.map((b) => b.share * 100);
@@ -46,7 +46,7 @@ export function SpeedBands({ bins, period = "last 30 days", note }: { bins: Driv
   // Five shares of one whole read best as a list: each band, a bar for its share, and the share. The band
   // you spend most time in is drawn in the accent colour.
   return (
-    <ChartCard title="Time at each speed" description={`Share of driving time at each speed, ${period}.`} caption={note}>
+    <ChartCard title="Time at each speed" description="Share of driving time at each speed." caption={note}>
       <ul className="space-y-2.5 text-sm tabular-nums" aria-label="Share of driving time by speed">
         {bins.map((b, k) => (
           <li key={b.from} className="grid grid-cols-[7.5rem_1fr_3rem] items-center gap-3">
@@ -62,66 +62,29 @@ export function SpeedBands({ bins, period = "last 30 days", note }: { bins: Driv
   );
 }
 
-function BandTable({ title, bands }: { title: string; bands: Band[] }) {
-  if (bands.length === 0) return null;
-  return (
-    <table className="w-full text-sm tabular-nums">
-        <thead>
-          <tr className="border-b text-left text-xs text-faint">
-            <th scope="col" className="w-10 py-2 pr-3 font-normal max-sm:hidden">
-              #
-            </th>
-            <th scope="col" className="py-2 pr-4 font-normal">
-              {title}
-            </th>
-            <th scope="col" className="py-2 pr-4 text-right font-normal">
-              Drives
-            </th>
-            <th scope="col" className="py-2 pr-4 text-right font-normal">
-              Distance
-            </th>
-            <th scope="col" className="py-2 text-right font-normal">
-              km per kWh
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y">
-          {bands.map((b, k) => (
-            <tr key={b.label}>
-              <td className="w-10 py-3 pr-3 font-mono text-xs text-faint max-sm:hidden">{k + 1}</td>
-              <th scope="row" className="py-3 pr-4 text-left font-normal">
-                {b.label}
-              </th>
-              <td className="py-3 pr-4 text-right font-mono">{b.drives}</td>
-              <td className="py-3 pr-4 text-right font-mono"><Measure text={formatKm(b.km)} /></td>
-              <td className="py-3 text-right font-mono">{b.kmPerKwh !== null ? formatNumber(b.kmPerKwh, DECIMALS.kmPerKwh) : "Unknown"}</td>
-            </tr>
-          ))}
-        </tbody>
-    </table>
-  );
-}
-
 // How far a kWh goes in different weather and at different speeds, after TeslaMate's efficiency.
-export function EfficiencyBands({ byTemp, bySpeed, period = "last 30 days", note }: { byTemp: Band[]; bySpeed: Band[] } & Covers) {
-  if (byTemp.length === 0 && bySpeed.length === 0) return null;
+export function EfficiencyBands({ byTemp, bySpeed, byAc = [], note }: { byTemp: Band[]; bySpeed: Band[]; byAc?: Band[] } & Covers) {
+  if (byTemp.length === 0 && bySpeed.length === 0 && byAc.length === 0) return null;
   return (
     <ChartCard
       title="Efficiency"
-      description={`How far each kWh took you, ${period}. Higher is better.`}
+      description="Kilometres per kWh: how far each kWh took you. Higher is better."
       caption={note}
     >
-      <div className="space-y-6">
-        <BandTable title="Outside" bands={byTemp} />
-        <BandTable title="Average speed" bands={bySpeed} />
-      </div>
+      <EfficiencyViews
+        views={[
+          { key: "outside", label: "Outside", bands: byTemp },
+          { key: "speed", label: "Speed", bands: bySpeed },
+          { key: "ac", label: "AC setting", bands: byAc },
+        ]}
+      />
     </ChartCard>
   );
 }
 
 // Where the car parks, after TeslaMate's locations: each spot by its best name (see spotName), with Home,
 // Work and Favourite from the car's own settings beside it, with visits and time parked; then everywhere it went on a map.
-export function Places({ places, visited, period = "last 30 days", note }: { places: NamedPlace[]; visited: DrivingExtras["visited"] } & Covers) {
+export function Places({ places, visited, note }: { places: NamedPlace[]; visited: DrivingExtras["visited"] } & Covers) {
   if (places.length === 0 && visited.length < 2) return null;
   const pins = places.slice(0, 15).map((p, k) => ({
     lat: p.lat,
@@ -135,7 +98,7 @@ export function Places({ places, visited, period = "last 30 days", note }: { pla
     <section className="space-y-6">
       <div className="space-y-2">
         <h2 className="text-lg font-medium tracking-heading">Places</h2>
-        <p className="text-sm text-muted-foreground">Where you went and parked, {period}.</p>
+        <p className="text-sm text-muted-foreground">Where you went and parked.</p>
       </div>
       {(pins.length > 0 || visited.length >= 2) && <TripMap route={visited} pins={pins} label="Everywhere the car went, with where it parked" legend="A place it parked. Bigger pins had more visits." />}
       {places.length > 0 && (

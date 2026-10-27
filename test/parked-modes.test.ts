@@ -40,3 +40,17 @@ describe("a tip names a cause only when its finding holds it", () => {
     expect(tips).toEqual([]);
   });
 });
+
+describe("tips give only advice that fits an electric car, and only from a hint", () => {
+  const plain: Finding = { kind: "parkedLoss", score: 1, facts: { lostPerDayParked: "0.8 kWh" }, say: "" };
+  const hinted: Finding = { ...plain, kind: "highDays", hint: "Tesla suggests a daily limit of 90% or less." };
+
+  test("parking with a full charge is refused", () => {
+    expect(checkTips({ tips: [{ kind: "highDays", text: "Park with a full charge if you can." }] }, [hinted])).toEqual([]);
+  });
+
+  test("a finding without a hint gets its figures only, no advice sentence", () => {
+    expect(checkTips({ tips: [{ kind: "parkedLoss", text: "The car lost 0.8 kWh a day while parked. Avoid long stops." }] }, [plain])).toEqual([]);
+    expect(checkTips({ tips: [{ kind: "parkedLoss", text: "The car lost 0.8 kWh a day while parked." }] }, [plain])).toHaveLength(1);
+  });
+});

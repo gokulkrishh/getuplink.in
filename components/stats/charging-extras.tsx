@@ -37,10 +37,10 @@ export function DcCurves({ curves, frame, note }: { curves: (Curve & { serial?: 
         title="DC charging speed"
         description={
           curves.length > 0
-            ? `Charging power by battery level, from ${curves.length} DC ${curves.length === 1 ? "charge" : "charges"} ${frame.words}. It drops as the battery fills.`
+            ? `Charging power by battery level, from ${curves.length} DC ${curves.length === 1 ? "charge" : "charges"}. It drops as the battery fills.`
             : "Charging power by battery level. It drops as the battery fills."
         }
-        empty={curves.length === 0 ? `No DC charging curves ${frame.words}.` : undefined}
+        empty={curves.length === 0 ? "No DC charging curves." : undefined}
       >
         <DcCurvePlot series={series} band={BAND} label={`Typical DC charging power against battery level, ${frame.title}`} />
       </ChartCard>
@@ -92,12 +92,12 @@ export function ChargingMap({ pins, frame, note }: { pins: MapPin[]; frame: Time
       <div className="space-y-2">
         <h2 className="text-lg font-medium tracking-heading">Charging map</h2>
         {/* With no pins, the line in the map's place names the period alone. */}
-        {pins.length > 0 && <p className="text-sm text-muted-foreground">{frame.title}. Bigger pins added more energy.</p>}
+        {pins.length > 0 && <p className="text-sm text-muted-foreground">Where you charged. Bigger pins added more energy.</p>}
       </div>
       {pins.length > 0 ? (
         <TripMap pins={pins} label={`${pins.length} charges on a map`} legend="A charge. Bigger pins added more energy." />
       ) : (
-        <p className="text-sm text-muted-foreground">No charges with a location {frame.words}.</p>
+        <p className="text-sm text-muted-foreground">No charges with a location.</p>
       )}
       {note && <p className="text-sm text-faint">{note}</p>}
     </section>

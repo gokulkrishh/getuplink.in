@@ -11,6 +11,9 @@ import { placeKey, placeNames } from "./place-names";
 import { loadUserPlaces } from "./user-places";
 import { loadReadingsByField } from "./telemetry-window";
 
+// The AC and set temperature, for the efficiency table by AC setting: read once for every drive in the window.
+const CLIMATE_FIELDS = ["HvacPower", "HvacACEnabled", "HvacLeftTemperatureRequest", "HvacRightTemperatureRequest"];
+
 const DAY = 86_400_000;
 export const INSIGHT_DAYS = 30;
 const ROUTE_STEP_MS = 30_000; // the visited map keeps a point every 30 s, plenty at city zoom
@@ -22,6 +25,7 @@ export type DrivingExtras = {
   speed: { from: number; to: number | null; share: number }[];
   byTemp: Band[];
   bySpeed: Band[];
+  byAc: Band[];
   places: NamedPlace[];
   visited: { lat: number; lng: number; t: number }[];
 };
@@ -48,7 +52,7 @@ export async function loadDrivingExtras(owner: Owner, vin: string | null, allDri
   return extras;
 }
 
-const EMPTY: DrivingExtras = { speed: [], byTemp: [], bySpeed: [], places: [], visited: [] };
+const EMPTY: DrivingExtras = { speed: [], byTemp: [], bySpeed: [], byAc: [], places: [], visited: [] };
 
 // The same insights for each of `windows`, in order, from one read of the readings that spans them all: for
 // a page that draws them for every period. The periods' windows all end now and nest, so the read is the
@@ -59,7 +63,7 @@ export async function loadDrivingExtrasFor(owner: Owner, vin: string | null, all
   const r = await loadReadingsByField(
     owner,
     vin,
-    ["VehicleSpeed", "OutsideTemp", "Location", "LocatedAtHome", "LocatedAtWork", "LocatedAtFavorite"],
+    ["VehicleSpeed", "OutsideTemp", "Location", "LocatedAtHome", "LocatedAtWork", "LocatedAtFavorite", ...CLIMATE_FIELDS],
     new Date(Math.min(...open.map((w) => w.from))).toISOString(),
     new Date(Math.max(...open.map((w) => w.to))).toISOString(),
   );
@@ -73,6 +77,8 @@ export async function loadDrivingExtrasFor(owner: Owner, vin: string | null, all
     work: timed(r.LocatedAtWork),
     favorite: timed(r.LocatedAtFavorite),
   };
+  // Kept whole, not cut to each window: a drive needs the reading in force before it.
+  const climate = { power: r.HvacPower ?? [], ac: r.HvacACEnabled ?? [], left: r.HvacLeftTemperatureRequest ?? [], right: r.HvacRightTemperatureRequest ?? [], inside: [], outside: [] };
   const each = windows.map(({ from, to }) => {
     if (from >= to) return null;
     const within = <T extends { t: number }>(list: T[]) => list.filter((x) => x.t >= from && x.t < to);
@@ -87,13 +93,14 @@ export async function loadDrivingExtrasFor(owner: Owner, vin: string | null, all
   return each.map((w) => {
     if (!w) return EMPTY;
     const { drives, locations, parked, speed, temp } = w;
-    const { byTemp, bySpeed } = efficiencyBands(drives, temp);
+    const { byTemp, bySpeed, byAc } = efficiencyBands(drives, temp, climate);
     const inDrive = (t: number) => drives.some((d) => t >= d.start - 60_000 && t <= d.end + 60_000);
     const visited = locations.filter((p) => inDrive(p.t)).filter((p, k, all) => k === 0 || p.t - all[k - 1].t >= ROUTE_STEP_MS || all[k - 1].t < p.t - 5 * 60_000);
     return {
       speed: speedHistogram(speed, drives),
       byTemp,
       bySpeed,
+      byAc,
       // Google-free (google: null), as the MCP export reads it too; the Driving page adds Google names to
       // the rows it shows (withGoogleNames).
       places: parked.map((p) => ({ ...p, ...spotName(tags, p, { station: stationAt(p.lat, p.lng), place: names.get(placeKey(p)) }) })),

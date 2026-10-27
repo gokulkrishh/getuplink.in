@@ -4,8 +4,8 @@ import { DEMO } from "@/lib/demo";
 import { demoData, demoLastReadingAt } from "./demo";
 import { fleetLastReadingAt, fleetLastSeen, healthCheckCar, pingDatabase, recordHealthChecks } from "./data/system";
 import { NotConnectedError } from "./tesla";
-import { streamState } from "./tesla-stream-state";
-import { daysUntilExpiry, EXPIRY_WARN_DAYS, shortReason, streamFreshness } from "@/lib/stream-health";
+import { streamState, type TelemetryErrors } from "./tesla-stream-state";
+import { currentErrors, daysUntilExpiry, EXPIRY_WARN_DAYS, shortReason, streamFreshness } from "@/lib/stream-health";
 import { worstStatus, type Status } from "@/lib/status";
 
 const RECEIVER_HOST = "telemetry.getuplink.in";
@@ -121,6 +121,7 @@ async function checkStream(now: number): Promise<Stream> {
     }
   };
 
+  let teslaErrors: NonNullable<TelemetryErrors>["fleet_telemetry_errors"] = [];
   const config = async () => {
     try {
       const car = await withTimeout(healthCheckCar(), "Reading the database");
@@ -149,8 +150,7 @@ async function checkStream(now: number): Promise<Stream> {
           flag("degraded", days < 0 ? "Streaming config has expired" : `Streaming config expires in ${days} days`);
         }
       }
-      const names = [...new Set((errs?.fleet_telemetry_errors ?? []).map((e) => e.name || e.error).filter(Boolean))];
-      if (names.length) flag("degraded", `Tesla reports errors: ${names.slice(0, 2).join(", ")}`);
+      teslaErrors = errs?.fleet_telemetry_errors ?? [];
     } catch (err) {
       if (err instanceof NotConnectedError) flag("degraded", "Tesla account disconnected");
       else flag("degraded", `Couldn't check the Tesla config: ${shortReason(err)}`);
@@ -158,6 +158,10 @@ async function checkStream(now: number): Promise<Stream> {
   };
 
   await Promise.all([freshness(), config()]);
+  // Tesla keeps an error in its list long after the stream recovers, so one only counts while no reading
+  // has arrived since it (see currentErrors).
+  const current = currentErrors(teslaErrors, out.reading);
+  if (current.length) flag("degraded", `Tesla reported a stream error (${current.slice(0, 2).join(", ")}) and no data has arrived since`);
   return out;
 }
 
@@ -201,7 +205,7 @@ export async function recordResults(checks: HealthChecks): Promise<void> {
   const cutoff = new Date(checks.now - RETENTION_DAYS * 86_400_000).toISOString();
   await recordHealthChecks(
     checkedAt,
-    checks.components.map((c) => ({ component: c.name, status: c.status })),
+    checks.components.map((c) => ({ component: c.name, status: c.status, problems: c.problems })),
     COMPONENTS,
     cutoff,
   );

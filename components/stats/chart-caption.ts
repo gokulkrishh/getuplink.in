@@ -26,14 +26,6 @@ export function barsCaption(what: string, { slots, slotName, title, words, span,
   return `${what} ${each}, ${where}`;
 }
 
-// The period for a chart's top line, after a comma: "Battery level, last 7 days.", "…, all time.", "…, this
-// month, since 25 Sept.", "…, 1 Sept to 30 Sept.". The title, not the words, so All reads "all time" rather
-// than "in total". Every chart names its period once, at the top (see docs/charts.md); the caption under it
-// is left for caveats.
-export function periodPhrase({ title }: { title: string }): string {
-  return title.charAt(0).toLowerCase() + title.slice(1);
-}
-
 // The bars' span, under a chart whose headline already names the period: only when the bars reach past it
 // (All draws whole years, "Each year, 2021 to 2026"); otherwise the headline and the axis say it, and a
 // caption would repeat them ("Each day in the last 7 days, since 25 Oct" under "Added in the last 7 days,

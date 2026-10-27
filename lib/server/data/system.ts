@@ -543,6 +543,15 @@ export async function healthHistory(since: string, latest: number): Promise<{ da
   return { daily: check(daily) as DailyCheck[], latest: check(recent) as LatestCheck[] };
 }
 
+// The latest `limit` checks that weren't working and recorded why, newest first, for the status page's
+// latest issues. Bounded, so the page never reads the whole history.
+export type FailedCheck = { component: string; status: string; problems: string[] | null; checked_at: string };
+export async function failedHealthChecks(since: string, limit: number): Promise<FailedCheck[]> {
+  return check(
+    await db().from("health_checks").select("component, status, problems, checked_at").neq("status", "operational").neq("problems", "{}").gte("checked_at", since).order("checked_at", { ascending: false }).limit(limit),
+  ) as FailedCheck[];
+}
+
 export async function lastHealthCheckAt(): Promise<string | null> {
   const data = check(await db().from("health_checks").select("checked_at").order("checked_at", { ascending: false }).limit(1).maybeSingle());
   return (data?.checked_at as string | undefined) ?? null;
@@ -550,7 +559,7 @@ export async function lastHealthCheckAt(): Promise<string | null> {
 
 // One row per component, then drops rows past the retention window. One delete per component so each uses
 // the (component, checked_at) index.
-export async function recordHealthChecks(checkedAt: string, rows: { component: string; status: string }[], components: readonly string[], cutoff: string) {
+export async function recordHealthChecks(checkedAt: string, rows: { component: string; status: string; problems: string[] }[], components: readonly string[], cutoff: string) {
   check(await db().from("health_checks").insert(rows.map((r) => ({ checked_at: checkedAt, ...r }))));
   await Promise.all(components.map((name) => db().from("health_checks").delete().eq("component", name).lt("checked_at", cutoff)));
 }

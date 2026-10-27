@@ -2,15 +2,18 @@ import "server-only";
 import { cacheLife } from "next/cache";
 import { DEMO } from "@/lib/demo";
 import { demoData } from "./demo";
-import { type DailyCheck, healthHistory, lastHealthCheckAt, type LatestCheck } from "./data/system";
+import { type DailyCheck, failedHealthChecks, healthHistory, lastHealthCheckAt, type LatestCheck } from "./data/system";
 import { COMPONENTS, recordHealth, type ComponentName } from "./stream-health";
-import { dailyBars, isStatus, uptimePercent, type DayBar, type DailyRow, type Status } from "@/lib/status";
+import { dailyBars, type Incident, incidents, isStatus, uptimePercent, type DayBar, type DailyRow, type Status } from "@/lib/status";
 
 const WINDOW_DAYS = 90;
 const RECORD_EVERY_MS = 5 * 60_000;
+// The status page lists the latest issues, from at most FAILED_READ failed checks.
+const LATEST_ISSUES = 10;
+const FAILED_READ = 500;
 
 export type ComponentStatus = { name: ComponentName; current: Status | null; bars: DayBar[]; uptime: number | null };
-export type StatusPage = { components: ComponentStatus[]; checkedAt: string | null };
+export type StatusPage = { components: ComponentStatus[]; checkedAt: string | null; incidents: Incident[] };
 
 // Reads only stored rows, so the page renders fast. Writing happens elsewhere (recordIfStale), never in
 // a cached function: that would also run while prerendering at build time.
@@ -28,15 +31,15 @@ export async function loadStatus(): Promise<StatusPage> {
     // keep this answer (a short lifetime also keeps it out of the prerendered shell).
     console.warn("Reading health checks failed:", err);
     cacheLife("seconds");
-    return { components: COMPONENTS.map((name) => ({ name, current: null, bars: dailyBars([], Date.now(), WINDOW_DAYS), uptime: null })), checkedAt: null };
+    return { components: COMPONENTS.map((name) => ({ name, current: null, bars: dailyBars([], Date.now(), WINDOW_DAYS), uptime: null })), checkedAt: null, incidents: [] };
   }
 }
 
 async function readStatus(): Promise<StatusPage> {
   const now = Date.now();
   const since = new Date(now - (WINDOW_DAYS + 1) * 86_400_000).toISOString();
-  const { daily, latest } = await healthHistory(since, 40);
-  return buildStatus(daily, latest, now);
+  const [{ daily, latest }, failed] = await Promise.all([healthHistory(since, 40), failedHealthChecks(since, FAILED_READ)]);
+  return { ...buildStatus(daily, latest, now), incidents: incidents(failed).slice(0, LATEST_ISSUES) };
 }
 
 // The page from the daily summaries and the newest checks (newest first).
@@ -61,6 +64,7 @@ function buildStatus(daily: DailyCheck[], latest: LatestCheck[], now: number): S
       return { name, current: current.get(name) ?? null, bars, uptime: uptimePercent(list, shown) };
     }),
     checkedAt: latest[0]?.checked_at ?? null,
+    incidents: [],
   };
 }
 

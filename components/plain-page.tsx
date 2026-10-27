@@ -37,7 +37,7 @@ export function PlainPage({
   return (
     // The same column and header row as the signed-in pages (Header): the logo stays put when an error
     // page gives way to the page it was trying to show.
-    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
+    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-5 pt-6 pb-6 sm:pt-8 sm:pb-8">
       <header className="flex h-8 items-center text-sm font-medium">
         <Link href={home} className="tap-target inline-flex items-center gap-2.5 rounded-sm">
           <Logo className="size-5" />

@@ -34,6 +34,20 @@ export type Tone = keyof typeof TONES;
 // One side of a split trace: its colour, and the word that names its sign in the tooltip and the legend.
 export type Side = { tone: Tone; words: string };
 
+// Round clock times between the ends of a time axis, as many as fit at this width. The end labels sit flush
+// with the plot's edges, so a centred label in between keeps one and a half labels clear of each end.
+export function clockTicks(from: number, to: number, width: number): number[] {
+  const step = width > 0 ? STEPS.find((s) => (s / (to - from)) * width >= LABEL_PX * 1.25) : undefined;
+  const between: number[] = [];
+  if (step) {
+    for (let t = Math.ceil((from + IST) / step) * step - IST; t < to; t += step) {
+      const px = ((t - from) / (to - from)) * width;
+      if (px >= LABEL_PX * 1.5 && px <= width - LABEL_PX * 1.5) between.push(t);
+    }
+  }
+  return between;
+}
+
 const PX_PER_POINT = 4;
 
 // A long drive has a reading every second or so, far more than the plot has pixels: drawn as is, the line
@@ -148,16 +162,7 @@ export function DriveTrace({
   const sides = split ? ([["above", split.above, 0, yPct(0)], ["below", split.below, yPct(0), 100 - yPct(0)]] as const) : null;
   const toneAt = (v: number) => (split ? TONES[v < 0 ? split.below.tone : split.above.tone] : TONES.cool);
 
-  // Round clock times between the ends, as many as fit at this width. The end labels sit flush with the
-  // plot's edges, so a centred label in between keeps one and a half labels clear of each end.
-  const step = width > 0 ? STEPS.find((s) => (s / (to - from)) * width >= LABEL_PX * 1.25) : undefined;
-  const between: number[] = [];
-  if (step) {
-    for (let t = Math.ceil((from + IST) / step) * step - IST; t < to; t += step) {
-      const px = (xPct(t) / 100) * width;
-      if (px >= LABEL_PX * 1.5 && px <= width - LABEL_PX * 1.5) between.push(t);
-    }
-  }
+  const between = clockTicks(from, to, width);
 
   // Close enough to count: within 2% of the drive, so a stop says it has no reading.
   const near = at === null ? null : shown.reduce((a, p) => (Math.abs(p.t - at) < Math.abs(a.t - at) ? p : a));

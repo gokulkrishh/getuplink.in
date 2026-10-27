@@ -1,3 +1,4 @@
+import { acSettingOf, type ClimateReadings } from "@/lib/drive-climate";
 import type { Drive } from "@/lib/drives";
 
 // Driving insights after TeslaMate's drive stats, efficiency and locations, from streamed readings.
@@ -30,8 +31,10 @@ export function speedHistogram(speeds: TimedValue[], drives: Drive[]): { from: n
 export type Band = { label: string; drives: number; km: number; kmPerKwh: number | null };
 
 // km per kWh for drives grouped into bands of outside temperature and of average speed. Drives without
-// energy, under 1 km, or without a temperature (for that table) are left out.
-export function efficiencyBands(drives: Drive[], temps: TimedValue[]): { byTemp: Band[]; bySpeed: Band[] } {
+// energy, under 1 km, or without a temperature (for that table) are left out. The AC table groups by the set
+// temperature a drive mostly ran at, or "AC off" (lib/drive-climate.ts acSettingOf); a drive the car sent no
+// climate for is left out of it, not counted as off.
+export function efficiencyBands(drives: Drive[], temps: TimedValue[], climate?: ClimateReadings): { byTemp: Band[]; bySpeed: Band[]; byAc: Band[] } {
   const usable = drives.filter((d) => d.kwh !== null && d.kwh > 0 && d.km >= 1);
   const median = (vs: number[]) => (vs.length ? [...vs].sort((a, b) => a - b)[Math.floor(vs.length / 2)] : null);
   const band = (label: string, list: Drive[]): Band => {
@@ -59,7 +62,17 @@ export function efficiencyBands(drives: Drive[], temps: TimedValue[]): { byTemp:
         );
       })
       .filter((b) => b.drives > 0);
-  return { byTemp: group([0, 20, 25, 30, 35], "°C", tempOf), bySpeed: group([0, 20, 40, 60, 80], "km/h", speedOf) };
+  // "AC off", then the set temperature's bands, labelled like the other tables.
+  const settings = new Map(climate ? usable.map((d) => [d, acSettingOf(climate, { start: d.start, end: d.end })] as const) : []);
+  const setting = (d: Drive) => settings.get(d) ?? null;
+  const byAc = [
+    band("AC off", usable.filter((d) => setting(d) === "off")),
+    ...group([0, 21, 23, 25], "°C", (d) => {
+      const v = setting(d);
+      return typeof v === "number" ? v : null;
+    }),
+  ].filter((b) => b.drives > 0);
+  return { byTemp: group([0, 20, 25, 30, 35], "°C", tempOf), bySpeed: group([0, 20, 40, 60, 80], "km/h", speedOf), byAc };
 }
 
 export type Place = { lat: number; lng: number; visits: number; parkedMs: number; tag: "home" | "work" | "favorite" | null; lastVisit: number };

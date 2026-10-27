@@ -34,7 +34,7 @@ export function Headline({ value, children }: { value: string; children: ReactNo
 // energy and regen (see energyCaption). One chart says what three (Distance, Energy use, Regen) did.
 export function Distance({ frame, driving }: Pick<Frame, "frame" | "driving">) {
   // The counters couldn't be read for a range picked by date: say so in the chart's place rather than show 0 km.
-  if (!driving) return <ChartCard title="Distance" empty={`Couldn't read the car's counters ${frame.words}.`} />;
+  if (!driving) return <ChartCard title="Distance" empty={"Couldn't read the car's counters."} />;
   // A period without driving still shows, at 0 km with a note in place of the chart, so picking Day before
   // the first drive of the day doesn't leave a blank gap. A bar with no reading (before tracking began, or
   // ahead of now) is blank, never 0 km; a tracked day without driving is a real 0. The headline is the
@@ -49,8 +49,8 @@ export function Distance({ frame, driving }: Pick<Frame, "frame" | "driving">) {
       // The energy line is the chart's one caption; without an energy reading, the bars' span is.
       caption={energyCaption(driving, frame.previousLabel) ?? barsSpan(frame)}
       // With nothing driven, the empty line says so alone; a 0.0 km headline over it would say it twice.
-      summary={hasBars(bars) ? <Headline value={formatKm(total)}>{headline(`Driven ${frame.words}`, compared)}</Headline> : undefined}
-      empty={hasBars(bars) ? undefined : `No driving ${frame.words}.`}
+      summary={hasBars(bars) ? <Headline value={formatKm(total)}>{headline("Driven", compared)}</Headline> : undefined}
+      empty={hasBars(bars) ? undefined : "No driving."}
     >
       <Bars bars={bars} valueLabel="Distance" ariaLabel={`Distance per ${frame.slotName}`} unit="km" labelEvery={frame.labelEvery} fit view="driving" />
     </ChartCard>
@@ -117,7 +117,7 @@ export const hasBars = (bars: Bar[]) => bars.some((b) => b.value > 0 && !showsZe
 // longest, time at the wheel and distance a day. Counted, never projected. `spanDays` is how long the span
 // has run; when the stats cover fewer days (tracking began later, or the drives kept stop short), the
 // caption says how many. `partial` says the drives reach back only DRIVE_DAYS.
-export function DriveStatsSection({ stats, title, partial = false }: { stats: DriveStats | null; title: string; partial?: boolean }) {
+export function DriveStatsSection({ stats, partial = false }: { stats: DriveStats | null; partial?: boolean }) {
   if (!stats) return null;
   // Distance and distance per day are the Distance chart's: the odometer counts every metre, while drives
   // leave out moves too short to count as one, so a second total here would disagree with it.
@@ -129,10 +129,7 @@ export function DriveStatsSection({ stats, title, partial = false }: { stats: Dr
   ];
   return (
     <section className="space-y-4">
-      <div className="space-y-1">
-        <h2 className="text-lg font-medium tracking-heading">Drive stats</h2>
-        <p className="text-sm text-muted-foreground">{title}.</p>
-      </div>
+      <h2 className="text-lg font-medium tracking-heading">Drive stats</h2>
       {/* Tiles: easier to take in than a long list. */}
       <Figures figures={figures} />
       {partial && <p className="text-sm text-faint">Drives cover only the last {DRIVE_DAYS} days.</p>}

@@ -3,6 +3,7 @@ import { AutoRefresh } from "@/components/auto-refresh";
 import { formatDuration, formatKw, formatRangeKm, formatTimeToFull } from "@/lib/format";
 import type { Snapshot } from "@/lib/server/dashboard";
 import { Measure } from "@/components/measure";
+import { cn } from "@/lib/utils";
 
 // What the car is doing, in one line under the level. Charging: the power and the limit, then how long is
 // left ("Charging at 7.2 kW to 80% · Full in 1 h 18 min"). Otherwise what was seen: how long it has been
@@ -25,16 +26,18 @@ export function batteryState(snapshot: Snapshot, parked: { hours: number; fromFi
 }
 
 // The level and range as the biggest thing on the page, the meter under them, and the state line last.
-export function BatteryGauge({ snapshot, parked = null }: { snapshot: Snapshot; parked?: { hours: number; fromFirstReading: boolean } | null }) {
+// `align="end"` lines it up on the right from sm up (Home's car row); it stays left on a phone.
+export function BatteryGauge({ snapshot, parked = null, align = "start" }: { snapshot: Snapshot; parked?: { hours: number; fromFirstReading: boolean } | null; align?: "start" | "end" }) {
+  const end = align === "end";
   const level = Math.min(100, Math.max(0, snapshot.battery_level ?? 0));
   const limit = snapshot.charge_limit != null ? Math.min(100, Math.max(0, snapshot.charge_limit)) : null;
   const charging = snapshot.charging_state === "Charging";
   const state = batteryState(snapshot, parked);
   return (
-    <div className="space-y-3">
+    <div className={cn("space-y-3", end && "sm:w-72 sm:shrink-0 sm:text-right")}>
       {/* Streamed power and level move while charging, so the page keeps itself fresh. */}
       {charging && <AutoRefresh />}
-      <p className="flex flex-wrap items-baseline gap-x-2">
+      <p className={cn("flex flex-wrap items-baseline gap-x-2", end && "sm:justify-end")}>
         <span className="font-mono text-[2.25rem] font-medium tracking-tight tabular-nums">
           <Measure text={`${level}%`} size="headline" />
         </span>
@@ -49,7 +52,7 @@ export function BatteryGauge({ snapshot, parked = null }: { snapshot: Snapshot; 
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label={`Battery ${level}%${limit != null ? `, limit ${limit}%` : ""}`}
-        className="relative h-0.5 max-w-60 bg-border"
+        className={cn("relative h-0.5 max-w-60 bg-border", end && "sm:ml-auto")}
       >
         <div className="relative h-full overflow-hidden bg-foreground" style={{ width: `${level}%` }}>
           {charging && (
@@ -61,7 +64,7 @@ export function BatteryGauge({ snapshot, parked = null }: { snapshot: Snapshot; 
         )}
       </div>
       {state && (
-        <p className="flex items-center gap-1.5 text-sm text-muted-foreground tabular-nums">
+        <p className={cn("flex items-center gap-1.5 text-sm text-muted-foreground tabular-nums", end && "sm:justify-end sm:text-right")}>
           {charging && <Zap className="size-3.5" aria-hidden="true" />}
           {state}
         </p>

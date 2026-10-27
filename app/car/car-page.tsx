@@ -3,6 +3,7 @@ import Link from "next/link";
 import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
+import { Loading, Ph, SkFigures, SkSection } from "@/components/skeleton";
 import { Header } from "@/components/header";
 import { Measure } from "@/components/measure";
 import { CarNotices } from "@/components/owner-notices";
@@ -88,12 +89,18 @@ function averages(drives: Drive[], lastChargeEnd: string | null, at: number): Av
 
 const shown = <T,>(rows: [string, T][]) => rows.filter((r): r is [string, NonNullable<T>] => r[1] !== null && r[1] !== undefined && r[1] !== false && r[1] !== "");
 
-function Section({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
+// The car's state is "now" when it reported within this long.
+const FRESH_MS = 10 * 60_000;
+
+function Section({ title, description, action, children }: { title: string; description?: string; action?: ReactNode; children: ReactNode }) {
   return (
     <section className="space-y-3">
-      <div className="flex items-baseline justify-between gap-4">
-        <h2 className="text-lg font-medium tracking-heading">{title}</h2>
-        {action}
+      <div className="space-y-1">
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 className="text-lg font-medium tracking-heading">{title}</h2>
+          {action}
+        </div>
+        {description && <p className="text-sm text-muted-foreground">{description}</p>}
       </div>
       {children}
     </section>
@@ -273,11 +280,15 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
       </div>
 
       {figures.length > 0 && (
-        <Section title="Car now">
+        // "Now" only while the car is sending: asleep, these are what it last reported, so they say when.
+        <Section
+          title={syncedAt && at - Date.parse(syncedAt) <= FRESH_MS ? "Car now" : "Last known"}
+          description={syncedAt && at - Date.parse(syncedAt) > FRESH_MS ? `As of ${formatShortDate(syncedAt)}, ${formatClock(syncedAt)}, when the car last reported.` : undefined}
+        >
           {/* The charge tile's note gives the power in kW while charging. */}
           <Figures
             figures={figures}
-            label="Car now"
+            label="The car's latest state"
           />
         </Section>
       )}
@@ -321,20 +332,6 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
         </section>
       )}
 
-      {specs.length > 0 && (
-        <Section title="Specs">
-          {/* Two columns from sm up, one on a phone; each row is the label and its value side by side. */}
-          <dl className="grid border-t text-sm sm:grid-cols-2 sm:gap-x-8">
-            {specs.map(([label, value]) => (
-              <div key={label} className="flex items-baseline justify-between gap-4 border-b py-2">
-                <dt className="shrink-0 text-muted-foreground">{label}</dt>
-                <dd className="min-w-0 text-right break-words tabular-nums">{value}</dd>
-              </div>
-            ))}
-          </dl>
-        </Section>
-      )}
-
       {ac && (
         <Section title="Last AC charge" action={<MoreLink href={`/stats/charging/${ac.id}`}>See charge</MoreLink>}>
           <Figures
@@ -347,6 +344,20 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
           <p className="text-xs text-muted-foreground tabular-nums">
             Ended {formatShortDate(ac.endedAt)}, {formatClock(ac.endedAt)}
           </p>
+        </Section>
+      )}
+
+      {specs.length > 0 && (
+        <Section title="Specs">
+          {/* Two columns from sm up, one on a phone; each row is the label and its value side by side. */}
+          <dl className="grid border-t text-sm sm:grid-cols-2 sm:gap-x-8">
+            {specs.map(([label, value]) => (
+              <div key={label} className="flex items-baseline justify-between gap-4 border-b py-2">
+                <dt className="shrink-0 text-muted-foreground">{label}</dt>
+                <dd className="min-w-0 text-right break-words tabular-nums">{value}</dd>
+              </div>
+            ))}
+          </dl>
         </Section>
       )}
 
@@ -367,28 +378,156 @@ async function CarContent({ id }: { id: Promise<string | null> }) {
   return <Car car={car} live={await loadLive(car.id, car.vin)} />;
 }
 
-// Faint blocks in the shape of the header card, the tiles and the specs.
+// Faint blocks in the shape of the page, section by section, in the same layout classes: the header card,
+// then the tiles and the specs in the usual state (a car that is awake and has charged on AC).
 function CarSkeleton() {
-  const block = "bg-muted motion-safe:animate-pulse";
-  return (
-    <div role="status" aria-busy="true" className="flex flex-col gap-12">
-      <span className="sr-only">Loading…</span>
-      <div className="space-y-5 border p-4 sm:p-6">
-        <div className={`h-8 w-40 ${block}`} />
-        <div className={`h-4 w-56 ${block}`} />
-        <div className={`h-9 w-48 ${block}`} />
-        <div className={`h-3 w-44 ${block}`} />
-      </div>
-      <div className="grid grid-cols-2 gap-px border bg-border bg-clip-padding dark:border-transparent dark:bg-background sm:grid-cols-3">
-        {[0, 1, 2, 3, 4, 5].map((k) => (
-          <div key={k} className="space-y-2 bg-background p-3 sm:p-4 dark:bg-card">
-            <div className={`h-3 w-16 ${block}`} />
-            <div className={`h-6 w-20 ${block}`} />
-          </div>
-        ))}
-      </div>
-      <div className={`h-40 w-full ${block}`} />
+  const section = (title: string, children: ReactNode) => (
+    <SkSection gap={3}>
+      <p className="text-lg font-medium tracking-heading" aria-hidden="true">
+        <Ph>{title}</Ph>
+      </p>
+      {children}
+    </SkSection>
+  );
+  const spec = ([label, value, extra]: string[]) => (
+    <div key={label} className="flex items-baseline justify-between gap-4 border-b py-2">
+      <dt className="shrink-0">
+        <Ph>{label}</Ph>
+      </dt>
+      <dd className="min-w-0 text-right">
+        <Ph>{value}</Ph>
+        {extra === "VIN" ? (
+          <span className="ml-2 inline-block h-6 align-middle text-xs max-sm:ml-0 max-sm:block max-sm:h-auto">
+            <Ph>Show full VIN</Ph>
+          </span>
+        ) : (
+          extra && (
+            <span className="block font-mono text-xs">
+              <Ph>{extra}</Ph>
+            </span>
+          )
+        )}
+      </dd>
     </div>
+  );
+  return (
+    <Loading className="flex flex-col gap-12">
+      <div className="space-y-4" aria-hidden="true">
+        <div className="space-y-5 border p-4 sm:p-6">
+          <div className="min-w-0 space-y-1">
+            <p className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">
+              <Ph>Demo car</Ph>
+            </p>
+            <p className="text-sm">
+              <Ph>2026 Model Y Standard Range · 2025 refresh · Diamond Black</Ph>
+            </p>
+          </div>
+          <dl className="flex flex-wrap gap-x-10 gap-y-3">
+            {[
+              ["Odometer", "9,000 km"],
+              ["Software", "2026.38.5.1"],
+              ["Usable capacity", "64.0 kWh"],
+            ].map(([label, value]) => (
+              <div key={label} className="space-y-1">
+                <dt className="text-[0.8125rem] leading-5">
+                  <Ph>{label}</Ph>
+                </dt>
+                <dd className="font-mono text-lg leading-none font-medium">
+                  <Ph>{value}</Ph>
+                  {label === "Software" && <span className="inline-block size-4 align-middle" />}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <p className="text-xs">
+            <Ph>Last synced 27 Oct, 4:50 PM</Ph>
+          </p>
+        </div>
+      </div>
+      {section(
+        "Car now",
+        <SkFigures
+          tiles={[
+            { label: "Charge", value: "68%", note: "Charging at 7.2 kW" },
+            { label: "Range", value: "294 km", note: "Tesla's estimate. At your driving, about 364 km." },
+            { label: "Locks and doors", value: "Locked, charge port open", words: true },
+            { label: "Sentry Mode", value: "Off", words: true },
+            { label: "Inside", value: "36.3 °C" },
+            { label: "Outside", value: "32.2 °C" },
+            { label: "Climate", value: "Off", words: true },
+            { label: "Climate keeper", value: "Off", words: true },
+            { label: "Cabin overheat protection", value: "Fan Only", words: true },
+          ]}
+        />,
+      )}
+      {section(
+        "Average consumption",
+        <SkFigures
+          tiles={[
+            { label: "Since last charge", value: "120 Wh/km", note: "Over 97.8 km" },
+            { label: "Last 30 days", value: "119 Wh/km", note: "Over 1,096.4 km" },
+            { label: "Since 30 Jul", value: "128 Wh/km", note: "Over 2,846.4 km" },
+          ]}
+        />,
+      )}
+      {section(
+        "Tyres",
+        <>
+          <p className="text-sm" aria-hidden="true">
+            <Ph>Rotate the tyres at 10,000 km, 1,000 km from now.</Ph>
+          </p>
+          <SkFigures
+            className="sm:grid-cols-2"
+            tiles={[
+              { label: "Front left", value: "42 psi" },
+              { label: "Front right", value: "42 psi" },
+              { label: "Rear left", value: "41 psi" },
+              { label: "Rear right", value: "40 psi" },
+            ]}
+          />
+          <p className="text-xs" aria-hidden="true">
+            <Ph>Updated 3 minutes ago · Recommended 42 psi front, 42 psi rear</Ph>
+          </p>
+        </>,
+      )}
+      {section(
+        "Last AC charge",
+        <>
+          <SkFigures
+            tiles={[
+              { label: "Power", value: "7.2 kW", note: "Typical draw" },
+              { label: "Voltage", value: "230 V" },
+              { label: "Current", value: "32 A", note: "The most the car drew" },
+              { label: "Phases", value: "1", note: "Single-phase" },
+              { label: "Cable", value: "Type 2", note: "IEC", words: true },
+            ]}
+          />
+          <p className="text-xs" aria-hidden="true">
+            <Ph>Ended 25 Oct, 9:57 PM</Ph>
+          </p>
+        </>,
+      )}
+      {section(
+        "Specs",
+        <dl className="grid border-t text-sm sm:grid-cols-2 sm:gap-x-8" aria-hidden="true">
+          {[
+            ["Drive", "Rear-wheel drive"],
+            ["Battery", "Standard Range"],
+            ["Chemistry", "LFP"],
+            ["Motor", "Single rear motor", "PM216MOSFET"],
+            ["Built in", "Shanghai, China"],
+            ["Wheels", "19″ Crossflow · aero covers"],
+            ["Roof", "Glass"],
+            ["Interior", "Black"],
+            ["Exterior trim", "Black"],
+            ["Driver assistance", "Hardware 4"],
+            ["Charge port", "CCS · motorised door"],
+            ["Steering", "Right-hand drive"],
+            ["VIN", "••••0001", "VIN"],
+          ].map(spec)}
+        </dl>,
+      )}
+    </Loading>
   );
 }
 

@@ -4,7 +4,7 @@ export function Row({
   control,
   children,
 }: {
-  title: string;
+  title: React.ReactNode;
   description?: React.ReactNode;
   control?: React.ReactNode;
   children?: React.ReactNode;

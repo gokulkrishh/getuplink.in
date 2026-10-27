@@ -3,10 +3,11 @@ import { io } from "next/cache";
 import { after } from "next/server";
 import { Suspense } from "react";
 import { PlainPage } from "@/components/plain-page";
-import { formatDateTime, formatShortDate } from "@/lib/format";
+import { StatusBars } from "@/components/status-bars";
+import { formatClock, formatDateTime, formatDuration, formatShortDate } from "@/lib/format";
 import { loadStatus, recordIfStale, type ComponentStatus } from "@/lib/server/status";
 import { OPEN_GRAPH, STATUS_URL, TWITTER } from "@/lib/site";
-import { componentLabel, overallHeadline, STATUS_WORD, type Status } from "@/lib/status";
+import { componentLabel, type Incident, istDay, overallHeadline, STATUS_WORD, type Status } from "@/lib/status";
 
 const DESCRIPTION = "Whether Uplink's website, database and live car data are working.";
 
@@ -29,11 +30,23 @@ const DOT: Record<Status, string> = {
 // Operational is green, down is red, degraded sits between in grey, and no data is a faint bar.
 const BAR: Record<Status | "none", string> = { ...DOT, none: "bg-muted" };
 
-function barTitle(day: string, status: Status | null): string {
-  return `${formatShortDate(`${day}T00:00:00+05:30`)}: ${status ? STATUS_WORD[status] : "No data"}`;
+const dayLabel = (day: string) => formatShortDate(`${day}T00:00:00+05:30`);
+
+// What the checks found on each IST day an issue touched, for that day's tip.
+function problemsByDay(list: Incident[]): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const i of list) {
+    for (let t = Date.parse(i.from); t <= Date.parse(i.to) + 86_400_000; t += 86_400_000) {
+      const day = istDay(Math.min(t, Date.parse(i.to)));
+      const seen = out.get(day) ?? [];
+      out.set(day, [...new Set([...seen, ...i.problems])]);
+    }
+  }
+  return out;
 }
 
-function Component({ item }: { item: ComponentStatus }) {
+function Component({ item, issues }: { item: ComponentStatus; issues: Incident[] }) {
+  const found = problemsByDay(issues);
   return (
     <section>
       <div className="flex items-baseline justify-between gap-4">
@@ -43,11 +56,16 @@ function Component({ item }: { item: ComponentStatus }) {
           {item.current ? STATUS_WORD[item.current] : "Not checked yet"}
         </span>
       </div>
-      <div className="mt-3 flex h-8 gap-px" role="img" aria-label={`${componentLabel(item.name)}, last ${item.bars.length} days`}>
-        {item.bars.map((bar) => (
-          <div key={bar.day} title={barTitle(bar.day, bar.status)} className={`flex-1 ${BAR[bar.status ?? "none"]}`} />
-        ))}
-      </div>
+      <StatusBars
+        label={`${componentLabel(item.name)}, last ${item.bars.length} days`}
+        bars={item.bars.map((bar) => ({
+          day: bar.day,
+          label: dayLabel(bar.day),
+          words: bar.status ? STATUS_WORD[bar.status] : "No checks",
+          className: BAR[bar.status ?? "none"],
+          problems: bar.status && bar.status !== "operational" ? (found.get(bar.day) ?? []) : [],
+        }))}
+      />
       <div className="mt-2 flex justify-between text-xs text-faint">
         <span>{item.bars.length} days ago</span>
         <span>{item.uptime === null ? "No uptime yet" : `${item.uptime}% uptime`}</span>
@@ -57,8 +75,46 @@ function Component({ item }: { item: ComponentStatus }) {
   );
 }
 
+// "26 Oct, 3:38 AM to 27 Oct, 4:13 PM", or "26 Oct, 3:38 AM" for one check.
+function span(i: Incident): string {
+  const at = (iso: string) => `${formatShortDate(iso)}, ${formatClock(iso)}`;
+  return i.from === i.to ? at(i.from) : `${at(i.from)} to ${istDay(Date.parse(i.from)) === istDay(Date.parse(i.to)) ? formatClock(i.to) : at(i.to)}`;
+}
+
+// The latest issues, newest first: which part, when and for how long, and what the checks found. Only checks
+// that recorded a reason are read (checks before 27 Oct didn't keep one), so each issue says why.
+function PastIssues({ list }: { list: Incident[] }) {
+  return (
+    <section className="space-y-3">
+      <h2 className="text-lg font-medium tracking-heading">Latest issues</h2>
+      {list.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No issues recorded.</p>
+      ) : (
+        <ol className="divide-y border-y">
+          {list.map((i) => (
+            <li key={`${i.component}:${i.from}`} className="space-y-1 py-3 text-sm">
+              <p className="flex flex-wrap items-center gap-x-2">
+                <span aria-hidden="true" className={`size-2 ${DOT[i.status]}`} />
+                <span className="font-medium">{componentLabel(i.component)}</span>
+                <span className="text-muted-foreground">· {STATUS_WORD[i.status]}</span>
+              </p>
+              <p className="text-muted-foreground tabular-nums">
+                {span(i)}
+                {i.from !== i.to && ` · ${formatDuration((Date.parse(i.to) - Date.parse(i.from)) / 1000)}`}
+              </p>
+              {i.problems.map((p) => (
+                <p key={p}>{p}</p>
+              ))}
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}
+
 async function Components() {
-  const { components, checkedAt } = await loadStatus();
+  const { components, checkedAt, incidents } = await loadStatus();
   const headline = overallHeadline(components.map((c) => c.current));
   return (
     <>
@@ -67,9 +123,10 @@ async function Components() {
         {headline ? headline.text : "No checks yet"}
       </p>
       {components.map((item) => (
-        <Component key={item.name} item={item} />
+        <Component key={item.name} item={item} issues={incidents.filter((i) => i.component === item.name)} />
       ))}
       {checkedAt && <p className="text-sm text-muted-foreground">Last checked {formatDateTime(checkedAt)}</p>}
+      <PastIssues list={incidents} />
     </>
   );
 }

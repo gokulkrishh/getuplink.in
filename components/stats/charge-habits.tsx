@@ -18,10 +18,9 @@ const charges = (n: number) => `${n} ${n === 1 ? "charge" : "charges"}`;
 const describe = (day: number, slot: number, count: number) => `${WEEKDAYS[day]}, ${slotLabel(slot)} · ${charges(count)}`;
 
 // When charges start, by weekday and time of day (IST), after TeslaMate's charge heatmap. Hover, focus
-// or tap a cell for a tooltip with its count; the line above names the busiest slot and the span the starts
-// fall in (`words`, "in the last 7 days"), which also ends "No charges …" for a span without any, in the
-// grid's place.
-export function ChargeHabits({ starts, words }: { starts: number[]; words: string }) {
+// or tap a cell for a tooltip with its count; the line above names the busiest slot. The period switch names
+// the span, so nothing here says it again.
+export function ChargeHabits({ starts }: { starts: number[] }) {
   const counts = chargeStarts(starts);
   const max = Math.max(0, ...counts.flat());
   const grid = useRef<HTMLDivElement>(null);
@@ -40,12 +39,12 @@ export function ChargeHabits({ starts, words }: { starts: number[]; words: strin
             <span className="text-muted-foreground">Most often </span>
             {WEEKDAYS[busiest[0]]}, {slotLabel(busiest[1])}
             <span className="text-muted-foreground">
-              , {charges(counts[busiest[0]][busiest[1]])} {words}.
+              , {charges(counts[busiest[0]][busiest[1]])}.
             </span>
           </p>
         )
       }
-      empty={max === 0 ? `No charges ${words}.` : undefined}
+      empty={max === 0 ? "No charges." : undefined}
     >
       <div ref={grid} className="chart-touch relative space-y-1.5 bg-muted p-3 dark:bg-card" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
         {counts.map((row, d) => (

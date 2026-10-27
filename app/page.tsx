@@ -160,16 +160,23 @@ function HomeSkeleton() {
   return (
     <div role="status" aria-busy="true" className="space-y-12">
       <span className="sr-only">Loading…</span>
-      <div className="space-y-5" aria-hidden="true">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-          <p className="text-sm"><span className={line}>Tesla · Model Y, Pearl White</span></p>
-          <p className="min-h-5.5 text-sm"><span className={line}>Asleep, checked 5 min ago</span></p>
+      {/* The car's strip: NowStrip's own row, with BatteryGauge's own track on the right from sm up. */}
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-8" aria-hidden="true">
+        <div className="min-w-0 space-y-1 sm:flex-1">
+          <p className="truncate text-sm"><span className={line}>Demo car · Model Y, Pearl White</span></p>
+          <p className="flex items-center gap-2 text-sm"><span className={line}>2026.38.4 · 3,434.9 km</span></p>
+          <p className="text-sm"><span className={line}>Synced 5 min ago</span></p>
         </div>
-        <p className="-mt-3 text-sm"><span className={line}>2026.38.4 · 3,434.9 km</span></p>
-        <div className="space-y-3">
-          <p className="font-mono text-[2.25rem] font-medium"><span className={line}>67%</span></p>
-          <div className="h-0.5 max-w-60 bg-border" />
-          <p className="text-sm"><span className={line}>Parked 2 h 10 min · Limit 80%</span></p>
+        <div className="space-y-3 sm:w-72 sm:shrink-0 sm:text-right">
+          <p className="flex flex-wrap items-baseline gap-x-2 sm:justify-end">
+            <span className="font-mono text-[2.25rem] font-medium tracking-tight"><span className={line}>67%</span></span>
+            <span className="text-base"><span className={line}>about 294 km</span></span>
+          </p>
+          <div className="relative h-0.5 max-w-60 bg-border sm:ml-auto">
+            <div className="h-full w-2/3 bg-muted-foreground/30 motion-safe:animate-pulse" />
+            <span className="absolute -top-1 h-2.5 w-px bg-muted-foreground/40" style={{ left: "80%" }} />
+          </div>
+          <p className="flex items-center gap-1.5 text-sm sm:justify-end"><span className={line}>Parked 2 h 10 min · Limit 80%</span></p>
         </div>
       </div>
       <div className="space-y-6" aria-hidden="true">

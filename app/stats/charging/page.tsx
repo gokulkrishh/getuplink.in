@@ -18,6 +18,7 @@ import { withGoogleNamesBy } from "@/lib/server/google-place-names";
 import { EnergyAdded, PaidFor, SessionList, Summary } from "@/components/stats/charging-sections";
 import { eachFrame } from "@/components/home/frames";
 import { customScope } from "@/components/stats/periods";
+import { ChargingSkeleton } from "@/components/stats/skeletons";
 import { NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/components/stats/stats-frame";
 import { matchSessions } from "@/lib/charge-sessions";
 import { chargingBills, chargingTime, firstStartedAt } from "@/lib/charging-figures";
@@ -148,22 +149,33 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
               const { frame, driving } = fromSince(f, chargingSince, now);
               return <Summary bills={bills} unbilled={unbilled} charged={chargingTime(sessions, streamOnly, frame.span)} km={driving?.current.km ?? null} frame={frame} chargingSince={chargingSince} />;
             })}
-          {bills.some((b) => b.parts) && eachFrame(frames, (f) => <PaidFor bills={bills} frame={fromSince(f, chargingSince, now).frame} />)}
           {streamSessions.length > 0 &&
             eachFrame(frames, (f) => <EnergyAdded sessions={sessions} streamOnly={streamOnly} frame={fromSince(f, chargingSince, now).frame} chargingSince={chargingSince} />)}
-          {eachFrame(frames, ({ frame }) => <ChargeHabits starts={starts(frame.span)} words={frame.words} />)}
+          {stations({ from: -Infinity, to: Infinity }).length > 0 &&
+            eachFrame(frames, ({ frame }) => <TopStations rows={stations(frame.span)} />)}
+          {eachFrame(frames, ({ frame }) => {
+            const shown = listed.filter(startedIn(frame.span));
+            return shown.length > 0 ? (
+              <SessionList sessions={shown} />
+            ) : (
+              <section className="space-y-2">
+                <h2 className="text-lg font-medium tracking-heading">Charging sessions</h2>
+                <p className="text-sm text-muted-foreground">No charges.</p>
+              </section>
+            );
+          })}
+          {bills.some((b) => b.parts) && eachFrame(frames, (f) => <PaidFor bills={bills} frame={fromSince(f, chargingSince, now).frame} />)}
           {streamSessions.length > 0 &&
             eachFrame(frames, ({ frame }) => (
               <ChargeRange sessions={streamSessions.filter(startedIn(frame.span))} frame={frame} serialOf={(s) => streamSerial(frame.span).get(s.id)} />
             ))}
+          {eachFrame(frames, ({ frame }) => <ChargeHabits starts={starts(frame.span)} />)}
           {(extras.curves.length > 0 || (custom?.extras.curves.length ?? 0) > 0) &&
             eachFrame(frames, ({ key, frame }) => {
               const { curves, held: from } = extrasFor(key);
               const shown = curves.filter((c) => startedIn(frame.span)({ started_at: c.date })).map((c) => ({ ...c, serial: streamSerial(frame.span).get(c.id) }));
               return <DcCurves curves={shown} frame={frame} note={backTo(frame.span, from.curves, `Curves are kept for the latest ${CURVES} DC charges, which`)} />;
             })}
-          {stations({ from: -Infinity, to: Infinity }).length > 0 &&
-            eachFrame(frames, ({ frame }) => <TopStations rows={stations(frame.span)} title={frame.title} words={frame.words} />)}
           {(extras.pins.length > 0 || (custom?.extras.pins.length ?? 0) > 0) &&
             eachFrame(frames, ({ key, frame }) => {
               const { pins, held: from } = extrasFor(key);
@@ -175,17 +187,6 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
                 />
               );
             })}
-          {eachFrame(frames, ({ frame }) => {
-            const shown = listed.filter(startedIn(frame.span));
-            return shown.length > 0 ? (
-              <SessionList sessions={shown} />
-            ) : (
-              <section className="space-y-2">
-                <h2 className="text-lg font-medium tracking-heading">Charging sessions</h2>
-                <p className="text-sm text-muted-foreground">No charges {frame.words}.</p>
-              </section>
-            );
-          })}
         </div>
       )}
     </StatsFrame>
@@ -195,7 +196,7 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
 export default function Page({ searchParams }: PageProps<"/stats/charging">) {
   return (
     <StatsPage view="charging" description="Every charge, and what it really cost you.">
-      <Suspense fallback={<StatsSkeleton />}>
+      <Suspense fallback={<StatsSkeleton><ChargingSkeleton /></StatsSkeleton>}>
         <Charging searchParams={searchParams} />
       </Suspense>
       <Suspense>

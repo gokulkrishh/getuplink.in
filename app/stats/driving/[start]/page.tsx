@@ -1,5 +1,6 @@
 import { ScrollX } from "@/components/scroll-x";
 import { AiNotes, AiNotesSkeleton } from "@/components/home/week-tips";
+import { DriveSkeleton } from "@/components/stats/skeletons";
 import { TipsBox } from "@/components/tips-box";
 import { DRIVE_TIPS, driveFindings, TRIP_TIPS } from "@/lib/drive-tips";
 import type { Metadata } from "next";
@@ -10,7 +11,9 @@ import { after } from "next/server";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
 import { ChartCard } from "@/components/chart-card";
+import { ClimateTrace } from "@/components/stats/climate-trace";
 import { DriveTrace, type Side } from "@/components/stats/drive-lanes";
+import { climateLine, summariseClimate } from "@/lib/drive-climate";
 import { type Figure, Figures } from "@/components/stats/figures";
 import { type MapFact, MapFacts, type MapPin, TripMap } from "@/components/stats/trip-map";
 import { TripTimeline } from "@/components/stats/trip-timeline";
@@ -64,7 +67,7 @@ async function loadDetail(start: number, leg: boolean): Promise<{ owner: Owner; 
 // speed across the whole trip.
 // `words` holds each line's text, the AI's or the code's (see lib/drive-facts.ts and lib/drive-wording.ts).
 function Drive({ detail, view, words, now }: { detail: DriveDetail; view: DriveView; words: Partial<Record<WordingField, ShownLine>>; now: number }) {
-  const { speed, rangeUsedKm, topKmh, outsideC, route, pins, accel, power, grade } = detail;
+  const { speed, rangeUsedKm, topKmh, outsideC, route, pins, accel, power, grade, climate } = detail;
   // The trip's totals are its legs' raw sums, each rounded on its own when shown.
   const { trip } = detail;
   const drivingMs = trip.legs.reduce((sum, d) => sum + (d.end - d.start), 0);
@@ -104,6 +107,7 @@ function Drive({ detail, view, words, now }: { detail: DriveDetail; view: DriveV
     grade,
     legs: trip.legs,
     usableKwh: detail.usableKwh,
+    climate: climate ? summariseClimate(climate) : null,
   });
   return (
     <>
@@ -126,21 +130,6 @@ function Drive({ detail, view, words, now }: { detail: DriveDetail; view: DriveV
             )}
           </section>
         )}
-        {/* Every number in one set of tiles: easier to take in than a long list. */}
-        <section>
-          <Figures
-            figures={tiles.map(({ level, ...t }) => ({
-              ...t,
-              extra: level && (
-                <div className="relative h-1 bg-muted" aria-hidden="true">
-                  <div className="absolute inset-y-0 left-0 bg-muted-foreground/40" style={{ width: `${level[0]}%` }} />
-                  <div className="absolute inset-y-0 left-0 bg-chart-accent" style={{ width: `${level[1]}%` }} />
-                </div>
-              ),
-            }))}
-            label={trip.stops ? "this trip" : "this drive"}
-          />
-        </section>
         <section className="space-y-4">
           <h2 className="text-lg font-medium tracking-heading">Map</h2>
           {route.length >= 2 ? (
@@ -159,6 +148,21 @@ function Drive({ detail, view, words, now }: { detail: DriveDetail; view: DriveV
             <p className="text-sm text-muted-foreground">The map shows once your car starts sending its location.</p>
           )}
         </section>
+        {/* Every number in one set of tiles: easier to take in than a long list. */}
+        <section>
+          <Figures
+            figures={tiles.map(({ level, ...t }) => ({
+              ...t,
+              extra: level && (
+                <div className="relative h-1 bg-muted" aria-hidden="true">
+                  <div className="absolute inset-y-0 left-0 bg-muted-foreground/40" style={{ width: `${level[0]}%` }} />
+                  <div className="absolute inset-y-0 left-0 bg-chart-accent" style={{ width: `${level[1]}%` }} />
+                </div>
+              ),
+            }))}
+            label={trip.stops ? "this trip" : "this drive"}
+          />
+        </section>
         {trip.stops > 0 && (
           <section className="space-y-4">
             <h2 className="text-lg font-medium tracking-heading">Timeline</h2>
@@ -166,33 +170,39 @@ function Drive({ detail, view, words, now }: { detail: DriveDetail; view: DriveV
           </section>
         )}
         {trip.stops > 0 && <Legs legs={trip.legs} />}
-        {[speed, power, accel, grade].some((points) => points.length >= 2) && (
-          <section className="space-y-10">
-            <div className="space-y-1">
-              <h2 className="text-lg font-medium tracking-heading">Over the drive</h2>
-              <p className="text-sm text-muted-foreground">
-                What the car sent, {formatClock(trip.start)} to {formatClock(trip.end)}.{trip.stops > 0 && " Gaps are stops."}
-              </p>
-            </div>
+        {([speed, power, accel, grade].some((points) => points.length >= 2) || climate) && (
+          // Each chart is its own section: a heading over them all would only repeat the drive's times above.
+          <div className="space-y-12">
             {speed.length >= 2 && (
-              <ChartCard as="h3" title="Speed" description={line("speed")}>
+              <ChartCard as="h2" title="Speed" description={line("speed")}>
                 <DriveTrace label="Speed" points={speed} unit="km/h" {...axis} />
+              </ChartCard>
+            )}
+            {/* Battery barely moves on a short drive, and the Battery tile above already says "70% to 69%". A flat
+                line adds nothing, so the chart only shows when the level fell by BATTERY_CHART_POINTS or more. */}
+            {batteryShown.length >= 2 && (
+              <ChartCard as="h2" title="Battery level" description={line("battery")}>
+                <DriveTrace label="Battery level" points={batteryShown} unit="%" max={100} {...axis} />
               </ChartCard>
             )}
             {power.length >= 2 && (
               <ChartCard
-                as="h3"
+                as="h2"
                 title="Power"
                 description={line("power")}
-                info="Energy here is worked out from the car's power figures. Energy used above is the battery's own figure."
                 summary={<Figures figures={peaks.power} />}
               >
                 <DriveTrace label="Power" points={power} unit="kW" signed split={POWER_SIDES} {...axis} />
               </ChartCard>
             )}
+            {climate && (
+              <ChartCard as="h2" title="Climate" description={climateLine(summariseClimate(climate))}>
+                <ClimateTrace label="Climate" climate={climate} from={axis.from} to={axis.to} />
+              </ChartCard>
+            )}
             {accel.length >= 2 && (
               <ChartCard
-                as="h3"
+                as="h2"
                 title="Acceleration"
                 description={line("acceleration")}
                 summary={<Figures figures={peaks.accel} />}
@@ -211,7 +221,7 @@ function Drive({ detail, view, words, now }: { detail: DriveDetail; view: DriveV
             )}
             {grade.length >= 2 && (
               <ChartCard
-                as="h3"
+                as="h2"
                 title="Road grade"
                 description={line("grade")}
                 info="A climb or descent is a slope that lasts at least half a minute. Shorter bumps are ignored."
@@ -220,14 +230,7 @@ function Drive({ detail, view, words, now }: { detail: DriveDetail; view: DriveV
                 {!isFlat(grade) && <DriveTrace label="Road grade" points={grade} unit="%" signed digits={1} split={{ ...GRADE_SIDES, area: true }} {...axis} />}
               </ChartCard>
             )}
-            {/* Battery barely moves on a short drive, and the Battery tile above already says "70% to 69%". A flat
-                line adds nothing, so the chart only shows when the level fell by BATTERY_CHART_POINTS or more. */}
-            {batteryShown.length >= 2 && (
-              <ChartCard as="h3" title="Battery level" description={line("battery")}>
-                <DriveTrace label="Battery level" points={batteryShown} unit="%" max={100} {...axis} />
-              </ChartCard>
-            )}
-          </section>
+          </div>
         )}
         {(topKmh === null || outsideC === null || accel.length < 2) && (
           <p className="text-sm text-faint">Speed, acceleration and outside temperature show once your car sends them.</p>
@@ -370,17 +373,6 @@ async function DriveLoader({ params, searchParams }: Pick<PageProps<"/stats/driv
   const stored = await loadDriveWording(owner, key, view.facts);
   if (stored.generate) after(() => generateDriveWording(owner, key, view.facts));
   return <Drive detail={detail} view={view} words={pickWords(view.code, stored.words)} now={now} />;
-}
-
-function DriveSkeleton() {
-  const block = "bg-muted motion-safe:animate-pulse";
-  return (
-    <div role="status" className="space-y-12">
-      <span className="sr-only">Loading…</span>
-      <div className={`h-8 w-48 ${block}`} />
-      <div className={`h-64 w-full ${block}`} />
-    </div>
-  );
 }
 
 export default function Page({ params, searchParams }: PageProps<"/stats/driving/[start]">) {

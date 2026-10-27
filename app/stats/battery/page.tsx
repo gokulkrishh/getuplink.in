@@ -9,6 +9,7 @@ import { BatteryPack } from "@/components/stats/battery-pack";
 import { ChargeLevelChart } from "@/components/stats/charge-level";
 import { ParkedDrain } from "@/components/stats/parked-drain";
 import { customScope } from "@/components/stats/periods";
+import { BatterySkeleton } from "@/components/stats/skeletons";
 import { NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/components/stats/stats-frame";
 import { timeframes } from "@/lib/frames";
 import { customQuery, type CustomQuery, customRange, type DayRange, rangeTimeframe, type Timeframe } from "@/lib/periods";
@@ -97,14 +98,14 @@ async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "sear
           {eachFrame(frames, ({ frame }) => (
             <BatteryHealth trend={trend} range={range} sessions={sessions} frame={frame} teslaPack={extras.teslaPack} drives={driving.drives} now={now} />
           ))}
+          {eachFrame(frames, ({ frame }) => <ParkedDrain parked={driving.parked} parkedNow={driving.parkedNow} frame={frame} places={places} />)}
+          {eachFrame(frames, ({ frame }) => <ChargeLevelChart level={level} now={now} frame={frame} heading />)}
           {/* The id sits outside the periods' copies, so it is on the page once. */}
           <div id="battery">{eachFrame(frames, ({ frame }) => <BatteryPack trend={trend} frame={frame} />)}</div>
           {eachFrame(frames, ({ frame }) => <TeslaPackByWeek pack={extras.teslaPack} frame={frame} />)}
           {eachFrame(frames, ({ frame }) => <CapacityByKm points={extras.capacityByKm} frame={frame} />)}
           {eachFrame(frames, ({ frame }) => <CellBalance spread={extras.cellSpreadMv} frame={frame} />)}
           {eachFrame(frames, ({ frame }) => <Temperatures temps={extras.temps} frame={frame} />)}
-          {eachFrame(frames, ({ frame }) => <ChargeLevelChart level={level} now={now} frame={frame} heading />)}
-          {eachFrame(frames, ({ frame }) => <ParkedDrain parked={driving.parked} parkedNow={driving.parkedNow} frame={frame} places={places} />)}
         </div>
       ) : (
         <NotYet title="Not enough data yet">The battery trend shows up after two weeks.</NotYet>
@@ -116,7 +117,7 @@ async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "sear
 export default function Page({ searchParams }: PageProps<"/stats/battery">) {
   return (
     <StatsPage view="battery" description="How your battery is ageing, and what it loses while parked.">
-      <Suspense fallback={<StatsSkeleton />}>
+      <Suspense fallback={<StatsSkeleton><BatterySkeleton /></StatsSkeleton>}>
         <Battery searchParams={searchParams} />
       </Suspense>
     </StatsPage>

@@ -44,15 +44,15 @@ describe("noneWords", () => {
 describe("flatLevelNote", () => {
   const at = (h: number, level: number) => ({ at: h * 3_600_000, level });
   test("a level that never moved is one sentence", () => {
-    expect(flatLevelNote([at(0, 61), at(6, 61), at(12, 61)], 0, "today")).toBe("Stayed at 61% today.");
+    expect(flatLevelNote([at(0, 61), at(6, 61), at(12, 61)], 0)).toBe("Stayed at 61%.");
   });
   test("a small fall with no charge is one sentence, levels before and after", () => {
-    expect(flatLevelNote([at(0, 61), at(12, 60), at(23, 59)], 0, "today")).toBe("Went from 61% to 59% today, with no charging.");
+    expect(flatLevelNote([at(0, 61), at(12, 60), at(23, 59)], 0)).toBe("Went from 61% to 59%, with no charging.");
   });
   test("a charge, a bigger move or too few readings keep the chart", () => {
-    expect(flatLevelNote([at(0, 61), at(12, 61)], 1, "today")).toBeNull();
-    expect(flatLevelNote([at(0, 61), at(12, 58)], 0, "today")).toBeNull();
-    expect(flatLevelNote([at(0, 61)], 0, "today")).toBeNull();
+    expect(flatLevelNote([at(0, 61), at(12, 61)], 1)).toBeNull();
+    expect(flatLevelNote([at(0, 61), at(12, 58)], 0)).toBeNull();
+    expect(flatLevelNote([at(0, 61)], 0)).toBeNull();
   });
 });
 

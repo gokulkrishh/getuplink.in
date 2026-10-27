@@ -60,8 +60,6 @@ export function BatteryHealth({
   const ac = chargeEfficiency(finished.filter((s) => s.kind === "ac"));
   const dc = chargeEfficiency(finished.filter((s) => s.kind === "dc"));
 
-  const words = frame.words.charAt(0).toUpperCase() + frame.words.slice(1);
-  const efficiency = words;
   const figures: Figure[] = [];
   if (capacity) figures.push({ label: "Usable capacity now", value: capacity.now, note: capacity.note });
   if (teslaPack) figures.push({ label: "Full pack now, per Tesla", value: formatKwh(teslaPack.kwh), note: `Last reported ${formatShortDate(teslaPack.at)}` });
@@ -77,11 +75,11 @@ export function BatteryHealth({
   // one height and the page below doesn't sit under a gap. Efficiency tiles show when any charge of that
   // kind has ever been measured.
   const ever = sessions.filter((s) => s.ended_at !== null && s.energy_added_kwh !== null);
-  const none = `No finished charges ${frame.words}`;
-  figures.push({ label: "Energy charged", value: added > 0 ? formatKwh(added) : "—", note: added > 0 ? `${finished.length} ${finished.length === 1 ? "charge" : "charges"} ${frame.words}` : none });
-  if (latestKwh) figures.push({ label: "Charge cycles", value: (added / latestKwh).toFixed(1), note: words });
-  if (chargeEfficiency(ever.filter((s) => s.kind === "ac")) !== null) figures.push({ label: "AC efficiency", value: ac !== null ? percent(ac) : "—", note: ac !== null ? efficiency : `No AC charge to measure ${frame.words}` });
-  if (chargeEfficiency(ever.filter((s) => s.kind === "dc")) !== null) figures.push({ label: "DC efficiency", value: dc !== null ? percent(dc) : "—", note: dc !== null ? efficiency : `No DC charge to measure ${frame.words}` });
+  const none = "No finished charges";
+  figures.push({ label: "Energy charged", value: added > 0 ? formatKwh(added) : "—", note: added > 0 ? `${finished.length} ${finished.length === 1 ? "charge" : "charges"}` : none });
+  if (latestKwh) figures.push({ label: "Charge cycles", value: (added / latestKwh).toFixed(1) });
+  if (chargeEfficiency(ever.filter((s) => s.kind === "ac")) !== null) figures.push({ label: "AC efficiency", value: ac !== null ? percent(ac) : "—", note: ac !== null ? undefined : "No AC charge to measure" });
+  if (chargeEfficiency(ever.filter((s) => s.kind === "dc")) !== null) figures.push({ label: "DC efficiency", value: dc !== null ? percent(dc) : "—", note: dc !== null ? undefined : "No DC charge to measure" });
   if (figures.length === 0) return null;
 
   return (

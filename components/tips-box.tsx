@@ -1,6 +1,7 @@
 import { after, connection } from "next/server";
 import { AiNotes } from "@/components/home/week-tips";
-import { type Finding, rankWithVotes, type TipSurface, topFindings } from "@/lib/ai-tips";
+import { type Finding, rankWithVotes, type TipCar, type TipSurface, topFindings } from "@/lib/ai-tips";
+import { loadCarDetails } from "@/lib/server/car";
 import { generateTips, loadTips } from "@/lib/server/ai-tips";
 import { currentOwner } from "@/lib/server/auth";
 import { loadTipVotes } from "@/lib/server/tip-votes";
@@ -16,10 +17,14 @@ export async function TipsBox({ surface, vehicleId, at, daily, entity, findings 
   await connection();
   const owner = await currentOwner();
   if (!owner) return null;
-  const { votes, net } = await loadTipVotes(owner, surface.scope, entity);
-  const sent = topFindings(rankWithVotes(findings, net));
+  const [{ votes, net }, details] = await Promise.all([loadTipVotes(owner, surface.scope, entity), loadCarDetails(owner, vehicleId).catch(() => null)]);
+  // The car the tips are for, so the AI writes for this Tesla and its battery (LFP or not).
+  const car: TipCar = details && { name: [details.year, details.model, details.pack, details.drive?.toLowerCase()].filter(Boolean).join(" ").replace(/ (all|rear)-wheel/, ", $1-wheel"), lfp: details.likelyLfp };
+  // "Tesla suggests a daily limit of 90% or less" is wrong for an LFP battery, so that finding is left out.
+  const fitting = car?.lfp ? findings.filter((f) => f.kind !== "highDays") : findings;
+  const sent = topFindings(rankWithVotes(fitting, net));
   const key = { vehicleId, at, daily };
-  const stored = await loadTips(owner, surface, key, sent);
-  if (stored.generate) after(() => generateTips(owner, surface, key, sent));
-  return <AiNotes title="Tips" notes={stored.tips} vote={{ scope: surface.scope, entity, votes }} />;
+  const stored = await loadTips(owner, surface, key, sent, car);
+  if (stored.generate) after(() => generateTips(owner, surface, key, sent, car));
+  return <AiNotes title="Tips" notes={stored.tips} vote={{ scope: surface.scope, entity, votes, swap: { vehicleId, at } }} />;
 }

@@ -3,6 +3,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { type ReactNode, Suspense } from "react";
 import { AiNotesSkeleton } from "@/components/home/week-tips";
+import { ChargeSkeleton } from "@/components/stats/skeletons";
 import { TipsBox } from "@/components/tips-box";
 import { CHARGE_TIPS, chargeFindings, type PricedCharge } from "@/lib/charge-tips";
 import { loadPricedCharges } from "@/lib/server/charge-tips";
@@ -176,18 +177,6 @@ async function ChargeLoader({ params }: { params: Promise<{ id: string }> }) {
         ) : null
       }
     />
-  );
-}
-
-function ChargeSkeleton() {
-  const block = "bg-muted motion-safe:animate-pulse";
-  return (
-    <div role="status" className="space-y-12">
-      <span className="sr-only">Loading…</span>
-      <div className={`h-8 w-48 ${block}`} />
-      <div className={`h-44 w-full ${block}`} />
-      <div className={`h-40 w-full ${block}`} />
-    </div>
   );
 }
 

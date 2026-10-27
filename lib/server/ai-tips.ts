@@ -1,6 +1,10 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import { checkTips, demoTips, type Finding, type Tip, type TipSurface, tipsKey, tipsRequest } from "@/lib/ai-tips";
+import { checkTips, demoTips, type Finding, type Tip, type TipCar, type TipScope, type TipSurface, tipsKey, tipsRequest } from "@/lib/ai-tips";
+import { BATTERY_TIPS } from "@/lib/battery-tips";
+import { CHARGE_TIPS, CHARGING_TIPS } from "@/lib/charge-tips";
+import { DRIVE_TIPS, TRIP_TIPS } from "@/lib/drive-tips";
+import { WEEK_TIPS } from "@/lib/week-wording";
 import { DEMO } from "@/lib/demo";
 import { PRICE_PER_TOKEN, WORDING_MODEL } from "@/lib/drive-wording";
 import { messageOf } from "@/lib/errors";
@@ -27,7 +31,7 @@ const TRIES = 3;
 const MISSING = ["42P01", "PGRST205", "23514"];
 
 const apiKey = () => process.env.OPENROUTER_API_KEY?.trim() || null;
-const hash = (surface: TipSurface, sent: Finding[]) => createHash("sha256").update(tipsKey(surface, sent)).digest("hex");
+const hash = (surface: TipSurface, sent: Finding[], car: TipCar) => createHash("sha256").update(tipsKey(surface, sent, car)).digest("hex");
 
 // at: the IST day's start (daily: kept for the day as the figures move), or a drive's or charge's start
 // (written again when its findings change).
@@ -35,7 +39,7 @@ export type TipsKey = { vehicleId: string; at: number; daily: boolean };
 export type StoredTips = { tips: Tip[]; generate: boolean };
 
 // The stored tips for these findings. Never throws.
-export async function loadTips(owner: Owner, surface: TipSurface, key: TipsKey, sent: Finding[]): Promise<StoredTips> {
+export async function loadTips(owner: Owner, surface: TipSurface, key: TipsKey, sent: Finding[], car: TipCar = null): Promise<StoredTips> {
   if (sent.length === 0) return { tips: [], generate: false };
   if (DEMO) return { tips: demoTips(sent), generate: false };
   try {
@@ -54,7 +58,7 @@ export async function loadTips(owner: Owner, surface: TipSurface, key: TipsKey, 
     // since they passed their checks then. A row with no tips (a claim, or every reply failed) is tried
     // again after RETRY_MS.
     const v = (data?.wording as { v?: unknown } | null)?.v;
-    if (data && v === surface.version && data.model === WORDING_MODEL && (key.daily || data.facts_hash === hash(surface, sent))) {
+    if (data && v === surface.version && data.model === WORDING_MODEL && (key.daily || data.facts_hash === hash(surface, sent, car))) {
       const tips = storedTips(data.wording);
       if (tips.length > 0 || Date.now() - Date.parse(data.created_at) < RETRY_MS) return { tips, generate: false };
     }
@@ -73,12 +77,14 @@ function storedTips(wording: unknown): Tip[] {
 const writing = new Set<string>();
 
 // Writes and stores the tips. Run after the response; never throws.
-export async function generateTips(owner: Owner, surface: TipSurface, key: TipsKey, sent: Finding[]): Promise<void> {
+export async function generateTips(owner: Owner, surface: TipSurface, key: TipsKey, sent: Finding[], car: TipCar = null): Promise<void> {
   const token = apiKey();
   if (DEMO || !token || sent.length === 0) return;
   const id = `${owner.userId}:${key.vehicleId}:${key.at}:${surface.scope}`;
   if (writing.has(id)) return;
   writing.add(id);
+  // The findings sent and the car are kept with the tips, so a tip voted down can be swapped for one from the
+  // findings not shown (replaceTip) without the page's data.
   const store = (tips: Tip[], cost: number | null) =>
     ownerDb(owner)
       .from("drive_wording")
@@ -87,8 +93,8 @@ export async function generateTips(owner: Owner, surface: TipSurface, key: TipsK
           vehicle_id: key.vehicleId,
           drive_start: new Date(key.at).toISOString(),
           scope: surface.scope,
-          facts_hash: hash(surface, sent),
-          wording: { tips, v: surface.version },
+          facts_hash: hash(surface, sent, car),
+          wording: { tips, v: surface.version, sent, car, swaps: 0 },
           model: WORDING_MODEL,
           cost_usd: cost,
           created_at: new Date().toISOString(),
@@ -109,7 +115,7 @@ export async function generateTips(owner: Owner, surface: TipSurface, key: TipsK
       const res = await fetch(ENDPOINT, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "X-Title": "Uplink" },
-        body: JSON.stringify(tipsRequest(surface, sent, votes)),
+        body: JSON.stringify(tipsRequest(surface, sent, votes, car)),
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
       if (!res.ok) {
@@ -117,7 +123,7 @@ export async function generateTips(owner: Owner, surface: TipSurface, key: TipsK
         break;
       }
       const body = (await res.json()) as { choices?: { message?: { content?: string | null } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number | null } };
-      tips = checkTips(body.choices?.[0]?.message?.content ?? "", sent, surface);
+      tips = checkTips(body.choices?.[0]?.message?.content ?? "", sent, surface, car);
       const u = body.usage;
       cost += typeof u?.cost === "number" ? u.cost : u?.prompt_tokens != null && u.completion_tokens != null ? u.prompt_tokens * PRICE_PER_TOKEN.input + u.completion_tokens * PRICE_PER_TOKEN.output : 0;
     }
@@ -131,3 +137,54 @@ export async function generateTips(owner: Owner, surface: TipSurface, key: TipsK
     writing.delete(id);
   }
 }
+
+// A tip the owner voted down can be swapped for another, written there and then from the findings that were
+// sent but not shown, at most MAX_SWAPS times per page and time, so a page can't be paid for over and over.
+// Null when there's nothing left to say, the cap is reached or the call fails. Never throws.
+const MAX_SWAPS = 2;
+const SURFACES: Record<TipScope, TipSurface> = {
+  week: WEEK_TIPS,
+  drive_tips: DRIVE_TIPS,
+  trip_tips: TRIP_TIPS,
+  charging: CHARGING_TIPS,
+  charge: CHARGE_TIPS,
+  battery: BATTERY_TIPS,
+};
+
+export async function replaceTip(owner: Owner, scope: TipScope, vehicleId: string, at: number, downKind: string): Promise<Tip | null> {
+  const token = apiKey();
+  if (DEMO || !token) return null;
+  const surface = SURFACES[scope];
+  try {
+    const where = () => ownerDb(owner).from("drive_wording").select("wording, cost_usd").eq("vehicle_id", vehicleId).eq("drive_start", new Date(at).toISOString()).eq("scope", scope).maybeSingle();
+    const { data, error } = await where();
+    if (error || !data) return null;
+    const w = data.wording as { tips?: Tip[]; v?: number; sent?: Finding[]; car?: TipCar; swaps?: number } | null;
+    if (!w || w.v !== surface.version || !Array.isArray(w.sent) || (w.swaps ?? 0) >= MAX_SWAPS) return null;
+    const shown = new Set((w.tips ?? []).map((t) => t.kind));
+    const left = w.sent.filter((f) => f.kind !== downKind && !shown.has(f.kind));
+    if (left.length === 0) return null;
+    const votes = await pastTipVotes(owner, scope);
+    const res = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "X-Title": "Uplink" },
+      body: JSON.stringify(tipsRequest(surface, left, votes, w.car ?? null)),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { choices?: { message?: { content?: string | null } }[]; usage?: { cost?: number | null } };
+    const tip = checkTips(body.choices?.[0]?.message?.content ?? "", left, surface, w.car ?? null)[0] ?? null;
+    // The swap counts even when no tip passed, so a failing page stops at the cap too.
+    await ownerDb(owner)
+      .from("drive_wording")
+      .update({ wording: { ...w, tips: tip ? [...(w.tips ?? []), tip] : (w.tips ?? []), swaps: (w.swaps ?? 0) + 1 }, cost_usd: Number(data.cost_usd ?? 0) + (body.usage?.cost ?? 0) })
+      .eq("vehicle_id", vehicleId)
+      .eq("drive_start", new Date(at).toISOString())
+      .eq("scope", scope);
+    return tip;
+  } catch (err) {
+    console.warn("Swapping a tip failed:", messageOf(err));
+    return null;
+  }
+}
+

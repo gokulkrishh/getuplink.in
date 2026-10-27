@@ -9,8 +9,12 @@ import { loadWindowStats } from "./driving";
 import { loadPrimaryVehicle } from "./telemetry";
 import { loadHardAccel, loadReadingsByField } from "./telemetry-window";
 import { USUAL_DAYS, usualHardMoments, usualWhPerKm } from "@/lib/drive-verdict";
+import { type Climate, climateOf, hasClimate } from "@/lib/drive-climate";
 
 const MIN = 60_000;
+
+// What the car sends about its climate; the drive's Climate chart reads them with the outside temperature.
+const CLIMATE_FIELDS = ["HvacPower", "HvacACEnabled", "HvacLeftTemperatureRequest", "HvacRightTemperatureRequest", "InsideTemp"];
 
 export type TracePoint = { t: number; v: number };
 
@@ -28,6 +32,9 @@ export type DriveDetail = {
   accel: TracePoint[]; // m/s², forward positive, braking negative, while moving
   power: TracePoint[]; // kW from the pack, regen negative, while moving
   grade: TracePoint[]; // road grade %, uphill positive, while moving
+  // The AC, the set temperature and the temperature inside and outside while under way; null when the car
+  // sent none (lib/drive-climate.ts).
+  climate: Climate | null;
   route: MapPoint[]; // where the car was, while each leg was under way
   pins: MapPin[]; // the start, each stop and the end
   // The owner's usual, from their other drives in the last USUAL_DAYS (see lib/drive-verdict.ts): Wh/km,
@@ -65,7 +72,7 @@ export async function loadDriveDetail(owner: Owner, start: number, now: number, 
   const from = new Date(drive.start - 30 * MIN).toISOString();
   const to = new Date(drive.end + 10 * MIN).toISOString();
   const [byField, hardAccel] = await Promise.all([
-    loadReadingsByField(owner, vin, ["BatteryLevel", "VehicleSpeed", "OutsideTemp", "Location", "LongitudinalAcceleration", "PackVoltage", "PackCurrent", "GradeEstimatePercent"], from, to).then((r) => r ?? {}),
+    loadReadingsByField(owner, vin, ["BatteryLevel", "VehicleSpeed", "OutsideTemp", "Location", "LongitudinalAcceleration", "PackVoltage", "PackCurrent", "GradeEstimatePercent", ...CLIMATE_FIELDS], from, to).then((r) => r ?? {}),
     loadHardAccel(owner, vin, new Date(now - USUAL_DAYS * 86_400_000).toISOString(), new Date(now + 1).toISOString()),
   ]);
   const read = (field: string) => [...(byField[field] ?? [])].sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
@@ -84,6 +91,19 @@ export async function loadDriveDetail(owner: Owner, start: number, now: number, 
   const startLevel = trip.startLevel;
   const allBattery = points(read("BatteryLevel"), drive.start, drive.end + 10 * MIN);
   const battery = [...(startLevel === null ? [] : [{ t: drive.start, v: startLevel }]), ...allBattery.filter((p) => p.t > drive.start && p.t <= drive.end + 5 * MIN)];
+
+  // Climate only while a leg is under way, like the other traces. Each reading holds until the next.
+  const climate = climateOf(
+    {
+      power: byField.HvacPower ?? [],
+      ac: byField.HvacACEnabled ?? [],
+      left: byField.HvacLeftTemperatureRequest ?? [],
+      right: byField.HvacRightTemperatureRequest ?? [],
+      inside: byField.InsideTemp ?? [],
+      outside: byField.OutsideTemp ?? [],
+    },
+    trip.legs.map((d) => ({ start: d.start, end: d.end })),
+  );
 
   const { route, pins } = tripRoute(trip, read("Location"));
   // LongitudinalAcceleration in m/s² as the car reports it: positive speeding up, negative braking.
@@ -116,6 +136,7 @@ export async function loadDriveDetail(owner: Owner, start: number, now: number, 
     accel,
     power,
     grade,
+    climate: hasClimate(climate) ? climate : null,
     route,
     pins,
     battery,

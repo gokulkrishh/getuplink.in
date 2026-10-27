@@ -2,6 +2,7 @@ import { Zap } from "lucide-react";
 import { type ReactNode, Suspense, ViewTransition } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Header } from "@/components/header";
+import { Loading, Ph } from "@/components/skeleton";
 import { PeriodPicker, PeriodScope } from "./period-scope";
 import { type CustomScope, PAGE_PERIODS, type View } from "./periods";
 import { ViewTabs, ViewTabsShell } from "./view-tabs";
@@ -50,24 +51,32 @@ export function NotYet({ title, children }: { title: string; children: ReactNode
   );
 }
 
-export function StatsSkeleton() {
-  const block = "bg-muted motion-safe:animate-pulse";
+// The page's loading screen: the period switch's place, then the page's own blocks (see skeletons.tsx),
+// in the same stack as StatsFrame, so nothing moves when the data arrives.
+export function StatsSkeleton({ children }: { children: ReactNode }) {
   return (
     <ViewTransition exit="stats-out" default="none">
-      <div role="status" aria-busy="true" className="space-y-12">
-        <span className="sr-only">Loading…</span>
-        {/* Where the period switch will be, so nothing below jumps when it arrives. */}
-        <div className={`h-7 w-72 max-w-full max-sm:h-9 ${block}`} />
-        <div className="space-y-8">
-          <div className="space-y-2">
-            <div className={`h-4 w-28 ${block}`} />
-            <div className={`h-10 w-48 ${block}`} />
-            <div className={`h-4 w-64 ${block}`} />
-          </div>
-          <div className={`h-36 w-full ${block}`} />
-        </div>
-        <div className={`h-40 w-full ${block}`} />
-      </div>
+      <Loading className="space-y-12">
+        <SkPeriodSwitch />
+        <div className="space-y-12">{children}</div>
+      </Loading>
     </ViewTransition>
   );
 }
+
+// The period switch's own classes (see Segmented), so its box is the real one.
+function SkPeriodSwitch() {
+  return (
+    <div aria-hidden="true" className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+      <div className="inline-flex max-w-full border">
+        {PERIODS_SHOWN.map((label) => (
+          <span key={label} className="tap-target inline-flex h-7 items-center justify-center px-2.5 text-[0.8rem] max-sm:h-9 max-sm:px-2">
+            <Ph>{label}</Ph>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const PERIODS_SHOWN = ["Day", "Week", "Month", "Year", "All", "Custom"];

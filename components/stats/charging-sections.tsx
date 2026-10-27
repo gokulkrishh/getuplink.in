@@ -88,9 +88,9 @@ export function Summary({
       <ChartCard
         title="Spend"
         // With no bills, the empty line says so alone; a ₹0.00 headline over it would say it twice.
-        summary={hasBars(bars) ? <Headline value={money(cost)}>{headline(`Spent on charging ${frame.words}`, compared)}</Headline> : undefined}
+        summary={hasBars(bars) ? <Headline value={money(cost)}>{headline("Spent on charging", compared)}</Headline> : undefined}
         caption={barsSpan(frame)}
-        empty={hasBars(bars) ? undefined : `No bills ${frame.words}.`}
+        empty={hasBars(bars) ? undefined : "No bills."}
       >
         <Bars bars={bars} valueLabel="Spent" ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} fit view="charging" />
       </ChartCard>
@@ -149,7 +149,7 @@ export function PaidFor({ bills, frame }: { bills: Bill[]; frame: Timeframe }) {
     <section className="space-y-3">
       <div className="space-y-1">
         <h2 className="text-lg font-medium tracking-heading">What you paid for</h2>
-        <p className="text-sm text-muted-foreground">Your spend {frame.words}, line by line from the bills.</p>
+        <p className="text-sm text-muted-foreground">Your spend, line by line from the bills.</p>
       </div>
       <div className="divide-y border-t border-b text-sm">
         {group("Superchargers", supercharger)}
@@ -213,9 +213,9 @@ export function EnergyAdded({
       <ChartCard
         title="Energy added"
         description="Energy into the battery, by charger type."
-        summary={charged ? <Headline value={formatKwh(total)}>{headline(`Added ${frame.words}`, compared)}</Headline> : undefined}
+        summary={charged ? <Headline value={formatKwh(total)}>{headline("Added", compared)}</Headline> : undefined}
         caption={barsSpan(frame)}
-        empty={charged ? undefined : `No charging ${frame.words}.`}
+        empty={charged ? undefined : "No charging."}
       >
         <StackedBars bars={bars} series={ENERGY_SERIES} ariaLabel={`Energy added per ${frame.slotName}`} labelEvery={frame.labelEvery} fit view="charging" />
       </ChartCard>

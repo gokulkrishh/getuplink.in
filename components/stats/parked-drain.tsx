@@ -1,6 +1,5 @@
 import { ScrollX } from "@/components/scroll-x";
 import { ShowMore } from "@/components/show-more";
-import { periodPhrase } from "@/components/stats/chart-caption";
 import { Value } from "@/components/stats/figures";
 import { formatClock, formatDuration, formatKwh, formatNumber, formatPower, formatRangeKm, formatShortDate } from "@/lib/format";
 import { type DrainSummary, drainSummary, type ParkedNow, type ParkedPeriod, type ParkStats } from "@/lib/drives";
@@ -98,7 +97,7 @@ export function ParkedDrain({
       <div className="space-y-2">
         <div className="space-y-1">
           <h2 className="text-lg font-medium tracking-heading">Parked drain</h2>
-          <p className="text-sm text-muted-foreground">{rows.length > 0 ? `Battery lost while parked, ${periodPhrase(frame)}. Lower is better.` : "Battery lost while parked. Lower is better."}</p>
+          <p className="text-sm text-muted-foreground">Battery lost while parked. Lower is better.</p>
         </div>
         {headline && (
           <>
@@ -119,11 +118,10 @@ export function ParkedDrain({
             </p>
           </>
         )}
-        <p className="text-sm text-muted-foreground">Sentry Mode and apps checking in keep the car awake and raise this.</p>
       </div>
 
       {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No stretches parked 6 hours or more {frame.words}.</p>
+        <p className="text-sm text-muted-foreground">No stretches parked 6 hours or more.</p>
       ) : (
         <div>
           <div className="sm:hidden">

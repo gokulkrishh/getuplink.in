@@ -167,6 +167,61 @@ export function rngFor(...parts: number[]) {
 }
 export type Rng = () => number;
 export const between = (rng: Rng, a: number, b: number) => a + rng() * (b - a);
+// The climate during one drive, as the car sends it: each field when it changes. Bengaluru's cooler mornings
+// often leave the AC off; warmer ones turn it on a minute in, set to 21 to 24 °C (maybe nudged once), with the
+// cabin cooling from the heat of standing in the sun toward the set point, and now and then switched off for
+// a stretch of a long drive. The climate shuts off a few minutes after parking.
+function driveClimate(push: (field: string, t: number, value: unknown) => void, start: number, end: number, outside: number, rng: Rng) {
+  const hot = outside >= 28 ? 1 : outside >= 24 ? 0.7 : 0.25;
+  const wantsAc = rng() < hot;
+  let set = Math.round(between(rng, 21, 24.5) * 2) / 2;
+  const ac = (t: number, on: boolean) => {
+    push("HvacPower", t, on ? "HvacPowerStateOn" : "HvacPowerStateOff");
+    push("HvacACEnabled", t, on);
+  };
+  const setTo = (t: number, v: number) => {
+    push("HvacLeftTemperatureRequest", t, v);
+    push("HvacRightTemperatureRequest", t, v);
+  };
+  // What the car sent as it woke, just before the drive: the cabin hot from standing in the sun.
+  const wake = start - 2 * MIN;
+  ac(wake, false);
+  setTo(wake, set);
+  let cabin = outside + between(rng, 2, 6);
+  push("InsideTemp", wake, round(cabin, 1));
+  const onAt = start + between(rng, 0.5, 2) * MIN;
+  const long = end - start > 40 * MIN;
+  const offFrom = wantsAc && long && rng() < 0.3 ? start + (end - start) * between(rng, 0.5, 0.65) : null;
+  const offTo = offFrom === null ? null : offFrom + between(rng, 6, 12) * MIN;
+  const nudgeAt = wantsAc && rng() < 0.5 ? start + (end - start) * between(rng, 0.3, 0.7) : null;
+  const acAt = (t: number) => wantsAc && t >= onAt && !(offFrom !== null && offTo !== null && t >= offFrom && t < offTo);
+  if (wantsAc) {
+    ac(onAt, true);
+    push("HvacFanSpeed", onAt, 5);
+  }
+  // A reading every 5 minutes, and one at each switch; the cabin moves toward the set point while the AC is
+  // on and toward a few degrees above the outside (the sun through the glass) while it is off.
+  const marks = [wantsAc ? onAt : null, offFrom, offTo].filter((x): x is number => x !== null && x > start && x < end);
+  const grid = Array.from({ length: Math.floor((end - start) / (5 * MIN)) }, (_, k) => start + (k + 1) * 5 * MIN).filter((x) => x < end);
+  const times = [...new Set([...grid, ...marks, end])].sort((a, b) => a - b);
+  let prev = start;
+  let nudged = false;
+  times.forEach((t, k) => {
+    cabin += ((acAt(prev) ? set : outside + 3) - cabin) * (1 - Math.exp(-(t - prev) / (8 * MIN)));
+    if (t === offFrom) ac(t, false);
+    if (t === offTo) ac(t, true);
+    if (!nudged && nudgeAt !== null && t >= nudgeAt) {
+      nudged = true;
+      set = Math.min(24.5, set + 0.5 * Math.ceil(between(rng, 1, 3)));
+      setTo(t, set);
+    }
+    push("InsideTemp", t, round(cabin + (rng() - 0.5) * 0.2, 1));
+    if (k % 2 === 1) push("OutsideTemp", t, round(outside + (rng() - 0.5) * 0.6, 1));
+    prev = t;
+  });
+  if (wantsAc) ac(end + 2 * MIN, false);
+}
+
 const round = (value: number, digits: number) => Math.round(value * 10 ** digits) / 10 ** digits;
 const dow = (day: number) => (day + 4) % 7; // 0 = Sunday; 1970-01-01 was a Thursday
 const weekend = (day: number) => dow(day) === 0 || dow(day) === 6;
@@ -287,6 +342,8 @@ export function generateDemo(now: number): DemoData {
   const push = (field: string, t: number, value: unknown) => {
     if (COUNTERS.has(field) || charging || t >= windowStart) rows.push({ field, t, value });
   };
+  // When the car was under way, so the hourly cabin readings below leave those stretches to the drive's own.
+  const driven: [number, number][] = [];
   const noise = rngFor(10);
   const gauss = () => (noise() + noise() + noise() - 1.5) * 2;
 
@@ -385,6 +442,8 @@ export function generateDemo(now: number): DemoData {
       let stop = between(rng, 2, 3.5);
       let grade = 0;
       push("OutsideTemp", start, round(outsideAt(start) + gauss() * 0.3, 1));
+      driveClimate(push, start, start + minutes * MIN, outsideAt(start), rngFor(21, start / MIN));
+      driven.push([start, start + minutes * MIN]);
       for (let sec = 0; sec <= total; sec++) {
         // Bring it to a stop for the last part of the drive.
         if (phase !== "wait" && total - sec <= 20) phase = "brake";
@@ -608,8 +667,11 @@ export function generateDemo(now: number): DemoData {
   // The last week, hourly: temperatures and cell voltages for the battery page.
   for (let t = now - 7 * DAY; t < now; t += HOUR) {
     const out = outsideAt(t) + gauss() * 0.3;
-    push("OutsideTemp", t, round(out, 1));
-    push("InsideTemp", t, round(out + 4 + gauss() * 0.5, 1));
+    const underway = driven.some(([a, b]) => t >= a - 5 * MIN && t <= b + 5 * MIN);
+    if (!underway) {
+      push("OutsideTemp", t, round(out, 1));
+      push("InsideTemp", t, round(out + 4 + gauss() * 0.5, 1));
+    }
     push("ModuleTempMax", t, round(out + 1.5 + gauss() * 0.3, 1));
     // LFP cells sit near 3.3 V most of the range, with a gap of a few mV, like your car's 3.292 to 3.294.
     const cell = 3.27 + (level(Math.min(t, clock)) / 100) * 0.07;

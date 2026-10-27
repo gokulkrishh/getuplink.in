@@ -79,7 +79,7 @@ export function ChargeLevelChart({
   const charging = level.charging
     .filter((c) => c.end > from && c.start < to)
     .map((c) => ({ start: Math.max(c.start, from), end: Math.min(c.end, to), tip: chargeTip(c, level.points) }));
-  const flat = flatLevelNote(points, charging.length, frame.words);
+  const flat = flatLevelNote(points, charging.length);
   const latest = level.points[level.points.length - 1];
   // The period is named once, at the top, when the line draws (a note in its place says it itself). The
   // caption is left for the readings starting after the span does: "Readings go back to 25 Sept". Home
@@ -90,7 +90,7 @@ export function ChargeLevelChart({
     <ChartCard
       as={heading ? "h2" : "h3"}
       title="Charge level"
-      description={drawn ? `${frame.title}.` : undefined}
+      description={drawn ? "Battery level over time, with charging marked." : undefined}
       summary={
         heading && (
           // The latest level, whatever span is picked; the chart below follows the span.
@@ -108,7 +108,7 @@ export function ChargeLevelChart({
     >
       {/* With no readings, or a flat line and no charge (see flatLevelNote), one line stands in for the chart. */}
       {points.length < 2 ? (
-        <ChartNote>No readings {frame.words}.</ChartNote>
+        <ChartNote>No battery level recorded.</ChartNote>
       ) : flat ? (
         <ChartNote>{flat}</ChartNote>
       ) : (
