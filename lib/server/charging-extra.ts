@@ -8,6 +8,7 @@ import { matchSessions } from "@/lib/charge-sessions";
 import { formatClock, formatKwh, formatShortDate } from "@/lib/format";
 import { cappedFrom } from "@/lib/kept";
 import { powerByLevel, powerFigures } from "@/lib/charge-curve";
+import { levelSeries, type Taper, taperTimes } from "@/lib/charge-tips";
 import type { ChargingSession } from "./charging";
 import { loadChargeSeries } from "./charge-curve";
 import { cachedPlaceNames, placeKey } from "./place-names";
@@ -29,6 +30,8 @@ export type Curve = {
   points: { x: number; y: number }[];
   peakKw: number | null;
   avgKw: number | null;
+  // Time to 80% and above it, when the charge went past 80% (lib/charge-tips.ts), for the tips.
+  taper: Taper | null;
 };
 
 // What names a charge besides the session itself: Tesla's sessions (a Supercharger's site), the attached
@@ -102,6 +105,7 @@ export async function loadChargingExtras(owner: Owner, vin: string | null, sessi
               supercharger: s.supercharger,
               points,
               ...powerFigures(r.power, r.end, s.peak_power_kw),
+              taper: taperTimes(levelSeries(r.level), Date.parse(s.started_at), r.end, s.start_level, s.end_level),
             }
           : null;
       }),

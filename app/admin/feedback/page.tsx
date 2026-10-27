@@ -11,6 +11,9 @@ import { isAdmin } from "@/lib/server/admin";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { FEEDBACK_TAG, type FeedbackView, loadFeedback, PAGE_SIZE } from "@/lib/server/feedback";
 import { cn } from "@/lib/utils";
+import type { TipScope } from "@/lib/ai-tips";
+import { loadVoteSummary } from "@/lib/server/tip-votes";
+import { type KindSummary, kindLabel, SCOPE_LABELS } from "@/lib/tip-votes";
 import { MarkButtons } from "./mark-buttons";
 
 export const metadata: Metadata = { title: "Feedback · Admin" };
@@ -120,11 +123,88 @@ async function Feedback({ searchParams }: Pick<PageProps<"/admin/feedback">, "se
   );
 }
 
+// Which kinds of AI tip work, from every owner's latest votes: one row per page and kind, the kinds that need
+// work first (see summariseVotes).
+async function loadVotes(): Promise<KindSummary[] | null> {
+  "use cache: private";
+  cacheTag(FEEDBACK_TAG);
+  cacheLife({ stale: 300 });
+  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
+  if (!(await isAdmin())) notFound();
+  return loadVoteSummary(VOTES_READ);
+}
+
+const VOTES_READ = 1000;
+// Under this share useful a kind needs work; from WORKING it is working well.
+const NEEDS_WORK = 0.5;
+const WORKING = 0.75;
+
+async function TipVotes() {
+  const kinds = await loadVotes();
+  return (
+    <section className="space-y-4">
+      <div className="space-y-1">
+        <h2 className="text-lg font-medium tracking-heading">Tips</h2>
+        <p className="text-sm text-muted-foreground">How owners voted on each kind of AI tip. The kinds that need work come first.</p>
+      </div>
+      {kinds === null ? (
+        <p className="text-sm text-faint">Tip votes aren&apos;t set up yet. Apply the tip votes migration.</p>
+      ) : kinds.length === 0 ? (
+        <p className="text-sm text-faint">No votes yet.</p>
+      ) : (
+        <ol className="divide-y border-y">
+          {kinds.map((k) => (
+            <li key={`${k.scope}:${k.kind}`} className="space-y-2 py-4">
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                <span className="text-sm font-medium">{kindLabel(k.kind)}</span>
+                <span className="text-muted-foreground">{SCOPE_LABELS[k.scope as TipScope] ?? k.scope}</span>
+                <span className={cn("ml-auto font-medium", k.share < NEEDS_WORK ? "text-chart-worse" : k.share >= WORKING ? "text-chart-better" : "text-muted-foreground")}>
+                  {k.share < NEEDS_WORK ? "Needs work" : k.share >= WORKING ? "Working well" : "Mixed"}
+                </span>
+              </p>
+              <p className="text-xs text-muted-foreground tabular-nums">
+                {number.format(k.useful)} useful · {number.format(k.notUseful)} not useful · {Math.round(k.share * 100)}% useful
+              </p>
+              <ul className="space-y-1 text-sm">
+                {k.examples.map((e, n) => (
+                  <li key={n} className="break-words">
+                    <span className="text-xs text-muted-foreground">{e.vote === 1 ? "Useful" : "Not useful"}:</span> {e.tip}
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}
+
+// Messages from the feedback button, or (?view=tips) how owners voted on the AI tips. The votes are mostly for
+// tuning the tips, so they sit behind their own switch rather than among the messages.
+async function Views({ searchParams }: Pick<PageProps<"/admin/feedback">, "searchParams">) {
+  const tips = (await searchParams).view === "tips";
+  const tab = (on: boolean) => cn("px-3 py-1.5 text-sm transition-colors duration-150", on ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground");
+  return (
+    <>
+      <nav aria-label="Show" className="inline-flex border">
+        <Link href="/admin/feedback" aria-current={tips ? undefined : "page"} className={tab(!tips)}>
+          Messages
+        </Link>
+        <Link href="/admin/feedback?view=tips" aria-current={tips ? "page" : undefined} className={tab(tips)}>
+          Tip votes
+        </Link>
+      </nav>
+      {tips ? <TipVotes /> : <Feedback searchParams={searchParams} />}
+    </>
+  );
+}
+
 export default function Page({ searchParams }: PageProps<"/admin/feedback">) {
   return (
     <AdminPage description={<p>What owners sent from the feedback button, newest first, with the page they were on.</p>}>
       <Suspense fallback={null}>
-        <Feedback searchParams={searchParams} />
+        <Views searchParams={searchParams} />
       </Suspense>
     </AdminPage>
   );

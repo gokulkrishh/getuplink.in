@@ -664,3 +664,16 @@ export async function newFeedbackCount(): Promise<number> {
 export async function setFeedbackStatus(id: number, status: FeedbackStatus): Promise<void> {
   check(await db().from("feedback").update({ status }).eq("id", id));
 }
+
+export type TipVoteRow = { id: number; user_id: number; scope: string; kind: string; tip: string; vote: number; updated_at: string };
+
+// The latest votes on the AI tips across every owner, newest first, for Admin > Feedback's summary per kind.
+// Null when the tip_votes migration hasn't run.
+export async function recentTipVotes(limit: number): Promise<TipVoteRow[] | null> {
+  const { data, error } = await db().from("tip_votes").select("id, user_id, scope, kind, tip, vote, updated_at").order("updated_at", { ascending: false }).limit(limit);
+  if (error) {
+    if (MISSING_TABLE.includes(error.code)) return null;
+    throw new Error(`Reading tip votes failed: ${error.message}`);
+  }
+  return (data ?? []).map((r) => ({ ...(r as TipVoteRow), id: Number(r.id), user_id: Number(r.user_id), vote: Number(r.vote) }));
+}

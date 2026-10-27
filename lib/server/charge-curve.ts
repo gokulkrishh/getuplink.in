@@ -2,6 +2,7 @@ import "server-only";
 import { type SessionInvoice, sessionInvoice } from "./receipts";
 import { type ChargeCurve, chargeCurve, fromStart, levelThroughEnd } from "@/lib/charge-curve";
 import { chargeSpot, SPOT_WITHIN_MS } from "@/lib/charge-names";
+import { levelSeries, type Taper, taperTimes } from "@/lib/charge-tips";
 import { matchSessions, SETTLE_MS } from "@/lib/charge-sessions";
 import { DEMO } from "@/lib/demo";
 import type { Reading } from "@/lib/telemetry-derive";
@@ -35,6 +36,8 @@ export type ChargeDetail = {
   target: NameTarget | null;
   // The tag's Google place name, fetched live, for the title only (credited there).
   google: string | null;
+  // Time to 80% and above it, when the charge went past 80% (lib/charge-tips.ts), for the tips.
+  taper: Taper | null;
 };
 
 async function loadStreamSession(owner: Owner, id: number): Promise<StreamChargeSession | null> {
@@ -97,5 +100,6 @@ export async function loadChargeDetail(owner: Owner, id: number, now: number): P
   ]);
   const target = spot ? nameTarget(tags, spot) : null;
   const google = target?.tag?.googlePlaceId ? await googlePlaceName(target.tag.googlePlaceId) : null;
-  return { session, tesla: twin, invoice, curve, fees, spot, place: spot ? (places.get(placeKey(spot)) ?? null) : null, target, google };
+  const taper = series ? taperTimes(levelSeries(series.level), start, end, session.start_level, session.end_level) : null;
+  return { session, tesla: twin, invoice, curve, fees, spot, place: spot ? (places.get(placeKey(spot)) ?? null) : null, target, google, taper };
 }

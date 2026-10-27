@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
-import { Suspense } from "react";
+import { type ReactNode, Suspense } from "react";
+import { AiNotesSkeleton } from "@/components/home/week-tips";
+import { TipsBox } from "@/components/tips-box";
+import { CHARGE_TIPS, chargeFindings, type PricedCharge } from "@/lib/charge-tips";
+import { loadPricedCharges } from "@/lib/server/charge-tips";
+import { loadPrimaryVehicle } from "@/lib/server/telemetry";
 import { Header } from "@/components/header";
 import { rate, streamName } from "@/components/session-row";
 import { chargeType, googleMapsUrl, nameAction } from "@/lib/charge-names";
@@ -22,7 +27,8 @@ export const metadata: Metadata = { title: "Charge" };
 
 
 // Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx).
-async function loadDetail(id: number): Promise<{ detail: ChargeDetail | null; now: number }> {
+// With the owner's billed charges and car, for the tips.
+async function loadDetail(id: number): Promise<{ detail: ChargeDetail | null; priced: PricedCharge[]; vehicleId: string | null; now: number }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
@@ -30,7 +36,14 @@ async function loadDetail(id: number): Promise<{ detail: ChargeDetail | null; no
   if (!owner) redirect(SIGNED_OUT_PATH);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
   const now = Date.now();
-  return { detail: await loadChargeDetail(owner, id, now), now };
+  const [detail, priced, car] = await Promise.all([loadChargeDetail(owner, id, now), loadPricedCharges(owner, now), loadPrimaryVehicle(owner)]);
+  return { detail, priced, vehicleId: car?.id ?? null, now };
+}
+
+// This charge against the owner's others (lib/charge-tips.ts).
+function chargeTips(detail: ChargeDetail, priced: PricedCharge[]) {
+  const id = detail.tesla ? `t${detail.tesla.session_id}` : `s${detail.session.id}`;
+  return chargeFindings({ charge: priced.find((c) => c.id === id) ?? null, others: priced.filter((c) => c.id !== id), kind: detail.session.kind, taper: detail.taper });
 }
 
 // Tesla's bill for a Supercharger, an attached invoice for anything else (₹/kWh on the kWh billed, as
@@ -41,7 +54,7 @@ function cost(tesla: ChargeDetail["tesla"], invoice: ChargeDetail["invoice"], en
   return !s.supercharger && s.ended_at ? "Not available" : null;
 }
 
-function Charge({ detail, now }: { detail: ChargeDetail; now: number }) {
+function Charge({ detail, now, tips }: { detail: ChargeDetail; now: number; tips: ReactNode }) {
   const { session: s, tesla, invoice, curve } = detail;
   // Tesla's site for a Supercharger it billed, with its city under it; otherwise the best name known, or
   // the kind of charge when there's no name.
@@ -117,6 +130,7 @@ function Charge({ detail, now }: { detail: ChargeDetail; now: number }) {
         {[city, withDayWord(formatDate(s.started_at), s.started_at, now), span].filter(Boolean).join(" · ")}
       </p>
       <div className="space-y-12">
+        {tips}
         {curve.points.length >= 2 && <ChargeCurve points={curve.points} />}
         {shown.length > 0 && (
           <section className="space-y-6">
@@ -146,9 +160,23 @@ function Charge({ detail, now }: { detail: ChargeDetail; now: number }) {
 async function ChargeLoader({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!/^\d{1,15}$/.test(id)) notFound();
-  const { detail, now } = await loadDetail(Number(id));
+  const { detail, priced, vehicleId, now } = await loadDetail(Number(id));
   if (!detail) notFound();
-  return <Charge detail={detail} now={now} />;
+  const tips = chargeTips(detail, priced);
+  const at = Date.parse(detail.session.started_at);
+  return (
+    <Charge
+      detail={detail}
+      now={now}
+      tips={
+        vehicleId && tips.length > 0 ? (
+          <Suspense fallback={<AiNotesSkeleton />}>
+            <TipsBox surface={CHARGE_TIPS} vehicleId={vehicleId} at={at} daily={false} entity={String(detail.session.id)} findings={tips} />
+          </Suspense>
+        ) : null
+      }
+    />
+  );
 }
 
 function ChargeSkeleton() {

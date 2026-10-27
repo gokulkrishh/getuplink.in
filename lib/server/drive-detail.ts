@@ -33,6 +33,8 @@ export type DriveDetail = {
   // The owner's usual, from their other drives in the last USUAL_DAYS (see lib/drive-verdict.ts): Wh/km,
   // and hard starts and stops a drive. Each null until there are enough drives to compare.
   usual: { whPerKm: number | null; hard: number | null };
+  // The battery's usable capacity, the latest week's (see batteryTrend), for range on a full charge.
+  usableKwh: number | null;
 };
 
 const points = (readings: Reading[], from: number, to: number, scale = 1): TracePoint[] =>
@@ -51,7 +53,9 @@ export async function loadDriveDetail(owner: Owner, start: number, now: number, 
   const car = await loadPrimaryVehicle(owner);
   const vin = car?.vin ?? null;
   if (!car || !vin) return null;
-  const drives = (await loadWindowStats(owner, vin, now)).driving.drives;
+  const window = await loadWindowStats(owner, vin, now);
+  const drives = window.driving.drives;
+  const usableKwh = window.trend.at(-1)?.kwh ?? null;
   const drive0 = drives.find((d) => d.start === start);
   if (!drive0) return null;
   const trip = (!leg && groupTrips(drives).find((t) => t.start === start && t.legs.length > 1)) || groupTrips([drive0])[0];
@@ -120,5 +124,6 @@ export async function loadDriveDetail(owner: Owner, start: number, now: number, 
     topKmh: speed.length ? Math.max(...speed.map((p) => p.v)) : null,
     outsideC: temps.length ? median(temps) : null,
     usual,
+    usableKwh,
   };
 }

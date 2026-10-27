@@ -1,20 +1,57 @@
 "use client";
 
-import { ChevronRight, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { ChevronLeft, ChevronRight, Sparkles, ThumbsDown, ThumbsUp } from "lucide-react";
+import { useState, useTransition } from "react";
+import { voteTip } from "@/app/tip-actions";
+import type { Tip, TipScope } from "@/lib/ai-tips";
+import type { Vote } from "@/lib/tip-votes";
+import { cn } from "@/lib/utils";
 
-// The box, the same while loading, so the page doesn't move when the tips arrive. Two lines of tip text
-// are held, so turning between a short and a long tip doesn't move it either.
+// The box, the same while loading, so the page doesn't move when the tips arrive. Five lines of tip text are
+// held on a phone and two wider (lib/ai-tips.ts MAX_CHARS keeps every tip within them), so turning between
+// a short and a long tip doesn't move it either.
 const BOX = "space-y-2 border px-4 py-3";
+const TIPS_LINES = "min-h-25 sm:min-h-10";
+const NOTE_LINES = "min-h-15 sm:min-h-10";
 
-// Text the AI wrote, in one box style wherever it stands alone: Home's tips on the week
-// (lib/week-wording.ts) and a drive's summary (lib/drive-wording.ts). Several notes show one at a time; the
-// next button turns them, and they were written ahead, so turning costs nothing.
-export function AiNotes({ title, notes: tips }: { title: string; notes: string[] }) {
+// Where the notes' votes go: the kind of page, the page (a day's start, a drive's start or a charge's id) and
+// the owner's votes so far, by tip.
+export type NoteVotes = { scope: TipScope; entity: string; votes: Record<string, Vote> };
+
+const CONTROL =
+  "tap-target inline-flex items-center gap-1.5 rounded-sm text-xs text-muted-foreground tabular-nums transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring";
+
+// Text the AI wrote, in one box style wherever it stands alone: the tips on Home, a drive, Stats > Charging
+// and a charge (lib/ai-tips.ts), and a drive's summary (lib/drive-wording.ts). Several notes show one at a
+// time; the next button turns them, and they were written ahead, so turning costs nothing. With `vote`, each
+// note can be marked useful or not; the choice stays lit and can be changed.
+export function AiNotes({ title, notes: tips, vote }: { title: string; notes: (Pick<Tip, "text"> & Partial<Pick<Tip, "kind">>)[]; vote?: NoteVotes }) {
   const [at, setAt] = useState(0);
+  const [votes, setVotes] = useState<Record<string, Vote>>(vote?.votes ?? {});
+  // The vote just cast, so only its answer slides in: one from an earlier visit shows still.
+  const [justVoted, setJustVoted] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
   if (tips.length === 0) return null;
-  const tip = tips[at % tips.length];
-  return (
+  const { text: tip, kind } = tips[at % tips.length];
+  const cast = (value: Vote) => {
+    if (!vote || !kind) return;
+    // Tapping the chosen one again takes the vote back.
+    const next = votes[tip] === value ? 0 : value;
+    setVotes(({ [tip]: _, ...rest }) => (next === 0 ? rest : { ...rest, [tip]: next }));
+    setJustVoted(next === 0 ? null : tip);
+    startTransition(() => voteTip({ scope: vote.scope, entity: vote.entity, kind, tip, vote: next }));
+  };
+  const thumb = (value: Vote, label: string, Icon: typeof ThumbsUp) => (
+    <button
+      type="button"
+      onClick={() => cast(value)}
+      aria-label={label}
+      className={cn(CONTROL, "size-6 justify-center transition-[color,scale] active:scale-90")}
+    >
+      <Icon className="relative top-px size-3.5" aria-hidden="true" />
+    </button>
+  );
+  const box = (
     <section aria-label={title} className={BOX}>
       <div className="flex h-6 items-center justify-between gap-3">
         <div className="flex items-center gap-1.5 text-sm font-medium">
@@ -26,36 +63,72 @@ export function AiNotes({ title, notes: tips }: { title: string; notes: string[]
           {/* Shimmers once as the notes arrive; turning to the next one doesn't replay it. */}
           <span className="ai-shimmer">{title}</span>
         </div>
-        {tips.length > 1 && (
-          <button
-            type="button"
-            onClick={() => setAt((k) => (k + 1) % tips.length)}
-            aria-label={`Next, ${(at % tips.length) + 1} of ${tips.length}`}
-            className="tap-target inline-flex items-center gap-1.5 rounded-sm text-xs text-muted-foreground tabular-nums transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
-          >
-            {(at % tips.length) + 1} of {tips.length}
-            <ChevronRight className="size-3.5" aria-hidden="true" />
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {/* ‹ 2 of 3 ›: back and on, each wrapping round. */}
+          {tips.length > 1 && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums">
+              <button type="button" onClick={() => setAt((k) => (k + tips.length - 1) % tips.length)} aria-label="Previous tip" className={cn(CONTROL, "size-6 justify-center")}>
+                <ChevronLeft className="size-3.5" aria-hidden="true" />
+              </button>
+              <span aria-live="polite">
+                {(at % tips.length) + 1} of {tips.length}
+              </span>
+              <button type="button" onClick={() => setAt((k) => (k + 1) % tips.length)} aria-label="Next tip" className={cn(CONTROL, "size-6 justify-center")}>
+                <ChevronRight className="size-3.5" aria-hidden="true" />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-      <p className="min-h-15 text-sm text-muted-foreground sm:min-h-10" aria-live="polite">
+      {/* Tips (with votes) hold TIPS_LINES; a one-line note such as a drive's summary holds two lines, as before. */}
+      <p className={cn("text-sm text-muted-foreground", vote ? TIPS_LINES : NOTE_LINES)} aria-live="polite">
         {tip}
       </p>
     </section>
   );
+  if (!vote) return box;
+  // Was this useful: under the box's bottom right corner. The row is kept even for a tip that can't be voted
+  // on, so the box below doesn't move.
+  return (
+    <div>
+      {box}
+      <div className="-mr-1 flex h-8 items-center justify-end">
+        {/* Before a vote: the question and both thumbs. After: what was chosen, and Undo to take it back. */}
+        {kind &&
+          (votes[tip] ? (
+            <span className={cn("flex items-center gap-2 text-xs text-muted-foreground", justVoted === tip && "motion-safe:animate-vote-in")} aria-live="polite">
+              {votes[tip] === 1 ? "You found this useful" : "You didn't find this useful"}
+              <button type="button" onClick={() => cast(votes[tip])} className="tap-target rounded-sm underline decoration-dotted underline-offset-4 transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+                Undo
+              </button>
+            </span>
+          ) : (
+            <>
+              <span className="mr-1 text-xs leading-4 text-muted-foreground">Was this useful?</span>
+              {thumb(1, "Useful", ThumbsUp)}
+              {thumb(-1, "Not useful", ThumbsDown)}
+            </>
+          ))}
+      </div>
+    </div>
+  );
 }
 
 // In the notes' place while they load: plain blocks, since there may turn out to be none.
+// The empty row under it stands for the vote buttons.
 export function AiNotesSkeleton() {
   return (
-    <div className={BOX} data-skeleton="tips" aria-hidden="true">
-      <div className="flex h-6 items-center">
-        <div className="h-3 w-16 animate-pulse bg-muted" />
+    <div data-skeleton="tips" aria-hidden="true">
+      <div className={BOX}>
+        <div className="flex h-6 items-center">
+          <div className="h-3 w-16 animate-pulse bg-muted" />
+        </div>
+        <div className={cn("space-y-2 pt-1", TIPS_LINES)}>
+          <div className="h-3 w-full animate-pulse bg-muted" />
+          <div className="h-3 w-2/3 animate-pulse bg-muted" />
+        </div>
       </div>
-      <div className="min-h-15 space-y-2 pt-1 sm:min-h-10">
-        <div className="h-3 w-full animate-pulse bg-muted" />
-        <div className="h-3 w-2/3 animate-pulse bg-muted" />
-      </div>
+      <div className="h-8" />
     </div>
   );
 }

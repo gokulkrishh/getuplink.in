@@ -3,6 +3,10 @@ import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { SyncChargingSessions } from "@/components/background-sync";
+import { AiNotesSkeleton } from "@/components/home/week-tips";
+import { TipsBox } from "@/components/tips-box";
+import { CHARGING_TIPS, chargingFindings, pricedCharges } from "@/lib/charge-tips";
+import { istDay, istDayStart } from "@/lib/telemetry-derive";
 import { listSessions, streamName, withSpots } from "@/components/session-row";
 import { ChargeHabits } from "@/components/stats/charge-habits";
 import { ChargeRange } from "@/components/stats/charge-range";
@@ -47,6 +51,7 @@ async function loadCharging(query: CustomQuery | null): Promise<{
   extras: Extras;
   held: Held;
   custom: (CustomFrame & { extras: Extras; held: Held }) | null;
+  vehicleId: string | null;
   now: number;
 }> {
   "use cache: private";
@@ -56,7 +61,8 @@ async function loadCharging(query: CustomQuery | null): Promise<{
   if (!owner) redirect(SIGNED_OUT_PATH);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
   const now = Date.now();
-  const vin = (await loadPrimaryVehicle(owner))?.vin ?? null;
+  const car = await loadPrimaryVehicle(owner);
+  const vin = car?.vin ?? null;
   const range = query && customRange("custom", query.from ?? undefined, query.to ?? undefined, now);
   const frame = range && rangeTimeframe(range, now);
   const [sessions, streamSessions, figures, rangeDriving] = await Promise.all([
@@ -76,11 +82,11 @@ async function loadCharging(query: CustomQuery | null): Promise<{
     range && frame && rangeExtras
       ? { range, frame, driving: rangeDriving, extras: rangeExtras, held: heldFrom(streamSessions.filter((s) => inSpan(Date.parse(s.started_at), frame.span))) }
       : null;
-  return { sessions, streamSessions, invoices, figures, extras, held: heldFrom(streamSessions), custom, now };
+  return { sessions, streamSessions, invoices, figures, extras, held: heldFrom(streamSessions), custom, vehicleId: car?.id ?? null, now };
 }
 
 async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "searchParams">) {
-  const { sessions, streamSessions, invoices, figures, extras, held, custom, now } = await loadCharging(customQuery(await searchParams));
+  const { sessions, streamSessions, invoices, figures, extras, held, custom, vehicleId, now } = await loadCharging(customQuery(await searchParams));
   const { pairs, streamOnly } = matchSessions(sessions, streamSessions, now);
   // Each row named from its spot when the page has it (the latest PINNED charges), the owner's tag first.
   const listed = withSpots(listSessions(pairs, streamOnly, invoices), extras.spots);
@@ -113,6 +119,17 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
   const starts = (span: Span) => [...sessions, ...streamOnly].filter(startedIn(span)).map((s) => Date.parse(s.started_at));
   // The curves and pins are of the latest charges only (the range's own, for a range): each frame draws
   // those in its span, and says how far back they go when its span starts earlier.
+  // The tips (lib/charge-tips.ts), over every charge: the period switch below doesn't change them.
+  const tips = chargingFindings({
+    priced: pricedCharges(sessions, streamOnly, invoices),
+    energy: {
+      ac: streamOnly.filter((s) => s.kind === "ac").reduce((sum, s) => sum + (s.energy_added_kwh ?? 0), 0),
+      dc: sessions.reduce((sum, s) => sum + (s.energy_kwh ?? 0), 0) + streamOnly.filter((s) => s.kind === "dc").reduce((sum, s) => sum + (s.energy_added_kwh ?? 0), 0),
+    },
+    dcWithCurves: extras.curves.length,
+    tapered: extras.curves.flatMap((c) => (c.taper ? [{ at: Date.parse(c.date), taper: c.taper }] : [])),
+  });
+  const today = istDayStart(istDay(now));
   const extrasFor = (key: string) => (key === "custom" && custom ? { ...custom.extras, held: custom.held } : { ...extras, held });
 
   return (
@@ -121,6 +138,11 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
         <NotYet title="No charges yet">Your charges will show up here, wherever you plug in.</NotYet>
       ) : (
         <div className="space-y-12">
+          {vehicleId && tips.length > 0 && (
+            <Suspense fallback={<AiNotesSkeleton />}>
+              <TipsBox surface={CHARGING_TIPS} vehicleId={vehicleId} at={today} daily entity={String(today)} findings={tips} />
+            </Suspense>
+          )}
           {(bills.length > 0 || unbilled.length > 0 || sessions.length > 0) &&
             eachFrame(frames, (f) => {
               const { frame, driving } = fromSince(f, chargingSince, now);

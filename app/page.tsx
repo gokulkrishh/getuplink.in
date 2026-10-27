@@ -11,15 +11,16 @@ import { listSessions, withSpots } from "@/components/session-row";
 import { eachFrame } from "@/components/home/frames";
 import { PeriodScope } from "@/components/stats/period-scope";
 import { matchSessions } from "@/lib/charge-sessions";
-import { chargingBills, energyIn, firstStartedAt } from "@/lib/charging-figures";
+import { chargingBills, firstStartedAt } from "@/lib/charging-figures";
 import { withDriveEfficiency } from "@/lib/drive-stats";
 import { periodFrames } from "@/lib/frames";
 import { daysLabel } from "@/lib/periods";
 import { istDay, istDayStart } from "@/lib/telemetry-derive";
-import { after, connection } from "next/server";
-import { AiNotes, AiNotesSkeleton } from "@/components/home/week-tips";
-import { quietWeek, type WeekFacts, weekFacts } from "@/lib/week-wording";
-import { generateWeekTips, loadWeekTips } from "@/lib/server/week-wording";
+import { AiNotesSkeleton } from "@/components/home/week-tips";
+import { TipsBox } from "@/components/tips-box";
+import { batteryFindings } from "@/lib/battery-tips";
+import { averagePrice, pricedCharges } from "@/lib/charge-tips";
+import { WEEK_TIPS, weekFindings } from "@/lib/week-wording";
 import { newestTime } from "@/lib/last-synced";
 import { rotationNotice, tyreRotation } from "@/lib/tyre-rotation";
 import type { DemoScenario } from "@/lib/demo";
@@ -56,19 +57,6 @@ function greeting(now: number): string {
   return hour >= 4 && hour < 12 ? "Good morning" : hour >= 12 && hour < 17 ? "Good afternoon" : "Good evening";
 }
 
-// Today's AI tips on the week (lib/server/week-wording.ts): the stored ones, or none and some written
-// after the response for the next visit.
-async function Tips({ vehicleId, day, facts }: { vehicleId: string; day: number; facts: WeekFacts }) {
-  // Outside the cached scope, the session check reads the clock, so this part renders per request.
-  await connection();
-  const owner = await currentOwner();
-  if (!owner) return null;
-  const key = { vehicleId, day };
-  const stored = await loadWeekTips(owner, key, facts);
-  if (stored.generate) after(() => generateWeekTips(owner, key, facts));
-  return <AiNotes title="Tips" notes={stored.tips} />;
-}
-
 // The four headline numbers, then driving, charging and battery, over the last 7 days.
 function Totals({ home, routes, now }: { home: Extract<Home, { kind: "ready" }>; routes: Record<number, string>; now: number }) {
   const { pairs, streamOnly } = matchSessions(home.sessions, home.streamSessions, now);
@@ -82,7 +70,15 @@ function Totals({ home, routes, now }: { home: Extract<Home, { kind: "ready" }>;
   const frames = periodFrames(figures, null, window.driving.drives, now).filter((f) => f.key === "week");
   // Real bills, counted as Charging counts them: Tesla's for Superchargers, attached invoices for the rest.
   const bills = chargingBills(home.sessions, streamOnly, home.invoices);
-  const facts = weekFacts(frames[0].frame, frames[0].driving, window.driving.drives, bills, energyIn(home.sessions, streamOnly, frames[0].frame.span));
+  // The tips' findings (lib/week-wording.ts), with the week's heaviest parked stretch from the Battery tips
+  // when it drew far more than usual. Ranked together; the model sees the top few.
+  const { frame } = frames[0];
+  const priced = pricedCharges(home.sessions, streamOnly, home.invoices);
+  const findings = [
+    ...weekFindings({ frame, driving: frames[0].driving, drives: window.driving.drives, priced, parked: window.driving.parked, charges: home.streamSessions, odometerKm: home.figures.odometerKm, now }),
+    ...batteryFindings({ parked: window.driving.parked, presence: [], level: [], avgPrice: averagePrice(priced), now, heavyFrom: frame.span.from }).filter((f) => f.kind === "heavyDrain"),
+  ];
+  const today = istDayStart(istDay(now));
   return (
     <div className="space-y-12">
       <section aria-label="Totals" className="space-y-6">
@@ -102,9 +98,9 @@ function Totals({ home, routes, now }: { home: Extract<Home, { kind: "ready" }>;
         )}
         {/* The AI's tips on the week stream in after the rest, in a box of the same size. */}
         {/* A quiet week has no tips, so no box. */}
-        {primaryId && !quietWeek(facts) && (
+        {primaryId && findings.length > 0 && (
           <Suspense fallback={<AiNotesSkeleton />}>
-            <Tips vehicleId={primaryId} day={istDayStart(istDay(now))} facts={facts} />
+            <TipsBox surface={WEEK_TIPS} vehicleId={primaryId} at={today} daily entity={String(today)} findings={findings} />
           </Suspense>
         )}
       </section>

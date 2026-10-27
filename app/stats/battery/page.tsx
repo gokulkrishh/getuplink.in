@@ -20,6 +20,17 @@ import { type BatteryExtras, loadBatteryExtras } from "@/lib/server/battery-extr
 import { loadPrimaryVehicle } from "@/lib/server/telemetry";
 import { loadParkedPlaces } from "@/lib/server/parked-places";
 import type { SpotName } from "@/lib/charge-names";
+import { AiNotesSkeleton } from "@/components/home/week-tips";
+import { TipsBox } from "@/components/tips-box";
+import type { DayStrip } from "@/lib/awake";
+import { BATTERY_TIPS, batteryFindings } from "@/lib/battery-tips";
+import { averagePrice, type PricedCharge } from "@/lib/charge-tips";
+import { DRIVE_DAYS } from "@/lib/drives";
+import { MODE_FIELDS, type ModeReadings } from "@/lib/parked-modes";
+import { loadPresence } from "@/lib/server/awake";
+import { loadReadingsByField } from "@/lib/server/telemetry-window";
+import { loadPricedCharges } from "@/lib/server/charge-tips";
+import { istDay, istDayStart } from "@/lib/telemetry-derive";
 
 export const metadata: Metadata = { title: "Battery" };
 
@@ -33,6 +44,10 @@ async function loadBattery(query: CustomQuery | null): Promise<{
   extras: BatteryExtras;
   places: Record<number, SpotName>;
   custom: { range: DayRange; frame: Timeframe } | null;
+  presence: DayStrip[];
+  priced: PricedCharge[];
+  modes: ModeReadings | undefined;
+  vehicleId: string | null;
   now: number;
 }> {
   "use cache: private";
@@ -42,22 +57,31 @@ async function loadBattery(query: CustomQuery | null): Promise<{
   if (!owner) redirect(SIGNED_OUT_PATH);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
   const now = Date.now();
-  const vin = (await loadPrimaryVehicle(owner))?.vin ?? null;
+  const car = await loadPrimaryVehicle(owner);
+  const vin = car?.vin ?? null;
   const range = query && customRange("custom", query.from ?? undefined, query.to ?? undefined, now);
   const [window, sessions] = await Promise.all([loadWindowStats(owner, vin, now), loadStreamSessions(owner)]);
-  const [extras, places] = await Promise.all([
+  const [extras, places, presence, priced, modes] = await Promise.all([
     loadBatteryExtras(owner, vin, window.trend, now),
     // Where each stretch was parked; never fails the page.
     loadParkedPlaces(owner, vin, [...window.driving.parked.map((p) => p.start), ...(window.driving.parkedNow ? [window.driving.parkedNow.start] : [])]).catch(() => ({})),
+    // For the tips: when the car woke while parked, and what the owner pays per kWh.
+    car ? loadPresence(owner, car, now).then((p) => p.days).catch(() => []) : [],
+    loadPricedCharges(owner, now),
+    // Which modes the car reported on while parked, so a tip names one only when it was on.
+    vin ? loadReadingsByField(owner, vin, [...MODE_FIELDS], new Date(now - DRIVE_DAYS * 86_400_000).toISOString(), new Date(now).toISOString()).catch(() => null) : null,
   ]);
-  return { window, sessions, extras, places, custom: range && { range, frame: rangeTimeframe(range, now) }, now };
+  return { window, sessions, extras, places, custom: range && { range, frame: rangeTimeframe(range, now) }, presence, priced, modes: modes ?? undefined, vehicleId: car?.id ?? null, now };
 }
 
 async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "searchParams">) {
-  const { window, sessions, extras, places, custom, now } = await loadBattery(customQuery(await searchParams));
+  const { window, sessions, extras, places, custom, presence, priced, modes, vehicleId, now } = await loadBattery(customQuery(await searchParams));
   const { trend, range, level, driving } = window;
   const enough = trend.length >= 2 || range.length > 0 || (level?.points.length ?? 0) >= 2 || driving.parked.length > 0 || driving.parkedNow !== null;
   const frames = timeframes(custom?.frame ?? null, now);
+  // The tips (lib/battery-tips.ts), over what the page holds: the period switch doesn't change them.
+  const tips = batteryFindings({ parked: driving.parked, presence, level: level?.points ?? [], avgPrice: averagePrice(priced), now, modes });
+  const today = istDayStart(istDay(now));
 
   return (
     // One switch drives every section. Each period draws only what it has (a quiet one is a line, not a
@@ -65,6 +89,11 @@ async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "sear
     <StatsFrame custom={customScope(custom?.range ?? null, now)} periodSwitch={enough}>
       {enough ? (
         <div className="space-y-12">
+          {vehicleId && tips.length > 0 && (
+            <Suspense fallback={<AiNotesSkeleton />}>
+              <TipsBox surface={BATTERY_TIPS} vehicleId={vehicleId} at={today} daily entity={String(today)} findings={tips} />
+            </Suspense>
+          )}
           {eachFrame(frames, ({ frame }) => (
             <BatteryHealth trend={trend} range={range} sessions={sessions} frame={frame} teslaPack={extras.teslaPack} drives={driving.drives} now={now} />
           ))}
