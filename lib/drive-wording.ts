@@ -6,11 +6,11 @@
 // arrows or dashes, the sentence count), it only names the usual when there is one, and every number in it
 // is one the facts hold. A line that fails falls back to its code sentence, on its own.
 import { z } from "zod";
-import { CHART_LINES, type DriveFacts, type DriveWords, type WordingField } from "@/lib/drive-facts";
+import type { DriveFacts, DriveWords, WordingField } from "@/lib/drive-facts";
 
 export const WORDING_MODEL = "anthropic/claude-haiku-5.5";
 // Bumped when the prompt or the facts' shape changes, so stored wording is written again.
-export const PROMPT_VERSION = 4;
+export const PROMPT_VERSION = 5;
 // OpenRouter's list price for the model, per token, for when a reply leaves out its cost.
 export const PRICE_PER_TOKEN = { input: 0.1 / 1e6, output: 0.5 / 1e6 };
 
@@ -18,7 +18,6 @@ export const SYSTEM_PROMPT = `You write the short text on a Tesla owner's drive 
 
 You get one drive's facts as JSON. Write:
 - "summary": one sentence on WHY the drive used the energy it did, shown under tiles that already give the Wh/km, the usual and the hard-moment counts. Don't repeat those figures. Point to what in the facts most likely explains it: climbs or descents and when, regen won back, speed, or hard moments and when. If nothing in the facts explains it, set it to null.
-- One line for each chart named in "charts", in its own field ("speed", "power", "acceleration", "grade", "battery"): one sentence each, saying what that chart shows for this drive. Set every other field to null.
 
 Rules:
 - Plain, short sentences, the way a calm friend would say it. No hype, no exclamation marks, no emoji.
@@ -32,7 +31,9 @@ Rules:
 
 // Every field is sent as required and nullable: strict structured output handles that more reliably than
 // optional properties. A null is a line not written.
-const FIELDS = ["summary", ...CHART_LINES] as const satisfies readonly WordingField[];
+// The AI writes only the summary, the "why" under the tiles: the lines under the charts restate what the
+// chart shows, which the code says exactly.
+const FIELDS = ["summary"] as const satisfies readonly WordingField[];
 export const RESPONSE_SCHEMA = {
   type: "object",
   properties: Object.fromEntries(FIELDS.map((f) => [f, { type: ["string", "null"] }])),
@@ -109,7 +110,7 @@ export function lineProblem(field: WordingField, text: string, facts: DriveFacts
 }
 
 // The lines from a model reply (its JSON text, or the parsed object) that pass every check: the summary
-// when the page has one, and a line only for a chart in facts.charts. Null when the reply doesn't parse.
+// when the page has one. Null when the reply doesn't parse.
 export function checkWording(reply: unknown, facts: DriveFacts): DriveWords | null {
   let value = reply;
   if (typeof reply === "string") {
@@ -137,10 +138,10 @@ export type ShownLine = { text: string; ai: boolean };
 // has a sentence there too, otherwise the code sentence (no AI mark).
 export function pickWords(code: DriveWords, ai: DriveWords | null): Partial<Record<WordingField, ShownLine>> {
   const out: Partial<Record<WordingField, ShownLine>> = {};
-  for (const field of FIELDS) {
+  for (const field of Object.keys(code) as WordingField[]) {
     const own = code[field];
     if (!own) continue;
-    const written = ai?.[field];
+    const written = (FIELDS as readonly WordingField[]).includes(field) ? ai?.[field] : undefined;
     out[field] = written ? { text: written, ai: true } : { text: own, ai: false };
   }
   return out;

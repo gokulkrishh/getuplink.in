@@ -101,7 +101,7 @@ describe("checkWording", () => {
 
   test("keeps each line that passes, on its own", () => {
     const words = checkWording(JSON.stringify(reply), facts);
-    expect(Object.keys(words ?? {}).sort()).toEqual(["acceleration", "speed", "summary"]);
+    expect(Object.keys(words ?? {}).sort()).toEqual(["summary"]);
   });
 
   test("a reply that doesn't parse, or breaks the schema, is nothing", () => {
@@ -137,7 +137,7 @@ describe("the request", () => {
     expect(body.provider).toEqual({ data_collection: "deny" });
     expect(body.response_format.json_schema.strict).toBe(true);
     expect("temperature" in body).toBe(false);
-    expect(RESPONSE_SCHEMA.required).toEqual(["summary", "speed", "power", "acceleration", "grade", "battery"]);
+    expect(RESPONSE_SCHEMA.required).toEqual(["summary"]);
     expect(body.messages[1].content).toBe(JSON.stringify(facts));
   });
 
@@ -155,7 +155,7 @@ describe("demo wording", async () => {
     const [some, none] = [starts.find(demoHasWording)!, starts.find((s) => !demoHasWording(s))!];
     expect(some && none).toBeTruthy();
     const words = demoWording(facts, some);
-    expect(Object.keys(words ?? {}).sort()).toEqual(["acceleration", "grade", "power", "speed", "summary"]);
+    expect(Object.keys(words ?? {}).sort()).toEqual(["summary"]);
     expect(demoWording(facts, none)).toBeNull();
   });
 });
