@@ -1,5 +1,3 @@
-import { ChevronRight } from "lucide-react";
-import Link from "next/link";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { BatteryGauge } from "@/components/battery-gauge";
 import { AWAKE_MS, CarStatus } from "@/components/car-status";
@@ -24,15 +22,10 @@ export function NowStrip({ car, odometerKm, parkedNow, now }: { car: HomeCar; od
     <section aria-label="Your car now" className="space-y-5">
       {awake && <AutoRefresh />}
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        {/* The car's name opens its page: set as a link (foreground, arrow), not as a caption. */}
-        <h2 className="min-w-0 text-sm">
-          <Link href={`/car/${vehicle.id}`} prefetch={true} className="group inline-flex max-w-full items-center gap-1 rounded-sm">
-            <span className="truncate">
-              <span className="font-medium text-foreground group-hover:underline group-hover:underline-offset-4">{vehicle.display_name || "Tesla"}</span>
-              {carLabel && <span className="text-muted-foreground"> · {carLabel}</span>}
-            </span>
-            <ChevronRight aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground transition-[color,translate] duration-150 group-hover:translate-x-0.5 group-hover:text-foreground" />
-          </Link>
+        {/* Plain text: the header's Car link already opens the car's page. */}
+        <h2 className="min-w-0 truncate text-sm">
+          <span className="font-medium text-foreground">{vehicle.display_name || "Tesla"}</span>
+          {carLabel && <span className="text-muted-foreground"> · {carLabel}</span>}
         </h2>
         <p className="shrink-0 text-sm text-faint tabular-nums">
           {/* A recent streamed reading means the car is awake now, even between checks. */}

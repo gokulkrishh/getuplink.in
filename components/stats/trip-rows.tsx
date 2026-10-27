@@ -1,5 +1,6 @@
 "use client";
 
+import { ScrollX } from "@/components/scroll-x";
 import Link from "next/link";
 import { Measure } from "@/components/measure";
 import { ROW_LINK, RowChevron } from "@/components/row-chevron";
@@ -11,6 +12,7 @@ export type TripRow = {
   serial: number;
   day: string;
   times: string; // "8:10 AM to 8:42 AM"
+  route: string | null; // "Home to Koramangala", when both ends are known
   km: string;
   duration: string;
   stops: string | null; // "2 stops"
@@ -24,7 +26,7 @@ export type TripRow = {
 // The last, unlabelled, holds the row's arrow.
 const COLUMNS = [
   { label: "#", width: "w-10" },
-  { label: "Date", width: "w-24" },
+  { label: "When", width: "w-44" },
   { label: "Trip", width: "" },
   { label: "Distance · time", width: "w-36", right: true },
   { label: "Energy · battery", width: "w-36", right: true },
@@ -39,10 +41,15 @@ function TripTableRow({ row }: { row: TripRow }) {
   return (
     <tr className="group/row relative cursor-pointer transition-colors duration-150 hover:bg-muted focus-within:bg-muted">
       <td className="py-3 pr-3 font-mono text-xs text-faint">{row.serial}</td>
-      <td className="py-3 pr-3 whitespace-nowrap">{row.day}</td>
-      <th scope="row" className="truncate py-3 pr-3 text-left font-medium">
+      <td className="py-3 pr-3 whitespace-nowrap">
+        <span className="block">{row.day}</span>
+        {/* The times move here when the Trip column names the places; otherwise they are the trip's name. */}
+        {row.route && <span className="block text-xs text-muted-foreground tabular-nums">{row.times}</span>}
+      </td>
+      {/* Where it went; a trip with an end Uplink can't place shows its times here instead. */}
+      <th scope="row" className="py-3 pr-3 text-left font-medium">
         <Link href={`/stats/driving/${row.start}`} className={ROW_LINK}>
-          {row.times}
+          {row.route ?? row.times}
         </Link>
       </th>
       <td className="py-3 pr-3 text-right whitespace-nowrap">
@@ -66,7 +73,7 @@ function TripTableRow({ row }: { row: TripRow }) {
 // A trip on a phone, where five columns don't fit: two lines, the times and the distance on the first, the
 // rest on the second, nothing dropped. The whole row opens the trip, as in the table.
 function TripListRow({ row }: { row: TripRow }) {
-  const second = [row.day, row.duration, row.stops, row.kwh, row.used && `${row.used} of battery`].filter(Boolean);
+  const second = [row.day, row.route ? row.times : null, row.duration, row.stops, row.kwh, row.used && `${row.used} of battery`].filter(Boolean);
   return (
     <li className="group/row relative flex items-center gap-3 py-3 text-sm tabular-nums transition-colors duration-150 hover:bg-muted focus-within:bg-muted active:bg-muted">
       <div className="min-w-0 flex-1">
@@ -74,7 +81,7 @@ function TripListRow({ row }: { row: TripRow }) {
           <span className="min-w-0 truncate font-medium">
             <span className="mr-2 font-mono text-xs font-normal text-faint">{row.serial}</span>
             <Link href={`/stats/driving/${row.start}`} className={ROW_LINK}>
-              {row.times}
+              {row.route ?? row.times}
             </Link>
           </span>
           <span className="shrink-0 font-mono">
@@ -100,8 +107,8 @@ export function TripRows({ rows, header = true }: { rows: TripRow[]; header?: bo
       </ul>
       {/* The table sits 0.75rem wider than the column on each side and pads its outer cells by the same, so a
           highlighted row has room around its text while the text still lines up with the page. */}
-      <div className="-mx-3 max-sm:hidden">
-        <table className="w-full table-fixed text-sm tabular-nums [&_td:first-child]:pl-3 [&_td:last-child]:pr-3 [&_th:first-child]:pl-3 [&_th:last-child]:pr-3">
+      <ScrollX className="-mx-3 max-sm:hidden">
+        <table className="w-full min-w-[46rem] table-fixed text-sm tabular-nums [&_td:first-child]:pl-3 [&_td:last-child]:pr-3 [&_th:first-child]:pl-3 [&_th:last-child]:pr-3">
           <colgroup>
             {COLUMNS.map((c) => (
               <col key={c.label} className={c.width} />
@@ -124,7 +131,7 @@ export function TripRows({ rows, header = true }: { rows: TripRow[]; header?: bo
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollX>
     </>
   );
 }

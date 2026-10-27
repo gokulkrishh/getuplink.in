@@ -39,6 +39,7 @@ import type { DrivingFigures } from "@/lib/driving-figures";
 import { loadDrivingFigures, loadSeasonEfficiency, loadWindowStats, type WindowStats } from "@/lib/server/driving";
 import type { SeasonEfficiency as Seasons } from "@/lib/seasons";
 import { loadRangeDriving } from "@/lib/server/home";
+import { loadTripPlaces } from "@/lib/server/trip-places";
 import { loadPrimaryVehicle } from "@/lib/server/telemetry";
 import { istDay, istDayStart } from "@/lib/telemetry-derive";
 
@@ -67,6 +68,7 @@ async function loadDriving(query: CustomQuery | null): Promise<{
   custom: CustomFrame | null;
   byFrame: Partial<Record<HomePeriod, FrameExtras>>;
   seasons: Seasons;
+  routes: Record<number, string>;
   now: number;
 }> {
   "use cache: private";
@@ -102,11 +104,12 @@ async function loadDriving(query: CustomQuery | null): Promise<{
   const presets = frames.length - (frame ? 1 : 0);
   // The Places table's rows (the 15 shown) with a Google-tagged place's live name; the map keeps `name`.
   const googled = (list: DrivingExtras[]) => Promise.all(list.map(async (x) => ({ ...x, places: await withGoogleNames(x.places.slice(0, 15)) })));
-  const [periodExtras, rangeExtras, seasons] = await Promise.all([
+  const [periodExtras, rangeExtras, seasons, routes] = await Promise.all([
     loadDrivingExtrasFor(owner, vin, window.driving.drives, insights.slice(0, presets)).then(googled),
     // A range may lie outside the periods' days, so it is read on its own.
     frame ? loadDrivingExtrasFor(owner, vin, window.driving.drives, insights.slice(presets)).then(googled) : [],
     loadSeasonEfficiency(owner, vin, window.driving.drives, now),
+    loadTripPlaces(owner, vin, window.driving.drives),
   ]);
   const extras = [...periodExtras, ...rangeExtras];
   // The strips: the frame's days, no further back than the car's presence is kept.
@@ -118,11 +121,11 @@ async function loadDriving(query: CustomQuery | null): Promise<{
     return stripsBetween(Math.max(first, keptFrom), last, layers, figures.since, now);
   };
   const byFrame = Object.fromEntries(frames.map((f, k) => [f.key, { extras: extras[k], insights: insights[k], days: days(f.frame) }]));
-  return { figures, window, custom: range && frame ? { range, frame, driving: rangeDriving } : null, byFrame, seasons, now };
+  return { figures, window, custom: range && frame ? { range, frame, driving: rangeDriving } : null, byFrame, seasons, routes, now };
 }
 
 async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "searchParams">) {
-  const { figures, window, custom, byFrame, seasons, now } = await loadDriving(customQuery(await searchParams));
+  const { figures, window, custom, byFrame, seasons, routes, now } = await loadDriving(customQuery(await searchParams));
   const { days, driving } = window;
   // Mirrors the sections' own "enough data" rules, so an empty page says so instead of showing nothing.
   const hasDriving = (figures.periods.all.current.km ?? 0) > 0 || days.filter((d) => d.km !== null).length >= 2 || driving.drives.length > 0;
@@ -177,7 +180,7 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
             const inFrame = driving.drives.filter((d) => inSpan(d.start, frame.span));
             return (
               <div className="space-y-3">
-                {inFrame.length > 0 ? <DriveList drives={inFrame} all={driving.drives} now={now} /> : <p className="text-sm text-muted-foreground">No trips {frame.words}.</p>}
+                {inFrame.length > 0 ? <DriveList drives={inFrame} now={now} routes={routes} /> : <p className="text-sm text-muted-foreground">No trips {frame.words}.</p>}
                 {partial(frame.span, tripsFrom) && <p className="text-sm text-faint">Trips cover only the last {DRIVE_DAYS} days.</p>}
               </div>
             );

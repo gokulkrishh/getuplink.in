@@ -1,3 +1,4 @@
+import { ScrollX } from "@/components/scroll-x";
 import { Download } from "lucide-react";
 import { FoldToggle } from "@/components/fold-toggle";
 import { InfoButton } from "@/components/info-button";
@@ -46,7 +47,7 @@ export function InvoiceSection({ invoice, href, received }: { invoice: SessionIn
         {href && <DownloadInvoice href={href} />}
       </div>
       {rows.length > 0 && (
-        <div className="overflow-x-auto">
+        <ScrollX>
           <table className="w-full text-sm tabular-nums">
             <thead>
               <tr className="border-b text-left text-xs text-faint">
@@ -93,7 +94,7 @@ export function InvoiceSection({ invoice, href, received }: { invoice: SessionIn
               </tr>
             </tfoot>
           </table>
-        </div>
+        </ScrollX>
       )}
       {/* What the bill printed about the charge, after its lines: closed until wanted. */}
       {facts.length > 0 && (

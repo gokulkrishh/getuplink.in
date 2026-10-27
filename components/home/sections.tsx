@@ -1,3 +1,4 @@
+import { ScrollX } from "@/components/scroll-x";
 import type { ReactNode } from "react";
 import { hasCosts, type Listed, SessionHeader, SessionRow } from "@/components/session-row";
 import { ChartCard } from "@/components/chart-card";
@@ -48,12 +49,12 @@ function Section({ title, view, more, info, children }: { title: string; view: V
 // names the columns above them.
 function Rows({ header, children }: { header?: ReactNode; children: ReactNode }) {
   return (
-    <div className="max-sm:-mx-1 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:px-1">
+    <ScrollX className="max-sm:-mx-1 max-sm:px-1 sm:-mx-3 sm:px-3">
       <div className="max-sm:min-w-xl">
         {header}
         <ul className="divide-y border-t">{children}</ul>
       </div>
-    </div>
+    </ScrollX>
   );
 }
 
@@ -102,9 +103,9 @@ export function ChargingSection({ frames, bills, listed, chargingSince, now }: {
           <Quiet>No charges {f.frame.words}.</Quiet>
         ) : (
           <div>
-            <Rows header={<SessionHeader costs={costs} wide />}>
-              {shown.map((item) => (
-                <SessionRow key={item.key} item={item} now={now} costs={costs} />
+            <Rows header={<SessionHeader costs={costs} wide numbered />}>
+              {shown.map((item, i) => (
+                <SessionRow key={item.key} item={item} serial={i + 1} now={now} costs={costs} />
               ))}
             </Rows>
           </div>
@@ -122,7 +123,7 @@ export function ChargingSection({ frames, bills, listed, chargingSince, now }: {
 // Distance per bar, then the newest trips in the period; a period with neither is one line. Trips are
 // rebuilt from the last DRIVE_DAYS of readings, so a period that starts earlier says so rather than look
 // complete.
-export function DrivingSection({ frames, figures, drives, now }: { frames: HomeFrame[]; figures: DrivingFigures; drives: Drive[]; now: number }) {
+export function DrivingSection({ frames, figures, drives, routes, now }: { frames: HomeFrame[]; figures: DrivingFigures; drives: Drive[]; routes: Record<number, string>; now: number }) {
   if (!figures.periods.all.current.km && drives.length === 0) return null;
   const trips = groupTrips(drives);
   const tripsFrom = now - DRIVE_DAYS * 86_400_000;
@@ -151,7 +152,7 @@ export function DrivingSection({ frames, figures, drives, now }: { frames: HomeF
         </ChartCard>
         {drives.length > 0 && (
           <div className="space-y-3">
-            {shown.length > 0 ? <TripTable trips={shown} serialOf={(t) => trips.length - trips.indexOf(t)} now={now} /> : <Quiet>No trips {f.frame.words}.</Quiet>}
+            {shown.length > 0 ? <TripTable trips={shown} serialOf={(t) => shown.indexOf(t) + 1} now={now} routes={routes} /> : <Quiet>No trips {f.frame.words}.</Quiet>}
             {partial && <p className="text-sm text-faint">Trips cover only the last {DRIVE_DAYS} days.</p>}
           </div>
         )}

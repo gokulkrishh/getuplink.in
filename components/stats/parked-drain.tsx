@@ -1,3 +1,4 @@
+import { ScrollX } from "@/components/scroll-x";
 import { ShowMore } from "@/components/show-more";
 import { periodPhrase } from "@/components/stats/chart-caption";
 import { Value } from "@/components/stats/figures";
@@ -63,11 +64,11 @@ export function ParkedDrain({
   const { span } = frame;
   const finished = overlapping(parked, span, (p) => p.start, (p) => p.end);
   const ongoing = parkedNow && parkedNow.start < span.to && parkedNow.end >= span.from ? parkedNow : null;
-  const serial = new Map(parked.map((p, i) => [p.start, i + 1]));
+  // Numbered from the top row, 1: the stretch going on now, then the finished ones, newest first.
   const rows: Row[] = [
-    ...(ongoing ? [{ ...ongoing, serial: parked.length + 1, ongoing: true, atLeast: ongoing.fromFirstReading }] : []),
-    ...[...finished].reverse().map((p) => ({ ...p, serial: serial.get(p.start) ?? 0, ongoing: false, atLeast: false })),
-  ];
+    ...(ongoing ? [{ ...ongoing, ongoing: true, atLeast: ongoing.fromFirstReading }] : []),
+    ...[...finished].reverse().map((p) => ({ ...p, ongoing: false, atLeast: false })),
+  ].map((r, i) => ({ ...r, serial: i + 1 }));
 
   // The phone blocks and the table share one set of texts, drawn in the browser (see ParkedRows).
   const texts = rows.map((r) => cells(r, shownName(places[r.start])));
@@ -145,14 +146,14 @@ export function ParkedDrain({
             )}
           </div>
           {/* Wider screens: a table, like TeslaMate's. */}
-          <div className="hidden overflow-x-auto sm:block">
+          <ScrollX className="hidden sm:block">
             <ParkedTable rows={texts.slice(0, LIST_PREVIEW)} />
             {rows.length > LIST_PREVIEW && (
               <ShowMore count={rows.length - LIST_PREVIEW}>
                 <ParkedTable rows={texts.slice(LIST_PREVIEW)} header={false} />
               </ShowMore>
             )}
-          </div>
+          </ScrollX>
         </div>
       )}
       {cut && <p className="text-xs text-faint">{cut}</p>}

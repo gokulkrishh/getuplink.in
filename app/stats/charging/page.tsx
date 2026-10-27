@@ -93,9 +93,11 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
   // The charging charts start at the first charge's day (see fromSince).
   const chargingSince = firstStartedAt(sessions, streamSessions);
   const startedIn = (span: Span) => (s: { started_at: string }) => inSpan(Date.parse(s.started_at), span);
-  // One number per charge, counted from the oldest, so a charge has the same number in every list here.
-  const serial = serials(listed, (l) => l.key);
-  const streamSerial = new Map(listed.flatMap((l) => (l.stream ? [[l.stream.id, serial.get(l.key) ?? 0] as const] : [])));
+  // Each charge's number in a period's session list, top row 1, so the charts in that period use the same.
+  const streamSerial = (span: Span) => {
+    const serial = serials(listed.filter(startedIn(span)), (l) => l.key);
+    return new Map(listed.flatMap((l) => (l.stream && serial.has(l.key) ? [[l.stream.id, serial.get(l.key) ?? 0] as const] : [])));
+  };
   const ownName = (s: StreamChargeSession) => {
     const name = extras.spots[s.id]?.name;
     return name?.source === "tag" ? name.text : null;
@@ -130,12 +132,12 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
           {eachFrame(frames, ({ frame }) => <ChargeHabits starts={starts(frame.span)} words={frame.words} />)}
           {streamSessions.length > 0 &&
             eachFrame(frames, ({ frame }) => (
-              <ChargeRange sessions={streamSessions.filter(startedIn(frame.span))} frame={frame} serialOf={(s) => streamSerial.get(s.id)} />
+              <ChargeRange sessions={streamSessions.filter(startedIn(frame.span))} frame={frame} serialOf={(s) => streamSerial(frame.span).get(s.id)} />
             ))}
           {(extras.curves.length > 0 || (custom?.extras.curves.length ?? 0) > 0) &&
             eachFrame(frames, ({ key, frame }) => {
               const { curves, held: from } = extrasFor(key);
-              const shown = curves.filter((c) => startedIn(frame.span)({ started_at: c.date })).map((c) => ({ ...c, serial: streamSerial.get(c.id) }));
+              const shown = curves.filter((c) => startedIn(frame.span)({ started_at: c.date })).map((c) => ({ ...c, serial: streamSerial(frame.span).get(c.id) }));
               return <DcCurves curves={shown} frame={frame} note={backTo(frame.span, from.curves, `Curves are kept for the latest ${CURVES} DC charges, which`)} />;
             })}
           {stations({ from: -Infinity, to: Infinity }).length > 0 &&
@@ -154,7 +156,7 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
           {eachFrame(frames, ({ frame }) => {
             const shown = listed.filter(startedIn(frame.span));
             return shown.length > 0 ? (
-              <SessionList sessions={shown} all={listed} />
+              <SessionList sessions={shown} />
             ) : (
               <section className="space-y-2">
                 <h2 className="text-lg font-medium tracking-heading">Charging sessions</h2>

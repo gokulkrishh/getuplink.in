@@ -48,7 +48,8 @@ export function SessionLine({ view }: { view: SessionView }) {
           </span>
           {view.google && <GoogleMapsCredit className="shrink-0" />}
         </p>
-        <p className="truncate text-xs text-muted-foreground">{view.detail}</p>
+        {/* Wraps rather than cuts off: the kind, levels, time and power are all worth reading. */}
+        <p className="text-xs text-muted-foreground">{view.detail}</p>
       </div>
       <p className="text-right font-mono font-medium whitespace-nowrap tabular-nums">{view.energy === null ? "—" : <Measure text={view.energy} />}</p>
       {view.cost !== undefined &&

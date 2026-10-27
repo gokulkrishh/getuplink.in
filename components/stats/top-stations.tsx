@@ -1,3 +1,4 @@
+import { ScrollX } from "@/components/scroll-x";
 import type { StationRow } from "@/lib/top-stations";
 import { Measure } from "@/components/measure";
 import { formatKwh, formatMoney } from "@/lib/format";
@@ -15,7 +16,7 @@ export function TopStations({ rows, title, words }: { rows: StationRow[]; title:
         </p>
       </div>
       {rows.length > 0 && (
-        <div className="overflow-x-auto">
+        <ScrollX>
           <table className="w-full min-w-md text-sm tabular-nums">
             <thead>
               <tr className="border-b text-left text-xs text-faint">
@@ -56,7 +57,7 @@ export function TopStations({ rows, title, words }: { rows: StationRow[]; title:
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollX>
       )}
     </section>
   );

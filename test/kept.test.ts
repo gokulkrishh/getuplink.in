@@ -58,9 +58,9 @@ describe("cappedFrom", () => {
 });
 
 describe("serials", () => {
-  test("count from the oldest, so the newest has the highest", () => {
+  test("count from the newest, so the top row is 1", () => {
     const map = serials(["c", "b", "a"], (k) => k);
-    expect([map.get("a"), map.get("b"), map.get("c")]).toEqual([1, 2, 3]);
+    expect([map.get("c"), map.get("b"), map.get("a")]).toEqual([1, 2, 3]);
   });
 });
 

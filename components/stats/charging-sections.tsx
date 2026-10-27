@@ -1,3 +1,4 @@
+import { ScrollX } from "@/components/scroll-x";
 import type { TipRow } from "@/components/stats/bar-parts";
 import { hasCosts, type Listed, SessionHeader, SessionRow } from "@/components/session-row";
 import { ShowMore } from "@/components/show-more";
@@ -11,6 +12,7 @@ import { comparedWith, headline } from "@/lib/dashboard-summary";
 import { DECIMALS, formatDuration, formatKm, formatKwh, formatMoney, formatMonth, formatNumber, formatPercent, showsZero, sumKnown } from "@/lib/format";
 import { hasBars, Headline, knownBars } from "@/components/stats/driving-sections";
 import { LIST_PREVIEW } from "@/lib/list";
+import { serials } from "@/lib/kept";
 import { inSpan, type Slot, type Span, type Timeframe } from "@/lib/periods";
 import { barsSpan } from "@/components/stats/chart-caption";
 import { InfoButton } from "@/components/info-button";
@@ -240,12 +242,9 @@ export function EnergyAdded({
   );
 }
 
-// `all` is every session, when `sessions` is only some of them (a range picked by date), so each keeps
-// its number.
-export function SessionList({ sessions, all = sessions }: { sessions: Listed[]; all?: Listed[] }) {
-  // Sessions arrive newest first, so each month's group is in order too. Numbers count from the first
-  // charge, so the newest has the highest.
-  const serial = new Map(all.map((s, i) => [s.key, all.length - i]));
+export function SessionList({ sessions }: { sessions: Listed[] }) {
+  // Sessions arrive newest first, so each month's group is in order too. Numbered from the top row, 1.
+  const serial = serials(sessions, (s) => s.key);
   // The total is the rows' raw energy added up, rounded once when shown, like each row.
   const energyTotal = sumKnown(sessions.map((s) => (s.tesla ? s.tesla.energy_kwh : s.stream?.energy_added_kwh)));
   const costs = hasCosts(sessions);
@@ -266,7 +265,7 @@ export function SessionList({ sessions, all = sessions }: { sessions: Listed[]; 
         </div>
       </div>
     {/* On phones the list keeps its columns and scrolls sideways. */}
-    <div className="max-sm:-mx-1 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:px-1">
+    <ScrollX className="max-sm:-mx-1 max-sm:px-1 sm:-mx-3 sm:px-3">
     <div className="max-sm:min-w-xl space-y-10">
       {[...groups].map(([month, rows]) => {
         const billed = totals(rows);
@@ -298,7 +297,7 @@ export function SessionList({ sessions, all = sessions }: { sessions: Listed[]; 
         );
       })}
     </div>
-    </div>
+    </ScrollX>
     </section>
   );
 }

@@ -1,3 +1,4 @@
+import { ScrollX } from "@/components/scroll-x";
 import { Measure } from "@/components/measure";
 import type { FeeLines } from "@/lib/charge-fees";
 import { formatMoney } from "@/lib/format";
@@ -11,7 +12,7 @@ export function ChargeFees({ fees, currency }: { fees: FeeLines | null; currency
   return (
     <section className="space-y-4">
       <h2 className="text-lg font-medium tracking-heading">Tesla&apos;s bill</h2>
-      <div className="overflow-x-auto">
+      <ScrollX>
         <table className="w-full text-sm tabular-nums">
           <thead>
             <tr className="border-b text-left text-xs text-faint">
@@ -44,7 +45,7 @@ export function ChargeFees({ fees, currency }: { fees: FeeLines | null; currency
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollX>
       {!fees.addsUp && (
         <p className="text-sm text-faint">
           {fees.skipped > 0

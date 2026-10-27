@@ -37,8 +37,7 @@ export function cappedFrom<T>(newestFirst: T[], cap: number, at: (item: T) => nu
   return newestFirst.length > cap ? at(newestFirst[cap - 1]) : null;
 }
 
-// Serial numbers for records, counted from the oldest (1) so each keeps its number in any span:
-// `newestFirst` is every record, newest first.
+// Serial numbers for the records a list shows, newest first: the top row is 1.
 export function serials<T, K>(newestFirst: T[], key: (item: T) => K): Map<K, number> {
-  return new Map(newestFirst.map((item, i) => [key(item), newestFirst.length - i]));
+  return new Map(newestFirst.map((item, i) => [key(item), i + 1]));
 }

@@ -16,7 +16,7 @@ import { withDriveEfficiency } from "@/lib/drive-stats";
 import { periodFrames } from "@/lib/frames";
 import { daysLabel } from "@/lib/periods";
 import { istDay, istDayStart } from "@/lib/telemetry-derive";
-import { after } from "next/server";
+import { after, connection } from "next/server";
 import { AiLine } from "@/components/ai-line";
 import { type WeekFacts, weekFacts } from "@/lib/week-wording";
 import { generateWeekLine, loadWeekLine } from "@/lib/server/week-wording";
@@ -25,13 +25,14 @@ import type { DemoScenario } from "@/lib/demo";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type Home, loadHome } from "@/lib/server/home";
+import { loadTripPlaces } from "@/lib/server/trip-places";
 
 // The session check and the data share one private scope: the result lives only in this browser's
 // router cache (never a server cache), so a header link's prefetch can carry it. The check still runs
 // on every server render; redirect() throws, so a signed-out result is never cached. The demo
 // scenario is an argument, so each one gets its own entry; the period is not, since it switches in the
 // browser.
-async function loadOwnHome(demo: DemoScenario): Promise<{ home: Home; now: number }> {
+async function loadOwnHome(demo: DemoScenario): Promise<{ home: Home; routes: Record<number, string>; now: number }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   // 60s is enough for a per-link prefetch (30s minimum); the App Shell would need 5 minutes.
@@ -40,7 +41,12 @@ async function loadOwnHome(demo: DemoScenario): Promise<{ home: Home; now: numbe
   if (!owner) redirect(SIGNED_OUT_PATH);
   // The clock is read here, inside the cache, because reading it while rendering blocks prerendering.
   const now = Date.now();
-  return { home: await loadHome(owner, demo, now), now };
+  const home = await loadHome(owner, demo, now);
+  // Where the week's trips went, for the Driving list's rows.
+  const vin = home.kind === "ready" ? (home.cars.find((car) => car.vehicle.vin)?.vehicle.vin ?? null) : null;
+  const week = home.kind === "ready" ? home.window.driving.drives.filter((d) => d.start >= now - 7 * 86_400_000) : [];
+  const routes = await loadTripPlaces(owner, vin, week).catch(() => ({}));
+  return { home, routes, now };
 }
 
 // "Good morning" before noon, "Good afternoon" until 5 PM, "Good evening" after, India time.
@@ -52,6 +58,8 @@ function greeting(now: number): string {
 // Today's AI line on the week (lib/server/week-wording.ts): the stored one, or none and one written after
 // the response for the next visit.
 async function WeekLine({ vehicleId, day, facts }: { vehicleId: string; day: number; facts: WeekFacts }) {
+  // Outside the cached scope, the session check reads the clock, so this part renders per request.
+  await connection();
   const owner = await currentOwner();
   if (!owner) return null;
   const key = { vehicleId, day };
@@ -65,7 +73,7 @@ async function WeekLine({ vehicleId, day, facts }: { vehicleId: string; day: num
 }
 
 // The four headline numbers, then driving, charging and battery, over the last 7 days.
-function Totals({ home, now }: { home: Extract<Home, { kind: "ready" }>; now: number }) {
+function Totals({ home, routes, now }: { home: Extract<Home, { kind: "ready" }>; routes: Record<number, string>; now: number }) {
   const { pairs, streamOnly } = matchSessions(home.sessions, home.streamSessions, now);
   const { window } = home;
   const figures = withDriveEfficiency(home.figures, window.driving.drives, now);
@@ -101,7 +109,7 @@ function Totals({ home, now }: { home: Extract<Home, { kind: "ready" }>; now: nu
           </Suspense>
         )}
       </section>
-      <DrivingSection frames={frames} figures={figures} drives={window.driving.drives} now={now} />
+      <DrivingSection frames={frames} figures={figures} drives={window.driving.drives} routes={routes} now={now} />
       <ChargingSection frames={frames} bills={bills} listed={withSpots(listSessions(pairs, streamOnly, home.invoices), home.spots)} chargingSince={chargingSince} now={now} />
       <BatterySection frames={frames} level={window.level} parked={window.driving.parked} parkedNow={window.driving.parkedNow} now={now} />
     </div>
@@ -111,7 +119,7 @@ function Totals({ home, now }: { home: Extract<Home, { kind: "ready" }>; now: nu
 async function HomeContent() {
   // Only demo mode reads the scenario, so the real page stays as it was.
   const demo: DemoScenario = "normal";
-  const { home, now } = await loadOwnHome(demo);
+  const { home, routes, now } = await loadOwnHome(demo);
   const failedRun = home.kind === "ready" && home.lastRun?.ok === false ? home.lastRun : null;
   const cars = home.kind === "ready" ? home.cars : [];
   // The primary car, as loadHome picks it: the first with a VIN. The odometer is its.
@@ -134,7 +142,7 @@ async function HomeContent() {
             </div>
           ))}
           <PeriodScope>
-            <Totals home={home} now={now} />
+            <Totals home={home} routes={routes} now={now} />
           </PeriodScope>
           {cars.some((car) => car.latest?.error) && (
             <p className="text-sm text-muted-foreground">The car went to sleep during the last check. Uplink will try again.</p>

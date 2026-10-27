@@ -1,7 +1,7 @@
 import { SessionLine, type SessionView } from "@/components/session-line";
 import { type ChargeName, chargeName, chargeType, type SpotName } from "@/lib/charge-names";
 import { splitSite } from "@/lib/charge-sessions";
-import { formatClock, formatDayLabel, formatDuration, formatKw, formatKwh, formatLevels, formatMoney, formatShortDate, formatTempRange } from "@/lib/format";
+import { formatClock, formatDayLabel, formatDuration, formatKwh, formatLevels, formatMoney, formatShortDate } from "@/lib/format";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { cn } from "@/lib/utils";
@@ -56,13 +56,6 @@ function levels(s: StreamChargeSession): string | null {
   return s.start_level !== null && s.end_level !== null ? formatLevels(s.start_level, s.end_level) : null;
 }
 
-// The battery's warm-up on a fast charger, which explains a slow session. AC charger details live on the car page.
-function batteryTemp(s: StreamChargeSession): string | null {
-  return s.kind === "dc" && s.temp_start_c !== null && s.temp_max_c !== null
-    ? `battery ${formatTempRange(s.temp_start_c, s.temp_max_c)}`
-    : null;
-}
-
 // Whether a list needs the Cost column: a row Tesla billed, or one with an attached invoice. Decided per
 // list, so mixed rows keep one set of columns; a row without a bill shows a faint dash there, never an
 // estimate.
@@ -73,6 +66,7 @@ export function hasCosts(items: Listed[]): boolean {
 // Static class names, so Tailwind sees them. Wide fits "Yesterday" in the first column (with `now`);
 // numbered puts a "#" column first.
 function columns(wide: boolean, costs: boolean, numbered = false): string {
+  if (numbered && wide) return costs ? "grid-cols-charge-serial-wide-cost" : "grid-cols-charge-serial-wide";
   if (numbered) return costs ? "grid-cols-charge-serial-cost" : "grid-cols-charge-serial";
   if (wide) return costs ? "grid-cols-charge-wide-cost" : "grid-cols-charge-wide";
   return costs ? "grid-cols-charge-cost" : "grid-cols-charge";
@@ -103,20 +97,18 @@ export function SessionRow({ item, serial, now, costs }: { item: Listed; serial?
   const google = item.spot?.google ?? null;
   const tagged = google ?? (item.spot?.name?.source === "tag" ? item.spot.name.text : null);
   const site = s ? splitSite(s.site_name) : null;
-  const { place, city } = site ? { place: tagged ?? site.place, city: site.city } : { place: stream ? (google ?? named?.text ?? chargeType(stream)) : "", city: null };
+  const place = site ? (tagged ?? site.place) : stream ? (google ?? named?.text ?? chargeType(stream)) : "";
   const stoppedAt = s ? s.stopped_at : (stream?.ended_at ?? null);
   const durationMs = stoppedAt ? Date.parse(stoppedAt) - Date.parse(item.started_at) : 0;
   const durationText = durationMs > 0 ? formatDuration(durationMs / 1000) : null;
   const currency = s?.currency ?? "INR";
   const rateText = s && s.cost_total !== null && s.energy_kwh !== null ? rate(s.cost_total, s.energy_kwh, currency) : null;
-  const peakText = stream?.peak_power_kw ? `up to ${formatKw(stream.peak_power_kw)}` : null;
   const energy = s ? s.energy_kwh : (stream?.energy_added_kwh ?? null);
-  const tempText = stream && batteryTemp(stream);
   // Sessions the car streamed open their power curve; the title link covers the whole row.
   const href = stream ? `/stats/charging/${stream.id}` : null;
-  const detail = s
-    ? [city, durationText, peakText, tempText]
-    : [named && stream && chargeType(stream), stream && levels(stream), stoppedAt ? durationText : "In progress", peakText, tempText];
+  // Kept short: "Supercharger" when it is one, then the levels and how long. Power and temperature are on
+  // the charge's page.
+  const detail = [s ? "Supercharger" : null, stream && levels(stream), stoppedAt ? durationText : "In progress"];
   const view: SessionView = {
     className: cn(
       columns(now !== undefined, costs, serial !== undefined),

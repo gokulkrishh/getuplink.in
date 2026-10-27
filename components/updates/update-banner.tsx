@@ -1,6 +1,5 @@
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { formatKm } from "@/lib/format";
 import type { Snapshot } from "@/lib/server/dashboard";
@@ -42,15 +41,19 @@ export function UpdateBanner({
   const pending = snapshot !== null && isPending(snapshot, installed) ? bannerText(snapshot) : null;
   if (!version && !pending) return null;
   const moving = snapshot?.update_status === "downloading" || snapshot?.update_status === "installing";
+  // With no update on its way, the version is plain text: the header's Updates link opens the history.
+  if (!pending)
+    return version ? (
+      <p className="flex items-center gap-2 text-sm text-muted-foreground tabular-nums">
+        <span className="truncate">{version}</span>
+        {odometerKm !== null && <span className="shrink-0">· {formatKm(odometerKm)}</span>}
+      </p>
+    ) : null;
   return (
     <Link
       href="/updates"
       prefetch={true}
-      // A boxed banner only while an update is on its way; otherwise the version is one quiet line.
-      className={cn(
-        "group items-center gap-4 text-sm transition-colors duration-150",
-        pending ? "flex justify-between border px-4 py-3 hover:border-muted-foreground/50" : "inline-flex w-fit text-muted-foreground hover:text-foreground",
-      )}
+      className="group flex items-center justify-between gap-4 border px-4 py-3 text-sm transition-colors duration-150 hover:border-muted-foreground/50"
     >
       {/* Progress moves while it downloads or installs, so the page keeps itself fresh. */}
       {moving && <AutoRefresh />}

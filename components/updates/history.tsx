@@ -1,3 +1,4 @@
+import { ScrollX } from "@/components/scroll-x";
 import { ChevronRight } from "lucide-react";
 import { ChartCard } from "@/components/chart-card";
 import { ReleaseNotesList } from "@/components/release-notes";
@@ -141,7 +142,7 @@ export function VersionHistory({ history, notes, now, until }: { history: Versio
             <VersionChart changes={[...history].reverse()} until={until} />
           </ChartCard>
           {/* On phones the table keeps its columns and scrolls sideways. */}
-          <div className="max-sm:-mx-1 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:px-1 pt-6">
+          <ScrollX className="max-sm:-mx-1 max-sm:px-1 pt-6">
             <div className="max-sm:min-w-xl">
             <div className={cn("history-cols", "pb-2 text-xs text-faint")}>
               <h3 className="pl-5">Versions</h3>
@@ -164,7 +165,7 @@ export function VersionHistory({ history, notes, now, until }: { history: Versio
               </ShowMore>
             )}
             </div>
-          </div>
+          </ScrollX>
         </>
       )}
     </section>

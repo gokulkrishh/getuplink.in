@@ -346,12 +346,18 @@ html .maplibregl-map {
 @utility grid-cols-charge-wide-cost {
   grid-template-columns: 5rem minmax(0, 1fr) 5rem 7rem 0.875rem;
 }
-/* The same with a narrow "#" column first, for the Stats list, which numbers each session. */
+/* The same with a narrow "#" column first, for lists that number each session. */
 @utility grid-cols-charge-serial {
   grid-template-columns: 2.5rem 3.5rem minmax(0, 1fr) 5rem 0.875rem;
 }
 @utility grid-cols-charge-serial-cost {
   grid-template-columns: 2.5rem 3.5rem minmax(0, 1fr) 5rem 7rem 0.875rem;
+}
+@utility grid-cols-charge-serial-wide {
+  grid-template-columns: 2.5rem 5rem minmax(0, 1fr) 5rem 0.875rem;
+}
+@utility grid-cols-charge-serial-wide-cost {
+  grid-template-columns: 2.5rem 5rem minmax(0, 1fr) 5rem 7rem 0.875rem;
 }
 @utility grid-cols-split {
   @media (width >= 48rem) {

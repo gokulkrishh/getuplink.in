@@ -1,5 +1,6 @@
+import { ScrollX } from "@/components/scroll-x";
+import { cn } from "@/lib/utils";
 import { ChartCard } from "@/components/chart-card";
-import { Bars } from "@/components/stats/bars";
 import { TripMap } from "@/components/stats/trip-map";
 import { DECIMALS, formatDuration, formatKm, formatNumber, formatShortDate } from "@/lib/format";
 import type { Band } from "@/lib/driving-insights";
@@ -41,24 +42,22 @@ export function SpeedBands({ bins, period = "last 30 days", note }: { bins: Driv
   if (bins.length === 0) return null;
   // Each band's share is rounded on its own, so the shown shares can add up to a point off 100%.
   const shares = bins.map((b) => b.share * 100);
-  const bars = bins.map((b, k) => ({
-    key: String(b.from),
-    // The tip names the whole band ("40 to 60 km/h"); the axis marks the band edges under ticks, like a
-    // histogram's ("0", "20" … "100+", titled km/h), so the first bar reads as 0 to 20 and all fit on a phone.
-    label: b.to === null ? `${b.from}+ km/h` : `${b.from} to ${b.to} km/h`,
-    axis: b.to === null ? `${b.from}+` : String(b.from),
-    edge: true,
-    value: shares[k],
-    display: formatNumber(shares[k], DECIMALS.percent),
-    isCurrent: b.share === Math.max(...bins.map((x) => x.share)) && k >= 0,
-  }));
+  const top = Math.max(...shares);
+  // Five shares of one whole read best as a list: each band, a bar for its share, and the share. The band
+  // you spend most time in is drawn in the accent colour.
   return (
-    <ChartCard
-      title="Time at each speed"
-      description={`Share of driving time at each speed, ${period}.`}
-      caption={note}
-    >
-      <Bars bars={bars} ariaLabel="Share of driving time by speed in km/h" unit="%" xUnit="km/h" valueWords="of driving time" fit />
+    <ChartCard title="Time at each speed" description={`Share of driving time at each speed, ${period}.`} caption={note}>
+      <ul className="space-y-2.5 text-sm tabular-nums" aria-label="Share of driving time by speed">
+        {bins.map((b, k) => (
+          <li key={b.from} className="grid grid-cols-[7.5rem_1fr_3rem] items-center gap-3">
+            <span className="text-muted-foreground">{b.to === null ? `${b.from} km/h and up` : `${b.from} to ${b.to} km/h`}</span>
+            <span className="h-2 bg-muted" aria-hidden="true">
+              <span className={cn("block h-full", shares[k] === top ? "bg-chart-accent" : "bg-chart-accent/40")} style={{ width: `${top > 0 ? (shares[k] / top) * 100 : 0}%` }} />
+            </span>
+            <span className="text-right font-mono">{formatNumber(shares[k], DECIMALS.percent)}%</span>
+          </li>
+        ))}
+      </ul>
     </ChartCard>
   );
 }
@@ -141,7 +140,7 @@ export function Places({ places, visited, period = "last 30 days", note }: { pla
       </div>
       {(pins.length > 0 || visited.length >= 2) && <TripMap route={visited} pins={pins} label="Everywhere the car went, with where it parked" legend="A place it parked. Bigger pins had more visits." />}
       {places.length > 0 && (
-        <div className="overflow-x-auto">
+        <ScrollX>
           <table className="w-full min-w-md text-sm tabular-nums">
             <thead>
               <tr className="border-b text-left text-xs text-faint">
@@ -176,7 +175,7 @@ export function Places({ places, visited, period = "last 30 days", note }: { pla
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollX>
       )}
       {note && <p className="text-sm text-faint">{note}</p>}
       <p className="text-sm text-faint">Names you give come first, then OpenStreetMap&apos;s. Places named from Google Maps show their area on the map. Home, Work and Favourite are the ones set in your car.</p>
