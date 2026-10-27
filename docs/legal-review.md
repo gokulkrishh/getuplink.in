@@ -267,7 +267,7 @@ A January 2026 MeitY proposal to cut the 18 months to 12 was aimed at Significan
 | Proof of consent | s. 6(10) | Recommended (#4). |
 | Cease and erase on withdrawal, processors too | s. 6(6), s. 8(7) | Disconnect, Delete my data, Delete account; readings past their use go daily (`lib/telemetry-retention.ts`). |
 | Keep logs a year | r. 6(1)(e), r. 8(3) | #3. |
-| Security safeguards | s. 8(5); r. 6 | Privacy: Security. AES-256-GCM tokens, hashed connector token, TLS, mutual TLS for the car stream, service-role-only database. |
+| Security safeguards | s. 8(5); r. 6 | Privacy: Security, and /privacy/car-data. AES-256 at rest for the whole database (Supabase), AES-256-GCM tokens on top, hashed connector token, TLS, mutual TLS for the car stream, service-role-only database. Not end-to-end: the receiver decrypts to store. |
 | Processor contracts | s. 8(2); r. 6(1)(f) | #15. |
 | Breach: tell each person and the Board (in full within 72 hours) | s. 8(6); r. 7 | Privacy: If there's a breach (in the app; no email is held). An in-app banner for it isn't built (Recommended: a site-wide notice). |
 | Contact who answers questions; repeat it in each reply | s. 8(9); r. 9 | Privacy: Grievance Officer. **Every reply to a rights request must repeat this contact.** |

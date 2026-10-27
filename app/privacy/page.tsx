@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { PLAIN_LIST, PlainPage, PlainSection } from "@/components/plain-page";
 
@@ -104,6 +105,12 @@ export default function PrivacyPage() {
             <li key={item}>{item}</li>
           ))}
         </ul>
+        <p>
+          <Link href="/privacy/car-data" className={LINK}>
+            Car data we store
+          </Link>{" "}
+          lists every figure from your car and how long each is kept.
+        </p>
       </PlainSection>
 
       <PlainSection title="What Uplink doesn't do">
@@ -270,8 +277,9 @@ export default function PrivacyPage() {
 
       <PlainSection title="Security">
         <p>
-          Tesla tokens are encrypted. The connector token is stored only as a hash. Data travels over TLS, and your
-          car&apos;s live data uses mutual TLS. Only Uplink&apos;s servers can read the database.
+          The database is encrypted on disk with AES-256, and Uplink encrypts your Tesla tokens again with AES-256 before
+          storing them. The connector token is stored only as a hash. Data travels encrypted over TLS. For your car&apos;s
+          live data, the car and Uplink each prove who they are first. Only Uplink&apos;s servers can read the database.
         </p>
       </PlainSection>
 
