@@ -26,5 +26,7 @@ export async function TipsBox({ surface, vehicleId, at, daily, entity, findings 
   const key = { vehicleId, at, daily };
   const stored = await loadTips(owner, surface, key, sent, car);
   if (stored.generate) after(() => generateTips(owner, surface, key, sent, car));
-  return <AiNotes title="Tips" notes={stored.tips} vote={{ scope: surface.scope, entity, votes, swap: { vehicleId, at } }} />;
+  // A tip the owner voted not useful isn't shown again.
+  const shown = stored.tips.filter((t) => votes[t.text] !== -1);
+  return <AiNotes title="Tips" notes={shown} vote={{ scope: surface.scope, entity, votes, swap: { vehicleId, at } }} />;
 }
