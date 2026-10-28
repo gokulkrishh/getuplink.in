@@ -48,13 +48,13 @@ beforeEach(() => {
 });
 
 describe("turning sharing on and off", () => {
-  test("off deletes the account's day rows at once, and only theirs, and publishes totals without them", async () => {
+  test("off deletes the account's day rows at once, and only theirs, and leaves the totals to the morning run", async () => {
     await setSharing(B, false, NOW);
     expect(fake.rows("users")[1]).toEqual(expect.objectContaining({ share_with_owners: false, shared_since: null }));
     expect(fake.rows("fleet_car_days").map((r) => r.user_id)).toEqual([1, 1]);
     expect(fake.calls.filter((c) => c.table === "fleet_car_days" && c.op === "delete").every((c) => c.filters.includes("user_id = 2"))).toBe(true);
-    const published = fake.rows("fleet_stats").at(-1);
-    expect(published?.cars).toBe(0);
+    // Totals published now would differ from the last ones by this car alone.
+    expect(fake.calls.some((c) => c.table === "fleet_stats")).toBe(false);
   });
 
   test("on records when, and leaves the rows for the morning run", async () => {

@@ -184,7 +184,7 @@ export default function PrivacyPage() {
           </li>
           <li>
             If you turn on sharing on Owners, other owners who share see totals across at least 5 cars, such as how far
-            owners drive. Never your car, trips or places. Turning it off removes your figures from the totals at once.
+            owners drive. Never your car, trips or places. Turning it off removes your figures from the totals at the next daily update, at 3:30 AM.
           </li>
           <li>Authorities, only when Indian law requires it.</li>
         </ul>

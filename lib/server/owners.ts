@@ -365,13 +365,13 @@ export async function publishStats(at: number): Promise<number> {
 }
 
 // Turning sharing on records it; the next morning's run works out the car's days. Turning it off deletes
-// the account's day rows at once and publishes totals without them, so they stop counting now.
+// the account's day rows at once, and the car leaves the totals at the next morning's run. Publishing now
+// would differ from the last totals by that car alone, so comparing the two would give its values away.
 export async function setSharing(owner: Owner, on: boolean, now = Date.now()): Promise<void> {
   await setSharingFlag(owner, on, iso(now));
   if (on) return;
   const { error } = await ownerDb(owner).from("fleet_car_days").delete();
   if (error) throw new Error(`Deleting shared figures failed: ${error.message}`);
-  await publishStats(now).catch((err) => console.warn("Publishing the owners totals failed:", messageOf(err)));
 }
 
 // ---- The page ----

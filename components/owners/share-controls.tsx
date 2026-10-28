@@ -47,7 +47,7 @@ export function StopSharing() {
     <div className={cn("space-y-2", asking && "basis-full")}>
       {asking ? (
         <div role="group" aria-label="Stop sharing" className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
-          <p className="w-full">Stop sharing? Your figures are deleted and this page closes until you share again.</p>
+          <p className="w-full">Stop sharing? Your figures are deleted and this page closes until you share again. Your car leaves the totals at 3:30 AM.</p>
           <Button type="button" variant="destructive" disabled={pending} onClick={() => change(false)}>
             {pending ? "Stopping…" : "Stop sharing"}
           </Button>
