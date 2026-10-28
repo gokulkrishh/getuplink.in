@@ -22,9 +22,11 @@ export const WINDOW_DAYS = 30;
 export const KEEP_DAYS = 35;
 // Bumped when a day's figures change shape or method: older rows are worked out again.
 export const FIGURES_VERSION = 1;
-export const STATS_VERSION = 1;
+export const STATS_VERSION = 2;
 // A histogram wider than this folds its far ends into "or less" and "or more" bins.
 export const MAX_BINS = 24;
+// No published bin holds fewer cars than this, so a bin's count and edges never describe one car.
+export const MIN_BIN_CARS = 3;
 
 const HOUR = 3_600_000;
 
@@ -1022,7 +1024,7 @@ export function summarise(days: CarDay[], car: { vinHash: string; owner: number 
 
 // ---- What is published ----
 
-// A bin covers [from, to); a null end is open: "40 or less", "1,000 or more".
+// A bin covers [from, to); a null end is open: "40 or less", "1,000 or more". Both null: every car.
 export type Bin = { from: number | null; to: number | null; cars: number };
 export type SpreadStat = { kind: "spread"; cars: number; bins: Bin[]; low: number; high: number };
 export type ChoiceStat = { kind: "choice"; cars: number; options: { key: string; share: number }[] };
@@ -1081,7 +1083,46 @@ export function spreadStat(values: number[], step: number): SpreadStat {
     top.to = null;
     top.cars += over;
   }
-  return { kind: "spread", cars: values.length, bins, low, high };
+  return { kind: "spread", cars: values.length, bins: foldBins(bins), low, high };
+}
+
+// Bins under MIN_BIN_CARS cars joined to their neighbours: a sparse end folds inward into an open tail, then a
+// sparse inner bin joins the bins after it. An empty bin between them stays as it is.
+function foldBins(bins: Bin[]): Bin[] {
+  const out = [...bins];
+  while (out.length > 1 && out[0].cars < MIN_BIN_CARS) {
+    const [a, b] = out.splice(0, 2);
+    out.unshift({ from: null, to: b.to, cars: a.cars + b.cars });
+  }
+  while (out.length > 1 && out[out.length - 1].cars < MIN_BIN_CARS) {
+    const [a, b] = out.splice(-2, 2);
+    out.push({ from: a.from, to: null, cars: a.cars + b.cars });
+  }
+  const folded: Bin[] = [];
+  let group: Bin | null = null;
+  for (const b of out) {
+    if (!group && b.cars === 0) {
+      folded.push(b);
+      continue;
+    }
+    group = group ? { from: group.from, to: b.to, cars: group.cars + b.cars } : b;
+    if (group.cars >= MIN_BIN_CARS) {
+      folded.push(group);
+      group = null;
+    }
+  }
+  if (group) folded.push(group);
+  return folded;
+}
+
+// The ends of a range's line on /owners: the lowest bin's start and the highest bin's end. An open end has no
+// edge, so the line runs a step past the inner one, or past the middle half when one bin holds every car.
+export function bandEnds(m: SpreadMetric, stat: SpreadStat): [number, number] {
+  const widths = stat.bins.flatMap((b) => (b.from !== null && b.to !== null ? [b.to - b.from] : []));
+  const step = widths.length ? Math.min(...widths) : m.step;
+  const first = stat.bins[0];
+  const last = stat.bins[stat.bins.length - 1];
+  return [snap(first.from ?? (first.to ?? stat.low) - step), snap(last.to ?? (last.from ?? stat.high) + step)];
 }
 
 function choiceStat(m: ChoiceMetric, values: (string | number[])[]): ChoiceStat {

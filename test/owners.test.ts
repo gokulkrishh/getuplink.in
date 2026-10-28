@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   aggregate,
+  bandEnds,
   type CarDay,
   type CarSummary,
   type DayFigures,
@@ -12,6 +13,7 @@ import {
   type MetricKey,
   METRICS,
   MAX_BINS,
+  MIN_BIN_CARS,
   MIN_CARS,
   OTHER,
   place,
@@ -182,12 +184,10 @@ describe("the middle half and where a car sits", () => {
   test("the middle half widens out to whole bins, so it always holds half the cars", () => {
     expect([stat.low, stat.high]).toEqual([120, 140]);
     expect(halfLine(energy, stat)).toBe("Half of owners use 120 to 140 Wh/km.");
-    expect(stat.bins.map((b) => [b.from, b.cars])).toEqual([
-      [110, 2],
-      [120, 3],
-      [130, 3],
-      [140, 0],
-      [150, 1],
+    // 110 held 2 cars and 150 held 1: each folds inward, so no bin holds fewer than 3.
+    expect(stat.bins).toEqual([
+      { from: null, to: 130, cars: 5 },
+      { from: 130, to: null, cars: 4 },
     ]);
   });
 
@@ -204,7 +204,7 @@ describe("the middle half and where a car sits", () => {
   test("a wide spread folds its far ends into open bins and widens its bins to fit", () => {
     const wide = spreadStat([...Array.from({ length: 40 }, (_, k) => k * 25), 5000], 25) as SpreadStat;
     expect(wide.bins.length).toBeLessThanOrEqual(MAX_BINS + 1);
-    expect(wide.bins[0]).toEqual({ from: null, to: 50, cars: 2 });
+    expect(wide.bins[0]).toEqual({ from: null, to: 100, cars: 4 });
     expect([wide.low, wide.high]).toEqual([250, 750]); // the range keeps its own steps
     expect(wide.bins.at(-1)?.to).toBeNull();
     expect(wide.bins.reduce((a, b) => a + b.cars, 0)).toBe(41);
@@ -212,9 +212,36 @@ describe("the middle half and where a car sits", () => {
 
   test("bins and ranges keep their step's decimals", () => {
     const parked = metric("parkedLoss") as SpreadMetric;
-    const s = spreadStat([0.31, 0.45, 0.6, 0.62, 0.77, 0.9], 0.2);
-    expect(halfLine(parked, s)).toBe("Half of owners' cars lose 0.4 to 0.8 kWh a day while parked.");
+    const s = spreadStat([0.21, 0.25, 0.3, 0.41, 0.45, 0.5, 0.61, 0.65, 0.7, 0.81, 0.85, 0.9], 0.2);
+    expect(halfLine(parked, s)).toBe("Half of owners' cars lose 0.2 to 0.8 kWh a day while parked.");
     expect(s.bins.map((b) => b.from)).toEqual([0.2, 0.4, 0.6, 0.8]);
+    expect(bandEnds(parked, s)).toEqual([0.2, 1]);
+  });
+
+  test("no bin holds 1 or 2 cars, and the line's ends never come from one car's value", () => {
+    const cases: [number[], number][] = [
+      [[101, 141, 142, 143, 193], 10], // 5 cars, one far below and one far above
+      [[101, 141, 142, 143, 144, 193], 10],
+      [[101, 102, 134, 141, 142, 143, 177, 186, 193], 10], // sparse bins inside
+      [[112, 118, 124, 126, 128, 133, 137, 139, 152], 10],
+      [[...Array.from({ length: 40 }, (_, k) => k * 25 + 3), 5003], 25],
+      [[0.21, 0.25, 0.33, 0.41, 0.45, 0.59, 0.61, 1.73], 0.2],
+    ];
+    for (const [values, step] of cases) {
+      const s = spreadStat(values, step);
+      const m = { ...energy, step };
+      // An empty bin stays: it says no car is there, nothing about any one car.
+      expect(s.bins.every((b) => b.cars === 0 || b.cars >= MIN_BIN_CARS)).toBe(true);
+      expect(s.bins.reduce((a, b) => a + b.cars, 0)).toBe(values.length);
+      s.bins.slice(1).forEach((b, k) => expect(b.from).toBe(s.bins[k].to));
+      // The line's ends and the middle half's are whole steps, never a car's own value.
+      for (const v of [...bandEnds(m, s), s.low, s.high]) {
+        expect(values).not.toContain(v);
+        expect(Math.abs(v / step - Math.round(v / step))).toBeLessThan(1e-9);
+      }
+    }
+    // 5 cars where no split leaves 3 on each side: one bin of every car.
+    expect(spreadStat([101, 141, 142, 143, 193], 10).bins).toEqual([{ from: null, to: null, cars: 5 }]);
   });
 });
 
@@ -240,7 +267,9 @@ describe("picked for you", () => {
   test("the most different comes first, and a figure about the middle isn't picked while 3 others differ", () => {
     const you = with_({ energy: 210, parkedLoss: 0.6, plugLevel: 22, kmWeek: 30, chargesWeek: 3, acShare: 70 });
     const picked = pick(others(RANGES), you);
-    expect(picked.map((h) => h.key)).toEqual(["energy", "plugLevel", "kmWeek"]);
+    // plugLevel and kmWeek are both below every other car, so their order is a tie.
+    expect(picked[0].key).toBe("energy");
+    expect(picked.map((h) => h.key).sort()).toEqual(["energy", "kmWeek", "plugLevel"]);
     expect(picked.every((h) => !h.middle)).toBe(true);
     expect(picked[0].line).toBe("Your car uses 210 Wh/km, more than most cars like yours. Half use 120 to 150 Wh/km.");
   });

@@ -23,6 +23,7 @@ import {
   carsWords,
   type ChoiceMetric,
   type ChoiceStat,
+  bandEnds,
   edgeWords,
   factLine,
   rangeWords,
@@ -81,12 +82,9 @@ const yours = (page: Ready, key: MetricKey) => viewerValue(key, page);
 // A range's picture: the line from the lowest to the highest bin, owners' middle half as a band on it, and
 // the owner's own figure as a dot (none when their car isn't in this group).
 function bandProps(m: SpreadMetric, stat: SpreadStat, you: number | null) {
-  const bins = stat.bins;
-  const width = bins.find((b) => b.from !== null && b.to !== null);
-  const step = width ? width.to! - width.from! : m.step;
-  // An open end bin has no edge: the line runs a step past the inner one.
-  const from = Math.min(bins[0].from ?? bins[0].to! - step, stat.low, you ?? Infinity);
-  const to = Math.max(bins[bins.length - 1].to ?? bins[bins.length - 1].from! + step, stat.high, you ?? -Infinity);
+  const [start, end] = bandEnds(m, stat);
+  const from = Math.min(start, stat.low, you ?? Infinity);
+  const to = Math.max(end, stat.high, you ?? -Infinity);
   const unit = m.unit === "%" ? "" : ` ${m.axis ?? m.unit}`;
   return {
     from,
