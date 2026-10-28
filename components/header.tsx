@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { cacheLife } from "next/cache";
-import { LogOut, RadioTower, Settings, ShieldCheck } from "lucide-react";
+import { LogOut, Settings, ShieldCheck } from "lucide-react";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
@@ -21,12 +21,11 @@ import { setupGate } from "@/lib/server/setup";
 import { DEMO } from "@/lib/demo";
 import { cn } from "@/lib/utils";
 
-export type Section = "stats" | "car" | "updates" | "rollout" | "settings";
+export type Section = "stats" | "car" | "settings";
 
 const NAV: { section: Section; href: string; label: string }[] = [
   { section: "stats", href: "/stats/driving", label: "Stats" },
   { section: "car", href: "/car", label: "Car" },
-  { section: "updates", href: "/updates", label: "Updates" },
 ];
 
 // The session decides it, so it streams in behind its own Suspense: the header itself stays in the static shell.
@@ -86,7 +85,7 @@ async function SetupGate() {
 }
 
 // The same header on every signed-in page; `current` marks the page's own link (Stats for every /stats page).
-// The logo is the way home. Rollout sits in the account menu.
+// The logo is the way home. Updates and the India rollout sit under Car.
 // `setup={false}` leaves out the setup gate: Settings (sign out, disconnect, delete), the admin pages and /setup itself.
 export function Header({ current, setup = true }: { current?: Section; setup?: boolean }) {
   return (
@@ -126,10 +125,6 @@ export function Header({ current, setup = true }: { current?: Section; setup?: b
             <DropdownMenuItem render={<Link href="/settings" prefetch={true} />}>
               <Settings aria-hidden />
               Settings
-            </DropdownMenuItem>
-            <DropdownMenuItem render={<Link href="/rollout" prefetch={true} aria-current={current === "rollout" ? "page" : undefined} />}>
-              <RadioTower aria-hidden />
-              Rollout
             </DropdownMenuItem>
             <Suspense>
               <AdminItem />

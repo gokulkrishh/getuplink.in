@@ -23,7 +23,8 @@ import { batteryFindings } from "@/lib/battery-tips";
 import { averagePrice, pricedCharges } from "@/lib/charge-tips";
 import { WEEK_TIPS, weekFindings } from "@/lib/week-wording";
 import { newestTime } from "@/lib/last-synced";
-import { rotationNotice, tyreRotation } from "@/lib/tyre-rotation";
+import { rotationDueAt, rotationNotice, tyreRotation } from "@/lib/tyre-rotation";
+import { RotationNotice } from "@/components/home/rotation-notice";
 import type { DemoScenario } from "@/lib/demo";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -112,6 +113,13 @@ function Totals({ home, routes, now }: { home: Extract<Home, { kind: "ready" }>;
   );
 }
 
+// The tyre rotation due now, if any, as a notice the owner can dismiss once it's done.
+function TyreNotice({ odometerKm }: { odometerKm: number | null }) {
+  const r = tyreRotation(odometerKm);
+  const at = rotationDueAt(r);
+  return at === null ? null : <RotationNotice atKm={at} text={rotationNotice(r)[0]} />;
+}
+
 async function HomeContent() {
   // Only demo mode reads the scenario, so the real page stays as it was.
   const demo: DemoScenario = "normal";
@@ -128,7 +136,8 @@ async function HomeContent() {
         <div className="space-y-12">
           {cars.map((car) => (
             <div key={car.vehicle.id} className="space-y-6">
-              <CarNotices notices={car.vehicle.id === primaryId ? [...car.notices, ...rotationNotice(tyreRotation(home.figures.odometerKm))] : car.notices} />
+              <CarNotices notices={car.notices} />
+              {car.vehicle.id === primaryId && <TyreNotice odometerKm={home.figures.odometerKm} />}
               <NowStrip
                 car={car}
                 odometerKm={car.vehicle.id === primaryId ? home.figures.odometerKm : null}

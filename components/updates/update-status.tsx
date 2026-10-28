@@ -60,7 +60,7 @@ export function UpdateStatus({ snapshot, now }: { snapshot: Snapshot | null; now
           >
             {/* A light band sweeps across the filled part so an in-progress update reads as alive. */}
             <div className="relative h-full overflow-hidden bg-foreground" style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}>
-              <span className="absolute inset-y-0 -left-1/2 w-1/2 bg-linear-to-r from-transparent via-background/50 to-transparent motion-safe:animate-shimmer" />
+              <span className="absolute inset-y-0 -left-1/2 w-1/2 bg-linear-to-r from-transparent via-background/80 to-transparent motion-safe:animate-shimmer" />
             </div>
           </div>
           <span className="w-10 text-left font-mono text-xs tabular-nums text-muted-foreground"><Measure text={`${progress}%`} /></span>

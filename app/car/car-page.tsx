@@ -1,4 +1,5 @@
 import { ChevronRight } from "lucide-react";
+import { CarTabs } from "@/components/car-tabs";
 import { SentryMark } from "@/components/sentry-mark";
 import Link from "next/link";
 import { cacheLife, cacheTag } from "next/cache";
@@ -19,10 +20,10 @@ import { loadWindowStats } from "@/lib/server/driving";
 import { loadStreamSessions } from "@/lib/server/stream-charging";
 import { rotationLine, tyreRotation } from "@/lib/tyre-rotation";
 import { CAR_NOW_FIELDS, type CarNow, carNow, shutSummary, tyreSeen } from "@/lib/car-now";
-import { formatClock, formatKm, formatKw, formatKwh, formatPercent, formatRangeKm, formatShortDate } from "@/lib/format";
+import { formatClock, formatKm, formatKw, formatKwh, formatLevels, formatPercent, formatRangeKm, formatShortDate } from "@/lib/format";
 import { isStaleSync, lastSyncedText, newestTime } from "@/lib/last-synced";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
-import { type CarDetails, loadCarDetails } from "@/lib/server/car";
+import { type CarDetails, type LastCharge, loadCarDetails } from "@/lib/server/car";
 import { type CarState, loadCarState, OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadPrimaryVehicle, loadStream } from "@/lib/server/telemetry";
 import { loadTyreArrivals } from "@/lib/server/telemetry-window";
@@ -128,7 +129,7 @@ function CarHeader({ car, odometer, version, syncedAt, at }: { car: CarDetails; 
   return (
     <header className="space-y-5 border p-4 sm:p-6">
       <div className="min-w-0 space-y-1">
-        <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem] text-balance break-words">{car.name}</h1>
+        <h2 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem] text-balance break-words">{car.name}</h2>
         {subtitle && <p className="text-sm text-muted-foreground text-pretty">{subtitle}</p>}
       </div>
       {(odometer !== null || version || battery) && (
@@ -265,6 +266,18 @@ function overheatWords(mode: string | undefined): string | null {
   return `Overheat protection ${mode === "No Ac" ? "no AC" : mode.toLowerCase()}`;
 }
 
+// The last charge's tiles: where and how (Supercharger, DC fast or AC), the power, the energy and the levels,
+// then for AC how the charger supplied it.
+function lastChargeFigures(last: LastCharge): Figure[] {
+  const kind = last.supercharger ? "Supercharger" : last.kind === "dc" ? "DC fast" : "AC";
+  return [
+    { label: "Charger", value: <Words>{kind}</Words>, note: last.station ?? undefined },
+    last.kw !== null && { label: "Power", value: formatKw(last.kw), note: last.kind === "ac" ? "Typical draw" : "At its fastest" },
+    last.kwh !== null && { label: "Energy added", value: formatKwh(last.kwh), note: last.levels ? formatLevels(last.levels.from, last.levels.to) : undefined },
+    ...(last.supply ? supplyFigures(last.supply) : []),
+  ].filter((f): f is Figure => Boolean(f));
+}
+
 // What's left in the pack (the level of the usable capacity) over the owner's average consumption: the
 // last 30 days', or since the first drive while tracking is younger.
 function ownRange(level: number | null, usableKwh: number | null, averages: Average[]): number | null {
@@ -317,7 +330,7 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
     ["VIN", car.vin && <Vin vin={car.vin} label={false} />],
   ]);
 
-  const ac = car.lastAcCharge;
+  const last = car.lastCharge;
 
   return (
     <div className="flex flex-col gap-12">
@@ -379,17 +392,11 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
         </section>
       )}
 
-      {ac && (
-        <Section title="Last AC charge" action={<MoreLink href={`/stats/charging/${ac.id}`}>See charge</MoreLink>}>
-          <Figures
-            figures={[
-              ac.kw !== null && { label: "Power", value: formatKw(ac.kw), note: "Typical draw" },
-              ...(ac.supply ? supplyFigures(ac.supply) : []),
-            ]}
-            label="Last AC charge"
-          />
+      {last && (
+        <Section title="Last charge" action={<MoreLink href={`/stats/charging/${last.id}`}>See charge</MoreLink>}>
+          <Figures figures={lastChargeFigures(last)} label="Last charge" />
           <p className="text-xs text-muted-foreground tabular-nums">
-            Ended {formatShortDate(ac.endedAt)}, {formatClock(ac.endedAt)}
+            Ended {formatShortDate(last.endedAt)}, {formatClock(last.endedAt)}
           </p>
         </Section>
       )}
@@ -535,11 +542,13 @@ function CarSkeleton() {
         </>,
       )}
       {section(
-        "Last AC charge",
+        "Last charge",
         <>
           <SkFigures
             tiles={[
+              { label: "Charger", value: "AC", words: true, note: "Koramangala, Bengaluru" },
               { label: "Power", value: "7.2 kW", note: "Typical draw" },
+              { label: "Energy added", value: "18.4 kWh", note: "42% to 70%" },
               { label: "Voltage", value: "230 V" },
               { label: "Current", value: "32 A", note: "The most the car drew" },
               { label: "Phases", value: "1", note: "Single-phase" },
@@ -580,6 +589,7 @@ export function CarPage({ id }: { id: Promise<string | null> }) {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
       <Header current="car" />
+      <CarTabs value="car" />
       <Suspense fallback={<CarSkeleton />}>
         <CarContent id={id} />
       </Suspense>

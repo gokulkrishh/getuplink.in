@@ -21,9 +21,14 @@ export function rotationLine(r: TyreRotation): string {
   return `Rotate the tyres at ${km(r.nextAtKm)}, ${km(r.toGoKm)} from now.`;
 }
 
-// Home's notice, only while a rotation is due: the one just passed when it's behind the car.
+// The rotation due now, at its km: the one just passed when it's behind the car. Null when none is due.
+export function rotationDueAt(r: TyreRotation | null): number | null {
+  if (!r?.due) return null;
+  return r.toGoKm <= NEAR_KM ? r.nextAtKm : r.nextAtKm - ROTATE_EVERY_KM;
+}
+
+// Home's notice, only while a rotation is due.
 export function rotationNotice(r: TyreRotation | null): string[] {
-  if (!r?.due) return [];
-  const at = r.toGoKm <= NEAR_KM ? r.nextAtKm : r.nextAtKm - ROTATE_EVERY_KM;
-  return [`Tyre rotation is due at ${km(at)}. Tesla suggests one every ${km(ROTATE_EVERY_KM)}.`];
+  const at = rotationDueAt(r);
+  return at === null ? [] : [`Tyre rotation is due at ${km(at)}. Tesla suggests one every ${km(ROTATE_EVERY_KM)}.`];
 }

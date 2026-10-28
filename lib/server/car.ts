@@ -61,12 +61,23 @@ export type CarDetails = {
   checkedAt: string | null;
   // The latest week's usable capacity, as the battery trend on /stats/battery has it.
   battery: WeeklyPack | null;
-  lastAcCharge: LastAcCharge | null;
+  lastCharge: LastCharge | null;
 };
 
-// From the most recent finished AC session the car streamed: its id (for /stats/charging/[id]), when it
-// ended, the typical power and how it was supplied. Only the parts the car reported.
-export type LastAcCharge = { id: number; endedAt: string; kw: number | null; supply: AcSupply | null };
+// From the most recent finished session the car streamed, AC or DC: its id (for /stats/charging/[id]), when
+// it ended, the power (AC: the typical draw; DC: the peak), the energy added, the levels, and for AC how it
+// was supplied, for DC where. Only the parts the car reported.
+export type LastCharge = {
+  id: number;
+  endedAt: string;
+  kind: "ac" | "dc";
+  supercharger: boolean;
+  kw: number | null;
+  kwh: number | null;
+  levels: { from: number; to: number } | null;
+  station: string | null;
+  supply: AcSupply | null;
+};
 
 type Config = Partial<{
   car_type: string;
@@ -149,14 +160,20 @@ function details(
     ].filter((s): s is string => typeof s === "string"),
     checkedAt: check?.polledAt ?? null,
     battery: null,
-    lastAcCharge: null,
+    lastCharge: null,
   };
 }
 
-type AcChargeRow = {
+type ChargeRow = {
   id: number;
   started_at: string;
   ended_at: string | null;
+  kind: "ac" | "dc";
+  supercharger: boolean | null;
+  energy_added_kwh: unknown;
+  start_level: unknown;
+  end_level: unknown;
+  station_name: string | null;
   peak_power_kw: unknown;
   ac_voltage: unknown;
   ac_amps: unknown;
@@ -164,17 +181,16 @@ type AcChargeRow = {
   cable_type: unknown;
 };
 
-// The newest finished AC session, wherever it was.
-async function loadLastAcCharge(owner: Owner, vin: string): Promise<LastAcCharge | null> {
-  let data: AcChargeRow | null;
+// The newest finished session, AC or DC, wherever it was.
+async function loadLastCharge(owner: Owner, vin: string): Promise<LastCharge | null> {
+  let data: ChargeRow | null;
   if (DEMO) {
-    data = demoStreamSessions().find((s) => s.kind === "ac" && s.ended_at) ?? null;
+    data = demoStreamSessions().find((s) => s.ended_at) ?? null;
   } else {
     const result = await ownerDb(owner)
       .from("stream_charge_sessions")
-      .select("id, started_at, ended_at, peak_power_kw, ac_voltage, ac_amps, ac_phases, cable_type")
+      .select("id, started_at, ended_at, kind, supercharger, energy_added_kwh, start_level, end_level, station_name, peak_power_kw, ac_voltage, ac_amps, ac_phases, cable_type")
       .eq("vin", vin)
-      .eq("kind", "ac")
       .not("ended_at", "is", null)
       .order("started_at", { ascending: false })
       .limit(1)
@@ -183,15 +199,30 @@ async function loadLastAcCharge(owner: Owner, vin: string): Promise<LastAcCharge
     data = result.error ? null : result.data;
   }
   if (!data?.ended_at) return null;
-  // The typical draw over the session's window; the peak when no reading drew power. The first power
+  const ac = data.kind === "ac";
+  // AC: the typical draw over the session's window; the peak when no reading drew power. The first power
   // reading can come just before the charge state says Charging (26 s on 25 Oct), so the window starts a
-  // minute early.
-  const from = new Date(Date.parse(data.started_at) - 60_000).toISOString();
-  const readings = await loadReadingsByField(owner, vin, ["ACChargingPower"], from, data.ended_at);
-  const kw = typicalChargeKw(readings?.ACChargingPower ?? [], Date.parse(data.ended_at)) ?? num(data.peak_power_kw);
-  const supply = acSupply(data);
-  const power = kw !== null && kw > 0 ? Math.round(kw * 10) / 10 : null;
-  return power !== null || supply ? { id: data.id, endedAt: data.ended_at, kw: power, supply } : null;
+  // minute early. DC: the peak, since a DC charge slows as the battery fills.
+  let kw = num(data.peak_power_kw);
+  if (ac) {
+    const from = new Date(Date.parse(data.started_at) - 60_000).toISOString();
+    const readings = await loadReadingsByField(owner, vin, ["ACChargingPower"], from, data.ended_at);
+    kw = typicalChargeKw(readings?.ACChargingPower ?? [], Date.parse(data.ended_at)) ?? kw;
+  }
+  const start = num(data.start_level);
+  const end = num(data.end_level);
+  const kwh = num(data.energy_added_kwh);
+  return {
+    id: data.id,
+    endedAt: data.ended_at,
+    kind: data.kind,
+    supercharger: data.supercharger === true,
+    kw: kw !== null && kw > 0 ? Math.round(kw * 10) / 10 : null,
+    kwh: kwh !== null && kwh > 0 ? kwh : null,
+    levels: start !== null && end !== null && end > start ? { from: Math.round(start), to: Math.round(end) } : null,
+    station: data.station_name,
+    supply: ac ? acSupply(data) : null,
+  };
 }
 
 // The newest IST week's usable capacity (see weeklyUsable), from this week's and last week's readings:
@@ -216,8 +247,8 @@ export async function loadCarDetails(owner: Owner, id: string): Promise<CarDetai
       state: vehicleState,
       supercharging: superchargingEnabled,
     });
-    const [battery, lastAcCharge] = await Promise.all([loadLatestWeekPack(owner, vehicle.vin, Date.now()), loadLastAcCharge(owner, vehicle.vin)]);
-    return { ...car, battery, lastAcCharge };
+    const [battery, lastCharge] = await Promise.all([loadLatestWeekPack(owner, vehicle.vin, Date.now()), loadLastCharge(owner, vehicle.vin)]);
+    return { ...car, battery, lastCharge };
   }
   const [vehicle, snapshot] = await Promise.all([
     ownerDb(owner).from("vehicles").select("id:id::text, vin, display_name, current_version").eq("id", id).maybeSingle(),
@@ -277,6 +308,6 @@ export async function loadCarDetails(owner: Owner, id: string): Promise<CarDetai
     },
   );
   if (!v.vin) return car;
-  const [battery, lastAcCharge] = await Promise.all([loadLatestWeekPack(owner, v.vin, Date.now()), loadLastAcCharge(owner, v.vin)]);
-  return { ...car, battery, lastAcCharge };
+  const [battery, lastCharge] = await Promise.all([loadLatestWeekPack(owner, v.vin, Date.now()), loadLastCharge(owner, v.vin)]);
+  return { ...car, battery, lastCharge };
 }

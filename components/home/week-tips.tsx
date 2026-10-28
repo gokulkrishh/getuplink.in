@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, Sparkles, ThumbsDown, ThumbsUp } from "lucide-react";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { voteTip } from "@/app/tip-actions";
 import type { Tip, TipScope } from "@/lib/ai-tips";
 import type { Vote } from "@/lib/tip-votes";
@@ -10,7 +10,8 @@ import { cn } from "@/lib/utils";
 // The box, the same while loading, so the page doesn't move when the tips arrive. Five lines of tip text are
 // held on a phone and two wider (lib/ai-tips.ts MAX_CHARS keeps every tip within them), so turning between
 // a short and a long tip doesn't move it either.
-const BOX = "space-y-2 border px-4 py-3";
+const BOX = "ai-box space-y-2 border px-4 py-3";
+const THANKS_MS = 5000;
 const TIPS_LINES = "min-h-25 sm:min-h-10";
 const NOTE_LINES = "min-h-15 sm:min-h-10";
 
@@ -41,6 +42,12 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
   const [votes, setVotes] = useState<Record<string, Vote>>(vote?.votes ?? {});
   // The vote just cast, so only its answer slides in: one from an earlier visit shows still.
   const [justVoted, setJustVoted] = useState<string | null>(null);
+  // The thanks for a useful vote shows for a few seconds, then the row is left empty.
+  useEffect(() => {
+    if (justVoted === null) return;
+    const id = setTimeout(() => setJustVoted(null), THANKS_MS);
+    return () => clearTimeout(id);
+  }, [justVoted]);
   const [, startTransition] = useTransition();
   if (tips.length === 0 && !replacing) return null;
   const current = !replacing && tips.length > 0 ? tips[at % tips.length] : null;
@@ -151,9 +158,11 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
         ) : (
           kind &&
           (votes[tip] ? (
-            <span className={cn("flex items-center gap-2 text-xs text-muted-foreground", justVoted === tip && "motion-safe:animate-vote-in")} aria-live="polite">
-              You found this useful
-            </span>
+            justVoted === tip && (
+              <span className="flex items-center gap-2 text-xs text-muted-foreground motion-safe:animate-vote-in" aria-live="polite">
+                You found this useful
+              </span>
+            )
           ) : (
             <>
               <span className="mr-1 text-xs leading-4 text-muted-foreground">Was this useful?</span>

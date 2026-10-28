@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Globe } from "lucide-react";
 import { Suspense } from "react";
 import { EmptyState } from "@/components/empty-state";
+import { CarTabs } from "@/components/car-tabs";
 import { Header } from "@/components/header";
 import { ChartCard } from "@/components/chart-card";
 import { ReleaseNotesToggle } from "@/components/release-notes";
@@ -232,8 +233,9 @@ function RolloutSkeleton() {
 export default function Page() {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
-      <Header current="rollout" />
-      <h1 className="mb-8 text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">India rollout</h1>
+      <Header current="car" />
+      <CarTabs value="updates" />
+      <h2 className="mb-8 text-lg font-medium tracking-heading">India rollout</h2>
       <Suspense fallback={<RolloutSkeleton />}>
         <Rollout />
       </Suspense>
