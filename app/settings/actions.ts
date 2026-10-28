@@ -6,7 +6,8 @@ import { redirect } from "next/navigation";
 import { DEMO } from "@/lib/demo";
 import { currentOwner, type Owner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
-import { createConnectorToken, revokeConnectorToken } from "@/lib/server/connector-token";
+import { CONNECTOR_LIMIT, CONNECTOR_NAME_MAX } from "@/lib/connectors";
+import { createConnector, removeConnector } from "@/lib/server/connector-token";
 import { deleteAccount, deleteMyData, disconnectTesla, revokeAllSessions } from "@/lib/server/tesla";
 import { messageOf } from "@/lib/errors";
 import { clearSession, requestHost } from "@/lib/session";
@@ -84,31 +85,39 @@ export async function deleteWholeAccount(_: string | null, form: FormData): Prom
   return null;
 }
 
-export type TokenResult = { token: string | null; error: string | null };
+export type AddConnectorResult = { name: string; token: string } | { error: string };
 
-// A new connector token, shown once. Any old one stops working.
-export async function newConnectorToken(): Promise<TokenResult> {
+const REFUSED = {
+  name: `Give it a name of up to ${CONNECTOR_NAME_MAX} characters.`,
+  limit: `You have ${CONNECTOR_LIMIT} connectors. Remove one to add another.`,
+} as const;
+
+// A new named connector; its token is in the result this once.
+export async function addConnector(rawName: string): Promise<AddConnectorResult> {
   const owner = await requireSession();
-  if (DEMO) return { token: null, error: "Tokens aren't available in demo mode." };
+  if (DEMO) return { error: "The demo can't add connectors." };
   try {
-    const token = await createConnectorToken(owner);
+    const result = await createConnector(owner, rawName);
+    if ("refused" in result) return { error: REFUSED[result.refused] };
     updateTag(OWNER_DATA_TAG);
-    return { token, error: null };
+    return { name: rawName.trim(), token: result.token };
   } catch (err) {
-    console.error("Creating the connector token failed:", messageOf(err));
-    return { token: null, error: "Couldn't create a token. Try again in a moment." };
+    console.error("Adding a connector failed:", messageOf(err));
+    return { error: "Couldn't add the connector. Try again in a moment." };
   }
 }
 
-export async function removeConnectorToken(): Promise<TokenResult> {
+// Removes one of the account's connectors. Returns an error to show, or null.
+export async function deleteConnector(id: number): Promise<string | null> {
   const owner = await requireSession();
-  if (DEMO) return { token: null, error: null };
+  if (DEMO) return "The demo can't remove connectors.";
+  if (!Number.isSafeInteger(id) || id < 1) return "Couldn't remove the connector. Reload the page and try again.";
   try {
-    await revokeConnectorToken(owner);
+    await removeConnector(owner, id);
     updateTag(OWNER_DATA_TAG);
-    return { token: null, error: null };
+    return null;
   } catch (err) {
-    console.error("Revoking the connector token failed:", messageOf(err));
-    return { token: null, error: "Couldn't revoke the token. Try again in a moment." };
+    console.error("Removing a connector failed:", messageOf(err));
+    return "Couldn't remove the connector. Try again in a moment.";
   }
 }

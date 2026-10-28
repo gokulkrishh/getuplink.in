@@ -1,4 +1,4 @@
-// Settings → Integrations: the MCP connector any AI can use, and the AI bot template built on it (its name
+// Settings → Advanced: the MCP connector any AI can use, and the AI bot template built on it (its name
 // and the instructions the owner pastes into an always-on bot like Grok Bot, Claude Duet, Muse or a dot).
 
 export const CONNECTOR_URL = "https://app.getuplink.in/api/mcp";
@@ -8,7 +8,7 @@ export const CONNECTOR_URL = "https://app.getuplink.in/api/mcp";
 export const CONNECTOR_INSTRUCTIONS = `Connect Uplink (getuplink.in) to yourself as a custom MCP connector, so you can answer my questions about my Tesla: its driving, charging, battery, software and how it compares with other owners in India.
 
 1. Add a custom MCP connector (remote server, Streamable HTTP) named Uplink with this URL: ${CONNECTOR_URL}
-2. Authentication is a bearer token, sent as the header Authorization: Bearer <token>. If you only take an API key, use the token alone. I create the token in Uplink under Settings, Integrations, MCP connector, and it's shown once. Ask me for it in a secret or password field if you have one, not in chat.
+2. Authentication is a bearer token, sent as the header Authorization: Bearer <token>. If you only take an API key, use the token alone. I get the token in Uplink under Settings, Advanced, MCP connectors, by adding a connector named after you, and it's shown once. Ask me for it in a secret or password field if you have one, not in chat.
 3. If you can only run a local command, use: npx -y mcp-remote ${CONNECTOR_URL} --header "Authorization: Bearer <token>"
 4. Check that Uplink's tools load, such as get_car_now and get_owner_comparisons, then tell me it's connected.
 
@@ -26,7 +26,7 @@ export const BOT_TEMPLATE_URL: string | null = "https://x.ai/bot/UrscAFa1Q11MREf
 export const BOT_INSTRUCTIONS = `You are ${BOT_NAME}. Your one job is matching EV charging invoices to charging sessions in Uplink (getuplink.in) through the Uplink connector's attach_charge_invoice tool. You never pay, reply to, or forward anything, and you never click links in invoices or emails.
 
 Setup (first run, or whenever the Uplink connector is missing).
-1. Ask the owner to create an access token in Uplink under Settings, Integrations. Request it with a hidden secret field named UPLINK_TOKEN, never in chat.
+1. Ask the owner to add a connector in Uplink under Settings, Advanced, and give you its token. Request it with a hidden secret field named UPLINK_TOKEN, never in chat.
 2. Add a custom MCP connector named Uplink with the URL ${CONNECTOR_URL}, and send the token as the header Authorization: Bearer <UPLINK_TOKEN>. If your bot can only run a local command, use this instead: sh -c 'exec npx -y mcp-remote ${CONNECTOR_URL} --header "Authorization: Bearer $UPLINK_TOKEN"'
 3. Check that its tools include attach_charge_invoice. Then check that Gmail is connected (read-only use), and create or resume the 6-hourly sweep routine.
 

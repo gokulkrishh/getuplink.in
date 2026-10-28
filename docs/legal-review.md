@@ -111,7 +111,7 @@ A January 2026 MeitY proposal to cut the 18 months to 12 was aimed at Significan
 
 - **Answer:** Yes, the owner's own instruction, given by making a token and handing it to their AI, is consent and a valid legal basis under Tesla 5.6.7 and DPDP s. 6. The AI provider decides its own purposes and means under its own terms, so it's a separate Data Fiduciary chosen by the owner, not Uplink's processor. Uplink's duty ends at handing the data over securely: the token is hashed, shown once and revocable. The bot template reads the owner's Gmail through the owner's own AI. Uplink never touches Gmail.
 - **Risk:** Low.
-- **Change:** None. Privacy and Terms (Your connector token) already say this.
+- **Change:** None. Privacy and Terms (Your connector tokens) already say this. Since named connectors (up to 5, one per AI), Privacy also lists the name the owner gives each.
 - **Status:** Done.
 
 ### 10. Rollout totals could identify an owner
@@ -268,7 +268,7 @@ A January 2026 MeitY proposal to cut the 18 months to 12 was aimed at Significan
 | Proof of consent | s. 6(10) | Recommended (#4). |
 | Cease and erase on withdrawal, processors too | s. 6(6), s. 8(7) | Disconnect, Delete my data, Delete account; readings past their use go daily (`lib/telemetry-retention.ts`). |
 | Keep logs a year | r. 6(1)(e), r. 8(3) | #3. |
-| Security safeguards | s. 8(5); r. 6 | Privacy: Security, and /privacy/car-data. AES-256 at rest for the whole database (Supabase), AES-256-GCM tokens on top, hashed connector token, TLS, mutual TLS for the car stream, service-role-only database. Not end-to-end: the receiver decrypts to store. |
+| Security safeguards | s. 8(5); r. 6 | Privacy: Security, and /privacy/car-data. AES-256 at rest for the whole database (Supabase), AES-256-GCM tokens on top, hashed connector tokens, TLS, mutual TLS for the car stream, service-role-only database. Not end-to-end: the receiver decrypts to store. |
 | Processor contracts | s. 8(2); r. 6(1)(f) | #15. |
 | Breach: tell each person and the Board (in full within 72 hours) | s. 8(6); r. 7 | Privacy: If there's a breach (in the app; no email is held). An in-app banner for it isn't built (Recommended: a site-wide notice). |
 | Contact who answers questions; repeat it in each reply | s. 8(9); r. 9 | Privacy: Grievance Officer. **Every reply to a rights request must repeat this contact.** |

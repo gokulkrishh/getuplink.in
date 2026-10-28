@@ -49,7 +49,6 @@ mock.module("@/lib/server/supabase", () => ({
   db: () => ({ from: (table: string) => query(table), rpc: (fn: string) => (fn.startsWith("claim_") ? Promise.resolve({ data: true, error: null }) : query("rpc")) }),
 }));
 mock.module("@/lib/server/crypto", () => ({ encrypt: (s: string) => `enc:${s}`, decrypt: (s: string) => s.slice(4) }));
-mock.module("@/lib/server/connector-token", () => ({ revokeConnectorToken: async () => {} }));
 mock.module("@/lib/server/receipts", () => ({ deleteAllInvoices: async () => {} }));
 mock.module("@/lib/server/stream-versions", () => ({
   syncStreamVersions: async () => {},

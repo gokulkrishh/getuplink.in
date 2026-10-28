@@ -265,8 +265,10 @@ export async function accountCount(): Promise<number> {
 // The MCP connector token with this hash and the approved user it belongs to, or null when there is none
 // or the account has no Tesla access.
 // The caller compares the hash again in constant time.
-export async function connectorTokenAccount(tokenHash: string): Promise<{ owner: Owner; tokenHash: string; usedAt: string | null } | null> {
-  const { data, error } = await db().from("connector_token").select("user_id, token_hash, used_at").eq("token_hash", tokenHash).limit(1).maybeSingle();
+export async function connectorTokenAccount(
+  tokenHash: string,
+): Promise<{ owner: Owner; id: number; tokenHash: string; usedAt: string | null } | null> {
+  const { data, error } = await db().from("connector_token").select("id, user_id, token_hash, used_at").eq("token_hash", tokenHash).limit(1).maybeSingle();
   if (error) {
     if (!MISSING_TABLE.includes(error.code)) console.warn("Connector token unavailable:", error.message);
     return null;
@@ -278,7 +280,7 @@ export async function connectorTokenAccount(tokenHash: string): Promise<{ owner:
   // account, so the connector stops reading.
   const tesla = await db().from("user_tokens").select("refresh_token_enc").eq("user_id", user.id).maybeSingle();
   if (tesla.error || !tesla.data?.refresh_token_enc) return null;
-  return { owner: ownerOf(user), tokenHash: data.token_hash as string, usedAt: (data.used_at as string | null) ?? null };
+  return { owner: ownerOf(user), id: Number(data.id), tokenHash: data.token_hash as string, usedAt: (data.used_at as string | null) ?? null };
 }
 
 // ---- Shared cars: one car, more than one user ----

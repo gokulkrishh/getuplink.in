@@ -119,9 +119,9 @@ describe("ownerDb", () => {
   });
 
   test("stamps the owner's user on what it writes", async () => {
-    await ownerDb(B).from("connector_token").upsert({ token_hash: "new" }, { onConflict: "user_id" });
-    expect(fake.rows("connector_token").find((r) => r.user_id === 2)?.token_hash).toBe("new");
-    expect(fake.rows("connector_token").find((r) => r.user_id === 1)?.token_hash).toBe("hash-a");
+    await ownerDb(B).from("connector_token").insert({ name: "Grok", token_hash: "new" });
+    expect(fake.rows("connector_token").filter((r) => r.user_id === 2).map((r) => r.token_hash)).toEqual(["hash-b", "new"]);
+    expect(fake.rows("connector_token").filter((r) => r.user_id === 1).map((r) => r.token_hash)).toEqual(["hash-a"]);
     await ownerDb(B).from("snapshots").insert([{ vehicle_id: "2" }]);
     expect(fake.rows("snapshots")).toEqual([{ vehicle_id: "2", user_id: 2 }]);
   });

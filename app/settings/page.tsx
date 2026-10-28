@@ -14,7 +14,8 @@ import { lastCheckAt, OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { ownHomeState, type OwnHomeState } from "@/lib/server/home-state";
 import { lastReadingAt } from "@/lib/server/telemetry";
 import { accountInfo, type AccountInfo } from "@/lib/server/tesla";
-import { connectorTokenStatus, type ConnectorTokenStatus } from "@/lib/server/connector-token";
+import { type Connector } from "@/lib/connectors";
+import { listConnectors } from "@/lib/server/connector-token";
 import { budgetState, type BudgetState } from "@/lib/server/usage";
 import { checkCadence, nextReset } from "@/lib/tesla-billing";
 import { DeleteAccount, DeleteMyData, DisconnectTesla, SignOutEverywhere } from "./confirm-actions";
@@ -56,7 +57,7 @@ async function loadSettings(): Promise<{
   lastCheck: string | null;
   lastReading: string | null;
   home: OwnHomeState;
-  connector: ConnectorTokenStatus;
+  connectors: Connector[] | null;
   budget: BudgetState;
   sharing: Sharing | null;
   now: number;
@@ -66,7 +67,7 @@ async function loadSettings(): Promise<{
   cacheLife({ stale: 60 });
   const owner = await currentOwner();
   if (!owner) redirect(SIGNED_OUT_PATH);
-  const [account, lastCheck, lastReading, home, connector, budget, sharing] = await Promise.all([
+  const [account, lastCheck, lastReading, home, connectors, budget, sharing] = await Promise.all([
     accountInfo(owner),
     lastCheckAt(owner),
     lastReadingAt(owner),
@@ -75,8 +76,11 @@ async function loadSettings(): Promise<{
       console.warn("Home state unavailable:", (err as Error).message);
       return { state: null, source: null, locationAllowed: false, askLocation: false };
     }),
-    // Never fails the page either: shown as not set up.
-    connectorTokenStatus(owner).catch(() => null),
+    // Never fails the page either: the section says it couldn't load them.
+    listConnectors(owner).catch((err): null => {
+      console.warn("Connectors unavailable:", (err as Error).message);
+      return null;
+    }),
     // Never fails the page: an unreadable usage reads as the normal cadence.
     budgetState(),
     // Never fails the page: unreadable reads as off.
@@ -86,11 +90,11 @@ async function loadSettings(): Promise<{
     }),
   ]);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
-  return { account, lastCheck, lastReading, home, connector, budget, sharing, now: Date.now() };
+  return { account, lastCheck, lastReading, home, connectors, budget, sharing, now: Date.now() };
 }
 
 async function Settings() {
-  const { account, lastCheck, lastReading, home, connector, budget, sharing, now } = await loadSettings();
+  const { account, lastCheck, lastReading, home, connectors, budget, sharing, now } = await loadSettings();
   // Past the Tesla budget checks slow down, then pause until the month resets (lib/server/poll.ts).
   const cadence =
     budget.level === "stopped"
@@ -143,15 +147,15 @@ async function Settings() {
       </Group>
 
       <Advanced>
-        <McpConnector status={connector} now={now} />
+        <McpConnector connectors={connectors} now={now} />
         <BotTemplate />
       </Advanced>
     </>
   );
 }
 
-// Faint blocks in the shape of the groups and their rows, built from the same Group and Row. The two
-// integrations are a row each with a block under it for what opens there (the connector's steps and token).
+// Faint blocks in the shape of the groups and their rows, built from the same Group and Row. Advanced
+// renders closed, so only its heading is drawn.
 function SettingsSkeleton() {
   const button = <div className="h-9 w-24 bg-muted motion-safe:animate-pulse max-sm:h-10" aria-hidden="true" />;
   const text = (words: string) => <Ph>{words}</Ph>;

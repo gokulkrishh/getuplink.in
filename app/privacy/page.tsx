@@ -45,7 +45,7 @@ const STORED = [
   "Each car's home state, such as Karnataka, for the India rollout map",
   "The name of the charging station each charge happened at, such as Statiq, Koramangala",
   "A log of each check of your car, and how many Tesla API calls your account made",
-  "Your connector token, stored only as a hash, and when it was last used",
+  "Your connectors: the name you give each, its token stored only as a hash, and when it was last used",
   "If you share with other owners: each car's figures for each day (distance, energy, charges, climate and settings) for the Owners totals, and a key made from the VIN so a car two accounts share counts once",
   "If you joined through an invite: the last 6 characters of the invited car's VIN, the inviter's note on it, and the car's model and last 4 VIN characters once you join",
 ];
@@ -173,7 +173,7 @@ export default function PrivacyPage() {
           </li>
           <li>CARTO serves the map tiles to your browser, so it sees your IP address and the part of the map you view.</li>
           <li>
-            The AI you connect, if you make a connector token. It reads your data under its own terms. Revoke the token in
+            The AI you connect, if you add a connector. It reads your data under its own terms. Remove its connector in
             Settings to stop it.
           </li>
           <li>
@@ -233,7 +233,7 @@ export default function PrivacyPage() {
         <ul className={PLAIN_LIST}>
           <li>
             Delete my data in Settings removes your cars, history, snapshots, live data, charges,
-            invoices, places, check logs, shared daily figures, connector token and Tesla tokens, and turns sharing with
+            invoices, places, check logs, shared daily figures, connectors and Tesla tokens, and turns sharing with
             other owners off. It stops your car sending live data to Uplink, unless
             another Uplink user tracks it. Your account id and Tesla API call counts stay, so you can sign in again.
           </li>
@@ -290,7 +290,7 @@ export default function PrivacyPage() {
       <PlainSection title="Security">
         <p>
           The database is encrypted on disk with AES-256, and Uplink encrypts your Tesla tokens again with AES-256 before
-          storing them. The connector token is stored only as a hash. Data travels encrypted over TLS. For your car&apos;s
+          storing them. Connector tokens are stored only as hashes. Data travels encrypted over TLS. For your car&apos;s
           live data, the car and Uplink each prove who they are first. Only Uplink&apos;s servers can read the database.
         </p>
       </PlainSection>

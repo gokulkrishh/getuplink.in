@@ -16,7 +16,7 @@ import { ownerComparisons } from "@/lib/server/owners";
 import { attachInvoice, chargingSummary, drivingSummary, listChargingSessions } from "@/lib/server/receipts";
 
 // The Uplink MCP connector, for any AI the owner connects (a Grok bot, Claude, ChatGPT). proxy.ts lets
-// it through without a session; the token from Settings → Integrations is checked here instead.
+// it through without a session; a connector's token from Settings → Advanced is checked here instead.
 // Read tools for everything the app shows, plus one narrow write: nothing deletes data or reaches the car.
 
 const json = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }] });
@@ -233,7 +233,7 @@ async function guarded(request: Request): Promise<Response> {
   const owner = await verifyConnectorToken(bearer);
   if (!owner) {
     return Response.json(
-      { error: "Missing or wrong token. Create one in Uplink, under Settings, Integrations." },
+      { error: "Missing or wrong token. Add a connector in Uplink, under Settings, Advanced." },
       { status: 401, headers: { "WWW-Authenticate": 'Bearer realm="uplink"' } },
     );
   }

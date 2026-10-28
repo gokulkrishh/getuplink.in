@@ -65,8 +65,8 @@ const SECTIONS: { title: string; body: ReactNode }[] = [
     body: "Don't try to break, overload or misuse the service, reach other people's data, copy or resell it, or use it to track someone without their knowledge. Only add invoices that are yours.",
   },
   {
-    title: "Your connector token",
-    body: "Keep it secret. Whoever has it can read your data, and the AI you give it to uses your data under its own terms. Revoke it in Settings any time.",
+    title: "Your connector tokens",
+    body: "Keep them secret. Whoever has one can read your data, and the AI you give it to uses your data under its own terms. Remove a connector in Settings any time.",
   },
   {
     title: "Google Maps",

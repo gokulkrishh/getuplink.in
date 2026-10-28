@@ -9,7 +9,7 @@ import { deleteEverything, deleteWholeAccount, disconnect, signOutEverywhereWith
 import { Row } from "./row";
 
 // Opening a confirm form moves focus into it; cancelling hands focus back to the button that opened it.
-function useAskingFocus(
+export function useAskingFocus(
   asking: boolean,
   first: React.RefObject<HTMLElement | null>,
   trigger: React.RefObject<HTMLElement | null>,
