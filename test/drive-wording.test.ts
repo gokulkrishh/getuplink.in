@@ -69,6 +69,7 @@ describe("the number guard", () => {
     expect(lineProblem("summary", "There were nine hard brakes.", facts)).toBe("number");
     expect(lineProblem("summary", "The climb around 7:16 AM likely used most of the energy.", facts)).toBe("guess");
     expect(lineProblem("summary", "It used more because of the climb at 7:16 AM.", facts)).toBe("guess");
+    expect(lineProblem("summary", "There was a climb at 7:16 AM, then hard braking at 7:18 AM and again at 7:20 AM, and after that a long and gentle descent that went on and on until the very end of the drive.", facts)).toBe("long");
   });
 
   test("rejects the house style's don'ts", () => {
