@@ -159,6 +159,17 @@ export function McpConnector({ connectors, now }: { connectors: Connector[] | nu
   return (
     <Row title="MCP connectors">
       <div className="mt-4 space-y-4">
+        <ManualInstructions copy={CONNECTOR_INSTRUCTIONS}>
+          <ol className="list-decimal space-y-1.5 pl-5 text-sm text-muted-foreground">
+            <li>Add a connector below, named after your AI. Its token is shown once, so keep this page open until it&apos;s saved in your AI.</li>
+            <li>In your AI, add a custom MCP connector (in Grok, open Connectors, then New connector, then Custom) with the URL below.</li>
+            <li>
+              For its authentication, choose a header or API key, and enter the token as <code className="font-mono text-xs">Authorization: Bearer &lt;token&gt;</code>. If it asks
+              only for an API key, paste the token alone.
+            </li>
+          </ol>
+        </ManualInstructions>
+        <Copyable label="Connector URL" value={CONNECTOR_URL} />
         {connectors === null ? (
           <p role="alert" className="text-sm text-destructive">
             Couldn&apos;t load your connectors. Try again in a moment.
@@ -188,17 +199,6 @@ export function McpConnector({ connectors, now }: { connectors: Connector[] | nu
             <AddConnector count={connectors.length} onAdded={setAdded} />
           </>
         )}
-        <ManualInstructions copy={CONNECTOR_INSTRUCTIONS}>
-          <ol className="list-decimal space-y-1.5 pl-5 text-sm text-muted-foreground">
-            <li>Add a connector above, named after your AI. Its token is shown once, so keep this page open until it&apos;s saved in your AI.</li>
-            <li>In your AI, add a custom MCP connector (in Grok, open Connectors, then New connector, then Custom) with the URL below.</li>
-            <li>
-              For its authentication, choose a header or API key, and enter the token as <code className="font-mono text-xs">Authorization: Bearer &lt;token&gt;</code>. If it asks
-              only for an API key, paste the token alone.
-            </li>
-          </ol>
-        </ManualInstructions>
-        <Copyable label="Connector URL" value={CONNECTOR_URL} />
       </div>
     </Row>
   );
