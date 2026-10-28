@@ -14,7 +14,8 @@ let stored: Map<string, Record<string, unknown>>;
 let upserts: number[];
 
 const realFetch = globalThis.fetch;
-globalThis.fetch = (async (input: string | URL | Request) => {
+// Set before each test, not once at load: other files swap fetch too, and bun runs them in one process.
+const fakeFetch = (async (input: string | URL | Request) => {
   const query = new URL(String(input)).searchParams;
   requests.push(query);
   const status = fail(query);
@@ -83,6 +84,7 @@ const every2Days = (days: number) => Array.from({ length: Math.floor(days / 2) }
 const windowDays = (query: URLSearchParams) => Math.round((Date.now() - Date.parse(query.get("startTime")!)) / DAY);
 
 beforeEach(() => {
+  globalThis.fetch = fakeFetch;
   history = [];
   fail = () => null;
   requests = [];
