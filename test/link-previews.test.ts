@@ -65,9 +65,10 @@ describe("robots.txt", () => {
 describe("sitemap.xml", () => {
   const read = (host: string) => sitemap(new Request(`https://${host}/sitemap.xml`, { headers: { host } }));
 
-  test("the home page host lists its public pages, and robots.txt points to it", async () => {
+  test("the home page host lists its home page alone, and robots.txt points to it", async () => {
     const body = await (await read("getuplink.in")).text();
-    for (const url of ["https://getuplink.in/", "https://getuplink.in/privacy", "https://getuplink.in/terms"]) expect(body).toContain(`<loc>${url}</loc>`);
+    expect(body.match(/<loc>/g)).toHaveLength(1);
+    expect(body).toContain("<loc>https://getuplink.in/</loc>");
     expect(body).not.toContain("app.getuplink.in");
     expect(await robots(new Request("https://getuplink.in/robots.txt", { headers: { host: "getuplink.in" } })).text()).toContain("Sitemap: https://getuplink.in/sitemap.xml\n");
   });

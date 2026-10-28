@@ -12,11 +12,12 @@ import { componentLabel, type Incident, istDay, overallHeadline, STATUS_WORD, ty
 const DESCRIPTION = "Whether Uplink's website, database and live car data are working.";
 
 // Served at status.getuplink.in/ (proxy.ts rewrites it to /status), so its links and preview image use that host.
+// Kept out of search, as the X-Robots-Tag header on that host already says; link previews still work.
 export const metadata: Metadata = {
   metadataBase: new URL(STATUS_URL),
   title: "Status",
   description: DESCRIPTION,
-  robots: { index: true, follow: true },
+  robots: { index: false, follow: false },
   openGraph: { ...OPEN_GRAPH, url: "/", title: "Uplink status", description: DESCRIPTION },
   twitter: { ...TWITTER, title: "Uplink status", description: DESCRIPTION },
 };

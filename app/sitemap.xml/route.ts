@@ -1,11 +1,11 @@
 import { HOME_URL } from "@/lib/site";
 import { requestHost } from "@/lib/session";
 
-// /sitemap.xml, on the home page host only: its public pages, for search engines (see robots.txt). The
-// other hosts have nothing to list.
+// /sitemap.xml, on the home page host only: the pages search engines may index, which is the home page
+// alone (privacy and terms carry noindex, see app/layout.tsx). The other hosts have nothing to list.
 
 const HOME_HOSTS = new Set(["getuplink.in", "www.getuplink.in"]);
-const PAGES = ["/", "/privacy", "/privacy/car-data", "/terms"];
+const PAGES = ["/"];
 
 const SITEMAP = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
