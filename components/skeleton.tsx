@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Words } from "@/components/stats/charge-supply";
 import { Figures } from "@/components/stats/figures";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -58,7 +59,7 @@ export function SkFigures({ tiles, className }: { tiles: { label: string; value:
       aria-hidden="true"
       className="motion-safe:animate-pulse [&_*]:!text-transparent [&_dd]:self-start [&_dd]:bg-muted [&_dt]:self-start [&_dt]:bg-muted"
     >
-      <Figures className={className} figures={tiles.map(({ bar, words, ...t }) => ({ ...t, value: words ? <span>{t.value}</span> : t.value, extra: bar ? <div className="h-1 bg-muted" /> : undefined }))} />
+      <Figures className={className} figures={tiles.map(({ bar, words, ...t }) => ({ ...t, value: words ? <Words>{t.value}</Words> : t.value, extra: bar ? <div className="h-1 bg-muted" /> : undefined }))} />
     </div>
   );
 }
