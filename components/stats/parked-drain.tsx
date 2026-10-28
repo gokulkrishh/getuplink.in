@@ -1,13 +1,11 @@
-import { ScrollX } from "@/components/scroll-x";
-import { ShowMore } from "@/components/show-more";
 import { Value } from "@/components/stats/figures";
 import { formatClock, formatDuration, formatKwh, formatNumber, formatPower, formatRangeKm, formatShortDate } from "@/lib/format";
 import { type DrainSummary, drainSummary, type ParkedNow, type ParkedPeriod, type ParkStats } from "@/lib/drives";
 import { backTo, overlapping } from "@/lib/kept";
-import { LIST_PREVIEW } from "@/lib/list";
-import type { Timeframe } from "@/lib/periods";
+import { type LoadMore, paged } from "@/lib/list";
+import type { Span, Timeframe } from "@/lib/periods";
 import { median } from "@/lib/telemetry-derive";
-import { type ParkedRow, ParkedBlocks, ParkedTable } from "@/components/stats/parked-rows";
+import { type ParkedRow, ParkedRows } from "@/components/stats/parked-rows";
 import { type ShownName, shownName, type SpotName } from "@/lib/charge-names";
 
 const HOUR = 3_600_000;
@@ -40,6 +38,18 @@ function cells(r: Row, place: ShownName | null): ParkedRow {
   };
 }
 
+// The stretches overlapping the span, as the list shows them: the one going on now, then the finished ones,
+// newest first, numbered from 1 from the top. The page and "Show N more" (see moreParked) both draw from this.
+export function stretches(parked: ParkedPeriod[], parkedNow: ParkedNow | null, span: Span, places: Readonly<Record<number, SpotName>>) {
+  const finished = overlapping(parked, span, (p) => p.start, (p) => p.end);
+  const ongoing = parkedNow && parkedNow.start < span.to && parkedNow.end >= span.from ? parkedNow : null;
+  const rows: Row[] = [
+    ...(ongoing ? [{ ...ongoing, ongoing: true, atLeast: ongoing.fromFirstReading }] : []),
+    ...[...finished].reverse().map((p) => ({ ...p, ongoing: false, atLeast: false })),
+  ].map((r, i) => ({ ...r, serial: i + 1 }));
+  return { finished, ongoing, rows, texts: rows.map((r) => cells(r, shownName(places[r.start]))) };
+}
+
 // Battery lost while parked, after TeslaMate's vampire drain, over the span: a headline of average power and
 // loss per day, then each stretch parked that overlaps the span (the one going on now first) with what it
 // lost, the energy drained, the average power, and how long the car was seen awake. Stretches are kept for
@@ -52,24 +62,16 @@ export function ParkedDrain({
   parkedNow,
   frame,
   places = {},
+  more,
 }: {
   parked: ParkedPeriod[];
   parkedNow: ParkedNow | null;
   frame: Timeframe;
   places?: Readonly<Record<number, SpotName>>;
+  more: LoadMore<ParkedRow>;
 }) {
   if (parked.length === 0 && !parkedNow) return null;
-  const { span } = frame;
-  const finished = overlapping(parked, span, (p) => p.start, (p) => p.end);
-  const ongoing = parkedNow && parkedNow.start < span.to && parkedNow.end >= span.from ? parkedNow : null;
-  // Numbered from the top row, 1: the stretch going on now, then the finished ones, newest first.
-  const rows: Row[] = [
-    ...(ongoing ? [{ ...ongoing, ongoing: true, atLeast: ongoing.fromFirstReading }] : []),
-    ...[...finished].reverse().map((p) => ({ ...p, ongoing: false, atLeast: false })),
-  ].map((r, i) => ({ ...r, serial: i + 1 }));
-
-  // The phone blocks and the table share one set of texts, drawn in the browser (see ParkedRows).
-  const texts = rows.map((r) => cells(r, shownName(places[r.start])));
+  const { finished, ongoing, rows, texts } = stretches(parked, parkedNow, frame.span, places);
 
   // The median of finished stretches in the span once there are two; until then the one going on now, if
   // it's long enough to say anything per day.
@@ -90,7 +92,7 @@ export function ParkedDrain({
         }
       : null;
   const first = Math.min(parked[0]?.start ?? Infinity, parkedNow?.start ?? Infinity);
-  const cut = backTo(span, first, "Stretches");
+  const cut = backTo(frame.span, first, "Stretches");
 
   return (
     <section className="space-y-8">
@@ -123,25 +125,7 @@ export function ParkedDrain({
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">No stretches parked 6 hours or more.</p>
       ) : (
-        <div>
-          <div className="sm:hidden">
-            <ParkedBlocks rows={texts.slice(0, LIST_PREVIEW)} />
-            {rows.length > LIST_PREVIEW && (
-              <ShowMore count={rows.length - LIST_PREVIEW}>
-                <ParkedBlocks rows={texts.slice(LIST_PREVIEW)} />
-              </ShowMore>
-            )}
-          </div>
-          {/* Wider screens: a table, like TeslaMate's. */}
-          <ScrollX className="hidden sm:block">
-            <ParkedTable rows={texts.slice(0, LIST_PREVIEW)} />
-            {rows.length > LIST_PREVIEW && (
-              <ShowMore count={rows.length - LIST_PREVIEW}>
-                <ParkedTable rows={texts.slice(LIST_PREVIEW)} header={false} />
-              </ShowMore>
-            )}
-          </ScrollX>
-        </div>
+        <ParkedRows list={paged(texts)} load={more} />
       )}
       {rows.some((r) => r.atLeast) && <p className="text-xs text-faint">≥ means parked since before tracking started.</p>}
       {cut && <p className="text-xs text-faint">{cut}</p>}

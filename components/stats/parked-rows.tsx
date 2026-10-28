@@ -2,6 +2,9 @@
 
 import { GoogleMapsCredit } from "@/components/google-maps-credit";
 import { Measure } from "@/components/measure";
+import { ScrollX } from "@/components/scroll-x";
+import { usePaged } from "@/components/show-more";
+import type { LoadMore, Paged } from "@/lib/list";
 
 // One stretch parked as the list shows it, every text worked out on the server (see cells in
 // parked-drain.tsx): the page sends these few strings per stretch, and the browser draws both layouts.
@@ -24,7 +27,7 @@ export type ParkedRow = {
   awake: string;
 };
 
-// The table's columns. Fixed widths, so a second table (behind Show more) lines up with the first.
+// The table's columns. Fixed widths, so the rows fetched by Show more line up with the first.
 const COLUMNS = [
   { label: "#", width: "w-10" },
   { label: "Parked", width: "w-32" },
@@ -47,7 +50,7 @@ const Where = ({ row }: { row: ParkedRow }) =>
     </span>
   ) : null;
 
-export function ParkedTable({ rows, header = true }: { rows: ParkedRow[]; header?: boolean }) {
+function ParkedTable({ rows }: { rows: ParkedRow[] }) {
   return (
     <table className="w-full table-fixed text-sm tabular-nums">
       <colgroup>
@@ -55,18 +58,16 @@ export function ParkedTable({ rows, header = true }: { rows: ParkedRow[]; header
           <col key={c.label} className={c.width} />
         ))}
       </colgroup>
-      {header && (
-        <thead>
-          <tr className="border-b text-left text-xs text-faint">
-            {COLUMNS.map((c, k) => (
-              <th key={c.label} scope="col" className={`py-2 font-normal ${c.right ? "text-right" : ""} ${k < COLUMNS.length - 1 ? "pr-3" : ""}`}>
-                {c.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-      )}
-      <tbody className={`divide-y ${header ? "" : "border-t"}`}>
+      <thead>
+        <tr className="border-b text-left text-xs text-faint">
+          {COLUMNS.map((c, k) => (
+            <th key={c.label} scope="col" className={`py-2 font-normal ${c.right ? "text-right" : ""} ${k < COLUMNS.length - 1 ? "pr-3" : ""}`}>
+              {c.label}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody className="divide-y">
         {rows.map((r) => (
           <tr key={r.start} className="align-top">
             <td className="py-2.5 pr-3 font-mono text-xs text-faint">{r.serial}</td>
@@ -89,7 +90,7 @@ export function ParkedTable({ rows, header = true }: { rows: ParkedRow[]; header
 }
 
 // Phones: one block per stretch, its figures labelled in two columns.
-export function ParkedBlocks({ rows }: { rows: ParkedRow[] }) {
+function ParkedBlocks({ rows }: { rows: ParkedRow[] }) {
   return (
     <ul className="divide-y border-t">
       {rows.map((r) => {
@@ -122,5 +123,22 @@ export function ParkedBlocks({ rows }: { rows: ParkedRow[] }) {
         );
       })}
     </ul>
+  );
+}
+
+// The stretches as blocks on a phone and a table wider, from one set of rows. The first come with the page;
+// "Show N more" fetches the rest with `load` and adds them to the same list.
+export function ParkedRows({ list, load }: { list: Paged<ParkedRow>; load: LoadMore<ParkedRow> }) {
+  const { rows, button } = usePaged(list, load);
+  return (
+    <div>
+      <div className="sm:hidden">
+        <ParkedBlocks rows={rows} />
+      </div>
+      <ScrollX className="hidden sm:block">
+        <ParkedTable rows={rows} />
+      </ScrollX>
+      {button}
+    </div>
   );
 }

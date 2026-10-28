@@ -8,20 +8,18 @@ import { CarTabs } from "@/components/car-tabs";
 import { Header } from "@/components/header";
 import { InfoButton } from "@/components/info-button";
 import { ChartCard } from "@/components/chart-card";
-import { ReleaseNotesToggle } from "@/components/release-notes";
 import { RolloutAdoption } from "@/components/rollout-adoption";
 import { RolloutMap } from "@/components/rollout-map";
 import { SkBlock, SkHead, SkSection } from "@/components/skeleton";
-import { ShareBar } from "@/components/rollout-share-bar";
+import { ArrivingRows, VersionRows } from "@/components/rollout-lists";
 import { DEMO } from "@/lib/demo";
-import { formatShortDate } from "@/lib/format";
-import type { ReleaseNotesByVersion } from "@/lib/release-notes";
-import type { RolloutVersion } from "@/lib/rollout";
-import type { Arriving, YourCar } from "@/lib/rollout-arriving";
+import { paged } from "@/lib/list";
+import type { YourCar } from "@/lib/rollout-arriving";
+import { arrivingRows, cars, versionRows } from "@/lib/rollout-rows";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadRollout, type RolloutPage } from "@/lib/server/rollout";
-import { cn } from "@/lib/utils";
+import { moreArriving, moreRolloutVersions } from "./actions";
 
 export const metadata: Metadata = { title: "India rollout" };
 
@@ -38,65 +36,11 @@ async function loadOwnRollout(): Promise<RolloutPage> {
   return loadRollout(owner, Date.now());
 }
 
-const cars = (n: number) => `${n} ${n === 1 ? "car" : "cars"}`;
-// A release list date is an IST calendar day; noon IST keeps it on that day.
-const releaseDay = (day: string) => formatShortDate(`${day}T12:00:00+05:30`);
-
-function lagWords(days: number): string {
-  if (days === 0) return "Same day as the world";
-  return `${days} ${days === 1 ? "day" : "days"} behind`;
-}
-
 // The owner's car against India, in one line.
 function yourCarWords(car: YourCar): string {
   if (car.kind === "waiting") return `${car.version} is waiting to install on your car`;
   if (car.kind === "newest") return "You're on the newest version";
   return `You're ${car.versions} ${car.versions === 1 ? "version" : "versions"} behind: ${car.newest} is on ${cars(car.cars)}`;
-}
-
-// One version on offer: cars it's waiting on and cars already on it, and its notes when Tesla sent any.
-function ArrivingRow({ a, n, notes }: { a: Arriving; n: number; notes: ReleaseNotesByVersion }) {
-  return (
-    <li className="flex gap-4 py-3">
-      <span className="w-6 shrink-0 pt-0.5 font-mono text-xs text-faint">{n}</span>
-      <div className="min-w-0 flex-1 space-y-2">
-        <div className="flex items-baseline gap-4 text-sm tabular-nums">
-          <span className="flex-1 font-mono font-medium">{a.version}</span>
-          <span className="text-right whitespace-nowrap text-muted-foreground">
-            Offered to {cars(a.offered)} · on {a.on}
-          </span>
-        </div>
-        <ReleaseNotesToggle version={a.version} notes={notes} stacked />
-      </div>
-    </li>
-  );
-}
-
-// One version: cars on it now with a bar against every counted car (hover or tap it for the share), and how
-// its arrival compares with the world. A version no car is on any more has no bar: an empty track reads as
-// a chart still loading.
-function VersionRow({ v, counted, n, notes }: { v: RolloutVersion; counted: number; n: number; notes: ReleaseNotesByVersion }) {
-  return (
-    <li className="flex gap-4 py-4">
-      <span className="w-6 shrink-0 pt-0.5 font-mono text-xs text-faint">{n}</span>
-      <div className="min-w-0 flex-1 space-y-2">
-      <div className="flex items-baseline justify-between gap-4">
-        <span className="font-mono text-sm font-medium tabular-nums">{v.version}</span>
-        <span className={cn("text-sm tabular-nums", v.carsNow === 0 && "text-faint")}>{cars(v.carsNow)}</span>
-      </div>
-      {v.carsNow > 0 && <ShareBar on={v.carsNow} of={counted} />}
-      {/* Only what's known: a car already on the version when tracking began has no arrival date. */}
-      {(v.firstInIndia || v.globalRelease) && (
-        <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground tabular-nums">
-          {v.firstInIndia && <span>First in India {formatShortDate(v.firstInIndia)}</span>}
-          {v.globalRelease && <span>Global {releaseDay(v.globalRelease)}</span>}
-          {v.lagDays !== null && <span className="text-foreground">{lagWords(v.lagDays)}</span>}
-        </p>
-      )}
-      <ReleaseNotesToggle version={v.version} notes={notes} stacked />
-      </div>
-    </li>
-  );
 }
 
 async function Rollout() {
@@ -139,16 +83,7 @@ async function Rollout() {
       {arriving.length > 0 && (
         <section className="space-y-2">
           <h2 className={heading}>Arriving now</h2>
-          <ul className="divide-y border-t">
-            <li className="flex gap-4 py-2 text-xs text-faint" aria-hidden="true">
-              <span className="w-6 shrink-0">#</span>
-              <span className="flex-1">Version</span>
-              <span>Offered · on it</span>
-            </li>
-            {arriving.map((a, k) => (
-              <ArrivingRow key={a.version} a={a} n={k + 1} notes={releaseNotes} />
-            ))}
-          </ul>
+          <ArrivingRows list={paged(arrivingRows(arriving, releaseNotes))} load={moreArriving} />
           <p className="text-sm text-faint">Updates offered to cars but not installed yet, and how many cars already run each.</p>
         </section>
       )}
@@ -169,16 +104,7 @@ async function Rollout() {
         title="Versions"
         description="Every version seen, newest first."
       >
-        <ul className="divide-y border-t">
-          <li className="flex gap-4 py-2 text-xs text-faint" aria-hidden="true">
-            <span className="w-6 shrink-0">#</span>
-            <span className="flex-1">Version</span>
-            <span>Cars on it</span>
-          </li>
-          {versions.map((v, k) => (
-            <VersionRow key={v.version} v={v} counted={counted} n={k + 1} notes={releaseNotes} />
-          ))}
-        </ul>
+        <VersionRows list={paged(versionRows(versions, counted, releaseNotes))} load={moreRolloutVersions} />
       </ChartCard>
 
       <div className="space-y-2 text-xs text-faint">
@@ -215,7 +141,7 @@ function RolloutSkeleton() {
         ["Arriving now", "h-[335px] sm:h-[260px]"],
         ["Where it runs", "h-[721px] sm:h-[738px]"],
         ["Adoption over time", "h-[338px] sm:h-[232px]"],
-        ["Versions", "h-[871px] sm:h-[632px]"],
+        ["Versions", "h-[622px] sm:h-[437px]"],
       ].map(([title, height]) => (
         <SkSection key={title}>
           <SkHead title={title} />

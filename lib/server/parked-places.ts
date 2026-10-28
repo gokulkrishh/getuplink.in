@@ -1,4 +1,5 @@
 import "server-only";
+import type { ParkedNow, ParkedPeriod } from "@/lib/drives";
 import { chargeSpot, type SpotName, spotName } from "@/lib/charge-names";
 import { stationAt } from "@/lib/stations";
 import type { Owner } from "./data/owner";
@@ -32,3 +33,8 @@ export async function loadParkedPlaces(owner: Owner, vin: string | null, starts:
   // Shown only as the parked rows' place line, so a Google-tagged spot's live name is added (credited there).
   return withGoogleNamesBy(Object.fromEntries(located.map(({ start, spot }) => [start, spotName(tags, spot, { station: stationAt(spot.lat, spot.lng), place: places.get(placeKey(spot)) })])));
 }
+
+// The places of a driving window's stretches, the one going on now included. Never fails: a stretch
+// without a place just shows none.
+export const loadStretchPlaces = (owner: Owner, vin: string | null, { parked, parkedNow }: { parked: ParkedPeriod[]; parkedNow: ParkedNow | null }) =>
+  loadParkedPlaces(owner, vin, [...parked.map((p) => p.start), ...(parkedNow ? [parkedNow.start] : [])]).catch((): Record<number, SpotName> => ({}));

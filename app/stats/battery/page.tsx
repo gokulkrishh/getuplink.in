@@ -19,7 +19,7 @@ import { loadWindowStats, type WindowStats } from "@/lib/server/driving";
 import { loadStreamSessions, type StreamChargeSession } from "@/lib/server/stream-charging";
 import { type BatteryExtras, loadBatteryExtras } from "@/lib/server/battery-extra";
 import { loadPrimaryVehicle } from "@/lib/server/telemetry";
-import { loadParkedPlaces } from "@/lib/server/parked-places";
+import { loadStretchPlaces } from "@/lib/server/parked-places";
 import type { SpotName } from "@/lib/charge-names";
 import { AiNotesSkeleton } from "@/components/home/week-tips";
 import { TipsBox } from "@/components/tips-box";
@@ -31,6 +31,7 @@ import { MODE_FIELDS, type ModeReadings } from "@/lib/parked-modes";
 import { loadPresence } from "@/lib/server/awake";
 import { loadReadingsByField } from "@/lib/server/telemetry-window";
 import { loadPricedCharges } from "@/lib/server/charge-tips";
+import { moreParked } from "./actions";
 import { istDay, istDayStart } from "@/lib/telemetry-derive";
 
 export const metadata: Metadata = { title: "Battery" };
@@ -65,7 +66,7 @@ async function loadBattery(query: CustomQuery | null): Promise<{
   const [extras, places, presence, priced, modes] = await Promise.all([
     loadBatteryExtras(owner, vin, window.trend, now),
     // Where each stretch was parked; never fails the page.
-    loadParkedPlaces(owner, vin, [...window.driving.parked.map((p) => p.start), ...(window.driving.parkedNow ? [window.driving.parkedNow.start] : [])]).catch(() => ({})),
+    loadStretchPlaces(owner, vin, window.driving),
     // For the tips: when the car woke while parked, and what the owner pays per kWh.
     car ? loadPresence(owner, car, now).then((p) => p.days).catch(() => []) : [],
     loadPricedCharges(owner, now),
@@ -76,7 +77,8 @@ async function loadBattery(query: CustomQuery | null): Promise<{
 }
 
 async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "searchParams">) {
-  const { window, extras, places, custom, presence, priced, modes, vehicleId, now } = await loadBattery(customQuery(await searchParams));
+  const query = customQuery(await searchParams);
+  const { window, extras, places, custom, presence, priced, modes, vehicleId, now } = await loadBattery(query);
   const { trend, range, level, driving } = window;
   const enough = trend.length >= 2 || range.length > 0 || (level?.points.length ?? 0) >= 2 || driving.parked.length > 0 || driving.parkedNow !== null;
   const frames = timeframes(custom?.frame ?? null, now);
@@ -98,7 +100,7 @@ async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "sear
           {eachFrame(frames, () => (
             <BatteryHealth trend={trend} range={range} drives={driving.drives} now={now} />
           ))}
-          {eachFrame(frames, ({ frame }) => <ParkedDrain parked={driving.parked} parkedNow={driving.parkedNow} frame={frame} places={places} />)}
+          {eachFrame(frames, ({ key, frame }) => <ParkedDrain parked={driving.parked} parkedNow={driving.parkedNow} frame={frame} places={places} more={moreParked.bind(null, { period: key, query })} />)}
           {eachFrame(frames, ({ frame }) => <ChargeLevelChart level={level} now={now} frame={frame} heading />)}
           {/* The id sits outside the periods' copies, so it is on the page once. */}
           <div id="battery">{eachFrame(frames, ({ frame }) => <BatteryPack trend={trend} frame={frame} />)}</div>

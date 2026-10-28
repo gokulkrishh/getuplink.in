@@ -1,5 +1,6 @@
 import "server-only";
 import { DEMO, type DemoScenario } from "@/lib/demo";
+import { LIST_PREVIEW } from "@/lib/list";
 import { parseReleaseNotes, type ReleaseNote, type ReleaseNotesByVersion } from "@/lib/release-notes";
 import { sentryOn } from "@/lib/car-now";
 import { type Stream, UPDATE_FIELDS } from "@/lib/telemetry";
@@ -169,11 +170,13 @@ export async function loadHistory(owner: Owner, vehicle: Vehicle): Promise<Versi
   return (data ?? []) as VersionChange[];
 }
 
-// The versions a page can show notes for: each car's history and pending update.
-export function versionsOnScreen(cars: { history: VersionChange[]; lastOnline: Snapshot | null }[]): string[] {
+// The versions a page shows notes for as it opens: each car's version and pending update, and its newest
+// history rows (the rest come with their rows on Show more).
+export function versionsOnScreen(cars: { version: string | null; history: VersionChange[]; lastOnline: Snapshot | null }[]): string[] {
   const versions = new Set<string>();
   for (const car of cars) {
-    car.history.forEach((h) => versions.add(h.version));
+    if (car.version) versions.add(car.version);
+    car.history.slice(0, LIST_PREVIEW).forEach((h) => versions.add(h.version));
     if (car.lastOnline?.update_version) versions.add(car.lastOnline.update_version);
   }
   return [...versions];

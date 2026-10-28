@@ -17,6 +17,7 @@ import { customScope, PAGE_PERIODS } from "@/components/stats/periods";
 import { VersionHistory } from "@/components/updates/history";
 import { UpdateStats } from "@/components/updates/update-stats";
 import { isPending, UpdateStatus } from "@/components/updates/update-status";
+import { moreVersions } from "./actions";
 import type { DemoScenario } from "@/lib/demo";
 import { newestTime } from "@/lib/last-synced";
 import { customRange, rangeTimeframe, type Timeframe } from "@/lib/periods";
@@ -101,7 +102,7 @@ function CarUpdates({ car, notes, label, range, now }: { car: UpdatesCar; notes:
 
       {latest?.error && <p className="text-sm text-muted-foreground">The car went to sleep during the last check. Uplink will try again.</p>}
 
-      <VersionHistory history={history} notes={notes} now={now} />
+      <VersionHistory history={history} notes={notes} now={now} more={moreVersions.bind(null, vehicle.id)} />
 
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -201,9 +202,9 @@ function UpdatesSkeleton() {
               </li>
             ))}
           </ul>
-          <SkShowMore />
           </div>
         </div>
+        <SkShowMore />
       </section>
       <section className="space-y-4" aria-hidden="true">
         <div className="flex flex-wrap items-center justify-between gap-4">

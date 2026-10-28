@@ -3,8 +3,10 @@ import type { Owner } from "./data/owner";
 import type { DayStrip } from "@/lib/awake";
 import { DEMO, type DemoScenario } from "@/lib/demo";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
+import { LIST_PREVIEW } from "@/lib/list";
 import { UPDATE_FIELDS } from "@/lib/telemetry";
 import type { UpdateRow } from "@/lib/telemetry-derive";
+import { currentVersion } from "@/lib/versions";
 import { loadPresence } from "./awake";
 import {
   type CarState,
@@ -43,7 +45,8 @@ async function updatesCar(owner: Owner, vehicle: Vehicle, scenario: DemoScenario
   const [state, history, presence] = await Promise.all([
     // Only the update fields: the page shows no battery.
     loadCarState(owner, vehicle, scenario, UPDATE_FIELDS),
-    loadHistory(owner, vehicle).then((rows) => (vehicle.vin ? withTimelines(owner, vehicle.vin, rows) : rows)),
+    // Timings only for the rows shown first; the rest get theirs on Show more (see moreVersions in app/updates/actions.ts).
+    loadHistory(owner, vehicle).then(async (rows) => (vehicle.vin ? [...(await withTimelines(owner, vehicle.vin, rows.slice(0, LIST_PREVIEW))), ...rows.slice(LIST_PREVIEW)] : rows)),
     loadPresence(owner, vehicle.vin ? { id: vehicle.id, vin: vehicle.vin } : null, now),
   ]);
   // The update fields rarely change; the presence fields stream every few minutes while the car is awake.
@@ -68,7 +71,8 @@ export async function loadUpdatesPage(owner: Owner, scenario: DemoScenario, now:
     const account = await loadOwnerCars(owner);
     if (account.kind !== "ready") return account;
     const cars = await Promise.all(account.vehicles.map((v) => updatesCar(owner, v, scenario, now)));
-    return { kind: "ready", cars, lastRun: account.lastRun, releaseNotes: await loadReleaseNotes(versionsOnScreen(cars)) };
+    const shown = cars.map((c) => ({ ...c, version: currentVersion(c.vehicle.current_version, c.lastOnline && { version: c.lastOnline.car_version, at: c.lastOnline.polled_at }) }));
+    return { kind: "ready", cars, lastRun: account.lastRun, releaseNotes: await loadReleaseNotes(versionsOnScreen(shown)) };
   } catch (err) {
     if (DEMO) throw err;
     console.error(err);
