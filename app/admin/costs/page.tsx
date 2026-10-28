@@ -27,6 +27,7 @@ import { formatDateTime, formatSeen } from "@/lib/format";
 import { isAdmin } from "@/lib/server/admin";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { COSTS_TAG, type CostsPage, type Editable, loadCosts } from "@/lib/server/costs";
+import { openRouterParts } from "@/lib/server/costs/openrouter";
 import { cn } from "@/lib/utils";
 import { removeEntry, saveBudget, saveEntry } from "./actions";
 import { EntryForm, NumberForm } from "./forms";
@@ -127,9 +128,14 @@ const CONNECT: Record<string, ReactNode> = {
       what it prints and redeploy.
     </>
   ),
+  openrouter: (
+    <>
+      Set <Code>OPENROUTER_API_KEY</Code>, the key drive wording and tips use, and redeploy.
+    </>
+  ),
 };
 
-// What a usage-billed row is made of (lib/costs.ts teslaParts, googleParts), closed until opened.
+// What a usage-billed row is made of (teslaParts and googleParts in lib/costs.ts, openRouterParts), closed until opened.
 function Breakdown({ name, parts }: { name: string; parts: Part[] }) {
   return (
     <details className="pt-1">
@@ -237,6 +243,7 @@ async function Costs() {
   const parts: Record<string, Part[]> = {};
   if (data.tesla) parts.tesla = teslaParts(data.tesla, now);
   if (data.google) parts.google = googleParts(data.google);
+  parts.openrouter = openRouterParts(data.openRouter);
   return (
     <>
       {!data.simulated && !data.ready && <p className="text-sm text-muted-foreground">Apply the costs migration to add your own.</p>}

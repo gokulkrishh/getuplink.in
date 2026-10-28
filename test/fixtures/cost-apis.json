@@ -38,6 +38,8 @@
     { "ref": "bcdefghijklmnopqrstu", "organization_slug": "made-up-org", "name": "Paused", "region": "ap-south-1", "status": "INACTIVE" },
     { "ref": "cdefghijklmnopqrstuv", "organization_slug": "other-org", "name": "Elsewhere", "region": "us-east-1", "status": "ACTIVE_HEALTHY" }
   ],
+  "openRouterKey": { "data": { "label": "sk-or-v1-made...up", "limit": 5, "limit_remaining": 3.75, "usage": 1.25, "usage_daily": 0.5, "usage_weekly": 1.25, "usage_monthly": 1.25, "is_free_tier": false } },
+  "openRouterCredits": { "data": { "total_credits": 30, "total_usage": 18 } },
   "supabaseOrg": { "id": "made-up-org", "name": "Made-up org", "plan": "pro", "opt_in_tags": [], "allowed_release_channels": ["ga"] },
   "supabaseAddons": {
     "selected_addons": [

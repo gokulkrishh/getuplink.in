@@ -3,11 +3,11 @@ import { type CostLine, type EntryValues, type GoogleCounts, monthWindow, nextRe
 import { DEMO } from "@/lib/demo";
 import { istDay } from "@/lib/status";
 import { type CostEntryRow, costEntries, type CostSetting, costSettings, saveCostSetting } from "../data/costs";
-import { driveWordingCostSince } from "../data/system";
 import { domainLine, readDomain } from "./domain";
 import { flyLine, readFly } from "./fly";
+import { openRouterLine, type OpenRouterRead, readOpenRouter } from "./openrouter";
 import { readSupabase, supabaseLine } from "./supabase-billing";
-import { googleLine, googleUsage, openRouterLine, safely, teslaLine, type TeslaUsage, teslaUsage } from "./usage";
+import { googleLine, googleUsage, safely, teslaLine, type TeslaUsage, teslaUsage } from "./usage";
 import { describeFailure, readVercel, type VercelSnapshot, vercelLine } from "./vercel";
 
 // /admin/costs: one line per service, in dollars, and what the forms for added rows start with.
@@ -23,9 +23,10 @@ export type CostsPage = {
   lines: CostLine[];
   edit: Record<string, Editable>;
   googleBudgetUsd: number | null;
-  // What the Tesla and Google rows are made of, for their breakdowns. Null when not counted.
+  // What the Tesla, Google and OpenRouter rows are made of, for their breakdowns. Null when not counted.
   tesla: TeslaUsage | null;
   google: GoogleCounts | null;
+  openRouter: OpenRouterRead;
 };
 
 const cents = (n: number) => String(Math.round(n * 100) / 100);
@@ -76,12 +77,14 @@ async function demoPage(now: number): Promise<CostsPage> {
   const tesla = await teslaUsage(now);
   const google: GoogleCounts = { geocoding: 1200, placeDetailsPro: 36_500 };
   const fetchedAt = new Date(now - 3_600_000).toISOString();
+  const openRouter: OpenRouterRead = { kind: "ok", usd: 1.22, limitUsd: 5, limitLeftUsd: 3.78, creditUsd: 30, creditLeftUsd: 11.98, fetchedAt };
   const lines: CostLine[] = [
     vercelLine({ kind: "ok", amount: 21.4, plan: "pro", fetchedAt }, null, now),
     supabaseLine({ kind: "ok", usd: 25, note: "Pro plan", fetchedAt }, now),
     flyLine({ kind: "ok", usd: 3.88, machines: 1, fetchedAt }, now),
     teslaLine(tesla, now),
     googleLine(google, 5, now),
+    openRouterLine(openRouter, now),
     domainLine({ kind: "ok", expires: istDay(now + 12 * 86_400_000), fetchedAt }, now),
     { id: "entry-1", name: "Email", amount: 1.5, period: "monthly", resetsOn: null, source: "fixed", link: "https://example.com/billing", state: "ok" },
   ];
@@ -93,6 +96,7 @@ async function demoPage(now: number): Promise<CostsPage> {
     googleBudgetUsd: 5,
     tesla,
     google,
+    openRouter,
   };
 }
 
@@ -110,7 +114,7 @@ export async function loadCosts(now: number): Promise<CostsPage> {
     settle(readDomain, "Domain", { kind: "error" as const }),
     safely(() => teslaUsage(now), "Tesla"),
     safely(() => googleUsage(from), "Google"),
-    safely(() => driveWordingCostSince(from), "OpenRouter"),
+    settle(readOpenRouter, "OpenRouter", { kind: "error" as const }),
   ]);
 
   const failure = describeFailure(vercel);
@@ -139,5 +143,5 @@ export async function loadCosts(now: number): Promise<CostsPage> {
   const edit: Record<string, Editable> = {};
   for (const r of added) edit[`entry-${r.id}`] = { target: String(r.id), values: values(r) };
 
-  return { simulated: false, ready: entries !== null && settings !== null, lines, edit, googleBudgetUsd, tesla, google };
+  return { simulated: false, ready: entries !== null && settings !== null, lines, edit, googleBudgetUsd, tesla, google, openRouter };
 }

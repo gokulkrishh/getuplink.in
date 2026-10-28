@@ -411,14 +411,6 @@ export async function countGoogleCall(sku: string): Promise<void> {
 }
 
 // Each SKU's count for the month starting on `month` (YYYY-MM-01), or null before the migration.
-// What the drive page's AI wording cost since `from` (each call's cost, as OpenRouter billed it). Null when
-// the table doesn't exist yet.
-export async function driveWordingCostSince(from: string): Promise<number | null> {
-  const { data, error } = await db().from("drive_wording").select("cost_usd").gte("created_at", from);
-  if (error) return null;
-  return ((data ?? []) as { cost_usd: number | string | null }[]).reduce((sum, r) => sum + Number(r.cost_usd ?? 0), 0);
-}
-
 export async function googleUsageFor(month: string): Promise<Record<string, number> | null> {
   const { data, error } = await db().from("google_usage").select("sku, count").eq("month", month);
   if (error) return null;

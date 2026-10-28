@@ -67,6 +67,7 @@ const { readVercel } = await import("@/lib/server/costs/vercel");
 const { readSupabase, supabaseLine } = await import("@/lib/server/costs/supabase-billing");
 const { flyAuthorization, readFly } = await import("@/lib/server/costs/fly");
 const { readDomain } = await import("@/lib/server/costs/domain");
+const { openRouterParts, readOpenRouter } = await import("@/lib/server/costs/openrouter");
 
 const user = (id: number, role = "user") => ({
   id,
@@ -108,6 +109,10 @@ function providers(url: URL): Response {
     if (url.pathname === "/v1/organizations/made-up-org") return Response.json(apis.supabaseOrg);
     if (/^\/v1\/projects\/[a-z]{20}\/billing\/addons$/.test(url.pathname)) return Response.json(apis.supabaseAddons);
   }
+  if (url.host === "openrouter.ai") {
+    if (url.pathname === "/api/v1/key") return Response.json(apis.openRouterKey);
+    if (url.pathname === "/api/v1/credits") return Response.json(apis.openRouterCredits);
+  }
   return new Response("not stubbed", { status: 599 });
 }
 
@@ -118,7 +123,7 @@ beforeEach(async () => {
   teslaCalls.length = 0;
   tagsUpdated.length = 0;
   fetched.length = 0;
-  for (const name of ["VERCEL_API_TOKEN", "VERCEL_TEAM_ID", "SUPABASE_ACCESS_TOKEN", "FLY_API_TOKEN"]) delete process.env[name];
+  for (const name of ["VERCEL_API_TOKEN", "VERCEL_TEAM_ID", "SUPABASE_ACCESS_TOKEN", "FLY_API_TOKEN", "OPENROUTER_API_KEY"]) delete process.env[name];
   fake = new FakeDb({ users: [user(1, "admin"), user(2)], cost_entries: [], cost_settings: [] });
   cookie = await createSession(1);
   stubFetch(providers);
@@ -227,7 +232,7 @@ describe("the page's data", () => {
     const page = await loadCosts(NOW);
     expect(page.ready).toBe(false);
     const lines = Object.fromEntries(page.lines.map((l) => [l.id, l]));
-    for (const id of ["vercel", "supabase", "fly"]) expect(lines[id]).toMatchObject({ state: "connect", amount: null });
+    for (const id of ["vercel", "supabase", "fly", "openrouter"]) expect(lines[id]).toMatchObject({ state: "connect", amount: null });
     expect(lines.tesla).toMatchObject({ state: "not-tracked", allowance: 10, resetsOn: "2026-11-01" });
     expect(lines.google.state).toBe("not-tracked");
     expect(lines.domain).toMatchObject({ state: "ok", source: "estimated" });
@@ -355,6 +360,29 @@ describe("the page's data", () => {
       url.host === "api.machines.dev" && url.pathname.endsWith("/machines") ? Response.json([apis.flyMachines[0]]) : url.pathname.endsWith("/ip_assignments") ? Response.json({ ips: [] }) : url.pathname.endsWith("/volumes") ? Response.json([]) : providers(url),
     );
     expect((await byId()).fly).toMatchObject({ amount: 3.69, note: "1 machine, always on. Fly may waive bills under $5" });
+  });
+
+  test("OpenRouter: the key's month as OpenRouter counts it, with its limit and the account's credit", async () => {
+    process.env.OPENROUTER_API_KEY = "sk-or-made-up";
+    expect((await byId()).openrouter).toMatchObject({ amount: 1.25, state: "ok", source: "live", resetsOn: "2026-11-01" });
+    const asked = fetched.filter((f) => f.url.startsWith("https://openrouter.ai/"));
+    expect(asked.map((f) => new URL(f.url).pathname).sort()).toEqual(["/api/v1/credits", "/api/v1/key"]);
+    expect(asked.every((f) => f.auth === "Bearer sk-or-made-up")).toBe(true);
+    expect(openRouterParts(await readOpenRouter())).toEqual([
+      { label: "Key limit left", value: "$3.75 of $5.00" },
+      { label: "Credit left", value: "$12.00 of $30.00" },
+    ]);
+  });
+
+  test("OpenRouter: the credit read failing keeps the month; the key read failing is unavailable", async () => {
+    process.env.OPENROUTER_API_KEY = "sk-or-made-up";
+    stubFetch((url) => (url.pathname === "/api/v1/credits" ? new Response("no", { status: 403 }) : providers(url)));
+    const read = await readOpenRouter();
+    expect(read).toMatchObject({ kind: "ok", usd: 1.25, creditUsd: null });
+    expect(openRouterParts(read).map((p) => p.label)).toEqual(["Key limit left"]);
+    stubFetch((url) => (url.host === "openrouter.ai" ? new Response("unauthorized", { status: 401 }) : providers(url)));
+    await expect(readOpenRouter()).rejects.toThrow("OpenRouter 401");
+    await logs(async () => expect((await byId()).openrouter.state).toBe("unavailable"));
   });
 
   test("Fly.io failing throws, so the cache keeps the last read; the token is never logged", async () => {
