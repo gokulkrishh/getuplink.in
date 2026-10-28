@@ -39,9 +39,6 @@ export function UpdateBanner({
   odometerKm: number | null;
 }) {
   const pending = snapshot !== null && isPending(snapshot, installed) ? bannerText(snapshot) : null;
-  const status = snapshot?.update_status;
-  const raw = status === "downloading" ? snapshot?.download_perc : status === "installing" ? snapshot?.install_perc : null;
-  const percent = raw != null ? Math.min(100, Math.max(0, raw)) : null;
   if (!version && !pending) return null;
   const moving = snapshot?.update_status === "downloading" || snapshot?.update_status === "installing";
   // With no update on its way, the version is plain text: the header's Updates link opens the history.
@@ -77,15 +74,6 @@ export function UpdateBanner({
             )}
             <span className="truncate">{pending.text}</span>
             {pending.progress && <span className="shrink-0">· {pending.progress}</span>}
-          </span>
-        )}
-        {/* While it downloads or installs, a thin bar with a light sweeping across it, as Updates' own bar
-            and Home's charging bar do. */}
-        {pending && percent !== null && (
-          <span className="block h-0.5 max-w-60 overflow-hidden bg-border" aria-hidden="true">
-            <span className="relative block h-full overflow-hidden bg-foreground" style={{ width: `${percent}%` }}>
-              <span className="absolute inset-y-0 -left-1/2 w-1/2 bg-linear-to-r from-transparent via-background/80 to-transparent motion-safe:animate-shimmer" />
-            </span>
           </span>
         )}
       </span>
