@@ -98,9 +98,9 @@ function scenarioReadings(scenario: DemoScenario): Record<string, unknown> {
         SoftwareUpdateInProgress: true,
       };
     default:
-      // The one state the demo shows: charging (from the history), with an update downloading, so the home
-      // page and Updates both have something live to show.
-      return scenarioReadings("updating");
+      // The one state the demo shows: charging (from the history), with no update under way. The updating
+      // and installing scenarios still show one.
+      return {};
   }
 }
 
