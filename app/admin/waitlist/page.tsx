@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
+import type { ReactNode } from "react";
 import { AdminPage } from "@/components/admin/admin-page";
 import { Figures } from "@/components/stats/figures";
 import { InfoButton } from "@/components/info-button";
@@ -37,14 +38,13 @@ async function loadPage(): Promise<{ data: WaitlistPage; invites: InvitesPage; n
 }
 
 function inviteLine(i: InviteItem): string {
-  if (i.state === "used") return `Used ${formatDateTime(i.usedAt!)}${i.joined ? ` · ${i.joined}` : ""}`;
-  if (i.state === "expired") return `Expired ${formatDateTime(i.expiresAt)}`;
-  if (i.state === "revoked") return "Revoked";
-  return `Unused · Expires ${formatDateTime(i.expiresAt)}`;
+  if (i.state === "expired") return `Invite link expired ${formatDateTime(i.expiresAt)}`;
+  return `Invite link · Expires ${formatDateTime(i.expiresAt)}`;
 }
 
-// Invite links: one for each friend's car, made here and shared by the admin. Uplink sends nothing.
-function Invites({ invites, readOnly }: { invites: InvitesPage; readOnly: boolean }) {
+// Invite links: one for each friend's car, made here and shared by the admin. Uplink sends nothing. A link
+// waits under Waiting until the friend signs in, then they show under Approved.
+function Invites({ available }: { available: boolean }) {
   return (
     <section className="space-y-4">
       <div className="space-y-1">
@@ -53,63 +53,67 @@ function Invites({ invites, readOnly }: { invites: InvitesPage; readOnly: boolea
           A link for one friend&apos;s car. It works once, for a day, and only for a Tesla account with that car.
         </p>
       </div>
-      {invites.available ? (
+      {available ? (
         <CreateInvite action={createInviteLink} />
       ) : (
         <p className="text-sm text-faint">Invites aren&apos;t set up yet. Apply the invites migration.</p>
-      )}
-      {invites.items.length > 0 && (
-        <ul className="divide-y border-t">
-          {invites.items.map((i) => (
-            <ActionRow key={i.id} actions={inviteActions(i, readOnly)}>
-              <p className="text-sm font-medium">
-                {i.label ?? "Invite"} <span className="font-mono text-xs font-normal text-muted-foreground">VIN …{i.vinSuffix}</span>
-              </p>
-              <p className="text-sm text-muted-foreground">{inviteLine(i)}</p>
-            </ActionRow>
-          ))}
-        </ul>
       )}
     </section>
   );
 }
 
-// Copy and New link only hand back a link, so they work in demo mode too; the rest change something.
+function InviteRow({ invite: i, readOnly }: { invite: InviteItem; readOnly: boolean }) {
+  return (
+    <ActionRow actions={inviteActions(i, readOnly)}>
+      <p className="text-sm font-medium">
+        {i.label ?? "Invite"} <span className="font-mono text-xs font-normal text-muted-foreground">VIN …{i.vinSuffix}</span>
+      </p>
+      <p className="text-sm text-muted-foreground">{inviteLine(i)}</p>
+    </ActionRow>
+  );
+}
+
+// Copy and New link only hand back a link, so they work in demo mode too; Revoke changes something. Used
+// and revoked links aren't listed (shownInvites).
 function inviteActions(i: InviteItem, readOnly: boolean): RowAction[] {
   if (i.state === "unused")
     return [
       { label: "Copy", pendingLabel: "Copying…", action: copyInviteLink.bind(null, i.id) },
       { label: "Revoke", pendingLabel: "Revoking…", action: revokeInviteLink.bind(null, i.id), disabled: readOnly },
     ];
-  if (i.state === "expired" || i.state === "revoked") return [{ label: "New link", pendingLabel: "Creating…", action: renewInviteLink.bind(null, i.id) }];
-  if (i.state === "used" && i.joinedApproved && i.joinedUserId !== null)
-    return [{ label: "Suspend", pendingLabel: "Suspending…", action: decideAccount.bind(null, "suspend", i.joinedUserId), disabled: readOnly }];
+  if (i.state === "expired") return [{ label: "New link", pendingLabel: "Creating…", action: renewInviteLink.bind(null, i.id) }];
   return [];
 }
 
 type Button = { decision: Decision; label: string; pendingLabel: string; primary?: boolean; disabled?: boolean };
 
-function List({ title, accounts, empty, when, buttons, more }: {
+// `before`: rows above the accounts (Waiting's invite links).
+function List({ title, accounts, empty, when, buttons, more, before = [] }: {
   title: string;
   accounts: Account[];
   empty: string;
   when: (a: Account) => string;
   buttons: Button[];
   more?: string;
+  before?: ReactNode[];
 }) {
   return (
     <section className="space-y-2">
       <h2 className={heading}>{title}</h2>
-      {accounts.length === 0 ? (
+      {accounts.length === 0 && before.length === 0 ? (
         <p className="border-t pt-3 text-sm text-faint">{empty}</p>
       ) : (
         <ul className="divide-y border-t">
+          {before}
           {accounts.map((a) => (
             <ActionRow
               key={a.id}
               actions={buttons.map((b) => ({ label: b.label, pendingLabel: b.pendingLabel, primary: b.primary, disabled: b.disabled, action: decideAccount.bind(null, b.decision, a.id) }))}
             >
-              <p className="text-sm font-medium">Request {a.id}</p>
+              <p className="text-sm font-medium">
+                {a.name ?? `Request ${a.id}`}{" "}
+                {a.vinSuffix && <span className="font-mono text-xs font-normal text-muted-foreground">VIN …{a.vinSuffix}</span>}
+              </p>
               <p className="text-sm text-muted-foreground">{when(a)}</p>
             </ActionRow>
           ))}
@@ -140,20 +144,21 @@ export default async function Page() {
     >
       <Figures
         figures={[
-          { label: "Waiting", value: number.format(data.counts.pending) },
+          { label: "Waiting", value: number.format(data.counts.pending + invites.items.length) },
           { label: "Approved", value: number.format(data.counts.approved), note: "Not counting you" },
           { label: "Suspended", value: number.format(data.counts.suspended) },
           { label: "Declined", value: number.format(data.counts.declined) },
         ]}
       />
 
-      <Invites invites={invites} readOnly={readOnly} />
+      <Invites available={invites.available} />
 
       <List
         title="Waiting"
         accounts={data.pending}
         empty="Nobody is waiting."
         when={asked}
+        before={invites.items.map((i) => <InviteRow key={`invite-${i.id}`} invite={i} readOnly={readOnly} />)}
         more={full ? "Every place is used. Suspend someone to approve another." : undefined}
         buttons={[
           { decision: "approve", label: "Approve", pendingLabel: "Approving…", primary: true, disabled: full || readOnly },

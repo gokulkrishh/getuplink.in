@@ -126,7 +126,7 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
   return (
     <>
       {cars.length === 0 && (
-        <p className="mb-6 text-sm text-muted-foreground">Uplink hasn&apos;t seen a car on your Tesla account yet. Check again in a minute.</p>
+        <p className="mb-6 text-sm text-muted-foreground">Uplink is still finding your car on your Tesla account. Check again in a minute.</p>
       )}
       <ol>
         <Step n={1} title="Add Uplink's key" state={key}>
@@ -140,6 +140,12 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
               <SolidKey />
               Add the key in the Tesla app
             </a>
+          )}
+          {/* Tesla's app says "Request timed out" when the car is asleep or out of reach while the key is added. */}
+          {key !== "done" && (
+            <p className="text-sm text-muted-foreground">
+              The car needs to be awake. If the Tesla app says the request timed out, wake the car, stay near it and open the link again.
+            </p>
           )}
           <p className="text-sm text-muted-foreground">
             Uplink only reads data, never sends commands. Remove the key anytime in the car&apos;s Locks settings.

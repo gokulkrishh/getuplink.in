@@ -126,6 +126,29 @@ export async function waitlistAccounts(): Promise<AccountRow[]> {
   return (rows ?? []).map((r) => ({ ...r, id: Number(r.id) }));
 }
 
+export type AccountCar = { name: string | null; vinSuffix: string | null };
+
+// What names each account's car on /admin/waitlist: the label and VIN characters of the invite it joined
+// with, else its car's name and the last 6 of its VIN. A request still waiting has neither.
+export async function accountCars(ids: number[]): Promise<Map<number, AccountCar>> {
+  const cars = new Map<number, AccountCar>();
+  if (ids.length === 0) return cars;
+  const vehicles = check(await db().from("vehicles").select("user_id, display_name, vin").in("user_id", ids).not("vin", "is", null).order("id")) as
+    | { user_id: number; display_name: string | null; vin: string }[]
+    | null;
+  for (const v of vehicles ?? []) {
+    const id = Number(v.user_id);
+    if (!cars.has(id)) cars.set(id, { name: v.display_name || null, vinSuffix: v.vin.slice(-6).toUpperCase() });
+  }
+  // Invites may not be set up yet (their migration): then cars alone name the accounts.
+  const invites = await db().from("invites").select("used_by, label, vin_suffix").in("used_by", ids);
+  for (const i of (invites.error ? [] : (invites.data ?? [])) as { used_by: number; label: string | null; vin_suffix: string }[]) {
+    const id = Number(i.used_by);
+    cars.set(id, { name: i.label ?? cars.get(id)?.name ?? null, vinSuffix: i.vin_suffix });
+  }
+  return cars;
+}
+
 // Approved users, admins included: the places used against MAX_USERS.
 export async function approvedCount(): Promise<number> {
   const { count, error } = await db().from("users").select("id", { count: "exact", head: true }).eq("status", APPROVED);

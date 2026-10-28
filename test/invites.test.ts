@@ -52,7 +52,7 @@ const fakeFetch = (async (input: string | URL | Request, init?: RequestInit) => 
 const { signIn } = await import("@/lib/server/tesla");
 const { asOwner } = await import("@/lib/server/data/owner");
 const { createInvite, inviteCookieHash, inviteCookieValue, inviteTokenAgain, lookupInvite, tokenHash } = await import("@/lib/server/invites");
-const { INVITE_TTL_MS, joinedLabel, parseVinSuffix } = await import("@/lib/invites");
+const { INVITE_TTL_MS, joinedLabel, shownInvites, parseVinSuffix } = await import("@/lib/invites");
 const { createSession } = await import("@/lib/session");
 const { copyInviteLink, createInviteLink, revokeInviteLink } = await import("@/app/admin/waitlist/actions");
 
@@ -314,4 +314,24 @@ test("who joined shows as the model and the last 4 of the VIN only", () => {
   expect(joinedLabel(FRIEND_VIN)).toBe("Model Y · 4821");
   expect(joinedLabel("XP73XXXXXXXX00042")).toBe("Model 3 · 0042");
   expect(joinedLabel("XXXQXXXXXXXX00042")).toBe("Tesla · 0042");
+});
+
+describe("the admin's list", () => {
+  const item = (id: number, vinSuffix: string, createdAt: string, state: "unused" | "used" | "expired" | "revoked") => ({ id, vinSuffix, createdAt, state });
+  test("New link replaces an expired link for the same car", () => {
+    const items = [
+      item(3, "773485", "2026-10-28T16:41:00Z", "unused"),
+      item(2, "844522", "2026-10-28T16:03:00Z", "used"),
+      item(1, "773485", "2026-10-28T12:56:00Z", "expired"),
+      item(0, "B70033", "2026-10-20T10:00:00Z", "expired"),
+    ];
+    expect(shownInvites(items).map((i) => i.id)).toEqual([3, 0]);
+  });
+  test("a revoked link drops out", () => {
+    expect(shownInvites([item(1, "773485", "2026-10-28T12:56:00Z", "revoked")])).toEqual([]);
+  });
+  test("a used link drops out: who joined shows under Approved", () => {
+    const items = [item(2, "773485", "2026-10-28T16:41:00Z", "used"), item(1, "773485", "2026-10-27T16:41:00Z", "revoked")];
+    expect(shownInvites(items)).toEqual([]);
+  });
 });

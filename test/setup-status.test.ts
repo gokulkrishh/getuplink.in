@@ -10,6 +10,7 @@ import {
   keyStep,
   PAIRED_RECHECK_MS,
   parseConfigSent,
+  signInPath,
   parseFleetStatus,
   parseTelemetryConfig,
   RESEND_AFTER_MS,
@@ -139,5 +140,19 @@ describe("the steps on /setup", () => {
     expect(streamingStep([car({ keyPaired: true, streaming: "pending" })])).toBe("waiting");
     expect(streamingStep([car({ keyPaired: true, streaming: "synced" })])).toBe("done");
     expect(keyStep([])).toBe("unknown");
+  });
+});
+
+describe("where a sign-in lands", () => {
+  test("a first sign-in, with no car stored yet, lands on /setup", () => {
+    expect(signInPath([])).toBe("/setup");
+  });
+  test("a car without the key, or not known yet, lands on /setup", () => {
+    expect(signInPath([{ keyPaired: false }])).toBe("/setup");
+    expect(signInPath([{ keyPaired: null }])).toBe("/setup");
+    expect(signInPath([{ keyPaired: true }, { keyPaired: false }])).toBe("/setup");
+  });
+  test("every car with the key lands on home", () => {
+    expect(signInPath([{ keyPaired: true }, { keyPaired: true }])).toBe("/");
   });
 });

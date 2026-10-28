@@ -104,6 +104,12 @@ export function gateFor(input: { demo: boolean; admin: boolean; cars: Pick<CarSe
   return "pass";
 }
 
+// Where a sign-in lands: home once Tesla has said every car has Uplink's key, /setup otherwise. A first
+// sign-in has no cars stored yet (the first check runs after the redirect), so it lands on /setup.
+export function signInPath(cars: Pick<CarSetup, "keyPaired">[]): "/" | "/setup" {
+  return cars.length > 0 && cars.every((car) => car.keyPaired === true) ? "/" : "/setup";
+}
+
 // The two steps, as /setup shows them.
 export type StepState = "done" | "todo" | "waiting" | "unknown";
 

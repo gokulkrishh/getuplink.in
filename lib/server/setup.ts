@@ -10,6 +10,7 @@ import {
   parseFleetStatus,
   parseTelemetryConfig,
   shouldSendConfig,
+  signInPath,
   skipReason,
   type Streaming,
   streamingStale,
@@ -166,6 +167,18 @@ export async function setupGate(owner: Owner, { admin = false, now = Date.now() 
   } catch (err) {
     console.warn("Reading setup status failed:", messageOf(err));
     return "pass";
+  }
+}
+
+// Where a sign-in lands (signInPath), from what's stored: Tesla isn't asked here, so sign-in isn't held up.
+// Demo mode, a missing migration and a failed read land on home, as the gate passes them.
+export async function afterSignInPath(owner: Owner): Promise<"/" | "/setup"> {
+  if (DEMO) return "/";
+  try {
+    return signInPath(await carSetups(owner));
+  } catch (err) {
+    if (!(err instanceof SetupSchemaMissing)) console.warn("Reading setup status failed:", messageOf(err));
+    return "/";
   }
 }
 

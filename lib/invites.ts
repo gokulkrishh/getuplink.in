@@ -47,6 +47,15 @@ export function inviteState(invite: { used_at: string | null; revoked_at: string
   return Date.parse(invite.expires_at) > now ? "unused" : "expired";
 }
 
+// The invites still waiting for a friend, as the admin's Waiting list shows them: links not used yet, the
+// latest one per car. A used link drops out (who joined shows under Approved), a revoked one too, and an
+// expired one once New link has made a newer one for the same car.
+export function shownInvites<T extends { vinSuffix: string; createdAt: string; state: InviteState }>(items: T[]): T[] {
+  const newest = new Map<string, string>();
+  for (const i of items) if ((newest.get(i.vinSuffix) ?? "") < i.createdAt) newest.set(i.vinSuffix, i.createdAt);
+  return items.filter((i) => i.state === "unused" || (i.state === "expired" && newest.get(i.vinSuffix) === i.createdAt));
+}
+
 // The token in /invite/<token>: 32 random-looking bytes, base64url. Checked before any lookup.
 export const INVITE_TOKEN = /^[A-Za-z0-9_-]{43}$/;
 

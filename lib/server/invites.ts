@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { DEMO } from "@/lib/demo";
-import { INVITE_TTL_MS, type InviteState, inviteState, isInviteToken } from "@/lib/invites";
+import { INVITE_TTL_MS, type InviteState, inviteState, isInviteToken, shownInvites } from "@/lib/invites";
 import type { Owner } from "./data/owner";
 import { insertInvite, inviteByHash, inviteById, type InviteRow, InvitesUnavailable, recentInvites, revokeInviteRow } from "./data/system";
 import { env } from "./env";
@@ -143,7 +143,7 @@ export async function loadInvites(now: number): Promise<InvitesPage> {
     const rows = await recentInvites(INVITES_SHOWN);
     return {
       available: true,
-      items: rows.map((r) => ({
+      items: shownInvites(rows.map((r) => ({
         id: r.id,
         label: r.label,
         vinSuffix: r.vin_suffix,
@@ -154,7 +154,7 @@ export async function loadInvites(now: number): Promise<InvitesPage> {
         joined: r.joined_label,
         joinedUserId: r.used_by,
         joinedApproved: r.joinedStatus === "approved",
-      })),
+      }))),
     };
   } catch (err) {
     if (err instanceof InvitesUnavailable) return { available: false, items: [] };

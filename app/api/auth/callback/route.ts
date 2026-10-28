@@ -4,6 +4,7 @@ import type { LoginErrorCode } from "@/lib/login-errors";
 import { createSession, EXPIRE_HOST_ONLY_SESSION, isValidSession, safeEqual, SESSION_COOKIE, SESSION_MAX_AGE, requestHost, sessionCookieDomain, STATE_COOKIE } from "@/lib/session";
 import { INVITE_COOKIE, INVITE_COOKIE_PATH, inviteCookieHash } from "@/lib/server/invites";
 import { checkNow } from "@/lib/server/poll";
+import { afterSignInPath } from "@/lib/server/setup";
 import { signIn, type SignInResult } from "@/lib/server/tesla";
 
 // Room for the check that runs after the redirect, like the cron's.
@@ -56,7 +57,8 @@ export async function GET(request: NextRequest) {
   const { owner } = result;
   after(() => checkNow(owner).catch((err) => console.error(err)));
 
-  const res = done("/");
+  // A new owner, or one whose car still lacks Uplink's key, lands on /setup.
+  const res = done(await afterSignInPath(owner));
   const domain = sessionCookieDomain(requestHost(request.headers));
   res.cookies.set(SESSION_COOKIE, await createSession(result.userId), {
     domain,
