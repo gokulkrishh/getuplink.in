@@ -1,4 +1,5 @@
 import { ChevronRight } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
 import { Fragment } from "react";
 import type { ReleaseNote, ReleaseNotesByVersion } from "@/lib/release-notes";
 import { cn } from "@/lib/utils";
@@ -44,10 +45,10 @@ export function ReleaseNotesToggle({
     <details className="group/notes">
       <summary
         aria-label={`Release notes for ${version}`}
-        className="relative flex w-fit list-none items-center gap-1.5 text-xs after:absolute after:-inset-y-2 after:inset-x-0 text-muted-foreground group-open/notes:text-foreground hover:text-foreground [&::-webkit-details-marker]:hidden"
+        className={buttonVariants({ variant: "ghost", size: "xs", className: "-ml-2 list-none group-open/notes:text-foreground [&::-webkit-details-marker]:hidden" })}
       >
         Release notes
-        <ChevronRight className="size-3 text-faint transition-transform group-open/notes:rotate-90" aria-hidden="true" />
+        <ChevronRight className="transition-transform group-open/notes:rotate-90" aria-hidden="true" />
       </summary>
       <ReleaseNotesList notes={notes[version]} stacked={stacked} />
     </details>

@@ -1,6 +1,6 @@
 import { ChevronRight, Moon } from "lucide-react";
-import Link from "next/link";
 import { fitFont } from "@/components/measure";
+import { MoreLink } from "@/components/more-link";
 import { PeriodLink } from "@/components/home/more-link";
 import { statsHref, type View } from "@/components/stats/periods";
 import { type Bill, billsBySlot, billsIn, energyBySlot, energyIn } from "@/lib/charging-figures";
@@ -217,10 +217,7 @@ export function Headline({
           <p className="text-sm text-muted-foreground">No driving or charging in the last 7 days.{gapText && ` Tracking since ${gapText}.`}</p>
         </div>
         {/* The way to something that did happen: the month on Stats. */}
-        <Link href={statsHref("driving", "month")} className="inline-flex shrink-0 items-center gap-0.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
-          This month
-          <ChevronRight className="size-4" aria-hidden="true" />
-        </Link>
+        <MoreLink href={statsHref("driving", "month")} className="shrink-0">This month</MoreLink>
       </div>
     );
 

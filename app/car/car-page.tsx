@@ -7,6 +7,7 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { Loading, Ph, SkFigures, SkSection } from "@/components/skeleton";
 import { Header } from "@/components/header";
+import { MoreLink } from "@/components/more-link";
 import { Measure } from "@/components/measure";
 import { CarNotices } from "@/components/owner-notices";
 import { supplyFigures, Words } from "@/components/stats/charge-supply";
@@ -98,7 +99,7 @@ function Section({ title, description, action, children }: { title: string; desc
   return (
     <section className="space-y-3">
       <div className="space-y-1">
-        <div className="flex items-baseline justify-between gap-4">
+        <div className="flex items-center justify-between gap-4">
           <h2 className="text-lg font-medium tracking-heading">{title}</h2>
           {action}
         </div>
@@ -106,16 +107,6 @@ function Section({ title, description, action, children }: { title: string; desc
       </div>
       {children}
     </section>
-  );
-}
-
-// A link that reads as one: muted, an arrow after it, brighter on hover.
-function MoreLink({ href, children }: { href: string; children: ReactNode }) {
-  return (
-    <Link href={href} prefetch={true} className="inline-flex shrink-0 items-center gap-0.5 text-sm text-muted-foreground transition-colors duration-150 hover:text-foreground">
-      {children}
-      <ChevronRight className="size-3.5" aria-hidden="true" />
-    </Link>
   );
 }
 

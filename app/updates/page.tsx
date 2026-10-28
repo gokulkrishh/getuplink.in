@@ -1,6 +1,4 @@
-import { ChevronRight } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -10,6 +8,7 @@ import { SyncStreamVersions } from "@/components/background-sync";
 import { AWAKE_MS, CarStatus } from "@/components/car-status";
 import { CarTabs } from "@/components/car-tabs";
 import { Header } from "@/components/header";
+import { MoreLink } from "@/components/more-link";
 import { CheckedFooter, OwnerNotices } from "@/components/owner-notices";
 import { ReleaseNotesToggle } from "@/components/release-notes";
 import { AwakeTimeline } from "@/components/stats/awake-timeline";
@@ -264,10 +263,7 @@ export default function Page({ searchParams }: PageProps<"/updates">) {
       <CarTabs value="updates" />
       {/* The India rollout lives under Updates: where an owner waiting for a version looks. */}
       <p className="-mt-4 mb-8 text-right text-sm">
-        <Link href="/rollout" prefetch={true} className="inline-flex items-center gap-0.5 text-muted-foreground transition-colors duration-150 hover:text-foreground">
-          India rollout
-          <ChevronRight className="size-3.5" aria-hidden="true" />
-        </Link>
+        <MoreLink href="/rollout">India rollout</MoreLink>
       </p>
       <Suspense fallback={<UpdatesSkeleton />}>
         <Updates searchParams={searchParams} />
