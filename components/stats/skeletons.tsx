@@ -30,9 +30,6 @@ export function DrivingSkeleton() {
       <SkSection>
         <SkHead title="Efficiency" description="Energy used per kilometre, in Wh/km. Lower is better." />
         <div className="space-y-6" aria-hidden="true">
-          <p className="text-sm">
-            <Ph>Speed made the biggest difference: 116 to 157 Wh/km.</Ph>
-          </p>
           {["Speed", "AC setting", "Outside"].map((group) => (
             <div key={group} className="space-y-3">
               <p className="text-sm font-medium">

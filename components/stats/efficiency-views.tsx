@@ -5,43 +5,27 @@ import { cn } from "@/lib/utils";
 
 export type EfficiencyView = { key: string; label: string; bands: Band[] };
 
-const FEW = 3;
+// A band from fewer drives than this is left out: a drive or two says more about that trip than about the
+// speed, AC setting or weather.
+const ENOUGH = 5;
 
 // Wh per km, as everywhere else in the app, by average speed, AC setting and outside temperature, one group
-// under the other on one scale, so a bar under Speed compares with a bar under AC setting. The ways split the
-// same drives differently, so they can't be crossed into one table: crossed, most cells would hold a drive
-// or none. Each row is the band, a bar for its Wh/km against the highest of all, and the figure, with its
-// drives and distance under the band. The lowest in each group is drawn in the accent colour. A line on top
-// names the group with the widest gap between its lowest and highest band, counting only bands from FEW or
-// more drives: a band from fewer is faint, as one drive says little.
+// under the other on one scale. Only bands from ENOUGH drives show, and a group needs two of them to compare;
+// with none, the card isn't shown. No line names a group as the cause: the ways split the same drives, so a
+// short trip in town is both a slow band and its AC setting, and the figures can't say which made it cost
+// more. Each row is the band, a bar for its Wh/km against the highest of all, and the figure, with its drives
+// and distance under it. The lowest in each group is drawn in the accent colour.
 const whPerKm = (b: Band) => (b.kmPerKwh ? 1000 / b.kmPerKwh : null);
 const wh = (n: number) => formatNumber(n, DECIMALS.whPerKm);
 
-function widest(views: EfficiencyView[]) {
-  let best: { label: string; low: number; high: number } | null = null;
-  for (const v of views) {
-    const sure = v.bands.filter((b) => b.drives >= FEW).flatMap((b) => whPerKm(b) ?? []);
-    if (sure.length < 2) continue;
-    const low = Math.min(...sure);
-    const high = Math.max(...sure);
-    if (!best || high - low > best.high - best.low) best = { label: v.label, low, high };
-  }
-  return best && best.high > best.low ? best : null;
-}
-
 export function EfficiencyViews({ views }: { views: EfficiencyView[] }) {
-  const shown = views.filter((v) => v.bands.length > 0);
+  const shown = views
+    .map((v) => ({ ...v, bands: v.bands.filter((b) => b.drives >= ENOUGH && whPerKm(b) !== null) }))
+    .filter((v) => v.bands.length >= 2);
   if (shown.length === 0) return null;
   const most = Math.max(...shown.flatMap((v) => v.bands.flatMap((b) => whPerKm(b) ?? [])), 0);
-  const gap = widest(shown);
-  const few = shown.some((v) => v.bands.some((b) => b.drives < FEW));
   return (
     <div className="space-y-6">
-      {gap && (
-        <p className="text-sm">
-          {gap.label} made the biggest difference: {wh(gap.low)} to {wh(gap.high)} Wh/km.
-        </p>
-      )}
       {shown.map((view) => {
         const values = view.bands.map(whPerKm);
         const known = values.filter((v): v is number => v !== null);
@@ -51,7 +35,7 @@ export function EfficiencyViews({ views }: { views: EfficiencyView[] }) {
             <h3 className="text-sm font-medium">{view.label}</h3>
             <ul className="space-y-3 text-sm tabular-nums" aria-label={`Wh/km by ${view.label.toLowerCase()}`}>
               {view.bands.map((b, k) => (
-                <li key={b.label} className={cn("grid grid-cols-[minmax(0,9rem)_1fr_auto] items-center gap-3", b.drives < FEW && "opacity-60")}>
+                <li key={b.label} className="grid grid-cols-[minmax(0,9rem)_1fr_auto] items-center gap-3">
                   <span className="min-w-0">
                     <span className="block">{b.label}</span>
                     <span className="block text-xs text-muted-foreground">
@@ -76,7 +60,6 @@ export function EfficiencyViews({ views }: { views: EfficiencyView[] }) {
           </div>
         );
       })}
-      {few && <p className="text-xs text-faint">Faint rows come from fewer than {FEW} drives, so they say less.</p>}
     </div>
   );
 }
