@@ -3,7 +3,7 @@ import { revalidateTag } from "next/cache";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { z } from "zod";
 import { DEMO } from "@/lib/demo";
-import { APP_URL, HOME_URL } from "@/lib/site";
+import { HOME_URL } from "@/lib/site";
 import { detailsInput } from "@/lib/invoice-details";
 import { lineItemsInput } from "@/lib/invoice-items";
 import { messageOf } from "@/lib/errors";
@@ -40,10 +40,8 @@ const SERVER_INFO = {
   title: "Uplink",
   version: "1.0.0",
   websiteUrl: HOME_URL,
-  icons: [
-    { src: `${APP_URL}/icon-512.png`, mimeType: "image/png", sizes: ["512x512"] },
-    { src: `${APP_URL}/icon-192.png`, mimeType: "image/png", sizes: ["192x192"] },
-  ],
+  // As til.bar sends it, where AI apps show its logo: one SVG at any size, from the home site.
+  icons: [{ src: `${HOME_URL}/icon.svg`, mimeType: "image/svg+xml", sizes: ["any"] }],
 };
 
 // The tools, bound to the account the token belongs to: every read and write is that account's. The
