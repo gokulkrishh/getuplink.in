@@ -2,6 +2,7 @@ import { ChevronRight, Moon } from "lucide-react";
 import { fitFont } from "@/components/measure";
 import { MoreLink } from "@/components/more-link";
 import { PeriodLink } from "@/components/home/more-link";
+import { barOpens } from "@/components/stats/bar-parts";
 import { statsHref, type View } from "@/components/stats/periods";
 import { type Bill, billsBySlot, billsIn, energyBySlot, energyIn } from "@/lib/charging-figures";
 import { type Change, changeToPrevious, compareToPrevious } from "@/lib/dashboard-summary";
@@ -159,7 +160,14 @@ export function Headline({
   // A cell's number and its sparkline's tips, from the same values: the number is the bars' raw sum (they
   // cover the span, so it is the span's figure), and each is rounded on its own when shown. With no bar
   // known, the span's own figure (`whole`) stands, or none.
-  const figure = (values: (number | null)[], whole: number | null, decimals: number, format: (n: number) => string, skip: number): { value: number | null; spark: Spark } => {
+  const figure = (
+    values: (number | null)[],
+    whole: number | null,
+    decimals: number,
+    format: (n: number) => string,
+    skip: number,
+    view: View,
+  ): { value: number | null; spark: Spark } => {
     const parts = upToNow(values);
     const known = parts.some((v) => v !== null);
     const shown = parts.slice(skip);
@@ -171,6 +179,8 @@ export function Headline({
         values: shown.map((v) => (v !== null && showsZero(format(v)) ? 0 : v)),
         current: currentSlot < 0 ? -1 : currentSlot - skip,
         tips: shown.map((v, k) => (v === null || showsZero(format(v)) ? null : { title: slotTitle(slots[k + skip]), value: format(v) })),
+        // A bar with a figure opens its days on the tile's Stats page, as the Stats charts' bars do.
+        opens: shown.map((v, k) => (v === null || showsZero(format(v)) ? null : (barOpens(slots[k + skip].days, view)?.href ?? null))),
       },
     };
   };
@@ -180,6 +190,7 @@ export function Headline({
     DECIMALS.km,
     formatKm,
     driveSkip,
+    "driving",
   );
   // Like the Driving page: no figure with no driving is nothing used, with driving it is unknown.
   const used = figure(
@@ -188,9 +199,10 @@ export function Headline({
     DECIMALS.kWh,
     formatKwh,
     driveSkip,
+    "driving",
   );
-  const added = figure(charged(energyBySlot(sessions, streamOnly, slots)), energy, DECIMALS.kWh, formatKwh, chargeSkip);
-  const spent = figure(charged(billsBySlot(bills, slots)), spend, DECIMALS.money, money, chargeSkip);
+  const added = figure(charged(energyBySlot(sessions, streamOnly, slots)), energy, DECIMALS.kWh, formatKwh, chargeSkip, "charging");
+  const spent = figure(charged(billsBySlot(bills, slots)), spend, DECIMALS.money, money, chargeSkip, "charging");
 
   // `lowerIsBetter` colours the delta and words the sentence better or worse: "₹171 worse than the 7 days before".
   // Nothing yet this period (no figure, or zero) has nothing to compare, so the delta stays blank. The change

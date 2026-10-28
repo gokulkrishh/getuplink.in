@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { hasSparkData, SLOT_WIDTH, sparkBars, sparkLine } from "@/lib/sparkline";
 import { cn } from "@/lib/utils";
@@ -9,12 +10,21 @@ const SPARK_HEIGHT = 24;
 
 // One value per slot, null where there's nothing to draw. `current` is the slot holding now. `tips` names
 // each slot and its value for the tooltip ("23 Oct", "46 km"), null for a slot with nothing known.
-export type Spark = { kind: "bars" | "line"; values: (number | null)[]; current: number; tips: ({ title: string; value: string } | null)[] };
+// `opens` is where each bar leads, its days on a Stats page, or null.
+export type Spark = {
+  kind: "bars" | "line";
+  values: (number | null)[];
+  current: number;
+  tips: ({ title: string; value: string } | null)[];
+  opens?: (string | null)[];
+};
 
 // The period's shape behind a headline number: bars for totals, a line for a rate. With nothing to draw
 // it leaves the same height blank; the tile's number already says so (see Headline's Cell). Hover a slot, or tap it on a touch screen, for its
 // label and value; the tile is a link, so a tap on the sparkline opens the tip instead of following it, and
-// a tap anywhere else closes it. Screen readers get the tile's number and sentence instead.
+// a tap anywhere else closes it. A bar with somewhere to go (`opens`) goes there on a click, or on a second
+// tap once its tip is open, rather than to the tile's page. Screen readers get the tile's number and
+// sentence instead.
 // Bars take the colour of what they count: amber for energy drawn from the battery, charging's green for
 // energy added, the chart blue otherwise.
 const TONES = {
@@ -23,7 +33,8 @@ const TONES = {
   use: { current: "fill-chart-2", active: "fill-chart-2/80", rest: "fill-chart-2/40 group-hover:fill-chart-2/60" },
 };
 
-export function Sparkline({ kind, values, current, tips, tone = "accent" }: Spark & { tone?: keyof typeof TONES }) {
+export function Sparkline({ kind, values, current, tips, opens, tone = "accent" }: Spark & { tone?: keyof typeof TONES }) {
+  const router = useRouter();
   const box = useRef<HTMLDivElement>(null);
   const touch = useRef(false);
   const [active, setActive] = useState<number | null>(null);
@@ -53,11 +64,13 @@ export function Sparkline({ kind, values, current, tips, tone = "accent" }: Spar
       onPointerMove={(e) => e.pointerType === "mouse" && setActive(slotAt(e.clientX))}
       onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}
       onClick={(e) => {
-        if (!touch.current) return;
+        const k = slotAt(e.clientX);
+        const href = opens?.[k];
+        if (!touch.current && !href) return;
         e.preventDefault();
         e.stopPropagation();
-        const k = slotAt(e.clientX);
-        setActive((prev) => (prev === k ? null : k));
+        if (href && (!touch.current || active === k)) router.push(href);
+        else setActive((prev) => (prev === k ? null : k));
       }}
     >
       <svg aria-hidden="true" viewBox={`0 0 ${width} ${SPARK_HEIGHT}`} preserveAspectRatio="none" className="block h-6 w-full overflow-visible">
