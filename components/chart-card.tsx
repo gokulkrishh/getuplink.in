@@ -50,13 +50,13 @@ export function ChartCard({
 }) {
   if (fold) {
     return (
-      <details className={cn("group border-b", className)}>
+      <details className={cn("group/fold border-b", className)}>
         <summary className="flex cursor-pointer list-none items-start justify-between gap-4 py-4 [&::-webkit-details-marker]:hidden">
           <span className="min-w-0 space-y-1">
             {title && <Heading className="text-base font-medium tracking-heading">{title}</Heading>}
             {description && <span className="block text-sm text-muted-foreground">{description}</span>}
           </span>
-          <ChevronDown className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-open:rotate-180" aria-hidden="true" />
+          <ChevronDown className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-open/fold:rotate-180" aria-hidden="true" />
         </summary>
         <div className="space-y-4 pb-6">
           {info && <p className="text-sm text-faint">{info}</p>}
