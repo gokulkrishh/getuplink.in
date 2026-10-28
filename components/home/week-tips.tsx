@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 // The box, the same while loading, so the page doesn't move when the tips arrive. Five lines of tip text are
 // held on a phone and two wider (lib/ai-tips.ts MAX_CHARS keeps every tip within them), so turning between
 // a short and a long tip doesn't move it either.
-const BOX = "ai-box space-y-2 border px-4 py-3";
+const BOX = "space-y-2 border px-4 py-3";
 const THANKS_MS = 5000;
 const TIPS_LINES = "min-h-25 sm:min-h-10";
 const NOTE_LINES = "min-h-15 sm:min-h-10";

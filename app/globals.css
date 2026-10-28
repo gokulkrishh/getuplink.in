@@ -409,25 +409,6 @@ html .maplibregl-map {
     animation: ai-shimmer 1.6s ease-out 0.3s 1 both;
   }
 }
-/* The AI tips box: a faint tint and border of the accent, so it reads as AI's at a glance, and one light
-   sweep across it when it arrives, then still. Reduced motion keeps the tint only. */
-@utility ai-box {
-  position: relative;
-  overflow: hidden;
-  border-color: color-mix(in oklab, var(--chart-accent) 30%, var(--border));
-  background-color: color-mix(in oklab, var(--chart-accent) 5%, var(--background));
-  @media (prefers-reduced-motion: no-preference) {
-    &::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      background: linear-gradient(100deg, transparent 35%, color-mix(in oklab, var(--chart-accent) 16%, transparent) 50%, transparent 65%);
-      background-size: 250% 100%;
-      animation: ai-shimmer 1.6s ease-out 0.3s 1 both;
-    }
-  }
-}
 @keyframes ai-shimmer {
   from {
     background-position: 100% 0;
