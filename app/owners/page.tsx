@@ -383,7 +383,7 @@ function Waiting({ counted }: { counted: number }) {
   return (
     <div className="space-y-10">
       <section className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border px-4 py-3">
-        <p className="min-w-0 flex-1 text-sm">You&apos;re sharing. Your car will be part of the first totals.</p>
+        <p className="min-w-0 flex-1 text-sm">You&apos;re sharing. Your car will be part of the totals.</p>
         <StopSharing />
       </section>
       <section className="space-y-4">
@@ -392,7 +392,7 @@ function Waiting({ counted }: { counted: number }) {
           <p className="text-sm text-muted-foreground">
             {short
               ? `Figures show once ${MIN_CARS} owners' cars are counted, so no one's car stands alone. Cars are counted at 3:30 AM each day.`
-              : "The first totals come with the next update, at 3:30 AM."}
+              : "The totals come with the next update, at 3:30 AM."}
           </p>
         </div>
         {short && (

@@ -474,7 +474,7 @@ export async function ownerComparisons(owner: Owner, now: number) {
       message:
         page.counted < MIN_CARS
           ? `${page.counted} of ${MIN_CARS} owners counted so far. Figures show once ${MIN_CARS} owners' cars are counted. Cars are counted at 3:30 AM each day.`
-          : "The first totals come with the next update, at 3:30 AM.",
+          : "The totals come with the next update, at 3:30 AM.",
     };
   }
   // Every state's own count, as the Rollout page shows signed-in owners: holding small states back here would
