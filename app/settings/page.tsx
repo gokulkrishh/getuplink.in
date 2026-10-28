@@ -78,9 +78,9 @@ async function Settings() {
   return (
     <>
       <Group title="General">
-        <Row title={<Ph>Theme</Ph>} description="Saved in this browser." control={<ThemePicker />} />
+        <Row title="Theme" description="Saved in this browser." control={<ThemePicker />} />
         <Row
-          title={<Ph>Live data</Ph>}
+          title="Live data"
           description={
             <>
               <p>Your car sends data while it&apos;s awake. Uplink never wakes it.</p>
@@ -103,10 +103,10 @@ async function Settings() {
         {account.connected ? (
           <DisconnectTesla description={connectedDescription} />
         ) : (
-          <Row title={<Ph>Tesla account</Ph>} description="Not connected" />
+          <Row title="Tesla account" description="Not connected" />
         )}
         <Row
-          title={<Ph>Sign out everywhere</Ph>}
+          title="Sign out everywhere"
           description="Signs out every device, including this one."
           control={
             <SignOutEverywhere />
@@ -230,7 +230,7 @@ function HomeState({ home }: { home: OwnHomeState }) {
   const from = home.source === "location" ? "from your car's location" : "from your Supercharger history";
   return (
     <Row
-      title={<Ph>Home state</Ph>}
+      title="Home state"
       description={
         <>
           <p>For the India rollout map. Uplink keeps only the state, never where your car is.</p>
