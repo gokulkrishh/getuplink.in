@@ -159,6 +159,8 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
           {eachFrame(frames, ({ key, frame }) => (
             <EfficiencyBands byTemp={byFrame[key]?.extras.byTemp ?? []} bySpeed={byFrame[key]?.extras.bySpeed ?? []} byAc={byFrame[key]?.extras.byAc ?? []} note={insightsNote(key, frame.span)} />
           ))}
+          {/* Seasons are compared across the year, so no single period changes them; they show on the long spans only (see isLong). */}
+          {eachFrame(frames, (f) => (isLong(f) ? <SeasonEfficiency {...seasons} /> : null))}
           {eachFrame(frames, ({ key, frame }) => {
             const inFrame = driving.drives.filter((d) => inSpan(d.start, frame.span));
             return (
@@ -172,8 +174,6 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
             <Places places={byFrame[key]?.extras.places ?? []} visited={byFrame[key]?.extras.visited ?? []} note={insightsNote(key, frame.span)} more={morePlaces.bind(null, { period: key, query })} />
           ))}
           {eachFrame(frames, (f) => (isLong(f) ? <SpeedBands bins={byFrame[f.key]?.extras.speed ?? []} note={insightsNote(f.key, f.frame.span)} /> : null))}
-          {/* Seasons are compared across the year, so no single period changes them; they show on the long spans only (see isLong). */}
-          {eachFrame(frames, (f) => (isLong(f) ? <SeasonEfficiency {...seasons} /> : null))}
         </div>
       ) : (
         <NotYet title="Not enough driving yet">Distance and energy use show up after a couple of days of driving.</NotYet>
