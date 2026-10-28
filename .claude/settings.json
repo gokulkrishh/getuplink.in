@@ -12,7 +12,12 @@
   },
   "permissions": {
     "allow": [
-      "Bash(bun run *)",
+      "Bash(bun run build)",
+      "Bash(bun run lint)",
+      "Bash(bun run test)",
+      "Bash(bun run eval)",
+      "Bash(bun run demo:start)",
+      "Bash(bun run demo:stop)",
       "Bash(bun test *)",
       "Bash(bun install *)",
       "Bash(bunx tsc *)",
