@@ -398,11 +398,13 @@ export async function sharingState(owner: Owner): Promise<Sharing | null> {
   });
 }
 
-// What /owners shows. An owner who doesn't share gets no figures at all, only how many do.
+// What /owners shows. An owner who doesn't share gets no figures at all, only how many do. While waiting,
+// `counted` is the owners in the latest totals: what the next run would publish from, not every account
+// that shares (one whose cars have no days yet isn't in them).
 export type OwnersPage =
   | { kind: "off"; sharers: number }
-  | { kind: "waiting"; sharers: number }
-  | { kind: "ready"; sharers: number; stats: OwnerStats; updatedAt: string; you: CarSummary | null; group: string | null; lfp: boolean };
+  | { kind: "waiting"; counted: number }
+  | { kind: "ready"; stats: OwnerStats; updatedAt: string; you: CarSummary | null; group: string | null; lfp: boolean };
 
 // The owner's own 30 days, from their day rows: the car with the most of them.
 async function ownSummary(owner: Owner, now: number): Promise<CarSummary | null> {
@@ -425,17 +427,16 @@ async function ownGroup(owner: Owner): Promise<{ group: string | null; lfp: bool
 export async function loadOwners(owner: Owner, now: number): Promise<OwnersPage> {
   if (DEMO) return demoOwners(owner, now);
   const sharing = await sharingState(owner);
-  const sharers = (await sharingOwners().catch(() => [])).length;
-  if (!sharing?.on) return { kind: "off", sharers };
+  if (!sharing?.on) return { kind: "off", sharers: (await sharingOwners().catch(() => [])).length };
   const latest = await latestOwnerStats().catch((err) => {
     if (err instanceof MissingSchema) return null;
     throw err;
   });
   const stats = latest?.stats as OwnerStats | undefined;
-  if (!latest || !stats || stats.v !== STATS_VERSION || stats.cars < MIN_CARS || stats.owners < MIN_CARS) return { kind: "waiting", sharers };
+  if (!latest || !stats || stats.v !== STATS_VERSION || stats.cars < MIN_CARS || stats.owners < MIN_CARS) return { kind: "waiting", counted: stats?.owners ?? 0 };
   const you = await ownSummary(owner, now);
   const { group, lfp } = you ? { group: you.segment, lfp: you.lfp } : await ownGroup(owner);
-  return { kind: "ready", sharers, stats, updatedAt: latest.computed_at, you, group, lfp };
+  return { kind: "ready", stats, updatedAt: latest.computed_at, you, group, lfp };
 }
 
 // The demo: a made-up set of about 40 cars (lib/server/demo/owners.ts) and the demo car's own 30 days,
@@ -453,7 +454,7 @@ async function demoOwners(owner: Owner, now: number): Promise<OwnersPage> {
     demoYou = { at: now, summary: summarise(days, { vinHash: "demo", owner: 0 }) };
   }
   const you = demoYou.summary;
-  return { kind: "ready", sharers: owners, stats: aggregate([...set, ...(you ? [you] : [])]), updatedAt: iso(istDayStart(istDay(now)) + 3.5 * HOUR), you, group: you?.segment ?? null, lfp: you?.lfp ?? false };
+  return { kind: "ready", stats: aggregate([...set, ...(you ? [you] : [])]), updatedAt: iso(istDayStart(istDay(now)) + 3.5 * HOUR), you, group: you?.segment ?? null, lfp: you?.lfp ?? false };
 }
 
 // ---- For the owner's own AI ----
@@ -470,7 +471,10 @@ export async function ownerComparisons(owner: Owner, now: number) {
     return {
       sharing: true,
       ready: false,
-      message: page.sharers < MIN_CARS ? `${page.sharers} of ${MIN_CARS} owners share so far. Figures show once ${MIN_CARS} owners share.` : "The first totals come with the next update, at 3:30 AM.",
+      message:
+        page.counted < MIN_CARS
+          ? `${page.counted} of ${MIN_CARS} owners counted so far. Figures show once ${MIN_CARS} owners' cars are counted. Cars are counted at 3:30 AM each day.`
+          : "The first totals come with the next update, at 3:30 AM.",
     };
   }
   // Every state's own count, as the Rollout page shows signed-in owners: holding small states back here would

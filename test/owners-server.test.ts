@@ -81,12 +81,21 @@ describe("the page outside demo mode", () => {
     expect(page.you?.days).toBe(2);
   });
 
-  test("with no totals yet, or fewer than 5 cars, it waits; it never falls back to the demo set", async () => {
-    expect(await loadOwners(B, NOW)).toEqual({ kind: "waiting", sharers: 1 });
-    fake.rows("fleet_stats").push({ id: 1, computed_at: new Date(NOW).toISOString(), cars: 4, stats: { ...STATS, cars: 4 } });
-    expect(await loadOwners(B, NOW)).toEqual({ kind: "waiting", sharers: 1 });
+  test("with no totals yet, or fewer than 5 cars or owners, it waits; it never falls back to the demo set", async () => {
+    expect(await loadOwners(B, NOW)).toEqual({ kind: "waiting", counted: 0 });
+    fake.rows("fleet_stats").push({ id: 1, computed_at: new Date(NOW).toISOString(), cars: 4, stats: { ...STATS, owners: 3, cars: 4 } });
+    expect(await loadOwners(B, NOW)).toEqual({ kind: "waiting", counted: 3 });
     fake.rows("fleet_stats").push({ id: 2, computed_at: new Date(NOW + 1).toISOString(), cars: 6, stats: { ...STATS, owners: 4 } });
-    expect((await loadOwners(B, NOW)).kind).toBe("waiting");
+    expect(await loadOwners(B, NOW)).toEqual({ kind: "waiting", counted: 4 });
+  });
+
+  test("the waiting count is owners in the latest totals, not accounts that share", async () => {
+    // 6 accounts share, but the last run counted the cars of only 2 of them.
+    fake.rows("users").push(...[3, 4, 5, 6, 7].map((id) => ({ id, tesla_sub: `tesla-${id}`, status: "approved", share_with_owners: true, shared_since: "2026-10-27T00:00:00Z" })));
+    fake.rows("fleet_stats").push({ id: 1, computed_at: new Date(NOW).toISOString(), cars: 2, stats: { ...STATS, owners: 2, cars: 2 } });
+    expect(await loadOwners(B, NOW)).toEqual({ kind: "waiting", counted: 2 });
+    const out = await ownerComparisons(B, NOW);
+    expect(out.message).toBe("2 of 5 owners counted so far. Figures show once 5 owners' cars are counted. Cars are counted at 3:30 AM each day.");
   });
 });
 

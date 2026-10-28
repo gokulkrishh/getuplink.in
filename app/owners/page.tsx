@@ -376,10 +376,10 @@ function NotSharing({ sharers }: { sharers: number }) {
   );
 }
 
-// Sharing, but too few owners share for any totals yet: how far along it is, as one step per owner needed,
+// Sharing, but too few owners are in the totals yet: how far along it is, as one step per owner needed,
 // what the page will answer once it fills in, and the way to stop.
-function Waiting({ sharers }: { sharers: number }) {
-  const short = sharers < MIN_CARS;
+function Waiting({ counted }: { counted: number }) {
+  const short = counted < MIN_CARS;
   return (
     <div className="space-y-10">
       <section className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border px-4 py-3">
@@ -388,17 +388,17 @@ function Waiting({ sharers }: { sharers: number }) {
       </section>
       <section className="space-y-4">
         <div className="space-y-1">
-          <h2 className={heading}>{short ? `${sharers} of ${MIN_CARS} owners sharing` : "Totals on the way"}</h2>
+          <h2 className={heading}>{short ? `${counted} of ${MIN_CARS} owners counted` : "Totals on the way"}</h2>
           <p className="text-sm text-muted-foreground">
             {short
-              ? `Figures show once ${MIN_CARS} owners share, so no one's car stands alone. ${MIN_CARS - sharers === 1 ? "1 more to go." : `${MIN_CARS - sharers} more to go.`}`
+              ? `Figures show once ${MIN_CARS} owners' cars are counted, so no one's car stands alone. Cars are counted at 3:30 AM each day.`
               : "The first totals come with the next update, at 3:30 AM."}
           </p>
         </div>
         {short && (
-          <div className="flex gap-1.5" role="img" aria-label={`${sharers} of ${MIN_CARS} owners sharing`}>
+          <div className="flex gap-1.5" role="img" aria-label={`${counted} of ${MIN_CARS} owners counted`}>
             {Array.from({ length: MIN_CARS }, (_, k) => (
-              <span key={k} className={cn("h-1.5 flex-1", k < sharers ? "bg-chart-you" : "bg-muted dark:bg-card")} />
+              <span key={k} className={cn("h-1.5 flex-1", k < counted ? "bg-chart-you" : "bg-muted dark:bg-card")} />
             ))}
           </div>
         )}
@@ -420,7 +420,7 @@ function Waiting({ sharers }: { sharers: number }) {
 async function Owners() {
   const page = await loadOwnersPage();
   if (page.kind === "off") return <NotSharing sharers={page.sharers} />;
-  if (page.kind === "waiting") return <Waiting sharers={page.sharers} />;
+  if (page.kind === "waiting") return <Waiting counted={page.counted} />;
   const sections = SECTIONS.map((section) => ({
     ...section,
     cards: CARDS.filter((c) => c.section === section.key && !OFF_PAGE.has(c.key))
