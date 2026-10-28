@@ -33,14 +33,14 @@ export type MapLeg = { start: number; end: number; note: string };
 // extra: a control beside the value, such as "Name this place" by the trip's start.
 export type MapFact = { label: string; value: string; extra?: ReactNode };
 
-const NEAR_M = 60; // pins closer than this share one marker (a round trip's start and end)
+export const NEAR_M = 60; // pins closer than this share one marker (a round trip's start and end)
 // A longer gap between route points starts a new line, so no jump is drawn: between legs and trips on a
 // journey; between drives on a map of everywhere visited, whose points are sparser.
 const GAP_MS = 4 * 60_000;
 const VISITED_GAP_MS = 20 * 60_000;
 const SPEED_WITHIN_MS = 30_000;
 
-function metres(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+export function metres(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
   const rad = Math.PI / 180;
   const x = (b.lng - a.lng) * rad * Math.cos(((a.lat + b.lat) / 2) * rad);
   const y = (b.lat - a.lat) * rad;
@@ -437,6 +437,7 @@ export function TripMap({
   legs = [],
   below,
   legend,
+  short,
 }: {
   route?: MapPoint[];
   pins: MapPin[];
@@ -445,6 +446,8 @@ export function TripMap({
   legs?: MapLeg[];
   below?: ReactNode;
   legend?: string;
+  // Half the usual height, for a map that only shows where.
+  short?: boolean;
 }) {
   const colors = useThemeColors();
   const [hovered, setHovered] = useState<Hovered | null>(null);
@@ -544,7 +547,7 @@ export function TripMap({
     <div className="space-y-3">
       <div>
         <div
-          className="relative h-72 w-full overflow-hidden border sm:h-96"
+          className={cn("relative w-full overflow-hidden border", short ? "h-36 sm:h-48" : "h-72 sm:h-96")}
           role="group"
           aria-label={label ?? (route.length ? `Route from ${formatClock(route[0].t)} to ${formatClock(route.at(-1)!.t)}, ${pins.length} pins` : `${pins.length} places`)}
         >

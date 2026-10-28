@@ -94,7 +94,7 @@ export function Summary({
             { label: "Energy billed", value: formatKwh(kwh) },
             { label: "Bills", value: count },
             acPerKwh !== null && { label: "AC rate", value: `${formatMoney(acPerKwh, "INR")}/kWh`, note: "Slower charging" },
-            dcPerKwh !== null && { label: "DC rate", value: `${formatMoney(dcPerKwh, "INR")}/kWh`, note: "Fast charging" },
+            dcPerKwh !== null && { label: "DC rate", value: `${formatMoney(dcPerKwh, "INR")}/kWh` },
             charged.ac > 0 && { label: "Time on AC", value: formatDuration(charged.ac / 1000) },
             charged.dc > 0 && { label: "Time on DC", value: formatDuration(charged.dc / 1000) },
           ]}

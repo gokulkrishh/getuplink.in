@@ -99,7 +99,7 @@ export function ChargingSkeleton() {
           tiles={[
             { label: "Energy billed", value: "39.8 kWh" },
             { label: "Bills", value: "2" },
-            { label: "DC rate", value: "₹24.00/kWh", note: "Fast charging" },
+            { label: "DC rate", value: "₹24.00/kWh" },
             { label: "Time on AC", value: "2 h 36 min" },
             { label: "Time on DC", value: "15 min" },
           ]}
@@ -113,11 +113,6 @@ export function ChargingSkeleton() {
           <SkChartCaptioned caption="Wed to Tue" />
         </SkSection>
         <SkLine>AC charging efficiency 92%</SkLine>
-      </SkSection>
-      <SkSection>
-        <SkHead title="Where you charge" description="The stations you charged at most." gap={2} />
-        <SkTable head={["#", "Station", "Charges", "Energy", "Spent"]} rows={CHARGING_PREVIEW} name="Supercharger, Bengaluru-Mysuru" />
-        <SkShowMore />
       </SkSection>
       <SkSection gap={6}>
         <SkHead title="Charging sessions" description="9 sessions · 39.8 kWh" />
@@ -212,11 +207,11 @@ export function ChargingSkeleton() {
   );
 }
 
-// The map and the line under it, as TripMap draws them (a 384px map, a legend, 12px apart).
+// The map and the line under it, as TripMap draws them (a 192px map, a legend, 12px apart).
 function SkMap({ legend }: { legend: string }) {
   return (
     <div className="space-y-3" aria-hidden="true">
-      <div className="h-96 bg-muted motion-safe:animate-pulse max-sm:h-[342px]" />
+      <div className="h-48 bg-muted motion-safe:animate-pulse max-sm:h-36" />
       <p className="text-xs">
         <Ph>{legend}</Ph>
       </p>

@@ -10,12 +10,10 @@ import { istDay, istDayStart } from "@/lib/telemetry-derive";
 import { ChargeHabits } from "@/components/stats/charge-habits";
 import { ChargeRange } from "@/components/stats/charge-range";
 import { ChargingMap, DcCurves } from "@/components/stats/charging-extras";
-import { TopStations } from "@/components/stats/top-stations";
-import { paged } from "@/lib/list";
-import { moreCharges, moreStations } from "./actions";
+import { moreCharges } from "./actions";
 import { CURVES, heldFrom, loadChargingExtras, PINNED } from "@/lib/server/charging-extra";
-import { type ChargingLists, listCharges, loadChargingLists, startedIn, stationsIn, withGoogleNames } from "@/lib/server/charging-lists";
-import { CHARGING_PREVIEW, EnergyAdded, PaidFor, SessionList, Summary } from "@/components/stats/charging-sections";
+import { type ChargingLists, listCharges, loadChargingLists, startedIn, withGoogleNames } from "@/lib/server/charging-lists";
+import { EnergyAdded, PaidFor, SessionList, Summary } from "@/components/stats/charging-sections";
 import { eachFrame } from "@/components/home/frames";
 import { customScope } from "@/components/stats/periods";
 import { ChargingSkeleton } from "@/components/stats/skeletons";
@@ -95,7 +93,6 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
     const serial = serials(listed.filter(startedIn(span)), (l) => l.key);
     return new Map(listed.flatMap((l) => (l.stream && serial.has(l.key) ? [[l.stream.id, serial.get(l.key) ?? 0] as const] : [])));
   };
-  const stations = (span: Span) => stationsIn(span, { sessions, streamSessions, invoices, extras }, streamOnly);
   const starts = (span: Span) => [...sessions, ...streamOnly].filter(startedIn(span)).map((s) => Date.parse(s.started_at));
   // The curves and pins are of the latest charges only (the range's own, for a range): each frame draws
   // those in its span, and says how far back they go when its span starts earlier.
@@ -130,10 +127,6 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
             })}
           {streamSessions.length > 0 &&
             eachFrame(frames, (f) => <EnergyAdded sessions={sessions} streamOnly={streamOnly} frame={fromSince(f, chargingSince, now).frame} chargingSince={chargingSince} />)}
-          {stations({ from: -Infinity, to: Infinity }).length > 0 &&
-            eachFrame(frames, ({ key, frame }) => (
-              <TopStations list={paged(stations(frame.span), CHARGING_PREVIEW)} load={moreStations.bind(null, { period: key, query })} />
-            ))}
           {eachFrame(frames, ({ key, frame }) => {
             const shown = listed.filter(startedIn(frame.span));
             return shown.length > 0 ? (

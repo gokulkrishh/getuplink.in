@@ -2,7 +2,7 @@
 
 import { ChartCard } from "@/components/chart-card";
 import { DcCurvePlot } from "@/components/stats/dc-curve-plot";
-import { type MapPin, TripMap } from "@/components/stats/trip-map";
+import { type MapPin, metres, NEAR_M, TripMap } from "@/components/stats/trip-map";
 import { formatKw, formatShortDate } from "@/lib/format";
 import type { Timeframe } from "@/lib/periods";
 import type { Curve } from "@/lib/server/charging-extra";
@@ -87,6 +87,8 @@ export function DcCurves({ curves, frame, note }: { curves: (Curve & { serial?: 
 // Where you charged in the span, each pin sized by the energy added. `note` says how far back the pins go,
 // when only the latest charges are pinned.
 export function ChargingMap({ pins, frame, note }: { pins: MapPin[]; frame: Timeframe; note: string | null }) {
+  // Every pin at one place (as the map groups them) is a map of one dot: the section isn't shown.
+  if (pins.length > 0 && pins.every((p) => metres(p, pins[0]) < NEAR_M)) return null;
   return (
     <section className="space-y-4">
       <div className="space-y-2">
@@ -95,7 +97,7 @@ export function ChargingMap({ pins, frame, note }: { pins: MapPin[]; frame: Time
         {pins.length > 0 && <p className="text-sm text-muted-foreground">Where you charged. Bigger pins added more energy.</p>}
       </div>
       {pins.length > 0 ? (
-        <TripMap pins={pins} label={`${pins.length} charges on a map`} legend="A charge. Bigger pins added more energy." />
+        <TripMap short pins={pins} label={`${pins.length} charges on a map`} legend="A charge. Bigger pins added more energy." />
       ) : (
         <p className="text-sm text-muted-foreground">No charges with a location.</p>
       )}

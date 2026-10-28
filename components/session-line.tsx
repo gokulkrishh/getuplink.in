@@ -20,6 +20,8 @@ export type SessionView = {
   place: string;
   // The place is a Google Maps name: credited beside it.
   google?: boolean;
+  // The station used most in this list: marked "Most used".
+  mostUsed?: boolean;
   detail: string;
   energy: string | null;
   // Only lists with a Cost column have this; null for a row without a cost.
@@ -48,6 +50,12 @@ export function SessionLine({ view }: { view: SessionView }) {
           </span>
           {view.google && <GoogleMapsCredit className="shrink-0" />}
         </p>
+        {view.mostUsed && (
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="size-1.5 rounded-full bg-charge" aria-hidden="true" />
+            Most used
+          </p>
+        )}
         {/* Wraps rather than cuts off: the kind, levels, time and power are all worth reading. */}
         <p className="text-xs text-muted-foreground">{view.detail}</p>
       </div>

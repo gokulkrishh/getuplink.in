@@ -55,6 +55,31 @@ export function stationsIn(span: Span, { sessions, invoices, extras }: ChargingL
   ]);
 }
 
+// The station a charge counts for, named as stationsIn names it; null for a charge at no named station
+// or one still going.
+function stationOf(item: Listed): string | null {
+  if (item.tesla) return item.tesla.site_name || null;
+  const s = item.stream;
+  if (!s || s.ended_at === null) return null;
+  return (item.spot?.name?.source === "tag" ? item.spot.name.text : null) ?? streamName(s, item.invoice)?.text ?? null;
+}
+
+// The station used most in these charges: most charges, then most energy. Null unless there are two or
+// more stations, as one station being the most used says nothing.
+function mostUsedStation(items: Listed[]): string | null {
+  const tally = new Map<string, { charges: number; kwh: number }>();
+  for (const item of items) {
+    const name = stationOf(item);
+    if (!name) continue;
+    const t = tally.get(name) ?? { charges: 0, kwh: 0 };
+    t.charges++;
+    t.kwh += (item.tesla ? item.tesla.energy_kwh : item.stream?.energy_added_kwh) ?? 0;
+    tally.set(name, t);
+  }
+  if (tally.size < 2) return null;
+  return [...tally].sort(([, a], [, b]) => b.charges - a.charges || b.kwh - a.kwh)[0][0];
+}
+
 // What a month of charges was billed: Tesla's bills and the invoices attached, as in Summary.
 function billed(rows: Listed[]) {
   const costs = rows.flatMap((r) => (r.tesla ? (r.tesla.cost_total === null ? [] : [r.tesla.cost_total]) : r.invoice ? [r.invoice.amount] : []));
@@ -66,13 +91,15 @@ function billed(rows: Listed[]) {
 export function chargeRows(inPeriod: Listed[]): { rows: ChargeRow[]; months: MonthTotal[]; costs: boolean } {
   const serial = serials(inPeriod, (s) => s.key);
   const costs = hasCosts(inPeriod);
+  // Over the whole period, not the page of rows sent first, so rows fetched later are marked too.
+  const mostUsed = mostUsedStation(inPeriod);
   const byMonth = new Map<string, Listed[]>();
   for (const s of inPeriod) {
     const month = formatMonth(s.started_at);
     byMonth.set(month, [...(byMonth.get(month) ?? []), s]);
   }
   return {
-    rows: inPeriod.map((s) => ({ key: s.key, month: formatMonth(s.started_at), view: sessionView(s, serial.get(s.key) ?? 0, undefined, costs) })),
+    rows: inPeriod.map((s) => ({ key: s.key, month: formatMonth(s.started_at), view: { ...sessionView(s, serial.get(s.key) ?? 0, undefined, costs), mostUsed: mostUsed !== null && stationOf(s) === mostUsed } })),
     months: [...byMonth].map(([month, rows]) => ({ month, count: rows.length, billed: billed(rows) })),
     costs,
   };
