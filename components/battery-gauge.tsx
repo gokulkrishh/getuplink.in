@@ -1,15 +1,24 @@
 import { Zap } from "lucide-react";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { SentryMark } from "@/components/sentry-mark";
-import { formatDuration, formatKw, formatRangeKm, formatTimeToFull } from "@/lib/format";
+import { formatClock, formatDayLabel, formatKw, formatRangeKm, formatTimeToFull } from "@/lib/format";
 import type { Snapshot } from "@/lib/server/dashboard";
 import { cn } from "@/lib/utils";
 
-// What the car is doing, in one line under the level. Charging: the power and the limit, then how long is
-// left ("Charging at 7.2 kW to 80% · Full in 1 h 18 min"). Otherwise what was seen: how long it has been
-// parked (`parked`, from the readings; "≥" when it was parked before the first one) and the limit set.
-// Nothing is guessed: a car that isn't charging isn't called parked unless the readings say so.
-export function batteryState(snapshot: Snapshot, parked: { hours: number; fromFirstReading: boolean } | null): string | null {
+type Parked = { start: number; fromFirstReading: boolean };
+
+// When the car parked: "7:15 PM" today, "yesterday, 7:15 PM", or "26 Oct, 7:15 PM" (IST).
+function parkedAt(start: number, now: number): string {
+  const day = formatDayLabel(start, now);
+  return day === "Today" ? formatClock(start) : `${day === "Yesterday" ? "yesterday" : day}, ${formatClock(start)}`;
+}
+
+// What the car is doing, under the meter. Charging: the power and the limit, then how long is left, in two
+// parts the gauge sets on two lines ("Charging at 7.2 kW to 80% · Full in 1 h 18 min"). Otherwise what was
+// seen: when it parked (`parked`, from the readings; "since before" when it was parked before the first
+// one). The limit otherwise stands at the meter's end. Nothing is guessed: a car that isn't charging isn't
+// called parked unless the readings say so.
+export function batteryState(snapshot: Snapshot, parked: Parked | null, now: number): string | null {
   const level = snapshot.battery_level ?? 0;
   const limit = snapshot.charge_limit;
   const charging = snapshot.charging_state === "Charging";
@@ -20,20 +29,20 @@ export function batteryState(snapshot: Snapshot, parked: { hours: number; fromFi
     const line = power !== null ? `Charging at ${formatKw(power)}${level < target ? ` to ${target}%` : ""}` : `Charging to ${target}%`;
     return toFull !== null ? `${line} · ${formatTimeToFull(toFull)}` : line;
   }
-  const parts = [parked && `Parked ${parked.fromFirstReading ? "≥ " : ""}${formatDuration(parked.hours * 3600)}`, limit != null && `Limit ${limit}%`];
-  const line = parts.filter(Boolean).join(" · ");
-  return line || null;
+  return parked && `Parked since ${parked.fromFirstReading ? "before " : ""}${parkedAt(parked.start, now)}`;
 }
 
 // The level and range as the biggest thing on the page, the meter under them, and the state line last.
 // `align="end"` lines it up on the right from sm up (Home's car row); it stays left on a phone.
 // `sentry` marks Sentry Mode watching, on the state line.
-export function BatteryGauge({ snapshot, parked = null, align = "start", sentry = false }: { snapshot: Snapshot; parked?: { hours: number; fromFirstReading: boolean } | null; align?: "start" | "end"; sentry?: boolean }) {
+export function BatteryGauge({ snapshot, parked = null, now, align = "start", sentry = false }: { snapshot: Snapshot; parked?: Parked | null; now: number; align?: "start" | "end"; sentry?: boolean }) {
   const end = align === "end";
   const level = Math.min(100, Math.max(0, snapshot.battery_level ?? 0));
   const limit = snapshot.charge_limit != null ? Math.min(100, Math.max(0, snapshot.charge_limit)) : null;
   const charging = snapshot.charging_state === "Charging";
-  const state = batteryState(snapshot, parked);
+  const state = batteryState(snapshot, parked, now);
+  // Sentry Mode's mark leads the parked line. A charge's line has the bolt instead.
+  const watching = sentry && !charging;
   // Three rows of one text line each (the level, the meter, the state), so on Home they line up with the
   // name, version and sync lines beside them. The level is one step larger than the text around it.
   return (
@@ -43,36 +52,50 @@ export function BatteryGauge({ snapshot, parked = null, align = "start", sentry 
       <p className={cn("flex h-5 items-baseline gap-x-2 leading-5", end && "sm:justify-end")}>
         <span className="font-mono text-base font-medium tabular-nums">{level}%</span>
         {snapshot.battery_range_km != null && (
-          // Tesla's estimate, so "about".
-          <span className="text-sm text-muted-foreground tabular-nums">about {formatRangeKm(snapshot.battery_range_km)}</span>
+          // Tesla's estimate, so "≈".
+          <span className="text-sm text-muted-foreground tabular-nums">≈ {formatRangeKm(snapshot.battery_range_km)}</span>
         )}
       </p>
-      <div className="flex h-5 items-center">
+      <div className="flex h-5 items-center gap-2">
         <div
           role="meter"
           aria-valuenow={level}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-label={`Battery ${level}%${limit != null ? `, limit ${limit}%` : ""}`}
-          className="relative h-0.5 w-full max-w-60 bg-border"
+          className="relative h-0.5 w-full max-w-60 min-w-0 flex-1 bg-border"
         >
-          <div className="relative h-full overflow-hidden bg-foreground" style={{ width: `${level}%` }}>
+          <div className={cn("relative h-full overflow-hidden", charging ? "bg-charge" : "bg-foreground")} style={{ width: `${level}%` }}>
             {charging && (
-              <span className="absolute inset-y-0 -left-1/2 w-1/2 bg-linear-to-r from-transparent via-background/50 to-transparent motion-safe:animate-shimmer" />
+              <span className="absolute inset-y-0 -left-1/2 w-1/2 bg-linear-to-r from-transparent via-background/80 to-transparent motion-safe:animate-shimmer" />
             )}
           </div>
           {limit != null && (
             <span aria-hidden="true" className="absolute -top-1 h-2.5 w-px bg-muted-foreground" style={{ left: `${limit}%` }} />
           )}
         </div>
+        {/* The limit by the meter's end, where its tick is. Charging says it in words instead. */}
+        {limit != null && !charging && <span className="shrink-0 text-xs leading-none text-faint tabular-nums">Limit {limit}%</span>}
       </div>
-      {state && (
+      {(state || watching) && (
         // Inline, not a flex row: a wrapping line in a right-aligned flex row leaves the bolt on the
         // left and the words on the right. Filled, the bolt stays one shape at this size.
         <p className={cn("text-sm tabular-nums", charging ? "text-charge" : "text-faint", end && "sm:text-right")}>
           {charging && <Zap className="mr-1.5 inline-block size-3.5 fill-current align-[-0.15em]" aria-hidden="true" />}
-          {state}
-          {!charging && sentry && parked && <SentryMark align={end ? "end" : "start"} className="ml-1.5" />}
+          {/* Each part on its own line: what the car is doing first (green while charging), then the time
+              left, quiet. Sentry Mode's mark leads the first, centred on it. */}
+          {watching ? (
+            <span className="inline-flex items-center gap-1.5">
+              <SentryMark align={end ? "end" : "start"} />
+              {state ?? "Sentry Mode on"}
+            </span>
+          ) : (
+            state?.split(" · ").map((part, k) => (
+              <span key={part} className={cn(k > 0 && "block text-faint")}>
+                {part}
+              </span>
+            ))
+          )}
         </p>
       )}
     </div>

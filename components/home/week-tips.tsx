@@ -25,7 +25,7 @@ const CONTROL =
 // Text the AI wrote, in one box style wherever it stands alone: the tips on Home, a drive, Stats > Charging
 // and a charge (lib/ai-tips.ts), and a drive's summary (lib/drive-wording.ts). Several notes show one at a
 // time; the next button turns them, and they were written ahead, so turning costs nothing. With `vote`, each
-// note can be marked useful or not. Useful stays lit and can be taken back. Not useful takes the note out of
+// note can be marked useful or not. Useful stays, with no Undo. Not useful takes the note out of
 // the box: while another is written in its place the box says so, with Undo, then shows the new one.
 export function AiNotes({ title, notes: given, vote }: { title: string; notes: (Pick<Tip, "text"> & Partial<Pick<Tip, "kind">>)[]; vote?: NoteVotes }) {
   const [at, setAt] = useState(0);
@@ -139,7 +139,7 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
     <div>
       {box}
       <div className={cn("flex h-8 items-center justify-end", !votes[tip] && !replacing && "-mr-1")}>
-        {/* Before a vote: the question and both thumbs. After: what was chosen, and Undo to take it back. While a
+        {/* Before a vote: the question and both thumbs. After a useful vote: just that. While a
             note voted not useful is replaced, Undo brings it back. */}
         {replacing ? (
           <span className="flex items-center gap-2 text-xs text-muted-foreground motion-safe:animate-vote-in" aria-live="polite">
@@ -153,9 +153,6 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
           (votes[tip] ? (
             <span className={cn("flex items-center gap-2 text-xs text-muted-foreground", justVoted === tip && "motion-safe:animate-vote-in")} aria-live="polite">
               You found this useful
-              <button type="button" onClick={() => cast(votes[tip])} className="tap-target rounded-sm underline decoration-dotted underline-offset-4 transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
-                Undo
-              </button>
             </span>
           ) : (
             <>

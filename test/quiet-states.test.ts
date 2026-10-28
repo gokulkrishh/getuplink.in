@@ -56,18 +56,21 @@ describe("flatLevelNote", () => {
   });
 });
 
+const NOW = Date.UTC(2026, 9, 28, 12, 0);
+
 describe("batteryState", () => {
   test("charging says the power, the limit and the time left on one line", () => {
-    expect(batteryState(snapshot({ charging_state: "Charging", charge_power_kw: 7.2, time_to_full_h: 1.3 }), null)).toBe("Charging at 7.2 kW to 80% · Full in 1 h 18 min");
+    expect(batteryState(snapshot({ charging_state: "Charging", charge_power_kw: 7.2, time_to_full_h: 1.3 }), null, NOW)).toBe("Charging at 7.2 kW to 80% · Full in 1 h 18 min");
   });
   test("charging without streamed power says only the limit", () => {
-    expect(batteryState(snapshot({ charging_state: "Charging" }), null)).toBe("Charging to 80%");
+    expect(batteryState(snapshot({ charging_state: "Charging" }), null, NOW)).toBe("Charging to 80%");
   });
-  test("not charging says how long it has been parked, only when the readings say so, and the limit", () => {
-    expect(batteryState(snapshot({}), { hours: 11.9, fromFirstReading: false })).toBe("Parked 11 h 54 min · Limit 80%");
-    expect(batteryState(snapshot({}), { hours: 2, fromFirstReading: true })).toBe("Parked ≥ 2 h · Limit 80%");
-    expect(batteryState(snapshot({}), null)).toBe("Limit 80%");
-    expect(batteryState(snapshot({ charge_limit: null }), null)).toBeNull();
+  test("not charging says when it parked, only when the readings say so", () => {
+    // NOW is 28 Oct 2026, 5:30 PM IST.
+    expect(batteryState(snapshot({}), { start: NOW - 2 * 3_600_000, fromFirstReading: false }, NOW)).toBe("Parked since 3:30 PM");
+    expect(batteryState(snapshot({}), { start: NOW - 22 * 3_600_000, fromFirstReading: false }, NOW)).toBe("Parked since yesterday, 7:30 PM");
+    expect(batteryState(snapshot({}), { start: NOW - 3 * 86_400_000, fromFirstReading: true }, NOW)).toBe("Parked since before 25 Oct, 5:30 PM");
+    expect(batteryState(snapshot({}), null, NOW)).toBeNull();
   });
 });
 

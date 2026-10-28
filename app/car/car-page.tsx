@@ -204,9 +204,10 @@ function nowFigures(state: Omit<CarState, "flags">, now: CarNow | null, shut: st
         : undefined;
     figures.push({ label: "Charge", value: formatPercent(s.battery_level), note: charging ? <span className="text-charge">{note}</span> : note });
   }
-  // Tesla's figure is an estimate on a test cycle, so it says so; the owner's own driving gives another.
+  // Tesla's figure is an estimate on a test cycle; the owner's own driving gives another, kept to one line.
   if (s?.battery_range_km != null)
-    figures.push({ label: "Range", value: formatRangeKm(s.battery_range_km), note: ownKm !== null ? `Tesla's estimate. At your driving, about ${formatRangeKm(ownKm)}.` : "Tesla's estimate." });
+    figures.push({ label: "Range", value: formatRangeKm(s.battery_range_km), note: ownKm !== null ? `≈ ${formatRangeKm(ownKm)} at your driving` : "Tesla's estimate" });
+  const rows = new Map(now?.rows ?? []);
   let shutShown = false;
   for (const [label, value] of now?.rows ?? []) {
     if (SHUT_ROWS.has(label)) {
@@ -214,13 +215,54 @@ function nowFigures(state: Omit<CarState, "flags">, now: CarNow | null, shut: st
       shutShown = true;
       continue;
     }
-    if (label === "Sentry Mode" && state.sentry) {
-      figures.push({ label, value: <Words><SentryMark className="mr-1.5" />{value}</Words> });
+    // On or off, as the car's own switch says. The car's states (Armed, Aware, Idle) are all on.
+    if (label === "Sentry Mode") {
+      const on = value === "Off" ? "Off" : "On";
+      figures.push({
+        label,
+        value: state.sentry ? (
+          <Words>
+            <span className="inline-flex items-center gap-2">
+              <SentryMark />
+              {on}
+            </span>
+          </Words>
+        ) : (
+          <Words>{on}</Words>
+        ),
+      });
       continue;
     }
+    // Inside and outside in one tile, inside first: the cabin is what the owner steps into.
+    if (label === "Inside") {
+      const outside = rows.get("Outside");
+      figures.push({ label: "Temperature inside", value, note: outside ? `Outside ${outside}` : undefined });
+      continue;
+    }
+    if (label === "Outside" && rows.has("Inside")) continue;
+    // The climate, with whichever of the two modes that run it while parked is on, in one tile.
+    if (label === "Climate") {
+      const modes = [keeperWords(rows.get("Climate keeper")), overheatWords(rows.get("Cabin overheat protection"))].filter(Boolean).join(" · ");
+      figures.push({ label, value: <Words>{value}</Words>, note: modes || undefined });
+      continue;
+    }
+    if ((label === "Climate keeper" || label === "Cabin overheat protection") && rows.has("Climate")) continue;
     figures.push({ label, value: /^-?\d/.test(value) ? value : <Words>{value}</Words> });
   }
   return figures;
+}
+
+// Climate Keeper's mode when it's on, as the car names it: "Keep Climate on", "Dog Mode on", "Camp Mode on".
+function keeperWords(mode: string | undefined): string | null {
+  if (!mode || mode === "Off") return null;
+  const name = { On: "Keep Climate", Keep: "Keep Climate", Dog: "Dog Mode", Party: "Camp Mode", Camp: "Camp Mode" }[mode];
+  return `${name ?? "Climate Keeper"} on`;
+}
+
+// Cabin Overheat Protection when it's on: "Overheat protection on", "fan only" or "no AC".
+function overheatWords(mode: string | undefined): string | null {
+  if (!mode || mode === "Off") return null;
+  return `Overheat protection ${mode === "No Ac" ? "no AC" : mode.toLowerCase()}`;
 }
 
 // What's left in the pack (the level of the usable capacity) over the owner's average consumption: the
@@ -454,14 +496,11 @@ function CarSkeleton() {
         <SkFigures
           tiles={[
             { label: "Charge", value: "68%", note: "Charging at 7.2 kW" },
-            { label: "Range", value: "294 km", note: "Tesla's estimate. At your driving, about 364 km." },
+            { label: "Range", value: "294 km", note: "≈ 364 km at your driving" },
             { label: "Locks and doors", value: "Locked, charge port open", words: true },
             { label: "Sentry Mode", value: "Off", words: true },
-            { label: "Inside", value: "36.3 °C" },
-            { label: "Outside", value: "32.2 °C" },
-            { label: "Climate", value: "Off", words: true },
-            { label: "Climate keeper", value: "Off", words: true },
-            { label: "Cabin overheat protection", value: "Fan Only", words: true },
+            { label: "Temperature inside", value: "36.3 °C", note: "Outside 32.2 °C" },
+            { label: "Climate", value: "Off", words: true, note: "Overheat protection fan only" },
           ]}
         />,
       )}

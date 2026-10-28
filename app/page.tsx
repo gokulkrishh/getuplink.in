@@ -171,15 +171,16 @@ function HomeSkeleton() {
         <div className="space-y-1 sm:w-60 sm:shrink-0">
           <p className="flex h-5 items-baseline gap-x-2 leading-5 sm:justify-end">
             <span className="font-mono text-base font-medium"><span className={line}>67%</span></span>
-            <span className="text-sm"><span className={line}>about 294 km</span></span>
+            <span className="text-sm"><span className={line}>≈ 294 km</span></span>
           </p>
-          <div className="flex h-5 items-center">
-            <div className="relative h-0.5 w-full max-w-60 bg-border">
+          <div className="flex h-5 items-center gap-2">
+            <div className="relative h-0.5 w-full max-w-60 min-w-0 flex-1 bg-border">
               <div className="h-full w-2/3 bg-muted-foreground/30 motion-safe:animate-pulse" />
               <span className="absolute -top-1 h-2.5 w-px bg-muted-foreground/40" style={{ left: "80%" }} />
             </div>
+            <span className="shrink-0 text-xs leading-none"><span className={line}>Limit 80%</span></span>
           </div>
-          <p className="flex items-center gap-1.5 text-sm sm:justify-end"><span className={line}>Parked 2 h 10 min · Limit 80%</span></p>
+          <p className="flex items-center gap-1.5 text-sm sm:justify-end"><span className={line}>Parked since 3:30 PM</span></p>
         </div>
       </div>
       <div className="space-y-6" aria-hidden="true">

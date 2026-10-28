@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "bun test",
-    "demo": "UPLINK_DEMO=1 bun dev"
+    "demo": "UPLINK_DEMO=1 bun dev",
+    "demo:start": "bash .claude/skills/verify-uplink/scripts/launch.sh && open -a Aside http://localhost:3210",
+    "demo:stop": "bash .claude/skills/verify-uplink/scripts/cleanup.sh 3210"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
