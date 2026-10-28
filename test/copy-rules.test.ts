@@ -42,7 +42,7 @@ function propText(source: string): string[] {
 }
 
 // Owner-facing sentences kept in lib/ (errors, notes, status lines): every quoted string of two or more words.
-const OWNER_LIB = ["lib/login-errors.ts", "lib/run-error.ts", "lib/status.ts", "lib/unit-words.ts", "lib/drive-verdict.ts", "lib/car-now.ts", "lib/periods.ts", "lib/seasons.ts", "lib/charge-level.ts", "lib/last-synced.ts", "lib/car-notices.ts", "lib/site.ts"];
+const OWNER_LIB = ["lib/login-errors.ts", "lib/run-error.ts", "lib/status.ts", "lib/unit-words.ts", "lib/drive-verdict.ts", "lib/car-now.ts", "lib/periods.ts", "lib/seasons.ts", "lib/charge-level.ts", "lib/last-synced.ts", "lib/car-notices.ts", "lib/site.ts", "lib/owners.ts"];
 function libText(source: string): string[] {
   return source
     .split("\n")

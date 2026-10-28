@@ -34,6 +34,7 @@ export const OWNER_TABLES = [
   "drive_wording",
   "feedback",
   "tip_votes",
+  "fleet_car_days",
 ] as const;
 export type OwnerTable = (typeof OWNER_TABLES)[number];
 

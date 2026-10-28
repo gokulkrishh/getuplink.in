@@ -259,6 +259,7 @@ A January 2026 MeitY proposal to cut the 18 months to 12 was aimed at Significan
 | --- | --- | --- |
 | Itemised notice of the data | s. 5(1)(i); r. 3(b)(i) | Privacy: What Uplink stores, Signing in. |
 | Purpose | s. 5(1)(i); r. 3(b)(ii) | Privacy: Why, How data arrives. |
+| New purpose: Owners totals (other owners who share see totals across at least 5 cars) | s. 6(1), s. 6(4); Tesla 9.3.7 | Opt-in consent of its own, separate from sign-in: off by default, turned on only by the owner's "Share my car's figures" (/owners) or the Settings switch (`users.share_with_owners`, `shared_since` as the record). Withdrawn as easily: the same switch, which deletes the day rows at once and republishes the totals. Delete my data turns it off. Privacy: What Uplink stores, Why, Who else gets it, How long we keep it. |
 | Withdraw as easily as consent was given | s. 5(1)(ii), s. 6(4); r. 3(c)(i) | Privacy: Withdrawing consent. Leaving the waitlist is by email (Recommended: a button on `/waitlist`). |
 | Rights and complaints to the Board | s. 5(1)(ii), (iii); r. 3(c) | Privacy: Your rights. Board link pending (#16). |
 | Notice to people who consented before | s. 5(2) | Recommended (#4). |

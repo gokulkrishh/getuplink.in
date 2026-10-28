@@ -17,6 +17,7 @@ Uplink reads the owner's car through Tesla's official Fleet API, read access onl
 - Charging sessions, Supercharger spend from Tesla's bills, and invoices for other networks
 - Drives and trips, with distance, energy, speeds and where the car went
 - Battery level, usable capacity, range at 100%, parked drain and temperatures
+- How the car compares with other owners who share their figures, as totals across at least 5 cars
 
 Times are IST, energy is in kWh, distance in km and money in ₹. A figure Uplink doesn't know is null, not a guess.
 
@@ -54,6 +55,7 @@ All tools but one only read. Times without an offset are read as IST, for exampl
 | \`get_driving_insights\` | Last 30 days: share of time at each speed, km per kWh by outside temperature and by speed, and the places the car parks with visits and hours parked. | none |
 | \`get_monthly_summary\` | Month by month: km driven, time driving, kWh used, charges, kWh added and spend from real bills, with how many charges had no bill. | none |
 | \`get_battery_status\` | Charge level, usable capacity and range at 100% against the best week, Tesla's own full-pack figure with when it was reported, AC and DC charging efficiency, parked drain, temperatures and the cell voltage gap. | none |
+| \`get_owner_comparisons\` | How the owner's car compares with other Uplink owners over the last 30 days: energy use, charge lost parked, charge limit, plug-in level, charging, driving, comfort, Sentry Mode, settings and updates, each across at least 5 cars, with the owner's own figure and where it sits. Also Uplink's cars per Indian state (Uplink cars only, not all Teslas in India). Only for owners who share their figures. Otherwise it says to turn on Share with other owners in Settings. | none |
 | \`get_car_now\` | The car's state from its latest readings: locked, Sentry Mode, doors, windows, charge port, climate, temperatures, and each tyre's pressure in psi with when it was measured and which tyre is low. | none |
 | \`attach_charge_invoice\` | The one write. Saves a charging invoice from any network but Tesla Superchargers to the session it was for. | see below |
 

@@ -1,12 +1,12 @@
 import { TabLinks } from "@/components/segmented";
 
-type CarView = "car" | "updates";
+type CarView = "car" | "updates" | "owners";
 
 // One line for the whole Car section, naming what its tabs do for the owner.
-const DESCRIPTION = "How your car is doing, and what's new in its software.";
+const DESCRIPTION = "How your car is doing, what's new in its software, and how it compares with other owners.";
 
-// The Car section's heading, line and tabs: the owner's own car, and its software (with the India rollout
-// under it). The same shape as Stats' (StatsPage).
+// The Car section's heading, line and tabs: the owner's own car, its software (with the India rollout under
+// it), and how it compares with other owners' cars. The same shape as Stats' (StatsPage).
 export function CarTabs({ value }: { value: CarView }) {
   return (
     <>
@@ -19,6 +19,7 @@ export function CarTabs({ value }: { value: CarView }) {
           options={[
             { value: "car", label: "My Car", href: "/car" },
             { value: "updates", label: "Updates", href: "/updates" },
+            { value: "owners", label: "Owners", href: "/owners" },
           ]}
           value={value}
         />

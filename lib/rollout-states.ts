@@ -24,3 +24,20 @@ export function buildStateRollout(cars: StateCar[], versions: string[]): Version
     return { version, groups };
   });
 }
+
+// Cars per home state across every version, for an owner's AI (get_owner_comparisons). A state with fewer
+// than `min` cars joins `otherStates`, so a count never points at a car or two.
+export type StateTotals = { states: StateGroup[]; otherStates: number; notKnown: number; total: number };
+
+export function stateTotals(cars: Pick<StateCar, "state">[], min: number): StateTotals {
+  const counts = new Map<StateCode, number>();
+  let notKnown = 0;
+  for (const car of cars) {
+    if (!car.state) notKnown++;
+    else counts.set(car.state, (counts.get(car.state) ?? 0) + 1);
+  }
+  const all = [...counts].map(([code, n]) => ({ code, name: STATES[code].name, cars: n }));
+  const states = all.filter((s) => s.cars >= min).sort((a, b) => b.cars - a.cars || a.name.localeCompare(b.name));
+  const otherStates = all.filter((s) => s.cars < min).reduce((a, s) => a + s.cars, 0);
+  return { states, otherStates, notKnown, total: cars.length };
+}

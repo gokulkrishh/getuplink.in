@@ -106,7 +106,7 @@ export function odometerKm(...readings: ({ miles: unknown; at: string } | null |
   return newest ? newest.miles * MILES_TO_KM : null;
 }
 
-const PSI_PER_BAR = 14.5038;
+export const PSI_PER_BAR = 14.5038;
 // Tesla sends tyre pressures in bar (the streamed TpmsPressure* fields and vehicle_state's recommended
 // tpms_rcp_*_value); Uplink shows them in whole psi: 2.9 bar -> "42 psi".
 export const psi = (bar: number) => `${Math.round(bar * PSI_PER_BAR)} psi`;

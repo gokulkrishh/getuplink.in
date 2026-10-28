@@ -1,6 +1,7 @@
 import "server-only";
 import { ownedRows } from "./owned";
 import { type Owner, ownerDb, type OwnerTable } from "./owner";
+import { setSharingFlag } from "./owners";
 import { forgetUnseenReadings, untrackedCars } from "./system";
 import { foldSignalDays, forgetAnswers, MissingSchema } from "./usage";
 
@@ -42,6 +43,8 @@ export async function eraseOwnerRows(owner: Owner): Promise<void> {
   const token = await scope.from("connector_token").delete();
   if (token.error && !MISSING_TABLE.includes(token.error.code)) throw new Error(`Revoking the connector token failed: ${token.error.message}`);
 
+  // The Owners page's day rows, before the cars they point at; optional, since the table may not exist yet.
+  await deleteRest(owner, "fleet_car_days", true);
   await deleteIn(owner, "vehicles", "id", keys.vehicleIds);
   await deleteRest(owner, "charging_sessions", true);
   await deleteRest(owner, "stream_charge_sessions", true);
@@ -61,6 +64,11 @@ export async function eraseOwnerRows(owner: Owner): Promise<void> {
   // effort: a count is never worth failing a deletion.
   await untrackedCars(vins).then(foldSignalDays).catch((err: Error) => {
     if (!(err instanceof MissingSchema)) console.warn("Clearing the signal counts' VINs failed:", err.message);
+  });
+  // Sharing with other owners is consent given for these cars: it ends with them. Before the migration
+  // there is nothing to turn off.
+  await setSharingFlag(owner, false, new Date().toISOString()).catch((err: Error) => {
+    if (!(err instanceof MissingSchema)) throw err;
   });
   // The health check's stored Tesla answers about these cars.
   await forgetAnswers(owner).catch((err: Error) => {

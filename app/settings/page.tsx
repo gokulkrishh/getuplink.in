@@ -21,6 +21,9 @@ import { DeleteAccount, DeleteMyData, DisconnectTesla, SignOutEverywhere } from 
 import { BotTemplate, McpConnector } from "./integrations";
 import { Loading, Ph } from "@/components/skeleton";
 import { Row } from "./row";
+import { ShareSwitch } from "@/components/owners/share-controls";
+import { type Sharing } from "@/lib/server/data/owners";
+import { sharingState } from "@/lib/server/owners";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -41,6 +44,7 @@ async function loadSettings(): Promise<{
   home: OwnHomeState;
   connector: ConnectorTokenStatus;
   budget: BudgetState;
+  sharing: Sharing | null;
   now: number;
 }> {
   "use cache: private";
@@ -48,7 +52,7 @@ async function loadSettings(): Promise<{
   cacheLife({ stale: 60 });
   const owner = await currentOwner();
   if (!owner) redirect(SIGNED_OUT_PATH);
-  const [account, lastCheck, lastReading, home, connector, budget] = await Promise.all([
+  const [account, lastCheck, lastReading, home, connector, budget, sharing] = await Promise.all([
     accountInfo(owner),
     lastCheckAt(owner),
     lastReadingAt(owner),
@@ -61,13 +65,18 @@ async function loadSettings(): Promise<{
     connectorTokenStatus(owner).catch(() => null),
     // Never fails the page: an unreadable usage reads as the normal cadence.
     budgetState(),
+    // Never fails the page: unreadable reads as off.
+    sharingState(owner).catch((err): Sharing => {
+      console.warn("Sharing state unavailable:", (err as Error).message);
+      return { on: false, since: null };
+    }),
   ]);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
-  return { account, lastCheck, lastReading, home, connector, budget, now: Date.now() };
+  return { account, lastCheck, lastReading, home, connector, budget, sharing, now: Date.now() };
 }
 
 async function Settings() {
-  const { account, lastCheck, lastReading, home, connector, budget, now } = await loadSettings();
+  const { account, lastCheck, lastReading, home, connector, budget, sharing, now } = await loadSettings();
   // Past the Tesla budget checks slow down, then pause until the month resets (lib/server/poll.ts).
   const cadence =
     budget.level === "stopped"
@@ -115,6 +124,11 @@ async function Settings() {
       </Group>
 
       <Group title="Your data">
+        <Row
+          title={<Ph>Share with other owners</Ph>}
+          description="Adds your car to the totals on Owners, and turning it off deletes your figures."
+          control={<ShareSwitch on={sharing?.on ?? false} />}
+        />
         <DeleteMyData />
         <DeleteAccount />
       </Group>
@@ -195,6 +209,12 @@ function SettingsSkeleton() {
         )}
         {group(
           "Your data",
+          <Row
+            key="share"
+            title={<Ph>Share with other owners</Ph>}
+            description={<p>{text("Adds your car to the totals on Owners, and turning it off deletes your figures.")}</p>}
+            control={<div className="h-6 w-11 rounded-full bg-muted motion-safe:animate-pulse" aria-hidden="true" />}
+          />,
           <Row key="data" title={<Ph>Delete my data</Ph>} description={<p>{text("Deletes everything Uplink holds about your cars and disconnects Tesla.")}</p>} control={button} />,
           <Row key="acct" title={<Ph>Delete account</Ph>} description={<p>{text("Deletes all your data and your Uplink account.")}</p>} control={button} />,
         )}

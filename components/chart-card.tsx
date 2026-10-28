@@ -1,3 +1,4 @@
+import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
 import { InfoButton } from "@/components/info-button";
 import { Captioned, EmptyChart } from "@/components/stats/bars";
@@ -20,6 +21,7 @@ export function ChartCard({
   summary,
   empty,
   as: Heading = "h2",
+  fold = false,
   className,
   children,
 }: {
@@ -40,9 +42,30 @@ export function ChartCard({
   empty?: ReactNode;
   // h2 when the chart is the section; h3 under a section's own h2.
   as?: "h2" | "h3";
+  // A row in a long list (Owners): the title and line show, and a tap opens the chart under them. The ⓘ's
+  // note then sits in the opened part, since a button in the row would toggle it.
+  fold?: boolean;
   className?: string;
   children?: ReactNode;
 }) {
+  if (fold) {
+    return (
+      <details className={cn("group border-b", className)}>
+        <summary className="flex cursor-pointer list-none items-start justify-between gap-4 py-4 [&::-webkit-details-marker]:hidden">
+          <span className="min-w-0 space-y-1">
+            {title && <Heading className="text-base font-medium tracking-heading">{title}</Heading>}
+            {description && <span className="block text-sm text-muted-foreground">{description}</span>}
+          </span>
+          <ChevronDown className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-open:rotate-180" aria-hidden="true" />
+        </summary>
+        <div className="space-y-4 pb-6">
+          {info && <p className="text-sm text-faint">{info}</p>}
+          {summary}
+          {empty ? <EmptyChart>{empty}</EmptyChart> : <Captioned caption={caption}>{children}</Captioned>}
+        </div>
+      </details>
+    );
+  }
   return (
     <section className={cn("space-y-4", className)}>
       <div className="space-y-1">

@@ -73,6 +73,48 @@ export async function loadHardAccel(owner: Owner, vin: string, from: string, to:
   return { hard: rows.map((r) => ({ at: r.created_at as string, value: r.value as unknown })), since: (first.data?.created_at as string | undefined) ?? null };
 }
 
+// When the car first sent a field Uplink can still see, or null when it never has (or the read fails): a
+// car that doesn't send acceleration has unknown hard moments, not none.
+export async function firstReadingAt(owner: Owner, vin: string, field: string): Promise<number | null> {
+  if (DEMO) {
+    const first = demoReadings(field, "1970-01-01T00:00:00.000Z")[0];
+    return first ? Date.parse(first.at) : null;
+  }
+  const { data, error } = await ownerDb(owner).readings("created_at").eq("vin", vin).eq("field", field).order("created_at", { ascending: true }).limit(1).maybeSingle();
+  if (error) {
+    console.warn(`First ${field} reading unavailable:`, error.message);
+    return null;
+  }
+  return data ? Date.parse(data.created_at as string) : null;
+}
+
+// The Owners page's acceleration for one day (lib/owners-day.ts): the readings at or past `slowing` of
+// deceleration, for one-pedal driving, and those at or past HARD_MS2 of speeding up, for hard starts. A day's
+// driving is thousands of readings; the filter keeps a fraction. Null when the read fails or hits the cap.
+export async function loadSlowingAccel(owner: Owner, vin: string, slowing: number, from: string, to: string): Promise<Reading[] | null> {
+  const wanted = (v: number | null) => v !== null && (v <= -slowing || v >= HARD_MS2);
+  if (DEMO) return demoReadings(ACCEL, from, to).filter((r) => wanted(num(r.value)));
+  const rows: Reading[] = [];
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const { data, error } = await ownerDb(owner)
+      .readings("created_at, value")
+      .eq("vin", vin)
+      .eq("field", ACCEL)
+      .gte("created_at", from)
+      .lt("created_at", to)
+      .or(`value.lte.${-slowing},value.gte.${HARD_MS2}`)
+      .order("created_at", { ascending: true })
+      .range(page * PAGE, (page + 1) * PAGE - 1);
+    if (error) {
+      console.warn("Acceleration readings unavailable:", error.message);
+      return null;
+    }
+    rows.push(...(data ?? []).map((r) => ({ at: r.created_at as string, value: r.value as unknown })));
+    if ((data?.length ?? 0) < PAGE) return rows;
+  }
+  return null;
+}
+
 export const TYRE_ARRIVAL_DAYS = 14;
 
 // When each tyre's current TpmsLastSeenPressureTime* value first arrived (see firstArrival), from the last

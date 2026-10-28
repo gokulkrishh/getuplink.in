@@ -12,6 +12,7 @@ import type { Owner } from "@/lib/server/auth";
 import { verifyConnectorToken } from "@/lib/server/connector-token";
 import { batteryStatus, carNowStatus, chargingInsights, daySummary, drivingInsights, getTrip, listTrips, monthlySummary } from "@/lib/server/mcp-data";
 import { parseInvoiceTime, parseRangeEnd } from "@/lib/mcp-ranges";
+import { ownerComparisons } from "@/lib/server/owners";
 import { attachInvoice, chargingSummary, drivingSummary, listChargingSessions } from "@/lib/server/receipts";
 
 // The Uplink MCP connector, for any AI the owner connects (a Grok bot, Claude, ChatGPT). proxy.ts lets
@@ -210,6 +211,17 @@ const handlerFor = (owner: Owner) =>
         annotations: ro,
       },
       () => run(() => drivingInsights(owner)),
+    );
+    server.registerTool(
+      "get_owner_comparisons",
+      {
+        title: "Compare with other owners",
+        description:
+          "How the owner's Tesla compares with other Uplink owners in India, and how many Uplink cars are in each Indian state. Answers questions like \"is my energy use normal for my model?\", \"how full do owners charge?\", \"how many owners use Sentry Mode?\", \"when do owners plug in?\" and \"how many cars are there in Tamil Nadu?\". Figures are for the last 30 days, worked out daily at 3:30 AM India time, and are totals from owners who share their figures: each across at least 5 cars, never one car's values. Each figure names who it's for (all owners who share, owners of the same model, battery and drive, or of the same battery type) and, in the owner's own group, gives their own figure and whether it's lower than most, about the middle or higher than most. State counts are Uplink's own cars, not all Teslas in India, with states under 5 cars counted together. Works only when the owner shares: otherwise it returns no figures and says to turn on Share with other owners in Settings.",
+        inputSchema: z.object({}),
+        annotations: ro,
+      },
+      () => run(() => ownerComparisons(owner, Date.now())),
     );
   },
   { serverInfo: SERVER_INFO },

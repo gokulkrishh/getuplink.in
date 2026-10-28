@@ -46,6 +46,7 @@ const STORED = [
   "The name of the charging station each charge happened at, such as Statiq, Koramangala",
   "A log of each check of your car, and how many Tesla API calls your account made",
   "Your connector token, stored only as a hash, and when it was last used",
+  "If you share with other owners: each car's figures for each day (distance, energy, charges, climate and settings) for the Owners totals, and a key made from the VIN so a car two accounts share counts once",
   "If you joined through an invite: the last 6 characters of the invited car's VIN, the inviter's note on it, and the car's model and last 4 VIN characters once you join",
 ];
 
@@ -60,7 +61,7 @@ export default function PrivacyPage() {
     <PlainPage
       title="Privacy"
       intro="What Uplink stores about you and your car, who else gets it, and how to delete it."
-      meta="Last updated 27 October 2026"
+      meta="Last updated 28 October 2026"
       current="privacy"
     >
       <PlainSection title="Who we are">
@@ -124,7 +125,8 @@ export default function PrivacyPage() {
       <PlainSection title="Why">
         <p>
           To show your versions, update status, history, trips, charging and energy use, and which states each update has
-          reached. To answer the AI you connect, if you connect one. To keep Uplink within its Tesla budget. Nothing else.
+          reached. To answer the AI you connect, if you connect one. If you share with other owners, to add your car to
+          their totals. To keep Uplink within its Tesla budget. Nothing else.
         </p>
       </PlainSection>
 
@@ -180,6 +182,10 @@ export default function PrivacyPage() {
           <li>
             Signed-in owners see rollout totals: how many cars run each version, by state. No names or VINs.
           </li>
+          <li>
+            If you turn on sharing on Owners, other owners who share see totals across at least 5 cars, such as how far
+            owners drive. Never your car, trips or places. Turning it off removes your figures from the totals at once.
+          </li>
           <li>Authorities, only when Indian law requires it.</li>
         </ul>
         <p>
@@ -212,6 +218,7 @@ export default function PrivacyPage() {
             show it.
           </li>
           <li>Where the car was at the start of each charge is kept with that charge, for the charging map.</li>
+          <li>Daily figures you share with other owners are kept 35 days, and deleted at once when you turn sharing off.</li>
           <li>Area names, such as Koramangala, are kept by rounded spot, with nothing about who parked there.</li>
           <li>Deleted data can stay in the database host&apos;s backups until they expire.</li>
           <li>If a law makes Uplink keep something longer, it keeps only that, only as long as required.</li>
@@ -222,7 +229,8 @@ export default function PrivacyPage() {
         <ul className={PLAIN_LIST}>
           <li>
             Delete my data in Settings removes your cars, history, snapshots, live data, charges,
-            invoices, places, check logs, connector token and Tesla tokens. It stops your car sending live data to Uplink, unless
+            invoices, places, check logs, shared daily figures, connector token and Tesla tokens, and turns sharing with
+            other owners off. It stops your car sending live data to Uplink, unless
             another Uplink user tracks it. Your account id and Tesla API call counts stay, so you can sign in again.
           </li>
           <li>

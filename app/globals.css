@@ -34,6 +34,7 @@
   --tracking-heading: -0.01em;
   --leading-display: 1.05;
   --color-chart-accent: var(--chart-accent);
+  --color-chart-you: var(--chart-you);
   --color-charge: var(--charge);
   --color-map-route: var(--map-route);
   --color-chart-better: var(--chart-better);
@@ -98,6 +99,7 @@
   --chart-4: #b7b7b7;
   --chart-5: #d7d7d7;
   --chart-accent: #3f6fae;
+  --chart-you: #1f56c9; /* the owner's own mark on Owners: a deeper, brighter blue than the others' */
   --charge: #1e8449; /* charging: map pins, the bolt on them is white */
   --map-route: #1a5fd0; /* the route and place pins: brighter than the accent, so they clear the roads */
   --chart-better: #2f7d4f;
@@ -133,6 +135,7 @@
   --chart-4: #333333;
   --chart-5: #1e1e1e;
   --chart-accent: #5f93d6;
+  --chart-you: #7ab4ff;
   --charge: #2f9a5a;
   --map-route: #5eb1ff;
   --chart-better: #6bbf8a;
@@ -167,6 +170,7 @@
     --chart-4: #333333;
     --chart-5: #1e1e1e;
     --chart-accent: #5f93d6;
+    --chart-you: #7ab4ff;
     --charge: #2f9a5a;
     --map-route: #5eb1ff;
     --chart-better: #6bbf8a;
