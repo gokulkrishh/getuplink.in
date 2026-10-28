@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Sparkles, ThumbsDown, ThumbsUp } from "lucide-react";
+import { ChevronLeft, ChevronRight, Sparkles, ThumbsDown, ThumbsUp, X } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { voteTip } from "@/app/tip-actions";
 import type { Tip, TipScope } from "@/lib/ai-tips";
@@ -49,7 +49,23 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
     return () => clearTimeout(id);
   }, [justVoted]);
   const [, startTransition] = useTransition();
-  if (tips.length === 0 && !replacing) return null;
+  // Hidden by the owner for this page (this day, drive or charge), in this browser. The next page's tips,
+  // written fresh, show again. Hiding isn't a vote.
+  const hideKey = vote ? `uplink:tips-hidden:${vote.scope}:${vote.entity}` : null;
+  const [boxHidden, setBoxHidden] = useState(false);
+  useEffect(() => {
+    if (!hideKey) return;
+    try {
+      setBoxHidden(localStorage.getItem(hideKey) !== null);
+    } catch {}
+  }, [hideKey]);
+  const hide = () => {
+    setBoxHidden(true);
+    try {
+      if (hideKey) localStorage.setItem(hideKey, "1");
+    } catch {}
+  };
+  if (boxHidden || (tips.length === 0 && !replacing)) return null;
   const current = !replacing && tips.length > 0 ? tips[at % tips.length] : null;
   const tip = current?.text ?? "";
   const kind = current?.kind;
@@ -130,6 +146,11 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
                 <ChevronRight className="size-3.5" aria-hidden="true" />
               </button>
             </div>
+          )}
+          {vote && (
+            <button type="button" onClick={hide} aria-label="Hide tips" title="Hide tips" className={cn(CONTROL, "size-6 justify-center")}>
+              <X className="size-3.5" aria-hidden="true" />
+            </button>
           )}
         </div>
       </div>
