@@ -87,7 +87,7 @@ export function ShareSwitch({ on: initial }: { on: boolean }) {
           on ? "border-foreground bg-foreground" : "bg-muted",
         )}
       >
-        <span className={cn("inline-block size-4 rounded-full bg-background shadow-sm transition-transform duration-150", on ? "translate-x-6" : "translate-x-1")} />
+        <span className={cn("inline-block size-4 rounded-full bg-background shadow-sm transition-transform duration-150 motion-reduce:transition-none", on ? "translate-x-6" : "translate-x-1")} />
       </button>
       {error && (
         <p role="alert" className="text-sm text-destructive">

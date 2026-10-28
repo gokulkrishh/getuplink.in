@@ -313,7 +313,7 @@ html .maplibregl-map {
 }
 /* A Stats topic's data fades in over its skeleton (components/stats/stats-frame.tsx): "it loaded". */
 ::view-transition-old(.stats-out) {
-  animation: 120ms ease-in both stats-fade-out;
+  animation: 120ms cubic-bezier(0.23, 1, 0.32, 1) both stats-fade-out;
 }
 ::view-transition-new(.stats-in) {
   animation: 180ms ease-out both stats-fade-in;
@@ -328,12 +328,10 @@ html .maplibregl-map {
     opacity: 0;
   }
 }
+/* Reduced motion: the highlight jumps instead of sliding. The Stats fade stays, as it doesn't move. */
 @media (prefers-reduced-motion: reduce) {
-  ::view-transition-old(*),
-  ::view-transition-new(*),
-  ::view-transition-group(*) {
+  ::view-transition-group(.tab-indicator) {
     animation-duration: 0s !important;
-    animation-delay: 0s !important;
   }
 }
 

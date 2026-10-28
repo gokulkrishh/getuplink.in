@@ -120,7 +120,7 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
       type="button"
       onClick={() => cast(value)}
       aria-label={label}
-      className={cn(CONTROL, "size-6 justify-center transition-[color,scale] active:scale-90")}
+      className={cn(CONTROL, "size-6 justify-center transition-[color,scale] duration-150 ease-out active:scale-[0.97]")}
     >
       <Icon className="relative top-px size-3.5" aria-hidden="true" />
     </button>

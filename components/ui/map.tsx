@@ -731,7 +731,7 @@ function MarkerPopup({
     <div
       className={cn(
         "bg-popover text-popover-foreground relative max-w-62 rounded-md border p-3 shadow-md",
-        "animate-in fade-in-0 zoom-in-95 duration-200 ease-out",
+        "animate-in fade-in-0 motion-safe:zoom-in-95 duration-200 ease-out",
         className,
       )}
     >
@@ -804,7 +804,7 @@ function MarkerTooltip({
     <div
       className={cn(
         "bg-foreground text-background pointer-events-none rounded-md px-2 py-1 text-xs text-balance shadow-md",
-        "animate-in fade-in-0 zoom-in-95 duration-200 ease-out",
+        "animate-in fade-in-0 motion-safe:zoom-in-95 duration-200 ease-out",
         className,
       )}
     >
@@ -1154,7 +1154,7 @@ function MapPopup({
     <div
       className={cn(
         "bg-popover text-popover-foreground relative max-w-62 rounded-md border p-3 shadow-md",
-        "animate-in fade-in-0 zoom-in-95 duration-200 ease-out",
+        "animate-in fade-in-0 motion-safe:zoom-in-95 duration-200 ease-out",
         className,
       )}
     >

@@ -50,7 +50,7 @@ export function InfoButton({
         <Popover.Positioner side="bottom" align="start" sideOffset={6} collisionPadding={16} className="z-50">
           {/* Only words inside, so focus stays on the ⓘ throughout: Tab moves on (closing it, see onBlur), and
               closing never hands focus back, which would reopen it or trap Tab. */}
-          <Popover.Popup ref={popup} initialFocus={false} finalFocus={false} className="w-80 max-w-[calc(100vw-2rem)] space-y-2 border bg-popover p-3 text-sm leading-5 text-popover-foreground shadow-md outline-none">
+          <Popover.Popup ref={popup} initialFocus={false} finalFocus={false} className="w-80 max-w-[calc(100vw-2rem)] space-y-2 border bg-popover p-3 text-sm leading-5 text-popover-foreground shadow-md outline-none origin-(--transform-origin) transition-[opacity,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] data-[starting-style]:opacity-0 motion-safe:data-[starting-style]:scale-95 data-[ending-style]:opacity-0 data-[ending-style]:duration-100">
             {typeof children === "string" ? <p>{children}</p> : children}
           </Popover.Popup>
         </Popover.Positioner>

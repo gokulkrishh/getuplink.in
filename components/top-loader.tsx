@@ -83,8 +83,8 @@ export function TopLoader() {
   return (
     <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-[100] h-0.5">
       <div
-        className="h-full bg-chart-accent transition-[width,opacity] duration-300 ease-out motion-reduce:transition-none"
-        style={{ width: `${progress ?? 100}%`, opacity: progress === null ? 0 : 1 }}
+        className="h-full origin-left bg-chart-accent transition-[scale,opacity] duration-300 ease-out motion-reduce:transition-none"
+        style={{ scale: `${(progress ?? 100) / 100} 1`, opacity: progress === null ? 0 : 1 }}
       />
     </div>
   );
