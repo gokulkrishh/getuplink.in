@@ -1,4 +1,4 @@
-import { METADATA_PATHS } from "@/lib/site";
+import { HOME_URL, METADATA_PATHS } from "@/lib/site";
 import { requestHost } from "@/lib/session";
 
 // /robots.txt, per host. The home page host lets crawlers read its public pages and nothing else; the app,
@@ -35,8 +35,11 @@ Allow: /$
 Allow: /privacy
 Allow: /terms
 Allow: /agents.md
+Allow: /sitemap.xml
 ${allow(METADATA_PATHS)}
 Disallow: /
+
+Sitemap: ${HOME_URL}/sitemap.xml
 `;
 
 const PRIVATE = `${LINK_PREVIEW_BOTS.map((bot) => `User-agent: ${bot}`).join("\n")}

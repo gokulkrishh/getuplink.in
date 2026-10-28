@@ -26,13 +26,14 @@ const PUBLIC_PATHS = new Set([
   "/status", // public status page, served on status.getuplink.in via the rewrite below
   "/agents.md", // what Uplink is and how an AI connects, served on both hosts
   "/robots.txt", // per host: crawlers may read the home page host's public pages only
+  "/sitemap.xml", // the home page host's public pages, for search engines
 ]);
 
 // The bare domain serves the public home page; every other path there goes to the app.
 // Locally the same split runs on uplink.localhost (home) and app.uplink.localhost (dashboard), which can
 // share the session cookie like getuplink.in does. Plain localhost (Tesla's local redirect URI) forwards there.
 const MARKETING_HOSTS = new Set(["getuplink.in", "www.getuplink.in", "uplink.localhost", "localhost"]);
-const MARKETING_PATHS = new Set(["/home", "/privacy", "/privacy/car-data", "/terms", "/status", "/agents.md", "/robots.txt", ...METADATA_PATHS]);
+const MARKETING_PATHS = new Set(["/home", "/privacy", "/privacy/car-data", "/terms", "/status", "/agents.md", "/robots.txt", "/sitemap.xml", ...METADATA_PATHS]);
 const APP_ORIGIN = "https://app.getuplink.in";
 
 // The status page has its own host. It serves only /status, the icons and preview images; anything else goes to the home page host.

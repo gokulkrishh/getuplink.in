@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { NextRequest } from "next/server";
 import { GET as robots } from "@/app/robots.txt/route";
+import { GET as sitemap } from "@/app/sitemap.xml/route";
 import { METADATA_PATHS } from "@/lib/site";
 import { proxy } from "@/proxy";
 
@@ -58,5 +59,20 @@ describe("robots.txt", () => {
     expect(everyone).toContain("Allow: /$\n");
     expect(everyone).toContain("Allow: /home\n");
     expect(everyone).not.toContain("Allow: /invite/\n");
+  });
+});
+
+describe("sitemap.xml", () => {
+  const read = (host: string) => sitemap(new Request(`https://${host}/sitemap.xml`, { headers: { host } }));
+
+  test("the home page host lists its public pages, and robots.txt points to it", async () => {
+    const body = await (await read("getuplink.in")).text();
+    for (const url of ["https://getuplink.in/", "https://getuplink.in/privacy", "https://getuplink.in/terms"]) expect(body).toContain(`<loc>${url}</loc>`);
+    expect(body).not.toContain("app.getuplink.in");
+    expect(await robots(new Request("https://getuplink.in/robots.txt", { headers: { host: "getuplink.in" } })).text()).toContain("Sitemap: https://getuplink.in/sitemap.xml\n");
+  });
+
+  test("the other hosts have none", async () => {
+    for (const host of ["app.getuplink.in", "status.getuplink.in"]) expect((await read(host)).status).toBe(404);
   });
 });
