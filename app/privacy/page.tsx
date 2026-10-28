@@ -199,6 +199,10 @@ export default function PrivacyPage() {
           keep or train on it, and stores the text with your drive.
         </p>
         <p>
+          TypeSafe&apos;s Jev, also through OpenRouter, checks each tip&apos;s text and the figures behind it. Never your
+          location, VIN or anything that names you.
+        </p>
+        <p>
           Vercel, Supabase, Fly.io, OpenRouter and Anthropic are US companies. The receiver, and some of these services, handle data outside
           India.
         </p>

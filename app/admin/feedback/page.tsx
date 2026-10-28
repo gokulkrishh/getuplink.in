@@ -6,13 +6,14 @@ import { Suspense } from "react";
 import { AdminPage } from "@/components/admin/admin-page";
 import { Figures } from "@/components/stats/figures";
 import { botherLabel, deviceName, topicLabel } from "@/lib/feedback";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatShortDate } from "@/lib/format";
+import { BEFORE_DAYS, type JevSummary, type VoteRate } from "@/lib/jev-checks";
 import { isAdmin } from "@/lib/server/admin";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { FEEDBACK_TAG, type FeedbackView, loadFeedback, PAGE_SIZE } from "@/lib/server/feedback";
 import { cn } from "@/lib/utils";
 import type { TipScope } from "@/lib/ai-tips";
-import { loadVoteSummary } from "@/lib/server/tip-votes";
+import { JEV_DAYS, loadJevSummary, loadVoteSummary } from "@/lib/server/tip-votes";
 import { type KindSummary, kindLabel, SCOPE_LABELS } from "@/lib/tip-votes";
 import { MarkButtons } from "./mark-buttons";
 
@@ -266,6 +267,73 @@ async function TipVotes() {
   );
 }
 
+async function loadJev(): Promise<JevSummary | null> {
+  "use cache: private";
+  cacheTag(FEEDBACK_TAG);
+  cacheLife({ stale: 300 });
+  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
+  if (!(await isAdmin())) notFound();
+  return loadJevSummary();
+}
+
+const share = (r: VoteRate) => (r.votes === 0 ? "—" : `${Math.round((r.notUseful / r.votes) * 100)}%`);
+
+// Jev's second look at each new tip (lib/server/jev.ts): how many it checked and blocked, the not-useful share
+// of votes before it started against since, and the tips it blocked, newest first.
+async function JevChecks() {
+  const jev = await loadJev();
+  const since = jev?.firstAt ? formatShortDate(jev.firstAt) : null;
+  return (
+    <section className="space-y-6">
+      <div className="space-y-1">
+        <h2 className="text-lg font-medium tracking-heading">Jev checks</h2>
+        <p className="text-sm text-muted-foreground">In the last {JEV_DAYS} days, Jev read each new tip and blocked any that said something the figures don&apos;t show.</p>
+      </div>
+      {process.env.JEV_OFF?.trim() && <p className="text-sm text-chart-worse">Jev is off: JEV_OFF is set, so tips aren&apos;t checked.</p>}
+      {jev === null ? (
+        <p className="text-sm text-faint">Jev checks couldn&apos;t be read. Check that the tips and tip votes tables are there.</p>
+      ) : !since ? (
+        <p className="text-sm text-faint">Jev hasn&apos;t checked a tip yet.</p>
+      ) : (
+        <>
+          <Figures
+            figures={[
+              { label: "Tips checked", value: number.format(jev.checked) },
+              { label: "Blocked", value: number.format(jev.blocked) },
+              { label: "No answer", value: number.format(jev.unavailable), note: "Shown without a check" },
+              { label: "Not useful before Jev", value: share(jev.before), note: `${number.format(jev.before.notUseful)} of ${number.format(jev.before.votes)} votes, ${BEFORE_DAYS} days to ${since}` },
+              { label: "Not useful since", value: share(jev.since), note: `${number.format(jev.since.notUseful)} of ${number.format(jev.since.votes)} votes, from ${since}` },
+            ]}
+          />
+          <div className="space-y-3">
+            <h3 className="text-base font-medium tracking-heading">Blocked tips</h3>
+            {jev.tips.length === 0 ? (
+              <p className="text-sm text-muted-foreground">None yet.</p>
+            ) : (
+              <>
+                <ul className="divide-y border-y">
+                  {jev.tips.map((t, k) => (
+                    <li key={k} className="space-y-1 py-3 text-sm">
+                      <p className="flex flex-wrap gap-x-2 text-xs text-muted-foreground tabular-nums">
+                        <span>{SCOPE_LABELS[t.scope as TipScope] ?? t.scope}</span>
+                        <span className="text-faint">·</span>
+                        <span>{Math.round(t.p * 100)}% sure</span>
+                        <span className="ml-auto">{formatShortDate(t.at)}</span>
+                      </p>
+                      <p className="break-words">{t.text}</p>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-faint">How sure Jev was that the tip says something the figures don&apos;t show. Owners never saw these tips.</p>
+              </>
+            )}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 // Messages from the feedback button, or (?view=tips) how owners voted on the AI tips. The votes are mostly for
 // tuning the tips, so they sit behind their own switch rather than among the messages.
 async function Views({ searchParams }: Pick<PageProps<"/admin/feedback">, "searchParams">) {
@@ -281,7 +349,14 @@ async function Views({ searchParams }: Pick<PageProps<"/admin/feedback">, "searc
           Tip votes
         </Link>
       </nav>
-      {tips ? <TipVotes /> : <Feedback searchParams={searchParams} />}
+      {tips ? (
+        <>
+          <TipVotes />
+          <JevChecks />
+        </>
+      ) : (
+        <Feedback searchParams={searchParams} />
+      )}
     </>
   );
 }

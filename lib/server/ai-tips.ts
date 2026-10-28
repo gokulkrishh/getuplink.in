@@ -8,7 +8,9 @@ import { WEEK_TIPS } from "@/lib/week-wording";
 import { DEMO } from "@/lib/demo";
 import { PRICE_PER_TOKEN, WORDING_MODEL } from "@/lib/drive-wording";
 import { messageOf } from "@/lib/errors";
+import type { BlockedTip, JevVerdict } from "@/lib/jev-checks";
 import { type Owner, ownerDb } from "./data/owner";
+import { checkTipsWithJev } from "./jev";
 import { pastTipVotes } from "./tip-votes";
 
 // AI tips on every page that has them (lib/ai-tips.ts has the prompt and the checks), kept in drive_wording:
@@ -37,6 +39,8 @@ const hash = (surface: TipSurface, sent: Finding[], car: TipCar) => createHash("
 // (written again when its findings change).
 export type TipsKey = { vehicleId: string; at: number; daily: boolean };
 export type StoredTips = { tips: Tip[]; generate: boolean };
+// A tip as kept in drive_wording: with Jev's verdict once checked (null when Jev didn't answer).
+type StoredTip = Tip & { jev?: JevVerdict | null };
 
 // The stored tips for these findings. Never throws.
 export async function loadTips(owner: Owner, surface: TipSurface, key: TipsKey, sent: Finding[], car: TipCar = null): Promise<StoredTips> {
@@ -71,7 +75,8 @@ export async function loadTips(owner: Owner, surface: TipSurface, key: TipsKey, 
 
 function storedTips(wording: unknown): Tip[] {
   const tips = (wording as { tips?: unknown } | null)?.tips;
-  return Array.isArray(tips) ? tips.filter((t): t is Tip => typeof t?.kind === "string" && typeof t?.text === "string") : [];
+  // Only kind and text reach the page: Jev's verdict on a tip is for Admin.
+  return Array.isArray(tips) ? tips.filter((t): t is Tip => typeof t?.kind === "string" && typeof t?.text === "string").map((t) => ({ kind: t.kind, text: t.text })) : [];
 }
 
 const writing = new Set<string>();
@@ -85,7 +90,7 @@ export async function generateTips(owner: Owner, surface: TipSurface, key: TipsK
   writing.add(id);
   // The findings sent and the car are kept with the tips, so a tip voted down can be swapped for one from the
   // findings not shown (replaceTip) without the page's data.
-  const store = (tips: Tip[], cost: number | null) =>
+  const store = (tips: StoredTip[], cost: number | null, jev: { jevBlocked?: BlockedTip[]; jevAt?: string } = {}) =>
     ownerDb(owner)
       .from("drive_wording")
       .upsert(
@@ -94,7 +99,7 @@ export async function generateTips(owner: Owner, surface: TipSurface, key: TipsK
           drive_start: new Date(key.at).toISOString(),
           scope: surface.scope,
           facts_hash: hash(surface, sent, car),
-          wording: { tips, v: surface.version, sent, car, swaps: 0 },
+          wording: { tips, v: surface.version, sent, car, swaps: 0, ...jev },
           model: WORDING_MODEL,
           cost_usd: cost,
           created_at: new Date().toISOString(),
@@ -129,7 +134,11 @@ export async function generateTips(owner: Owner, surface: TipSurface, key: TipsK
     }
     // With no tips the claim's time is kept, so the next try waits RETRY_MS from it.
     if (tips.length === 0) return;
-    const { error } = await store(tips, cost);
+    // Jev checks each tip that passed. A tip it blocks isn't stored, and is kept aside for Admin. When it
+    // blocks them all, the row has no tips and is tried again after RETRY_MS, as when none passed.
+    const checked = await checkTipsWithJev(tips, sent);
+    const jev = checked.at ? { jevAt: checked.at, ...(checked.blocked.length > 0 ? { jevBlocked: checked.blocked } : {}) } : {};
+    const { error } = await store(checked.tips, cost + checked.cost, jev);
     if (error && !MISSING.includes(error.code)) console.warn("Storing tips failed:", error.message);
   } catch (err) {
     console.warn("Tips not written:", messageOf(err));
@@ -159,9 +168,10 @@ export async function replaceTip(owner: Owner, scope: TipScope, vehicleId: strin
     const where = () => ownerDb(owner).from("drive_wording").select("wording, cost_usd").eq("vehicle_id", vehicleId).eq("drive_start", new Date(at).toISOString()).eq("scope", scope).maybeSingle();
     const { data, error } = await where();
     if (error || !data) return null;
-    const w = data.wording as { tips?: Tip[]; v?: number; sent?: Finding[]; car?: TipCar; swaps?: number } | null;
+    const w = data.wording as { tips?: StoredTip[]; v?: number; sent?: Finding[]; car?: TipCar; swaps?: number; jevBlocked?: BlockedTip[]; jevAt?: string } | null;
     if (!w || w.v !== surface.version || !Array.isArray(w.sent) || (w.swaps ?? 0) >= MAX_SWAPS) return null;
-    const shown = new Set((w.tips ?? []).map((t) => t.kind));
+    // A kind Jev blocked here isn't asked for again.
+    const shown = new Set([...(w.tips ?? []), ...(w.jevBlocked ?? [])].map((t) => t.kind));
     const left = w.sent.filter((f) => f.kind !== downKind && !shown.has(f.kind));
     if (left.length === 0) return null;
     const votes = await pastTipVotes(owner, scope);
@@ -173,15 +183,22 @@ export async function replaceTip(owner: Owner, scope: TipScope, vehicleId: strin
     });
     if (!res.ok) return null;
     const body = (await res.json()) as { choices?: { message?: { content?: string | null } }[]; usage?: { cost?: number | null } };
-    const tip = checkTips(body.choices?.[0]?.message?.content ?? "", left, surface, w.car ?? null)[0] ?? null;
+    const written = checkTips(body.choices?.[0]?.message?.content ?? "", left, surface, w.car ?? null)[0] ?? null;
+    // Jev checks the new tip against what its writer got, as in generateTips. A blocked one counts as no tip.
+    const checked = written ? await checkTipsWithJev([written], left) : null;
+    const tip = checked?.tips[0] ?? null;
+    const blocked = [...(w.jevBlocked ?? []), ...(checked?.blocked ?? [])];
     // The swap counts even when no tip passed, so a failing page stops at the cap too.
     await ownerDb(owner)
       .from("drive_wording")
-      .update({ wording: { ...w, tips: tip ? [...(w.tips ?? []), tip] : (w.tips ?? []), swaps: (w.swaps ?? 0) + 1 }, cost_usd: Number(data.cost_usd ?? 0) + (body.usage?.cost ?? 0) })
+      .update({
+        wording: { ...w, tips: tip ? [...(w.tips ?? []), tip] : (w.tips ?? []), swaps: (w.swaps ?? 0) + 1, ...(blocked.length > 0 ? { jevBlocked: blocked } : {}), ...(checked?.at && !w.jevAt ? { jevAt: checked.at } : {}) },
+        cost_usd: Number(data.cost_usd ?? 0) + (body.usage?.cost ?? 0) + (checked?.cost ?? 0),
+      })
       .eq("vehicle_id", vehicleId)
       .eq("drive_start", new Date(at).toISOString())
       .eq("scope", scope);
-    return tip;
+    return tip && { kind: tip.kind, text: tip.text };
   } catch (err) {
     console.warn("Swapping a tip failed:", messageOf(err));
     return null;

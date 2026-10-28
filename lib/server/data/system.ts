@@ -709,3 +709,37 @@ export async function recentTipVotes(limit: number): Promise<TipVoteRow[] | null
   }
   return (data ?? []).map((r) => ({ ...(r as TipVoteRow), id: Number(r.id), user_id: Number(r.user_id), vote: Number(r.vote) }));
 }
+
+// drive_wording also holds the drive lines; these scopes are the tips'.
+const TIP_SCOPES = ["week", "drive_tips", "trip_tips", "charging", "charge", "battery"];
+const JEV_ROWS = 5000;
+
+// What Admin's Jev checks need (lib/jev-checks.ts summariseJev): the tip rows written since `since`, when Jev
+// first checked any tip (wording.jevAt), and the votes cast from `votesSince`. Null when a table isn't there.
+export async function jevCheckRows(since: number): Promise<{ scope: string; wording: unknown; created_at: string }[] | null> {
+  const { data, error } = await db().from("drive_wording").select("scope, wording, created_at").in("scope", TIP_SCOPES).gte("created_at", new Date(since).toISOString()).order("created_at", { ascending: false }).limit(JEV_ROWS);
+  if (error) {
+    if (MISSING_TABLE.includes(error.code)) return null;
+    throw new Error(`Reading tips failed: ${error.message}`);
+  }
+  return (data ?? []) as { scope: string; wording: unknown; created_at: string }[];
+}
+
+export async function firstJevAt(): Promise<string | null> {
+  const { data, error } = await db().from("drive_wording").select("first:wording->>jevAt").in("scope", TIP_SCOPES).not("wording->>jevAt", "is", null).order("wording->>jevAt", { ascending: true }).limit(1);
+  if (error) {
+    if (MISSING_TABLE.includes(error.code)) return null;
+    throw new Error(`Reading tips failed: ${error.message}`);
+  }
+  const first = (data?.[0] as { first?: unknown } | undefined)?.first;
+  return typeof first === "string" ? first : null;
+}
+
+export async function tipVotesSince(since: number): Promise<{ vote: number; updated_at: string }[] | null> {
+  const { data, error } = await db().from("tip_votes").select("vote, updated_at").gte("updated_at", new Date(since).toISOString()).limit(JEV_ROWS);
+  if (error) {
+    if (MISSING_TABLE.includes(error.code)) return null;
+    throw new Error(`Reading tip votes failed: ${error.message}`);
+  }
+  return (data ?? []).map((r) => ({ vote: Number(r.vote), updated_at: r.updated_at as string }));
+}

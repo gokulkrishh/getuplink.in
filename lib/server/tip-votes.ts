@@ -3,7 +3,8 @@ import type { TipScope } from "@/lib/ai-tips";
 import { DEMO } from "@/lib/demo";
 import { messageOf } from "@/lib/errors";
 import { type KindSummary, netByKind, type PastVotes, summariseVotes, type TipVoteInput, type Vote } from "@/lib/tip-votes";
-import { recentTipVotes } from "./data/system";
+import { BEFORE_DAYS, type JevSummary, summariseJev } from "@/lib/jev-checks";
+import { firstJevAt, jevCheckRows, recentTipVotes, tipVotesSince } from "./data/system";
 import { type Owner, ownerDb } from "./data/owner";
 
 // Owners' votes on the AI tips, in tip_votes (supabase/migrations/20261108130000_tip_votes.sql). Every read
@@ -80,6 +81,35 @@ export async function loadVoteSummary(limit: number): Promise<KindSummary[] | nu
     console.warn("Tip votes unavailable:", messageOf(err));
     return null;
   }
+}
+
+// Admin's Jev checks (lib/jev-checks.ts summariseJev) over the last JEV_DAYS. Null when the tables can't be
+// read. Demo mode shows a few made-up checks, to preview the view.
+export const JEV_DAYS = 30;
+const DAY_MS = 86_400_000;
+export async function loadJevSummary(now = Date.now()): Promise<JevSummary | null> {
+  if (DEMO) return demoJev(now);
+  try {
+    const [rows, firstAt] = await Promise.all([jevCheckRows(now - JEV_DAYS * DAY_MS), firstJevAt()]);
+    if (!rows) return null;
+    const votes = firstAt ? await tipVotesSince(Date.parse(firstAt) - BEFORE_DAYS * DAY_MS) : [];
+    return summariseJev(rows, votes ?? [], firstAt, now);
+  } catch (err) {
+    console.warn("Jev checks unavailable:", messageOf(err));
+    return null;
+  }
+}
+
+function demoJev(now: number): JevSummary {
+  const ago = (days: number) => new Date(now - days * DAY_MS).toISOString();
+  const checked = (n: number) => Array.from({ length: n }, (_, k) => ({ kind: "energyUse", text: `Tip ${k}`, jev: { unsupported: false, p: 0.1, at: ago(2), model: "typesafe/jev-1.14-20261014", cost: 0 } }));
+  const rows = [
+    { scope: "week", created_at: ago(1), wording: { tips: [...checked(2), { kind: "shortTrips", text: "Tip", jev: null }], jevBlocked: [{ kind: "parkedLoss", text: "Your car lost 0.8 kWh a day while parked. Low tyre pressure adds to this, so check your tyres.", p: 0.97, at: ago(1) }] } },
+    { scope: "drive_tips", created_at: ago(3), wording: { tips: checked(2), jevBlocked: [{ kind: "energyUse", text: "This drive used 168 Wh/km, 44% more than usual, because of the rain.", p: 0.93, at: ago(3) }] } },
+    { scope: "charging", created_at: ago(6), wording: { tips: checked(3) } },
+  ];
+  const votes = [...Array.from({ length: 24 }, (_, k) => ({ vote: k < 9 ? -1 : 1, updated_at: ago(12 + (k % 10)) })), ...Array.from({ length: 15 }, (_, k) => ({ vote: k < 3 ? -1 : 1, updated_at: ago(1 + (k % 8)) }))];
+  return summariseJev(rows, votes, ago(10), now);
 }
 
 const DEMO_VOTES = [

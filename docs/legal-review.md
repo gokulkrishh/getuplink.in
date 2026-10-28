@@ -1,6 +1,6 @@
 # Legal review: Privacy and Terms
 
-The record of how Uplink's Privacy page (`app/privacy/page.tsx`), Terms (`app/terms/page.tsx`) and data practices measure up against Indian law and Tesla's and Google's terms. Last reviewed 26 Oct 2026.
+The record of how Uplink's Privacy page (`app/privacy/page.tsx`), Terms (`app/terms/page.tsx`) and data practices measure up against Indian law and Tesla's and Google's terms. Last reviewed 28 Oct 2026.
 
 **This is an AI review, not legal advice.** Claude wrote it in the role of a technology and data-protection advocate, reading the code and the sources below. It isn't a licensed advocate and can't sign anything off. Three items need a practising advocate's view before May 2027 (they're marked **Lawyer**): #3 (keeping logs for a year against erasing on request), #6 (shared cars) and #15 (processor contracts). A one-time read of the final pages by an advocate before the DPDP duties start is worth the fee.
 
@@ -290,6 +290,7 @@ A January 2026 MeitY proposal to cut the 18 months to 12 was aimed at Significan
 | Review, correct, withdraw | r. 5(6), (7) | Your rights, Withdrawing consent. |
 | Grievance Officer name, one month | r. 5(9) | Email and 30 days; no name (#1). |
 | Disclosure only with permission or by law | r. 6 | Who else gets it. |
+| New recipient: TypeSafe's Jev checks each AI tip (28 Oct 2026) | r. 5(3), r. 6; DPDP s. 5(1)(i), s. 8(2) | Privacy: Who else gets it names it. Jev gets the tip's text and the figures sent to the tip writer (`modelFindings`), never location, place names, VIN or account ids, through OpenRouter with `data_collection: "deny"` (`lib/server/jev.ts`). TypeSafe's country isn't published on OpenRouter, so it isn't in the "US companies" line yet (**Owner**: confirm it and add it there). Its DPA joins #15. |
 | Disclosure in breach of contract | IT Act s. 72A | Sharing is only as Privacy lists. |
 
 ### Tesla Fleet API Agreement (now)
@@ -335,6 +336,7 @@ Pages:
 - Privacy, Age: the invite asks you to confirm.
 - Terms, Agreeing: signing in, and on an invite ticking its box.
 - Terms, Liability: except fraud or wilful misconduct.
+- Privacy, Who else gets it (28 Oct 2026): TypeSafe's Jev, through OpenRouter, checks each tip's text and the figures behind it.
 
 Code:
 
