@@ -19,7 +19,9 @@ const geistMono = Geist_Mono({
 
 // The app, demo and invite pages stay out of search (noindex) but still carry Open Graph tags, so a link
 // shared in Slack, WhatsApp, X, LinkedIn or iMessage shows a card. Icons and the preview images come from
-// the file conventions: favicon.ico, icon.svg, apple-icon.png, manifest.ts and opengraph-image.tsx.
+// the file conventions: icon.svg, apple-icon.png, manifest.ts and opengraph-image.tsx. favicon.ico is a
+// plain file in public/, linked here without a version query: Google's favicon service, which AI apps use
+// for a connector's logo, finds it there (as til.bar does).
 // The home and status pages set their own metadataBase, og:url and image.
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -27,6 +29,14 @@ export const metadata: Metadata = {
   description: TAGLINE,
   applicationName: "Uplink",
   appleWebApp: { title: "Uplink" },
+  // Set here, the icons replace the file conventions' links, so all three are named.
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "48x48", type: "image/x-icon" },
+      { url: "/icon.svg", sizes: "any", type: "image/svg+xml" },
+    ],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   robots: { index: false, follow: false },
   openGraph: { ...OPEN_GRAPH, title: "Uplink", description: TAGLINE },
   twitter: { ...TWITTER, title: "Uplink", description: TAGLINE },

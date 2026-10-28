@@ -52,4 +52,11 @@ describe("robots.txt", () => {
     expect(everyone).not.toContain("Allow: /invite/\n");
     expect(everyone).toEndWith("Disallow: /\n");
   });
+
+  test("on the app host, any crawler may read the landing page that carries the icon links", async () => {
+    const [, everyone] = (await read("app.getuplink.in")).split("\n\n");
+    expect(everyone).toContain("Allow: /$\n");
+    expect(everyone).toContain("Allow: /home\n");
+    expect(everyone).not.toContain("Allow: /invite/\n");
+  });
 });

@@ -9,6 +9,10 @@ import { requestHost } from "@/lib/session";
 // a shared page or its preview image. So every host allows the icons and preview images, and on the
 // private hosts those bots may also read the pages people share, like invites. noindex still keeps those
 // pages out of search.
+//
+// Connector logo: an AI app finds a connector's logo from its host's home page and icons, and skips a host
+// whose robots.txt turns the home page away. So every crawler may read the landing page and icons here
+// too; the X-Robots-Tag header still keeps them out of search.
 
 const HOME_HOSTS = new Set(["getuplink.in", "www.getuplink.in"]);
 
@@ -46,6 +50,8 @@ ${allow(METADATA_PATHS)}
 Disallow: /
 
 User-agent: *
+Allow: /$
+Allow: /home
 ${allow(METADATA_PATHS)}
 Disallow: /
 `;
