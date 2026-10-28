@@ -9,6 +9,7 @@ import { DEMO } from "@/lib/demo";
 import { PRICE_PER_TOKEN, WORDING_MODEL } from "@/lib/drive-wording";
 import { messageOf } from "@/lib/errors";
 import type { BlockedTip, JevVerdict } from "@/lib/jev-checks";
+import type { PastVotes } from "@/lib/tip-votes";
 import { type Owner, ownerDb } from "./data/owner";
 import { checkTipsWithJev } from "./jev";
 import { pastTipVotes } from "./tip-votes";
@@ -79,6 +80,32 @@ function storedTips(wording: unknown): Tip[] {
   return Array.isArray(tips) ? tips.filter((t): t is Tip => typeof t?.kind === "string" && typeof t?.text === "string").map((t) => ({ kind: t.kind, text: t.text })) : [];
 }
 
+export type TipsReply = { ok: true; tips: Tip[]; reply: string; costUsd: number | null; ms: number } | { ok: false; error: string; ms: number };
+
+// One call to OpenRouter for these findings: the tips that pass their checks, and the reply as the model
+// wrote it (for the eval, which also grades what the checks drop). Never throws.
+export async function writeTips(surface: TipSurface, sent: Finding[], car: TipCar, key = apiKey(), votes: PastVotes | null = null): Promise<TipsReply> {
+  const began = Date.now();
+  if (!key) return { ok: false, error: "no OPENROUTER_API_KEY", ms: 0 };
+  try {
+    const res = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "X-Title": "Uplink" },
+      body: JSON.stringify(tipsRequest(surface, sent, votes, car)),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    const ms = Date.now() - began;
+    if (!res.ok) return { ok: false, error: `OpenRouter ${res.status}`, ms };
+    const body = (await res.json()) as { choices?: { message?: { content?: string | null } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number | null } };
+    const reply = body.choices?.[0]?.message?.content ?? "";
+    const u = body.usage;
+    const costUsd = typeof u?.cost === "number" ? u.cost : u?.prompt_tokens != null && u.completion_tokens != null ? u.prompt_tokens * PRICE_PER_TOKEN.input + u.completion_tokens * PRICE_PER_TOKEN.output : null;
+    return { ok: true, tips: checkTips(reply, sent, surface, car), reply, costUsd, ms };
+  } catch (err) {
+    return { ok: false, error: messageOf(err), ms: Date.now() - began };
+  }
+}
+
 const writing = new Set<string>();
 
 // Writes and stores the tips. Run after the response; never throws.
@@ -121,20 +148,13 @@ export async function generateTips(owner: Owner, surface: TipSurface, key: TipsK
     let tips: Tip[] = [];
     let cost = 0;
     for (let k = 0; k < TRIES && tips.length === 0; k++) {
-      const res = await fetch(ENDPOINT, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "X-Title": "Uplink" },
-        body: JSON.stringify(tipsRequest(surface, sent, votes, car)),
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-      });
-      if (!res.ok) {
-        console.warn("Tips not written: OpenRouter", res.status);
+      const reply = await writeTips(surface, sent, car, token, votes);
+      if (!reply.ok) {
+        console.warn("Tips not written:", reply.error);
         break;
       }
-      const body = (await res.json()) as { choices?: { message?: { content?: string | null } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number | null } };
-      tips = checkTips(body.choices?.[0]?.message?.content ?? "", sent, surface, car);
-      const u = body.usage;
-      cost += typeof u?.cost === "number" ? u.cost : u?.prompt_tokens != null && u.completion_tokens != null ? u.prompt_tokens * PRICE_PER_TOKEN.input + u.completion_tokens * PRICE_PER_TOKEN.output : 0;
+      tips = reply.tips;
+      cost += reply.costUsd ?? 0;
     }
     // With no tips the claim's time is kept, so the next try waits RETRY_MS from it.
     if (tips.length === 0) return;
@@ -181,15 +201,9 @@ export async function replaceTip(owner: Owner, scope: TipScope, vehicleId: strin
     const left = w.sent.filter((f) => f.kind !== downKind && !shown.has(f.kind));
     if (left.length === 0) return null;
     const votes = await pastTipVotes(owner, scope);
-    const res = await fetch(ENDPOINT, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "X-Title": "Uplink" },
-      body: JSON.stringify(tipsRequest(surface, left, votes, w.car ?? null)),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
-    if (!res.ok) return null;
-    const body = (await res.json()) as { choices?: { message?: { content?: string | null } }[]; usage?: { cost?: number | null } };
-    const written = checkTips(body.choices?.[0]?.message?.content ?? "", left, surface, w.car ?? null)[0] ?? null;
+    const reply = await writeTips(surface, left, w.car ?? null, token, votes);
+    if (!reply.ok) return null;
+    const written = reply.tips[0] ?? null;
     // Jev checks the new tip against what its writer got, as in generateTips. A blocked one counts as no tip.
     const checked = written ? await checkTipsWithJev([written], left) : null;
     const tip = checked?.tips[0] ?? null;
@@ -199,7 +213,7 @@ export async function replaceTip(owner: Owner, scope: TipScope, vehicleId: strin
       .from("drive_wording")
       .update({
         wording: { ...w, tips: tip ? [...(w.tips ?? []), tip] : (w.tips ?? []), swaps: (w.swaps ?? 0) + 1, ...(blocked.length > 0 ? { jevBlocked: blocked } : {}), ...(checked?.at && !w.jevAt ? { jevAt: checked.at } : {}) },
-        cost_usd: Number(data.cost_usd ?? 0) + (body.usage?.cost ?? 0) + (checked?.cost ?? 0),
+        cost_usd: Number(data.cost_usd ?? 0) + (reply.costUsd ?? 0) + (checked?.cost ?? 0),
       })
       .eq("vehicle_id", vehicleId)
       .eq("drive_start", new Date(at).toISOString())

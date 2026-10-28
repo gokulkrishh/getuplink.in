@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { RULES } from "@/lib/copy-rules";
 
 // The checkable parts of AGENTS.md "Writing copy", run over the text pages render: JSX text between tags.
 // Wording itself needs a reader; this catches what a rule can.
@@ -19,14 +20,6 @@ function jsxText(source: string): string[] {
     .map((m) => m[1].replace(/&apos;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/\s+/g, " ").trim())
     .filter((t) => t.length > 1 && !/[=;()]|=>|^\w+\(|\bconst\b|\breturn\b/.test(t));
 }
-
-const RULES: [RegExp, string][] = [
-  [/\bOops\b/i, "no 'Oops'"],
-  [/\w!(\s|$)/, "no exclamation marks"],
-  [/→|←|\s–\s|\s—\s/, "no arrows or dashes between words; write '58% to 51%'"],
-  [/\b(color|colors|kilometer|kilometers|meter|meters|center|centered|license)\b/, "Indian/British spelling: colour, kilometre, metre, centre, licence"],
-  [/\b(\d+)\s*-\s*(\d+)\s*(km|%|kWh|km\/h)\b/, "a range reads '30 to 45 km/h'"],
-];
 
 const sources = [...files("app"), ...files("components")].map((path) => ({ path, text: readFileSync(path, "utf8") }));
 

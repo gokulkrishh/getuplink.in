@@ -161,3 +161,4 @@ next-env.d.ts
 # Git worktrees Claude Code agents work in
 .claude/worktrees/
 .env*
+evals/runs/

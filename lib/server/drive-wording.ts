@@ -57,7 +57,7 @@ export async function loadDriveWording(owner: Owner, key: WordingKey, facts: Dri
   }
 }
 
-export type ModelReply = { ok: true; words: DriveWords; costUsd: number | null; ms: number } | { ok: false; error: string; ms: number };
+export type ModelReply = { ok: true; words: DriveWords; reply: string; costUsd: number | null; ms: number } | { ok: false; error: string; ms: number };
 
 // One call to OpenRouter for these facts. The facts are all it sends (see lib/drive-facts.ts): figures and
 // clock times, no place, car or account.
@@ -77,7 +77,8 @@ export async function writeWording(facts: DriveFacts, key = apiKey()): Promise<M
       choices?: { message?: { content?: string | null } }[];
       usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number | null };
     };
-    const words = checkWording(body.choices?.[0]?.message?.content ?? "", facts);
+    const reply = body.choices?.[0]?.message?.content ?? "";
+    const words = checkWording(reply, facts);
     if (words === null) return { ok: false, error: "reply didn't parse", ms };
     const usage = body.usage;
     const costUsd =
@@ -86,7 +87,7 @@ export async function writeWording(facts: DriveFacts, key = apiKey()): Promise<M
         : usage?.prompt_tokens != null && usage.completion_tokens != null
           ? usage.prompt_tokens * PRICE_PER_TOKEN.input + usage.completion_tokens * PRICE_PER_TOKEN.output
           : null;
-    return { ok: true, words, costUsd, ms };
+    return { ok: true, words, reply, costUsd, ms };
   } catch (err) {
     return { ok: false, error: messageOf(err), ms: Date.now() - began };
   }
