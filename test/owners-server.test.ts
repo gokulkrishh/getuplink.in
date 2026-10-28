@@ -154,6 +154,38 @@ describe("the daily run", () => {
     expect(fake.rows("fleet_car_days")).toHaveLength(30);
   });
 
+  const drove = () => {
+    fake.tables.fleet_car_days = [];
+    const at = (h: number) => new Date(istDayStart(TODAY - 1) + h * 3_600_000).toISOString();
+    fake.tables.telemetry_readings = [
+      { id: 1, vin: "VIN_B", field: "Gear", created_at: at(7), value: "ShiftStateP" },
+      { id: 2, vin: "VIN_B", field: "Odometer", created_at: at(7), value: 1000 },
+    ];
+    return at;
+  };
+
+  test("a day with a charge still going stays due, and is worked out once the charge has ended", async () => {
+    const at = drove();
+    // Plugged in at home at 10 PM yesterday, still charging at 3:30 AM.
+    const charge = { id: 1, user_id: 2, vin: "VIN_B", started_at: at(22), ended_at: null as string | null, kind: "ac", start_level: 40, energy_added_kwh: 12 };
+    fake.tables.stream_charge_sessions = [charge];
+    expect(await runOwners(() => NOW)).toEqual(expect.objectContaining({ computed: 29, left: 1, failed: 0 }));
+    expect(fake.rows("fleet_car_days").some((r) => r.day === dateOf(TODAY - 1))).toBe(false);
+    charge.ended_at = at(29);
+    charge.energy_added_kwh = 30;
+    const later = NOW + 86_400_000;
+    expect(await runOwners(() => later)).toEqual(expect.objectContaining({ failed: 0 }));
+    const day = fake.rows("fleet_car_days").find((r) => r.day === dateOf(TODAY - 1))!.figures as { charges: { kwh: number }[] };
+    expect(day.charges).toEqual([expect.objectContaining({ kwh: 30 })]);
+  });
+
+  test("a failed read of the charges stores nothing for the car, so its days stay due", async () => {
+    drove();
+    fake.missing.add("stream_charge_sessions");
+    expect(await runOwners(() => NOW)).toEqual(expect.objectContaining({ computed: 0, failed: 1 }));
+    expect(fake.rows("fleet_car_days")).toHaveLength(0);
+  });
+
   test("before the migration it skips", async () => {
     fake.missing.add("users");
     expect((await runOwners(() => NOW)).skipped).toBe("no owners tables");

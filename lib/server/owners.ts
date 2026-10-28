@@ -22,7 +22,7 @@ import {
   summarise,
   WINDOW_DAYS,
 } from "@/lib/owners";
-import { type Counters, dayFigures, installsIn, type Session, SLOWING_MS2 } from "@/lib/owners-day";
+import { type Counters, dayFigures, installsIn, SLOWING_MS2 } from "@/lib/owners-day";
 import { stateTotals } from "@/lib/rollout-states";
 import { istDay, istDayStart, num, type Reading } from "@/lib/telemetry-derive";
 import { keepDays } from "@/lib/telemetry-retention";
@@ -45,7 +45,7 @@ import { demoOwnerSummaries } from "./demo/owners";
 import { loadCounters } from "./energy";
 import { env } from "./env";
 import { carStates } from "./home-state";
-import { loadStreamSessions } from "./stream-charging";
+import { readStreamSessions } from "./stream-charging";
 import { loadStream, readingsBefore } from "./telemetry";
 import { firstReadingAt, loadReadingsByField, loadSlowingAccel } from "./telemetry-window";
 
@@ -163,7 +163,9 @@ async function loadLatest(owner: Owner, car: SharedCar): Promise<Latest> {
 
 // Days `days` of one car (IST day numbers), worked out from its readings: the slower fields read once for
 // all of them, the ones sent every second a day at a time. Idempotent: the same readings give the same
-// figures. `stop` is asked before each day; the days not reached are left out.
+// figures. `stop` is asked before each day; the days not reached are left out, and so is a day with a charge
+// still going, so it isn't stored part-done. Both stay due. A failed read of the charges throws, so no day is
+// stored without its charges.
 export async function computeCarDays(owner: Owner, car: SharedCar, days: number[], now: number, stop: () => boolean = () => false): Promise<CarDay[]> {
   if (days.length === 0) return [];
   const sorted = [...days].sort((a, b) => a - b);
@@ -178,7 +180,7 @@ export async function computeCarDays(owner: Owner, car: SharedCar, days: number[
     heldBefore(owner, car.vin, HELD_FIELDS, from),
     heldBefore(owner, car.vin, ["Version"], versionsFrom),
     loadCounters(owner, car.vin, COUNTERS, edges.map(iso)),
-    loadStreamSessions(owner),
+    readStreamSessions(owner),
     loadLatest(owner, car),
     firstReadingAt(owner, car.vin, ACCEL),
   ]);
@@ -200,7 +202,7 @@ export async function computeCarDays(owner: Owner, car: SharedCar, days: number[
   const parked = parkedDrain(input, first + DRAIN_DAYS * DAY);
   const times = WINDOW_FIELDS.flatMap((f) => window[f].map((x) => Date.parse(x.at))).sort((a, b) => a - b);
   const climate = { power: r("HvacPower"), ac: r("HvacACEnabled"), left: r("HvacLeftTemperatureRequest"), right: r("HvacRightTemperatureRequest"), inside: [], outside: [] };
-  const carSessions: Session[] = sessions.filter((s) => s.vin === car.vin);
+  const carSessions = sessions.filter((s) => s.vin === car.vin);
   const counter = (at: number): Counters => {
     const k = edges.indexOf(at);
     return { gained: counters?.get(COUNTERS[0])?.bounds[k]?.value ?? null, used: counters?.get(COUNTERS[1])?.bounds[k]?.value ?? null };
@@ -210,6 +212,7 @@ export async function computeCarDays(owner: Owner, car: SharedCar, days: number[
   const out: CarDay[] = [];
   for (const day of sorted) {
     if (stop()) break;
+    if (carSessions.some((s) => s.ended_at === null && istDay(Date.parse(s.started_at)) === day)) continue;
     const start = istDayStart(day);
     const dayFrom = iso(start);
     const dayTo = iso(Math.min(start + DAY + SETTLE_MS, now));
