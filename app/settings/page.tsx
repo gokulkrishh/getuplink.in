@@ -125,8 +125,8 @@ async function Settings() {
 
       <Group title="Your data">
         <Row
-          title={<Ph>Share with other owners</Ph>}
-          description="Adds your car to the totals on Owners, and turning it off deletes your figures."
+          title="Share with other owners"
+          description="Adds your car to the totals on Owners. Turning it off deletes your figures."
           control={<ShareSwitch on={sharing?.on ?? false} />}
         />
         <DeleteMyData />
@@ -187,7 +187,7 @@ function SettingsSkeleton() {
           "Integrations",
           <Row
             key="mcp"
-            title={<Ph>MCP connector for AI</Ph>}
+            title={<Ph>MCP connector</Ph>}
             control={<p className="text-sm">{text("Not set up")}</p>}
           >
             <div className="mt-3 h-[174px] bg-muted motion-safe:animate-pulse max-sm:h-[214px]" />
@@ -211,7 +211,7 @@ function SettingsSkeleton() {
           <Row
             key="share"
             title={<Ph>Share with other owners</Ph>}
-            description={<p>{text("Adds your car to the totals on Owners, and turning it off deletes your figures.")}</p>}
+            description={<p>{text("Adds your car to the totals on Owners. Turning it off deletes your figures.")}</p>}
             control={<div className="h-6 w-11 rounded-full bg-muted motion-safe:animate-pulse" aria-hidden="true" />}
           />,
           <Row key="data" title={<Ph>Delete my data</Ph>} description={<p>{text("Deletes everything Uplink holds about your cars and disconnects Tesla.")}</p>} control={button} />,

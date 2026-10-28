@@ -5,7 +5,7 @@ import { CopyButton } from "@/components/copy-button";
 import { FoldToggle } from "@/components/fold-toggle";
 import { GrokBotIcon } from "@/components/icons/grok-bot";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { BOT_INSTRUCTIONS, BOT_NAME, BOT_TEMPLATE_URL, CONNECTOR_URL } from "@/lib/bot-template";
+import { BOT_INSTRUCTIONS, BOT_NAME, BOT_TEMPLATE_URL, CONNECTOR_INSTRUCTIONS, CONNECTOR_URL } from "@/lib/bot-template";
 import { formatAgo, formatDate } from "@/lib/format";
 import type { ConnectorTokenStatus } from "@/lib/server/connector-token";
 import { newConnectorToken, removeConnectorToken } from "./actions";
@@ -60,11 +60,11 @@ export function McpConnector({ status, now }: { status: ConnectorTokenStatus; no
 
   return (
     <Row
-      title="MCP connector for AI"
+      title="MCP connector"
       control={<p className="text-sm text-muted-foreground">{tokenSummary(status, now)}</p>}
     >
       <div className="mt-4 space-y-4">
-        <ManualInstructions>
+        <ManualInstructions copy={CONNECTOR_INSTRUCTIONS}>
           <ol className="list-decimal space-y-1.5 pl-5 text-sm text-muted-foreground">
             <li>Create a token below. It&apos;s shown once, so keep this page open until it&apos;s saved in your AI.</li>
             <li>In your AI, add a custom MCP connector (in Grok, open Connectors, then New connector, then Custom) with the URL below.</li>

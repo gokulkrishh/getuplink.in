@@ -3,6 +3,19 @@
 
 export const CONNECTOR_URL = "https://app.getuplink.in/api/mcp";
 
+// The MCP connector's set-up, written for the AI itself: an owner copies it from Settings and pastes it into
+// Claude, ChatGPT, Grok or any AI that takes custom connectors, and the AI walks them through it.
+export const CONNECTOR_INSTRUCTIONS = `Connect Uplink (getuplink.in) to yourself as a custom MCP connector, so you can answer my questions about my Tesla: its driving, charging, battery, software and how it compares with other owners in India.
+
+1. Add a custom MCP connector (remote server, Streamable HTTP) named Uplink with this URL: ${CONNECTOR_URL}
+2. Authentication is a bearer token, sent as the header Authorization: Bearer <token>. If you only take an API key, use the token alone. I create the token in Uplink under Settings, Integrations, MCP connector, and it's shown once. Ask me for it in a secret or password field if you have one, not in chat.
+3. If you can only run a local command, use: npx -y mcp-remote ${CONNECTOR_URL} --header "Authorization: Bearer <token>"
+4. Check that Uplink's tools load, such as get_car_now and get_owner_comparisons, then tell me it's connected.
+
+If you can't add connectors yourself, tell me where to click in your settings, step by step.
+
+The connector reads my data and can attach charging invoices. It can't delete anything or control the car.`;
+
 export const BOT_NAME = "Uplink Bot";
 
 // The bot's share link from Grok Bot, so a Grok owner can add it in one step. Other bots use the
