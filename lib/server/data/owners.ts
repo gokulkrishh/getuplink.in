@@ -34,11 +34,14 @@ export async function setSharingFlag(owner: Owner, on: boolean, at: string): Pro
   if (error) fail(error);
 }
 
-// Every approved account that shares, by id.
+// Every approved account that shares, by id. Paged: pruneSharedDays deletes the rows of any account not in
+// this list.
 export async function sharingOwners(): Promise<Owner[]> {
-  const { data, error } = await db().from("users").select("id, tesla_sub").eq("status", APPROVED).eq("share_with_owners", true).order("id");
+  const { data, error } = await readAllRows((from, to) =>
+    db().from("users").select("id, tesla_sub").eq("status", APPROVED).eq("share_with_owners", true).order("id").range(from, to),
+  );
   if (error) fail(error);
-  return (data ?? []).map((u) => asOwner(Number(u.id), u.tesla_sub as string));
+  return data.map((u) => asOwner(Number(u.id), u.tesla_sub as string));
 }
 
 export type SharedDayRow = { user_id: number; vehicle_id: string; vin_hash: string; day: string; figures: unknown };

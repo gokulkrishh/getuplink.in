@@ -90,6 +90,7 @@ class FakeQuery {
   private ignoreDuplicates = false;
   private filters: Filter[] = [];
   private max: number | null = null;
+  private span: [number, number] | null = null;
   private sort: { column: string; ascending: boolean } | null = null;
   constructor(
     private db: FakeDb,
@@ -181,7 +182,8 @@ class FakeQuery {
     if (column) this.sort = { column, ascending: options?.ascending !== false };
     return this;
   }
-  range() {
+  range(from: number, to: number) {
+    this.span = [from, to];
     return this;
   }
   limit(n: number) {
@@ -223,6 +225,9 @@ class FakeQuery {
       matched = [...matched].sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0) * (ascending ? 1 : -1));
     }
     if (this.max !== null) matched = matched.slice(0, this.max);
+    if (this.span) matched = matched.slice(this.span[0], this.span[1] + 1);
+    // PostgREST's max_rows: a select returns at most 1,000 rows, whatever it asks for.
+    if (this.op === "select") matched = matched.slice(0, 1000);
     if (this.table === READINGS_VIEW && this.op !== "select") throw new Error("The readings view is read only");
     if (this.op === "delete") this.db.tables[this.table] = all.filter((r) => !matched.includes(r));
     if (this.op === "update") for (const r of matched) Object.assign(r, this.patch);

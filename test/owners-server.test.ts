@@ -215,6 +215,14 @@ describe("the daily run", () => {
     expect(figures(TODAY - 1).parkedModes).toEqual({ sentryMs: 0, keeperMs: 0, dogMs: 0, campMs: 0 });
   });
 
+  test("every sharing account is read, past the 1,000 rows one request returns, so none has its days pruned", async () => {
+    fake.rows("users").push(...Array.from({ length: 1200 }, (_, k) => ({ id: 100 + k, tesla_sub: `t-${k}`, status: "approved", share_with_owners: true, shared_since: null })));
+    fake.rows("fleet_car_days").push(dayRow(1250, TODAY - 1));
+    await runOwners(() => NOW);
+    expect(fake.rows("fleet_car_days").some((r) => r.user_id === 1250)).toBe(true);
+    expect(fake.rows("fleet_car_days").some((r) => r.user_id === 1)).toBe(false);
+  });
+
   test("before the migration it skips", async () => {
     fake.missing.add("users");
     expect((await runOwners(() => NOW)).skipped).toBe("no owners tables");
