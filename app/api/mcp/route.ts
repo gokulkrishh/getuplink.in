@@ -229,7 +229,9 @@ const handlerFor = (owner: Owner) =>
 
 async function guarded(request: Request): Promise<Response> {
   if (DEMO) return Response.json({ error: "Not available in demo mode" }, { status: 404 });
-  const bearer = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim() ?? null;
+  // "Bearer upl_…" as the standard sends it, or the bare token, as some apps send an API key.
+  const header = request.headers.get("authorization")?.trim() ?? "";
+  const bearer = (header.match(/^Bearer\s+(.+)$/i)?.[1] ?? header).trim() || null;
   const owner = await verifyConnectorToken(bearer);
   if (!owner) {
     return Response.json(

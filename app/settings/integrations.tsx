@@ -164,9 +164,9 @@ export function McpConnector({ connectors, now }: { connectors: Connector[] | nu
             <li>Add a connector below, named after your AI. Its token is shown once, so keep this page open until it&apos;s saved in your AI.</li>
             <li>In your AI, add a custom MCP connector (in Grok, open Connectors, then New connector, then Custom) with the URL below.</li>
             <li>
-              For its authentication, choose a header or API key, and enter the token as <code className="font-mono text-xs">Authorization: Bearer &lt;token&gt;</code>. If it asks
-              only for an API key, paste the token alone.
+              In Claude: under Authentication choose No sign-in, then Add header. Paste the header name, Authorization, and the header value, which starts with Bearer.
             </li>
+            <li>In other AIs, use the same header, or paste the token alone where it asks for an API key.</li>
           </ol>
         </ManualInstructions>
         <Copyable label="Connector URL" value={CONNECTOR_URL} />
@@ -186,8 +186,10 @@ export function McpConnector({ connectors, now }: { connectors: Connector[] | nu
             {added && (
               <div className="space-y-3 border-l-2 border-positive pl-4">
                 <p className="text-sm font-medium">{added.name} is added</p>
-                <Copyable label="Token: paste where it asks for an API key or bearer token" value={added.token} />
-                <Copyable label="Or the whole header, where it asks for one" value={`Authorization: Bearer ${added.token}`} />
+                {/* As Claude's "Add header" asks for it: a name and a value, each copied on its own. */}
+                <Copyable label="Header name" value="Authorization" />
+                <Copyable label="Header value" value={`Bearer ${added.token}`} />
+                <Copyable label="Or the token alone, where it asks for an API key" value={added.token} />
                 <p className="text-sm text-muted-foreground">This token won&apos;t be shown again. Save it in your AI now.</p>
                 <div className="flex justify-end">
                   <Button type="button" variant="ghost" size="lg" onClick={() => setAdded(null)}>

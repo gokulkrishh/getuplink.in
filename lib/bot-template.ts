@@ -8,7 +8,7 @@ export const CONNECTOR_URL = "https://app.getuplink.in/api/mcp";
 export const CONNECTOR_INSTRUCTIONS = `Connect Uplink (getuplink.in) to yourself as a custom MCP connector, so you can answer my questions about my Tesla: its driving, charging, battery, software and how it compares with other owners in India.
 
 1. Add a custom MCP connector (remote server, Streamable HTTP) named Uplink with this URL: ${CONNECTOR_URL}
-2. Authentication is a bearer token, sent as the header Authorization: Bearer <token>. If you only take an API key, use the token alone. I get the token in Uplink under Settings, Advanced, MCP connectors, by adding a connector named after you, and it's shown once. Ask me for it in a secret or password field if you have one, not in chat.
+2. Authentication is a bearer token, sent as a header named Authorization with the value Bearer <token>. Choose no sign-in (no OAuth). If you only take an API key, use the token alone. I get the token in Uplink under Settings, Advanced, MCP connectors, by adding a connector named after you, and it's shown once. Ask me for it in a secret or password field if you have one, not in chat.
 3. If you can only run a local command, use: npx -y mcp-remote ${CONNECTOR_URL} --header "Authorization: Bearer <token>"
 4. Check that Uplink's tools load, such as get_car_now and get_owner_comparisons, then tell me it's connected.
 
