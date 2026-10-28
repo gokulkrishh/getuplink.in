@@ -121,6 +121,8 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
   const { cars, canSend } = view;
   const key = keyStep(cars);
   const streaming = streamingStep(cars);
+  // Both steps done: nothing left to check, so the page says so and leads on.
+  const ready = key === "done" && streaming === "done";
   return (
     <>
       {cars.length === 0 && (
@@ -163,17 +165,20 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
         </Step>
       </ol>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t pt-6">
-        <CheckAgain />
+        {ready && <p className="w-full text-sm">Your car is set up. It sends live data whenever it&apos;s awake.</p>}
+        {!ready && <CheckAgain />}
         {key === "done" && (
           <Link href="/" prefetch={true} className={buttonVariants({ size: "lg" })}>
             Open Uplink
           </Link>
         )}
-        {view.checkedAt && <p className="text-xs text-faint">Checked {formatAgo(view.checkedAt, now)}</p>}
+        {!ready && view.checkedAt && <p className="text-xs text-faint">Checked {formatAgo(view.checkedAt, now)}</p>}
       </div>
-      <p className="mt-10 text-sm text-muted-foreground">
-        Without these, Uplink still checks your car every 12 hours for its software version, battery and charging.
-      </p>
+      {!ready && (
+        <p className="mt-10 text-sm text-muted-foreground">
+          Without these, Uplink still checks your car every 12 hours for its software version, battery and charging.
+        </p>
+      )}
     </>
   );
 }
