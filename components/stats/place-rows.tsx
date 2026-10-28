@@ -1,5 +1,6 @@
 "use client";
 
+import { MapPin } from "lucide-react";
 import { GoogleMapsCredit } from "@/components/google-maps-credit";
 import { NamePlace } from "@/components/name-place";
 import { ScrollX } from "@/components/scroll-x";
@@ -55,6 +56,7 @@ export function PlaceRows({ list, load }: { list: Paged<PlaceRow>; load: LoadMor
                 <td className="w-10 py-3 pr-3 font-mono text-xs text-faint">{p.serial}</td>
                 <th scope="row" className="py-3 pr-4 text-left font-normal">
                   <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                    <MapPin className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
                     {/* The name opens the spot in Google Maps, dotted like the charge page's title. */}
                     <a href={p.href} target="_blank" rel="noopener" title="Open in Google Maps" className="underline decoration-dotted decoration-muted-foreground underline-offset-4 transition-colors hover:decoration-foreground">
                       {p.name}

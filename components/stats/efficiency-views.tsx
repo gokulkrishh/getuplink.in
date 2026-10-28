@@ -7,7 +7,7 @@ export type EfficiencyView = { key: string; label: string; bands: Band[] };
 
 // A band from fewer drives than this is left out: a drive or two says more about that trip than about the
 // speed, AC setting or weather.
-const ENOUGH = 5;
+const ENOUGH = 3;
 
 // Wh per km, as everywhere else in the app, by average speed, AC setting and outside temperature, one group
 // under the other on one scale. Only bands from ENOUGH drives show, and a group needs two of them to compare;
@@ -23,7 +23,7 @@ export function EfficiencyViews({ views }: { views: EfficiencyView[] }) {
     .map((v) => ({ ...v, bands: v.bands.filter((b) => b.drives >= ENOUGH && whPerKm(b) !== null) }))
     .filter((v) => v.bands.length >= 2);
   // Too few drives in this period: say what it needs, rather than leave the card empty.
-  if (shown.length === 0) return <p className="text-sm text-muted-foreground">Shows once 5 or more drives fall in the same speed, AC or weather range. Try a longer period.</p>;
+  if (shown.length === 0) return <p className="text-sm text-muted-foreground">Shows once two speed, AC or weather ranges have 3 or more drives each. Try a longer period.</p>;
   const most = Math.max(...shown.flatMap((v) => v.bands.flatMap((b) => whPerKm(b) ?? [])), 0);
   return (
     <div className="space-y-6">

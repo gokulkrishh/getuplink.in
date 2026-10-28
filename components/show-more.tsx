@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { LoadMore, Paged } from "@/lib/list";
 
@@ -35,9 +36,11 @@ export function usePaged<T>({ rows: first, total }: Paged<T>, load: LoadMore<T>)
 // The button, right-aligned under its list.
 export function ShowMoreButton({ count, open, pending = false, failed = false, onToggle }: { count: number; open: boolean; pending?: boolean; failed?: boolean; onToggle: () => void }) {
   return (
-    <div className="flex justify-end pt-2">
+    <div className="flex items-center justify-end gap-2 pt-2">
+      {/* While the rest loads, a spinner beside the button says something is happening. */}
+      {pending && <Loader2 className="size-4 animate-spin text-muted-foreground motion-reduce:animate-none" aria-hidden="true" />}
       <Button type="button" variant="ghost" size="xs" className="-mr-2" aria-expanded={open} disabled={pending} onClick={onToggle}>
-        {failed ? "Couldn't load. Try again" : open ? "Show less" : `Show ${count} more`}
+        {pending ? "Loading…" : failed ? "Couldn't load. Try again" : open ? "Show less" : `Show ${count} more`}
       </Button>
     </div>
   );
