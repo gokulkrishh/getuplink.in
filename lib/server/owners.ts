@@ -426,7 +426,7 @@ export async function loadOwners(owner: Owner, now: number): Promise<OwnersPage>
     throw err;
   });
   const stats = latest?.stats as OwnerStats | undefined;
-  if (!latest || !stats || stats.v !== STATS_VERSION || stats.cars < MIN_CARS) return { kind: "waiting", sharers };
+  if (!latest || !stats || stats.v !== STATS_VERSION || stats.cars < MIN_CARS || stats.owners < MIN_CARS) return { kind: "waiting", sharers };
   const you = await ownSummary(owner, now);
   const { group, lfp } = you ? { group: you.segment, lfp: you.lfp } : await ownGroup(owner);
   return { kind: "ready", sharers, stats, updatedAt: latest.computed_at, you, group, lfp };

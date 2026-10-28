@@ -119,6 +119,16 @@ describe("aggregate", () => {
     expect(Object.keys(stats.metrics.chargeLimit?.groups ?? {})).toEqual(["lfp"]);
   });
 
+  test("a figure needs 5 owners too, so one owner's 4 cars can't pick out a fifth owner's", () => {
+    const mine = Array.from({ length: 4 }, (_, k) => car(30, { km: 10 }, {}, `fleet-${k}`, 500));
+    const stats = aggregate([...mine, car(30, { km: 20 })]);
+    expect(stats.cars).toBe(5);
+    expect(stats.owners).toBe(2);
+    expect(stats.metrics).toEqual({});
+    const fiveOwners = aggregate([...mine, ...Array.from({ length: 4 }, () => car(30, { km: 20 }))]);
+    expect(fiveOwners.metrics.kmWeek?.all?.cars).toBe(8);
+  });
+
   test("a car two accounts share counts once", () => {
     const shared = Array.from({ length: 2 }, (_, k) => car(30 - k, { km: 10 }, {}, "same-car", 100 + k));
     const others = Array.from({ length: 3 }, () => car(30, { km: 10 }));

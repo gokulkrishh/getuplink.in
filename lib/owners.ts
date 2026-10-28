@@ -1140,20 +1140,26 @@ export function oneCopyPerCar(summaries: CarSummary[]): CarSummary[] {
   return [...best.values()];
 }
 
-// The published totals. A metric, or a group of one, with fewer than MIN_CARS cars is left out entirely, so
-// not even its name says such a car exists.
+// The published totals. A metric, or a group of one, with fewer than MIN_CARS cars or fewer than MIN_CARS
+// owners is left out entirely, so not even its name says such a car exists. Owners count too: one owner's
+// four cars and a fifth owner's would otherwise publish that fifth car's value to the first owner.
 export function aggregate(summaries: CarSummary[]): OwnerStats {
   const cars = oneCopyPerCar(summaries);
   const metrics: OwnerStats["metrics"] = {};
   for (const m of METRICS) {
-    const groups = new Map<string, Value[]>();
+    const groups = new Map<string, { values: Value[]; owners: Set<number> }>();
     for (const s of cars) {
       const value = s.values[m.key];
       const group = groupOf(m, s);
       if (value === null || value === undefined || group === null) continue;
-      groups.set(group, [...(groups.get(group) ?? []), value]);
+      const g = groups.get(group) ?? { values: [], owners: new Set<number>() };
+      g.values.push(value);
+      g.owners.add(s.owner);
+      groups.set(group, g);
     }
-    const stats = Object.fromEntries([...groups].filter(([, values]) => values.length >= MIN_CARS).map(([group, values]) => [group, statOf(m, values)]));
+    const stats = Object.fromEntries(
+      [...groups].filter(([, g]) => g.values.length >= MIN_CARS && g.owners.size >= MIN_CARS).map(([group, g]) => [group, statOf(m, g.values)]),
+    );
     if (Object.keys(stats).length === 0) continue;
     metrics[m.key] = m.segment === "all" ? { all: stats.all } : { groups: stats };
   }

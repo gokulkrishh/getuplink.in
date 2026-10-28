@@ -85,6 +85,8 @@ describe("the page outside demo mode", () => {
     expect(await loadOwners(B, NOW)).toEqual({ kind: "waiting", sharers: 1 });
     fake.rows("fleet_stats").push({ id: 1, computed_at: new Date(NOW).toISOString(), cars: 4, stats: { ...STATS, cars: 4 } });
     expect(await loadOwners(B, NOW)).toEqual({ kind: "waiting", sharers: 1 });
+    fake.rows("fleet_stats").push({ id: 2, computed_at: new Date(NOW + 1).toISOString(), cars: 6, stats: { ...STATS, owners: 4 } });
+    expect((await loadOwners(B, NOW)).kind).toBe("waiting");
   });
 });
 
