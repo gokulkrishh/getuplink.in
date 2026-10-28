@@ -12,6 +12,8 @@ import { cn } from "@/lib/utils";
 // a short and a long tip doesn't move it either.
 const BOX = "space-y-2 border px-4 py-3";
 const THANKS_MS = 5000;
+const DISMISSED_KEY = "uplink:tips-dismissed";
+const DISMISSED_MAX = 200;
 const TIPS_LINES = "min-h-25 sm:min-h-10";
 const NOTE_LINES = "min-h-15 sm:min-h-10";
 
@@ -49,24 +51,27 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
     return () => clearTimeout(id);
   }, [justVoted]);
   const [, startTransition] = useTransition();
-  // Hidden by the owner for this page (this day, drive or charge), in this browser. The next page's tips,
-  // written fresh, show again. Hiding isn't a vote.
-  const hideKey = vote ? `uplink:tips-hidden:${vote.scope}:${vote.entity}` : null;
-  const [boxHidden, setBoxHidden] = useState(false);
+  // Tips the owner dismissed, by their text, in this browser: a dismissed tip never shows again, on any page.
+  // Dismissing isn't a vote. Kept to the latest DISMISSED_MAX.
+  const [dismissed, setDismissed] = useState<string[]>([]);
   useEffect(() => {
-    if (!hideKey) return;
     try {
-      setBoxHidden(localStorage.getItem(hideKey) !== null);
+      const saved: unknown = JSON.parse(localStorage.getItem(DISMISSED_KEY) ?? "[]");
+      if (Array.isArray(saved)) setDismissed(saved.filter((t): t is string => typeof t === "string"));
     } catch {}
-  }, [hideKey]);
-  const hide = () => {
-    setBoxHidden(true);
+  }, []);
+  const shownTips = tips.filter((t) => !dismissed.includes(t.text));
+  if (shownTips.length === 0 && !replacing) return null;
+  const current = !replacing && shownTips.length > 0 ? shownTips[at % shownTips.length] : null;
+  const dismiss = () => {
+    if (!current) return;
+    const next = [...dismissed.filter((t) => t !== current.text), current.text].slice(-DISMISSED_MAX);
+    setDismissed(next);
+    setAt((k) => (shownTips.length > 1 ? k % (shownTips.length - 1) : 0));
     try {
-      if (hideKey) localStorage.setItem(hideKey, "1");
+      localStorage.setItem(DISMISSED_KEY, JSON.stringify(next));
     } catch {}
   };
-  if (boxHidden || (tips.length === 0 && !replacing)) return null;
-  const current = !replacing && tips.length > 0 ? tips[at % tips.length] : null;
   const tip = current?.text ?? "";
   const kind = current?.kind;
   const send = (input: Parameters<typeof voteTip>[0]) => startTransition(() => void voteTip(input));
@@ -80,7 +85,7 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
     if (next !== -1) return send(input);
     // Not useful: the note leaves, and the next one takes its place.
     setHidden((h) => [...h, tip]);
-    const left = tips.length - 1;
+    const left = shownTips.length - 1;
     setAt((k) => (left > 0 ? k % left : 0));
     if (!vote.swap) return send(input);
     // Another is asked for: the box waits for it, then turns to it.
@@ -134,21 +139,21 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
         </div>
         <div className="flex items-center gap-3">
           {/* ‹ 2 of 3 ›: back and on, each wrapping round. */}
-          {current && tips.length > 1 && (
+          {current && shownTips.length > 1 && (
             <div className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums">
-              <button type="button" onClick={() => setAt((k) => (k + tips.length - 1) % tips.length)} aria-label="Previous tip" className={cn(CONTROL, "size-6 justify-center")}>
+              <button type="button" onClick={() => setAt((k) => (k + shownTips.length - 1) % shownTips.length)} aria-label="Previous tip" className={cn(CONTROL, "size-6 justify-center")}>
                 <ChevronLeft className="size-3.5" aria-hidden="true" />
               </button>
               <span aria-live="polite">
-                {(at % tips.length) + 1} of {tips.length}
+                {(at % shownTips.length) + 1} of {shownTips.length}
               </span>
-              <button type="button" onClick={() => setAt((k) => (k + 1) % tips.length)} aria-label="Next tip" className={cn(CONTROL, "size-6 justify-center")}>
+              <button type="button" onClick={() => setAt((k) => (k + 1) % shownTips.length)} aria-label="Next tip" className={cn(CONTROL, "size-6 justify-center")}>
                 <ChevronRight className="size-3.5" aria-hidden="true" />
               </button>
             </div>
           )}
           {vote && (
-            <button type="button" onClick={hide} aria-label="Hide tips" title="Hide tips" className={cn(CONTROL, "size-6 justify-center")}>
+            <button type="button" onClick={dismiss} aria-label="Dismiss this tip" title="Dismiss this tip" className={cn(CONTROL, "size-6 justify-center")}>
               <X className="size-3.5" aria-hidden="true" />
             </button>
           )}
