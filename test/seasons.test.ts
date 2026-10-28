@@ -4,6 +4,7 @@ import type { Drive } from "@/lib/drives";
 import { type CounterColumn, type DrivingCounters, type DrivingFigure, drivingFigures, figureInstants, timeframeInstants } from "@/lib/driving-figures";
 import { monthIndex, monthShort } from "@/lib/periods";
 import {
+  fourEndingWith,
   type SeasonFigure,
   seasonComparison,
   seasonEfficiency,
@@ -166,5 +167,12 @@ describe("seasonEfficiency", () => {
   test("nothing without counters", () => {
     const none: DrivingCounters = { instants: [], odometer: null, used: null, regen: null, polledOdometer: null };
     expect(seasonEfficiency(none, frame, [], now)).toEqual({ seasons: [], drivesFrom: null });
+  });
+});
+
+describe("fourEndingWith", () => {
+  test("the four seasons, oldest first, ending with the one given", () => {
+    expect(fourEndingWith("postMonsoon")).toEqual(["winter", "summer", "monsoon", "postMonsoon"]);
+    expect(fourEndingWith("winter")).toEqual(["summer", "monsoon", "postMonsoon", "winter"]);
   });
 });

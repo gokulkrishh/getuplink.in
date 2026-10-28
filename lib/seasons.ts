@@ -22,6 +22,12 @@ const ORDER: Season[] = ["winter", "summer", "monsoon", "postMonsoon"];
 
 export const seasonName = (s: Season) => SEASONS[s].name;
 
+// The four seasons in the order they came, ending with `last`: the tiles' order.
+export function fourEndingWith(last: Season): Season[] {
+  const k = ORDER.indexOf(last);
+  return [...ORDER.slice(k + 1), ...ORDER.slice(0, k + 1)];
+}
+
 // The season of a month index (year * 12 + month, see monthIndex).
 export function seasonOfMonth(index: number): Season {
   const m = index % 12;
