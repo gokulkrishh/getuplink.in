@@ -67,6 +67,8 @@ describe("the number guard", () => {
     expect(lineProblem("speed", "You went 15 km/h faster than usual.", facts)).toBe("number");
     expect(lineProblem("summary", "You used twice the energy.", facts)).toBe("number");
     expect(lineProblem("summary", "There were nine hard brakes.", facts)).toBe("number");
+    expect(lineProblem("summary", "The climb around 7:16 AM likely used most of the energy.", facts)).toBe("guess");
+    expect(lineProblem("summary", "It used more because of the climb at 7:16 AM.", facts)).toBe("guess");
   });
 
   test("rejects the house style's don'ts", () => {

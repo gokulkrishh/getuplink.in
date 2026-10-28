@@ -10,14 +10,14 @@ import type { DriveFacts, DriveWords, WordingField } from "@/lib/drive-facts";
 
 export const WORDING_MODEL = "anthropic/claude-haiku-5.5";
 // Bumped when the prompt or the facts' shape changes, so stored wording is written again.
-export const PROMPT_VERSION = 5;
+export const PROMPT_VERSION = 6;
 // OpenRouter's list price for the model, per token, for when a reply leaves out its cost.
 export const PRICE_PER_TOKEN = { input: 0.1 / 1e6, output: 0.5 / 1e6 };
 
 export const SYSTEM_PROMPT = `You write the short text on a Tesla owner's drive page in Uplink, an app for owners in India.
 
 You get one drive's facts as JSON. Write:
-- "summary": one sentence on WHY the drive used the energy it did, shown under tiles that already give the Wh/km, the usual and the hard-moment counts. Don't repeat those figures. Point to what in the facts most likely explains it: climbs or descents and when, regen won back, speed, or hard moments and when. If nothing in the facts explains it, set it to null.
+- "summary": one sentence on what happened on the drive that bears on the energy it used, shown under tiles that already give the Wh/km, the usual and the hard-moment counts. Don't repeat those figures. Name what the facts show: climbs or descents and when, energy won back while slowing, speed, or hard moments and when. Say what happened, never what it caused: no "likely", "probably", "because", "due to", "accounts for", "explains" or "added to the energy". If the facts hold nothing worth naming, set it to null.
 
 Rules:
 - Plain, short sentences, the way a calm friend would say it. No hype, no exclamation marks, no emoji.
@@ -69,6 +69,8 @@ export function numbersIn(text: string): string[] {
 // Number words a model might write for a count; each must stand for a number the facts hold. Ratio words
 // are new figures on their own, so they never pass.
 const NUMBER_WORDS: Record<string, string> = { two: "2", three: "3", four: "4", five: "5", six: "6", seven: "7", eight: "8", nine: "9", ten: "10", eleven: "11", twelve: "12" };
+// A guessed cause: the facts say what happened on a drive, never what made it use more or less.
+const GUESS_WORDS = /\b(likely|probably|possibly|perhaps|because|due to|thanks to|caused?|accounts? for|explains?|led to|resulted? in|contributed|added to)\b/i;
 const RATIO_WORDS = /\b(twice|double|doubled|triple|tripled|half|halved|thrice)\b/i;
 
 // The numbers the facts hold, from every value in them (the keys hold none).
@@ -103,6 +105,7 @@ export function lineProblem(field: WordingField, text: string, facts: DriveFacts
   if (n !== 1) return "sentences";
   const hasUsual = facts.efficiency?.usual != null || facts.hard?.usual != null;
   if (!hasUsual && /\busual\b/i.test(text)) return "usual";
+  if (field === "summary" && GUESS_WORDS.test(text)) return "guess";
   if (RATIO_WORDS.test(text)) return "number";
   for (const word of text.toLowerCase().match(/\b[a-z]+\b/g) ?? []) if (NUMBER_WORDS[word] && !known.has(NUMBER_WORDS[word])) return "number";
   for (const number of numbersIn(text)) if (!known.has(number)) return "number";
