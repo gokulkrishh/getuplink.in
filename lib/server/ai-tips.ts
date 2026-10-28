@@ -107,7 +107,11 @@ export async function generateTips(owner: Owner, surface: TipSurface, key: TipsK
         { onConflict: "user_id,vehicle_id,drive_start,scope" },
       );
   try {
-    const claim = await store([], null);
+    // What Jev blocked here before is kept through the rewrite, for Admin.
+    const before = await ownerDb(owner).from("drive_wording").select("wording").eq("vehicle_id", key.vehicleId).eq("drive_start", new Date(key.at).toISOString()).eq("scope", surface.scope).maybeSingle();
+    const earlier = (before.data?.wording ?? {}) as { jevBlocked?: BlockedTip[]; jevAt?: string };
+    const kept = { ...(earlier.jevBlocked?.length ? { jevBlocked: earlier.jevBlocked } : {}), ...(earlier.jevAt ? { jevAt: earlier.jevAt } : {}) };
+    const claim = await store([], null, kept);
     if (claim.error) {
       if (!MISSING.includes(claim.error.code)) console.warn("Tips not written:", claim.error.message);
       return;
@@ -137,7 +141,9 @@ export async function generateTips(owner: Owner, surface: TipSurface, key: TipsK
     // Jev checks each tip that passed. A tip it blocks isn't stored, and is kept aside for Admin. When it
     // blocks them all, the row has no tips and is tried again after RETRY_MS, as when none passed.
     const checked = await checkTipsWithJev(tips, sent);
-    const jev = checked.at ? { jevAt: checked.at, ...(checked.blocked.length > 0 ? { jevBlocked: checked.blocked } : {}) } : {};
+    const blocked = [...(kept.jevBlocked ?? []), ...checked.blocked];
+    const jevAt = kept.jevAt ?? checked.at;
+    const jev = { ...(blocked.length > 0 ? { jevBlocked: blocked } : {}), ...(jevAt ? { jevAt } : {}) };
     const { error } = await store(checked.tips, cost + checked.cost, jev);
     if (error && !MISSING.includes(error.code)) console.warn("Storing tips failed:", error.message);
   } catch (err) {

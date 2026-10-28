@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Finding } from "@/lib/ai-tips";
 import { summariseJev } from "@/lib/jev-checks";
 import { WEEK_TIPS } from "@/lib/week-wording";
@@ -50,12 +50,21 @@ beforeEach(() => {
 afterEach(() => {
   globalThis.fetch = realFetch;
 });
+const env = { key: process.env.OPENROUTER_API_KEY, off: process.env.JEV_OFF };
+afterAll(() => {
+  for (const [name, value] of [["OPENROUTER_API_KEY", env.key], ["JEV_OFF", env.off]] as const) {
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  }
+});
 
 describe("Jev's request and answer", () => {
   test("asks one yes/no question about the tip, over the findings the writer got", () => {
     const body = jevRequest(sent, CHARGE_TIP);
     expect(body.model).toBe("~typesafe/jev-latest");
-    expect(body.state.tip).toBe(CHARGE_TIP);
+    // The station's name is the same token in the findings and the tip.
+    expect(body.state.tip).toBe("Charging at [place 1] costs ₹16.52/kWh against ₹22.40/kWh this week, ₹84.20 less.");
+    expect(JSON.stringify(body.state.findings)).toContain('"station":"[place 1]"');
     expect(body.questions.unsupported.type).toBe("noul");
     expect(body.provider).toEqual({ data_collection: "deny" });
   });
@@ -63,7 +72,7 @@ describe("Jev's request and answer", () => {
   test("sends no VIN, location, place or owner keys, even when a finding carries them", () => {
     const leaky = [{ ...sent[0], vin: "5YJ3E7EB0NF000001", lat: 12.97, lng: 77.59, userId: 42, vehicleId: "1492931337" } as Finding];
     const text = JSON.stringify(jevRequest(leaky, CHARGE_TIP));
-    for (const leak of ["5YJ3", "12.97", "77.59", "1492931337", '"vin"', '"lat"', '"lng"', '"userId"', '"vehicleId"', '"say"', '"score"', "A plain line."]) expect(text).not.toContain(leak);
+    for (const leak of ["5YJ3", "12.97", "77.59", "1492931337", '"vin"', '"lat"', '"lng"', '"userId"', '"vehicleId"', '"say"', '"score"', "A plain line.", "VoltPoint", "Lakeview"]) expect(text).not.toContain(leak);
   });
 
   test("reads the probability of yes, and blocks from BLOCK_FROM", () => {
@@ -123,6 +132,17 @@ describe("generateTips with Jev", () => {
     expect(w.tips[0].jev?.p).toBe(0.89);
     expect(w.tips[1].jev).toBeNull();
     expect(w.jevBlocked).toBeUndefined();
+  });
+
+  test("what Jev blocked before is kept when the row is written again", async () => {
+    stubFetch(both, () => 0.95);
+    await generateTips(owner, WEEK_TIPS, KEY, sent);
+    const first = stored();
+    expect(first.tips).toHaveLength(0);
+    expect(first.jevBlocked).toHaveLength(2);
+    await generateTips(owner, WEEK_TIPS, KEY, sent);
+    expect(stored().jevBlocked).toHaveLength(4);
+    expect(stored().jevAt).toBe(first.jevAt!);
   });
 
   test("with JEV_OFF, tips are stored unchecked, with no verdict key", async () => {

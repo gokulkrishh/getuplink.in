@@ -290,7 +290,7 @@ A January 2026 MeitY proposal to cut the 18 months to 12 was aimed at Significan
 | Review, correct, withdraw | r. 5(6), (7) | Your rights, Withdrawing consent. |
 | Grievance Officer name, one month | r. 5(9) | Email and 30 days; no name (#1). |
 | Disclosure only with permission or by law | r. 6 | Who else gets it. |
-| New recipient: TypeSafe's Jev checks each AI tip (28 Oct 2026) | r. 5(3), r. 6; DPDP s. 5(1)(i), s. 8(2) | Privacy: Who else gets it names it. Jev gets the tip's text and the figures sent to the tip writer (`modelFindings`), never location, place names, VIN or account ids, through OpenRouter with `data_collection: "deny"` (`lib/server/jev.ts`). TypeSafe's country isn't published on OpenRouter, so it isn't in the "US companies" line yet (**Owner**: confirm it and add it there). Its DPA joins #15. |
+| New recipient: TypeSafe's Jev checks each AI tip (28 Oct 2026) | r. 5(3), r. 6; DPDP s. 5(1)(i), s. 8(2) | Privacy: Who else gets it names it. Jev gets the tip's text and the figures sent to the tip writer (`modelFindings`), never location, VIN or account ids, with station, town and area names swapped for "[place 1]" tokens, through OpenRouter with `data_collection: "deny"` (`lib/server/jev.ts`). TypeSafe's country isn't published on OpenRouter, so it isn't in the "US companies" line yet (**Owner**: confirm it and add it there). Its DPA joins #15. |
 | Disclosure in breach of contract | IT Act s. 72A | Sharing is only as Privacy lists. |
 
 ### Tesla Fleet API Agreement (now)

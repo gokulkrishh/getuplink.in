@@ -24,10 +24,35 @@ const QUESTION = "unsupported";
 
 export const jevOn = () => !DEMO && !process.env.JEV_OFF?.trim() && Boolean(process.env.OPENROUTER_API_KEY?.trim());
 
+// Station, town and area names in the findings (charge tips name them) never reach Jev: each becomes the same
+// numbered token in the findings and in the tip ("[place 1]"), so Jev can still see that the tip's place is one
+// the findings hold.
+const PLACE_KEY = /station|town|area|place|name|site|location|address|city/i;
+
+export function placeTokens(findings: Finding[]): Map<string, string> {
+  const names = new Set<string>();
+  const walk = (v: unknown, key: string): void => {
+    if (Array.isArray(v)) v.forEach((x) => walk(x, key));
+    else if (v && typeof v === "object") Object.entries(v).forEach(([k, x]) => walk(x, k));
+    else if (typeof v === "string" && v.trim().length > 1 && PLACE_KEY.test(key)) names.add(v.trim());
+  };
+  findings.forEach((f) => walk(f.facts, ""));
+  // Longest first, so "VoltPoint, Lakeview Fuels" goes before a "Lakeview" inside it.
+  return new Map([...names].sort((a, b) => b.length - a.length).map((n, k) => [n, `[place ${k + 1}]`]));
+}
+
+export function hidePlaces<T>(value: T, tokens: Map<string, string>): T {
+  if (typeof value === "string") return [...tokens].reduce((t, [name, token]) => t.split(name).join(token), value as string) as T;
+  if (Array.isArray(value)) return value.map((x) => hidePlaces(x, tokens)) as T;
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, x]) => [k, hidePlaces(x, tokens)])) as T;
+  return value;
+}
+
 export function jevRequest(findings: Finding[], tip: string) {
+  const tokens = placeTokens(findings);
   return {
     model: JEV_MODEL,
-    state: { findings: modelFindings(findings), tip },
+    state: { findings: hidePlaces(modelFindings(findings), tokens), tip: hidePlaces(tip, tokens) },
     questions: {
       [QUESTION]: {
         type: "noul",

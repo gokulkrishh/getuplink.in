@@ -4,10 +4,10 @@
 //
 //   bun --conditions=react-server --env-file=.env.local scripts/jev-replay.ts
 //
-// Prints no secrets, VINs or ids. Station and place names in a tip are shown as [place].
+// Prints no secrets, VINs or ids. Station, town and area names in a tip are shown as [place 1] and so on.
 import { createClient } from "@supabase/supabase-js";
 import type { Finding } from "@/lib/ai-tips";
-import { BLOCK_FROM, checkTip, JEV_MODEL } from "@/lib/server/jev";
+import { BLOCK_FROM, checkTip, hidePlaces, JEV_MODEL, placeTokens } from "@/lib/server/jev";
 
 const DAYS = 60;
 const AT_ONCE = 6;
@@ -24,18 +24,20 @@ const rows = await db.from("drive_wording").select("user_id, scope, wording").in
 if (rows.error) throw new Error(`Reading tips failed: ${rows.error.message}`);
 const votes = await db.from("tip_votes").select("user_id, tip, vote").limit(10_000);
 if (votes.error) throw new Error(`Reading tip votes failed: ${votes.error.message}`);
-const voteOf = new Map((votes.data ?? []).map((v) => [`${v.user_id}:${v.tip}`, Number(v.vote)]));
-
-// Every station or place name in the findings, to hide in what's printed.
-const placeKey = /station|place|name|site|location|address/i;
-function places(v: unknown, under = ""): string[] {
-  if (Array.isArray(v)) return v.flatMap((x) => places(x, under));
-  if (v && typeof v === "object") return Object.entries(v).flatMap(([k, x]) => places(x, k));
-  return typeof v === "string" && placeKey.test(under) ? [v] : [];
+// Joined by tip text: the same text twice is the same tip.
+// A text voted both ways (the same tip on two days) is 2.
+const voteOf = new Map<string, number>();
+for (const v of votes.data ?? []) {
+  const was = voteOf.get(v.tip as string);
+  voteOf.set(v.tip as string, was === undefined || was === Number(v.vote) ? Number(v.vote) : 2);
 }
-const redact = (text: string, sent: Finding[]) => places(sent.map((f) => f.facts)).reduce((t, p) => (p.length > 2 ? t.split(p).join("[place]") : t), text);
+const stored = new Set((rows.data as Row[]).flatMap((r) => (r.wording?.tips ?? []).map((t) => t.text)));
+const unmatched = (votes.data ?? []).filter((v) => !stored.has(v.tip as string));
 
-const jobs = (rows.data as Row[]).flatMap((r) => (Array.isArray(r.wording?.sent) ? (r.wording.tips ?? []).map((t) => ({ ...t, scope: r.scope, sent: r.wording!.sent!, vote: voteOf.get(`${r.user_id}:${t.text}`) ?? 0 })) : []));
+// Station, town and area names, hidden in what's printed as they are from Jev.
+const redact = (text: string, sent: Finding[]) => hidePlaces(text, placeTokens(sent));
+
+const jobs = (rows.data as Row[]).flatMap((r) => (Array.isArray(r.wording?.sent) ? (r.wording.tips ?? []).map((t) => ({ ...t, scope: r.scope, sent: r.wording!.sent!, vote: voteOf.get(t.text) ?? 0 })) : []));
 const results: { scope: string; text: string; vote: number; p: number | null }[] = [];
 for (let k = 0; k < jobs.length; k += AT_ONCE) {
   const batch = jobs.slice(k, k + AT_ONCE);
@@ -52,9 +54,11 @@ console.log("");
 console.log(`${"Tips".padEnd(22)} ${"count".padStart(5)} ${"would block".padStart(12)}`);
 line("Voted not useful", results.filter((r) => r.vote === -1));
 line("Voted useful", results.filter((r) => r.vote === 1));
+line("Voted both ways", results.filter((r) => r.vote === 2));
 line("Not voted", results.filter((r) => r.vote === 0));
+console.log(`Votes on tips not stored in the last ${DAYS} days (can't be replayed): ${unmatched.length}, ${unmatched.filter((v) => Number(v.vote) === -1).length} of them not useful`);
 console.log("");
 console.log("Tips Jev would block:");
-for (const r of results.filter(blocks).sort((a, b) => (b.p ?? 0) - (a.p ?? 0))) console.log(`- p ${r.p!.toFixed(2)} · ${r.scope} · ${r.vote === 1 ? "useful" : r.vote === -1 ? "not useful" : "not voted"}: ${r.text}`);
+for (const r of results.filter(blocks).sort((a, b) => (b.p ?? 0) - (a.p ?? 0))) console.log(`- p ${r.p!.toFixed(2)} · ${r.scope} · ${r.vote === 1 ? "useful" : r.vote === -1 ? "not useful" : r.vote === 2 ? "both ways" : "not voted"}: ${r.text}`);
 const p = results.flatMap((r) => (r.p === null ? [] : [r.p])).sort((a, b) => a - b);
 if (p.length > 0) console.log(`\nJev's p across all tips: lowest ${p[0].toFixed(2)}, middle ${p[Math.floor(p.length / 2)].toFixed(2)}, highest ${p.at(-1)!.toFixed(2)}`);
