@@ -9,7 +9,6 @@ import { Distance, DriveStatsSection } from "@/components/stats/driving-sections
 import { customScope, type HomePeriod, PERIODS } from "@/components/stats/periods";
 import { driveStats, withDriveEfficiency } from "@/lib/drive-stats";
 import { type Day, stripsBetween } from "@/lib/day-timeline";
-import { DayTimeline } from "@/components/stats/day-timeline";
 import { EfficiencyBands, Places, SpeedBands } from "@/components/stats/driving-extras";
 import { type DrivingExtras, INSIGHT_DAYS, loadDrivingExtrasFor } from "@/lib/server/driving-extra";
 import { withGoogleNames } from "@/lib/server/google-place-names";
@@ -41,7 +40,7 @@ import type { SeasonEfficiency as Seasons } from "@/lib/seasons";
 import { loadRangeDriving } from "@/lib/server/home";
 import { loadTripPlaces } from "@/lib/server/trip-places";
 import { loadPrimaryVehicle } from "@/lib/server/telemetry";
-import { istDay, istDayStart } from "@/lib/telemetry-derive";
+import { istDay } from "@/lib/telemetry-derive";
 
 export const metadata: Metadata = { title: "Driving" };
 
@@ -130,9 +129,8 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
   // Mirrors the sections' own "enough data" rules, so an empty page says so instead of showing nothing.
   const hasDriving = (figures.periods.all.current.km ?? 0) > 0 || days.filter((d) => d.km !== null).length >= 2 || driving.drives.length > 0;
   const frames = periodFrames(figures, custom, driving.drives, now);
-  // What the drives and the strips keep, for a span that starts earlier (see reachesBefore).
+  // What the drives keep, for a span that starts earlier (see reachesBefore).
   const tripsFrom = now - DRIVE_DAYS * DAY;
-  const stripsFrom = istDayStart(istDay(now) - AWAKE_DAYS + 1);
   const partial = (span: Span, windowFrom: number) => reachesBefore(span, windowFrom, figures.since);
   // The insights read a span's newest days only; when that leaves some out, the note names the days read.
   const insightsNote = (key: HomePeriod, span: Span) => {
@@ -173,13 +171,6 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
           })}
           {eachFrame(frames, ({ key, frame }) => (
             <Places places={byFrame[key]?.extras.places ?? []} visited={byFrame[key]?.extras.visited ?? []} note={insightsNote(key, frame.span)} />
-          ))}
-          {eachFrame(frames, ({ key, frame }) => (
-            <DayTimeline
-              days={byFrame[key]?.days ?? []}
-              now={now}
-              caption={partial(frame.span, stripsFrom) ? `Days cover only the last ${AWAKE_DAYS} days` : undefined}
-            />
           ))}
           {eachFrame(frames, (f) => (isLong(f) ? <SpeedBands bins={byFrame[f.key]?.extras.speed ?? []} note={insightsNote(f.key, f.frame.span)} /> : null))}
           {/* Seasons are compared across the year, so no single period changes them; they show on the long spans only (see isLong). */}

@@ -1,10 +1,8 @@
 import { ScrollX } from "@/components/scroll-x";
 import { ChevronRight } from "lucide-react";
-import { ChartCard } from "@/components/chart-card";
 import { ReleaseNotesList } from "@/components/release-notes";
 import { ShowMore } from "@/components/show-more";
 import { Tip, TipTrigger } from "@/components/tip";
-import { VersionChart } from "@/components/version-chart";
 import { DECIMALS, formatDate, formatDuration, formatNumber, formatShortDate } from "@/lib/format";
 import { LIST_PREVIEW } from "@/lib/list";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
@@ -118,8 +116,8 @@ function HistoryRow({ change, notes, now }: { change: VersionChange; notes: Rele
   );
 }
 
-// The version chart, then every version newest first with its timings and release notes.
-export function VersionHistory({ history, notes, now, until }: { history: VersionChange[]; notes: ReleaseNotesByVersion; now: number; until: string | null }) {
+// Every version, newest first, with its timings and release notes.
+export function VersionHistory({ history, notes, now }: { history: VersionChange[]; notes: ReleaseNotesByVersion; now: number }) {
   return (
     <section className="space-y-4">
       <div className="space-y-1">
@@ -134,15 +132,8 @@ export function VersionHistory({ history, notes, now, until }: { history: Versio
         <EmptyHistory />
       ) : (
         <>
-          <ChartCard
-            as="h3"
-            title="Software version"
-            description="Each step up is a new version arriving."
-          >
-            <VersionChart changes={[...history].reverse()} until={until} />
-          </ChartCard>
           {/* On phones the table keeps its columns and scrolls sideways. */}
-          <ScrollX className="max-sm:-mx-1 max-sm:px-1 pt-6">
+          <ScrollX className="max-sm:-mx-1 max-sm:px-1">
             <div className="max-sm:min-w-xl">
             <div className={cn("history-cols", "pb-2 text-xs text-faint")}>
               <h3 className="pl-5">Versions</h3>

@@ -21,11 +21,25 @@ import { DeleteAccount, DeleteMyData, DisconnectTesla, SignOutEverywhere } from 
 import { BotTemplate, McpConnector } from "./integrations";
 import { Loading, Ph } from "@/components/skeleton";
 import { Row } from "./row";
+import { FoldToggle } from "@/components/fold-toggle";
 import { ShareSwitch } from "@/components/owners/share-controls";
 import { type Sharing } from "@/lib/server/data/owners";
 import { sharingState } from "@/lib/server/owners";
 
 export const metadata: Metadata = { title: "Settings" };
+
+// Settings few owners need (connecting their own AI, the bot), closed until opened, last on the page.
+function Advanced({ children }: { children: React.ReactNode }) {
+  return (
+    <details className="group mt-10">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 pb-2 [&::-webkit-details-marker]:hidden">
+        <h2 className="text-lg font-medium tracking-heading">Advanced</h2>
+        <FoldToggle />
+      </summary>
+      <div className="divide-y border-t">{children}</div>
+    </details>
+  );
+}
 
 function Group({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -103,11 +117,6 @@ async function Settings() {
         <HomeState home={home} />
       </Group>
 
-      <Group title="Integrations">
-        <McpConnector status={connector} now={now} />
-        <BotTemplate />
-      </Group>
-
       <Group title="Account">
         {account.connected ? (
           <DisconnectTesla description={connectedDescription} />
@@ -132,6 +141,11 @@ async function Settings() {
         <DeleteMyData />
         <DeleteAccount />
       </Group>
+
+      <Advanced>
+        <McpConnector status={connector} now={now} />
+        <BotTemplate />
+      </Advanced>
     </>
   );
 }
@@ -184,24 +198,6 @@ function SettingsSkeleton() {
           />,
         )}
         {group(
-          "Integrations",
-          <Row
-            key="mcp"
-            title={<Ph>MCP connector</Ph>}
-            control={<p className="text-sm">{text("Not set up")}</p>}
-          >
-            <div className="mt-3 h-[174px] bg-muted motion-safe:animate-pulse max-sm:h-[214px]" />
-          </Row>,
-          <Row
-            key="bot"
-            title={<Ph>Uplink Bot</Ph>}
-            description={<p>{text("An always-on AI bot that finds charging invoices in Gmail, or in chat, and attaches them to your charges.")}</p>}
-            control={button}
-          >
-            <div className="mt-3 h-[106px] bg-muted motion-safe:animate-pulse max-sm:h-[169px]" />
-          </Row>,
-        )}
-        {group(
           "Account",
           <Row key="tesla" title={<Ph>Tesla account</Ph>} description={<p>{text("Connected since 4 Jan 2026")}</p>} control={button} />,
           <Row key="out" title={<Ph>Sign out everywhere</Ph>} description={<p>{text("Signs out every device, including this one.")}</p>} control={button} />,
@@ -217,6 +213,10 @@ function SettingsSkeleton() {
           <Row key="data" title={<Ph>Delete my data</Ph>} description={<p>{text("Deletes everything Uplink holds about your cars and disconnects Tesla.")}</p>} control={button} />,
           <Row key="acct" title={<Ph>Delete account</Ph>} description={<p>{text("Deletes all your data and your Uplink account.")}</p>} control={button} />,
         )}
+        <div className="mt-10 flex items-center justify-between gap-4">
+          <p className="text-lg"><Ph>Advanced</Ph></p>
+          <p className="text-sm"><Ph>Show</Ph></p>
+        </div>
     </Loading>
   );
 }

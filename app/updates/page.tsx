@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { Loading, Ph, SkBlock, SkHead, SkLine, SkSection, SkShowMore } from "@/components/skeleton";
+import { Loading, Ph, SkHead, SkLine, SkSection, SkShowMore } from "@/components/skeleton";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { SyncStreamVersions } from "@/components/background-sync";
 import { AWAKE_MS, CarStatus } from "@/components/car-status";
@@ -101,7 +101,7 @@ function CarUpdates({ car, notes, label, range, now }: { car: UpdatesCar; notes:
 
       {latest?.error && <p className="text-sm text-muted-foreground">The car went to sleep during the last check. Uplink will try again.</p>}
 
-      <VersionHistory history={history} notes={notes} now={now} until={vehicle.last_polled_at} />
+      <VersionHistory history={history} notes={notes} now={now} />
 
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -182,11 +182,7 @@ function UpdatesSkeleton() {
           <p className={heading}><Ph>History</Ph></p>
           <p className="text-sm"><Ph>9 versions</Ph></p>
         </div>
-        <SkSection>
-          <SkHead title="Software version" description="Each step up is a new version arriving." level="h3" />
-          <SkBlock className="h-[104px] max-sm:h-[124px]" />
-        </SkSection>
-        <div className="overflow-hidden pt-6 max-sm:-mx-1 max-sm:px-1">
+        <div className="overflow-hidden max-sm:-mx-1 max-sm:px-1">
           <div className="max-sm:min-w-xl">
           <div className="history-cols pb-2 text-xs">
             <p className="pl-5"><Ph>Versions</Ph></p>

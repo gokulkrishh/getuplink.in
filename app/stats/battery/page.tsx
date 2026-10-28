@@ -76,7 +76,7 @@ async function loadBattery(query: CustomQuery | null): Promise<{
 }
 
 async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "searchParams">) {
-  const { window, sessions, extras, places, custom, presence, priced, modes, vehicleId, now } = await loadBattery(customQuery(await searchParams));
+  const { window, extras, places, custom, presence, priced, modes, vehicleId, now } = await loadBattery(customQuery(await searchParams));
   const { trend, range, level, driving } = window;
   const enough = trend.length >= 2 || range.length > 0 || (level?.points.length ?? 0) >= 2 || driving.parked.length > 0 || driving.parkedNow !== null;
   const frames = timeframes(custom?.frame ?? null, now);
@@ -95,8 +95,8 @@ async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "sear
               <TipsBox surface={BATTERY_TIPS} vehicleId={vehicleId} at={today} daily entity={String(today)} findings={tips} />
             </Suspense>
           )}
-          {eachFrame(frames, ({ frame }) => (
-            <BatteryHealth trend={trend} range={range} sessions={sessions} frame={frame} teslaPack={extras.teslaPack} drives={driving.drives} now={now} />
+          {eachFrame(frames, () => (
+            <BatteryHealth trend={trend} range={range} drives={driving.drives} now={now} />
           ))}
           {eachFrame(frames, ({ frame }) => <ParkedDrain parked={driving.parked} parkedNow={driving.parkedNow} frame={frame} places={places} />)}
           {eachFrame(frames, ({ frame }) => <ChargeLevelChart level={level} now={now} frame={frame} heading />)}

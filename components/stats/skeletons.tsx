@@ -77,30 +77,6 @@ export function DrivingSkeleton() {
           <Ph>Names you give come first, then OpenStreetMap&apos;s. Places named from Google Maps show their area on the map. Home, Work and Favourite are the ones set in your car.</Ph>
         </p>
       </SkSection>
-      <SkSection>
-        <SkHead title="Your days" description="What the car was doing each day, India time." />
-        <div className="space-y-4" aria-hidden="true">
-          <div className="space-y-1.5">
-            {Array.from({ length: 7 }, (_, k) => (
-              <div key={k} className="flex items-center gap-3">
-                <span className="w-16 shrink-0 text-xs">
-                  <Ph>Yesterday</Ph>
-                </span>
-                <div className="h-4 flex-1 bg-muted motion-safe:animate-pulse" />
-              </div>
-            ))}
-          </div>
-          <div className="h-4" />
-          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-            {["Driving", "Charging", "Parked", "Asleep", "Before tracking"].map((label) => (
-              <li key={label} className="inline-flex items-center gap-1.5">
-                <span className="size-2 bg-muted" />
-                <Ph>{label}</Ph>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </SkSection>
       {/* The speed and season sections show on the long spans only, but each leaves its (empty) slot in the stack. */}
       <div aria-hidden="true" />
     </>
@@ -322,13 +298,7 @@ export function BatterySkeleton() {
         <SkFigures
           tiles={[
             { label: "Usable capacity now", value: "64.1 kWh", note: "Latest week, 0.8% below the best week, 64.6 kWh" },
-            { label: "Full pack now, per Tesla", value: "62.1 kWh", note: "Last reported 27 Oct" },
-            { label: "Range at 100% now", value: "≈ 434 km", note: "Latest week, 0.8% below the best week, 438 km" },
             { label: "Real range at 100%", value: "≈ 537 km", note: "At your 119 Wh/km, from 1,096.4 km driven in the last 30 days" },
-            { label: "Energy charged", value: "35.8 kWh", note: "3 charges" },
-            { label: "Charge cycles", value: "0.6" },
-            { label: "AC efficiency", value: "92%" },
-            { label: "DC efficiency", value: "95%" },
           ]}
         />
       </SkSection>

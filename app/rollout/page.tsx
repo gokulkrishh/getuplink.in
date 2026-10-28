@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { CarTabs } from "@/components/car-tabs";
 import { Header } from "@/components/header";
+import { InfoButton } from "@/components/info-button";
 import { ChartCard } from "@/components/chart-card";
 import { ReleaseNotesToggle } from "@/components/release-notes";
 import { RolloutAdoption } from "@/components/rollout-adoption";
@@ -181,22 +182,17 @@ async function Rollout() {
       </ChartCard>
 
       <div className="space-y-2 text-xs text-faint">
-        <p>
-          Counts cover every car Uplink tracks, as totals only, never a single car. An offer counts from the
-          car&apos;s last check while awake.
-        </p>
-        <p>
-          A car&apos;s state comes from its location, or from its Supercharger visits until location is allowed.
-        </p>
-        <p>Global dates come from a hand-kept list of public first sightings. A version not on it shows no lag.</p>
-        <p>Release notes are Tesla&apos;s, fetched once per version from a car that ran or was offered it.</p>
-        <p>
-          State boundaries:{" "}
-          <a href="https://github.com/datameet/maps" className="underline decoration-border decoration-dotted underline-offset-4 hover:text-foreground hover:decoration-foreground">
-            DataMeet India community
-          </a>{" "}
-          (<a href="https://creativecommons.org/licenses/by/4.0/" className="underline decoration-border decoration-dotted underline-offset-4 hover:text-foreground hover:decoration-foreground">CC BY 4.0</a>),
-          simplified. Map not to scale.
+        <p className="flex items-center gap-1.5">
+          Counts cover every car Uplink tracks, as totals only, never a single car.
+          <InfoButton label="How the counts work">
+            <p>An offer counts from the car&apos;s last check while awake. A car&apos;s state comes from its location, or from its Supercharger visits until location is allowed.</p>
+            <p className="mt-2">Global dates come from a hand-kept list of public first sightings. A version not on it shows no lag. Release notes are Tesla&apos;s.</p>
+            <p className="mt-2">
+              State boundaries:{" "}
+              <a href="https://github.com/datameet/maps" className="underline underline-offset-4">DataMeet India community</a> (
+              <a href="https://creativecommons.org/licenses/by/4.0/" className="underline underline-offset-4">CC BY 4.0</a>), simplified. Map not to scale.
+            </p>
+          </InfoButton>
         </p>
         {DEMO && <p>Demo mode: a simulated fleet of Indian cars, with simulated global dates.</p>}
       </div>
