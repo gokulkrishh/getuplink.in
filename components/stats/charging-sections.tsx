@@ -1,7 +1,6 @@
-import { ScrollX } from "@/components/scroll-x";
 import type { TipRow } from "@/components/stats/bar-parts";
-import { hasCosts, type Listed, SessionHeader, SessionRow } from "@/components/session-row";
-import { ShowMore } from "@/components/show-more";
+import type { Listed } from "@/components/session-row";
+import { type ChargeRow, SessionRows } from "@/components/stats/session-rows";
 import { ChartCard } from "@/components/chart-card";
 import { Bars } from "@/components/stats/bars";
 import { Figures } from "@/components/stats/figures";
@@ -9,10 +8,10 @@ import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
 import { chargeEfficiency } from "@/lib/charge-sessions";
 import { type Bill, billsBySlot, billsIn, energyIn, spendBreakdown } from "@/lib/charging-figures";
 import { comparedWith, headline } from "@/lib/dashboard-summary";
-import { DECIMALS, formatDuration, formatKm, formatKwh, formatMoney, formatMonth, formatNumber, formatPercent, showsZero, sumKnown } from "@/lib/format";
+import { DECIMALS, formatDuration, formatKm, formatKwh, formatMoney, formatNumber, formatPercent, showsZero, sumKnown } from "@/lib/format";
 import { hasBars, Headline, knownBars } from "@/components/stats/driving-sections";
-import { LIST_PREVIEW } from "@/lib/list";
-import { serials } from "@/lib/kept";
+import { type LoadMore, paged } from "@/lib/list";
+import { chargeRows } from "@/lib/server/charging-lists";
 import { inSpan, type Slot, type Span, type Timeframe } from "@/lib/periods";
 import { barsSpan } from "@/components/stats/chart-caption";
 import type { ChargingSession } from "@/lib/server/charging";
@@ -20,16 +19,6 @@ import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { Measure } from "@/components/measure";
 
 // The Charging page's sections: spend, energy added by charger kind, and every session by month.
-
-// What a month of the session list was billed: Tesla's bills and the invoices attached, as in Summary.
-function totals(rows: Listed[]) {
-  const costs = rows.flatMap((r) => (r.tesla ? (r.tesla.cost_total === null ? [] : [r.tesla.cost_total]) : r.invoice ? [r.invoice.amount] : []));
-  return {
-    cost: costs.reduce((sum, n) => sum + n, 0),
-    count: costs.length,
-    currency: rows.find((r) => r.tesla?.currency)?.tesla?.currency ?? "INR",
-  };
-}
 
 // The span a charging figure is compared with, when charging tracking (the first session, billed or
 // streamed) began before it: later, the figure there would be part of one. Null otherwise, as on home.
@@ -228,62 +217,24 @@ export function EnergyAdded({
   );
 }
 
-export function SessionList({ sessions }: { sessions: Listed[] }) {
-  // Sessions arrive newest first, so each month's group is in order too. Numbered from the top row, 1.
-  const serial = serials(sessions, (s) => s.key);
+// The first this many sessions (and stations) come with the page; the rest on "Show more".
+export const CHARGING_PREVIEW = 5;
+
+// Every session in the period as one list under month headings: the first few now, the rest from `more`.
+export function SessionList({ sessions, more }: { sessions: Listed[]; more: LoadMore<ChargeRow> }) {
+  const { rows, months, costs } = chargeRows(sessions);
   // The total is the rows' raw energy added up, rounded once when shown, like each row.
   const energyTotal = sumKnown(sessions.map((s) => (s.tesla ? s.tesla.energy_kwh : s.stream?.energy_added_kwh)));
-  const costs = hasCosts(sessions);
-  const groups = new Map<string, Listed[]>();
-  for (const s of sessions) {
-    const month = formatMonth(s.started_at);
-    groups.set(month, [...(groups.get(month) ?? []), s]);
-  }
   return (
     <section className="space-y-6">
-      <div className="space-y-3">
-        <div className="space-y-1">
-          <h2 className="text-lg font-medium tracking-heading">Charging sessions</h2>
-          <p className="text-sm text-muted-foreground tabular-nums">
-            {sessions.length} {sessions.length === 1 ? "session" : "sessions"}
-            {energyTotal > 0 && ` · ${formatKwh(energyTotal)}`}
-          </p>
-        </div>
+      <div className="space-y-1">
+        <h2 className="text-lg font-medium tracking-heading">Charging sessions</h2>
+        <p className="text-sm text-muted-foreground tabular-nums">
+          {sessions.length} {sessions.length === 1 ? "session" : "sessions"}
+          {energyTotal > 0 && ` · ${formatKwh(energyTotal)}`}
+        </p>
       </div>
-    {/* On phones the list keeps its columns and scrolls sideways. */}
-    <ScrollX className="max-sm:-mx-1 max-sm:px-1 sm:-mx-3 sm:px-3">
-    <div className="max-sm:min-w-xl space-y-10">
-      {[...groups].map(([month, rows]) => {
-        const billed = totals(rows);
-        return (
-          <section key={month} className="space-y-2">
-            <h3 className="text-sm font-medium text-muted-foreground">{month}</h3>
-            <div>
-              <SessionHeader costs={costs} numbered />
-              <ul className="divide-y border-t">
-                {rows.slice(0, LIST_PREVIEW).map((s) => (
-                  <SessionRow key={s.key} item={s} serial={serial.get(s.key) ?? 0} costs={costs} />
-                ))}
-              </ul>
-              {rows.length > LIST_PREVIEW && (
-                <ShowMore count={rows.length - LIST_PREVIEW}>
-                  <ul className="divide-y border-t">
-                    {rows.slice(LIST_PREVIEW).map((s) => (
-                      <SessionRow key={s.key} item={s} serial={serial.get(s.key) ?? 0} costs={costs} />
-                    ))}
-                  </ul>
-                </ShowMore>
-              )}
-            </div>
-            <p className="pt-1 text-right text-xs text-faint tabular-nums">
-              {rows.length} {rows.length === 1 ? "charge" : "charges"}
-              {billed.count > 0 && `, ${formatMoney(billed.cost, billed.currency)} billed`}
-            </p>
-          </section>
-        );
-      })}
-    </div>
-    </ScrollX>
+      <SessionRows list={paged(rows, CHARGING_PREVIEW)} months={months} costs={costs} load={more} />
     </section>
   );
 }

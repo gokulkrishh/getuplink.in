@@ -1,3 +1,4 @@
+import { columns, SessionHeader } from "@/components/session-columns";
 import { SessionLine, type SessionView } from "@/components/session-line";
 import { type ChargeName, chargeName, chargeType, type SpotName } from "@/lib/charge-names";
 import { splitSite } from "@/lib/charge-sessions";
@@ -5,6 +6,8 @@ import { formatClock, formatDayLabel, formatDuration, formatKwh, formatLevels, f
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { cn } from "@/lib/utils";
+
+export { SessionHeader };
 
 export function rate(cost: number, energy: number, currency: string): string | null {
   return energy > 0 ? `${formatMoney(cost / energy, currency)}/kWh` : null;
@@ -63,32 +66,9 @@ export function hasCosts(items: Listed[]): boolean {
   return items.some((item) => item.tesla || item.invoice);
 }
 
-// Static class names, so Tailwind sees them. Wide fits "Yesterday" in the first column (with `now`);
-// numbered puts a "#" column first.
-function columns(wide: boolean, costs: boolean, numbered = false): string {
-  if (numbered && wide) return costs ? "grid-cols-charge-serial-wide-cost" : "grid-cols-charge-serial-wide";
-  if (numbered) return costs ? "grid-cols-charge-serial-cost" : "grid-cols-charge-serial";
-  if (wide) return costs ? "grid-cols-charge-wide-cost" : "grid-cols-charge-wide";
-  return costs ? "grid-cols-charge-cost" : "grid-cols-charge";
-}
-
-// The column names above a list of SessionRows, in the same grid. `numbered` for rows given a serial.
-export function SessionHeader({ costs, wide = false, numbered = false }: { costs: boolean; wide?: boolean; numbered?: boolean }) {
-  return (
-    <div className={cn(columns(wide, costs, numbered), "grid gap-x-4 pb-2 text-xs text-faint")} aria-hidden="true">
-      {numbered && <span>#</span>}
-      <span>Date</span>
-      <span>Charge</span>
-      <span className="text-right">Energy</span>
-      {costs && <span className="text-right">Cost</span>}
-      <span />
-    </div>
-  );
-}
-
-// `costs` comes from hasCosts over the whole list. The invoice download sits before the cost, so a row
-// without one leaves no gap and the last column stays flush right.
-export function SessionRow({ item, serial, now, costs }: { item: Listed; serial?: number; now?: number; costs: boolean }) {
+// One row's texts. The invoice download sits before the cost, so a row without one leaves no gap and the
+// last column stays flush right.
+export function sessionView(item: Listed, serial: number | undefined, now: number | undefined, costs: boolean): SessionView {
   const { tesla: s, stream, invoice: attached } = item;
   const invoice = s?.invoices.find((i) => i.contentId);
   const named = !s && stream ? (item.spot?.name ?? streamName(stream, attached)) : null;
@@ -109,7 +89,7 @@ export function SessionRow({ item, serial, now, costs }: { item: Listed; serial?
   // Kept short: "Supercharger" when it is one, then the levels and how long. Power and temperature are on
   // the charge's page.
   const detail = [s ? "Supercharger" : null, stream && levels(stream), stoppedAt ? durationText : "In progress"];
-  const view: SessionView = {
+  return {
     className: cn(
       columns(now !== undefined, costs, serial !== undefined),
       "grid items-start gap-x-4 py-4 text-sm",
@@ -142,6 +122,9 @@ export function SessionRow({ item, serial, now, costs }: { item: Listed; serial?
             }
           : null,
   };
-  // The browser draws the row from these texts (see SessionLine), so a long list costs the page little.
-  return <SessionLine view={view} />;
+}
+
+// `costs` comes from hasCosts over the whole list. The browser draws the row from its texts (see SessionLine).
+export function SessionRow({ item, serial, now, costs }: { item: Listed; serial?: number; now?: number; costs: boolean }) {
+  return <SessionLine view={sessionView(item, serial, now, costs)} />;
 }

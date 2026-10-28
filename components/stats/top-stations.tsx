@@ -1,11 +1,16 @@
+"use client";
+
 import { ScrollX } from "@/components/scroll-x";
+import { usePaged } from "@/components/show-more";
+import type { LoadMore, Paged } from "@/lib/list";
 import type { StationRow } from "@/lib/top-stations";
 import { Measure } from "@/components/measure";
 import { formatKwh, formatMoney } from "@/lib/format";
 
-
 // Where you charge most in the span, by energy, with how often and what the bills came to, ranked from 1.
-export function TopStations({ rows }: { rows: StationRow[] }) {
+// The first rows come with the page; "Show N more" fetches the rest with `load`.
+export function TopStations({ list, load }: { list: Paged<StationRow>; load: LoadMore<StationRow> }) {
+  const { rows, button } = usePaged(list, load);
   return (
     <section className="space-y-4">
       <div className="space-y-2">
@@ -15,6 +20,7 @@ export function TopStations({ rows }: { rows: StationRow[] }) {
         </p>
       </div>
       {rows.length > 0 && (
+        <>
         <ScrollX>
           <table className="w-full min-w-md text-sm tabular-nums">
             <thead>
@@ -57,6 +63,8 @@ export function TopStations({ rows }: { rows: StationRow[] }) {
             </tbody>
           </table>
         </ScrollX>
+        {button}
+        </>
       )}
     </section>
   );

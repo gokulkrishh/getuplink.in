@@ -7,32 +7,30 @@ import { AiNotesSkeleton } from "@/components/home/week-tips";
 import { TipsBox } from "@/components/tips-box";
 import { CHARGING_TIPS, chargingFindings, pricedCharges } from "@/lib/charge-tips";
 import { istDay, istDayStart } from "@/lib/telemetry-derive";
-import { listSessions, streamName, withSpots } from "@/components/session-row";
 import { ChargeHabits } from "@/components/stats/charge-habits";
 import { ChargeRange } from "@/components/stats/charge-range";
 import { ChargingMap, DcCurves } from "@/components/stats/charging-extras";
 import { TopStations } from "@/components/stats/top-stations";
-import { topStations } from "@/lib/top-stations";
-import { type ChargingExtras, CURVES, heldFrom, loadChargingExtras, PINNED } from "@/lib/server/charging-extra";
-import { withGoogleNamesBy } from "@/lib/server/google-place-names";
-import { EnergyAdded, PaidFor, SessionList, Summary } from "@/components/stats/charging-sections";
+import { paged } from "@/lib/list";
+import { moreCharges, moreStations } from "./actions";
+import { CURVES, heldFrom, loadChargingExtras, PINNED } from "@/lib/server/charging-extra";
+import { type ChargingLists, listCharges, loadChargingLists, startedIn, stationsIn, withGoogleNames } from "@/lib/server/charging-lists";
+import { CHARGING_PREVIEW, EnergyAdded, PaidFor, SessionList, Summary } from "@/components/stats/charging-sections";
 import { eachFrame } from "@/components/home/frames";
 import { customScope } from "@/components/stats/periods";
 import { ChargingSkeleton } from "@/components/stats/skeletons";
 import { NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/components/stats/stats-frame";
-import { matchSessions } from "@/lib/charge-sessions";
 import { chargingBills, chargingTime, firstStartedAt } from "@/lib/charging-figures";
 import type { DrivingFigures } from "@/lib/driving-figures";
 import { type CustomFrame, fromSince, periodFrames } from "@/lib/frames";
 import { backTo, serials } from "@/lib/kept";
 import { customQuery, type CustomQuery, customRange, inSpan, rangeTimeframe, type Span } from "@/lib/periods";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
-import { type ChargingSession, loadChargingSessions } from "@/lib/server/charging";
+import type { ChargingSession } from "@/lib/server/charging";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadDrivingFigures } from "@/lib/server/driving";
 import { loadRangeDriving } from "@/lib/server/home";
-import { invoicesBySession } from "@/lib/server/receipts";
-import { loadStreamSessions, type StreamChargeSession } from "@/lib/server/stream-charging";
+import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { loadPrimaryVehicle } from "@/lib/server/telemetry";
 
 export const metadata: Metadata = { title: "Charging" };
@@ -40,14 +38,13 @@ export const metadata: Metadata = { title: "Charging" };
 // Session check plus data in one browser-only private cache, so links can prefetch it (see app/page.tsx).
 // Only what this page shows: both session lists. A range picked by date is an argument, so each one gets
 // its own entry, with the distance driven in it and the curves and pins of its own charges.
-type Invoices = Awaited<ReturnType<typeof invoicesBySession>>;
 type Extras = Awaited<ReturnType<typeof loadChargingExtras>>;
 type Held = ReturnType<typeof heldFrom>;
 
 async function loadCharging(query: CustomQuery | null): Promise<{
   sessions: ChargingSession[];
   streamSessions: StreamChargeSession[];
-  invoices: Invoices;
+  invoices: ChargingLists["invoices"];
   figures: DrivingFigures;
   extras: Extras;
   held: Held;
@@ -66,31 +63,25 @@ async function loadCharging(query: CustomQuery | null): Promise<{
   const vin = car?.vin ?? null;
   const range = query && customRange("custom", query.from ?? undefined, query.to ?? undefined, now);
   const frame = range && rangeTimeframe(range, now);
-  const [sessions, streamSessions, figures, rangeDriving] = await Promise.all([
-    loadChargingSessions(owner),
-    loadStreamSessions(owner),
+  const [{ sessions, streamSessions, invoices, extras }, figures, rangeDriving] = await Promise.all([
+    loadChargingLists(owner, vin, now),
     loadDrivingFigures(owner, vin, now),
     frame ? loadRangeDriving(owner, "normal", vin, frame, now) : null,
   ]);
-  const invoices = await invoicesBySession(owner, streamSessions.filter((s) => !s.supercharger).map((s) => s.id));
-  // The session rows with a Google-tagged spot's live name; the pins and curves keep `name`.
-  const googled = async (x: ChargingExtras) => ({ ...x, spots: await withGoogleNamesBy(x.spots) });
-  const [extras, rangeExtras] = await Promise.all([
-    loadChargingExtras(owner, vin, streamSessions, { tesla: sessions, invoices, now }).then(googled),
-    frame ? loadChargingExtras(owner, vin, streamSessions.filter((s) => inSpan(Date.parse(s.started_at), frame.span)), { tesla: sessions, invoices, now }).then(googled) : null,
-  ]);
+  const rangeExtras = frame
+    ? await loadChargingExtras(owner, vin, streamSessions.filter(startedIn(frame.span)), { tesla: sessions, invoices, now }).then(withGoogleNames)
+    : null;
   const custom =
     range && frame && rangeExtras
-      ? { range, frame, driving: rangeDriving, extras: rangeExtras, held: heldFrom(streamSessions.filter((s) => inSpan(Date.parse(s.started_at), frame.span))) }
+      ? { range, frame, driving: rangeDriving, extras: rangeExtras, held: heldFrom(streamSessions.filter(startedIn(frame.span))) }
       : null;
   return { sessions, streamSessions, invoices, figures, extras, held: heldFrom(streamSessions), custom, vehicleId: car?.id ?? null, now };
 }
 
 async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "searchParams">) {
-  const { sessions, streamSessions, invoices, figures, extras, held, custom, vehicleId, now } = await loadCharging(customQuery(await searchParams));
-  const { pairs, streamOnly } = matchSessions(sessions, streamSessions, now);
-  // Each row named from its spot when the page has it (the latest PINNED charges), the owner's tag first.
-  const listed = withSpots(listSessions(pairs, streamOnly, invoices), extras.spots);
+  const query = customQuery(await searchParams);
+  const { sessions, streamSessions, invoices, figures, extras, held, custom, vehicleId, now } = await loadCharging(query);
+  const { listed, streamOnly } = listCharges({ sessions, streamSessions, invoices, extras }, now);
   // Real bills: Tesla's for Superchargers, attached invoices for the rest. A finished charge with
   // neither is counted as unbilled, never priced.
   const bills = chargingBills(sessions, streamOnly, invoices);
@@ -99,24 +90,12 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
   const frames = periodFrames(figures, custom, [], now);
   // The charging charts start at the first charge's day (see fromSince).
   const chargingSince = firstStartedAt(sessions, streamSessions);
-  const startedIn = (span: Span) => (s: { started_at: string }) => inSpan(Date.parse(s.started_at), span);
   // Each charge's number in a period's session list, top row 1, so the charts in that period use the same.
   const streamSerial = (span: Span) => {
     const serial = serials(listed.filter(startedIn(span)), (l) => l.key);
     return new Map(listed.flatMap((l) => (l.stream && serial.has(l.key) ? [[l.stream.id, serial.get(l.key) ?? 0] as const] : [])));
   };
-  const ownName = (s: StreamChargeSession) => {
-    const name = extras.spots[s.id]?.name;
-    return name?.source === "tag" ? name.text : null;
-  };
-  const stations = (span: Span) =>
-    topStations([
-      ...sessions.filter(startedIn(span)).map((s) => ({ name: s.site_name, kwh: s.energy_kwh, cost: s.cost_total })),
-      ...streamOnly
-        .filter((s) => s.ended_at !== null && startedIn(span)(s))
-        // Named by the owner's tag, the station check or the invoice; an area name is a place, not a station.
-        .map((s) => ({ name: ownName(s) ?? streamName(s, invoices.get(s.id))?.text ?? null, kwh: s.energy_added_kwh, cost: invoices.get(s.id)?.amount ?? null })),
-    ]);
+  const stations = (span: Span) => stationsIn(span, { sessions, streamSessions, invoices, extras }, streamOnly);
   const starts = (span: Span) => [...sessions, ...streamOnly].filter(startedIn(span)).map((s) => Date.parse(s.started_at));
   // The curves and pins are of the latest charges only (the range's own, for a range): each frame draws
   // those in its span, and says how far back they go when its span starts earlier.
@@ -152,11 +131,13 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
           {streamSessions.length > 0 &&
             eachFrame(frames, (f) => <EnergyAdded sessions={sessions} streamOnly={streamOnly} frame={fromSince(f, chargingSince, now).frame} chargingSince={chargingSince} />)}
           {stations({ from: -Infinity, to: Infinity }).length > 0 &&
-            eachFrame(frames, ({ frame }) => <TopStations rows={stations(frame.span)} />)}
-          {eachFrame(frames, ({ frame }) => {
+            eachFrame(frames, ({ key, frame }) => (
+              <TopStations list={paged(stations(frame.span), CHARGING_PREVIEW)} load={moreStations.bind(null, { period: key, query })} />
+            ))}
+          {eachFrame(frames, ({ key, frame }) => {
             const shown = listed.filter(startedIn(frame.span));
             return shown.length > 0 ? (
-              <SessionList sessions={shown} />
+              <SessionList sessions={shown} more={moreCharges.bind(null, { period: key, query })} />
             ) : (
               <section className="space-y-2">
                 <h2 className="text-lg font-medium tracking-heading">Charging sessions</h2>
