@@ -223,7 +223,10 @@ export async function computeCarDays(owner: Owner, car: SharedCar, days: number[
       brakeKept ? heldBefore(owner, car.vin, [BRAKE], dayFrom) : null,
     ]);
     const brake = brakeKept && fine ? [...(brakeBefore?.[BRAKE] ?? []), ...fine[BRAKE]] : [];
-    const kept = (field: string) => keptOn(field, day, now);
+    // A field sent only when it changes is known for the day only from a reading at or before its start. The
+    // one that set it may be gone (retention keeps a week, then only each field's newest), and then the day's
+    // figure is unknown, not off.
+    const kept = (field: string) => keptOn(field, day, now) && r(field).some((x) => Date.parse(x.at) <= start);
     const figures: DayFigures = dayFigures({
       day,
       drives,

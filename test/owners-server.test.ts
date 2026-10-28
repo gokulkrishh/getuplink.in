@@ -186,6 +186,26 @@ describe("the daily run", () => {
     expect(fake.rows("fleet_car_days")).toHaveLength(0);
   });
 
+  test("a mode or seat setting with no reading before the day began is unknown for that day, not off", async () => {
+    const at = drove();
+    const before = (h: number) => new Date(istDayStart(TODAY - 3) + h * 3_600_000).toISOString();
+    fake.tables.telemetry_readings.push(
+      // Sentry Mode and the seat were set 3 days ago; Climate Keeper's setting was first read at noon yesterday.
+      { id: 3, vin: "VIN_B", field: "SentryMode", created_at: before(12), value: "SentryModeStateOff" },
+      { id: 4, vin: "VIN_B", field: "ClimateSeatCoolingFrontLeft", created_at: before(12), value: 0 },
+      { id: 5, vin: "VIN_B", field: "ClimateKeeperMode", created_at: at(12), value: "ClimateKeeperModeStateOff" },
+    );
+    await runOwners(() => NOW);
+    const figures = (day: number) => fake.rows("fleet_car_days").find((r) => r.day === dateOf(day))!.figures as { parkedModes: unknown; seatCooling: unknown };
+    expect(figures(TODAY - 1).parkedModes).toBeNull();
+    expect(figures(TODAY - 4).parkedModes).toBeNull();
+    expect(figures(TODAY - 4).seatCooling).toBeNull();
+    fake.tables.telemetry_readings.push({ id: 6, vin: "VIN_B", field: "ClimateKeeperMode", created_at: before(12), value: "ClimateKeeperModeStateOff" });
+    fake.tables.fleet_car_days = [];
+    await runOwners(() => NOW);
+    expect(figures(TODAY - 1).parkedModes).toEqual({ sentryMs: 0, keeperMs: 0, dogMs: 0, campMs: 0 });
+  });
+
   test("before the migration it skips", async () => {
     fake.missing.add("users");
     expect((await runOwners(() => NOW)).skipped).toBe("no owners tables");
