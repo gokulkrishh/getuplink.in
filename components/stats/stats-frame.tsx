@@ -2,7 +2,7 @@ import { Zap } from "lucide-react";
 import { type ReactNode, Suspense, ViewTransition } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Header } from "@/components/header";
-import { Loading, Ph } from "@/components/skeleton";
+import { Loading } from "@/components/skeleton";
 import { PeriodPicker, PeriodScope } from "./period-scope";
 import { type CustomScope, PAGE_PERIODS, type View } from "./periods";
 import { ViewTabs, ViewTabsShell } from "./view-tabs";
@@ -64,14 +64,15 @@ export function StatsSkeleton({ children }: { children: ReactNode }) {
   );
 }
 
-// The period switch's own classes (see Segmented), so its box is the real one.
+// The period switch's place: one block the size of the real switch (see Segmented).
 function SkPeriodSwitch() {
   return (
     <div aria-hidden="true" className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-      <div className="inline-flex max-w-full border">
+      {/* One block the switch's size: the labels are there only to give it its width. */}
+      <div className="inline-flex max-w-full bg-muted motion-safe:animate-pulse">
         {PERIODS_SHOWN.map((label) => (
-          <span key={label} className="tap-target inline-flex h-7 items-center justify-center px-2.5 text-[0.8rem] max-sm:h-9 max-sm:px-2">
-            <Ph>{label}</Ph>
+          <span key={label} className="tap-target invisible inline-flex h-7 items-center justify-center border-y px-2.5 text-[0.8rem] first:border-l last:border-r max-sm:h-9 max-sm:px-2">
+            {label}
           </span>
         ))}
       </div>
