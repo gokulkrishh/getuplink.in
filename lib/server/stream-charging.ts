@@ -1,6 +1,7 @@
 import "server-only";
 import { buildSessions, CHARGE_FIELDS, type ChargeReading } from "@/lib/charge-sessions";
 import { DEMO } from "@/lib/demo";
+import { messageOf } from "@/lib/errors";
 import { demoStreamSessions } from "./demo";
 import { type Owner, ownerDb } from "./data/owner";
 import { readingsBefore } from "./telemetry";
@@ -186,16 +187,21 @@ export function toStreamSession(row: Record<string, unknown>): StreamChargeSessi
   };
 }
 
-// The owner's sessions, newest first. A missing table or a read error shows as an empty list, with a log line.
-export async function loadStreamSessions(owner: Owner, limit = LIST_LIMIT): Promise<StreamChargeSession[]> {
+// The owner's sessions, newest first. A missing table or a read error throws.
+export async function readStreamSessions(owner: Owner, limit = LIST_LIMIT): Promise<StreamChargeSession[]> {
   if (DEMO) return demoStreamSessions().slice(0, limit);
   const { data, error } = await selectSessions((columns) =>
     ownerDb(owner).from("stream_charge_sessions").select(columns).order("started_at", { ascending: false }).limit(limit),
   );
-  if (error) {
-    console.warn("Streamed charging sessions unavailable:", error.message);
-    return [];
-  }
+  if (error) throw new Error(`Reading streamed charging sessions failed: ${error.message}`);
   // A select built from a string has no row type.
   return ((data ?? []) as unknown as Record<string, unknown>[]).map(toStreamSession);
+}
+
+// The same, for pages: a missing table or a read error shows as an empty list, with a log line.
+export async function loadStreamSessions(owner: Owner, limit = LIST_LIMIT): Promise<StreamChargeSession[]> {
+  return readStreamSessions(owner, limit).catch((err) => {
+    console.warn("Streamed charging sessions unavailable:", messageOf(err));
+    return [];
+  });
 }
