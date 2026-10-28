@@ -21,6 +21,9 @@ const SPEED_GAP_MS = 30_000;
 const AC_MIN_MS = 2 * 60_000;
 // A set temperature this far (°C) below the coolest outside is a long way for the AC to pull the cabin down.
 export const FAR_BELOW_C = 8;
+// Tesla's default cabin setting. A warmest setting at or above it is already comfortable, so a tip to set
+// it warmer would only make the owner hot.
+export const COMFORT_C = 22;
 // Under 3 minutes above FAST_KMH is an overtake or two, not a habit.
 const FAST_MIN_MS = 3 * 60_000;
 
@@ -151,7 +154,7 @@ export function driveFindings(input: DriveTipsInput): Finding[] {
 }
 
 function climateFinding(c: ClimateSummary | null): Finding | null {
-  if (!c || c.onMs === null || c.onMs < AC_MIN_MS || !c.set) return null;
+  if (!c || c.onMs === null || c.onMs < AC_MIN_MS || !c.set || c.set.high >= COMFORT_C) return null;
   const set = formatTempSpan(c.set.low, c.set.high);
   const outside = c.outside ? formatTempSpan(c.outside.low, c.outside.high) : null;
   // The warmest setting against the coolest outside: the gap is never overstated.

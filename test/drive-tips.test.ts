@@ -58,14 +58,14 @@ describe("a drive's tips: findings", () => {
 
 describe("a drive's tips: climate", () => {
   const MIN = 60_000;
-  const climate: ClimateSummary = { totalMs: 65 * MIN, onMs: 56 * MIN, set: { low: 21, high: 24 }, insideStart: 21.9, insideEnd: 22.8, outside: { low: 24.5, high: 26.5 } };
+  const climate: ClimateSummary = { totalMs: 65 * MIN, onMs: 56 * MIN, set: { low: 19, high: 20 }, insideStart: 21.9, insideEnd: 22.8, outside: { low: 24.5, high: 26.5 } };
   const find = (c: ClimateSummary | null) => driveFindings({ ...input, climate: c }).find((f) => f.kind === "climate");
 
   test("AC on: the set temperature, inside and outside, as plain facts with a physics hint", () => {
     const f = find(climate)!;
     expect(f.facts).toEqual({
       acOn: "56 min of 1 h 5 min",
-      setTemperature: "21 to 24 °C",
+      setTemperature: "19 to 20 °C",
       insideAtStart: "21.9 °C",
       insideAtEnd: "22.8 °C",
       outside: "24.5 to 26.5 °C",
@@ -86,8 +86,14 @@ describe("a drive's tips: climate", () => {
   });
 
   test("the gap is the warmest setting against the coolest outside, and under 8 °C it isn't called far", () => {
-    expect(find({ ...climate, set: { low: 20, high: 22 }, outside: { low: 29, high: 34 } })!.facts.setBelowOutside).toBeNull();
-    expect(find({ ...climate, set: { low: 20, high: 22 }, outside: { low: 30, high: 34 } })!.facts.setBelowOutside).toBe("8 °C");
+    expect(find({ ...climate, set: { low: 18, high: 20 }, outside: { low: 27, high: 34 } })!.facts.setBelowOutside).toBeNull();
+    expect(find({ ...climate, set: { low: 18, high: 20 }, outside: { low: 28, high: 34 } })!.facts.setBelowOutside).toBe("8 °C");
+  });
+
+  test("nothing when the warmest setting was already 22 °C or more: warmer would only be hot", () => {
+    expect(find({ ...climate, set: { low: 21, high: 24 }, outside: { low: 30, high: 34 } })).toBeUndefined();
+    expect(find({ ...climate, set: { low: 22, high: 22 } })).toBeUndefined();
+    expect(find({ ...climate, set: { low: 21, high: 21 } })).toBeDefined();
   });
 
   test("nothing when the AC was off, on only briefly, unknown, or no set temperature", () => {
@@ -101,17 +107,17 @@ describe("a drive's tips: climate", () => {
   test("the whole drive, and no outside reading", () => {
     const f = find({ ...climate, onMs: climate.totalMs, outside: null })!;
     expect(f.facts).toMatchObject({ acOn: "the whole drive", outside: null, setBelowOutside: null });
-    expect(f.say).toBe("The AC was set to 21 to 24 °C. A slightly warmer set point makes it work less.");
+    expect(f.say).toBe("The AC was set to 19 to 20 °C. A slightly warmer set point makes it work less.");
   });
 
   test("its demo line and a tip about the AC pass the same checks as the AI's", () => {
     const f = find(climate)!;
     expect(tipProblem(f.say, [f])).toBeNull();
-    expect(checkTips({ tips: [{ kind: "climate", text: "Your AC was set to 21 to 24 °C. A slightly warmer set point makes it work less." }] }, [f])).toHaveLength(1);
+    expect(checkTips({ tips: [{ kind: "climate", text: "Your AC was set to 19 to 20 °C. A slightly warmer set point makes it work less." }] }, [f])).toHaveLength(1);
   });
 
   test("a finding that holds no climate cause can't name the AC's cooling", () => {
     const f = { ...find(climate)!, causes: undefined };
-    expect(checkTips({ tips: [{ kind: "climate", text: "Cooling to 21 to 24 °C takes work." }] }, [f])).toHaveLength(0);
+    expect(checkTips({ tips: [{ kind: "climate", text: "Cooling to 19 to 20 °C takes work." }] }, [f])).toHaveLength(0);
   });
 });
