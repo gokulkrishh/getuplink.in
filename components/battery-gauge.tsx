@@ -1,5 +1,6 @@
 import { Zap } from "lucide-react";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { SentryMark } from "@/components/sentry-mark";
 import { formatDuration, formatKw, formatRangeKm, formatTimeToFull } from "@/lib/format";
 import type { Snapshot } from "@/lib/server/dashboard";
 import { cn } from "@/lib/utils";
@@ -26,7 +27,8 @@ export function batteryState(snapshot: Snapshot, parked: { hours: number; fromFi
 
 // The level and range as the biggest thing on the page, the meter under them, and the state line last.
 // `align="end"` lines it up on the right from sm up (Home's car row); it stays left on a phone.
-export function BatteryGauge({ snapshot, parked = null, align = "start" }: { snapshot: Snapshot; parked?: { hours: number; fromFirstReading: boolean } | null; align?: "start" | "end" }) {
+// `sentry` marks Sentry Mode watching, on the state line.
+export function BatteryGauge({ snapshot, parked = null, align = "start", sentry = false }: { snapshot: Snapshot; parked?: { hours: number; fromFirstReading: boolean } | null; align?: "start" | "end"; sentry?: boolean }) {
   const end = align === "end";
   const level = Math.min(100, Math.max(0, snapshot.battery_level ?? 0));
   const limit = snapshot.charge_limit != null ? Math.min(100, Math.max(0, snapshot.charge_limit)) : null;
@@ -70,6 +72,7 @@ export function BatteryGauge({ snapshot, parked = null, align = "start" }: { sna
         <p className={cn("text-sm tabular-nums", charging ? "text-charge" : "text-faint", end && "sm:text-right")}>
           {charging && <Zap className="mr-1.5 inline-block size-3.5 fill-current align-[-0.15em]" aria-hidden="true" />}
           {state}
+          {!charging && sentry && parked && <SentryMark align={end ? "end" : "start"} className="ml-1.5" />}
         </p>
       )}
     </div>

@@ -25,11 +25,12 @@ export function Tip({ align = "end", className, children }: { align?: "start" | 
 
 // A focusable text label whose tip also opens on tap (touch has no hover) and closes when focus leaves.
 // The hit area grows to 32px tall without moving the text.
-export function TipTrigger({ className, children }: { className?: string; children: ReactNode }) {
+export function TipTrigger({ className, label, children }: { className?: string; label?: string; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
     <button
       type="button"
+      aria-label={label}
       data-open={open}
       onClick={() => setOpen((v) => !v)}
       onBlur={() => setOpen(false)}

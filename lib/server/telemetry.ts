@@ -22,6 +22,8 @@ export const STREAM_FIELDS = [
   "TimeToFullCharge",
   // Which charger the car is on, so a third-party DC charge leaves out the car's time-to-full estimate.
   "FastChargerType",
+  // Home's Sentry Mode mark (sentryOn).
+  "SentryMode",
 ];
 
 // Each field's last reading strictly before `before` (an ISO time, or LATEST for the newest of all), in one

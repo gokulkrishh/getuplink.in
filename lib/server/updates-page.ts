@@ -53,6 +53,7 @@ async function updatesCar(owner: Owner, vehicle: Vehicle, scenario: DemoScenario
     // Not the flags read with the state: the page shows no notices.
     latest: state.latest,
     lastOnline: state.lastOnline,
+    sentry: state.sentry,
     streamAt: latest > 0 ? new Date(latest).toISOString() : null,
     history,
     updates: updateRows(history),

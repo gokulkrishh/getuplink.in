@@ -4,7 +4,7 @@ import { type AcSupply, acSupply, phasesLabel } from "@/lib/ac-charge";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
 
 // Words, not a measure: set in the body font so Figures doesn't read them as a unit.
-export const Words = ({ children }: { children: string }) => <span className="font-sans text-xl leading-tight tracking-normal whitespace-normal">{children}</span>;
+export const Words = ({ children }: { children: React.ReactNode }) => <span className="font-sans text-xl leading-tight tracking-normal whitespace-normal">{children}</span>;
 
 // The tiles for how an AC charge was supplied: voltage, the highest current the car drew, the phases and
 // the cable. The car page shows the same tiles for the last AC charge.

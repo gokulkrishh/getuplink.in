@@ -1,4 +1,5 @@
 import { ChevronRight } from "lucide-react";
+import { SentryMark } from "@/components/sentry-mark";
 import Link from "next/link";
 import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
@@ -211,6 +212,10 @@ function nowFigures(state: Omit<CarState, "flags">, now: CarNow | null, shut: st
     if (SHUT_ROWS.has(label)) {
       if (shut && !shutShown) figures.push({ label: "Locks and doors", value: <Words>{shut}</Words> });
       shutShown = true;
+      continue;
+    }
+    if (label === "Sentry Mode" && state.sentry) {
+      figures.push({ label, value: <Words><SentryMark className="mr-1.5" />{value}</Words> });
       continue;
     }
     figures.push({ label, value: /^-?\d/.test(value) ? value : <Words>{value}</Words> });

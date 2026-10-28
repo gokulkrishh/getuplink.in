@@ -42,7 +42,7 @@ export function NowStrip({ car, odometerKm, parkedNow, now }: { car: HomeCar; od
         </p>
         {!version && <p className="text-sm text-muted-foreground">Asleep at every check so far. Open the Tesla app to wake the car. This page updates on its own.</p>}
       </div>
-      {battery && <BatteryGauge snapshot={battery} parked={parkedNow} align="end" />}
+      {battery && <BatteryGauge snapshot={battery} parked={parkedNow} align="end" sentry={car.sentry} />}
     </section>
   );
 }

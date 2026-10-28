@@ -39,6 +39,14 @@ export function words(value: unknown): string | null {
   return tail.replace(/([a-z])([A-Z])/g, "$1 $2");
 }
 
+// Whether Sentry Mode is watching now: armed, or already alert (Aware, Panic, Quiet). Idle (on, but not
+// watching, as while driving) and Off aren't. A check that found the car asleep after the reading means it
+// has stopped since: Sentry Mode keeps a car awake.
+export function sentryOn(reading: { value: unknown; at: string } | undefined, latest: { state: string | null; polled_at: string } | null): boolean {
+  if (!reading || typeof reading.value !== "string" || !/State(Armed|Aware|Panic|Quiet)$/.test(reading.value)) return false;
+  return !(latest && latest.state !== "online" && Date.parse(latest.polled_at) > Date.parse(reading.at));
+}
+
 // DoorState is an object of booleans, true when open: { DriverFront, DriverRear, PassengerFront,
 // PassengerRear, TrunkFront, TrunkRear }.
 const DOOR_NAMES: Record<string, string> = { TrunkFront: "front trunk", TrunkRear: "boot" };
