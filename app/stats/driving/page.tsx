@@ -10,8 +10,8 @@ import { customScope, type HomePeriod, PERIODS } from "@/components/stats/period
 import { driveStats, withDriveEfficiency } from "@/lib/drive-stats";
 import { type Day, stripsBetween } from "@/lib/day-timeline";
 import { EfficiencyBands, Places, SpeedBands } from "@/components/stats/driving-extras";
-import { type DrivingExtras, INSIGHT_DAYS, loadDrivingExtrasFor } from "@/lib/server/driving-extra";
-import { withGoogleNames } from "@/lib/server/google-place-names";
+import { type DrivingExtras, loadDrivingExtrasFor } from "@/lib/server/driving-extra";
+import { insightSpan, withGooglePlaces } from "@/lib/server/driving-places";
 import { AWAKE_DAYS, loadPresence } from "@/lib/server/awake";
 import { loadStreamSessions } from "@/lib/server/stream-charging";
 import { DRIVE_DAYS } from "@/lib/drives";
@@ -26,7 +26,6 @@ import {
   periodTimeframe,
   reachesBefore,
   rangeTimeframe,
-  recentSpan,
   type Span,
   type Timeframe,
 } from "@/lib/periods";
@@ -40,7 +39,7 @@ import type { SeasonEfficiency as Seasons } from "@/lib/seasons";
 import { loadRangeDriving } from "@/lib/server/home";
 import { loadTripPlaces } from "@/lib/server/trip-places";
 import { loadPrimaryVehicle } from "@/lib/server/telemetry";
-import { moreTrips } from "./actions";
+import { morePlaces, moreTrips } from "./actions";
 import { istDay } from "@/lib/telemetry-derive";
 
 export const metadata: Metadata = { title: "Driving" };
@@ -100,14 +99,12 @@ async function loadDriving(query: CustomQuery | null): Promise<{
     ...PERIODS.map(({ value }) => ({ key: value, frame: periodTimeframe(value, now) })),
     ...(frame ? [{ key: "custom" as const, frame }] : []),
   ];
-  const insights = frames.map((f) => recentSpan(f.frame.span, now - DRIVE_DAYS * DAY, INSIGHT_DAYS, now));
+  const insights = frames.map((f) => insightSpan(f.frame, now));
   const presets = frames.length - (frame ? 1 : 0);
-  // The Places table's rows (the 15 shown) with a Google-tagged place's live name; the map keeps `name`.
-  const googled = (list: DrivingExtras[]) => Promise.all(list.map(async (x) => ({ ...x, places: await withGoogleNames(x.places.slice(0, 15)) })));
   const [periodExtras, rangeExtras, seasons, routes] = await Promise.all([
-    loadDrivingExtrasFor(owner, vin, window.driving.drives, insights.slice(0, presets)).then(googled),
+    loadDrivingExtrasFor(owner, vin, window.driving.drives, insights.slice(0, presets)).then(withGooglePlaces),
     // A range may lie outside the periods' days, so it is read on its own.
-    frame ? loadDrivingExtrasFor(owner, vin, window.driving.drives, insights.slice(presets)).then(googled) : [],
+    frame ? loadDrivingExtrasFor(owner, vin, window.driving.drives, insights.slice(presets)).then(withGooglePlaces) : [],
     loadSeasonEfficiency(owner, vin, window.driving.drives, now),
     loadTripPlaces(owner, vin, window.driving.drives),
   ]);
@@ -172,7 +169,7 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
             );
           })}
           {eachFrame(frames, ({ key, frame }) => (
-            <Places places={byFrame[key]?.extras.places ?? []} visited={byFrame[key]?.extras.visited ?? []} note={insightsNote(key, frame.span)} />
+            <Places places={byFrame[key]?.extras.places ?? []} visited={byFrame[key]?.extras.visited ?? []} note={insightsNote(key, frame.span)} more={morePlaces.bind(null, { period: key, query })} />
           ))}
           {eachFrame(frames, (f) => (isLong(f) ? <SpeedBands bins={byFrame[f.key]?.extras.speed ?? []} note={insightsNote(f.key, f.frame.span)} /> : null))}
           {/* Seasons are compared across the year, so no single period changes them; they show on the long spans only (see isLong). */}

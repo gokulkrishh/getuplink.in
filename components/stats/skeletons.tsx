@@ -1,5 +1,6 @@
 import { Loading, Ph, SkBigLabel, SkBlock, SkChart, SkChartCaptioned, SkFigures, SkHead, SkHeadline, SkLine, SkSection, SkShowMore, SkTable, SkTripRows } from "@/components/skeleton";
 import { AiNotesSkeleton } from "@/components/home/week-tips";
+import { CHARGING_PREVIEW } from "@/components/stats/charging-sections";
 
 // What each Stats topic shows while its data loads: its sections in order, each built from the section's own
 // layout classes (see components/skeleton.tsx), at the size of the page's default period (Week). Rows and
@@ -72,7 +73,8 @@ export function DrivingSkeleton() {
             <Ph>A place it parked. Bigger pins had more visits.</Ph>
           </p>
         </div>
-        <SkTable head={["#", "Place", "Visits", "Time parked", "Last visit"]} rows={4} cell="py-3.25" />
+        <SkTable head={["#", "Place", "Visits", "Time parked", "Last visit"]} rows={5} cell="py-3.25" />
+        <SkShowMore />
         <p className="text-sm" aria-hidden="true">
           <Ph>Names you give come first, then OpenStreetMap&apos;s. Places named from Google Maps show their area on the map. Home, Work and Favourite are the ones set in your car.</Ph>
         </p>
@@ -117,10 +119,11 @@ export function ChargingSkeleton() {
       </SkSection>
       <SkSection>
         <SkHead title="Where you charge" description="The stations you charged at most." gap={2} />
-        <SkTable head={["#", "Station", "Charges", "Energy", "Spent"]} rows={1} name="Supercharger, Bengaluru-Mysuru" />
+        <SkTable head={["#", "Station", "Charges", "Energy", "Spent"]} rows={CHARGING_PREVIEW} name="Supercharger, Bengaluru-Mysuru" />
+        <SkShowMore />
       </SkSection>
       <SkSection gap={6}>
-        <SkHead title="Charging sessions" description="4 sessions · 39.8 kWh" />
+        <SkHead title="Charging sessions" description="9 sessions · 39.8 kWh" />
         <SkSessions />
       </SkSection>
       <SkSection gap={3}>
@@ -227,7 +230,8 @@ function SkMap({ legend }: { legend: string }) {
 // The sessions, month by month: the columns' header, then rows of two lines (SessionRow's own grid classes).
 function SkSessions() {
   return (
-    <div className="max-sm:-mx-1 max-sm:px-1 sm:-mx-3 sm:px-3" aria-hidden="true">
+    <div aria-hidden="true">
+    <div className="max-sm:-mx-1 max-sm:px-1 sm:-mx-3 sm:px-3">
       <div className="max-sm:min-w-xl">
         <div className="space-y-2">
           <p className="text-sm font-medium">
@@ -242,7 +246,7 @@ function SkSessions() {
               ))}
             </div>
             <ul className="divide-y border-t">
-              {[0, 1, 2].map((k) => (
+              {Array.from({ length: CHARGING_PREVIEW }, (_, k) => (
                 <li key={k} className="grid grid-cols-charge-serial-cost items-start gap-x-4 py-4 text-sm">
                   <p className="pt-0.5 font-mono text-xs">
                     <Ph>1</Ph>
@@ -278,13 +282,14 @@ function SkSessions() {
                 </li>
               ))}
             </ul>
-            <SkShowMore />
           </div>
           <p className="pt-1 text-right text-xs">
-            <Ph>4 charges, ₹417.84 billed</Ph>
+            <Ph>9 charges, ₹417.84 billed</Ph>
           </p>
         </div>
       </div>
+    </div>
+    <SkShowMore />
     </div>
   );
 }
