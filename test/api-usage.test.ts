@@ -100,7 +100,17 @@ mock.module("@/lib/server/stream-versions", () => ({
   syncStreamVersionsSafely: async () => {},
 }));
 mock.module("@/lib/server/stream-charging", () => ({ syncStreamSessionsSafely: async () => {}, syncStreamSessionsForAllCars: async () => {} }));
-mock.module("@/lib/server/charging", () => ({ syncChargingHistory: async () => {}, syncChargingHistoryThrottled: async () => {} }));
+// The poll's charging history read is left out here, but only while this file runs: a module mock lasts for
+// the whole run, and test/charging-backfill.test.ts needs the real one when it runs after this file.
+const charging = await import("@/lib/server/charging");
+const realSync = charging.syncChargingHistory;
+const realThrottled = charging.syncChargingHistoryThrottled;
+let skipCharging = true;
+mock.module("@/lib/server/charging", () => ({
+  ...charging,
+  syncChargingHistory: (...args: Parameters<typeof realSync>) => (skipCharging ? Promise.resolve() : realSync(...args)),
+  syncChargingHistoryThrottled: (...args: Parameters<typeof realThrottled>) => (skipCharging ? Promise.resolve() : realThrottled(...args)),
+}));
 
 const realFetch = globalThis.fetch;
 globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
@@ -136,6 +146,7 @@ beforeEach(() => {
 });
 
 afterAll(() => {
+  skipCharging = false;
   globalThis.fetch = realFetch;
 });
 
