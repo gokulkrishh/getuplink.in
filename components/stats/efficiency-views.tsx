@@ -51,7 +51,7 @@ export function EfficiencyViews({ views }: { views: EfficiencyView[] }) {
             <h3 className="text-sm font-medium">{view.label}</h3>
             <ul className="space-y-3 text-sm tabular-nums" aria-label={`Wh/km by ${view.label.toLowerCase()}`}>
               {view.bands.map((b, k) => (
-                <li key={b.label} className={cn("grid grid-cols-[minmax(0,9rem)_1fr_3rem] items-center gap-3", b.drives < FEW && "opacity-60")}>
+                <li key={b.label} className={cn("grid grid-cols-[minmax(0,9rem)_1fr_auto] items-center gap-3", b.drives < FEW && "opacity-60")}>
                   <span className="min-w-0">
                     <span className="block">{b.label}</span>
                     <span className="block text-xs text-muted-foreground">
@@ -61,7 +61,15 @@ export function EfficiencyViews({ views }: { views: EfficiencyView[] }) {
                   <span className="h-2 bg-muted" aria-hidden="true">
                     <span className={cn("block h-full", values[k] !== null && values[k] === least ? "bg-chart-accent" : "bg-chart-accent/40")} style={{ width: `${most > 0 ? ((values[k] ?? 0) / most) * 100 : 0}%` }} />
                   </span>
-                  <span className={cn("text-right font-mono", values[k] === null && "text-faint")}>{values[k] !== null ? wh(values[k]!) : "—"}</span>
+                  <span className={cn("text-right font-mono", values[k] === null && "text-faint")}>{values[k] !== null ? (
+                      <>
+                        {wh(values[k]!)}
+                        <span className="ml-1 font-sans text-xs text-muted-foreground">Wh/km</span>
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </span>
                 </li>
               ))}
             </ul>

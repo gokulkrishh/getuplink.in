@@ -40,7 +40,7 @@ export function DrivingSkeleton() {
               </p>
               <ul className="space-y-3 text-sm">
                 {[0, 1].map((k) => (
-                  <li key={k} className="grid grid-cols-[minmax(0,9rem)_1fr_3rem] items-center gap-3">
+                  <li key={k} className="grid grid-cols-[minmax(0,9rem)_1fr_auto] items-center gap-3">
                     <span className="min-w-0">
                       <span className="block">
                         <Ph>25 to 30 °C</Ph>
@@ -51,7 +51,7 @@ export function DrivingSkeleton() {
                     </span>
                     <span className="h-2 bg-muted motion-safe:animate-pulse" />
                     <span className="text-right font-mono">
-                      <Ph>124</Ph>
+                      <Ph>124 Wh/km</Ph>
                     </span>
                   </li>
                 ))}
