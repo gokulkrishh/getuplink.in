@@ -67,7 +67,7 @@ export function BatteryGauge({ snapshot, parked = null, align = "start" }: { sna
       {state && (
         // Inline, not a flex row: a wrapping line in a right-aligned flex row leaves the bolt on the
         // left and the words on the right. Filled, the bolt stays one shape at this size.
-        <p className={cn("text-sm text-faint tabular-nums", end && "sm:text-right")}>
+        <p className={cn("text-sm tabular-nums", charging ? "text-charge" : "text-faint", end && "sm:text-right")}>
           {charging && <Zap className="mr-1.5 inline-block size-3.5 fill-current align-[-0.15em]" aria-hidden="true" />}
           {state}
         </p>

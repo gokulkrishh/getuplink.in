@@ -201,7 +201,7 @@ function nowFigures(state: Omit<CarState, "flags">, now: CarNow | null, shut: st
       : s.charge_limit != null
         ? `Limit ${s.charge_limit}%`
         : undefined;
-    figures.push({ label: "Charge", value: formatPercent(s.battery_level), note });
+    figures.push({ label: "Charge", value: formatPercent(s.battery_level), note: charging ? <span className="text-charge">{note}</span> : note });
   }
   // Tesla's figure is an estimate on a test cycle, so it says so; the owner's own driving gives another.
   if (s?.battery_range_km != null)
