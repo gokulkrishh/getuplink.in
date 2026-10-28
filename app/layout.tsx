@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { OPEN_GRAPH, SITE_URL, TAGLINE, TWITTER } from "@/lib/site";
 import { THEME_SCRIPT } from "@/lib/theme";
 import { Suspense } from "react";
+import { RowLinks } from "@/components/row-links";
 import { TopLoader } from "@/components/top-loader";
 import "./globals.css";
 
@@ -50,6 +51,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <TopLoader />
         </Suspense>
         <main className="flex w-full flex-1 flex-col">{children}</main>
+        <RowLinks />
       </body>
     </html>
   );

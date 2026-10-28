@@ -4,7 +4,8 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 // A table or list wider than the screen scrolls sideways instead of cutting its text short. While there's
-// more to one side, that edge fades out, so it's clear the rows go on.
+// more to one side, that edge fades out, so it's clear the rows go on, and a thin scroll bar sits below the
+// last row with room of its own.
 export function ScrollX({ className, children }: { className?: string; children: ReactNode }) {
   const box = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ left: false, right: false });
@@ -25,7 +26,7 @@ export function ScrollX({ className, children }: { className?: string; children:
   const fade = 32;
   const mask = edges.left || edges.right ? `linear-gradient(to right, ${edges.left ? "transparent" : "black"}, black ${edges.left ? fade : 0}px, black calc(100% - ${edges.right ? fade : 0}px), ${edges.right ? "transparent" : "black"})` : undefined;
   return (
-    <div ref={box} className={cn("overflow-x-auto overflow-y-hidden overscroll-x-contain", className)} style={mask ? { maskImage: mask, WebkitMaskImage: mask } : undefined}>
+    <div ref={box} className={cn("scroll-thin overflow-x-auto overflow-y-hidden overscroll-x-contain", (edges.left || edges.right) && "pb-3", className)} style={mask ? { maskImage: mask, WebkitMaskImage: mask } : undefined}>
       {children}
     </div>
   );

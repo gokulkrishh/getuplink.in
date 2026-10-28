@@ -6,6 +6,7 @@ import type { LoadMore, Paged } from "@/lib/list";
 import Link from "next/link";
 import { Measure } from "@/components/measure";
 import { ROW_LINK, RowChevron } from "@/components/row-chevron";
+import { cn } from "@/lib/utils";
 
 // One trip as the table shows it, every text worked out on the server (see tripRow in drive-list.tsx): the
 // page sends these few strings per trip, and the browser draws both layouts from them.
@@ -25,14 +26,12 @@ export type TripRow = {
 };
 
 // The trip table's columns. Fixed widths, so the rows fetched by Show more line up with the first.
-// The last, unlabelled, holds the row's arrow.
 const COLUMNS = [
   { label: "#", width: "w-10" },
   { label: "When", width: "w-44" },
   { label: "Trip", width: "" },
   { label: "Distance · time", width: "w-36", right: true },
   { label: "Energy · battery", width: "w-36", right: true },
-  { label: "", width: "w-8" },
 ];
 
 const faint = <span className="text-faint">—</span>;
@@ -45,13 +44,13 @@ function TripTableRow({ row }: { row: TripRow }) {
       <td className="py-3 pr-3 font-mono text-xs text-faint">{row.serial}</td>
       <td className="py-3 pr-3 whitespace-nowrap">
         <span className="block">{row.day}</span>
-        {/* The times move here when the Trip column names the places; otherwise they are the trip's name. */}
-        {row.route && <span className="block text-xs text-muted-foreground tabular-nums">{row.times}</span>}
+        <span className="block text-xs text-muted-foreground tabular-nums">{row.times}</span>
       </td>
-      {/* Where it went; a trip with an end Uplink can't place shows its times here instead. */}
+      {/* Where it went. With no arrow column (it would sit off screen while the table scrolls), the name
+          underlines when the row is hovered, as the link it is. */}
       <th scope="row" className="py-3 pr-3 text-left font-medium">
-        <Link href={`/stats/driving/${row.start}`} className={ROW_LINK}>
-          {row.route ?? row.times}
+        <Link href={`/stats/driving/${row.start}`} className={cn(ROW_LINK, !row.route && "font-normal text-muted-foreground")}>
+          {row.route ?? "Place not known"}
         </Link>
       </th>
       <td className="py-3 pr-3 text-right whitespace-nowrap">
@@ -64,9 +63,6 @@ function TripTableRow({ row }: { row: TripRow }) {
       <td className="py-3 pr-3 text-right whitespace-nowrap" title={row.levels ?? undefined}>
         <span className="block font-mono">{row.kwh === null ? faint : <Measure text={row.kwh} />}</span>
         {row.used && <span className="block text-xs text-muted-foreground">{row.used} of battery</span>}
-      </td>
-      <td className="py-3 text-right">
-        <RowChevron className="inline-block" />
       </td>
     </tr>
   );
@@ -112,7 +108,7 @@ export function TripRows({ list, load }: { list: Paged<TripRow>; load?: LoadMore
       {/* The table sits 0.75rem wider than the column on each side and pads its outer cells by the same, so a
           highlighted row has room around its text while the text still lines up with the page. */}
       <ScrollX className="-mx-3 max-sm:hidden">
-        <table className="w-full min-w-[46rem] table-fixed text-sm tabular-nums [&_td:first-child]:pl-3 [&_td:last-child]:pr-3 [&_th:first-child]:pl-3 [&_th:last-child]:pr-3">
+        <table className="w-full min-w-[44rem] table-fixed text-sm tabular-nums [&_td:first-child]:pl-3 [&_td:last-child]:pr-3 [&_th:first-child]:pl-3 [&_th:last-child]:pr-3">
           <colgroup>
             {COLUMNS.map((c) => (
               <col key={c.label} className={c.width} />

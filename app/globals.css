@@ -337,6 +337,19 @@ html .maplibregl-map {
   }
 }
 
+/* A thin, quiet scroll bar for a table or chart that scrolls sideways. */
+@utility scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--muted-foreground) 45%, transparent) transparent;
+  &::-webkit-scrollbar {
+    height: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: color-mix(in oklab, var(--muted-foreground) 45%, transparent);
+  }
+}
+
 /* Repeated grid templates. Breakpoints match Tailwind's sm (40rem) and md (48rem). */
 @utility grid-cols-car-header {
   grid-template-columns: 1fr minmax(0, auto);

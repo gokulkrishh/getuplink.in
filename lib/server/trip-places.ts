@@ -4,7 +4,7 @@ import { stationAt } from "@/lib/stations";
 import { groupTrips } from "@/lib/trips";
 import type { Drive } from "@/lib/drives";
 import type { Owner } from "./data/owner";
-import { cachedPlaceNames, placeKey } from "./place-names";
+import { placeKey, placeNames } from "./place-names";
 import { loadReadingsByField } from "./telemetry-window";
 import { loadUserPlaces } from "./user-places";
 
@@ -28,7 +28,8 @@ const short = (name: string | null) => name?.split(",")[0]?.trim() || null;
 // Where each trip went, by its start: "Home to IndianOil e-Charge". The start is the last place the car was
 // seen before it set off (up to 30 minutes before), the end the first after it parked (up to 10 minutes
 // after), each named as the parked places are (the owner's tag, a station, then the area kept already;
-// never a Google name, which would need its credit in the row). A trip with either end unknown has none.
+// never a Google name, which would need its credit in the row). An area not kept yet is looked up, a few
+// per load, as the trip page does. A trip with either end unknown has none.
 export async function loadTripPlaces(owner: Owner, vin: string | null, drives: Drive[]): Promise<Record<number, string>> {
   if (!vin || drives.length === 0) return {};
   const trips = groupTrips(drives)
@@ -45,7 +46,7 @@ export async function loadTripPlaces(owner: Owner, vin: string | null, drives: D
     loadUserPlaces(owner),
   ]);
   const spots = ends.flatMap((e) => [e.from, e.to]).filter((p): p is Point => p !== null);
-  const areas = await cachedPlaceNames(spots).catch(() => new Map<string, string>());
+  const areas = await placeNames(spots).catch(() => new Map<string, string>());
   const name = (p: Point | null) => (p ? short(mapName(spotName(tags, p, { station: stationAt(p.lat, p.lng), place: areas.get(placeKey(p)) }))) : null);
   const out: Record<number, string> = {};
   for (const e of ends) {
