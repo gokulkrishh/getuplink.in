@@ -6,7 +6,8 @@ import { Bars } from "@/components/stats/bars";
 import { barsSpan } from "@/components/stats/chart-caption";
 import { ChargeLevelChart } from "@/components/stats/charge-level";
 import { trackedBefore } from "@/components/stats/charging-sections";
-import { TripTable } from "@/components/stats/drive-list";
+import { tripRows } from "@/components/stats/drive-list";
+import { TripRows } from "@/components/stats/trip-rows";
 import { hasBars, knownBars } from "@/components/stats/driving-sections";
 import { Figures } from "@/components/stats/figures";
 import type { View } from "@/components/stats/periods";
@@ -18,6 +19,7 @@ import type { ChargeLevel } from "@/lib/charge-level";
 import { comparedWith, headline } from "@/lib/dashboard-summary";
 import type { DrivingFigures } from "@/lib/driving-figures";
 import { DECIMALS, formatDuration, formatKm, formatMoney, formatPercent, formatPower } from "@/lib/format";
+import { paged } from "@/lib/list";
 import { inSpan } from "@/lib/periods";
 import { fromSince } from "@/lib/frames";
 import { eachFrame, type HomeFrame } from "./frames";
@@ -148,7 +150,7 @@ export function DrivingSection({ frames, figures, drives, routes, now }: { frame
         </ChartCard>
         {drives.length > 0 && (
           <div className="space-y-3">
-            {shown.length > 0 ? <TripTable trips={shown} serialOf={(t) => shown.indexOf(t) + 1} now={now} routes={routes} /> : <Quiet>No trips.</Quiet>}
+            {shown.length > 0 ? <TripRows list={paged(tripRows(shown, now, routes), shown.length)} /> : <Quiet>No trips.</Quiet>}
             {partial && <p className="text-sm text-faint">Trips cover only the last {DRIVE_DAYS} days.</p>}
           </div>
         )}

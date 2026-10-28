@@ -40,6 +40,7 @@ import type { SeasonEfficiency as Seasons } from "@/lib/seasons";
 import { loadRangeDriving } from "@/lib/server/home";
 import { loadTripPlaces } from "@/lib/server/trip-places";
 import { loadPrimaryVehicle } from "@/lib/server/telemetry";
+import { moreTrips } from "./actions";
 import { istDay } from "@/lib/telemetry-derive";
 
 export const metadata: Metadata = { title: "Driving" };
@@ -124,7 +125,8 @@ async function loadDriving(query: CustomQuery | null): Promise<{
 }
 
 async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "searchParams">) {
-  const { figures, window, custom, byFrame, seasons, routes, now } = await loadDriving(customQuery(await searchParams));
+  const query = customQuery(await searchParams);
+  const { figures, window, custom, byFrame, seasons, routes, now } = await loadDriving(query);
   const { days, driving } = window;
   // Mirrors the sections' own "enough data" rules, so an empty page says so instead of showing nothing.
   const hasDriving = (figures.periods.all.current.km ?? 0) > 0 || days.filter((d) => d.km !== null).length >= 2 || driving.drives.length > 0;
@@ -160,11 +162,11 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
           {eachFrame(frames, ({ key, frame }) => (
             <EfficiencyBands byTemp={byFrame[key]?.extras.byTemp ?? []} bySpeed={byFrame[key]?.extras.bySpeed ?? []} byAc={byFrame[key]?.extras.byAc ?? []} note={insightsNote(key, frame.span)} />
           ))}
-          {eachFrame(frames, ({ frame }) => {
+          {eachFrame(frames, ({ key, frame }) => {
             const inFrame = driving.drives.filter((d) => inSpan(d.start, frame.span));
             return (
               <div className="space-y-3">
-                {inFrame.length > 0 ? <DriveList drives={inFrame} now={now} routes={routes} /> : <p className="text-sm text-muted-foreground">No trips.</p>}
+                {inFrame.length > 0 ? <DriveList drives={inFrame} now={now} routes={routes} more={moreTrips.bind(null, { period: key, query })} /> : <p className="text-sm text-muted-foreground">No trips.</p>}
                 {partial(frame.span, tripsFrom) && <p className="text-sm text-faint">Trips cover only the last {DRIVE_DAYS} days.</p>}
               </div>
             );
