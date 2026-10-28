@@ -29,35 +29,35 @@ export function DrivingSkeleton() {
       </SkSection>
       <SkSection>
         <SkHead title="Efficiency" description="Energy used per kilometre, in Wh/km. Lower is better." />
-        <div className="space-y-4" aria-hidden="true">
-          <div className="inline-flex border text-sm">
-            {["Speed", "AC setting", "Outside"].map((label) => (
-              <span key={label} className="px-3 py-1.5 max-sm:py-2">
-                <Ph>{label}</Ph>
-              </span>
-            ))}
-          </div>
+        <div className="space-y-6" aria-hidden="true">
           <p className="text-sm">
-            <Ph>At 40 to 60 km/h you used 118 Wh/km. At 80 to 100 km/h, 165 Wh/km.</Ph>
+            <Ph>Speed made the biggest difference: 116 to 157 Wh/km.</Ph>
           </p>
-          <ul className="space-y-3 text-sm">
-            {[0, 1].map((k) => (
-              <li key={k} className="grid grid-cols-[minmax(0,9rem)_1fr_3rem] items-center gap-3">
-                <span className="min-w-0">
-                  <span className="block">
-                    <Ph>25 to 30 °C</Ph>
-                  </span>
-                  <span className="block text-xs">
-                    <Ph>7 drives · 156.4 km</Ph>
-                  </span>
-                </span>
-                <span className="h-2 bg-muted motion-safe:animate-pulse" />
-                <span className="text-right font-mono">
-                  <Ph>8.6</Ph>
-                </span>
-              </li>
-            ))}
-          </ul>
+          {["Speed", "AC setting", "Outside"].map((group) => (
+            <div key={group} className="space-y-3">
+              <p className="text-sm font-medium">
+                <Ph>{group}</Ph>
+              </p>
+              <ul className="space-y-3 text-sm">
+                {[0, 1].map((k) => (
+                  <li key={k} className="grid grid-cols-[minmax(0,9rem)_1fr_3rem] items-center gap-3">
+                    <span className="min-w-0">
+                      <span className="block">
+                        <Ph>25 to 30 °C</Ph>
+                      </span>
+                      <span className="block text-xs">
+                        <Ph>7 drives · 156.4 km</Ph>
+                      </span>
+                    </span>
+                    <span className="h-2 bg-muted motion-safe:animate-pulse" />
+                    <span className="text-right font-mono">
+                      <Ph>124</Ph>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
       </SkSection>
       <SkSection gap={6}>
