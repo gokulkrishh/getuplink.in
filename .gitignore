@@ -162,3 +162,20 @@ next-env.d.ts
 .claude/worktrees/
 .env*
 evals/runs/
+
+# animations.dev course skills (paid, kept local)
+/.claude/skills/animate/
+/.claude/skills/animation-accessibility/
+/.claude/skills/animation-performance/
+/.claude/skills/animation-vocabulary/
+/.claude/skills/css-animations/
+/.claude/skills/debug-animation/
+/.claude/skills/find-animation-opportunities/
+/.claude/skills/gesture-ui/
+/.claude/skills/improve-animations/
+/.claude/skills/motion-brief/
+/.claude/skills/motion-react/
+/.claude/skills/pick-ui-library/
+/.claude/skills/prototype/
+/.claude/skills/review-animations/
+/.claude/skills/scroll-animations/
