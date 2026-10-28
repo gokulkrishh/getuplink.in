@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { HOME_URL } from "@/lib/site";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { PLAIN_LIST, PlainPage, PlainSection } from "@/components/plain-page";
@@ -6,6 +7,9 @@ import { PLAIN_LIST, PlainPage, PlainSection } from "@/components/plain-page";
 export const metadata: Metadata = {
   title: "Privacy",
   description: "What Uplink stores about you and your car, who else gets it, and how to delete it.",
+  // Indexed on getuplink.in; on the app host the X-Robots-Tag header keeps the copy there out.
+  robots: { index: true, follow: true },
+  alternates: { canonical: `${HOME_URL}/privacy` },
 };
 
 // What this page says is checked against the code and the law in docs/legal-review.md. Change both together.

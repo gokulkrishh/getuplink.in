@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { HOME_URL } from "@/lib/site";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { PlainPage, PlainSection } from "@/components/plain-page";
@@ -6,6 +7,9 @@ import { PlainPage, PlainSection } from "@/components/plain-page";
 export const metadata: Metadata = {
   title: "Terms",
   description: "The short terms for using Uplink.",
+  // Indexed on getuplink.in; on the app host the X-Robots-Tag header keeps the copy there out.
+  robots: { index: true, follow: true },
+  alternates: { canonical: `${HOME_URL}/terms` },
 };
 
 // Checked against the law and Tesla's and Google's terms in docs/legal-review.md. Change both together.

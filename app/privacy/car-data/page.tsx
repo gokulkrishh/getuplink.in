@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { HOME_URL } from "@/lib/site";
 import Link from "next/link";
 import { PLAIN_LIST, PlainPage, PlainSection } from "@/components/plain-page";
 import { CAR_DATA_GROUPS, groupKeep, keepWords } from "@/lib/car-data";
@@ -7,6 +8,9 @@ import { keepDays } from "@/lib/telemetry-retention";
 export const metadata: Metadata = {
   title: "Car data we store",
   description: "Every figure from your Tesla that Uplink stores, and how long each is kept.",
+  // Indexed on getuplink.in; on the app host the X-Robots-Tag header keeps the copy there out.
+  robots: { index: true, follow: true },
+  alternates: { canonical: `${HOME_URL}/privacy/car-data` },
 };
 
 const LINK = "underline decoration-border underline-offset-4 hover:decoration-foreground";
