@@ -330,7 +330,7 @@ const ANSWERS = [
 ];
 
 const PROMISES: { icon: typeof Users; text: string }[] = [
-  { icon: Users, text: "Only totals from 5 or more cars" },
+  { icon: Users, text: "Your car is only counted with at least 4 others, never shown alone" },
   { icon: EyeOff, text: "Nobody sees your car, trips or places" },
   { icon: Trash2, text: "Turn it off in Settings and your figures are deleted" },
 ];
