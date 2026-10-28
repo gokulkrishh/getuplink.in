@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
-// The two small visuals of a "Picked for you" card. Each mark shows its tip on hover, focus or tap, in the
+// The small visuals of Owners: a "Picked for you" card's, and every comparison's under See all. Each mark shows its tip on hover, focus or tap, in the
 // chart tooltips' style, like OptionBar; Escape or a tap elsewhere hides it.
 
 function useTip<K>() {
@@ -50,16 +50,19 @@ const MARK = "chart-touch absolute outline-offset-2 focus-visible:outline-2 focu
 
 // Owners' middle half as a band on a line from `from` to `to`, and the owner's own value as a dot. `lines`:
 // the tip, the owner's figure first. `ends` label the line's two ends.
-export function BandBar({ from, to, low, high, value, lines, ends }: { from: number; to: number; low: number; high: number; value: number; lines: string[]; ends: [string, string] }) {
+// With no value (the owner's car isn't in this group), the band alone.
+export function BandBar({ from, to, low, high, value, lines, ends }: { from: number; to: number; low: number; high: number; value: number | null; lines: string[]; ends: [string, string] }) {
   const { open, box, handlers } = useTip<"bar">();
   const at = (v: number) => Math.min(1, Math.max(0, (v - from) / (to - from || 1)));
-  const dot = at(value);
+  const dot = value === null ? (at(low) + at(high)) / 2 : at(value);
   return (
     <div ref={box} className="space-y-1.5">
       <div className="relative h-3">
         <span aria-hidden="true" className="absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 bg-muted dark:bg-card" />
         <span aria-hidden="true" className="absolute top-1/2 h-1.5 -translate-y-1/2 bg-chart-accent/40" style={{ left: `${at(low) * 100}%`, width: `${(at(high) - at(low)) * 100}%` }} />
-        <span aria-hidden="true" className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-chart-you ring-2 ring-background" style={{ left: `${dot * 100}%` }} />
+        {value !== null && (
+          <span aria-hidden="true" className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-chart-you ring-2 ring-background" style={{ left: `${dot * 100}%` }} />
+        )}
         <button type="button" aria-label={lines.join(", ")} className={cn(MARK, "inset-x-0 -inset-y-2")} {...handlers("bar")} />
         {open && <Tip lines={lines} at={dot} />}
       </div>
@@ -115,6 +118,39 @@ export function ShareStrip({ options }: { options: { key: string; label: string;
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// The day in 24 cells, one per IST hour, each darker the more owners' driving (or plug-ins) falls in it; the
+// owner's busiest hour is ringed. `lines` for each hour's tip, `labels` under the strip at 12 AM, 6 AM, noon
+// and 6 PM.
+export function HourStrip({ shares, mine, lines, label }: { shares: number[]; mine: number; lines: string[][]; label: string }) {
+  const { open, box, handlers } = useTip<number>();
+  const most = Math.max(...shares, 0.0001);
+  return (
+    <div ref={box} className="space-y-1.5" role="group" aria-label={label}>
+      <div className="relative flex h-5 gap-px">
+        {shares.map((share, h) => (
+          <button
+            key={h}
+            type="button"
+            aria-label={lines[h].join(", ")}
+            className={cn("chart-touch relative flex-1 outline-offset-2 focus-visible:outline-2 focus-visible:outline-ring", h === mine && "ring-2 ring-chart-you ring-inset")}
+            {...handlers(h)}
+          >
+            <span aria-hidden="true" className="absolute inset-0 bg-chart-accent" style={{ opacity: 0.08 + 0.92 * (share / most) }} />
+          </button>
+        ))}
+        {open !== null && <Tip lines={lines[open]} at={(open + 0.5) / 24} />}
+      </div>
+      <div aria-hidden="true" className="relative h-4 text-xs text-faint">
+        {["12 AM", "6 AM", "12 PM", "6 PM"].map((t, k) => (
+          <span key={t} className="absolute" style={{ left: `${(k * 6 / 24) * 100}%` }}>
+            {t}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

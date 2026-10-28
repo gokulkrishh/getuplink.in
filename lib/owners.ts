@@ -939,6 +939,10 @@ export const SECTIONS: { key: Section; title: string }[] = [
 // One card per question. `list`: rows of options or switches (the settings), not a chart. `info` is the ⓘ.
 export type Card = { key: string; section: Section; title?: string; metrics: MetricKey[]; list?: boolean; info?: string };
 
+// Cards worked out and given to the MCP connector, but kept off the page to keep it short: each needs
+// explaining, or rarely leads anywhere. Put one back by taking it out of here.
+export const OFF_PAGE = new Set(["capacity", "tyres", "driveLength", "hardPer100", "onePedal", "regenShare", "speeds", "cooling", "overheat", "wheels"]);
+
 export const CARDS: Card[] = [
   { key: "energy", section: "yours", title: "How much energy do owners use?", metrics: ["energy"] },
   { key: "parkedLoss", section: "yours", title: "How much charge is lost parked?", metrics: ["parkedLoss"] },

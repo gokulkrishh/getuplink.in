@@ -7,21 +7,19 @@ import { CarTabs } from "@/components/car-tabs";
 import { ChartCard } from "@/components/chart-card";
 import { Header } from "@/components/header";
 import { OptionBar } from "@/components/owners/option-bar";
-import { BandBar, ShareStrip } from "@/components/owners/highlight-bar";
+import { BandBar, HourStrip, ShareStrip } from "@/components/owners/highlight-bar";
 import { ShareButton, StopSharing } from "@/components/owners/share-controls";
-import { Spread, type SpreadBin } from "@/components/owners/spread";
 import { Loading, Ph, SkFigures } from "@/components/skeleton";
 import { Figures } from "@/components/stats/figures";
 import { Words } from "@/components/stats/charge-supply";
-import { Bars } from "@/components/stats/bars";
 import { DEMO } from "@/lib/demo";
-import { formatCount, formatHour, formatNumber } from "@/lib/format";
+import { formatCount, formatHour } from "@/lib/format";
 import {
   batteryLine,
-  binWords,
   busiestHour,
   type Card,
   CARDS,
+  OFF_PAGE,
   carsWords,
   type ChoiceMetric,
   type ChoiceStat,
@@ -80,21 +78,29 @@ type Ready = Extract<OwnersPage, { kind: "ready" }>;
 const statOf = (page: Ready, key: MetricKey): Stat | null => viewerStat(page.stats, key, page);
 const yours = (page: Ready, key: MetricKey) => viewerValue(key, page);
 
-function spreadBins(m: SpreadMetric, stat: SpreadStat, you: number | null): SpreadBin[] {
-  const mine = you === null ? -1 : stat.bins.findIndex((b) => (b.from === null || you >= b.from) && (b.to === null || you < b.to));
-  return stat.bins.map((b, k) => ({
-    key: String(k),
-    span: binWords(m, b),
-    axis: b.from === null ? "" : edgeWords(m, b.from),
-    cars: b.cars,
-    middle: (b.from ?? -Infinity) < stat.high && (b.to ?? Infinity) > stat.low,
-    you: k === mine,
-  }));
+// A range's picture: the line from the lowest to the highest bin, owners' middle half as a band on it, and
+// the owner's own figure as a dot (none when their car isn't in this group).
+function bandProps(m: SpreadMetric, stat: SpreadStat, you: number | null) {
+  const bins = stat.bins;
+  const width = bins.find((b) => b.from !== null && b.to !== null);
+  const step = width ? width.to! - width.from! : m.step;
+  // An open end bin has no edge: the line runs a step past the inner one.
+  const from = Math.min(bins[0].from ?? bins[0].to! - step, stat.low, you ?? Infinity);
+  const to = Math.max(bins[bins.length - 1].to ?? bins[bins.length - 1].from! + step, stat.high, you ?? -Infinity);
+  const unit = m.unit === "%" ? "" : ` ${m.axis ?? m.unit}`;
+  return {
+    from,
+    to,
+    low: stat.low,
+    high: stat.high,
+    value: you,
+    lines: [...(you !== null ? [`Yours ${valueWords(m, you)}`] : []), `Half of owners ${rangeWords(m, stat.low, stat.high)}`],
+    ends: [edgeWords(m, from), `${edgeWords(m, to)}${unit}`] as [string, string],
+  };
 }
 
-function SpreadChart({ m, stat, you, title }: { m: SpreadMetric; stat: SpreadStat; you: number | null; title: string }) {
-  const unit = m.axis ?? m.unit;
-  return <Spread bins={spreadBins(m, stat, you)} unit={unit.length <= 5 ? unit : undefined} label={`${title}, cars in each range`} />;
+function SpreadChart({ m, stat, you }: { m: SpreadMetric; stat: SpreadStat; you: number | null; title: string }) {
+  return <BandBar {...bandProps(m, stat, you)} />;
 }
 
 const spreadLines = (m: SpreadMetric, stat: SpreadStat, you: number | null) => [halfLine(m, stat), you === null ? null : youLine(m, you, stat)].filter(Boolean).join(" ");
@@ -134,22 +140,11 @@ function ChoiceRows({ m, stat, you, tight = false }: { m: ChoiceMetric; stat: Ch
 function HoursChart({ stat, you, words, label }: { stat: HoursStat; you: HoursValue | null; words: string; label: string }) {
   const mine = you ? busiestHour(you.shares) : -1;
   return (
-    <Bars
-      ariaLabel={label}
-      unit="%"
-      labelEvery={1}
-      fit
-      valueWords={words}
-      bars={stat.shares.map((share, h) => ({
-        key: String(h),
-        label: hourWords(h),
-        axis: formatHour(h),
-        edge: true,
-        value: share * 100,
-        display: formatNumber(share * 100, 0),
-        isCurrent: h === mine,
-        tip: h === mine ? "Your busiest hour" : undefined,
-      }))}
+    <HourStrip
+      shares={stat.shares}
+      mine={mine}
+      label={label}
+      lines={stat.shares.map((share, h) => [hourWords(h), `${percentOf(share)} ${words}`, ...(h === mine ? ["Your busiest hour"] : [])])}
     />
   );
 }
@@ -188,9 +183,6 @@ function ListRow({ page, keyName }: { page: Ready; keyName: MetricKey }) {
     </li>
   );
 }
-
-// A card's figure count, under its chart.
-const count = (stat: Stat) => carsWords(stat.cars);
 
 // One card, or null when too few cars have its figure. A plain function, so a section knows it's empty.
 function ownerCard(card: Card, page: Ready): ReactNode {
@@ -237,7 +229,7 @@ function ownerCard(card: Card, page: Ready): ReactNode {
     const you = yours(page, "sentryHours") as number | null;
     const lines = [sentryLine(used.options.find((o) => o.key === "on")?.share ?? 0), hours?.kind === "spread" ? spreadLines(m, hours, you) : null].filter(Boolean).join(" ");
     return (
-      <ChartCard fold as="h3" title={title} info={card.info} description={lines} caption={hours ? count(hours) : count(used)}>
+      <ChartCard fold as="h3" title={title} info={card.info} description={lines}>
         {hours?.kind === "spread" && <SpreadChart m={m} stat={hours} you={you} title={title} />}
       </ChartCard>
     );
@@ -251,8 +243,16 @@ function ownerCard(card: Card, page: Ready): ReactNode {
     const you = yours(page, "installWait") as string | null;
     const lines = [topLine(m, wait), you ? youChoiceLine(m, you) : null, night?.kind === "share" ? nightLine(night.share) : null].filter(Boolean).join(" ");
     return (
-      <ChartCard fold as="h3" title={title} description={lines} caption={count(wait)}>
-        <ChoiceRows m={m} stat={wait} you={you} />
+      <ChartCard fold as="h3" title={title} description={lines}>
+        <ShareStrip
+          options={wait.options.map((o) => ({
+            key: o.key,
+            label: optionLabel(m, o.key),
+            share: o.share,
+            yours: o.key === you,
+            lines: [optionLabel(m, o.key), `${percentOf(o.share)} of owners`, ...(o.key === you ? ["Yours"] : [])],
+          }))}
+        />
       </ChartCard>
     );
   }
@@ -266,7 +266,7 @@ function ownerCard(card: Card, page: Ready): ReactNode {
   // Two histograms in one card (front and rear tyres): each with its own line.
   if (charts.length > 1) {
     return (
-      <ChartCard fold as="h3" title={title} info={card.info} description={charts.map(({ m, stat, you }) => (m.kind === "spread" && stat.kind === "spread" ? spreadLines(m, stat, you as number | null) : "")).join(" ")} caption={count(charts[0].stat)}>
+      <ChartCard fold as="h3" title={title} info={card.info} description={charts.map(({ m, stat, you }) => (m.kind === "spread" && stat.kind === "spread" ? spreadLines(m, stat, you as number | null) : "")).join(" ")}>
         <div className="space-y-6">
           {charts.map(({ key, m, stat, you }) =>
             m.kind === "spread" && stat.kind === "spread" ? (
@@ -284,7 +284,7 @@ function ownerCard(card: Card, page: Ready): ReactNode {
   const { key, m, stat, you } = charts[0];
   if (m.kind === "spread" && stat.kind === "spread") {
     return (
-      <ChartCard fold as="h3" title={title} info={card.info} description={spreadLines(m, stat, you as number | null)} caption={count(stat)}>
+      <ChartCard fold as="h3" title={title} info={card.info} description={spreadLines(m, stat, you as number | null)}>
         <SpreadChart m={m} stat={stat} you={you as number | null} title={title} />
       </ChartCard>
     );
@@ -299,16 +299,28 @@ function ownerCard(card: Card, page: Ready): ReactNode {
         info={card.info}
         description={[topLine(m, stat), mine].filter(Boolean).join(" ")}
         summary={m.segment === "battery" ? <p className="text-sm text-muted-foreground">{batteryLine(page.lfp)}</p> : undefined}
-        caption={count(stat)}
+       
       >
-        <ChoiceRows m={m} stat={stat} you={you as string | number[] | null} />
+        {m.mix ? (
+          <ChoiceRows m={m} stat={stat} you={you as number[] | null} />
+        ) : (
+          <ShareStrip
+            options={stat.options.map((o) => ({
+              key: o.key,
+              label: optionLabel(m, o.key),
+              share: o.share,
+              yours: o.key === you,
+              lines: [optionLabel(m, o.key), `${percentOf(o.share)} of owners`, ...(o.key === you ? ["Yours"] : [])],
+            }))}
+          />
+        )}
       </ChartCard>
     );
   }
   if (m.kind === "hours" && stat.kind === "hours") {
     const value = you as HoursValue | null;
     return (
-      <ChartCard fold as="h3" title={title} info={card.info} description={[hoursLine(key, stat), value ? youHoursLine(key, value) : null].filter(Boolean).join(" ")} caption={count(stat)}>
+      <ChartCard fold as="h3" title={title} info={card.info} description={[hoursLine(key, stat), value ? youHoursLine(key, value) : null].filter(Boolean).join(" ")}>
         <HoursChart stat={stat} you={value} words={key === "plugHours" ? "of plug-ins" : "of driving"} label={title} />
       </ChartCard>
     );
@@ -413,7 +425,7 @@ async function Owners() {
   if (page.kind === "waiting") return <Waiting sharers={page.sharers} />;
   const sections = SECTIONS.map((section) => ({
     ...section,
-    cards: CARDS.filter((c) => c.section === section.key)
+    cards: CARDS.filter((c) => c.section === section.key && !OFF_PAGE.has(c.key))
       .map((card) => ({ key: card.key, node: ownerCard(card, page) }))
       .filter((c) => c.node !== null),
   })).filter((s) => s.cards.length > 0);
@@ -483,26 +495,7 @@ async function Owners() {
 // of owners as a stretch of one bar with the owner's own drawn strong.
 function HighlightVisual({ h }: { h: Highlight }) {
   const m = metric(h.key);
-  if (h.kind === "spread" && m.kind === "spread") {
-    const bins = h.stat.bins;
-    const width = bins.find((b) => b.from !== null && b.to !== null);
-    const step = width ? width.to! - width.from! : m.step;
-    // An open end bin has no edge: the line runs a step past the inner one.
-    const from = Math.min(bins[0].from ?? bins[0].to! - step, h.stat.low);
-    const to = Math.max(bins[bins.length - 1].to ?? bins[bins.length - 1].from! + step, h.stat.high);
-    const unit = m.unit === "%" ? "" : ` ${m.axis ?? m.unit}`;
-    return (
-      <BandBar
-        from={from}
-        to={to}
-        low={h.stat.low}
-        high={h.stat.high}
-        value={h.value}
-        lines={[`Yours ${valueWords(m, h.value)}`, `Half of owners ${rangeWords(m, h.stat.low, h.stat.high)}`]}
-        ends={[edgeWords(m, from), `${edgeWords(m, to)}${unit}`]}
-      />
-    );
-  }
+  if (h.kind === "spread" && m.kind === "spread") return <BandBar {...bandProps(m, h.stat, h.value)} />;
   if (h.kind === "choice" && m.kind === "choice") {
     return (
       <ShareStrip
