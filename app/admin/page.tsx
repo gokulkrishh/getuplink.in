@@ -2,8 +2,11 @@ import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { AdminPage as AdminFrame } from "@/components/admin/admin-page";
-import { formatDateTime } from "@/lib/format";
-import { type AdminPage, isAdmin, loadAdmin, RECENT_DAYS } from "@/lib/server/admin";
+import { formatDateTime, formatSeen } from "@/lib/format";
+import { STATUS_URL } from "@/lib/site";
+import { STATUS_WORD } from "@/lib/status";
+import { cn } from "@/lib/utils";
+import { type AdminPage, type ComponentHealthSummary, isAdmin, loadAdmin, RECENT_DAYS } from "@/lib/server/admin";
 import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { Measure } from "@/components/measure";
@@ -31,7 +34,7 @@ async function loadAdminPage(): Promise<{ data: AdminPage; now: number }> {
   return { data: await loadAdmin(now), now };
 }
 
-function Group({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
+function Group({ title, note, children }: { title: string; note?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="space-y-2">
       <h2 className={heading}>{title}</h2>
@@ -41,11 +44,40 @@ function Group({ title, note, children }: { title: string; note?: string; childr
   );
 }
 
-function Item({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
+// A row with no value is an empty state: its label alone.
+function Item({ label, value, muted }: { label: string; value?: string; muted?: boolean }) {
   return (
     <div className="flex items-baseline justify-between gap-4 py-3 text-sm">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className={muted ? "text-faint" : "font-mono font-medium tabular-nums"}>{muted ? value : <Measure text={value} />}</dd>
+      {value !== undefined && <dd className={muted ? "text-faint" : "font-mono font-medium tabular-nums"}>{muted ? value : <Measure text={value} />}</dd>}
+    </div>
+  );
+}
+
+const DOT = { operational: "bg-positive", degraded: "bg-muted-foreground", down: "bg-destructive" } as const;
+
+const times = (n: number) => (n === 1 ? "once" : `${number.format(n)} times`);
+
+// A part's latest check as a coloured dot and word, and under it any problems this week.
+function HealthRow({ h, now }: { h: ComponentHealthSummary; now: number }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 py-3 text-sm">
+      <dt className="text-muted-foreground">{h.component}</dt>
+      <dd className="text-right">
+        {h.status ? (
+          <span className={cn("inline-flex items-center gap-2 font-medium", h.status === "down" && "text-destructive")}>
+            <span aria-hidden className={cn("size-2 rounded-full", DOT[h.status])} />
+            {STATUS_WORD[h.status]}
+          </span>
+        ) : (
+          <span className="text-faint">Not checked</span>
+        )}
+        {h.down > 0 && h.lastProblemAt && (
+          <span className="block text-xs text-muted-foreground">
+            Not working {times(h.down)}, last {formatSeen(h.lastProblemAt, now)}
+          </span>
+        )}
+      </dd>
     </div>
   );
 }
@@ -53,6 +85,7 @@ function Item({ label, value, muted }: { label: string; value: string; muted?: b
 export default async function Page() {
   const { data, now } = await loadAdminPage();
   const { runs } = data;
+  const lastChecked = data.health.map((h) => h.checkedAt).filter(Boolean).sort().at(-1);
   return (
     <AdminFrame description={`Totals across every owner. ${data.simulated ? "Demo: simulated." : "No VINs or names."}`}>
       {/* The headline counts as tiles, like the figures on every other screen; the lists below stay lists. */}
@@ -78,7 +111,7 @@ export default async function Page() {
         }
       >
         {!data.notStreaming || data.notStreaming.length === 0 ? (
-          <Item label={data.notStreaming ? "Every car streams" : "Not known yet"} value="—" muted />
+          <Item label={data.notStreaming ? "Every car streams" : "Not known yet"} />
         ) : (
           data.notStreaming.map((car, i) => (
             <Item
@@ -114,25 +147,48 @@ export default async function Page() {
 
       <Group title="Versions" note={data.noVersion > 0 ? `${data.noVersion} more not seen online yet.` : undefined}>
         {data.versions.length === 0 ? (
-          <Item label="No car has reported a version yet" value="—" muted />
+          <Item label="No car has reported a version yet" />
         ) : (
           data.versions.map((v) => <Item key={v.version} label={v.version} value={`${number.format(v.cars)} ${v.cars === 1 ? "car" : "cars"}`} />)
         )}
       </Group>
 
       <section className="space-y-3">
-        <h2 className={heading}>{`Checks, last ${RECENT_DAYS} days`}</h2>
+        <h2 className={heading}>{`Car checks, last ${RECENT_DAYS} days`}</h2>
         <Figures
           figures={[
             { label: "Checks run", value: number.format(runs.total) },
-            { label: "Failed", value: number.format(runs.failed), note: runs.lastFailedAt ? `Last at ${formatDateTime(runs.lastFailedAt)}` : "None" },
+            { label: "Failed", value: number.format(runs.failed) },
           ]}
         />
+        {runs.failures.length > 0 && (
+          <dl className="divide-y border-y">
+            {runs.failures.map((f, i) => (
+              <div key={`${f.at}-${i}`} className="flex items-baseline justify-between gap-4 py-3 text-sm">
+                <dt className="text-muted-foreground">
+                  {f.reason}
+                  {f.userId !== null && <span className="text-faint"> · User {f.userId}</span>}
+                </dt>
+                <dd className="text-right text-faint">{formatSeen(f.at, now)}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
       </section>
 
-      <Group title={`Health checks, last ${RECENT_DAYS} days`} note="Checks that found the component down, of all checks.">
+      <Group
+        title="Health"
+        note={
+          <>
+            {lastChecked ? `Checked hourly, last at ${formatSeen(lastChecked, now)}. Problems from the last ${RECENT_DAYS} days. ` : `Problems from the last ${RECENT_DAYS} days. `}
+            <a href={STATUS_URL} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">
+              Status page
+            </a>
+          </>
+        }
+      >
         {data.health.map((h) => (
-          <Item key={h.component} label={h.component} value={h.total ? `${number.format(h.down)} of ${number.format(h.total)}` : "Not checked"} muted={!h.total} />
+          <HealthRow key={h.component} h={h} now={now} />
         ))}
       </Group>
 

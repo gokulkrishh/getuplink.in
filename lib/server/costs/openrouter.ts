@@ -15,6 +15,7 @@ export type OpenRouterRead =
   | {
       kind: "ok";
       usd: number; // this month
+      totalUsd: number | null; // everything the key has spent
       limitUsd: number | null; // the key's spend limit, if it has one
       limitLeftUsd: number | null;
       creditUsd: number | null; // the account's credit bought, and what's left of it
@@ -24,7 +25,7 @@ export type OpenRouterRead =
   | { kind: "connect" }
   | { kind: "error" };
 
-type KeyBody = { data?: { usage_monthly?: unknown; limit?: unknown; limit_remaining?: unknown } };
+type KeyBody = { data?: { usage?: unknown; usage_monthly?: unknown; limit?: unknown; limit_remaining?: unknown } };
 type CreditsBody = { data?: { total_credits?: unknown; total_usage?: unknown } };
 
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
@@ -52,6 +53,7 @@ export async function readOpenRouter(): Promise<OpenRouterRead> {
   return {
     kind: "ok",
     usd: month,
+    totalUsd: num(keyBody.data?.usage),
     limitUsd: num(keyBody.data?.limit),
     limitLeftUsd: num(keyBody.data?.limit_remaining),
     creditUsd: total,
@@ -69,10 +71,11 @@ export function openRouterLine(read: OpenRouterRead, now: number): CostLine {
   return { ...base, amount: read.usd, state: stale ? "stale" : "ok", asOf: stale ? read.fetchedAt : undefined };
 }
 
-// The key's limit and the account's credit, what's left of each.
+// What the key has spent in all, and what's left of its limit and the account's credit.
 export function openRouterParts(read: OpenRouterRead): Part[] {
   if (read.kind !== "ok") return [];
   const parts: Part[] = [];
+  if (read.totalUsd !== null) parts.push({ label: "Total spent", value: usd(read.totalUsd) });
   if (read.limitUsd !== null && read.limitLeftUsd !== null) parts.push({ label: "Key limit left", value: `${usd(read.limitLeftUsd)} of ${usd(read.limitUsd)}` });
   if (read.creditUsd !== null && read.creditLeftUsd !== null) parts.push({ label: "Credit left", value: `${usd(read.creditLeftUsd)} of ${usd(read.creditUsd)}` });
   return parts;

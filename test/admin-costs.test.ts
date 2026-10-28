@@ -369,6 +369,7 @@ describe("the page's data", () => {
     expect(asked.map((f) => new URL(f.url).pathname).sort()).toEqual(["/api/v1/credits", "/api/v1/key"]);
     expect(asked.every((f) => f.auth === "Bearer sk-or-made-up")).toBe(true);
     expect(openRouterParts(await readOpenRouter())).toEqual([
+      { label: "Total spent", value: "$1.25" },
       { label: "Key limit left", value: "$3.75 of $5.00" },
       { label: "Credit left", value: "$12.00 of $30.00" },
     ]);
@@ -379,7 +380,7 @@ describe("the page's data", () => {
     stubFetch((url) => (url.pathname === "/api/v1/credits" ? new Response("no", { status: 403 }) : providers(url)));
     const read = await readOpenRouter();
     expect(read).toMatchObject({ kind: "ok", usd: 1.25, creditUsd: null });
-    expect(openRouterParts(read).map((p) => p.label)).toEqual(["Key limit left"]);
+    expect(openRouterParts(read).map((p) => p.label)).toEqual(["Total spent", "Key limit left"]);
     stubFetch((url) => (url.host === "openrouter.ai" ? new Response("unauthorized", { status: 401 }) : providers(url)));
     await expect(readOpenRouter()).rejects.toThrow("OpenRouter 401");
     await logs(async () => expect((await byId()).openrouter.state).toBe("unavailable"));

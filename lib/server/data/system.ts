@@ -524,14 +524,17 @@ function count(result: { count: number | null; error: { message: string } | null
   return result.count ?? 0;
 }
 
-export async function adminTotals(since: string, healthSince: string) {
-  const [owners, vehicles, runs, failed, lastFailed, health] = await Promise.all([
+export async function adminTotals(since: string, healthSince: string, components: number) {
+  const [owners, vehicles, runs, failed, failures, health, latest, problems] = await Promise.all([
     db().from("users").select("id", { count: "exact", head: true }).eq("status", APPROVED),
     db().from("vehicles").select("id:id::text, vin, current_version, last_seen_at, user_id"),
     db().from("poll_runs").select("id", { count: "exact", head: true }).gte("started_at", since),
     db().from("poll_runs").select("id", { count: "exact", head: true }).gte("started_at", since).eq("ok", false),
-    db().from("poll_runs").select("started_at").eq("ok", false).gte("started_at", since).order("started_at", { ascending: false }).limit(1).maybeSingle(),
+    db().from("poll_runs").select("started_at, user_id, error").eq("ok", false).gte("started_at", since).order("started_at", { ascending: false }).limit(5),
     db().rpc("health_daily", { since: healthSince }),
+    // The last two rounds of checks, so every component's latest is in it.
+    db().from("health_checks").select("component, status, checked_at").order("checked_at", { ascending: false }).limit(components * 2),
+    db().from("health_checks").select("component, checked_at").neq("status", "operational").gte("checked_at", healthSince).order("checked_at", { ascending: false }).limit(200),
   ]);
   return {
     owners: count(owners),
@@ -542,8 +545,10 @@ export async function adminTotals(since: string, healthSince: string) {
     ).map(({ current_version, last_seen_at }) => ({ current_version, last_seen_at })),
     runs: count(runs),
     failed: count(failed),
-    lastFailedAt: ((check(lastFailed) as { started_at: string } | null)?.started_at as string | undefined) ?? null,
+    failures: check(failures) as { started_at: string; user_id: number | null; error: string | null }[],
     health: check(health) as { component: string; day: string; up: number; total: number }[],
+    latest: check(latest) as { component: string; status: string; checked_at: string }[],
+    problems: check(problems) as { component: string; checked_at: string }[],
   };
 }
 

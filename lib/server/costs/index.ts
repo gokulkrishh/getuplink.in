@@ -77,7 +77,7 @@ async function demoPage(now: number): Promise<CostsPage> {
   const tesla = await teslaUsage(now);
   const google: GoogleCounts = { geocoding: 1200, placeDetailsPro: 36_500 };
   const fetchedAt = new Date(now - 3_600_000).toISOString();
-  const openRouter: OpenRouterRead = { kind: "ok", usd: 1.22, limitUsd: 5, limitLeftUsd: 3.78, creditUsd: 30, creditLeftUsd: 11.98, fetchedAt };
+  const openRouter: OpenRouterRead = { kind: "ok", usd: 1.22, totalUsd: 1.22, limitUsd: 5, limitLeftUsd: 3.78, creditUsd: 30, creditLeftUsd: 11.98, fetchedAt };
   const lines: CostLine[] = [
     vercelLine({ kind: "ok", amount: 21.4, plan: "pro", fetchedAt }, null, now),
     supabaseLine({ kind: "ok", usd: 25, note: "Pro plan", fetchedAt }, now),

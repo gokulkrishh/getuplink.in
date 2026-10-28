@@ -30,7 +30,7 @@ Code:
 | Fly.io | Estimated | Machines API: the `uplink-telemetry` app's Machines, volumes and IPs, at list prices, always on. Cached for 6 hours |
 | Tesla Fleet API | Estimated | Uplink's own request count, against the $10 monthly credit |
 | Google Maps Platform | Estimated | Uplink's own count per SKU, at India prices, after the free calls |
-| OpenRouter | Live | `GET /api/v1/key` with `OPENROUTER_API_KEY`: the key's spend this UTC month (drive wording, AI tips and Jev). The Breakdown shows the key's limit and the account's credit left (`GET /api/v1/credits`). Cached for 15 minutes |
+| OpenRouter | Live | `GET /api/v1/key` with `OPENROUTER_API_KEY`: the key's spend this UTC month (drive wording, AI tips and Jev). The Breakdown shows the key's total spend, its limit left and the account's credit left (`GET /api/v1/credits`). Cached for 15 minutes |
 | Domain (getuplink.in) | Estimated, yearly | RDAP: the expiry date. Namecheap's .in renewal price. Cached for 6 hours |
 | Other | Fixed | Rows the owner adds, in dollars |
 

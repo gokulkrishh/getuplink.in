@@ -1,7 +1,8 @@
 import "server-only";
 import { DEMO, DEMO_SITE } from "@/lib/demo";
 import { compareVersions } from "@/lib/rollout";
-import { istDay } from "@/lib/status";
+import { istDay, type Status } from "@/lib/status";
+import { runErrorReason } from "@/lib/run-error";
 import { normaliseVersion } from "@/lib/versions";
 import { currentOwner } from "./auth";
 import { demoData, demoFleet } from "./demo";
@@ -44,9 +45,10 @@ export type AdminPage = {
   onlineRecently: number;
   versions: { version: string; cars: number }[]; // newest first
   noVersion: number; // cars never seen online, so no version yet
-  runs: { total: number; failed: number; lastFailedAt: string | null };
-  // Checks that found a component down, per component, in the last RECENT_DAYS days.
-  health: { component: string; down: number; total: number }[];
+  // The latest few failed checks: when, whose, and why in a few words (never the error text, which can quote a VIN).
+  runs: { total: number; failed: number; failures: { at: string; userId: number | null; reason: string }[] };
+  // Per component: its latest check, and the checks that found it not working in the last RECENT_DAYS days.
+  health: ComponentHealthSummary[];
   // Cars that don't stream to Uplink yet (/setup's two steps), by user id: null before the car_setup
   // migration. sendsConfig: whether Uplink sends the streaming config itself (its keys are set).
   notStreaming: WaitingCar[] | null;
@@ -69,13 +71,31 @@ function spread(versions: (string | null)[]): Pick<AdminPage, "versions" | "noVe
   };
 }
 
-type DailyCheck = { component: string; day: string; up: number; total: number };
+export type ComponentHealthSummary = {
+  component: string;
+  status: Status | null; // the latest check; null when never checked
+  checkedAt: string | null;
+  down: number; // checks that found it not working
+  lastProblemAt: string | null;
+};
 
-function healthTotals(rows: DailyCheck[], since: string): AdminPage["health"] {
+type DailyCheck = { component: string; day: string; up: number; total: number };
+type Check = { component: string; status: string; checked_at: string };
+
+const STATUSES: readonly string[] = ["operational", "degraded", "down"];
+
+export function healthSummary(daily: DailyCheck[], latest: Check[], problems: { component: string; checked_at: string }[], since: string): ComponentHealthSummary[] {
   return COMPONENTS.map((component) => {
-    const mine = rows.filter((r) => r.component === component && r.day >= since);
+    const mine = daily.filter((r) => r.component === component && r.day >= since);
     const total = mine.reduce((sum, r) => sum + Number(r.total), 0);
-    return { component, down: total - mine.reduce((sum, r) => sum + Number(r.up), 0), total };
+    const last = latest.find((r) => r.component === component);
+    return {
+      component,
+      status: last && STATUSES.includes(last.status) ? (last.status as Status) : null,
+      checkedAt: last?.checked_at ?? null,
+      down: total - mine.reduce((sum, r) => sum + Number(r.up), 0),
+      lastProblemAt: problems.find((r) => r.component === component)?.checked_at ?? null,
+    };
   });
 }
 
@@ -93,8 +113,17 @@ export async function loadAdmin(now: number): Promise<AdminPage> {
       cars: fleet.vehicles.length,
       onlineRecently: fleet.vehicles.filter((v) => Date.parse(v.last_seen_at) >= recent).length,
       ...spread(fleet.vehicles.map((v) => v.current_version)),
-      runs: { total: fleet.runs.length, failed: failed.length, lastFailedAt: failed[0]?.started_at ?? null },
-      health: healthTotals(demoData().healthDaily, sinceDay),
+      runs: {
+        total: fleet.runs.length,
+        failed: failed.length,
+        failures: failed.slice(0, 5).map((r) => ({ at: r.started_at, userId: 1, reason: runErrorReason("fetch failed") })),
+      },
+      health: healthSummary(
+        demoData().healthDaily,
+        COMPONENTS.map((component) => ({ component, status: "operational", checked_at: new Date(now - 10 * 60_000).toISOString() })),
+        [],
+        sinceDay,
+      ),
       notStreaming: [],
       sendsConfig: true,
       unknownCars: [],
@@ -102,7 +131,7 @@ export async function loadAdmin(now: number): Promise<AdminPage> {
   }
   const since = new Date(recent).toISOString();
   const [totals, notStreaming, codes] = await Promise.all([
-    adminTotals(since, new Date(now - RECENT_DAYS * DAY).toISOString()),
+    adminTotals(since, new Date(now - RECENT_DAYS * DAY).toISOString(), COMPONENTS.length),
     carsNotStreaming(),
     // Never fails the page: shown as not known.
     carCodes().catch((err: Error) => {
@@ -117,8 +146,12 @@ export async function loadAdmin(now: number): Promise<AdminPage> {
     cars: cars.length,
     onlineRecently: cars.filter((v) => v.last_seen_at && Date.parse(v.last_seen_at) >= recent).length,
     ...spread(cars.map((v) => v.current_version)),
-    runs: { total: totals.runs, failed: totals.failed, lastFailedAt: totals.lastFailedAt },
-    health: healthTotals(totals.health as DailyCheck[], sinceDay),
+    runs: {
+      total: totals.runs,
+      failed: totals.failed,
+      failures: totals.failures.map((r) => ({ at: r.started_at, userId: r.user_id === null ? null : Number(r.user_id), reason: runErrorReason(r.error) })),
+    },
+    health: healthSummary(totals.health as DailyCheck[], totals.latest, totals.problems, sinceDay),
     notStreaming,
     sendsConfig: canSendConfig(),
     unknownCars: codes && codes.map((c) => ({ userId: c.userId, codes: unknownCodes(c.config) })).filter((c) => c.codes.length > 0),
