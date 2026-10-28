@@ -62,20 +62,21 @@ export function SpeedBands({ bins, note }: { bins: DrivingExtras["speed"] } & Co
   );
 }
 
-// How far a kWh goes in different weather and at different speeds, after TeslaMate's efficiency.
+// Energy used per km at different speeds, AC settings and weather, after TeslaMate's efficiency. Speed comes
+// first: it is the one the owner can change.
 export function EfficiencyBands({ byTemp, bySpeed, byAc = [], note }: { byTemp: Band[]; bySpeed: Band[]; byAc?: Band[] } & Covers) {
   if (byTemp.length === 0 && bySpeed.length === 0 && byAc.length === 0) return null;
   return (
     <ChartCard
       title="Efficiency"
-      description="Kilometres per kWh: how far each kWh took you. Higher is better."
+      description="Energy used per kilometre, in Wh/km. Lower is better."
       caption={note}
     >
       <EfficiencyViews
         views={[
-          { key: "outside", label: "Outside", bands: byTemp },
           { key: "speed", label: "Speed", bands: bySpeed },
           { key: "ac", label: "AC setting", bands: byAc },
+          { key: "outside", label: "Outside", bands: byTemp },
         ]}
       />
     </ChartCard>

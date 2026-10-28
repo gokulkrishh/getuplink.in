@@ -27,17 +27,17 @@ export function DrivingSkeleton() {
         <SkChartCaptioned caption="32.6 kWh used, 5.5 kWh won back with regen, 117 Wh/km, the same as the 7 days before." />
       </SkSection>
       <SkSection>
-        <SkHead title="Efficiency" description="Kilometres per kWh: how far each kWh took you. Higher is better." />
+        <SkHead title="Efficiency" description="Energy used per kilometre, in Wh/km. Lower is better." />
         <div className="space-y-4" aria-hidden="true">
           <div className="inline-flex border text-sm">
-            {["Outside", "Speed", "AC setting"].map((label) => (
+            {["Speed", "AC setting", "Outside"].map((label) => (
               <span key={label} className="px-3 py-1.5 max-sm:py-2">
                 <Ph>{label}</Ph>
               </span>
             ))}
           </div>
           <p className="text-sm">
-            <Ph>Furthest at 25 to 30 °C: 8.6 km per kWh.</Ph>
+            <Ph>At 40 to 60 km/h you used 118 Wh/km. At 80 to 100 km/h, 165 Wh/km.</Ph>
           </p>
           <ul className="space-y-3 text-sm">
             {[0, 1].map((k) => (
