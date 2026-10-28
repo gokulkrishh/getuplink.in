@@ -366,14 +366,44 @@ function NotSharing({ sharers }: { sharers: number }) {
   );
 }
 
+// Sharing, but too few owners share for any totals yet: how far along it is, as one step per owner needed,
+// what the page will answer once it fills in, and the way to stop.
 function Waiting({ sharers }: { sharers: number }) {
+  const short = sharers < MIN_CARS;
   return (
-    <section className="space-y-1">
-      <h2 className={heading}>{sharers < MIN_CARS ? `${sharers} of ${MIN_CARS} owners sharing so far` : "Totals on the way"}</h2>
-      <p className="text-sm text-muted-foreground">
-        {sharers < MIN_CARS ? `This page fills in once ${MIN_CARS} owners share.` : "The first totals come with the next update, at 3:30 AM."}
-      </p>
-    </section>
+    <div className="space-y-10">
+      <section className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border px-4 py-3">
+        <p className="min-w-0 flex-1 text-sm">You&apos;re sharing. Your car will be part of the first totals.</p>
+        <StopSharing />
+      </section>
+      <section className="space-y-4">
+        <div className="space-y-1">
+          <h2 className={heading}>{short ? `${sharers} of ${MIN_CARS} owners sharing` : "Totals on the way"}</h2>
+          <p className="text-sm text-muted-foreground">
+            {short
+              ? `Figures show once ${MIN_CARS} owners share, so no one's car stands alone. ${MIN_CARS - sharers === 1 ? "1 more to go." : `${MIN_CARS - sharers} more to go.`}`
+              : "The first totals come with the next update, at 3:30 AM."}
+          </p>
+        </div>
+        {short && (
+          <div className="flex gap-1.5" role="img" aria-label={`${sharers} of ${MIN_CARS} owners sharing`}>
+            {Array.from({ length: MIN_CARS }, (_, k) => (
+              <span key={k} className={cn("h-1.5 flex-1", k < sharers ? "bg-chart-you" : "bg-muted dark:bg-card")} />
+            ))}
+          </div>
+        )}
+      </section>
+      <section className="space-y-3">
+        <h2 className={heading}>What you&apos;ll see</h2>
+        <ul className="grid gap-2 sm:grid-cols-2">
+          {ANSWERS.map((q) => (
+            <li key={q} className="bg-muted px-3 py-2.5 text-sm dark:bg-card">
+              {q}
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
   );
 }
 
