@@ -467,7 +467,9 @@ export async function ownerComparisons(owner: Owner, now: number) {
       message: page.sharers < MIN_CARS ? `${page.sharers} of ${MIN_CARS} owners share so far. Figures show once ${MIN_CARS} owners share.` : "The first totals come with the next update, at 3:30 AM.",
     };
   }
-  const states = stateTotals(await carStates(), MIN_CARS);
+  // Every state's own count, as the Rollout page shows signed-in owners: holding small states back here would
+  // hide nothing Rollout doesn't already show.
+  const states = stateTotals(await carStates(), 1);
   return {
     sharing: true,
     ready: true,
@@ -482,9 +484,8 @@ export async function ownerComparisons(owner: Owner, now: number) {
     comparisons: comparisons(page.stats, page),
     cars_by_state: {
       about:
-        "Uplink's own cars by home state: every car using Uplink, sharing or not. Not all Teslas in India. A car's home state is the state it is in most often when Uplink checks it, or else the state of the Superchargers it uses most. States with fewer than 5 cars are counted together in other_states.",
+        "Uplink's own cars by home state: every car using Uplink, sharing or not. Not all Teslas in India. A car's home state is the state it is in most often when Uplink checks it, or else the state of the Superchargers it uses most. Every state with a car is listed, as on Uplink's Rollout page.",
       states: states.states.map((s) => ({ state: s.name, cars: s.cars })),
-      other_states: states.otherStates,
       state_not_known: states.notKnown,
       total_cars: states.total,
     },

@@ -116,9 +116,11 @@ describe("the connector's get_owner_comparisons", () => {
     expect(out.comparisons.every((c) => c.cars >= MIN_CARS)).toBe(true);
     // The owner's own figure only in their own group.
     expect(out.comparisons.filter((c) => !c.yours_is_this_group).every((c) => c.yours === null)).toBe(true);
-    // A state with fewer than 5 cars isn't named: Tamil Nadu's one car is in other_states.
-    expect(out.cars_by_state.states).toEqual([{ state: "Karnataka", cars: 5 }]);
-    expect(out.cars_by_state.other_states).toBe(1);
+    // Every state's own count, as Rollout shows it, small ones too.
+    expect(out.cars_by_state.states).toEqual([
+      { state: "Karnataka", cars: 5 },
+      { state: "Tamil Nadu", cars: 1 },
+    ]);
     expect(out.cars_by_state.total_cars).toBe(8);
     expect(out.cars_by_state.about).toContain("Not all Teslas in India");
   });
