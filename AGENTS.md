@@ -24,3 +24,13 @@ Every word a user sees (labels, descriptions, ⓘ notes, captions, empty states,
 - **House style.** "58% to 51%" and "30 to 45 km/h", never arrows or dashes for a range. Times "7:15 AM". Money "₹412.80". Zero reads "0". A value that didn't happen shows a grey "—".
 - **Say the period once.** A chart names its period at the top, never again underneath (see docs/charts.md).
 - **Only known facts.** Never show a guessed time, length or number; show what was seen.
+
+## Checks
+
+Before a commit, all three pass:
+
+- `bunx tsc --noEmit -p .` (run `bunx next typegen` first if it reports missing `PageProps`)
+- `bun test` (one file: `bun test test/owners.test.ts`)
+- `bun run build`
+
+To see the app with a sample car and no Tesla account: `bun run demo:start` (a built demo copy on port 3210) and `bun run demo:stop`. The `verify-uplink` skill drives it for screenshots. Local and live share one Supabase database.

@@ -9,5 +9,27 @@
   },
   "enabledPlugins": {
     "pstack@pstack-claude": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(bun run *)",
+      "Bash(bun test *)",
+      "Bash(bun install *)",
+      "Bash(bunx tsc *)",
+      "Bash(bunx eslint *)",
+      "Bash(bunx next *)",
+      "Bash(git add *)",
+      "Bash(git fetch *)",
+      "Bash(git pull *)",
+      "Bash(git switch *)",
+      "Bash(gh run *)",
+      "Bash(gh --version)",
+      "Bash(npm view *)",
+      "mcp__claude_ai_Supabase__list_projects",
+      "mcp__claude_ai_Supabase__list_tables",
+      "mcp__claude_ai_Supabase__list_migrations",
+      "mcp__claude_ai_Supabase__get_advisors",
+      "mcp__claude_ai_Supabase__query_logs"
+    ]
   }
 }
