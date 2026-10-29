@@ -1,11 +1,17 @@
 "use client";
 
 import { Bell } from "lucide-react";
-import dynamic from "next/dynamic";
 import { useEffect, useRef } from "react";
+import { ChartCard } from "@/components/chart-card";
+import { VersionChart } from "@/components/version-chart";
 
-// Server-rendered as before, but its code is a chunk of its own, off the home page's first load.
-const PreviewChart = dynamic(() => import("@/components/home/preview-chart"));
+// Real Tesla versions (from Tesla's release list); dates are illustrative.
+const PREVIEW_HISTORY = [
+  { version: "2026.20.6.10", detected_at: "2026-06-25T05:00:00Z" },
+  { version: "2026.26.6", detected_at: "2026-08-02T05:00:00Z" },
+  { version: "2026.32.3", detected_at: "2026-09-07T05:00:00Z" },
+  { version: "2026.38.3.1", detected_at: "2026-10-15T05:00:00Z" },
+];
 
 // Static illustration of the dashboard for the home page hero; reads no data. Only the chart is interactive.
 export function DashboardPreview() {
@@ -53,8 +59,11 @@ export function DashboardPreview() {
             <span className="absolute inset-y-0 -left-1/2 w-1/2 bg-linear-to-r from-transparent via-background/50 to-transparent motion-safe:animate-shimmer" />
           </div>
         </div>
+        {/* The dashboard's own history chart, so hovering shows each version and date. */}
         <div className="mt-8">
-          <PreviewChart />
+          <ChartCard as="h3" title="Software version" description="Each step up is a new version arriving.">
+            <VersionChart changes={PREVIEW_HISTORY} until="2026-10-21T04:00:00Z" />
+          </ChartCard>
         </div>
       </div>
     </div>
