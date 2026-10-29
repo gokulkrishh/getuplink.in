@@ -33,7 +33,18 @@ async function Invite({ params }: { params: Promise<{ token: string }> }) {
   const state = await lookupInvite(token, now);
   if (state !== "unused") {
     return (
-      <PlainPage home="/home" {...MESSAGES[state]} />
+      <PlainPage
+        home="/home"
+        {...MESSAGES[state]}
+        meta={
+          <>
+            Already have access?{" "}
+            <a href="/api/auth/connect" className="underline decoration-muted-foreground/60 underline-offset-4 hover:text-foreground hover:decoration-foreground">
+              Sign in with Tesla
+            </a>
+          </>
+        }
+      />
     );
   }
   return (

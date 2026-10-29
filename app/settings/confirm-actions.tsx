@@ -200,19 +200,43 @@ export function DeleteAccount() {
   );
 }
 
-// "Sign out everywhere" with its failure shown next to the button.
+// Two steps, like Disconnect Tesla: the button asks, the confirmation says what happens. Its failure shows in the form.
 export function SignOutEverywhere() {
+  const [asking, setAsking] = useState(false);
   const [error, action] = useActionState(guarded(signOutEverywhereWithError), null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const first = useRef<HTMLButtonElement>(null);
+  useAskingFocus(asking, first, trigger);
   return (
-    <form action={action} className="flex flex-col items-end gap-1">
-      <Button type="submit" variant="outline" size="lg">
-        Sign out everywhere
-      </Button>
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
+    <Row
+      title="Sign out everywhere"
+      description="Signs out every device, including this one."
+      control={
+        !asking ? (
+          <Button ref={trigger} type="button" variant="outline" size="lg" onClick={() => setAsking(true)}>
+            Sign out everywhere
+          </Button>
+        ) : null
+      }
+    >
+      {asking && (
+        <form action={action} className="mt-4 space-y-3 border-l-2 border-destructive pl-4 text-sm">
+          <p className="font-medium">Sign out everywhere?</p>
+          <p className="text-muted-foreground">Uplink signs you out on every device, including this one. You can sign in again with Tesla.</p>
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
+          {/* Right-aligned with the action last; reversed so it stays first in tab order and gets focus on open. */}
+          <div className="flex flex-row-reverse gap-2 pt-1">
+            <Submit ref={first} pendingLabel="Signing out">Sign out everywhere</Submit>
+            <Button type="button" variant="ghost" size="lg" onClick={() => setAsking(false)}>
+              Cancel
+            </Button>
+          </div>
+        </form>
       )}
-    </form>
+    </Row>
   );
 }

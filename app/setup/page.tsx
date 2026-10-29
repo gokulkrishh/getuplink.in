@@ -178,6 +178,8 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
   const live = streamingLive(cars, view.lastReadings);
   // Both steps done: nothing left to check, so the page says so and leads on.
   const ready = key === "done" && streaming === "done";
+  // Tesla says the car already shares data with as many apps as it can hold. Nothing here fixes that; the owner has to.
+  const carFull = cars.some((car) => car.keyPaired === true && car.streaming === "full");
   return (
     <>
       {cars.length === 0 && (
@@ -232,9 +234,11 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
               ? live
                 ? "Your car is sending live data."
                 : "Ready. Your car sends data the next time it's awake."
-              : canSend
-                ? "Once the key is added, Uplink turns on live data. The car starts sending the next time it's awake."
-                : "Once the key is added, Uplink turns this on for you."}
+              : carFull
+                ? "Your car can share data with only a few apps, and it's full. Remove one you no longer use, then tap Check again."
+                : canSend
+                  ? "Once the key is added, Uplink turns on live data. The car starts sending the next time it's awake."
+                  : "Once the key is added, Uplink turns this on for you."}
           </p>
           {!(canSend && view.needsLocation && streaming !== "done") && (
             <p className="text-sm text-muted-foreground">
