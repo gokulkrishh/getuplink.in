@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Measure } from "@/components/measure";
 import { formatKw, formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { PLOT_FOCUS, plotKeys } from "@/components/stats/plot-keys";
 
 export type CurveSeries = { name: string; stroke: string; swatch: string; points: { x: number; y: number }[] };
 
@@ -114,9 +115,10 @@ export function DcCurvePlot({ series, band, label }: { series: CurveSeries[]; ba
           </div>
           <div
             ref={plot}
-            className="relative h-36 min-w-0 flex-1 touch-pan-y"
-            role="img"
+            className={cn("relative h-36 min-w-0 flex-1 touch-pan-y", PLOT_FOCUS)}
+            role="group"
             aria-label={label}
+            {...plotKeys(at, setAt, Array.from({ length: Math.max(0, Math.round((to - from) / band)) }, (_, k) => from + band / 2 + k * band))}
             onPointerMove={(e) => pick(e.clientX)}
             onPointerDown={(e) => pick(e.clientX)}
             onPointerLeave={(e) => e.pointerType === "mouse" && setAt(null)}
@@ -136,6 +138,9 @@ export function DcCurvePlot({ series, band, label }: { series: CurveSeries[]; ba
             </svg>
             {stepAt !== null && (
               <>
+                <span role="status" className="sr-only">
+                  {`Battery ${pct(stepAt - band / 2)} to ${pct(stepAt + band / 2)}: ${hits.map(({ s, p }) => `${drawn.length > 1 ? `${s.name} ` : ""}${p ? formatKw(p.y) : "no data here"}`).join(", ")}`}
+                </span>
                 <div className="pointer-events-none absolute inset-y-0 w-px bg-muted-foreground" style={{ left: `${xPct(stepAt)}%` }} aria-hidden="true" />
                 {hits.map(({ s, p }) =>
                   p ? (
@@ -151,7 +156,7 @@ export function DcCurvePlot({ series, band, label }: { series: CurveSeries[]; ba
                   ref={tip}
                   className="pointer-events-none absolute top-0 z-10 border bg-background px-2 py-1 text-xs whitespace-nowrap tabular-nums shadow-sm"
                   style={{ left: tipLeft((xPct(stepAt) / 100) * width, tipWidth, width) }}
-                  aria-live="polite"
+                  aria-hidden="true"
                 >
                   <span className="block text-muted-foreground">
                     Battery {pct(stepAt - band / 2)} to {pct(stepAt + band / 2)}
