@@ -1,6 +1,6 @@
 ---
-name: verify-uplink
-description: Drive Uplink (getuplink.in, the Next.js Tesla companion web app) in a real headless browser to prove a UI change works. Starts an isolated demo-mode copy on port 3210, signed in with a sample car, then takes screenshots and page text as evidence. Use after changing pages, components or copy, or whenever a claim needs "I saw it work", not "it compiles".
+name: verify
+description: Drive Uplink (getuplink.in, the Next.js Tesla companion web app) in a real browser to prove a UI change works, headless (Playwright scripts) or in the owner's own Chrome (Claude in Chrome). Starts an isolated demo-mode copy on port 3210, signed in with a sample car, then takes screenshots and page text as evidence. Use after changing pages, components or copy, or whenever a claim needs "I saw it work", not "it compiles".
 ---
 
 # Verify Uplink
@@ -9,12 +9,12 @@ Uplink's surface is a web app (Next.js 16, App Router). The other surfaces (MCP 
 
 The verification instance is **demo mode** (`UPLINK_DEMO=1`): it signs in as a demo owner with one generated car (Model Y, "Demo car") and never touches Supabase or Tesla. It runs from a **copy** of the checkout, because Next.js allows one `next dev` per folder and the owner's own dev server usually holds the checkout on port 3000. Never stop, restart or drive the owner's server on 3000.
 
-All paths below are from the repo root. Scripts live in `.claude/skills/verify-uplink/scripts/`.
+All paths below are from the repo root. Scripts live in `.claude/skills/verify/scripts/`.
 
 ## Launch
 
 ```bash
-.claude/skills/verify-uplink/scripts/launch.sh          # port 3210; pass another port as $1 for a second instance
+.claude/skills/verify/scripts/launch.sh          # port 3210; pass another port as $1 for a second instance
 ```
 
 It copies tracked and untracked-but-not-ignored files (so your uncommitted edits come along; `.env*`, `keys/`, `.next` and `node_modules` don't) into `$TMPDIR/uplink-verify-<port>/app`, runs `bun install --frozen-lockfile` there, and starts `UPLINK_DEMO=1 bunx next dev -p <port>`. Ready when it prints `Ready: http://localhost:3210`. A relaunch after edits: `cleanup.sh 3210 --keep-copy` then `launch.sh 3210` (resyncs the files, keeps the installed modules).
@@ -24,7 +24,7 @@ The dev server compiles each route on first visit, so the first load of a page c
 ## Doctor
 
 ```bash
-.claude/skills/verify-uplink/scripts/doctor.sh          # read-only
+.claude/skills/verify/scripts/doctor.sh          # read-only
 ```
 
 Checks: the process launch.sh started is alive, it (not something else) serves the port, `GET /` is 200, and `/settings` is 200 (demo mode signed in; the real app redirects there). Run it first, and again whenever a page looks wrong. If it fails: `cleanup.sh`, then `launch.sh`.
@@ -36,9 +36,9 @@ Playwright, through `scripts/browser.mjs`: it launches the headless Chromium alr
 One page, screenshot plus visible text plus browser errors:
 
 ```bash
-bun --install=force .claude/skills/verify-uplink/scripts/shot.mjs /stats/driving            # desktop 1280×900
-bun --install=force .claude/skills/verify-uplink/scripts/shot.mjs /stats/driving --phone    # 390×844 touch, for max-sm layouts
-bun --install=force .claude/skills/verify-uplink/scripts/shot.mjs /settings --dark --run my-check
+bun --install=force .claude/skills/verify/scripts/shot.mjs /stats/driving            # desktop 1280×900
+bun --install=force .claude/skills/verify/scripts/shot.mjs /stats/driving --phone    # 390×844 touch, for max-sm layouts
+bun --install=force .claude/skills/verify/scripts/shot.mjs /settings --dark --run my-check
 ```
 
 A flow: write a script next to the others, modelled on `scripts/drive-driving.mjs`:
@@ -60,6 +60,21 @@ Handles that hold in this app:
 - Sections: `page.locator("section", { has: page.getByRole("heading", { name: "Trips" }) })`.
 - Whole-row links (trips, legs, charges, sessions): the first `link` inside the row.
 - ⓘ popovers: `getByRole("button", { name: "About <section title>" })`.
+
+### Drive in the owner's Chrome (Claude in Chrome)
+
+Use it when a check needs a real browser the owner can watch, or when the headless scripts can't show it: real fonts and scrolling, focus rings while tabbing, hover tips, a flow the owner wants to see done. Same demo copy, same Doctor; only the browser changes.
+
+1. Load the `mcp__claude-in-chrome__*` tools in one ToolSearch (tabs_context_mcp, tabs_create_mcp, navigate, computer, find, read_page, get_page_text, read_console_messages, resize_window, tabs_close_mcp), then call `tabs_context_mcp` with `createIfEmpty: true`. Work only in that tab group's tabs; never touch the owner's other tabs.
+2. Launch a copy and run Doctor as above. The owner's Chrome is signed in to the live app, so only ever open `http://localhost:<port>` here: demo mode needs no sign-in, and nothing on localhost reaches the owner's real data.
+3. `navigate` to the route, then use `find` or `read_page` (filter `interactive`) for refs. The accessible names in the handles list above are the ones `find` matches ("Account menu", "Week", "About Trips"). Click by ref, not by coordinates, so it holds across window sizes.
+4. Phone layout: `resize_window` to 390×844. Chrome's window can't go below its own minimum on some Macs, so read the page width back with `javascript_tool` (`innerWidth`) and say so if it stayed wider than 640, the `max-sm` break. Put the window back afterwards.
+5. Keyboard: `computer` with `action: "key"` and `Tab`, `ArrowLeft`, `Escape`, then a `screenshot` to see the focus ring and tip.
+6. Errors: `read_console_messages` with `pattern: "error|warn"` and `onlyErrors: true` after each page.
+7. Evidence: `computer` `screenshot` with `save_to_disk: true` returns a file path; copy each file into the run's evidence folder (`mkdir -p $TMPDIR/uplink-verify-evidence/<run>`) so it survives the session, and save page text from `get_page_text` beside it. Name the folder in the report.
+8. Close the tabs you created with `tabs_close_mcp`, then Cleanup.
+
+Don't trigger browser `alert`/`confirm` dialogs: they freeze the extension until the owner dismisses them by hand. Uplink's own confirms are in-page, so they're safe. If the extension doesn't answer twice, stop and tell the owner rather than switching browsers silently.
 
 ## Evidence
 
@@ -91,8 +106,8 @@ Look like a designer before calling it done. "It renders" and "0 FAIL" aren't en
 ## Cleanup
 
 ```bash
-.claude/skills/verify-uplink/scripts/cleanup.sh         # stops only the process tree launch.sh started, removes the copy
-.claude/skills/verify-uplink/scripts/cleanup.sh 3210 --keep-copy   # keep the copy for a faster relaunch
+.claude/skills/verify/scripts/cleanup.sh         # stops only the process tree launch.sh started, removes the copy
+.claude/skills/verify/scripts/cleanup.sh 3210 --keep-copy   # keep the copy for a faster relaunch
 ```
 
 It kills by the PID launch.sh recorded, never by process name, and leaves `$TMPDIR/uplink-verify-evidence/` alone.

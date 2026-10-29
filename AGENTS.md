@@ -41,14 +41,14 @@ Before a commit, all three pass:
 - `bun test` (one file: `bun test test/owners.test.ts`)
 - `bun run build`
 
-To see the app with a sample car and no Tesla account: `bun run demo:start` (a built demo copy on port 3210) and `bun run demo:stop`. The `verify-uplink` skill drives it for screenshots. Local and live share one Supabase database.
+To see the app with a sample car and no Tesla account: `bun run demo:start` (a built demo copy on port 3210) and `bun run demo:stop`. The `verify` skill drives it for screenshots. Local and live share one Supabase database.
 
 ## Before merging
 
 Which checks a change gets is set here, not left to judgement on the day:
 
 - **Every change:** the three checks above.
-- **Any page, component or copy change:** drive it on a demo copy (`verify-uplink`), desktop and 375px phone, and run `.claude/skills/verify-uplink/scripts/launch-checklist.mjs`. Look at the screenshots, don't hand the owner a checklist.
+- **Any page, component or copy change:** drive it on a demo copy (`verify`), desktop and 375px phone, and run `.claude/skills/verify/scripts/launch-checklist.mjs`. Look at the screenshots, don't hand the owner a checklist.
 - **No layout shift:** pending and loading states keep their size; launch-checklist measures it.
 - **Any logic change** (server code, data, Tesla answers, alerts, setup): a test that fails first, built from a real answer's shape where there is one, and an independent review of the diff (`/code-review`) before merge.
 - **Launch QA** (`launch-qa` skill, the five personas): before inviting more owners, before a major feature goes live, and after changes to the way in (home, waitlist, invite, sign-in, setup).
