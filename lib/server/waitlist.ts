@@ -1,9 +1,21 @@
 import "server-only";
-import { type Decision, DECISIONS, isFull } from "@/lib/admin";
+import { type Decision, DECISIONS } from "@/lib/admin";
 import { DEMO } from "@/lib/demo";
 import { maxUsers } from "./env";
 import type { Owner } from "./data/owner";
-import { accountCars, type AccountCar, type AccountRow, APPROVED, approvedCount, DECLINED, moveAccount, SUSPENDED, waitlistAccounts, WAITLIST } from "./data/system";
+import {
+  accountCars,
+  type AccountCar,
+  type AccountRow,
+  APPROVED,
+  approvedCount,
+  approveWithinCap,
+  DECLINED,
+  moveAccount,
+  SUSPENDED,
+  waitlistAccounts,
+  WAITLIST,
+} from "./data/system";
 
 // /admin/waitlist: who asked to join and what was decided. A request still waiting shows as its number and
 // times only: Uplink keeps nothing else about it (no name, no email, no Tesla tokens). Once an account has a
@@ -87,12 +99,15 @@ export async function loadWaitlist(now: number): Promise<WaitlistPage> {
 // applies to: decided meanwhile, an admin's own row or an unknown id).
 export type DecideResult = "done" | "full" | "gone";
 
-// The caller has checked `admin` is the admin for this very request (adminOwner). The cap is a count then a
-// conditional update: with one admin deciding by hand, two approvals racing for the last place isn't a case
-// worth a lock.
+// The caller has checked `admin` is the admin for this very request (adminOwner). A decision that takes a
+// place counts and approves in one transaction (approveWithinCap), so an approval racing an invite for the
+// last place can't both get it.
 export async function decide(admin: Owner, id: number, decision: Decision): Promise<DecideResult> {
   if (id === admin.userId) return "gone";
   const rule = DECISIONS[decision];
-  if (rule.takesPlace && isFull(await approvedCount(), maxUsers())) return "full";
+  if (rule.takesPlace) {
+    const result = await approveWithinCap(maxUsers(), { id, from: rule.from });
+    return result === "approved" ? "done" : result;
+  }
   return (await moveAccount(id, rule.from, rule.to)) ? "done" : "gone";
 }

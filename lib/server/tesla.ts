@@ -218,19 +218,20 @@ async function joinThroughInvite(sub: string, user: UserRow | null, accessToken:
   const suffix = invite.vin_suffix;
   const car = (await accountVins(accessToken)).find((vin) => vinMatches(vin, suffix));
   if (!car) return "invite-car";
-  // A count then the claim, as approving from the waitlist does (lib/server/waitlist.ts decide).
+  // A quick refusal when already full. The approve checks the cap again with the count in the same
+  // transaction (approveWithinCap), so of two invites racing for the last place only one gets in.
   if (isFull(await approvedCount(), maxUsers())) return "full";
   if (!(await claimInvite(invite.id, new Date(now).toISOString()))) return "invite-invalid";
-  let joined: UserRow | null;
+  let joined: UserRow | "full" | null;
   try {
-    joined = await approveThroughInvite(sub, user);
+    joined = await approveThroughInvite(sub, user, maxUsers());
   } catch (err) {
     await releaseInvite(invite.id).catch(() => {});
     throw err;
   }
-  if (!joined) {
+  if (joined === "full" || !joined) {
     await releaseInvite(invite.id).catch(() => {});
-    return "not-approved";
+    return joined === "full" ? "full" : "not-approved";
   }
   await recordInviteUse(invite.id, joined.id, joinedLabel(car));
   return joined;
@@ -293,8 +294,10 @@ export async function signIn(code: string, options: { inviteHash?: string | null
 // instance share one per user (inflight), and across instances the first claims a short lease on the
 // user's row while the others wait for the tokens it stores. The new pair is stored with a compare-and-swap
 // on the refresh token we read, so a disconnect in the meantime is never overwritten.
-// The lease covers the token request and saving its answer: 10 s (TESLA_TIMEOUT_MS) + 3 saves of up to 4 s
-// + 2 gaps of 0.3 s = 22.6 s at most, under the 30 s lease.
+// The lease runs from just before its claim, and covers the claim, the token request and saving its answer:
+// a claim of up to 4 s + 10 s (TESLA_TIMEOUT_MS) + 3 saves of up to 4 s + 2 gaps of 0.3 s = 26.6 s at most,
+// under the 30 s lease. The other reads and writes here (waiting for another instance's tokens, releasing
+// the lease, reading the tokens after a failure) have no time limit, but none of them sends a token to Tesla.
 const LEASE_MS = 30_000;
 const WAIT_STEP_MS = 500;
 const SAVE_ATTEMPTS = 3;
@@ -386,7 +389,8 @@ async function claimLease(owner: Owner, stored: StoredTokens): Promise<boolean> 
     .update({ refreshing_until: new Date(now.getTime() + LEASE_MS).toISOString() })
     .eq("refresh_token_enc", stored.refreshTokenEnc)
     .or(`refreshing_until.is.null,refreshing_until.lt.${now.toISOString()}`)
-    .select("user_id");
+    .select("user_id")
+    .abortSignal(AbortSignal.timeout(SAVE_TIMEOUT_MS));
   if (error) throw new Error(`Claiming the token refresh failed: ${error.message}`);
   return data?.length === 1;
 }

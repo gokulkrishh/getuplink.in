@@ -5,24 +5,29 @@ import type { Drive } from "@/lib/drives";
 import { type Owner, ownerDb } from "./data/owner";
 import { accountOwners, lastArchivedDrive, saveArchivedDrives } from "./data/system";
 import { loadReadingsByField } from "./telemetry-window";
-import { loadPrimaryVehicle } from "./telemetry";
 
 // The run has its route's 300 s; stop starting cars well before that. What's left goes tomorrow.
 const BUDGET_MS = 240_000;
 
-// Archives one owner's finished drives that aren't yet (see archiveCarDrives), for their first car.
+// Archives one owner's finished drives that aren't yet (see archiveCarDrives), for each of their cars. A car
+// no longer on the account is included too: its last days before it left are still in its window, and once
+// those are archived it finds nothing new.
 export async function archiveOwnerDrives(owner: Owner, now: number): Promise<number> {
-  const car = await loadPrimaryVehicle(owner);
-  if (!car) return 0;
-  return archiveCarDrives(
-    {
-      read: (fields, from, to) => loadReadingsByField(owner, car.vin, fields, new Date(from).toISOString(), new Date(to).toISOString()),
-      last: () => lastArchivedDrive(car.vin),
-      save: saveArchivedDrives,
-    },
-    car.vin,
-    now,
-  );
+  const { data, error } = await ownerDb(owner).from("vehicles").select("vin").not("vin", "is", null).order("created_at");
+  if (error) throw new Error(`Reading cars failed: ${error.message}`);
+  let drives = 0;
+  for (const vin of new Set((data ?? []).map((c) => c.vin as string))) {
+    drives += await archiveCarDrives(
+      {
+        read: (fields, from, to) => loadReadingsByField(owner, vin, fields, new Date(from).toISOString(), new Date(to).toISOString()),
+        last: () => lastArchivedDrive(vin),
+        save: saveArchivedDrives,
+      },
+      vin,
+      now,
+    );
+  }
+  return drives;
 }
 
 export type ArchiveResult = { owners: number; drives: number; done: boolean; skipped?: string };

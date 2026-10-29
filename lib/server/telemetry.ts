@@ -114,15 +114,24 @@ async function readLastReadingAt(owner: Owner, vin: string): Promise<string | nu
   return Number.isFinite(newest) ? new Date(newest).toISOString() : null;
 }
 
-// The owner's first car with a VIN, read once per page and handed to the loaders that need them.
+// The car the owner's figures follow, from their cars oldest first: the first still on their Tesla account
+// (readings_until is null), else the first with a VIN. So after selling one car and buying another on the
+// same account, the new car takes over.
+export function primaryCar<T extends { vin: string | null; readings_until?: string | null }>(cars: T[]): T | null {
+  const withVin = cars.filter((c) => c.vin);
+  return withVin.find((c) => !c.readings_until) ?? withVin[0] ?? null;
+}
+
+// The primary car (primaryCar), read once per page and handed to the loaders that need it.
 export async function loadPrimaryVehicle(owner: Owner): Promise<{ id: string; vin: string } | null> {
   if (DEMO) return { id: demoData().vehicle.id, vin: demoData().vin };
-  const { data, error } = await ownerDb(owner).from("vehicles").select("id:id::text, vin").not("vin", "is", null).order("created_at").limit(1).maybeSingle();
+  const { data, error } = await ownerDb(owner).from("vehicles").select("id:id::text, vin, readings_until").not("vin", "is", null).order("created_at");
   if (error) {
     console.warn("Vehicle VIN unavailable:", error.message);
     return null;
   }
-  return data ? { id: data.id as string, vin: data.vin as string } : null;
+  const car = primaryCar((data ?? []) as { id: string; vin: string; readings_until: string | null }[]);
+  return car ? { id: car.id, vin: car.vin } : null;
 }
 
 // When the owner's newest streamed reading arrived, or null when there are none (or the query fails).

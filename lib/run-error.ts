@@ -13,8 +13,13 @@ export function withoutStaleTokenError<T extends { finished_at: string | null; o
   return new Date(run.finished_at).getTime() < new Date(tokensSavedAt).getTime() ? { ...run, error: null } : run;
 }
 
+// Uplink's own database failing around a token refresh (lib/server/tesla.ts: claiming it, or storing the new
+// pair), its time-out included: not Tesla's doing, though the message may say "aborted".
+const isTokenDbError = (error: string) => /Saving tokens failed|Claiming the token refresh failed/.test(error);
+
 // Turns a raw poll error (usually a Fleet API response) into one plain sentence.
 export function describeRunError(error: string): string {
+  if (isTokenDbError(error)) return "The last check didn't finish. Uplink will try again at the next check.";
   if (/must be registered in the current region/i.test(error)) {
     return "Uplink isn't set up with Tesla for your region yet. Uplink will try again at the next check.";
   }
@@ -28,7 +33,7 @@ export function describeRunError(error: string): string {
 
 // The same errors as a short reason, for the admin's list of failed checks.
 export function runErrorReason(error: string | null): string {
-  if (!error) return "Didn't finish";
+  if (!error || isTokenDbError(error)) return "Didn't finish";
   if (/must be registered in the current region/i.test(error)) return "Region not set up with Tesla";
   if (isTokenError(error)) return "Tesla access expired";
   if (/\(429\)/.test(error)) return "Tesla asked to slow down";

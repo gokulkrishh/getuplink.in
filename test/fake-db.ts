@@ -18,6 +18,8 @@ export class FakeDb {
   clients = 0;
   // Tables to answer as missing (their migration not applied).
   missing = new Set<string>();
+  // Functions to answer as missing, as PostgREST does before their migration.
+  missingRpcs = new Set<string>();
   // Tables whose new rows get the next id, like an identity column.
   autoIds = new Set<string>();
   // Answers a query with an error, as supabase-js does when the connection drops, while this returns true.
@@ -39,7 +41,11 @@ export class FakeDb {
     this.clients++;
     return {
       from: (table: string) => new FakeQuery(this, table),
-      rpc: async (fn: string, args: Record<string, unknown>) => (this.rpcs.push({ fn, args }), { data: this.callRpc(fn, args), error: null }),
+      rpc: async (fn: string, args: Record<string, unknown>) => {
+        this.rpcs.push({ fn, args });
+        if (this.missingRpcs.has(fn)) return { data: null, error: { code: "PGRST202", message: `Could not find the function public.${fn}` } };
+        return { data: this.callRpc(fn, args), error: null };
+      },
       storage: { from: () => ({ remove: async (paths: string[]) => (this.removedFiles.push(...paths), { data: null, error: null }) }) },
     };
   }
@@ -77,7 +83,27 @@ export class FakeDb {
       for (const vin of new Set(this.rows("telemetry_readings").map((r) => r.vin as string))) left -= this.forget(vin, left);
       return (args.p_limit as number) - left;
     }
+    if (fn === "approve_within_cap") return this.approveWithinCap(args);
     return [];
+  }
+
+  // As the approve_within_cap migration has it: the count and the approve in one step, no other approval
+  // in between (the advisory lock). "approved", "full", or "gone" (not in a `p_from` state, or the login
+  // already has a row).
+  private approveWithinCap(args: Record<string, unknown>): string {
+    const users = this.rows("users");
+    if (users.filter((u) => u.status === "approved").length >= (args.p_max as number)) return "full";
+    const now = new Date().toISOString();
+    if (args.p_user_id !== null && args.p_user_id !== undefined) {
+      const from = args.p_from as string[];
+      const row = users.find((u) => u.id === args.p_user_id && from.includes(u.status as string) && u.role !== "admin");
+      if (!row) return "gone";
+      Object.assign(row, { status: "approved", approved_at: now, updated_at: now });
+      return "approved";
+    }
+    if (users.some((u) => u.tesla_sub === args.p_sub)) return "gone";
+    users.push(this.withId("users", { tesla_sub: args.p_sub, status: "approved", role: "user", approved_at: now, updated_at: now, created_at: now }));
+    return "approved";
   }
 }
 
