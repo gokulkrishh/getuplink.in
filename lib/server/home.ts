@@ -11,7 +11,7 @@ import { invoicesBySession } from "./receipts";
 import type { SpotName } from "@/lib/charge-names";
 import { loadChargeSpots } from "./charging-extra";
 import { loadStreamSessions, type StreamChargeSession } from "./stream-charging";
-import { carLastReadingAt } from "./telemetry";
+import { carLastReadingAt, primaryCar } from "./telemetry";
 
 // notices: what Tesla flagged at the car's latest online check (see loadCarFlags).
 export type HomeCar = Omit<CarState, "flags"> & { vehicle: Vehicle; notices: string[] };
@@ -46,8 +46,6 @@ export type HomeNow = OwnerGate | ({ kind: "ready" } & HomeNowData);
 // Null when there are no cars to show (the strip's part says why).
 export type HomeWeek = { kind: "error"; message: string } | ({ kind: "ready" } & HomeWeekData) | null;
 
-// The primary car, as loadPrimaryVehicle picks it: the first with a VIN.
-const primaryOf = (vehicles: Vehicle[]) => vehicles.find((v) => v.vin) ?? null;
 // The demo's First week: a car connected four days ago, so nothing before then exists.
 const demoSinceOf = (scenario: DemoScenario) => (DEMO && scenario === "firstWeek" ? demoFirstWeekStart() : undefined);
 
@@ -57,7 +55,7 @@ export async function loadHomeNow(owner: Owner, scenario: DemoScenario, now: num
   try {
     const account = await loadOwnerCars(owner);
     if (account.kind !== "ready") return account;
-    const primary = primaryOf(account.vehicles);
+    const primary = primaryCar(account.vehicles);
     const [cars, figures, lastReadingAt] = await Promise.all([
       Promise.all(
         account.vehicles.map(async (vehicle) => {
@@ -83,7 +81,7 @@ export async function loadHomeWeek(owner: Owner, scenario: DemoScenario, now: nu
   try {
     const account = await loadOwnerCars(owner);
     if (account.kind !== "ready") return null;
-    const vin = primaryOf(account.vehicles)?.vin ?? null;
+    const vin = primaryCar(account.vehicles)?.vin ?? null;
     const demoSince = demoSinceOf(scenario);
     const after = (s: { started_at: string }) => demoSince === undefined || Date.parse(s.started_at) >= demoSince;
     const tesla = loadChargingSessions(owner);
