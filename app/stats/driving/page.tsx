@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { cacheLife, cacheTag } from "next/cache";
+import { cacheLife, cacheTag, io } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { Suspense } from "react";
@@ -127,12 +127,21 @@ async function loadDriving(query: CustomQuery | null): Promise<{
   return { figures, window, custom: range && frame ? { range, frame, driving: rangeDriving } : null, byFrame, seasons, routes: trips.routes, unnamed, now };
 }
 
+type Spot = { lat: number; lng: number };
+
+// Area names not kept yet, looked up once the response is sent (a couple at a time, see placeNames), never
+// while the page waits; they show on a later load. Outside the cache, where after() belongs; it waits for a
+// real request, as the background syncs do (components/background-sync.tsx). Render inside <Suspense>.
+async function LookUpPlaceNames({ trips, places }: { trips: Spot[]; places: Spot[] }) {
+  await io();
+  after(() => Promise.all([placeNames(trips), placeNames(places)]));
+  return null;
+}
+
 async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "searchParams">) {
   const query = customQuery(await searchParams);
   const { figures, window, custom, byFrame, seasons, routes, unnamed, now } = await loadDriving(query);
-  // Area names not kept yet are looked up once the response is sent (a couple at a time, see placeNames),
-  // never while the page waits; they show on a later load. Here, outside the cache, where after() belongs.
-  if (unnamed.trips.length > 0 || unnamed.places.length > 0) after(() => Promise.all([placeNames(unnamed.trips), placeNames(unnamed.places)]));
+  const lookUp = unnamed.trips.length > 0 || unnamed.places.length > 0;
   const { days, driving } = window;
   // Mirrors the sections' own "enough data" rules, so an empty page says so instead of showing nothing.
   const hasDriving = (figures.periods.all.current.km ?? 0) > 0 || days.filter((d) => d.km !== null).length >= 2 || driving.drives.length > 0;
@@ -148,6 +157,11 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
 
   return (
     <StatsFrame custom={customScope(custom?.range ?? null, now)} periodSwitch={hasDriving}>
+      {lookUp && (
+        <Suspense>
+          <LookUpPlaceNames trips={unnamed.trips} places={unnamed.places} />
+        </Suspense>
+      )}
       {hasDriving ? (
         <div className="space-y-12">
           {/* The period's drive figures lead the page, then the distance, then the deeper charts. */}
