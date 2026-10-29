@@ -88,7 +88,7 @@ const SECTIONS: { title: string; body: ReactNode }[] = [
   },
   {
     title: "Availability",
-    body: "Uplink may change, pause or stop at any time. If it shuts down, it tells you in the app first and deletes your data within 30 days.",
+    body: "Uplink may change, pause or stop at any time. If it shuts down, it tells you in the app first and deletes your data.",
   },
   {
     title: "Leaving and suspension",
@@ -108,7 +108,7 @@ const SECTIONS: { title: string; body: ReactNode }[] = [
   },
   {
     title: "Contact",
-    body: <>Questions or complaints about these terms: {MAIL}. Replies come within 30 days.</>,
+    body: <>Questions about these terms: {MAIL}.</>,
   },
 ];
 

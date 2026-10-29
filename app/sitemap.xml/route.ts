@@ -5,7 +5,7 @@ import { requestHost } from "@/lib/session";
 // pages. The other hosts have nothing to list.
 
 const HOME_HOSTS = new Set(["getuplink.in", "www.getuplink.in"]);
-const PAGES = ["/", "/privacy", "/privacy/car-data", "/terms"];
+const PAGES = ["/", "/privacy", "/terms"];
 
 const SITEMAP = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

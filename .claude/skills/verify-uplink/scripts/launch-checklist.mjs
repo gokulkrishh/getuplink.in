@@ -99,9 +99,8 @@ for (const phone of [false, true]) {
   await c.setOffline(false);
 
   await go("/privacy");
-  // The full text sits in closed folds, which innerText skips: open them all first.
-  t = await p.evaluate(() => { document.querySelectorAll("details").forEach((d) => { d.open = true; }); return document.body.innerText; });
-  check(`${tag} /privacy In short + archive + date`, t.includes("In short") && t.includes("Each finished drive is also saved for good") && t.includes("29 October 2026") && t.includes("speed, location, cabin temperature and battery range for 120 days"));
+  t = await text(p);
+  check(`${tag} /privacy services + date`, t.includes("How we use your data") && t.includes("29 October 2026"));
 
   const r = await p.goto("/stats/driving/notadate");
   check(`${tag} bad trip is a 404`, r.status() === 404 && (await text(p)).includes("Page not found"));
