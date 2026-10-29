@@ -37,4 +37,9 @@ describe("runErrorReason", () => {
     expect(runErrorReason("This operation was aborted")).toBe("Tesla didn't respond");
     expect(describeRunError("The operation was aborted due to timeout")).toBe("Tesla didn't respond. Uplink will try again at the next check.");
   });
+  test("Uplink's own database giving up on saving new tokens isn't Tesla not responding", () => {
+    const error = "Saving tokens failed: AbortError: The operation was aborted due to timeout";
+    expect(runErrorReason(error)).toBe("Didn't finish");
+    expect(describeRunError(error)).toBe("The last check didn't finish. Uplink will try again at the next check.");
+  });
 });
