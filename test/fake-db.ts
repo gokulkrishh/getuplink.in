@@ -21,6 +21,8 @@ export class FakeDb {
   autoIds = new Set<string>();
   // Answers a query with an error, as supabase-js does when the connection drops, while this returns true.
   failing: ((query: { table: string; op: string; patch: Row | null }) => boolean) | null = null;
+  // Never answers a query while this returns true, until the query's abortSignal fires.
+  stalling: ((query: { table: string; op: string; patch: Row | null }) => boolean) | null = null;
 
   withId(table: string, row: Row): Row {
     if (!this.autoIds.has(table) || row.id !== undefined) return row;
@@ -94,6 +96,7 @@ class FakeQuery {
   private max: number | null = null;
   private span: [number, number] | null = null;
   private sort: { column: string; ascending: boolean } | null = null;
+  private signal: AbortSignal | null = null;
   constructor(
     private db: FakeDb,
     private table: string,
@@ -193,11 +196,19 @@ class FakeQuery {
     this.max = n;
     return this;
   }
+  abortSignal(signal: AbortSignal) {
+    this.signal = signal;
+    return this;
+  }
   private async run(): Promise<{ data: Row[]; error: null }> {
     await tick();
     this.db.calls.push({ table: this.table, op: this.op, filters: this.filters.map(([d]) => d) });
     // A table whose migration isn't applied: PostgREST's "not in the schema cache".
     if (this.db.missing.has(this.table)) return { data: null, error: { message: `Could not find the table '${this.table}'`, code: "PGRST205" } } as never;
+    if (this.db.stalling?.({ table: this.table, op: this.op, patch: this.patch })) {
+      await new Promise((resolve) => this.signal?.addEventListener("abort", resolve));
+      return { data: null, error: { message: `AbortError: ${this.signal?.reason?.message}` } } as never;
+    }
     if (this.db.failing?.({ table: this.table, op: this.op, patch: this.patch })) return { data: null, error: { message: "TypeError: fetch failed" } } as never;
     const all = this.db.rows(this.table);
     const hit = (r: Row) => this.filters.every(([, f]) => f(r));

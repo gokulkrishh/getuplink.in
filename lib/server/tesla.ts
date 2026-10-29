@@ -43,9 +43,9 @@ export const SCOPES = ["openid", "offline_access", "user_data", "vehicle_device_
 
 // Refresh a little early so a token never expires mid-poll.
 const REFRESH_MARGIN_MS = 5 * 60 * 1000;
-// Every request to Tesla gives up after this, body included. Well under the refresh lease (LEASE_MS), so a
-// token request is over before another instance may take the refresh over, and a hung Fleet call can't
-// hold a check past its function's time limit.
+// Every request to Tesla gives up after this, body included (a streamed body: only the wait for the answer).
+// Well under the refresh lease (LEASE_MS), so a token request is over before another instance may take the
+// refresh over, and a hung Fleet call can't hold a check past its function's time limit.
 const TESLA_TIMEOUT_MS = 10_000;
 
 type TokenResponse = {
@@ -73,13 +73,32 @@ export class NotConnectedError extends Error {
 
 // Every request Uplink sends the Fleet API goes through here, so each is counted (lib/server/usage.ts) under
 // its user, or UNATTRIBUTED before there is one. Tesla bills every answer below 500, so that's what counts,
-// once per attempt: a 401 and its retry are two. No answer (a network error) isn't billed or counted.
-async function teslaFetch(userId: number, path: string, init: { method?: string; token: string; json?: unknown }): Promise<Response> {
+// once per attempt: a 401 and its retry are two. A dropped connection isn't billed or counted. A request
+// given up on (TESLA_TIMEOUT_MS) is counted: Tesla may have answered it, and over-counting keeps the budget safe.
+// `stream`: the caller streams the body on (an invoice PDF), so only the wait for Tesla's answer is bounded.
+async function teslaFetch(
+  userId: number,
+  path: string,
+  init: { method?: string; token: string; json?: unknown; stream?: boolean },
+): Promise<Response> {
   const method = init.method ?? "GET";
   const headers: Record<string, string> = { Authorization: `Bearer ${init.token}` };
   if (init.json !== undefined) headers["Content-Type"] = "application/json";
   const body = init.json === undefined ? undefined : JSON.stringify(init.json);
-  const res = await fetch(`${fleetApiBase()}${path}`, { method, headers, body, cache: "no-store", signal: AbortSignal.timeout(TESLA_TIMEOUT_MS) });
+  const answered = new AbortController();
+  const timer = init.stream
+    ? setTimeout(() => answered.abort(new DOMException("The operation was aborted due to timeout", "TimeoutError")), TESLA_TIMEOUT_MS)
+    : undefined;
+  const signal = init.stream ? answered.signal : AbortSignal.timeout(TESLA_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${fleetApiBase()}${path}`, { method, headers, body, cache: "no-store", signal });
+  } catch (err) {
+    if (signal.aborted) await countRequest(userId, kindOf(method, path));
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
   if (isBillable(res.status)) await countRequest(userId, kindOf(method, path));
   return res;
 }
@@ -274,10 +293,12 @@ export async function signIn(code: string, options: { inviteHash?: string | null
 // instance share one per user (inflight), and across instances the first claims a short lease on the
 // user's row while the others wait for the tokens it stores. The new pair is stored with a compare-and-swap
 // on the refresh token we read, so a disconnect in the meantime is never overwritten.
-// The lease covers the token request (TESLA_TIMEOUT_MS) and saving its answer (SAVE_ATTEMPTS).
+// The lease covers the token request and saving its answer: 10 s (TESLA_TIMEOUT_MS) + 3 saves of up to 4 s
+// + 2 gaps of 0.3 s = 22.6 s at most, under the 30 s lease.
 const LEASE_MS = 30_000;
 const WAIT_STEP_MS = 500;
 const SAVE_ATTEMPTS = 3;
+const SAVE_TIMEOUT_MS = 4_000;
 const SAVE_RETRY_MS = 300;
 const inflight = new Map<number, { refreshTokenEnc: string; promise: Promise<string> }>();
 
@@ -309,9 +330,10 @@ async function refreshOnce(owner: Owner, stored: StoredTokens): Promise<string> 
       refresh_token: stored.refreshToken,
     });
   } catch (err) {
-    // Only Tesla's answer says the token wasn't spent. A timeout, a dropped connection or a 5xx may have
-    // spent it, so the lease stays until it runs out rather than let the next caller send it again.
-    if (err instanceof TeslaError && err.status < 500) await releaseLease(owner, stored);
+    // An error answer from Tesla (a 4xx or 5xx) means the token wasn't spent, so the next caller may try at
+    // once. No answer (a timeout, a dropped connection) or a 200 we couldn't read may have spent it, so the
+    // lease stays until it runs out rather than let the next caller send it again.
+    if (err instanceof TeslaError && err.status >= 400) await releaseLease(owner, stored);
     // A disconnect or a sign-in may have replaced the tokens meanwhile; if so, use those.
     const current = await readTokens(owner);
     if (!current) throw new NotConnectedError();
@@ -330,7 +352,12 @@ async function refreshOnce(owner: Owner, stored: StoredTokens): Promise<string> 
   };
   let data: { user_id: unknown }[] | null = null;
   for (let attempt = 1; ; attempt++) {
-    const result = await ownerDb(owner).from("user_tokens").update(saved).eq("refresh_token_enc", stored.refreshTokenEnc).select("user_id");
+    const result = await ownerDb(owner)
+      .from("user_tokens")
+      .update(saved)
+      .eq("refresh_token_enc", stored.refreshTokenEnc)
+      .select("user_id")
+      .abortSignal(AbortSignal.timeout(SAVE_TIMEOUT_MS));
     if (!result.error) {
       data = result.data;
       break;
@@ -524,10 +551,10 @@ async function accessToken(owner: Owner, forceRefresh = false): Promise<string> 
 
 // A request to the Fleet API with the owner's token (a GET, or a POST with a JSON body); retries once
 // after a 401. Returns the raw Response, so the caller must check `ok`.
-async function fleetFetch(owner: Owner, path: string, post?: { json: unknown }): Promise<Response> {
+async function fleetFetch(owner: Owner, path: string, post?: { json: unknown }, stream = false): Promise<Response> {
   let token = await accessToken(owner);
   for (let attempt = 0; ; attempt++) {
-    const res = await teslaFetch(owner.userId, path, post ? { token, method: "POST", json: post.json } : { token });
+    const res = await teslaFetch(owner.userId, path, post ? { token, method: "POST", json: post.json } : { token, stream });
     if (res.status === 401 && attempt === 0) {
       token = await accessToken(owner, true);
       continue;
@@ -566,7 +593,7 @@ export async function fleetGetBody(owner: Owner, path: string): Promise<unknown>
 
 // For binary responses such as invoice PDFs: the body is not JSON, so the caller reads it.
 export function fleetGetRaw(owner: Owner, path: string): Promise<Response> {
-  return fleetFetch(owner, path);
+  return fleetFetch(owner, path, undefined, true);
 }
 
 // "Delete my data": remove the owner's cars and everything recorded from them (see eraseOwnerRows),

@@ -15,6 +15,8 @@ const tesla = {
   slowMs: 0,
   // The next refresh spends its token and issues a pair, then the connection drops before the answer.
   dropAfterSpend: false,
+  // The next refresh is answered with this status (a 5xx: Tesla is down) and spends nothing.
+  failStatus: 0,
   // Refresh requests open now per refresh token, and the most ever open at once for one token.
   open: new Map<string, number>(),
   maxOpen: 0,
@@ -74,6 +76,11 @@ const fakeFetch = (async (input: string | URL | Request, init?: RequestInit) => 
     tesla.open.set(token, open);
     tesla.maxOpen = Math.max(tesla.maxOpen, open);
     try {
+      if (tesla.failStatus) {
+        const status = tesla.failStatus;
+        tesla.failStatus = 0;
+        return new Response("unavailable", { status });
+      }
       if (tesla.slowMs) {
         const ms = tesla.slowMs;
         tesla.slowMs = 0;
@@ -105,11 +112,30 @@ const fakeFetch = (async (input: string | URL | Request, init?: RequestInit) => 
     if (!bearer || !tesla.access.has(bearer) || region === null) return new Response("unavailable", { status: 503 });
     return Response.json({ response: { region: "na", fleet_api_base_url: region } });
   }
-  return bearer && tesla.access.has(bearer) ? Response.json({ response: "ok" }) : new Response("unauthorized", { status: 401 });
+  if (!bearer || !tesla.access.has(bearer)) return new Response("unauthorized", { status: 401 });
+  // The answer at once and its body 15 s later, as a large PDF on a slow link; the body breaks off on abort.
+  if (url.endsWith("/slow-body")) {
+    const signal = init?.signal;
+    const body = new ReadableStream({
+      start(controller) {
+        const timer = setTimeout(() => {
+          controller.enqueue(new TextEncoder().encode(JSON.stringify({ response: "ok" })));
+          controller.close();
+        }, 15_000);
+        signal?.addEventListener("abort", () => {
+          clearTimeout(timer);
+          controller.error(signal.reason);
+        });
+      },
+    });
+    return new Response(body, { headers: { "Content-Type": "application/json" } });
+  }
+  if (url.endsWith("/slow-answer")) await answerAfter(15_000, init?.signal);
+  return Response.json({ response: "ok" });
 }) as typeof fetch;
 
 const { asOwner } = await import("@/lib/server/data/owner");
-const { fleetGet, NotConnectedError, signIn } = await import("@/lib/server/tesla");
+const { fleetGet, fleetGetRaw, NotConnectedError, signIn } = await import("@/lib/server/tesla");
 // A second copy of the module: another server instance, with its own in-memory refreshes.
 const otherInstance = (await import(`@/lib/server/tesla${"?instance=b"}`)) as typeof import("@/lib/server/tesla");
 const OWNER: Owner = asOwner(1, "owner");
@@ -130,7 +156,7 @@ function users() {
 // this file runs, and then a token request would go to Tesla.
 beforeEach(() => {
   globalThis.fetch = fakeFetch;
-  Object.assign(tesla, { requests: 0, valid: new Set(), spent: new Set(), access: new Set(), next: 0, slowMs: 0, dropAfterSpend: false, open: new Map(), maxOpen: 0 });
+  Object.assign(tesla, { requests: 0, valid: new Set(), spent: new Set(), access: new Set(), next: 0, slowMs: 0, dropAfterSpend: false, failStatus: 0, open: new Map(), maxOpen: 0 });
 });
 
 afterEach(() => {
@@ -234,10 +260,62 @@ describe("Tesla token refresh", () => {
     expect(tesla.valid).toEqual(new Set(["r3"]));
   });
 
+  test("an error answer from Tesla's token endpoint frees the lease, so the next call refreshes at once", async () => {
+    tesla.failStatus = 503;
+    await expect(fleetGet<string>(OWNER, "/api/1/vehicles")).rejects.toThrow("(503)");
+    expect(row().refreshing_until).toBeNull();
+    expect(await otherInstance.fleetGet<string>(OWNER, "/api/1/vehicles")).toBe("ok");
+    expect(tesla.requests).toBe(2);
+    expect(row().refresh_token_enc).toBe("enc:r2");
+  });
+
+  test("a save that hangs is given up on and tried again well inside the lease", async () => {
+    jest.useFakeTimers();
+    let stalls = 1;
+    fake.stalling = ({ table, op, patch }) => table === "user_tokens" && op === "update" && Boolean(patch?.refresh_token_enc) && stalls-- > 0;
+    const call = fleetGet<string>(OWNER, "/api/1/vehicles").catch((err: Error) => err);
+    await elapse(6_000);
+    expect(row().refresh_token_enc).toBe("enc:r2");
+    expect(await call).toBe("ok");
+  });
+
   test("a user with no token row isn't connected, and is never handed anyone else's", async () => {
     await expect(fleetGet<string>(OTHER, "/api/1/vehicles")).rejects.toBeInstanceOf(NotConnectedError);
     expect(tokensOf(2)).toEqual([]);
     expect(tesla.requests).toBe(0);
+  });
+});
+
+describe("Fleet API requests", () => {
+  beforeEach(() => {
+    const first = tesla.issue();
+    fake = new FakeDb({
+      users: users(),
+      user_tokens: [{ user_id: 1, access_token_enc: `enc:${first.access_token}`, refresh_token_enc: `enc:${first.refresh_token}`, expires_at: new Date(Date.now() + 3_600_000).toISOString(), refreshing_until: null }],
+    });
+    jest.useFakeTimers();
+  });
+  const counted = () => fake.rpcs.filter((r) => r.fn === "increment_api_usage" && r.args.p_user_id === 1).length;
+
+  test("an invoice that takes longer than the timeout to download still arrives whole", async () => {
+    const answer = fleetGetRaw(OWNER, "/api/1/dx/charging/invoice/slow-body");
+    await elapse(1_000);
+    const body = (await answer).text().catch((err: Error) => err);
+    await elapse(15_000);
+    expect(await body).toBe(JSON.stringify({ response: "ok" }));
+  });
+
+  test("a JSON answer whose body stalls past the timeout is given up on", async () => {
+    const call = fleetGet<string>(OWNER, "/api/1/slow-body").catch((err: Error) => err);
+    await elapse(12_000);
+    expect(await call).toMatchObject({ name: "TimeoutError" });
+  });
+
+  test("a request given up on still counts against the Tesla budget", async () => {
+    const call = fleetGet<string>(OWNER, "/api/1/slow-answer").catch((err: Error) => err);
+    await elapse(12_000);
+    expect(await call).toMatchObject({ name: "TimeoutError" });
+    expect(counted()).toBe(1);
   });
 });
 

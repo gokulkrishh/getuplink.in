@@ -22,7 +22,7 @@ export function describeRunError(error: string): string {
     return "Tesla access has expired. Sign out and sign in with Tesla again.";
   }
   if (/\(429\)/.test(error)) return "Tesla asked Uplink to slow down. Uplink will try again at the next check.";
-  if (/\(5\d\d\)|fetch failed/i.test(error)) return "Tesla didn't respond. Uplink will try again at the next check.";
+  if (/\(5\d\d\)|fetch failed|aborted|operation timed out/i.test(error)) return "Tesla didn't respond. Uplink will try again at the next check.";
   return "The last check didn't finish. Uplink will try again at the next check.";
 }
 
@@ -32,6 +32,6 @@ export function runErrorReason(error: string | null): string {
   if (/must be registered in the current region/i.test(error)) return "Region not set up with Tesla";
   if (isTokenError(error)) return "Tesla access expired";
   if (/\(429\)/.test(error)) return "Tesla asked to slow down";
-  if (/\(5\d\d\)|fetch failed/i.test(error)) return "Tesla didn't respond";
+  if (/\(5\d\d\)|fetch failed|aborted|operation timed out/i.test(error)) return "Tesla didn't respond";
   return "Didn't finish";
 }

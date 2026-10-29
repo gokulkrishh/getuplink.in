@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { runErrorReason, withoutStaleTokenError } from "@/lib/run-error";
+import { describeRunError, runErrorReason, withoutStaleTokenError } from "@/lib/run-error";
 
 const refused = "Token request failed (401): login_required, The refresh_token is invalid";
 type Run = { started_at: string; finished_at: string | null; ok: boolean | null; error: string | null };
@@ -31,5 +31,10 @@ describe("runErrorReason", () => {
     expect(runErrorReason("Fleet API (503): busy")).toBe("Tesla didn't respond");
     expect(runErrorReason("vehicle 5YJ3E1EA7KF000000 (429)")).toBe("Tesla asked to slow down");
     expect(runErrorReason(null)).toBe("Didn't finish");
+  });
+  test("a request Uplink gave up waiting on is Tesla not responding", () => {
+    expect(runErrorReason("The operation was aborted due to timeout")).toBe("Tesla didn't respond");
+    expect(runErrorReason("This operation was aborted")).toBe("Tesla didn't respond");
+    expect(describeRunError("The operation was aborted due to timeout")).toBe("Tesla didn't respond. Uplink will try again at the next check.");
   });
 });
