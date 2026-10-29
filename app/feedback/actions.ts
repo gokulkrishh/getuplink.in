@@ -2,9 +2,8 @@
 
 import { updateTag } from "next/cache";
 import { DEMO } from "@/lib/demo";
-import { feedbackInput } from "@/lib/feedback";
 import { currentOwner } from "@/lib/server/auth";
-import { FEEDBACK_TAG, type SaveResult, saveFeedback } from "@/lib/server/feedback";
+import { FEEDBACK_TAG, feedbackInput, type SaveResult, saveFeedback } from "@/lib/server/feedback";
 
 // The feedback button's send. Reachable by POST from anywhere, so it checks the session and every field.
 export async function sendFeedback(raw: unknown): Promise<SaveResult> {

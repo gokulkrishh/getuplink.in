@@ -1,11 +1,28 @@
 import "server-only";
-import type { FeedbackInput } from "@/lib/feedback";
+import { z } from "zod";
+import { BOTHER, type Bother, isProblem, MESSAGE_MAX, TOPICS, type Topic } from "@/lib/feedback";
 import { type Owner, ownerDb } from "@/lib/server/data/owner";
 import { type FeedbackRow, type FeedbackStatus, feedbackCounts, feedbackPage, newFeedbackCount, setFeedbackStatus } from "@/lib/server/data/system";
 
 export const FEEDBACK_TAG = "admin-feedback";
 // Enough for an owner with a lot to say; a stuck form or a script can't fill the table.
 const PER_DAY = 20;
+
+// What the form sends: the owner's answers and where they were. Everything past the message is read from
+// the browser, never typed. A problem needs how much it bothers; anything else has none.
+export const feedbackInput = z
+  .object({
+    topic: z.enum(TOPICS.map((t) => t.value) as [Topic, ...Topic[]]),
+    bother: z.enum(BOTHER.map((b) => b.value) as [Bother, ...Bother[]]).nullable(),
+    message: z.string().trim().min(1).max(MESSAGE_MAX),
+    pagePath: z.string().min(1).max(300).startsWith("/"),
+    pageTitle: z.string().max(200).optional(),
+    viewport: z.string().regex(/^\d{2,5}x\d{2,5}$/).optional(),
+    userAgent: z.string().max(400).optional(),
+    theme: z.enum(["light", "dark"]).optional(),
+  })
+  .refine((f) => (isProblem(f.topic) ? f.bother !== null : f.bother === null));
+export type FeedbackInput = z.infer<typeof feedbackInput>;
 
 export type SaveResult = { ok: true } | { ok: false; error: string };
 
