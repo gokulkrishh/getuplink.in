@@ -95,7 +95,7 @@ type Stream = Part & { reading: string | null; online: string | null; synced: bo
 // Whether Uplink's side of the live data works (streamPart): data arriving while cars that should stream
 // are awake, Tesla's API answering, and no receiver errors from Tesla. Tesla is asked about one car; what
 // it says about that car itself (key, config, expiry) isn't a system problem. It is kept on the car's row
-// instead (key, streaming state, expiry), where /setup, the 6-hourly check and the owner's bell act on it.
+// instead (key, streaming state, expiry), where /setup, the scheduled check and the owner's bell act on it.
 async function checkStream(now: number): Promise<Stream> {
   const out: Stream = { status: "operational", problems: [], reading: null, online: null, synced: null, expiresAt: null, teslaFetchedAt: null };
   let freshness: Freshness | null = null;
@@ -140,7 +140,7 @@ async function checkStream(now: number): Promise<Stream> {
       // Kept on the car, so a key removed from it shows on the owner's pages (see recordKeyStatus).
       if (typeof cfg?.key_paired === "boolean") await recordKeyStatus(owner, vin, cfg.key_paired, state.fetchedAt);
       // A config state other than the row's (lost, or waiting on the car) is kept too, so the next /setup
-      // visit or 6-hourly check acts on it (sends a lost config again) instead of a day later.
+      // visit or scheduled check acts on it (sends a lost config again) instead of a day later.
       const streaming = streamingToRecord(heard ? heard.streaming : undefined, cfg ? parseTelemetryConfig({ response: cfg }) : null);
       if (streaming) await recordStreaming(owner, vin, streaming, state.fetchedAt);
       if (cfg) {

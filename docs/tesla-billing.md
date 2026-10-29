@@ -89,7 +89,7 @@ That's 48 requests a day, about **$2.90 a month**, whoever calls. Until the migr
 
 ### Checks
 
-Each car check is the vehicle list, `vehicle_data` for each online car, and the charging history (one page, more on a car's first check): about 3 requests, $0.006. Every 6 hours that's about $0.72 a month per user with one car.
+Each car check is the vehicle list, `vehicle_data` for each online car, and the charging history (one page, more on a car's first check): about 3 requests, $0.006. Every 12 hours that's about $0.36 a month per user with one car.
 
 ### Streaming signals
 
@@ -113,13 +113,13 @@ Why this and not a counter in the receiver:
 
 | Month to date | Checks |
 | --- | --- |
-| Under 80% of the budget | Every 6 hours |
-| From 80% | Every 12 hours |
+| Under 80% of the budget | Every 12 hours |
+| From 80% | Every 24 hours |
 | From 100% | Stopped until the 1st |
 
 When stopped, nothing optional calls Tesla either: the station check and the Charging page's history sync are skipped. Streaming is left alone. A sign-in still signs in, but its check is skipped. The health checks, invoices and Disconnect are never skipped.
 
-If the usage can't be read (the table isn't there yet), checks stay at every 6 hours.
+If the usage can't be read (the table isn't there yet), checks stay at every 12 hours.
 
 ### What it means for the owner alone, before anyone else joins
 
@@ -129,12 +129,12 @@ An estimate at the Data price, with one car streaming about 1,000 signals an hou
 | --- | --- | --- |
 | Health check, 48 requests (one config and errors pair an hour) | $0.10 | $2.88 |
 | Streaming, about 24,000 signals | $0.16 | $4.80 |
-| Checks, about 12 requests | $0.02 | $0.72 |
-| **Total** | **about $0.28** | **about $8.40** |
+| Checks, about 6 requests | $0.01 | $0.36 |
+| **Total** | **about $0.27** | **about $8.04** |
 
 Before the health check reused its answer (below), the bot alone asked 192 times a day: $11.52 a month, and about $17 in all.
 
-So with the defaults, checks would slow to every 12 hours only in the last two or three days of a long month, and wouldn't stop. That rests on the streaming guess: a car that streams twice as much would reach the budget around the 23rd. **Stopping checks doesn't stop the spend**: the health check and streaming carry on past the budget. If Tesla's "billing limit of 0" means access stops at the credit, streaming could stop then too.
+So with the defaults, checks would slow to every 24 hours only on the last day or two of a long month, and wouldn't stop. That rests on the streaming guess: a car that streams twice as much would reach the budget around the 23rd. **Stopping checks doesn't stop the spend**: the health check and streaming carry on past the budget. If Tesla's "billing limit of 0" means access stops at the credit, streaming could stop then too.
 
 The owner's options, if the counts run higher:
 - compare Uplink's figure with Tesla's billing page after a few days, before relying on either;

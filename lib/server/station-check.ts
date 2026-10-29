@@ -24,7 +24,7 @@ type VehicleData = {
 
 export type StationCheckResult = { sessions: number; labelled: number; skipped?: string };
 
-// Rebuilds sessions only for cars that streamed charging readings lately: the poll runs every 6 hours,
+// Rebuilds sessions only for cars that streamed charging readings lately: the poll runs every 12 hours,
 // so without this a charge in progress wouldn't be in the table yet. Database only, no Tesla call.
 async function syncChargingCars(owner: Owner): Promise<void> {
   const { data, error } = await ownerDb(owner).from("vehicles").select("vin");

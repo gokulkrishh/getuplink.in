@@ -27,7 +27,7 @@ import { fleetGetBody, fleetPost, hasScope, LOCATION_SCOPE, NotConnectedError } 
 // Tesla is asked as rarely as the answers allow (lib/setup-status.ts has the intervals):
 //   the gate (components/header.tsx, every signed-in page) only reads what's stored, and asks Tesla's
 //     fleet_status, one request for all the owner's cars, when the stored answer is old;
-//   /setup, its "Check again" and the 6-hourly check also read each car's streaming config, and send it
+//   /setup, its "Check again" and the scheduled check also read each car's streaming config, and send it
 //     Uplink's config once the key is on and it has none.
 // Every request goes through lib/server/tesla.ts, so it is counted in api_usage.
 
@@ -215,7 +215,7 @@ export async function recordKeyStatus(owner: Owner, vin: string, paired: boolean
 }
 
 // What the health check just heard about a car's config when it differs from the row (streamingToRecord):
-// a config lost from the car shows as "none", which /setup and the 6-hourly check reread within 10 minutes
+// a config lost from the car shows as "none", which /setup and the scheduled check reread within 10 minutes
 // (streamingStale) and send again, instead of waiting a day on a stale "synced". `at` is when Tesla said it;
 // a newer answer from /setup stands. Never throws: the health check carries on without it.
 export async function recordStreaming(owner: Owner, vin: string, streaming: Streaming, at: string): Promise<void> {
@@ -280,7 +280,7 @@ export async function loadSetup(owner: Owner, { force = false, now = Date.now() 
   return { cars, canSend: canSendConfig(), needsLocation, checkedAt: times.sort().at(-1) ?? null, lastReadings: Object.fromEntries(readings) };
 }
 
-// The 6-hourly check: whatever is old, so a car paired while nobody had /setup open still gets its config.
+// The scheduled check: whatever is old, so a car paired while nobody had /setup open still gets its config.
 // Never fails the check.
 export async function checkSetup(owner: Owner, now: number = Date.now()): Promise<void> {
   if (DEMO) return;
