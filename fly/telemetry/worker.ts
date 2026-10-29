@@ -6,6 +6,7 @@
 // POST to PostgREST. Logs carry counts only, VINs as last 4 characters.
 
 import { mkdirSync, writeFileSync } from "node:fs";
+import { type PostResult, sendIsolating } from "./split";
 
 const CERT_DIR = "/tmp/certs";
 const SERVER_BIN = process.env.FLEET_TELEMETRY_BIN ?? "/usr/local/bin/fleet-telemetry";
@@ -15,6 +16,7 @@ const MAX_BATCH = 500;
 const MAX_BUFFER = 20_000;
 const RETRIES = 5;
 const TRIM_TO = Math.floor(MAX_BUFFER * 0.9); // trim with headroom so an overflow logs once, not per line
+const LARGE_BUFFER = MAX_BATCH * 10;
 const SHUTDOWN_CHILD_MS = 3_000;
 const SHUTDOWN_FLUSH_MS = 8_000;
 const HEARTBEAT_MS = 10 * 60_000;
@@ -171,7 +173,6 @@ function trimBuffer() {
   console.error(`buffer overflow: dropped ${over} rows ${oldest}..${newest} vehicles=${[...vins].join(",")}`);
 }
 
-type PostResult = "ok" | "retry" | "drop";
 let deadline = Infinity; // set on shutdown so retries can't outlive the grace period
 let stopping = false;
 
@@ -186,7 +187,7 @@ async function postBatch(rows: Row[]): Promise<PostResult> {
   const body = JSON.stringify(rows);
   for (let attempt = 0; attempt < RETRIES; attempt++) {
     const left = deadline - Date.now();
-    if (left <= 0) return "retry";
+    if (left <= 0) return { kind: "retry" };
     try {
       const res = await fetch(`${TABLE_URL}?on_conflict=vin,field,created_at`, {
         method: "POST",
@@ -200,9 +201,9 @@ async function postBatch(rows: Row[]): Promise<PostResult> {
         body,
         signal: AbortSignal.timeout(Math.min(15_000, left)),
       });
-      if (res.ok) return "ok";
+      if (res.ok) return { kind: "ok" };
       if (res.status !== 429 && res.status < 500) {
-        // Other 4xx (bad data, schema, auth) will never succeed on retry. Drop, or it blocks the queue forever.
+        // Other 4xx (bad data, schema, auth) will never succeed on retry. Refused, or it blocks the queue forever.
         let detail = "";
         try {
           const j = (await res.json()) as Record<string, unknown>;
@@ -210,8 +211,7 @@ async function postBatch(rows: Row[]): Promise<PostResult> {
         } catch {
           // body not JSON
         }
-        console.error(`supabase rejected batch of ${rows.length}, dropping: HTTP ${res.status}${detail}`);
-        return "drop";
+        return { kind: "refused", status: res.status, detail };
       }
       console.error(`supabase HTTP ${res.status}, attempt ${attempt + 1}/${RETRIES}`);
     } catch (e) {
@@ -221,25 +221,35 @@ async function postBatch(rows: Row[]): Promise<PostResult> {
     const wait = stopping ? 250 : Math.min(30_000, 1000 * 2 ** attempt);
     await Bun.sleep(Math.max(0, Math.min(wait, deadline - Date.now())));
   }
-  return "retry";
+  return { kind: "retry" };
+}
+
+// A refused row is named by its car's last 4, field and time, never its value (a location, say).
+function logRefused(rows: Row[], status: number, detail: string) {
+  if (rows.length === 1) {
+    const [r] = rows;
+    console.error(`supabase refused row vin=${tail4(r.vin)} field=${r.field} at=${r.created_at}, dropping: HTTP ${status}${detail}`);
+  } else {
+    console.error(`supabase refused ${rows.length} rows, dropping: HTTP ${status}${detail}`);
+  }
 }
 
 let inflight: Promise<void> | null = null;
 function flush(): Promise<void> {
   if (inflight) return inflight;
   if (buffer.length === 0) return Promise.resolve();
+  // A queue this long means Supabase has been refusing or failing for a while.
+  if (buffer.length >= LARGE_BUFFER) console.error(`buffer large: ${buffer.length} rows waiting`);
   inflight = (async () => {
     try {
       while (buffer.length > 0) {
         const batch = buffer.splice(0, MAX_BATCH);
-        const result = await postBatch(dedupe(batch));
-        if (result === "ok") {
-          writtenRows += batch.length;
-        } else if (result === "drop") {
-          rejectedRows += batch.length;
-        } else {
-          // Transient failure: put back at the front for the next tick; stop this round.
-          buffer = batch.concat(buffer);
+        const result = await sendIsolating(dedupe(batch), postBatch, logRefused);
+        writtenRows += result.written;
+        rejectedRows += result.refused;
+        if (result.retry.length > 0) {
+          // Transient failure: put what's unsent back at the front for the next tick; stop this round.
+          buffer = result.retry.concat(buffer);
           trimBuffer();
           break;
         }

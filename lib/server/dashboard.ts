@@ -29,6 +29,8 @@ export type Vehicle = {
   last_polled_at: string | null;
   model: string | null;
   exterior_color: string | null;
+  // Set once the car has left the owner's Tesla account (see primaryCar).
+  readings_until?: string | null;
 };
 
 export type Snapshot = {
@@ -208,7 +210,7 @@ export async function loadOwnerCars(owner: Owner): Promise<OwnerGate | { kind: "
   const [connected, savedAt, vehicles, runs] = await Promise.all([
     isConnected(owner),
     tokensSavedAt(owner),
-    ownerDb(owner).from("vehicles").select("id:id::text, vin, display_name, last_state, current_version, last_seen_at, last_polled_at, model, exterior_color").order("created_at"),
+    ownerDb(owner).from("vehicles").select("id:id::text, vin, display_name, last_state, current_version, last_seen_at, last_polled_at, model, exterior_color, readings_until").order("created_at"),
     ownerDb(owner).from("poll_runs").select("started_at, finished_at, ok, error").order("started_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
   if (!connected) return { kind: "disconnected" };

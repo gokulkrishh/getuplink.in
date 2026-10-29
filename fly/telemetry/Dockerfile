@@ -9,7 +9,7 @@ COPY --from=tesla /fleet-telemetry /usr/local/bin/fleet-telemetry
 # Fail the build if the copied binary needs a shared library this image lacks.
 RUN ldd /usr/local/bin/fleet-telemetry && ! ldd /usr/local/bin/fleet-telemetry | grep -q 'not found'
 WORKDIR /app
-COPY config.json worker.ts ./
+COPY config.json worker.ts split.ts ./
 USER bun
 # Listens on 8443 (unprivileged); fly.toml maps external 443 -> 8443 over raw TCP.
 EXPOSE 8443
