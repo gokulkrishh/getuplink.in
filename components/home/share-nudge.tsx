@@ -5,14 +5,15 @@ import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { dismissShareCard } from "@/app/owners/actions";
 import { useShare } from "@/components/owners/share-controls";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { OFFLINE, orOffline } from "@/lib/offline";
+import { PendingLabel } from "@/components/pending-label";
 
 // Home's one-line card asking an owner who doesn't share whether they'd like to (lib/share-nudge.ts decides
 // when). Share turns sharing on through the same action as Settings; the cross is Not now, which hides it for
 // at least 30 days. Hidden on the tap, so it doesn't sit there while the page refreshes. After Share it says
 // so for a few seconds, then goes; `show` is the server's say, and the note stays even once that turns false.
-const SHARED_NOTE_MS = 6_000;
+const SHARED_NOTE_MS = 10_000;
 
 export function ShareNudgeCard({ show }: { show: boolean }) {
   const [hidden, setHidden] = useState(false);
@@ -35,15 +36,15 @@ export function ShareNudgeCard({ show }: { show: boolean }) {
       <section
         role="status"
         aria-label="Sharing is on"
-        className={`flex items-center gap-3 border border-positive/40 bg-positive/5 px-4 py-3 transition-opacity duration-300 motion-reduce:transition-none ${fading ? "opacity-0" : "opacity-100"}`}
+        className={`flex items-start gap-3 border border-positive/40 sm:items-center bg-positive/5 px-4 py-3 transition-opacity duration-300 motion-reduce:transition-none ${fading ? "opacity-0" : "opacity-100"}`}
       >
-        <CircleCheck className="size-4 shrink-0 text-positive" aria-hidden="true" />
-        <p className="text-sm">
-          You&apos;re sharing.{" "}
-          <Link href="/owners" className="underline decoration-border underline-offset-4 hover:decoration-foreground">
-            See how you compare
+        <CircleCheck className="mt-0.5 size-4 sm:mt-0 shrink-0 text-positive" aria-hidden="true" />
+        <div className="flex min-w-0 flex-1 flex-col items-start gap-2.5 sm:flex-row sm:items-center sm:gap-4">
+          <p className="text-sm sm:flex-1">You&apos;re sharing. See how you compare with other owners.</p>
+          <Link href="/owners" className={buttonVariants({ variant: "outline", size: "sm" })}>
+            View
           </Link>
-        </p>
+        </div>
       </section>
     );
   }
@@ -66,8 +67,8 @@ export function ShareNudgeCard({ show }: { show: boolean }) {
             <p className="text-sm font-medium">Compare your car with other owners</p>
             <p className="text-sm text-muted-foreground">Only combined figures are shown, never who you are or where you drive.</p>
           </div>
-          <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => share.change(true, () => setShared(true))}>
-            {share.pending ? "Sharing…" : "Share"}
+          <Button type="button" size="sm" disabled={busy} className="glow relative" onClick={() => share.change(true, () => setShared(true))}>
+            <PendingLabel pending={share.pending} label="Share" pendingLabel="Sharing" />
           </Button>
         </div>
         <Button type="button" variant="ghost" size="icon-sm" onClick={notNow} disabled={busy} aria-label="Not now" title="Not now" className="-mr-1.5 shrink-0 max-sm:-mt-2 sm:self-center">

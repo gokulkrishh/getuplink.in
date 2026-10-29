@@ -216,7 +216,7 @@ export default function HomePage() {
         </div>
         <p className="mt-6 text-sm text-muted-foreground">
           Revoke access from your Tesla account, or delete everything from Settings, any time.{" "}
-          <Link href="/privacy" className="underline underline-offset-4 hover:text-foreground">
+          <Link href="/privacy" className="underline decoration-muted-foreground/60 underline-offset-4 hover:text-foreground">
             Read the privacy page
           </Link>
         </p>

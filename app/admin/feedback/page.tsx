@@ -1,3 +1,4 @@
+import { LINK as link } from "@/lib/link-style";
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import Link from "next/link";
@@ -23,7 +24,6 @@ export const metadata: Metadata = { title: "Feedback · Admin" };
 export const instant = false;
 
 const number = new Intl.NumberFormat("en-IN");
-const link = "underline decoration-border underline-offset-4 hover:decoration-foreground";
 
 // One page of messages; the tiles count all of them without loading them.
 async function loadPage(page: number): Promise<FeedbackView> {

@@ -109,5 +109,66 @@ for (const phone of [false, true]) {
   check(`${tag} no page errors`, real.length === 0, real.slice(0, 3).join(" | "));
   await c.close();
 }
+
+// No layout shift (AGENTS.md "Before merging"). Part 1: a button that works keeps its size, and so does the
+// card around it. Server actions are held for 1.5 s, then dropped, so nothing is written. Part 2: the
+// cumulative layout shift on first load of the main pages stays at or under 0.1.
+const HOLD_MS = 1500;
+const box = (loc) => loc.evaluate((e) => { const r = e.getBoundingClientRect(); return { w: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10 }; });
+const same = (a, b) => Math.abs(a.w - b.w) < 0.5 && Math.abs(a.h - b.h) < 0.5;
+async function holdActions(p) {
+  await p.route("**/*", async (route) => {
+    const r = route.request();
+    if (r.method() === "POST" && (await r.allHeaders())["next-action"]) { await new Promise((ok) => setTimeout(ok, HOLD_MS)); return route.abort().catch(() => {}); }
+    return route.continue();
+  });
+}
+async function steady(name, p, button, card, press) {
+  if (!(await button.count())) { check(name, false, "button not found"); return; }
+  const [b0, c0] = [await box(button), await box(card)];
+  await press();
+  await p.waitForTimeout(500);
+  const [b1, c1] = [await box(button), await box(card)];
+  const busy = (await button.isDisabled().catch(() => false)) || (await button.getAttribute("aria-busy")) === "true";
+  check(name, busy && same(b0, b1) && same(c0, c1), `${busy ? "" : "never went pending; "}button ${b0.w}x${b0.h} to ${b1.w}x${b1.h}, card ${c0.w}x${c0.h} to ${c1.w}x${c1.h}`);
+}
+for (const phone of [false, true]) {
+  const tag = phone ? "phone" : "desktop";
+  const { c, p } = await ctx(phone);
+  await holdActions(p);
+  const tap = (loc) => (phone ? loc.tap() : loc.click());
+
+  await p.goto("/", { waitUntil: "networkidle" });
+  const share = p.getByRole("region", { name: "Compare with other owners" });
+  if (await share.count()) await steady(`${tag} / Share keeps its size`, p, share.getByRole("button", { name: "Share" }), share, () => tap(share.getByRole("button", { name: "Share" })));
+  else console.log(`SKIP  ${tag} / Share card is not shown in this demo`);
+
+  await p.goto("/setup", { waitUntil: "networkidle" });
+  const again = p.getByRole("button", { name: "Check again" });
+  await steady(`${tag} /setup Check again keeps its size`, p, again, again.locator("xpath=ancestor::*[self::section or self::div][1]"), () => tap(again));
+
+  await p.goto("/settings", { waitUntil: "networkidle" });
+  await p.locator("summary", { hasText: "Advanced" }).click();
+  const add = p.locator("button:visible", { hasText: "Add connector" }).first();
+  await p.locator('input[aria-label="Connector name"]:visible').first().fill("Layout test");
+  await steady(`${tag} /settings Add connector keeps its size`, p, add, add.locator("xpath=ancestor::form[1]"), () => tap(add));
+  await c.close();
+}
+// Pages are loaded in a fresh context each, with the observer in place before any of the page's own script.
+for (const phone of [false, true]) {
+  const tag = phone ? "phone" : "desktop";
+  for (const u of ["/", "/stats/driving", "/settings"]) {
+    const { c, p } = await ctx(phone);
+    await p.addInitScript(() => {
+      window.__cls = 0;
+      new PerformanceObserver((l) => { for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value; }).observe({ type: "layout-shift", buffered: true });
+    });
+    await p.goto(u, { waitUntil: "networkidle" });
+    await p.waitForTimeout(1500);
+    const cls = await p.evaluate(() => window.__cls);
+    check(`${tag} ${u} layout shift at most 0.1`, cls <= 0.1, `CLS ${cls.toFixed(3)}`);
+    await c.close();
+  }
+}
 await browser.close();
 console.log(results.join("\n")); console.log("evidence:", dir);

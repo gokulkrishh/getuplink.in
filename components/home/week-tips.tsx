@@ -122,14 +122,9 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
     send({ scope: vote.scope, entity: vote.entity, kind: downKind, tip: text, vote: 0 });
   };
   const thumb = (value: Vote, label: string, Icon: typeof ThumbsUp) => (
-    <button
-      type="button"
-      onClick={() => cast(value)}
-      aria-label={label}
-      className={cn(CONTROL, "size-6 justify-center transition-[color,scale] duration-150 ease-out active:scale-[0.97]")}
-    >
-      <Icon className="relative top-px size-3.5" aria-hidden="true" />
-    </button>
+    <Button type="button" variant="ghost" size="icon-sm" onClick={() => cast(value)} aria-label={label} className="text-muted-foreground max-sm:w-7">
+      <Icon className="size-4" aria-hidden="true" />
+    </Button>
   );
   const box = (
     <section aria-label={title} className={BOX}>
@@ -147,16 +142,16 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
         <div className="flex items-center gap-3 max-sm:gap-4">
           {/* ‹ 2 of 3 ›: back and on, each wrapping round. */}
           {current && shownTips.length > 1 && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums">
-              <button type="button" onClick={() => setAt((k) => (k + shownTips.length - 1) % shownTips.length)} aria-label="Previous tip" className={cn(CONTROL, "size-6 justify-center")}>
-                <ChevronLeft className="size-3.5" aria-hidden="true" />
-              </button>
+            <div className="-my-1 flex items-center gap-1 text-xs text-muted-foreground tabular-nums max-sm:-my-2">
+              <Button type="button" variant="ghost" size="icon-sm" onClick={() => setAt((k) => (k + shownTips.length - 1) % shownTips.length)} aria-label="Previous tip" className="text-muted-foreground">
+                <ChevronLeft className="size-4" aria-hidden="true" />
+              </Button>
               <span aria-live="polite">
                 {(at % shownTips.length) + 1} of {shownTips.length}
               </span>
-              <button type="button" onClick={() => setAt((k) => (k + 1) % shownTips.length)} aria-label="Next tip" className={cn(CONTROL, "size-6 justify-center")}>
-                <ChevronRight className="size-3.5" aria-hidden="true" />
-              </button>
+              <Button type="button" variant="ghost" size="icon-sm" onClick={() => setAt((k) => (k + 1) % shownTips.length)} aria-label="Next tip" className="text-muted-foreground">
+                <ChevronRight className="size-4" aria-hidden="true" />
+              </Button>
             </div>
           )}
           {vote && (
@@ -200,8 +195,8 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
             )
           ) : (
             <>
-              <span className="mr-1 text-xs leading-4 text-muted-foreground">Was this useful?</span>
-              <span className="flex items-center max-sm:gap-4">
+              <span className="mr-0.5 text-xs leading-4 text-muted-foreground">Was this useful?</span>
+              <span className="flex items-center">
                 {thumb(1, "Useful", ThumbsUp)}
                 {thumb(-1, "Not useful", ThumbsDown)}
               </span>

@@ -6,6 +6,7 @@ import { shareFigures } from "@/app/owners/actions";
 import { Button } from "@/components/ui/button";
 import { OFFLINE, orOffline } from "@/lib/offline";
 import { cn } from "@/lib/utils";
+import { PendingLabel } from "@/components/pending-label";
 
 export function useShare() {
   const router = useRouter();
@@ -28,8 +29,8 @@ export function ShareButton() {
   const { pending, error, change } = useShare();
   return (
     <div className="space-y-2">
-      <Button type="button" size="lg" disabled={pending} onClick={() => change(true)}>
-        {pending ? "Sharing…" : "Share my car's figures"}
+      <Button type="button" size="lg" disabled={pending} className="relative" onClick={() => change(true)}>
+        <PendingLabel pending={pending} label="Share my car's figures" pendingLabel="Sharing" />
       </Button>
       {error && (
         <p role="alert" className="text-sm text-destructive">

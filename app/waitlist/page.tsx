@@ -23,7 +23,7 @@ export default function Waitlist() {
           To leave the waitlist, email{" "}
           <a
             href={`mailto:${CONTACT_EMAIL}`}
-            className="underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-foreground"
+            className="underline decoration-muted-foreground/60 underline-offset-4 hover:text-foreground hover:decoration-foreground"
           >
             {CONTACT_EMAIL}
           </a>

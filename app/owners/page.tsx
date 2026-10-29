@@ -382,7 +382,7 @@ function SharingOn({ text }: { text: string }) {
   return (
     <p className="min-w-0 flex-1 text-sm">
       {text} Stop any time in{" "}
-      <Link href="/settings#share" className="underline underline-offset-2">
+      <Link href="/settings#share" className="underline decoration-muted-foreground/60 underline-offset-4">
         Settings
       </Link>
       .
@@ -487,7 +487,7 @@ async function Owners() {
                 {s.key === "yours" && page.group && <p className="text-sm text-muted-foreground">{page.group}, like yours.</p>}
               </div>
               {/* One row per question: its answer reads closed, the chart opens on a tap. */}
-              <div className="border-t">
+              <div className="divide-y">
                 {s.cards.map((c) => (
                   <div key={c.key}>{c.node}</div>
                 ))}

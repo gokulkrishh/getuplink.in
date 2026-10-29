@@ -1,3 +1,4 @@
+import { LINK as link } from "@/lib/link-style";
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
@@ -39,7 +40,6 @@ export const instant = false;
 
 const heading = "text-lg font-medium tracking-heading";
 const muted = "text-sm text-faint";
-const link = "underline decoration-border underline-offset-4 hover:decoration-foreground";
 
 // The admin check, and the clock (reading it while rendering blocks prerendering). Every save checks the
 // admin again itself (actions.ts). The costs are read outside this private cache, because the live calls

@@ -210,7 +210,7 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
           {/* Once the key is on, the photos are a tap away instead of in the way. */}
           {key === "done" ? (
             <details>
-              <summary className="cursor-pointer text-sm text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-foreground">
+              <summary className="cursor-pointer text-sm text-muted-foreground underline decoration-muted-foreground/60 underline-offset-4 hover:text-foreground hover:decoration-foreground">
                 See how
               </summary>
               <div className="pt-4">
@@ -239,7 +239,7 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
           {!(canSend && view.needsLocation && streaming !== "done") && (
             <p className="text-sm text-muted-foreground">
               Live data includes where your car goes.{" "}
-              <Link href="/privacy" className="underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-foreground">
+              <Link href="/privacy" className="underline decoration-muted-foreground/60 underline-offset-4 hover:text-foreground hover:decoration-foreground">
                 Read the privacy page
               </Link>
             </p>
@@ -247,7 +247,7 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
           {canSend && view.needsLocation && streaming !== "done" && (
             <p className="text-sm">
               Live data includes where your car is. Tesla shares that only if you allow location.{" "}
-              <a href="/api/auth/connect" className="underline decoration-border underline-offset-4 hover:decoration-foreground">
+              <a href="/api/auth/connect" className="underline decoration-muted-foreground/60 underline-offset-4 hover:decoration-foreground">
                 Sign in again
               </a>{" "}
               and allow it.

@@ -1,3 +1,4 @@
+import { LINK } from "@/lib/link-style";
 import type { Metadata } from "next";
 import { HOME_URL } from "@/lib/site";
 import type { ReactNode } from "react";
@@ -14,7 +15,6 @@ export const metadata: Metadata = {
 
 // Checked against the law and Tesla's and Google's terms in docs/legal-review.md. Change both together.
 
-const LINK = "underline decoration-border underline-offset-4 hover:decoration-foreground";
 
 function Out({ href, children }: { href: string; children: ReactNode }) {
   return (

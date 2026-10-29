@@ -5,6 +5,7 @@ import { useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { NO_AUTOFILL } from "@/lib/no-autofill";
 import type { LinkResult } from "./actions";
+import { PendingLabel } from "@/components/pending-label";
 
 const field =
   "h-9 w-full rounded-lg border bg-background px-3 text-sm outline-none placeholder:text-faint focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -78,8 +79,8 @@ export function CreateInvite({ action }: { action: (previous: LinkResult, form: 
           <span className="text-xs text-muted-foreground">Label (optional)</span>
           <input name="label" maxLength={60} {...NO_AUTOFILL} placeholder="Arun's Model Y" className={field} />
         </label>
-        <Button type="submit" disabled={pending} className="h-9">
-          {pending ? "Creating…" : "Create invite link"}
+        <Button type="submit" disabled={pending} className="relative h-9">
+          <PendingLabel pending={pending} label="Create invite link" pendingLabel="Creating" />
         </Button>
       </form>
       <Message result={result} />

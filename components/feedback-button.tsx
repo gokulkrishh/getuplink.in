@@ -9,6 +9,7 @@ import { FEEDBACK_EVENT } from "@/components/feedback-open";
 import { BOTHER, type Bother, botherLabel, isProblem, MESSAGE_MAX, type Topic, TOPICS, topicLabel } from "@/lib/feedback";
 import { OFFLINE, orOffline } from "@/lib/offline";
 import { cn } from "@/lib/utils";
+import { PendingLabel } from "@/components/pending-label";
 
 // The theme the owner is looking at: their pick, else the system's.
 function theme(): "light" | "dark" {
@@ -182,8 +183,8 @@ export function FeedbackButton() {
                   {error}
                 </p>
               )}
-              <Button type="submit" disabled={!ready || pending} className="w-full">
-                {pending ? "Sending…" : "Send feedback"}
+              <Button type="submit" disabled={!ready || pending} className="relative w-full">
+                <PendingLabel pending={pending} label="Send feedback" pendingLabel="Sending" />
               </Button>
             </form>
           )}

@@ -305,7 +305,7 @@ function PinTip({ tip, onEnter, onLeave, onClose }: { tip: Tip; onEnter: () => v
             href={googleMapsUrl(tip)}
             target="_blank"
             rel="noopener"
-            className="-mx-1 mt-1 inline-block px-1 py-1 font-medium text-foreground underline underline-offset-2 transition-colors duration-150 hover:text-chart-accent"
+            className="-mx-1 mt-1 inline-block px-1 py-1 font-medium text-foreground underline decoration-muted-foreground/60 underline-offset-4 transition-colors duration-150 hover:text-chart-accent"
           >
             Open in Google Maps
           </a>

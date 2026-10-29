@@ -115,8 +115,8 @@ async function Rollout() {
             <p className="mt-2">Global dates come from a hand-kept list of public first sightings. A version not on it shows no lag. Release notes are Tesla&apos;s.</p>
             <p className="mt-2">
               State boundaries:{" "}
-              <a href="https://github.com/datameet/maps" className="underline underline-offset-4">DataMeet India community</a> (
-              <a href="https://creativecommons.org/licenses/by/4.0/" className="underline underline-offset-4">CC BY 4.0</a>), simplified. Map not to scale.
+              <a href="https://github.com/datameet/maps" className="underline decoration-muted-foreground/60 underline-offset-4">DataMeet India community</a> (
+              <a href="https://creativecommons.org/licenses/by/4.0/" className="underline decoration-muted-foreground/60 underline-offset-4">CC BY 4.0</a>), simplified. Map not to scale.
             </p>
           </InfoButton>
         </p>

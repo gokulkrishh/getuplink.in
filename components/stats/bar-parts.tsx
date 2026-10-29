@@ -178,7 +178,7 @@ export function BarTip({ title, lines, opens = null }: { title: string; lines: (
       </span>
       {opens && (
         // Not in the Tab order: the column itself is the link a keyboard follows.
-        <Link href={opens.href} prefetch={false} tabIndex={-1} data-tip-link className="mt-1 block py-0.5 underline decoration-border decoration-dotted underline-offset-4 hover:decoration-foreground">
+        <Link href={opens.href} prefetch={false} tabIndex={-1} data-tip-link className="mt-1 block py-0.5 underline decoration-muted-foreground/60 decoration-dotted underline-offset-4 hover:decoration-foreground">
           {/* The words say where it goes: a mouse can click the bar or this, and a tap pins the tip, so this is the way on. */}
           {opens.label}
         </Link>

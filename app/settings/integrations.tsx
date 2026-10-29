@@ -14,6 +14,7 @@ import { OFFLINE, orOffline } from "@/lib/offline";
 import { addConnector, deleteConnector } from "./actions";
 import { useAskingFocus } from "./confirm-actions";
 import { Row } from "./row";
+import { PendingLabel } from "@/components/pending-label";
 
 // A value to paste somewhere else: selectable text with a copy button beside it.
 function Copyable({ label, value }: { label: string; value: string }) {
@@ -92,8 +93,8 @@ function ConnectorItem({ connector, now }: { connector: Connector; now: number }
           )}
           {/* Right-aligned with the action last; reversed so it stays first in tab order and gets focus on open. */}
           <div className="flex flex-row-reverse gap-2 pt-1">
-            <Button ref={first} type="button" variant="destructive" size="lg" disabled={pending} aria-busy={pending} onClick={remove}>
-              {pending ? "Removing…" : "Remove"}
+            <Button ref={first} type="button" variant="destructive" size="lg" className="relative" disabled={pending} aria-busy={pending} onClick={remove}>
+              <PendingLabel pending={pending} label="Remove" pendingLabel="Removing" />
             </Button>
             <Button type="button" variant="ghost" size="lg" disabled={pending} onClick={() => setAsking(false)}>
               Cancel
@@ -138,8 +139,8 @@ function AddConnector({ count, onAdded }: { count: number; onAdded: (added: { na
           maxLength={CONNECTOR_NAME_MAX}
           className="h-9 min-w-0 flex-1 max-sm:h-10"
         />
-        <Button type="submit" variant="outline" size="lg" disabled={pending} aria-busy={pending}>
-          {pending ? "Adding…" : "Add connector"}
+        <Button type="submit" variant="outline" size="lg" className="relative" disabled={pending} aria-busy={pending}>
+          <PendingLabel pending={pending} label="Add connector" pendingLabel="Adding" />
         </Button>
       </div>
       {error && (

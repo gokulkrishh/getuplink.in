@@ -335,7 +335,7 @@ html .maplibregl-map {
   }
 }
 
-/* The one thing to do on a page (Connect your car on /setup): a soft accent glow that breathes around the
+/* The one thing to do on a page (Connect your car on /setup, Share on the home card): a soft accent glow that breathes around the
    button. One small element, so animating its shadow is cheap. Reduced motion: the glow holds still. */
 @utility glow {
   box-shadow: 0 0 12px 1px color-mix(in oklab, var(--chart-accent) 45%, transparent);

@@ -4,6 +4,7 @@ import { type ReactNode, useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { LinkResult } from "./actions";
 import { LinkPanel } from "./invite-forms";
+import { PendingLabel } from "@/components/pending-label";
 
 // One button on a row. `action` comes bound from the server (see actions.ts), which checks the admin
 // again. A decision hands back the message to show or null; a link action the link or why there's none.
@@ -44,11 +45,11 @@ export function ActionRow({ children, actions, id }: { children: ReactNode; acti
               value={k}
               size="sm"
               variant={a.primary ? "default" : "outline"}
-              className="min-w-18"
+              className="relative min-w-18"
               disabled={a.disabled || pending}
               onClick={() => setClicked(k)}
             >
-              {pending && clicked === k ? a.pendingLabel : a.label}
+              <PendingLabel pending={pending && clicked === k} label={a.label} pendingLabel={a.pendingLabel} />
             </Button>
           ))}
         </form>

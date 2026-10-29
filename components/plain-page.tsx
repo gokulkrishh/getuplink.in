@@ -16,7 +16,7 @@ const PAGES = [
 
 // Padded to a 44px-tall target without moving the text.
 const FOOTER_LINK =
-  "px-2 py-3 underline decoration-border decoration-dotted underline-offset-4 transition-colors duration-150 hover:text-foreground hover:decoration-foreground";
+  "px-2 py-3 underline decoration-muted-foreground/60 decoration-dotted underline-offset-4 transition-colors duration-150 hover:text-foreground hover:decoration-foreground";
 
 type Page = (typeof PAGES)[number]["key"];
 

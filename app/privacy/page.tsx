@@ -1,3 +1,4 @@
+import { LINK } from "@/lib/link-style";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { HOME_URL } from "@/lib/site";
@@ -13,7 +14,6 @@ export const metadata: Metadata = {
 
 // docs/legal-review.md lists what the law asks of this page. docs/later.md has the items still to add.
 
-const LINK = "underline decoration-border underline-offset-4 hover:decoration-foreground";
 
 const SERVICES: ReactNode[] = [
   "Tesla, for your car's data",

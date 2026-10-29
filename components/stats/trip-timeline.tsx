@@ -115,7 +115,7 @@ function Tip({ segment: s }: { segment: Segment }) {
           <Measure text={`Battery ${formatLevels(d.startLevel, d.endLevel)}`} />
         </span>
       )}
-      <Link href={`/stats/driving/${s.start}?leg`} className="mt-1 block text-foreground underline underline-offset-4">
+      <Link href={`/stats/driving/${s.start}?leg`} className="mt-1 block text-foreground underline decoration-muted-foreground/60 underline-offset-4">
         Open this drive
       </Link>
     </>

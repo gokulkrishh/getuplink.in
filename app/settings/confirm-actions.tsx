@@ -8,6 +8,7 @@ import { NO_AUTOFILL } from "@/lib/no-autofill";
 import { OFFLINE, orOffline } from "@/lib/offline";
 import { deleteEverything, deleteWholeAccount, disconnect, signOutEverywhereWithError } from "./actions";
 import { Row } from "./row";
+import { PendingLabel } from "@/components/pending-label";
 
 // Opening a confirm form moves focus into it; cancelling hands focus back to the button that opened it.
 export function useAskingFocus(
@@ -26,8 +27,8 @@ export function useAskingFocus(
 function Submit({ children, pendingLabel, ref }: { children: string; pendingLabel: string; ref?: React.Ref<HTMLButtonElement> }) {
   const { pending } = useFormStatus();
   return (
-    <Button ref={ref} type="submit" variant="destructive" disabled={pending} size="lg">
-      {pending ? pendingLabel : children}
+    <Button ref={ref} type="submit" variant="destructive" disabled={pending} size="lg" className="relative">
+      <PendingLabel pending={pending} label={children} pendingLabel={pendingLabel} />
     </Button>
   );
 }
@@ -70,7 +71,7 @@ export function DisconnectTesla({ description }: { description: React.ReactNode 
           )}
           {/* Right-aligned with the action last; reversed so it stays first in tab order and gets focus on open. */}
           <div className="flex flex-row-reverse gap-2 pt-1">
-            <Submit ref={first} pendingLabel="Disconnecting…">Disconnect Tesla</Submit>
+            <Submit ref={first} pendingLabel="Disconnecting">Disconnect Tesla</Submit>
             <Button type="button" variant="ghost" size="lg" onClick={() => setAsking(false)}>
               Cancel
             </Button>
@@ -145,7 +146,7 @@ function ConfirmDelete({
           )}
           {/* Right-aligned with the action last; reversed so it stays first in tab order and gets focus on open. */}
           <div className="flex flex-row-reverse gap-2 pt-1">
-            <Submit pendingLabel="Deleting…">{submit}</Submit>
+            <Submit pendingLabel="Deleting">{submit}</Submit>
             <Button type="button" variant="ghost" size="lg" onClick={() => setAsking(false)}>
               Cancel
             </Button>

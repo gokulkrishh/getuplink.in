@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { LoadMore, Paged } from "@/lib/list";
+import { PendingLabel } from "@/components/pending-label";
 
 // A long list's rows as the browser holds them: the first page the server sent, then the rest fetched the
 // first time "Show N more" is tapped (see Paged). "Show less" folds them away; opening again reuses them.
@@ -37,10 +37,8 @@ export function usePaged<T>({ rows: first, total }: Paged<T>, load: LoadMore<T>)
 export function ShowMoreButton({ count, open, pending = false, failed = false, onToggle }: { count: number; open: boolean; pending?: boolean; failed?: boolean; onToggle: () => void }) {
   return (
     <div className="flex items-center justify-end gap-2 pt-2">
-      {/* While the rest loads, a spinner beside the button says something is happening. */}
-      {pending && <Loader2 className="size-4 animate-spin text-muted-foreground motion-reduce:animate-none" aria-hidden="true" />}
-      <Button type="button" variant="ghost" size="xs" className="-mr-2" aria-expanded={open} disabled={pending} onClick={onToggle}>
-        {pending ? "Loading…" : failed ? "Couldn't load. Try again" : open ? "Show less" : `Show ${count} more`}
+      <Button type="button" variant="ghost" size="xs" className="relative -mr-2" aria-expanded={open} disabled={pending} onClick={onToggle}>
+        <PendingLabel pending={pending} label={failed ? "Couldn't load. Try again" : open ? "Show less" : `Show ${count} more`} pendingLabel="Loading" />
       </Button>
     </div>
   );

@@ -79,10 +79,10 @@ function InviteRow({ invite: i, readOnly }: { invite: InviteItem; readOnly: bool
 function inviteActions(i: InviteItem, readOnly: boolean): RowAction[] {
   if (i.state === "unused")
     return [
-      { label: "Copy", pendingLabel: "Copying…", action: copyInviteLink.bind(null, i.id) },
-      { label: "Revoke", pendingLabel: "Revoking…", action: revokeInviteLink.bind(null, i.id), disabled: readOnly },
+      { label: "Copy", pendingLabel: "Copying", action: copyInviteLink.bind(null, i.id) },
+      { label: "Revoke", pendingLabel: "Revoking", action: revokeInviteLink.bind(null, i.id), disabled: readOnly },
     ];
-  if (i.state === "expired") return [{ label: "New link", pendingLabel: "Creating…", action: renewInviteLink.bind(null, i.id) }];
+  if (i.state === "expired") return [{ label: "New link", pendingLabel: "Creating", action: renewInviteLink.bind(null, i.id) }];
   return [];
 }
 
@@ -163,8 +163,8 @@ export default async function Page() {
         before={invites.items.map((i) => <InviteRow key={`invite-${i.id}`} invite={i} readOnly={readOnly} />)}
         more={full ? "Every place is used. Suspend someone to approve another." : undefined}
         buttons={[
-          { decision: "approve", label: "Approve", pendingLabel: "Approving…", primary: true, disabled: full || readOnly },
-          { decision: "decline", label: "Decline", pendingLabel: "Declining…", disabled: readOnly },
+          { decision: "approve", label: "Approve", pendingLabel: "Approving", primary: true, disabled: full || readOnly },
+          { decision: "decline", label: "Decline", pendingLabel: "Declining", disabled: readOnly },
         ]}
       />
       <List
@@ -173,7 +173,7 @@ export default async function Page() {
         empty="Nobody yet."
         when={decided("Approved")}
         more={latest(data.approved.length, data.counts.approved)}
-        buttons={[{ decision: "suspend", label: "Suspend", pendingLabel: "Suspending…", disabled: readOnly }]}
+        buttons={[{ decision: "suspend", label: "Suspend", pendingLabel: "Suspending", disabled: readOnly }]}
       />
       <List
         title="Suspended"
@@ -181,7 +181,7 @@ export default async function Page() {
         empty="Nobody."
         when={decided("Suspended")}
         more={latest(data.suspended.length, data.counts.suspended)}
-        buttons={[{ decision: "restore", label: "Restore", pendingLabel: "Restoring…", disabled: full || readOnly }]}
+        buttons={[{ decision: "restore", label: "Restore", pendingLabel: "Restoring", disabled: full || readOnly }]}
       />
       <List
         title="Declined"
@@ -189,7 +189,7 @@ export default async function Page() {
         empty="Nobody."
         when={decided("Declined")}
         more={latest(data.declined.length, data.counts.declined) ?? "Restore puts a request back on the waitlist."}
-        buttons={[{ decision: "reopen", label: "Restore", pendingLabel: "Restoring…", disabled: readOnly }]}
+        buttons={[{ decision: "reopen", label: "Restore", pendingLabel: "Restoring", disabled: readOnly }]}
       />
 
       <p className="text-xs text-faint">As of {formatDateTime(now)}</p>

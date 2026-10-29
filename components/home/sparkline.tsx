@@ -114,7 +114,7 @@ export function Sparkline({ kind, values, current, tips, opens, tone = "accent" 
             <Measure text={tip.value} />
           </span>
           {/* Where the bar goes: a click, or a second tap, follows it. */}
-          {opens?.[active] && <span className="mt-1 block underline decoration-border decoration-dotted underline-offset-4">{opens[active]!.label}</span>}
+          {opens?.[active] && <span className="mt-1 block underline decoration-muted-foreground/60 decoration-dotted underline-offset-4">{opens[active]!.label}</span>}
         </span>
       )}
     </div>

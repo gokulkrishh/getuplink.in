@@ -60,7 +60,7 @@ function Item({ label, value, muted }: { label: React.ReactNode; value?: string;
 function AccountName({ id, account }: { id: number; account: { name: string; vin: string | null } }) {
   return (
     <>
-      <Link href={`/admin/waitlist#${accessAnchor(id)}`} className="underline underline-offset-2 hover:text-foreground">
+      <Link href={`/admin/waitlist#${accessAnchor(id)}`} className="underline decoration-muted-foreground/60 underline-offset-4 hover:text-foreground">
         {account.name}
       </Link>
       {account.vin && <span className="font-mono text-xs text-faint"> · VIN …{account.vin}</span>}
@@ -206,7 +206,7 @@ export default async function Page() {
         note={
           <>
             {lastChecked ? `Checked hourly, last at ${formatSeen(lastChecked, now)}. Problems from the last ${RECENT_DAYS} days. ` : `Problems from the last ${RECENT_DAYS} days. `}
-            <a href={STATUS_URL} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">
+            <a href={STATUS_URL} target="_blank" rel="noreferrer" className="underline decoration-muted-foreground/60 underline-offset-4 hover:text-foreground">
               Status page
             </a>
           </>

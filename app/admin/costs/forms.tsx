@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { EntryValues } from "@/lib/costs";
 import { NO_AUTOFILL } from "@/lib/no-autofill";
+import { PendingLabel } from "@/components/pending-label";
 
 type Action = (previous: string | null, form: FormData) => Promise<string | null>;
 
@@ -66,12 +67,12 @@ export function EntryForm({
           <Input id={`${id}-link`} name="link" type="url" placeholder="https://" defaultValue={values?.link ?? ""} {...NO_AUTOFILL} />
         </label>
         <div className="col-span-2 flex items-center gap-2 sm:col-span-4">
-          <Button type="submit" size="sm" disabled={readOnly || pending}>
-            {pending ? "Saving…" : submitLabel}
+          <Button type="submit" size="sm" className="relative" disabled={readOnly || pending}>
+            <PendingLabel pending={pending} label={submitLabel} pendingLabel="Saving" />
           </Button>
           {remove && (
-            <Button type="submit" size="sm" variant="outline" formAction={removeAction} formNoValidate disabled={readOnly || removing}>
-              {removing ? "Removing…" : "Remove"}
+            <Button type="submit" size="sm" variant="outline" className="relative" formAction={removeAction} formNoValidate disabled={readOnly || removing}>
+              <PendingLabel pending={removing} label="Remove" pendingLabel="Removing" />
             </Button>
           )}
         </div>
@@ -106,8 +107,8 @@ export function NumberForm({
       </label>
       <div className="flex items-center gap-2">
         <Input id={id} name={name} inputMode="decimal" defaultValue={defaultValue} placeholder={placeholder} className="max-w-[12ch]" {...NO_AUTOFILL} />
-        <Button type="submit" size="sm" variant="outline" disabled={readOnly || pending}>
-          {pending ? "Saving…" : "Save"}
+        <Button type="submit" size="sm" variant="outline" className="relative" disabled={readOnly || pending}>
+          <PendingLabel pending={pending} label="Save" pendingLabel="Saving" />
         </Button>
       </div>
       <Message message={message} />

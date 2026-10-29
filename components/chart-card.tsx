@@ -42,7 +42,8 @@ export function ChartCard({
   empty?: ReactNode;
   // h2 when the chart is the section; h3 under a section's own h2.
   as?: "h2" | "h3";
-  // A row in a long list (Owners): the title and line show, and a tap opens the chart under them. The ⓘ's
+  // A row in a long list (Owners): the title and line show, and a tap opens the chart under them. The list
+  // draws the lines between rows, so the last has none under it and the first none above. The ⓘ's
   // note then sits in the opened part, since a button in the row would toggle it.
   fold?: boolean;
   className?: string;
@@ -50,7 +51,7 @@ export function ChartCard({
 }) {
   if (fold) {
     return (
-      <details className={cn("group/fold border-b", className)}>
+      <details className={cn("group/fold", className)}>
         <summary className="flex cursor-pointer list-none items-start justify-between gap-4 py-4 [&::-webkit-details-marker]:hidden">
           <span className="min-w-0 space-y-1">
             {title && <Heading className="text-base font-medium tracking-heading">{title}</Heading>}

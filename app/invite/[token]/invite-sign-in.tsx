@@ -1,12 +1,12 @@
 "use client";
 
+import { LINK } from "@/lib/link-style";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import { DashRing } from "@/components/loading-ui/dash-ring";
 import { Button } from "@/components/ui/button";
 
-const LINK = "underline decoration-border underline-offset-4 hover:decoration-foreground";
 
 function Submit() {
   const { pending } = useFormStatus();
