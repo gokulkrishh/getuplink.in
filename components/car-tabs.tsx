@@ -19,7 +19,7 @@ export function CarTabs({ value }: { value: CarView }) {
           options={[
             { value: "car", label: "My Car", href: "/car" },
             { value: "updates", label: "Updates", href: "/updates" },
-            { value: "owners", label: "Owners", href: "/owners" },
+            { value: "owners", label: "Compare", href: "/owners" },
           ]}
           value={value}
         />

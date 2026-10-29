@@ -5,7 +5,7 @@ import { groupTrips } from "@/lib/trips";
 import type { Drive } from "@/lib/drives";
 import type { Owner } from "./data/owner";
 import { cachedPlaceNames, placeKey } from "./place-names";
-import { loadReadingsByField } from "./telemetry-window";
+import { loadReadingsInWindows } from "./telemetry-window";
 import { loadUserPlaces } from "./user-places";
 
 const MIN = 60_000;
@@ -32,18 +32,22 @@ const short = (name: string | null) => name?.split(",")[0]?.trim() || null;
 // Where each trip went, by its start: "Home to IndianOil e-Charge". The start is the last place the car was
 // seen before it set off (up to 30 minutes before), the end the first after it parked (up to 10 minutes
 // after), each named as the parked places are (the owner's tag, a station, then the area kept already;
-// never a Google name, which would need its credit in the row). One read of the Location readings spans
-// every trip named (the archive's too, for old ones), cut per trip here. Only areas kept already are used,
-// so the load never waits on a lookup: `unnamed` are the spots without one, for the caller to look up after
-// the response (placeNames), so they show on a later load. A trip with either end unknown has none.
+// never a Google name, which would need its credit in the row). One read of the Location readings takes just
+// those two windows of every trip named (the archive's too, for old ones), cut per trip here: the whole span
+// from the oldest to the newest would pass the page cap for a heavy driver and lose the newest trips' ends.
+// Only areas kept already are used, so the load never waits on a lookup: `unnamed` are the spots without one,
+// for the caller to look up after the response (placeNames), so they show on a later load. A trip with
+// either end unknown has none.
 export async function loadTripPlaces(owner: Owner, vin: string | null, drives: Drive[]): Promise<TripPlaces> {
   if (!vin || drives.length === 0) return { routes: {}, unnamed: [] };
   const trips = groupTrips(drives)
     .sort((a, b) => b.start - a.start)
     .slice(0, NAMED_TRIPS);
-  const from = Math.min(...trips.map((t) => t.start)) - BEFORE_MS;
-  const to = Math.max(...trips.map((t) => t.end)) + AFTER_MS;
-  const [read, tags] = await Promise.all([loadReadingsByField(owner, vin, ["Location"], new Date(from).toISOString(), new Date(to).toISOString()), loadUserPlaces(owner)]);
+  const edges = trips.flatMap((t) => [
+    { from: t.start - BEFORE_MS, to: t.start + 1 },
+    { from: t.end, to: t.end + AFTER_MS },
+  ]);
+  const [read, tags] = await Promise.all([loadReadingsInWindows(owner, vin, ["Location"], edges), loadUserPlaces(owner)]);
   const located = (read?.Location ?? []).map((r) => ({ t: Date.parse(r.at), value: r.value }));
   const ends = trips.map((t) => {
     const before = located.filter((r) => r.t >= t.start - BEFORE_MS && r.t < t.start + 1);

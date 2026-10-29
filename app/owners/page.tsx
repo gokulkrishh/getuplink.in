@@ -61,7 +61,7 @@ import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadOwners, type OwnersPage } from "@/lib/server/owners";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Owners" };
+export const metadata: Metadata = { title: "Compare" };
 
 // Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx).
 async function loadOwnersPage(): Promise<OwnersPage> {

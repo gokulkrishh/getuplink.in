@@ -7,7 +7,8 @@
 // forget_unseen_readings / prune_unseen_readings functions delete what no window covers.
 
 export type Row = Record<string, unknown>;
-export type Call = { table: string; op: string; filters: string[] };
+// rows: how many rows a select sent back.
+export type Call = { table: string; op: string; filters: string[]; rows?: number };
 
 export class FakeDb {
   tables: Record<string, Row[]> = {};
@@ -97,6 +98,8 @@ class FakeQuery {
   private span: [number, number] | null = null;
   private sort: { column: string; ascending: boolean } | null = null;
   private signal: AbortSignal | null = null;
+  // What count=exact answers: every row matched, before the range and the 1,000-row cap.
+  private total = 0;
   constructor(
     private db: FakeDb,
     private table: string,
@@ -171,16 +174,9 @@ class FakeQuery {
     this.filters.push([`${column} is not null`, (r) => r[column] !== null && r[column] !== undefined]);
     return this;
   }
-  // "a.is.null,a.lt.<iso>": the lease checks.
+  // "a.is.null,a.lt.<iso>": the lease checks. "and(a.gte.<iso>,a.lt.<iso>),and(…)": several time windows.
   or(expression: string) {
-    const parts = expression.split(",").map((part) => {
-      const [column, op, ...rest] = part.split(".");
-      const value = rest.join(".");
-      if (op === "is" && value === "null") return (r: Row) => r[column] === null || r[column] === undefined;
-      if (op === "lt") return (r: Row) => typeof r[column] === "string" && Date.parse(r[column] as string) < Date.parse(value);
-      if (op === "lte") return (r: Row) => typeof r[column] === "string" && Date.parse(r[column] as string) <= Date.parse(value);
-      throw new Error(`Unexpected or(${part})`);
-    });
+    const parts = topLevel(expression).map(condition);
     this.filters.push([`(${expression})`, (r) => parts.some((p) => p(r))]);
     return this;
   }
@@ -233,6 +229,7 @@ class FakeQuery {
       return { data: out, error: null };
     }
     let matched = all.filter(hit);
+    this.total = matched.length;
     if (this.sort) {
       const { column, ascending } = this.sort;
       // Numbers and ISO times both compare in order with < and >.
@@ -246,6 +243,7 @@ class FakeQuery {
     if (this.table === READINGS_VIEW && this.op !== "select") throw new Error("The readings view is read only");
     if (this.op === "delete") this.db.tables[this.table] = all.filter((r) => !matched.includes(r));
     if (this.op === "update") for (const r of matched) Object.assign(r, this.patch);
+    if (this.op === "select") this.db.calls.at(-1)!.rows = matched.length;
     return { data: matched.map((r) => ({ ...r })), error: null };
   }
   async maybeSingle() {
@@ -259,6 +257,40 @@ class FakeQuery {
     return { data: data[0] ?? null, error: data[0] ? null : { message: "No row", code: "PGRST116" } };
   }
   then<T>(resolve: (value: { data: Row[]; error: null; count?: number }) => T, reject?: (err: unknown) => T) {
-    return this.run().then((result) => resolve({ ...result, count: result.data?.length ?? 0 }), reject);
+    return this.run().then((result) => resolve({ ...result, count: this.total }), reject);
   }
+}
+
+// PostgREST's or= list split at its top-level commas: "a.is.null,and(b.gte.x,b.lt.y)" is two parts.
+function topLevel(expression: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let from = 0;
+  for (let k = 0; k < expression.length; k++) {
+    if (expression[k] === "(") depth++;
+    else if (expression[k] === ")") depth--;
+    else if (expression[k] === "," && depth === 0) {
+      parts.push(expression.slice(from, k));
+      from = k + 1;
+    }
+  }
+  return [...parts, expression.slice(from)];
+}
+
+// One part of an or= list: "and(…)" holds when all its parts do; times compare as instants.
+function condition(part: string): (r: Row) => boolean {
+  if (part.startsWith("and(") && part.endsWith(")")) {
+    const all = topLevel(part.slice(4, -1)).map(condition);
+    return (r) => all.every((t) => t(r));
+  }
+  const [column, op, ...rest] = part.split(".");
+  const value = rest.join(".");
+  if (op === "is" && value === "null") return (r) => r[column] === null || r[column] === undefined;
+  const at = Date.parse(value);
+  const time = (r: Row) => (typeof r[column] === "string" ? Date.parse(r[column] as string) : NaN);
+  if (op === "lt") return (r) => time(r) < at;
+  if (op === "lte") return (r) => time(r) <= at;
+  if (op === "gt") return (r) => time(r) > at;
+  if (op === "gte") return (r) => time(r) >= at;
+  throw new Error(`Unexpected or(${part})`);
 }

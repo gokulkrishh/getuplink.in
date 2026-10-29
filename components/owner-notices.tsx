@@ -73,6 +73,15 @@ export function OwnerNotices({ data, count, failedRun }: { data: OwnerGate | { k
   );
 }
 
+// Home's week couldn't be read while the car above it did: name what's missing, not the car.
+export function WeekNotice() {
+  return (
+    <Notice title="Couldn't load this week's figures">
+      <p>Reload the page, or try again in a moment.</p>
+    </Notice>
+  );
+}
+
 // What Tesla flagged at the car's latest online check (see carNotices): nothing when it flagged nothing.
 export function CarNotices({ notices }: { notices: string[] }) {
   if (notices.length === 0) return null;
