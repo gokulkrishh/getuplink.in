@@ -16,11 +16,19 @@ import { carLastReadingAt } from "./telemetry";
 // notices: what Tesla flagged at the car's latest online check (see loadCarFlags).
 export type HomeCar = Omit<CarState, "flags"> & { vehicle: Vehicle; notices: string[] };
 
-type HomeData = {
+// What the car strip needs, quick to read: each car's state, the primary car's figures (its odometer, and
+// `since` for the share card) and when it last sent data.
+type HomeNowData = {
   cars: HomeCar[];
   lastRun: PollRun | null;
-  // Driving figures are the primary car's; charging covers every car, like the Charging page.
+  // Driving figures are the primary car's.
   figures: DrivingFigures;
+  // When the primary car last sent data, null for never, undefined when the read failed (see hasNoHistory).
+  lastReadingAt: string | null | undefined;
+};
+
+// What the week's totals and charts need, the slow part. Charging covers every car, like the Charging page.
+type HomeWeekData = {
   sessions: ChargingSession[];
   streamSessions: StreamChargeSession[];
   // The primary car's last 90 days of streamed readings: drives, the battery trend, range and parked drain.
@@ -29,26 +37,28 @@ type HomeData = {
   invoices: Awaited<ReturnType<typeof invoicesBySession>>;
   // The latest charges' names from where they happened, by streamed session id (see loadChargeSpots).
   spots: Record<number, SpotName>;
-  // When the primary car last sent data, null for never, undefined when the read failed (see hasNoHistory).
-  lastReadingAt: string | null | undefined;
 };
 
 // The home list shows three charges a period; the latest few cover them.
 const NAMED_CHARGES = 6;
 
-export type Home = OwnerGate | ({ kind: "ready" } & HomeData);
+export type HomeNow = OwnerGate | ({ kind: "ready" } & HomeNowData);
+// Null when there are no cars to show (the strip's part says why).
+export type HomeWeek = { kind: "error"; message: string } | ({ kind: "ready" } & HomeWeekData) | null;
 
-// Everything the home page shows: each car's state now, and the period figures. It only reads, so nothing
-// here wakes the car.
-export async function loadHome(owner: Owner, scenario: DemoScenario, now: number): Promise<Home> {
+// The primary car, as loadPrimaryVehicle picks it: the first with a VIN.
+const primaryOf = (vehicles: Vehicle[]) => vehicles.find((v) => v.vin) ?? null;
+// The demo's First week: a car connected four days ago, so nothing before then exists.
+const demoSinceOf = (scenario: DemoScenario) => (DEMO && scenario === "firstWeek" ? demoFirstWeekStart() : undefined);
+
+// What the home page shows first: each car's state now and the primary car's figures. It only reads, so
+// nothing here wakes the car. The week's part (loadHomeWeek) loads beside it, so the strip never waits on it.
+export async function loadHomeNow(owner: Owner, scenario: DemoScenario, now: number): Promise<HomeNow> {
   try {
     const account = await loadOwnerCars(owner);
     if (account.kind !== "ready") return account;
-    // The primary car, as loadPrimaryVehicle picks it: the first with a VIN.
-    const primary = account.vehicles.find((v) => v.vin) ?? null;
-    // The demo's First week: a car connected four days ago, so nothing before then exists.
-    const demoSince = DEMO && scenario === "firstWeek" ? demoFirstWeekStart() : undefined;
-    const [cars, figures, sessions, [streamSessions, invoices], window, lastReadingAt] = await Promise.all([
+    const primary = primaryOf(account.vehicles);
+    const [cars, figures, lastReadingAt] = await Promise.all([
       Promise.all(
         account.vehicles.map(async (vehicle) => {
           // The flags come with the state's read of the last online check.
@@ -56,32 +66,42 @@ export async function loadHome(owner: Owner, scenario: DemoScenario, now: number
           return { vehicle, ...state, notices: flags.notices };
         }),
       ),
-      loadDrivingFigures(owner, primary?.vin ?? null, now, demoSince),
-      loadChargingSessions(owner),
-      // The invoices only need the session ids, so they load while the 90-day window still does.
-      loadStreamSessions(owner).then(async (list) => [list, await invoicesBySession(owner, list.filter((s) => !s.supercharger).map((s) => s.id))] as const),
-      loadWindowStats(owner, primary?.vin ?? null, now),
+      loadDrivingFigures(owner, primary?.vin ?? null, now, demoSinceOf(scenario)),
       primary?.vin ? carLastReadingAt(owner, primary.vin).catch(() => undefined) : null,
     ]);
+    return { kind: "ready", cars, lastRun: account.lastRun, figures, lastReadingAt };
+  } catch (err) {
+    if (DEMO) throw err;
+    console.error(err);
+    return { kind: "error", message: (err as Error).message };
+  }
+}
+
+// The week's part of the home page: the charges, and the primary car's 90-day window (the slowest read).
+// The car's state isn't read here: a car the strip shows charging is told apart where both meet (app/page.tsx).
+export async function loadHomeWeek(owner: Owner, scenario: DemoScenario, now: number): Promise<HomeWeek> {
+  try {
+    const account = await loadOwnerCars(owner);
+    if (account.kind !== "ready") return null;
+    const vin = primaryOf(account.vehicles)?.vin ?? null;
+    const demoSince = demoSinceOf(scenario);
     const after = (s: { started_at: string }) => demoSince === undefined || Date.parse(s.started_at) >= demoSince;
-    const shownStream = streamSessions.filter(after);
-    // The header's state wins: a car it shows charging isn't "parked now", even before the stations job has
-    // built its session from the readings (every 15 minutes).
-    const charging = cars.find((c) => c.vehicle.id === primary?.id)?.lastOnline?.charging_state === "Charging";
-    const driving = charging ? { ...window.driving, parkedNow: null } : window.driving;
-    // Names for the latest charges' spots, which the home list shows a few of (the owner's tag first).
-    const spots = await loadChargeSpots(owner, primary?.vin ?? null, shownStream.slice(0, NAMED_CHARGES), { tesla: sessions, invoices, now }).catch(() => ({}));
+    const tesla = loadChargingSessions(owner);
+    // The invoices only need the session ids, so they load while the 90-day window still does.
+    const stream = loadStreamSessions(owner).then(async (list) => [list, await invoicesBySession(owner, list.filter((s) => !s.supercharger).map((s) => s.id))] as const);
+    // Names for the latest charges' spots, which the home list shows a few of (the owner's tag first). They
+    // need the charges only, so they don't wait for the window either.
+    const named = Promise.all([tesla, stream]).then(([sessions, [list, invoices]]) =>
+      loadChargeSpots(owner, vin, list.filter(after).slice(0, NAMED_CHARGES), { tesla: sessions, invoices, now }).catch(() => ({})),
+    );
+    const [sessions, [streamSessions, invoices], window, spots] = await Promise.all([tesla, stream, loadWindowStats(owner, vin, now), named]);
     return {
       kind: "ready",
-      cars,
-      lastRun: account.lastRun,
-      figures,
       sessions: sessions.filter(after),
-      streamSessions: shownStream,
-      window: { ...window, driving: { ...driving, drives: driving.drives.filter((d) => demoSince === undefined || d.start >= demoSince) } },
+      streamSessions: streamSessions.filter(after),
+      window: { ...window, driving: { ...window.driving, drives: window.driving.drives.filter((d) => demoSince === undefined || d.start >= demoSince) } },
       invoices,
       spots,
-      lastReadingAt,
     };
   } catch (err) {
     if (DEMO) throw err;

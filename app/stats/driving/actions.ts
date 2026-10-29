@@ -26,7 +26,7 @@ export async function moreTrips(scope: ListScope, offset: number): Promise<TripR
   const vin = (await loadPrimaryVehicle(owner))?.vin ?? null;
   const { driving } = await loadWindowStats(owner, vin, now);
   const trips = groupTrips(driving.drives.filter((d) => inSpan(d.start, frame.span)));
-  const routes = await loadTripPlaces(owner, vin, driving.drives);
+  const { routes } = await loadTripPlaces(owner, vin, driving.drives);
   return tripRows(trips, now, routes).slice(offset);
 }
 

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { cacheLife, cacheTag } from "next/cache";
+import { cacheLife, cacheTag, io } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { Suspense } from "react";
 import { eachFrame } from "@/components/home/frames";
 import { DriveList } from "@/components/stats/drive-list";
@@ -39,6 +40,7 @@ import { loadDrivingFigures, loadSeasonEfficiency, loadWindowStats, type WindowS
 import type { SeasonEfficiency as Seasons } from "@/lib/seasons";
 import { loadRangeDriving } from "@/lib/server/home";
 import { loadTripPlaces } from "@/lib/server/trip-places";
+import { placeNames } from "@/lib/server/place-names";
 import { loadPrimaryVehicle } from "@/lib/server/telemetry";
 import { morePlaces, moreTrips } from "./actions";
 import { istDay } from "@/lib/telemetry-derive";
@@ -69,6 +71,8 @@ async function loadDriving(query: CustomQuery | null): Promise<{
   byFrame: Partial<Record<HomePeriod, FrameExtras>>;
   seasons: Seasons;
   routes: Record<number, string>;
+  // Spots the trips and places show with no area name kept yet (see Driving).
+  unnamed: { trips: { lat: number; lng: number }[]; places: { lat: number; lng: number }[] };
   now: number;
 }> {
   "use cache: private";
@@ -102,7 +106,7 @@ async function loadDriving(query: CustomQuery | null): Promise<{
   ];
   const insights = frames.map((f) => insightSpan(f.frame, now));
   const presets = frames.length - (frame ? 1 : 0);
-  const [periodExtras, rangeExtras, seasons, routes] = await Promise.all([
+  const [periodExtras, rangeExtras, seasons, trips] = await Promise.all([
     loadDrivingExtrasFor(owner, vin, window.driving.drives, insights.slice(0, presets)).then(withGooglePlaces),
     // A range may lie outside the periods' days, so it is read on its own.
     frame ? loadDrivingExtrasFor(owner, vin, window.driving.drives, insights.slice(presets)).then(withGooglePlaces) : [],
@@ -119,12 +123,25 @@ async function loadDriving(query: CustomQuery | null): Promise<{
     return stripsBetween(Math.max(first, keptFrom), last, layers, figures.since, now);
   };
   const byFrame = Object.fromEntries(frames.map((f, k) => [f.key, { extras: extras[k], insights: insights[k], days: days(f.frame) }]));
-  return { figures, window, custom: range && frame ? { range, frame, driving: rangeDriving } : null, byFrame, seasons, routes, now };
+  const unnamed = { trips: trips.unnamed, places: extras.flatMap((x) => x.unnamed) };
+  return { figures, window, custom: range && frame ? { range, frame, driving: rangeDriving } : null, byFrame, seasons, routes: trips.routes, unnamed, now };
+}
+
+type Spot = { lat: number; lng: number };
+
+// Area names not kept yet, looked up once the response is sent (a couple at a time, see placeNames), never
+// while the page waits; they show on a later load. Outside the cache, where after() belongs; it waits for a
+// real request, as the background syncs do (components/background-sync.tsx). Render inside <Suspense>.
+async function LookUpPlaceNames({ trips, places }: { trips: Spot[]; places: Spot[] }) {
+  await io();
+  after(() => Promise.all([placeNames(trips), placeNames(places)]));
+  return null;
 }
 
 async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "searchParams">) {
   const query = customQuery(await searchParams);
-  const { figures, window, custom, byFrame, seasons, routes, now } = await loadDriving(query);
+  const { figures, window, custom, byFrame, seasons, routes, unnamed, now } = await loadDriving(query);
+  const lookUp = unnamed.trips.length > 0 || unnamed.places.length > 0;
   const { days, driving } = window;
   // Mirrors the sections' own "enough data" rules, so an empty page says so instead of showing nothing.
   const hasDriving = (figures.periods.all.current.km ?? 0) > 0 || days.filter((d) => d.km !== null).length >= 2 || driving.drives.length > 0;
@@ -140,6 +157,11 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
 
   return (
     <StatsFrame custom={customScope(custom?.range ?? null, now)} periodSwitch={hasDriving}>
+      {lookUp && (
+        <Suspense>
+          <LookUpPlaceNames trips={unnamed.trips} places={unnamed.places} />
+        </Suspense>
+      )}
       {hasDriving ? (
         <div className="space-y-12">
           {/* The period's drive figures lead the page, then the distance, then the deeper charts. */}
