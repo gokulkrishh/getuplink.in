@@ -15,10 +15,19 @@ export const DEMO_SCENARIOS = {
   installing: "Installing an update",
   // A car connected four days ago: nothing before then, so the home page says "Tracking since <date>".
   firstWeek: "First week",
+  // A car just added, with the key paired and live data set up, that has sent nothing yet: no drives, no
+  // charges, no readings, one check. Process-wide, set before starting the server (see demoScenario).
+  justConnected: "Just connected",
 } as const;
 
 export type DemoScenario = keyof typeof DEMO_SCENARIOS;
 
 export function parseScenario(value: unknown): DemoScenario {
   return typeof value === "string" && Object.hasOwn(DEMO_SCENARIOS, value) ? (value as DemoScenario) : "normal";
+}
+
+// The scenario the whole demo copy runs, from UPLINK_DEMO_SCENARIO. Unlike the others it reshapes the
+// generated car itself (see blankSlate), so every page, API and tool sees it, not one page's loader.
+export function demoScenario(): DemoScenario {
+  return parseScenario(process.env.UPLINK_DEMO_SCENARIO);
 }

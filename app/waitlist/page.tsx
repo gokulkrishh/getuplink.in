@@ -20,7 +20,7 @@ export default function Waitlist() {
           </Link>
         </div>
         <p className="text-sm text-muted-foreground">
-          To ask about your place or to leave the waitlist, email{" "}
+          To leave the waitlist, email{" "}
           <a
             href={`mailto:${CONTACT_EMAIL}`}
             className="underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-foreground"

@@ -26,7 +26,8 @@ for (const phone of [false, true]) {
   let t = await go("/home");
   check(`${tag} /home free for now`, t.includes("Free for now. This may change."));
   check(`${tag} /home demo caption`, t.includes("Opens a sample car on a separate site."));
-  check(`${tag} /home invite line`, t.includes("No invite yet? Email getuplink.app@gmail.com"));
+  // Invites go out by message only (29 Oct 2026): the home page no longer asks people to email for one.
+  check(`${tag} /home has no ask-for-invite line`, !t.includes("No invite yet?"));
   check(`${tag} /home Tesla permissions warning`, /asks for your car's location and charging access/.test(t));
   check(`${tag} /home no raw tool names`, !/get_charging_summary|attach_charge_invoice/.test(t));
   check(`${tag} /home no Fleet API`, !t.includes("Fleet API"));
@@ -40,7 +41,7 @@ for (const phone of [false, true]) {
   if (phone) check(`phone /waitlist no sideways scroll`, (await sw(p)) <= 375);
 
   t = await go("/invite/abc");
-  check(`${tag} /invite bad link email`, t.includes("email us for a new one") && (await p.getByRole("link", { name: /Email getuplink/ }).count()) > 0);
+  check(`${tag} /invite bad link says who to ask`, t.includes("ask the person who invited you for a new one"));
 
   t = await go("/setup");
   check(`${tag} /setup key explained`, t.includes("It can't unlock or drive the car."));

@@ -14,6 +14,7 @@ import { matchSessions } from "@/lib/charge-sessions";
 import { chargingBills, firstStartedAt } from "@/lib/charging-figures";
 import { withDriveEfficiency } from "@/lib/drive-stats";
 import { periodFrames } from "@/lib/frames";
+import { hasNoHistory } from "@/lib/dashboard-summary";
 import { daysLabel } from "@/lib/periods";
 import { istDay, istDayStart } from "@/lib/telemetry-derive";
 import { AiNotesSkeleton } from "@/components/home/week-tips";
@@ -81,14 +82,17 @@ function Totals({ home, now }: { home: Extract<Home, { kind: "ready" }>; now: nu
         {/* A greeting by the time of day in India, then the week it covers: the period, named once. */}
         <div className="space-y-1">
           <h2 className="text-xl font-medium tracking-heading">{greeting(now)}</h2>
-          <p className="text-sm text-muted-foreground">
-            Here&apos;s {carName ? `${carName}'s` : "your"} last 7 days, {daysLabel(istDay(frames[0].frame.span.from), istDay(Math.min(frames[0].frame.span.to - 1, now)), now)}.
-          </p>
+          {/* A car with no history has no week to name: its card says it is getting started. */}
+          {!hasNoHistory(figures.since, chargingSince, home.lastReadingAt) && (
+            <p className="text-sm text-muted-foreground">
+              Here&apos;s {carName ? `${carName}'s` : "your"} last 7 days, {daysLabel(istDay(frames[0].frame.span.from), istDay(Math.min(frames[0].frame.span.to - 1, now)), now)}.
+            </p>
+          )}
         </div>
         {eachFrame(
           frames,
           ({ key, frame, driving }) => (
-            <Headline key={key} frame={frame} driving={driving} since={figures.since} now={now} sessions={home.sessions} streamOnly={streamOnly} bills={bills} chargingSince={chargingSince} />
+            <Headline key={key} frame={frame} driving={driving} since={figures.since} now={now} sessions={home.sessions} streamOnly={streamOnly} bills={bills} chargingSince={chargingSince} lastReadingAt={home.lastReadingAt} />
           ),
           { steady: true },
         )}

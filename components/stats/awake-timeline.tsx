@@ -1,6 +1,6 @@
 import { ChartCard } from "@/components/chart-card";
 import { AwakeStrip } from "@/components/stats/awake-strip";
-import { type DayStrip, hasPresence, type Presence, runLabel } from "@/lib/awake";
+import { awakeSentence, type DayStrip, hasPresence, type Presence, runLabel } from "@/lib/awake";
 import { formatDayLabel, formatShortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -20,19 +20,15 @@ export function AwakeTimeline({ days: all, now }: { days: DayStrip[]; now: numbe
   if (!hasPresence(all)) return null;
   const first = all.findIndex((d) => d.runs.some((r) => r.state !== "unknown"));
   const days = first > 0 ? all.slice(first) : all;
-  // "last 14 days", or "since 23 Oct" when cut short.
-  const span = first > 0 ? `since ${formatShortDate(days[0].start + 43_200_000)}` : `last ${days.length} days`;
   const onlineDays = days.filter((d) => d.runs.some((r) => r.state === "online")).length;
+  // "since 23 Oct" when tracking began inside the last 14 days.
+  const sentence = awakeSentence(onlineDays, days.length, first > 0 ? formatShortDate(days[0].start + 43_200_000) : null);
+  // One day is a sentence, not a chart of one bar.
+  if (days.length === 1) {
+    return <ChartCard title="Awake and asleep" description="When the car was awake each day. Updates download only then." empty={sentence} />;
+  }
   return (
-    <ChartCard
-      title="Awake and asleep"
-      description="When the car was awake each day. Updates download only then."
-      summary={
-        <p className="text-sm tabular-nums">
-          {first > 0 ? `Awake on ${onlineDays} of ${days.length} days ${span}` : `Awake on ${onlineDays} of the last ${days.length} days`}
-        </p>
-      }
-    >
+    <ChartCard title="Awake and asleep" description="When the car was awake each day. Updates download only then." summary={<p className="text-sm tabular-nums">{sentence}</p>}>
       <div className="space-y-3">
         <div className="space-y-3 bg-muted dark:bg-card px-3 pt-4 pb-3">
           <ol className="space-y-1.5">

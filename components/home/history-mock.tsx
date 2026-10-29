@@ -20,6 +20,15 @@ export function HistoryMock() {
   const max = Math.max(...MONTHS.map((m) => m.amount));
   return (
     <div aria-hidden="true" className="border bg-background p-6 text-sm select-none">
+      <div className="flex items-center gap-4 pb-5">
+        <div className="min-w-0 flex-1">
+          <p className="truncate">Home to Whitefield</p>
+          <p className="truncate text-xs text-faint">8:18 AM to 8:52 AM</p>
+        </div>
+        <span className="text-right tabular-nums">
+          18.4<span className="ml-0.5 text-xs text-faint">km</span>
+        </span>
+      </div>
       <div className="flex items-baseline gap-4 pb-2 text-xs text-faint">
         <span className="flex-1">Version</span>
         <span className="hidden w-16 text-right sm:block">Received</span>

@@ -28,10 +28,13 @@ export function StatsFrame({ custom, periodSwitch = true, children }: { custom: 
 // topics only swaps what's under the tabs. The loading and the data go in `children`.
 export function StatsPage({ view, description, children }: { view: View; description: string; children: ReactNode }) {
   return (
-    <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
+    <div className="group/stats mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
       <Header current="stats" />
-      <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">Stats</h1>
-      <p className="mt-2 mb-12 text-sm text-muted-foreground">{description}</p>
+      <div className="mb-12">
+        <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">Stats</h1>
+        {/* An empty topic (NotYet) hides it: the line promises what the page doesn't have yet. */}
+        <p className="mt-2 text-sm text-muted-foreground group-has-[[data-not-yet]]/stats:hidden">{description}</p>
+      </div>
       <div className="mb-6">
         <Suspense fallback={<ViewTabsShell view={view} />}>
           <ViewTabs view={view} />
@@ -42,12 +45,15 @@ export function StatsPage({ view, description, children }: { view: View; descrip
   );
 }
 
-// A topic with too little data to show yet.
+// A topic with too little data to show yet: the same card on every Stats page, titled "No <things> yet"
+// with one line on what fills it. Its marker hides the page's subtitle (see StatsPage).
 export function NotYet({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <EmptyState icon={<Zap className="size-7 text-faint" aria-hidden="true" />} title={title}>
-      {children}
-    </EmptyState>
+    <div data-not-yet>
+      <EmptyState icon={<Zap className="size-7 text-faint" aria-hidden="true" />} title={title}>
+        {children}
+      </EmptyState>
+    </div>
   );
 }
 

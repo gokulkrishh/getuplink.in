@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { DEMO } from "@/lib/demo";
 import { demoData, demoLastReadingAt, demoReadings, demoStream } from "./demo";
 import { type Owner, ownerDb } from "./data/owner";
@@ -92,8 +93,22 @@ export async function loadReadings(owner: Owner, vin: string, field: string, fro
 // When one car last sent data: the newest of its presence fields (lib/awake.ts), which stream every few
 // minutes while it's awake. One request, each field a step back on the index (readingsBefore), so it's
 // cheap enough for every page's alerts bell. Null when it never sent any. Throws on a read error.
-export async function carLastReadingAt(owner: Owner, vin: string): Promise<string | null> {
-  if (DEMO) return demoLastReadingAt();
+// Read once per request: the home page and the alerts bell both ask for the same car.
+const lastReadingRequests = cache(() => new Map<string, Promise<string | null>>());
+
+export function carLastReadingAt(owner: Owner, vin: string): Promise<string | null> {
+  if (DEMO) return Promise.resolve(demoLastReadingAt());
+  const requests = lastReadingRequests();
+  const key = `${owner.userId}:${vin}`;
+  let pending = requests.get(key);
+  if (!pending) {
+    pending = readLastReadingAt(owner, vin);
+    requests.set(key, pending);
+  }
+  return pending;
+}
+
+async function readLastReadingAt(owner: Owner, vin: string): Promise<string | null> {
   const latest = await readingsBefore(owner, vin, PRESENCE_FIELDS, LATEST);
   const newest = Math.max(...Object.values(latest).map((r) => Date.parse(r.at)).filter((t) => !Number.isNaN(t)));
   return Number.isFinite(newest) ? new Date(newest).toISOString() : null;

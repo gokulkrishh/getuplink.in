@@ -176,7 +176,7 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
           {eachFrame(frames, (f) => (isLong(f) ? <SpeedBands bins={byFrame[f.key]?.extras.speed ?? []} note={insightsNote(f.key, f.frame.span)} /> : null))}
         </div>
       ) : (
-        <NotYet title="Not enough driving yet">Distance and energy use show up after a couple of days of driving.</NotYet>
+        <NotYet title="No drives yet">Your drives show up here after your first trip.</NotYet>
       )}
     </StatsFrame>
   );

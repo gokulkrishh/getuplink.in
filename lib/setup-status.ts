@@ -186,3 +186,18 @@ export function streamingStep(cars: CarSetup[]): StepState {
   if (cars.some((c) => c.streaming === null)) return "unknown";
   return "waiting";
 }
+
+// Each car's newest reading by VIN: null for none yet, undefined (or absent) when it couldn't be read.
+export type LastReadings = Record<string, string | null | undefined>;
+
+// Whether a car's step says Live: only a read that found no reading says Ready. A failed read is unknown
+// and keeps the Live wording, so a database hiccup never turns a streaming car back into "Ready".
+export function carLive(vin: string, last: LastReadings): boolean {
+  return last[vin] !== null;
+}
+
+// Whether the streaming step says Live: its config is on (the step is done) and some car has sent data
+// (or that isn't known). Until the first reading the step says Ready.
+export function streamingLive(cars: CarSetup[], last: LastReadings): boolean {
+  return streamingStep(cars) === "done" && cars.some((car) => carLive(car.vin, last));
+}

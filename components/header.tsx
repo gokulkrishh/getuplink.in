@@ -21,8 +21,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { isAdmin } from "@/lib/server/admin";
 import { currentOwner } from "@/lib/server/auth";
-import { type Alert, needsYou } from "@/lib/alerts";
-import { formatSince } from "@/lib/format";
+import { AlertsMenu } from "@/components/alerts-menu";
+import { type Alert } from "@/lib/alerts";
 import { demoAlerts, loadAlerts } from "@/lib/server/alerts";
 import { setupGate } from "@/lib/server/setup";
 import { DEMO } from "@/lib/demo";
@@ -85,52 +85,8 @@ async function AlertsBell() {
   return <BellMenu alerts={await loadAlerts(owner, await adminSession())} now={Date.now()} />;
 }
 
-function bellLabel(count: number): string {
-  if (count === 0) return "Alerts, nothing needs you";
-  return `Alerts, ${count} ${count === 1 ? "needs" : "need"} you`;
-}
-
 function BellMenu({ alerts, now }: { alerts: Alert[]; now: number }) {
-  const count = needsYou(alerts);
-  const sections = [
-    { label: "Needs you", rows: alerts.filter((a) => a.kind === "action") },
-    { label: "Good to know", rows: alerts.filter((a) => a.kind === "info") },
-  ].filter((s) => s.rows.length > 0);
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        aria-label={bellLabel(count)}
-        // Greyed out with nothing to say; full strength with anything, and the dot when something needs the owner.
-        className={cn(
-          BELL,
-          alerts.length === 0 ? "text-muted-foreground/40" : "text-foreground",
-          "cursor-pointer hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none data-popup-open:bg-muted",
-        )}
-      >
-        <Bell className="size-4" aria-hidden />
-        {count > 0 && <span className="absolute top-0.5 right-0.5 size-2 rounded-full bg-chart-accent" aria-hidden />}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-72">
-        {sections.length === 0 ? (
-          <p className="px-2 py-1.5 text-sm text-muted-foreground">No problems right now.</p>
-        ) : (
-          sections.map((section, i) => (
-            <DropdownMenuGroup key={section.label}>
-              {i > 0 && <DropdownMenuSeparator />}
-              <DropdownMenuLabel>{section.label}</DropdownMenuLabel>
-              {section.rows.map((a) => (
-                <DropdownMenuItem key={a.key} render={<Link href={a.href} prefetch={true} />} className="flex-col items-start gap-0.5 whitespace-normal">
-                  <span className="text-sm text-foreground">{a.title}</span>
-                  <span className="text-xs text-muted-foreground">{a.detail}</span>
-                  {a.since && <span className="text-xs text-faint">{formatSince(a.since, now)}</span>}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuGroup>
-          ))
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+  return <AlertsMenu alerts={alerts} now={now} className={BELL} />;
 }
 
 // The bell's place while the alerts load.

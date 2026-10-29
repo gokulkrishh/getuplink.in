@@ -1,10 +1,11 @@
-// A static copy of what Uplink keeps about a car: the latest check, battery health, monthly distance
-// and the car details page. The values are illustrative, for an Indian Model Y.
+// A static copy of what Uplink keeps about a car: the latest check, battery health, loss while parked
+// and monthly distance. The values are illustrative, for an Indian Model Y.
 const BATTERY = { level: 72, rangeKm: 361, limit: 80 };
 
 const STATS = [
+  { label: "Battery health", value: "94%", unit: "of new" },
+  { label: "Lost while parked", value: "0.6%", unit: "a day" },
   { label: "Odometer", value: "24,082", unit: "km" },
-  { label: "Estimated full pack", value: "76.4", unit: "kWh" },
 ];
 
 const MONTHS = [
@@ -14,15 +15,6 @@ const MONTHS = [
   { label: "Aug", km: 1610 },
   { label: "Sept", km: 1390 },
   { label: "Oct", km: 1444 },
-];
-
-const DETAILS = [
-  ["Model year", "2025"],
-  ["Drive", "Rear-wheel drive"],
-  ["Built in", "Shanghai, China"],
-  ["Wheels", "19″ Crossflow"],
-  ["Driver assistance", "Hardware 4"],
-  ["Steering", "Right-hand drive"],
 ];
 
 export function CarGlanceMock() {
@@ -56,13 +48,13 @@ export function CarGlanceMock() {
         <div className="absolute -inset-y-1 w-px bg-muted-foreground" style={{ left: `${BATTERY.limit}%` }} />
       </div>
 
-      <dl className="mt-6 grid grid-cols-2 gap-4">
+      <dl className="mt-6 grid grid-cols-3 gap-3 sm:gap-4">
         {STATS.map((s) => (
           <div key={s.label} className="min-w-0 border-t pt-2.5">
-            <dt className="truncate text-xs text-faint">{s.label}</dt>
-            <dd className="mt-1 font-mono tabular-nums">
+            <dt className="text-xs text-faint">{s.label}</dt>
+            <dd className="mt-1 font-mono text-[13px] whitespace-nowrap tabular-nums sm:text-sm">
               {s.value}
-              <span className="ml-0.5 text-xs text-muted-foreground">{s.unit}</span>
+              <span className="ml-0.5 font-sans text-xs text-muted-foreground">{s.unit}</span>
             </dd>
           </div>
         ))}
@@ -83,15 +75,6 @@ export function CarGlanceMock() {
           </li>
         ))}
       </ol>
-
-      <dl className="mt-6 grid grid-cols-2 gap-x-4">
-        {DETAILS.map(([label, value]) => (
-          <div key={label} className="min-w-0 border-t py-2.5">
-            <dt className="truncate text-xs text-faint">{label}</dt>
-            <dd className="mt-0.5 truncate text-muted-foreground">{value}</dd>
-          </div>
-        ))}
-      </dl>
     </div>
   );
 }

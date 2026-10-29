@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { comparedWith, headline } from "@/lib/dashboard-summary";
+import { comparedWith, hasNoHistory, headline } from "@/lib/dashboard-summary";
 import { CONSUMPTION_DAYS, recentConsumption } from "@/lib/drive-stats";
 import type { Drive } from "@/lib/drives";
 import { formatMoney } from "@/lib/format";
@@ -61,5 +61,20 @@ describe("recentConsumption", () => {
     expect(recentConsumption([drive(4, 0.6, 1), drive(3, 0.5, 2)], now)).toBeNull();
     expect(recentConsumption([drive(40, null, 1)], now)).toBeNull();
     expect(recentConsumption([], now)).toBeNull();
+  });
+});
+
+describe("hasNoHistory", () => {
+  const T = Date.parse("2026-10-25T00:00:00Z");
+  test("nothing read, and the newest-reading read worked and found none: a car that has sent nothing yet", () => {
+    expect(hasNoHistory(null, null, null)).toBe(true);
+  });
+  test("a figure or a reading known means there is history, quiet week or not", () => {
+    expect(hasNoHistory(T, null, null)).toBe(false);
+    expect(hasNoHistory(null, T, null)).toBe(false);
+    expect(hasNoHistory(null, null, "2026-10-25T00:00:00Z")).toBe(false);
+  });
+  test("a failed read (undefined) is unknown, never getting started", () => {
+    expect(hasNoHistory(null, null, undefined)).toBe(false);
   });
 });

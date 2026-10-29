@@ -7,9 +7,10 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
 import { buttonVariants } from "@/components/ui/button";
-import { DEMO, DEMO_SITE } from "@/lib/demo";
+import { DEMO, DEMO_SITE, demoScenario } from "@/lib/demo";
+import { demoLastReadingAt } from "@/lib/server/demo";
 import { formatAgo } from "@/lib/format";
-import { type CarSetup, KEY_PAIRING_URL, keyStep, type StepState, streamingStep } from "@/lib/setup-status";
+import { type CarSetup, carLive, KEY_PAIRING_URL, keyStep, type StepState, streamingLive, streamingStep } from "@/lib/setup-status";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { loadSetup, type SetupView } from "@/lib/server/setup";
 import { cn } from "@/lib/utils";
@@ -20,7 +21,7 @@ import added from "./guide/key-3-done.jpg";
 
 export const metadata: Metadata = { title: "Setup · Uplink" };
 
-// Demo mode has no Tesla: one car part way through (?step=done shows it finished). Its last check holds
+// Demo mode has no Tesla: one car part way through (?step=done, or the Just connected scenario, shows it finished). Its last check holds
 // still for ten minutes, so Check again (which asks no one in demo) says nothing changed, as a real one would.
 function demoView(done: boolean): SetupView {
   const at = new Date(Math.floor(Date.now() / 600_000) * 600_000 - 2 * 60_000).toISOString();
@@ -33,14 +34,14 @@ function demoView(done: boolean): SetupView {
     streamingCheckedAt: done ? at : null,
     configSentAt: null,
   };
-  return { cars: [car], canSend: true, needsLocation: false, checkedAt: at };
+  return { cars: [car], canSend: true, needsLocation: false, checkedAt: at, lastReadings: { DEMO: done ? demoLastReadingAt() : null } };
 }
 
 // Only states worth saying: a step still to do needs no label.
 const STEP_WORDS: Partial<Record<StepState, string>> = { unknown: "Not known yet" };
 
-// A finished step: a green circled tick. Live data that's on gets a soft pulse instead, as it keeps
-// running. Reduced motion: the dot holds still.
+// A finished step: a green circled tick. Live data that has started arriving gets a soft pulse instead, as
+// it keeps running. Reduced motion: the dot holds still.
 function StepBadge({ state, live = false }: { state: StepState; live?: boolean }) {
   if (state === "done" && live) {
     return (
@@ -93,8 +94,8 @@ function keyWords(car: CarSetup): string {
   return "Not known yet";
 }
 
-function streamingWords(car: CarSetup, canSend: boolean, needsLocation: boolean): string {
-  if (car.streaming === "synced") return "Live";
+function streamingWords(car: CarSetup, canSend: boolean, needsLocation: boolean, live: boolean): string {
+  if (car.streaming === "synced") return live ? "Live" : "Ready";
   if (car.keyPaired !== true) return "Waiting for the key";
   if (car.streaming === "pending") return "Starts when the car is next awake";
   if (car.streaming === "full") return "The car has no room for another app";
@@ -162,7 +163,7 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
   let view: SetupView;
   let now: number;
   if (DEMO) {
-    view = demoView(params.step === "done");
+    view = demoView(params.step === "done" || demoScenario() === "justConnected");
     now = Date.now();
   } else {
     const owner = await currentOwner();
@@ -173,6 +174,8 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
   const { cars, canSend } = view;
   const key = keyStep(cars);
   const streaming = streamingStep(cars);
+  // Live once a reading has arrived; until then the step is ready and the car only has to wake.
+  const live = streamingLive(cars, view.lastReadings);
   // Both steps done: nothing left to check, so the page says so and leads on.
   const ready = key === "done" && streaming === "done";
   return (
@@ -204,17 +207,31 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
               Connect your car
             </a>
           )}
-          <KeyGuide />
+          {/* Once the key is on, the photos are a tap away instead of in the way. */}
+          {key === "done" ? (
+            <details>
+              <summary className="cursor-pointer text-sm text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-foreground">
+                See how
+              </summary>
+              <div className="pt-4">
+                <KeyGuide />
+              </div>
+            </details>
+          ) : (
+            <KeyGuide />
+          )}
           {/* Tesla's app says "Request timed out" when the car is asleep or out of reach while the key is added. */}
           <p className="text-xs text-faint">
             {key !== "done" && "Request timed out? Wake the car and try again. "}Remove the key any time in the car&apos;s Controls, then Locks.
           </p>
           <CarList cars={cars} words={keyWords} />
         </Step>
-        <Step n={2} title="Turn on live data" state={streaming} live>
+        <Step n={2} title="Turn on live data" state={streaming} live={live}>
           <p className="text-sm text-muted-foreground">
             {streaming === "done"
-              ? "Your car is sending live data."
+              ? live
+                ? "Your car is sending live data."
+                : "Ready. Your car sends data the next time it's awake."
               : canSend
                 ? "Once the key is added, Uplink turns on live data. The car starts sending the next time it's awake."
                 : "Once the key is added, Uplink turns this on for you."}
@@ -236,7 +253,7 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
               and allow it.
             </p>
           )}
-          <CarList cars={cars} words={(car) => streamingWords(car, canSend, view.needsLocation)} />
+          <CarList cars={cars} words={(car) => streamingWords(car, canSend, view.needsLocation, carLive(car.vin, view.lastReadings))} />
         </Step>
       </ol>
       {!ready && (

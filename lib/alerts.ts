@@ -10,7 +10,9 @@ import { EXPIRY_WARN_DAYS, STALE_AFTER_MS } from "@/lib/stream-health";
 // good to know. `since`: when the problem began, only where that is known (an ISO time), else null.
 
 export type AlertKind = "action" | "info";
-export type Alert = { key: string; kind: AlertKind; title: string; detail: string; href: string; since: string | null };
+// Which picture the bell shows beside an alert (components/alerts-menu.tsx maps each name to an icon).
+export type AlertIcon = "key" | "hourglass" | "no-data" | "unplugged" | "warning" | "payment" | "service" | "server";
+export type Alert = { key: string; kind: AlertKind; icon: AlertIcon; title: string; detail: string; href: string; since: string | null };
 
 export type AlertCar = Pick<CarSetup, "vin" | "name" | "keyPaired" | "keyCheckedAt" | "streaming" | "streamingCheckedAt"> & {
   // When Uplink last sent the car its config (a renewal, when inside RENEW_WITHIN_DAYS of the expiry).
@@ -126,22 +128,23 @@ export function buildAlerts(input: AlertInputs): Alert[] {
   const alerts: Alert[] = [];
   const add = (a: Omit<Alert, "since"> & { since?: string | null }) => alerts.push({ ...a, since: a.since ?? null });
   if (!input.connected) {
-    add({ key: "disconnected", kind: "action", title: "Tesla isn't connected", detail: "Uplink can't read your car. Sign in with Tesla again.", href: "/settings" });
+    add({ key: "disconnected", icon: "unplugged", kind: "action", title: "Tesla isn't connected", detail: "Uplink can't read your car. Sign in with Tesla again.", href: "/settings" });
   }
   for (const car of input.cars) {
     if (car.keyPaired === false) {
-      add({ key: `key:${car.vin}`, kind: "action", title: `Uplink's key isn't on ${nameOf(car)}`, detail: "The car stopped sending data. Add the key again.", href: "/setup" });
+      add({ key: `key:${car.vin}`, icon: "key", kind: "action", title: `Uplink's key isn't on ${nameOf(car)}`, detail: "The car stopped sending data. Add the key again.", href: "/setup" });
     }
     // Asked, and Tesla's answer didn't say. Uplink asks again on its own.
     if (car.keyPaired === null && car.keyCheckedAt !== null) {
-      add({ key: `unknown:${car.vin}`, kind: "info", title: `Couldn't check the key on ${nameOf(car)}`, detail: "Uplink will try again.", href: "/setup" });
+      add({ key: `unknown:${car.vin}`, icon: "warning", kind: "info", title: `Couldn't check the key on ${nameOf(car)}`, detail: "Uplink will try again.", href: "/setup" });
     }
     const left = expiring(car, input.now);
-    if (left !== null) add({ key: `expiry:${car.vin}`, kind: "action", title: expiryTitle(car, left), detail: expiryDetail(car), href: "/setup" });
+    if (left !== null) add({ key: `expiry:${car.vin}`, icon: "hourglass", kind: "action", title: expiryTitle(car, left), detail: expiryDetail(car), href: "/setup" });
     const quiet = quietDays(car, input.now);
     if (quiet !== null) {
       add({
         key: `quiet:${car.vin}`,
+        icon: "no-data",
         kind: "action",
         title: `No data from ${nameOf(car)} for ${days(quiet)}`,
         detail: "The car was awake but sent nothing. Open setup to check its key.",
@@ -150,15 +153,15 @@ export function buildAlerts(input: AlertInputs): Alert[] {
       });
     }
     if (car.unpaidSupercharging) {
-      add({ key: `payment:${car.vin}`, kind: "action", title: `${car.name ?? "Your car"} has an unpaid Supercharger balance`, detail: "Pay it in the Tesla app.", href: "/" });
+      add({ key: `payment:${car.vin}`, icon: "payment", kind: "action", title: `${car.name ?? "Your car"} has an unpaid Supercharger balance`, detail: "Pay it in the Tesla app.", href: "/" });
     }
     if (car.inService) {
-      add({ key: `service:${car.vin}`, kind: "info", title: `${car.name ?? "Your car"} is at a Tesla service centre`, detail: "Seen at the car's latest check.", href: "/car" });
+      add({ key: `service:${car.vin}`, icon: "service", kind: "info", title: `${car.name ?? "Your car"} is at a Tesla service centre`, detail: "Seen at the car's latest check.", href: "/car" });
     }
   }
   // A failed check matters only while Tesla is connected: disconnected already says why.
   if (input.connected && input.lastRun?.ok === false && input.lastRun.error) {
-    add({ key: "check", kind: "action", title: "The last check failed", detail: describeRunError(input.lastRun.error), href: "/settings" });
+    add({ key: "check", icon: "warning", kind: "action", title: "The last check failed", detail: describeRunError(input.lastRun.error), href: "/settings" });
   }
   const said = (problem: string) => SAID_BY_CAR.some((s) => s.match.test(problem) && alerts.some((a) => a.key.startsWith(s.row)));
   for (const h of input.health) {
@@ -170,6 +173,7 @@ export function buildAlerts(input: AlertInputs): Alert[] {
     const found = problems.length ? `${problems.join(". ")}.` : "";
     add({
       key: `health:${h.component}`,
+      icon: "server",
       kind: "action",
       title: `${componentLabel(h.component)}: ${STATUS_WORD[h.status].toLowerCase()}`,
       detail: [found, fix?.fix ?? "See Health on the admin page."].filter(Boolean).join(" "),

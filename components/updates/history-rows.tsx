@@ -17,7 +17,8 @@ export type HistoryRow = {
   received: string;
   installed: string;
   // The first version seen was already installed when tracking began; Tesla doesn't report install dates.
-  firstSeen: boolean;
+  // Its installed text says so, and this is the day Uplink first saw it ("29 Oct"). Null for any other version.
+  firstSeen: string | null;
   odometer: string | null;
   timeline: string | null;
   notes: ReleaseNote[] | null;
@@ -29,11 +30,11 @@ function HistoryCells({ row }: { row: HistoryRow }) {
     <>
       <span className="text-right text-faint tabular-nums">{row.received}</span>
       {row.firstSeen ? (
-        // Installed some time before this date, so it's greyed out and explained on hover.
-        <TipTrigger className="text-right text-faint tabular-nums">
+        // Installed before Uplink's first look, so it's greyed out and explained on hover.
+        <TipTrigger className="text-right whitespace-nowrap text-faint">
           {row.installed}
-          <span className="sr-only">. Already installed when tracking started.</span>
-          <Tip>Already installed when tracking started</Tip>
+          <span className="sr-only">. Already installed when Uplink first saw your car on {row.firstSeen}.</span>
+          <Tip>Already installed when Uplink first saw your car on {row.firstSeen}</Tip>
         </TipTrigger>
       ) : (
         <span className="text-right text-muted-foreground tabular-nums">{row.installed}</span>

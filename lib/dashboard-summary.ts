@@ -74,3 +74,11 @@ function changeFrom(current: number, previous: number | null, { decimals = 0, lo
   const tone: Comparison["tone"] = lowerIsBetter ? (up ? "worse" : "better") : "neutral";
   return { same, up, amount, word, tone };
 }
+
+// A car Uplink has read nothing from yet: no odometer reading, no charge and no streamed reading, ever
+// (`since`, `chargingSince`, and `lastReadingAt`, as Headline gets them). Its home page says it is getting
+// started instead of "a quiet week". `lastReadingAt` is undefined when that read failed: the loaders turn
+// read errors into empty, so without it a database hiccup would show an established car as new.
+export function hasNoHistory(since: number | null, chargingSince: number | null, lastReadingAt: string | null | undefined): boolean {
+  return since === null && chargingSince === null && lastReadingAt === null;
+}

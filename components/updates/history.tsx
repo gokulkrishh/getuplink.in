@@ -25,8 +25,9 @@ export function versionRows(history: VersionChange[], notes: ReleaseNotesByVersi
       version: change.version,
       // Always within days of Installed, which carries the year.
       received: change.previous_version && change.available_at ? formatShortDate(change.available_at) : "",
-      installed: historyDate(change.detected_at, now),
-      firstSeen: !change.previous_version,
+      // The first version was already on the car when Uplink first saw it; Tesla gives no install date.
+      installed: change.previous_version ? historyDate(change.detected_at, now) : "Before Uplink",
+      firstSeen: change.previous_version ? null : historyDate(change.detected_at, now),
       odometer: change.odometer_km != null ? formatNumber(change.odometer_km, DECIMALS.km) : null,
       timeline: parts.length ? parts.join(" · ") : null,
       notes: notes[change.version] ?? null,

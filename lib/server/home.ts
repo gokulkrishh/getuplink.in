@@ -11,6 +11,7 @@ import { invoicesBySession } from "./receipts";
 import type { SpotName } from "@/lib/charge-names";
 import { loadChargeSpots } from "./charging-extra";
 import { loadStreamSessions, type StreamChargeSession } from "./stream-charging";
+import { carLastReadingAt } from "./telemetry";
 
 // notices: what Tesla flagged at the car's latest online check (see loadCarFlags).
 export type HomeCar = Omit<CarState, "flags"> & { vehicle: Vehicle; notices: string[] };
@@ -28,6 +29,8 @@ type HomeData = {
   invoices: Awaited<ReturnType<typeof invoicesBySession>>;
   // The latest charges' names from where they happened, by streamed session id (see loadChargeSpots).
   spots: Record<number, SpotName>;
+  // When the primary car last sent data, null for never, undefined when the read failed (see hasNoHistory).
+  lastReadingAt: string | null | undefined;
 };
 
 // The home list shows three charges a period; the latest few cover them.
@@ -45,7 +48,7 @@ export async function loadHome(owner: Owner, scenario: DemoScenario, now: number
     const primary = account.vehicles.find((v) => v.vin) ?? null;
     // The demo's First week: a car connected four days ago, so nothing before then exists.
     const demoSince = DEMO && scenario === "firstWeek" ? demoFirstWeekStart() : undefined;
-    const [cars, figures, sessions, [streamSessions, invoices], window] = await Promise.all([
+    const [cars, figures, sessions, [streamSessions, invoices], window, lastReadingAt] = await Promise.all([
       Promise.all(
         account.vehicles.map(async (vehicle) => {
           // The flags come with the state's read of the last online check.
@@ -58,6 +61,7 @@ export async function loadHome(owner: Owner, scenario: DemoScenario, now: number
       // The invoices only need the session ids, so they load while the 90-day window still does.
       loadStreamSessions(owner).then(async (list) => [list, await invoicesBySession(owner, list.filter((s) => !s.supercharger).map((s) => s.id))] as const),
       loadWindowStats(owner, primary?.vin ?? null, now),
+      primary?.vin ? carLastReadingAt(owner, primary.vin).catch(() => undefined) : null,
     ]);
     const after = (s: { started_at: string }) => demoSince === undefined || Date.parse(s.started_at) >= demoSince;
     const shownStream = streamSessions.filter(after);
@@ -77,6 +81,7 @@ export async function loadHome(owner: Owner, scenario: DemoScenario, now: number
       window: { ...window, driving: { ...driving, drives: driving.drives.filter((d) => demoSince === undefined || d.start >= demoSince) } },
       invoices,
       spots,
+      lastReadingAt,
     };
   } catch (err) {
     if (DEMO) throw err;

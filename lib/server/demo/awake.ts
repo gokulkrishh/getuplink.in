@@ -10,6 +10,8 @@ const POLL_EVERY = 6 * HOUR; // the cron runs at 00:00, 06:00, 12:00 and 18:00 U
 // One check is missed and two found it offline (a basement car park), so every state shows up.
 export function demoPolls(days: number): Poll[] {
   const data = demoData();
+  // Just connected: the one check made at setup, nothing before it.
+  if (Object.keys(data.readings).length === 0) return [{ at: Date.parse(data.snapshot.polled_at), state: data.snapshot.state }];
   const times = Object.values(data.readings)
     .flat()
     .map((r) => Date.parse(r.at));

@@ -1,11 +1,12 @@
-import { ChevronRight, Moon } from "lucide-react";
+import type { ReactNode } from "react";
+import { ChevronRight, Moon, Sunrise } from "lucide-react";
 import { fitFont } from "@/components/measure";
 import { MoreLink } from "@/components/more-link";
 import { PeriodLink } from "@/components/home/more-link";
 import { barOpens } from "@/components/stats/bar-parts";
 import { statsHref, type View } from "@/components/stats/periods";
 import { type Bill, billsBySlot, billsIn, energyBySlot, energyIn } from "@/lib/charging-figures";
-import { type Change, changeToPrevious, compareToPrevious } from "@/lib/dashboard-summary";
+import { type Change, changeToPrevious, compareToPrevious, hasNoHistory } from "@/lib/dashboard-summary";
 import type { DrivingPeriod } from "@/lib/driving-figures";
 import { DECIMALS, formatDate, formatKm, formatKwh, formatMoney, formatNumber, formatShortDate, showsZero, sumKnown } from "@/lib/format";
 import { fromTracking, type Slot, type Timeframe, trackingGap } from "@/lib/periods";
@@ -93,6 +94,21 @@ function Cell({
   );
 }
 
+// A week with nothing to total, as one card: an icon, what it is, one line, and a way on. On a phone the
+// parts stack, so the text has the card's whole width; from sm up they sit in a row.
+function QuietCard({ icon, title, action, children }: { icon: ReactNode; title: string; action?: ReactNode; children: ReactNode }) {
+  return (
+    <div className="flex flex-col items-start gap-3 border px-5 py-6 sm:flex-row sm:items-center sm:gap-4 dark:border-transparent dark:bg-card">
+      <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">{icon}</span>
+      <div className="min-w-0 flex-1 space-y-1">
+        <p className="font-medium">{title}</p>
+        <p className="text-sm text-muted-foreground">{children}</p>
+      </div>
+      {action}
+    </div>
+  );
+}
+
 // The period's four numbers, each against the same span before (see previousSpan). Driving comes from the
 // primary car's counters; charging is every session, counted like the Charging page. A comparison needs
 // tracking to have begun before that span, or it would compare against part of one: driving tracking
@@ -109,6 +125,7 @@ export function Headline({
   streamOnly,
   bills,
   chargingSince,
+  lastReadingAt,
 }: {
   // A period or a range picked by date, and the primary car's driving figures for it (null when they
   // couldn't be read); `since` is its first odometer reading.
@@ -123,6 +140,8 @@ export function Headline({
   bills: Bill[];
   // The first charging session, billed or streamed (see firstStartedAt).
   chargingSince: number | null;
+  // The primary car's newest reading, null for none, undefined when it couldn't be read (see hasNoHistory).
+  lastReadingAt: string | null | undefined;
 }) {
   const { span, previous: before, slots } = frame;
   const label = frame.previousLabel ?? "";
@@ -217,20 +236,25 @@ export function Headline({
   const emptyWords = (n: number | null, decimals: number) => (n === null || showsZero(formatNumber(n, decimals)) ? "—" : null);
   const quietWeek = [driven.value, used.value, added.value, spent.value].every((v) => v === null || v === 0);
 
-  // A week with no driving and no charging is one line, not four empty tiles.
+  // A car that has sent nothing yet is getting started, not having a quiet week.
+  if (hasNoHistory(since, chargingSince, lastReadingAt))
+    return (
+      <QuietCard icon={<Sunrise className="size-5" aria-hidden="true" />} title="Just getting started">
+        Go for a drive or plug in, and it shows up here.
+      </QuietCard>
+    );
+
+  // A week with no driving and no charging is one card, not four empty tiles.
   if (quietWeek)
     return (
-      <div className="flex items-center gap-4 border px-5 py-6 dark:border-transparent dark:bg-card">
-        <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-          <Moon className="size-5" aria-hidden="true" />
-        </span>
-        <div className="min-w-0 flex-1 space-y-1">
-          <p className="font-medium">A quiet week</p>
-          <p className="text-sm text-muted-foreground">No driving or charging in the last 7 days.{gapText && ` Tracking since ${gapText}.`}</p>
-        </div>
-        {/* The way to something that did happen: the month on Stats. */}
-        <MoreLink href={statsHref("driving", "month")} className="shrink-0">This month</MoreLink>
-      </div>
+      <QuietCard
+        icon={<Moon className="size-5" aria-hidden="true" />}
+        title="A quiet week"
+        // The way to something that did happen: the month on Stats.
+        action={<MoreLink href={statsHref("driving", "month")} className="shrink-0">This month</MoreLink>}
+      >
+        No driving or charging in the last 7 days.{gapText && ` Tracking since ${gapText}.`}
+      </QuietCard>
     );
 
   return (

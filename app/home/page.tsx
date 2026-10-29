@@ -7,7 +7,6 @@ import { AssistantMock } from "@/components/home/assistant-mock";
 import { CarGlanceMock } from "@/components/home/car-glance-mock";
 import { HistoryMock } from "@/components/home/history-mock";
 import { CONTACT_EMAIL } from "@/components/plain-page";
-import { InviteOnly } from "@/components/home/invite-only";
 import { SessionCta } from "@/components/home/session-cta";
 import { LoginError } from "@/components/login-error";
 import { Logo } from "@/components/logo";
@@ -34,20 +33,20 @@ const STEPS = [
     body: "Uplink never sees your password. Tesla's page asks for your car's location and charging access. Uplink only reads them.",
   },
   { title: "Add Uplink's key to your car", body: "The key lets your car send data to Uplink. It can't unlock or drive." },
-  { title: "Updates show up on their own", body: "Data arrives whenever your car is awake." },
+  { title: "Your data builds up", body: "Charts fill in as your car sends data. Battery trends take about two weeks." },
 ];
 
 const SHOWCASE = [
   {
-    title: "Your car's history, kept",
+    title: "Every trip and charge",
     body: "The Tesla app shows today. Uplink keeps every day from when you sign in, and Supercharging back to your first charge.",
-    points: ["How long each update waited", "Odometer at every update", "Supercharging spend in rupees"],
+    points: ["Trips on a map", "Spend per charge, invoices attached", "Software updates and how long they waited"],
     mock: <HistoryMock />,
   },
   {
     title: "Your car at a glance",
-    body: "Charge, battery health, distance and specs from your car.",
-    points: ["Charge, range and limit", "Battery health and odometer", "Kilometres driven each month"],
+    body: "Charge, battery health, parked loss and distance from your car.",
+    points: ["Charge, range and limit", "Battery health and odometer", "Battery loss while parked", "Kilometres driven each month"],
     mock: <CarGlanceMock />,
   },
   {
@@ -68,6 +67,8 @@ const CAN = [
   "Battery, charging and odometer",
   "Supercharger charges and invoices",
   "Trips, with where the car went",
+  "India rollout map",
+  "Compare with other owners, if you share",
 ];
 
 const CANNOT = [
@@ -131,7 +132,7 @@ export default function HomePage() {
             Your Tesla, all in one place.
           </h1>
           <p className="mt-6 max-w-md text-lg text-muted-foreground">
-            Software updates, charging spend, battery and kilometres driven.
+            Updates, trips, charging and battery for your Tesla, from the day you sign in.
           </p>
           <p className="mt-4 text-sm font-medium">Free for now. This may change.</p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -144,7 +145,6 @@ export default function HomePage() {
             </a>
             <span className="text-xs text-faint">Opens a sample car on a separate site.</span>
           </div>
-          <InviteOnly className="mt-6" />
           <p className="mt-6 text-xs text-faint">Read-only · Never wakes your car · Revoke access any time</p>
           {/* Renders nothing (and takes no space) unless sign-in failed, so the page doesn't shift. */}
           <Suspense>
@@ -174,7 +174,7 @@ export default function HomePage() {
             <ul className="mt-8 flex flex-col gap-3">
               {item.points.map((point) => (
                 <li key={point} className="flex items-baseline gap-3 text-base">
-                  <CircleCheck className="size-4 shrink-0 translate-y-0.5 text-muted-foreground" aria-hidden="true" />
+                  <CircleCheck className="size-4 shrink-0 translate-y-0.5 text-chart-accent" aria-hidden="true" />
                   {point}
                 </li>
               ))}
@@ -238,23 +238,6 @@ export default function HomePage() {
             </details>
           ))}
         </div>
-      </section>
-
-      <section className="flex flex-col items-start gap-8 py-28">
-        <h2 className="max-w-3xl text-5xl leading-display font-semibold tracking-tight text-balance sm:text-6xl">
-          Invited? Set up in two minutes.
-        </h2>
-        <p className="-mt-4 max-w-md text-lg text-muted-foreground">Open your invite link to sign in with Tesla.</p>
-        <div className="flex flex-wrap items-center gap-3">
-          <Suspense>
-            <SessionCta dashboardOnly />
-          </Suspense>
-          <a href={DEMO_URL} className={buttonVariants({ variant: "secondary", size: "xl" })}>
-            See the demo
-          </a>
-          <span className="text-xs text-faint">Opens a sample car on a separate site.</span>
-        </div>
-        <InviteOnly className="-mt-2" />
       </section>
 
       <footer className="mt-auto flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 py-8 text-xs text-faint">

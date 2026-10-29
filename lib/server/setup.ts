@@ -4,6 +4,7 @@ import { messageOf } from "@/lib/errors";
 import {
   type CarSetup,
   type Gate,
+  type LastReadings,
   gateFor,
   keyStale,
   expiryToRecord,
@@ -18,7 +19,7 @@ import {
 } from "@/lib/setup-status";
 import type { Owner } from "./data/owner";
 import { carSetups, carsWithoutSetup, markConfigSent, saveConfigExpiry, saveKeyStatus, saveStreaming, saveStreamingIfNewer, SetupSchemaMissing } from "./data/setup";
-import { lastReadingAt } from "./telemetry";
+import { carLastReadingAt, lastReadingAt } from "./telemetry";
 import { canSendConfig, signedTelemetryConfig } from "./telemetry-config";
 import { fleetGetBody, fleetPost, hasScope, LOCATION_SCOPE, NotConnectedError } from "./tesla";
 
@@ -252,7 +253,9 @@ export async function afterSignInPath(owner: Owner): Promise<"/" | "/setup"> {
 }
 
 // needsLocation: the owner's sign-in didn't allow location, so Uplink can't send the streaming config.
-export type SetupView = { cars: CarSetup[]; canSend: boolean; needsLocation: boolean; checkedAt: string | null };
+// lastReadings: when each car last sent data, null for never, undefined when it couldn't be read (so step 2
+// says Ready until a car's first reading, then Live; see carLive).
+export type SetupView = { cars: CarSetup[]; canSend: boolean; needsLocation: boolean; checkedAt: string | null; lastReadings: LastReadings };
 
 // Force: "Check again", at most every FORCE_MS per user so the button can't run up requests.
 const FORCE_MS = 30_000;
@@ -269,8 +272,12 @@ export async function loadSetup(owner: Owner, { force = false, now = Date.now() 
     return cars;
   });
   const times = cars.flatMap((c) => [c.keyCheckedAt, c.streamingCheckedAt]).filter((t): t is string => t !== null);
-  const needsLocation = !(await hasScope(owner, LOCATION_SCOPE).catch(() => false));
-  return { cars, canSend: canSendConfig(), needsLocation, checkedAt: times.sort().at(-1) ?? null };
+  const [needsLocation, readings] = await Promise.all([
+    hasScope(owner, LOCATION_SCOPE).then((ok) => !ok, () => true),
+    // Only a car with its streaming on can have a "Ready" word, so only those are read.
+    Promise.all(cars.filter((car) => car.streaming === "synced").map(async (car) => [car.vin, await carLastReadingAt(owner, car.vin).catch(() => undefined)] as const)),
+  ]);
+  return { cars, canSend: canSendConfig(), needsLocation, checkedAt: times.sort().at(-1) ?? null, lastReadings: Object.fromEntries(readings) };
 }
 
 // The 6-hourly check: whatever is old, so a car paired while nobody had /setup open still gets its config.

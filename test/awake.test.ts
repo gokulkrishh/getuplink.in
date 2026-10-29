@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { awakeDays, PRESENCE_FIELDS, runLabel } from "@/lib/awake";
+import { awakeDays, awakeSentence, PRESENCE_FIELDS, runLabel } from "@/lib/awake";
 
 // An instant given as IST wall-clock time.
 const ist = (local: string) => Date.parse(`${local}+05:30`);
@@ -50,5 +50,16 @@ describe("PRESENCE_FIELDS", () => {
   // IsolationResistance came. From 12:00 on 25 Oct only Soc did. Both quarter hours showed No data.
   test("include the fields that were the car's only sign of life in a quarter hour", () => {
     for (const field of ["IsolationResistance", "Soc", "EnergyRemaining"]) expect(PRESENCE_FIELDS).toContain(field);
+  });
+});
+
+describe("awakeSentence", () => {
+  test("a single day is a plain sentence, not a count", () => {
+    expect(awakeSentence(1, 1, null)).toBe("Seen awake today.");
+    expect(awakeSentence(0, 1, null)).toBe("Not seen awake yet today.");
+  });
+  test("several days count them", () => {
+    expect(awakeSentence(9, 14, null)).toBe("Awake on 9 of the last 14 days");
+    expect(awakeSentence(2, 4, "26 Oct")).toBe("Awake on 2 of 4 days since 26 Oct");
   });
 });

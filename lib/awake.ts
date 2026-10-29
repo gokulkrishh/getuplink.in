@@ -99,3 +99,10 @@ export function runLabel(run: Run): string {
   const length = all.length === 1 && only[1] - only[0] >= MIN ? ` · ${formatDuration((only[1] - only[0]) / 1000)}` : "";
   return `${label} · ${shown.join(", ")}${length}`;
 }
+
+// The line over the awake strips. One day is a sentence, since a count of "1 of 1" says nothing; more
+// days count the online ones, "since 26 Oct" (`since`) when tracking began inside the last days shown.
+export function awakeSentence(onlineDays: number, days: number, since: string | null): string {
+  if (days === 1) return onlineDays > 0 ? "Seen awake today." : "Not seen awake yet today.";
+  return since ? `Awake on ${onlineDays} of ${days} days since ${since}` : `Awake on ${onlineDays} of the last ${days} days`;
+}

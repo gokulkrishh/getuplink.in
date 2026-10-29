@@ -20,6 +20,8 @@ import {
   RESEND_AFTER_MS,
   shouldSendConfig,
   skipReason,
+  carLive,
+  streamingLive,
   streamingStep,
 } from "@/lib/setup-status";
 import { EXPIRY_WARN_DAYS } from "@/lib/stream-health";
@@ -244,5 +246,31 @@ describe("when the streaming config runs out", () => {
     for (const body of [telemetryConfig.none, telemetryConfig.full, telemetryConfig.empty, telemetryConfig.null, null, { response: { config: { exp: "soon" } } }]) {
       expect(parseConfigExpiry(body)).toBeNull();
     }
+  });
+});
+
+describe("streamingLive", () => {
+  const car = (streaming: CarSetup["streaming"], vin = PAIRED): CarSetup => ({ vin, name: null, keyPaired: true, keyCheckedAt: null, streaming, streamingCheckedAt: null, configSentAt: null });
+  const AT = "2026-11-03T09:00:00Z";
+  test("Live once a reading has arrived, Ready while the car has sent none", () => {
+    expect(streamingLive([car("synced")], { [PAIRED]: AT })).toBe(true);
+    expect(streamingLive([car("synced")], { [PAIRED]: null })).toBe(false);
+    expect(carLive(PAIRED, { [PAIRED]: null })).toBe(false);
+    expect(carLive(PAIRED, { [PAIRED]: AT })).toBe(true);
+  });
+  test("a read that failed (undefined) is unknown: the wording stays Live, never flips to Ready", () => {
+    expect(streamingLive([car("synced")], { [PAIRED]: undefined })).toBe(true);
+    expect(carLive(PAIRED, { [PAIRED]: undefined })).toBe(true);
+    expect(carLive(PAIRED, {})).toBe(true);
+  });
+  test("several cars: Ready only while none has sent data, and each car on its own reading", () => {
+    const cars = [car("synced", PAIRED), car("synced", UNPAIRED)];
+    expect(streamingLive(cars, { [PAIRED]: AT, [UNPAIRED]: null })).toBe(true);
+    expect(streamingLive(cars, { [PAIRED]: null, [UNPAIRED]: null })).toBe(false);
+    expect(carLive(UNPAIRED, { [PAIRED]: AT, [UNPAIRED]: null })).toBe(false);
+  });
+  test("a step that is not done is never live, readings or not", () => {
+    expect(streamingLive([car("pending")], { [PAIRED]: AT })).toBe(false);
+    expect(streamingLive([], {})).toBe(false);
   });
 });

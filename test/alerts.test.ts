@@ -35,7 +35,7 @@ describe("buildAlerts", () => {
 
   test("a key removed from the car names the car, needs the owner and points to /setup", () => {
     const [a] = buildAlerts({ ...ok, cars: [car({ keyPaired: false })] });
-    expect(a).toEqual({ key: "key:VIN1", kind: "action", title: "Uplink's key isn't on Shadow", detail: "The car stopped sending data. Add the key again.", href: "/setup", since: null });
+    expect(a).toEqual({ key: "key:VIN1", kind: "action", icon: "key", title: "Uplink's key isn't on Shadow", detail: "The car stopped sending data. Add the key again.", href: "/setup", since: null });
     expect(buildAlerts({ ...ok, cars: [car({ name: null, keyPaired: false })] })[0].title).toBe("Uplink's key isn't on your car");
   });
 
@@ -84,6 +84,23 @@ describe("buildAlerts", () => {
       ["info", "Shadow is at a Tesla service centre", "Seen at the car's latest check.", "/car"],
     ]);
     expect(needsYou(alerts)).toBe(1);
+  });
+
+  test("each alert carries the picture that fits it", () => {
+    const alerts = buildAlerts({
+      ...ok,
+      connected: false,
+      cars: [car({ keyPaired: false, unpaidSupercharging: true, inService: true }), car({ vin: "B", keyPaired: null, keyCheckedAt: BEFORE })],
+      health: [{ component: "Website", status: "down", problems: [], checkedAt: CHECKED }],
+    });
+    expect(Object.fromEntries(alerts.map((a) => [a.key.split(":")[0], a.icon]))).toEqual({
+      disconnected: "unplugged",
+      key: "key",
+      payment: "payment",
+      health: "server",
+      unknown: "warning",
+      service: "service",
+    });
   });
 
   test("what needs the owner comes first, then what's good to know, whatever order they were found in", () => {
@@ -142,6 +159,7 @@ describe("a car that went quiet", () => {
     const [a] = buildAlerts({ ...ok, cars: [quiet()] });
     expect(a).toEqual({
       key: "quiet:VIN1",
+      icon: "no-data",
       kind: "action",
       title: "No data from Shadow for 3 days",
       detail: "The car was awake but sent nothing. Open setup to check its key.",

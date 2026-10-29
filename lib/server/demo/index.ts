@@ -1,7 +1,8 @@
 import type { InvoiceDetail } from "@/lib/invoice-details";
 import "server-only";
+import { MILES_TO_KM } from "@/lib/car";
 import { buildSessions, CHARGE_FIELDS } from "@/lib/charge-sessions";
-import type { DemoScenario } from "@/lib/demo";
+import { type DemoScenario, demoScenario } from "@/lib/demo";
 import type { CounterColumn } from "@/lib/driving-figures";
 import type { InvoiceLine } from "@/lib/invoice-items";
 import { stationAt } from "@/lib/stations";
@@ -18,8 +19,27 @@ let cached: DemoData | undefined;
 
 export function demoData(): DemoData {
   const now = Date.now();
-  if (!cached || now - cached.now > 60_000) cached = generateDemo(now);
+  if (!cached || now - cached.now > 60_000) {
+    const data = generateDemo(now);
+    cached = demoScenario() === "justConnected" ? blankSlate(data) : data;
+  }
   return cached;
+}
+
+// The Just connected scenario: the same car, but as it is minutes after setup. Uplink has made one check
+// (the version and battery from it), and the car has sent no live data yet, so there are no readings, no
+// drives, no charges and no earlier updates.
+function blankSlate(data: DemoData): DemoData {
+  const first = { ...data.snapshot, charging_state: "Disconnected", charge_power_kw: null, time_to_full_h: null };
+  return {
+    ...data,
+    snapshot: first,
+    readings: {},
+    teslaSessions: [],
+    history: [
+      { version: first.car_version ?? data.vehicle.current_version ?? "", previous_version: null, detected_at: first.polled_at, available_at: null, odometer_km: Math.round(data.odometerMiles * MILES_TO_KM) },
+    ],
+  };
 }
 
 // The simulated fleet for /rollout and /admin, rebuilt on the same minute as the demo car.
