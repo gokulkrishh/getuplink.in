@@ -7,12 +7,13 @@ import {
   generationLabel,
   hardwareLabel,
   interiorLabel,
+  batteryChemistry,
   likelyLfp,
   modelName,
   motorLayout,
+  packLabel,
   modelYear,
   roofLabel,
-  trimLabel,
   tyrePressureLabel,
   wheelsLabel,
 } from "@/lib/car";
@@ -44,8 +45,9 @@ export type CarDetails = {
   rearSeatHeaters: boolean | null;
   airSuspension: boolean | null;
   exteriorTrim: string | null;
-  // Battery & drive. Chemistry is a guess (see likelyLfp), so it's only ever "LFP" or unknown.
+  // Battery & drive. Chemistry is a guess (see batteryChemistry); null when it can't be told.
   pack: string | null;
+  chemistry: "LFP" | "NMC" | null;
   likelyLfp: boolean;
   motor: string | null;
   rearDriveUnit: string | null;
@@ -145,7 +147,8 @@ function details(
     rearSeatHeaters: config.rear_seat_heaters === undefined ? null : config.rear_seat_heaters > 0,
     airSuspension: config.has_air_suspension ?? null,
     exteriorTrim: colorName(config.exterior_trim),
-    pack: trimLabel(config.trim_badging),
+    pack: packLabel(config.trim_badging, model),
+    chemistry: batteryChemistry(vin, config.default_charge_to_max),
     likelyLfp: likelyLfp(vin, config.default_charge_to_max),
     motor: motorLayout(config.rear_drive_unit, config.front_drive_unit, config.trim_badging),
     rearDriveUnit: config.rear_drive_unit ?? null,

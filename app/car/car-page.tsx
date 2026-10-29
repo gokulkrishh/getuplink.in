@@ -302,7 +302,7 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
     ["Battery", car.pack],
     [
       "Chemistry",
-      car.likelyLfp && "LFP",
+      car.chemistry,
     ],
     [
       "Motor",
@@ -321,7 +321,7 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
     ["Wheels", car.wheels],
     ["Roof", car.roof],
     ["Interior", car.interior],
-    ["Exterior trim", car.exteriorTrim],
+    ["Window trim", car.exteriorTrim],
     ["Driver assistance", car.hardware],
     ["Charge port", car.chargePort],
     ["Steering", car.steering],
@@ -579,7 +579,7 @@ function CarSkeleton() {
             ["Wheels", "19″ Crossflow · aero covers"],
             ["Roof", "Glass"],
             ["Interior", "Black"],
-            ["Exterior trim", "Black"],
+            ["Window trim", "Black"],
             ["Driver assistance", "Hardware 4"],
             ["Charge port", "CCS · motorised door"],
             ["Steering", "Right-hand drive"],

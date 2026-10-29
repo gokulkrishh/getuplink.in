@@ -18,11 +18,12 @@ export function modelName(
 ): string | null {
   const type = carType?.toLowerCase() ?? "";
   const name = MODELS.find(([prefix]) => type.startsWith(prefix))?.[1] ?? null;
-  const thirdRow = !!thirdRowSeats && thirdRowSeats !== "None";
-  return name === "Model Y" && thirdRow && (modelYear(vin) ?? 0) >= 2025 ? "Model Y L" : name;
+  // Only the known third-row value: Tesla sends placeholders like "<invalid>" for some settings.
+  return name === "Model Y" && thirdRowSeats === "FlatFold" && (modelYear(vin) ?? 0) >= 2025 ? "Model Y L" : name;
 }
 
-// Paint codes whose name in the Tesla app isn't the code itself.
+// Paint codes whose name in the Tesla app isn't the code itself. SilkroadSilver: a Model Y L owner's Tesla
+// app names it Cosmic Silver (Oct 2026).
 const PAINTS: Record<string, string> = { SilkroadSilver: "Cosmic Silver" };
 
 // "MidnightSilver" -> "Midnight Silver"
@@ -87,6 +88,11 @@ export function trimLabel(trim: string | null | undefined): string | null {
   return (trim && TRIMS[trim.toLowerCase()]) || null;
 }
 
+// The Battery row: the pack's name, except on the Model Y L, which Tesla sells as one car, not by pack.
+export function packLabel(trim: string | null | undefined, model: string | null | undefined): string | null {
+  return model === "Model Y L" ? null : trimLabel(trim);
+}
+
 // The codes the labels above know exactly. A new variant (a Model Y L, a new pack) can still match a model
 // prefix, or hide its pack row, so /admin lists any car reporting a code outside these to add it here.
 const KNOWN_CAR_TYPES = new Set(MODELS.map(([code]) => code));
@@ -98,9 +104,15 @@ export function unknownCodes(config: { car_type?: string | null; trim_badging?: 
 }
 
 // Tesla doesn't report the cell chemistry. Shanghai-built cars that default to charging to 100% carry
-// LFP packs (LFP is fine kept full; nickel packs default lower), so that pair is a fair guess.
+// LFP packs (LFP is fine kept full); the ones that don't carry nickel (NMC) packs, which default lower.
+// Unknown for other factories or without the setting.
+export function batteryChemistry(vin: string | null | undefined, defaultChargeToMax: boolean | null | undefined): "LFP" | "NMC" | null {
+  if (!vin || vin.charAt(10).toUpperCase() !== "C" || typeof defaultChargeToMax !== "boolean") return null;
+  return defaultChargeToMax ? "LFP" : "NMC";
+}
+
 export function likelyLfp(vin: string | null | undefined, defaultChargeToMax: boolean | null | undefined): boolean {
-  return !!vin && vin.charAt(10).toUpperCase() === "C" && defaultChargeToMax === true;
+  return batteryChemistry(vin, defaultChargeToMax) === "LFP";
 }
 
 // From the drive units the car reports; null when it reports none. Some all-wheel-drive cars name only the

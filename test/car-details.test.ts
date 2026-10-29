@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { colorName, likelyLfp, modelName, motorLayout, trimLabel, tyrePressureLabel, unknownCodes, wheelsLabel } from "@/lib/car";
+import { batteryChemistry, colorName, likelyLfp, modelName, motorLayout, packLabel, trimLabel, tyrePressureLabel, unknownCodes, wheelsLabel } from "@/lib/car";
 
 describe("trimLabel", () => {
   test("maps the known pack badges", () => {
@@ -25,6 +25,27 @@ describe("likelyLfp", () => {
   });
 });
 
+describe("batteryChemistry", () => {
+  test("Shanghai-built: LFP when it charges to 100% by default, NMC when it doesn't", () => {
+    expect(batteryChemistry("LRWYGCEK3TC100001", true)).toBe("LFP");
+    // A Model Y L reports default_charge_to_max false.
+    expect(batteryChemistry("LRWYGCEK3TC100001", false)).toBe("NMC");
+  });
+  test("unknown without the setting, or for cars from other factories", () => {
+    expect(batteryChemistry("LRWYGCEK3TC100001", undefined)).toBeNull();
+    expect(batteryChemistry("7SAYGDEE1TF100001", false)).toBeNull();
+    expect(batteryChemistry(null, true)).toBeNull();
+  });
+});
+
+describe("packLabel", () => {
+  test("the pack's name, except on the Model Y L, which Tesla doesn't sell by pack", () => {
+    expect(packLabel("74d", "Model Y")).toBe("Long Range");
+    expect(packLabel("50", "Model Y")).toBe("Standard Range");
+    expect(packLabel("74d", "Model Y L")).toBeNull();
+  });
+});
+
 describe("motorLayout", () => {
   test("rear only, both, neither", () => {
     expect(motorLayout("PM216MOSFET", undefined)).toBe("Single rear motor");
@@ -39,7 +60,7 @@ describe("motorLayout", () => {
 });
 
 const NEW_VIN = "LRWYGCEK3TC100001"; // model year 2026
-const OLD_VIN = "5YJYGDEE1MF100001"; // model year 2021
+const OLD_VIN = "5YJYGDEE1RF100001"; // model year 2024
 
 describe("modelName", () => {
   test("Tesla's car_type as a name", () => {
@@ -54,6 +75,8 @@ describe("modelName", () => {
     expect(modelName("modely", { thirdRowSeats: "None", vin: NEW_VIN })).toBe("Model Y");
     expect(modelName("modely", { thirdRowSeats: "FlatFold", vin: OLD_VIN })).toBe("Model Y");
     expect(modelName("modely", { thirdRowSeats: "FlatFold", vin: null })).toBe("Model Y");
+    // A placeholder Tesla sends instead of a seat layout isn't a third row.
+    expect(modelName("modely", { thirdRowSeats: "<invalid>", vin: NEW_VIN })).toBe("Model Y");
   });
 });
 
