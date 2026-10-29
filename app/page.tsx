@@ -207,8 +207,9 @@ async function HomeContent() {
             <div key={car.vehicle.id} className="space-y-6">
               <CarNotices notices={car.notices} />
               {car.vehicle.id === primaryId && <TyreNotice odometerKm={home.figures.odometerKm} />}
-              {car.vehicle.id === primaryId && car.lastOnline?.charging_state !== "Charging" ? (
-                // Until the week's read says when it parked, a faint line holds the parked line's place.
+              {car.vehicle.id === primaryId && car.lastOnline?.charging_state !== "Charging" && home.lastReadingAt !== null ? (
+                // Until the week's read says when it parked, a faint line holds the parked line's place. A car that
+                // never sent data has no parked line coming, so it doesn't wait and keeps no empty row.
                 <Suspense fallback={<NowStrip car={car} odometerKm={home.figures.odometerKm} parkedNow="pending" now={now} />}>
                   <PrimaryStrip car={car} odometerKm={home.figures.odometerKm} now={now} week={week} />
                 </Suspense>

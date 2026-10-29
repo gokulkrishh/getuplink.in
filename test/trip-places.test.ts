@@ -90,20 +90,25 @@ afterAll(() => {
   globalThis.fetch = realFetch;
 });
 
+// How many time windows one recorded request asked for (one and(...) each in its or=).
+const windowsIn = (c: { filters: string[] }) => c.filters.join(" ").split("and(").length - 1;
+
 describe("loadTripPlaces", () => {
-  test("names 30 trips as before, from one read of their readings", async () => {
+  test("names 30 trips as before, from a few reads of just their edges", async () => {
     const { routes } = await loadTripPlaces(owner, VIN, drives);
     const want = Object.fromEntries([...recent, old].map((t) => [t.start, `${short(t.from)} to ${short(t.to)}`]));
     expect(routes).toEqual(want);
-    // One paged read of the readings and one of the archive, not two of each a trip.
+    // A few reads of at most 10 windows each, so no request URL gets long, and one of the archive: not two
+    // of each a trip.
     const reads = fake.calls.filter((c) => c.table === "user_telemetry_readings");
     const archive = fake.calls.filter((c) => c.table === "user_drive_archive");
-    expect(reads.length).toBe(1);
+    expect(reads.length).toBeLessThanOrEqual(6);
+    expect(Math.max(...reads.map(windowsIn))).toBeLessThanOrEqual(10);
     expect(archive.length).toBe(1);
     expect(fetched).toEqual([]);
     // Only each trip's edges come back: the three fixes up to its start and the one after it parks, not the
     // drive between or the 100 days around them. The archive sends the old trip's drive only.
-    expect(reads[0].rows).toBe(4 * recent.length);
+    expect(reads.reduce((n, c) => n + (c.rows ?? 0), 0)).toBe(4 * recent.length);
     expect(archive[0].rows).toBe(1);
   });
 
@@ -124,7 +129,9 @@ describe("loadTripPlaces", () => {
     expect(fake.tables.telemetry_readings.length).toBeGreaterThan(20_000);
     const { routes } = await loadTripPlaces(owner, VIN, long.map((t) => drive(t.start, t.end)));
     expect(routes).toEqual(Object.fromEntries(long.map((t) => [t.start, `${short(t.from)} to ${short(t.to)}`])));
-    expect(fake.calls.filter((c) => c.table === "user_telemetry_readings").length).toBe(1);
+    const reads = fake.calls.filter((c) => c.table === "user_telemetry_readings");
+    expect(reads.length).toBeLessThanOrEqual(6);
+    expect(Math.max(...reads.map(windowsIn))).toBeLessThanOrEqual(10);
   });
 
   test("a spot with no name kept yet leaves its trips unnamed, and is handed back to look up later", async () => {
