@@ -19,7 +19,6 @@ import { periodFrames } from "@/lib/frames";
 import { hasNoHistory } from "@/lib/dashboard-summary";
 import { daysLabel } from "@/lib/periods";
 import { istDay, istDayStart } from "@/lib/telemetry-derive";
-import { AiNotesSkeleton } from "@/components/home/week-tips";
 import { loadTipsBox } from "@/components/tips-box";
 import { batteryFindings } from "@/lib/battery-tips";
 import { averagePrice, pricedCharges } from "@/lib/charge-tips";
@@ -299,7 +298,6 @@ function TotalsSkeleton() {
           <p className="text-sm"><span className={line}>Here&apos;s your car&apos;s last 7 days, 21 Oct to 27 Oct.</span></p>
         </div>
         <div className="h-[391px] border bg-muted/40 motion-safe:animate-pulse sm:h-[174px]" />
-        <AiNotesSkeleton />
       </div>
       {/* The charge level chart below, its heading and a block of its usual height. */}
       <SkSection>

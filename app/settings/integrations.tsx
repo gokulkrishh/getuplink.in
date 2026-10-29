@@ -228,7 +228,7 @@ export function BotTemplate() {
       }
     >
       <div className="mt-4 space-y-3">
-        <p className="text-sm text-muted-foreground">It reads your Gmail for charging invoices every 6 hours, and any invoice you send it in chat. It never replies to or sends mail.</p>
+        <p className="text-sm text-muted-foreground">It reads your Gmail for charging invoices every 6 hours, and any invoice you send it in chat. It never replies to or sends mail. Like any connector, it can also read your car data in Uplink.</p>
         <p className="text-sm text-muted-foreground">
           {BOT_TEMPLATE_URL && "In Grok Bot, choose Add to Grok, then add a connector above and paste its token. "}
           For any other bot, paste the manual instructions.
