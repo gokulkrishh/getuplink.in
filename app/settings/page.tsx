@@ -34,7 +34,10 @@ function Advanced({ children }: { children: React.ReactNode }) {
   return (
     <details className="group mt-10">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 pb-2 [&::-webkit-details-marker]:hidden">
-        <h2 className="text-lg font-medium tracking-heading">Advanced</h2>
+        <div className="min-w-0">
+          <h2 className="text-lg font-medium tracking-heading">Advanced</h2>
+          <p className="text-sm text-muted-foreground">Connect Claude, ChatGPT or Grok to your car&apos;s data.</p>
+        </div>
         <FoldToggle />
       </summary>
       <div className="divide-y border-t">{children}</div>
@@ -128,6 +131,7 @@ async function Settings() {
               <>
                 <p>{connectedDescription}</p>
                 <p className="text-faint">Disconnecting stops Uplink reading your car. Your history stays.</p>
+                <p className="text-faint">To remove Uplink&apos;s key, open Controls, then Locks in your car.</p>
               </>
             }
           />
@@ -221,11 +225,14 @@ function SettingsSkeleton() {
             description={<p>{text("Adds your car to the totals on Owners. Turning it off deletes your figures, and your car leaves the totals at 3:30 AM.")}</p>}
             control={<div className="h-6 w-11 rounded-full bg-muted motion-safe:animate-pulse" aria-hidden="true" />}
           />,
-          <Row key="data" title={<Ph>Delete my data</Ph>} description={<p>{text("Deletes everything Uplink holds about your cars and disconnects Tesla.")}</p>} control={button} />,
-          <Row key="acct" title={<Ph>Delete account</Ph>} description={<p>{text("Deletes all your data and your Uplink account.")}</p>} control={button} />,
+          <Row key="data" title={<Ph>Delete my data</Ph>} description={<p>{text("Removes your car data and disconnects Tesla. You can sign in again.")}</p>} control={button} />,
+          <Row key="acct" title={<Ph>Delete account</Ph>} description={<p>{text("Removes everything, including your Uplink account.")}</p>} control={button} />,
         )}
         <div className="mt-10 flex items-center justify-between gap-4">
-          <p className="text-lg"><Ph>Advanced</Ph></p>
+          <div>
+            <p className="text-lg"><Ph>Advanced</Ph></p>
+            <p className="text-sm"><Ph>Connect Claude, ChatGPT or Grok to your car&apos;s data.</Ph></p>
+          </div>
           <p className="text-sm"><Ph>Show</Ph></p>
         </div>
     </Loading>

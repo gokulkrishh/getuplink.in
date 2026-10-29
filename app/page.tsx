@@ -6,6 +6,7 @@ import { Header } from "@/components/header";
 import { SkBlock, SkHead, SkSection } from "@/components/skeleton";
 import { Headline } from "@/components/home/headline";
 import { NowStrip } from "@/components/home/now-strip";
+import { Recently } from "@/components/home/recently";
 import { ChargeLevelChart } from "@/components/stats/charge-level";
 import { CarNotices, CheckedFooter, OwnerNotices } from "@/components/owner-notices";
 import { eachFrame } from "@/components/home/frames";
@@ -23,6 +24,7 @@ import { batteryFindings } from "@/lib/battery-tips";
 import { averagePrice, pricedCharges } from "@/lib/charge-tips";
 import { WEEK_TIPS, weekFindings } from "@/lib/week-wording";
 import { newestTime } from "@/lib/last-synced";
+import { recentlyLines } from "@/lib/recently";
 import { rotationDueAt, rotationNotice, tyreRotation } from "@/lib/tyre-rotation";
 import { RotationNotice } from "@/components/home/rotation-notice";
 import type { DemoScenario } from "@/lib/demo";
@@ -141,6 +143,7 @@ async function HomeContent() {
                 parkedNow={car.vehicle.id === primaryId ? home.window.driving.parkedNow : null}
                 now={now}
               />
+              {car.vehicle.id === primaryId && <Recently items={recentlyLines(home.window.driving.drives, home.streamSessions, now, car.vehicle.vin ?? "")} />}
             </div>
           ))}
           <PeriodScope>

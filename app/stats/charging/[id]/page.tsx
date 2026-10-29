@@ -9,6 +9,7 @@ import { CHARGE_TIPS, chargeFindings, type PricedCharge } from "@/lib/charge-tip
 import { loadPricedCharges } from "@/lib/server/charge-tips";
 import { loadPrimaryVehicle } from "@/lib/server/telemetry";
 import { Header } from "@/components/header";
+import { BackLink } from "@/components/stats/back-link";
 import { rate, streamName } from "@/components/session-row";
 import { chargeType, googleMapsUrl, nameAction } from "@/lib/charge-names";
 import { GoogleMapsCredit } from "@/components/google-maps-credit";
@@ -185,6 +186,7 @@ export default function Page({ params }: PageProps<"/stats/charging/[id]">) {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
       <Header current="stats" />
+      <BackLink list="/stats/charging" label="Back to Charging" />
       <Suspense fallback={<ChargeSkeleton />}>
         <ChargeLoader params={params} />
       </Suspense>

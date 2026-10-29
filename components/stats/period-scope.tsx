@@ -2,10 +2,11 @@
 
 import { useTopLoading } from "@/components/top-loader";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createContext, useContext, useState, useTransition, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useOptimistic, useState, useTransition, type ReactNode } from "react";
 import { dayIso, isoDay } from "@/lib/periods";
 import { cn } from "@/lib/utils";
 import { type CustomScope, type DateRange, defaultPeriod, type HomePeriod, PAGE_PERIODS, parsePeriod, type PeriodSet, urlRange } from "./periods";
+import { LIST_KEY, REMEMBERED_LISTS } from "./list-memory";
 import { PeriodSwitch } from "./period-switch";
 
 export type { CustomScope, DateRange };
@@ -62,9 +63,22 @@ export function PeriodScope({ periods = PAGE_PERIODS.home, custom, children }: {
   const [pending, startTransition] = useTransition();
   // Picking dates loads the range from the server: the bar across the top shows it.
   useTopLoading(pending);
+  // Tapping Custom with no range drawn yet loads the last 30 days; until they arrive the switch and the
+  // dates already show it, from this.
+  const [asked, setAsked] = useOptimistic<DateRange | null>(null);
   const raw = params.get("period");
-  const period: HomePeriod = custom && raw === "custom" ? "custom" : parsePeriod(raw ?? undefined, periods);
-  const range = custom ? (urlRange(params.get("from"), params.get("to")) ?? custom.range) : null;
+  const asking = asked !== null;
+  const period: HomePeriod = custom && (raw === "custom" || asking) ? "custom" : parsePeriod(raw ?? undefined, periods);
+  const range = custom ? ((asking ? asked : null) ?? urlRange(params.get("from"), params.get("to")) ?? custom.range) : null;
+  const search = params.toString();
+  // The trips and charges lists remember their period, so the page of one links back to it.
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (!REMEMBERED_LISTS.includes(path)) return;
+    try {
+      sessionStorage.setItem(LIST_KEY + path, search ? `?${search}` : "");
+    } catch {}
+  }, [search]);
 
   const withRange = (url: URL, next: DateRange) => {
     url.searchParams.set("period", "custom");
@@ -74,7 +88,10 @@ export function PeriodScope({ periods = PAGE_PERIODS.home, custom, children }: {
   };
   const pick = (next: DateRange) => {
     const url = withRange(new URL(window.location.href), next);
-    startTransition(() => router.replace(`${url.pathname}${url.search}`, { scroll: false }));
+    startTransition(() => {
+      setAsked(next);
+      router.replace(`${url.pathname}${url.search}`, { scroll: false });
+    });
   };
   const select = (next: HomePeriod) => {
     if (next === "custom") {

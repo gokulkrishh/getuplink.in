@@ -223,8 +223,33 @@ function SkMap({ legend }: { legend: string }) {
 function SkSessions() {
   return (
     <div aria-hidden="true">
-    <div className="overflow-hidden max-sm:-mx-1 max-sm:px-1 sm:-mx-3 sm:px-3">
-      <div className="max-sm:min-w-xl">
+    <div className="space-y-2 sm:hidden">
+      <p className="text-sm font-medium">
+        <Ph>October 2026</Ph>
+      </p>
+      <ul className="divide-y border-t">
+        {Array.from({ length: CHARGING_PREVIEW }, (_, k) => (
+          <li key={k} className="py-3 text-sm">
+            <p className="flex items-baseline justify-between gap-3">
+              <span className="font-medium">
+                <Ph>Home charger</Ph>
+              </span>
+              <span className="text-xs">
+                <Ph>27 Oct, 4:08 PM</Ph>
+              </span>
+            </p>
+            <p className="mt-1 text-xs">
+              <Ph>9.2 kWh · ₹120.00 · AC · 60% to 80% · 2 h</Ph>
+            </p>
+          </li>
+        ))}
+      </ul>
+      <p className="pt-1 text-right text-xs">
+        <Ph>9 charges, ₹417.84 billed</Ph>
+      </p>
+    </div>
+    <div className="overflow-hidden max-sm:hidden sm:-mx-3 sm:px-3">
+      <div>
         <div className="space-y-2">
           <p className="text-sm font-medium">
             <Ph>October 2026</Ph>

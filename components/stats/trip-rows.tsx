@@ -76,7 +76,7 @@ function TripListRow({ row }: { row: TripRow }) {
     <li className="group/row relative flex items-center gap-3 py-3 text-sm tabular-nums transition-colors duration-150 hover:bg-muted focus-within:bg-muted active:bg-muted">
       <div className="min-w-0 flex-1">
         <p className="flex items-baseline justify-between gap-3">
-          <span className="min-w-0 truncate font-medium">
+          <span className="min-w-0 font-medium">
             <span className="mr-2 font-mono text-xs font-normal text-faint">{row.serial}</span>
             <Link href={`/stats/driving/${row.start}`} className={ROW_LINK}>
               {row.route ?? row.times}
@@ -86,7 +86,7 @@ function TripListRow({ row }: { row: TripRow }) {
             <Measure text={row.km} />
           </span>
         </p>
-        <p className="mt-1 truncate text-xs text-muted-foreground">{second.join(" · ")}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{second.join(" · ")}</p>
       </div>
       <RowChevron />
     </li>

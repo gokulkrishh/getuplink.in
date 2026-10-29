@@ -83,12 +83,12 @@ export function ShareSwitch({ on: initial }: { on: boolean }) {
         aria-label="Share with other owners"
         disabled={pending}
         onClick={() => change(!on, () => setOn(!on))}
-        className={cn(
-          "tap-target relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-wait disabled:opacity-60",
-          on ? "border-foreground bg-foreground" : "bg-muted",
-        )}
+        className="inline-flex min-h-11 cursor-pointer items-center gap-3 rounded-lg focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-wait disabled:opacity-60"
       >
-        <span className={cn("inline-block size-4 rounded-full bg-background shadow-sm transition-transform duration-150 motion-reduce:transition-none", on ? "translate-x-6" : "translate-x-1")} />
+        <span className="w-6 text-right text-sm">{on ? "On" : "Off"}</span>
+        <span className={cn("relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors duration-150", on ? "border-foreground bg-foreground" : "bg-muted")}>
+          <span className={cn("inline-block size-4 rounded-full bg-background shadow-sm transition-transform duration-150 motion-reduce:transition-none", on ? "translate-x-6" : "translate-x-1")} />
+        </span>
       </button>
       {error && (
         <p role="alert" className="text-sm text-destructive">

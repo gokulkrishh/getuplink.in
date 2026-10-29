@@ -15,9 +15,9 @@ import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { cn } from "@/lib/utils";
 import { type Spark, Sparkline } from "./sparkline";
 
-// The change carries its sign in the text ("+22 km", "−3 kWh"), never an arrow. It is coloured by meaning,
-// not direction; a change that is neither (more driving, more charging, or the same) stays muted. Screen
-// readers hear better or worse in the sentence instead.
+// The change says its direction in words ("22 km more", "3 kWh less"), never a sign or an arrow, so colour
+// is never the only signal. It is coloured only where up or down is clearly good or bad (spending); more
+// driving, more charging or the same stays muted. Screen readers hear the whole sentence instead.
 const TONES: Record<Change["tone"], string> = { better: "text-chart-better", worse: "text-chart-worse", neutral: "text-muted-foreground" };
 
 // Every cell has the same rows, the delta's two lines kept (blank) when there's no comparison, so the
@@ -72,9 +72,10 @@ function Cell({
       <div className="text-xs leading-5">
         {change && !empty ? (
           <>
-            <p aria-hidden="true" className="truncate tabular-nums">
+            {/* Wraps rather than cut: the word "more" or "less" is the direction, so it must always show. */}
+            <p aria-hidden="true" className="tabular-nums">
               <span className={TONES[change.tone]}>
-                {change.direction === "same" ? "Same" : `${change.direction === "up" ? "+" : "−"}${change.amount}`}
+                {change.direction === "same" ? "Same" : `${change.amount} ${change.direction === "up" ? "more" : "less"}`}
               </span>
             </p>
             <p aria-hidden="true" title={`vs ${span}`} className="truncate text-faint">

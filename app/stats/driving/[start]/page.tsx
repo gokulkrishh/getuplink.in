@@ -10,6 +10,7 @@ import { notFound, redirect } from "next/navigation";
 import { after } from "next/server";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
+import { BackLink } from "@/components/stats/back-link";
 import { ChartCard } from "@/components/chart-card";
 import { ClimateTrace } from "@/components/stats/climate-trace";
 import { DriveTrace, type Side } from "@/components/stats/drive-lanes";
@@ -380,6 +381,7 @@ export default function Page({ params, searchParams }: PageProps<"/stats/driving
   return (
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
       <Header current="stats" />
+      <BackLink list="/stats/driving" label="Back to Trips" />
       <Suspense fallback={<DriveSkeleton />}>
         <DriveLoader params={params} searchParams={searchParams} />
       </Suspense>

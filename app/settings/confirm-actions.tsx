@@ -61,7 +61,7 @@ export function DisconnectTesla({ description }: { description: React.ReactNode 
           <p className="font-medium">Disconnect your Tesla account?</p>
           <p className="text-muted-foreground">
             Uplink stops reading your car and signs you out everywhere. Your history stays. To reconnect, sign in with
-            Tesla again. To remove the key, open Locks in your car&apos;s settings.
+            Tesla again. To remove Uplink&apos;s key, open Controls, then Locks in your car.
           </p>
           {error && (
             <p role="alert" className="text-sm text-destructive">
@@ -92,6 +92,7 @@ function ConfirmDelete({
   consequence,
   word,
   submit,
+  strong,
   deleteAction,
 }: {
   id: string;
@@ -101,6 +102,8 @@ function ConfirmDelete({
   consequence: React.ReactNode;
   word: string;
   submit: string;
+  // Only the one that removes the account is the full red button; the other asks calmly.
+  strong: boolean;
   deleteAction: DeleteAction;
 }) {
   const [asking, setAsking] = useState(false);
@@ -115,7 +118,13 @@ function ConfirmDelete({
       description={description}
       control={
         !asking ? (
-          <Button ref={trigger} type="button" variant="destructive" size="lg" onClick={() => setAsking(true)}>
+          <Button
+            ref={trigger}
+            type="button"
+            variant={strong ? "destructive" : "outline"}
+            size="lg"
+            className={strong ? undefined : "border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive"}
+            onClick={() => setAsking(true)}>
             {submit}
           </Button>
         ) : null
@@ -152,17 +161,18 @@ export function DeleteMyData() {
     <ConfirmDelete
       id="delete"
       title="Delete my data"
-      description="Deletes everything Uplink holds about your cars and disconnects Tesla."
+      description="Removes your car data and disconnects Tesla. You can sign in again."
       question="Delete all your data?"
       consequence={
         <>
           Your cars, history, invoices, places and check logs are deleted, Tesla is disconnected and you are signed out
           everywhere. This can&apos;t be undone. Your Uplink account stays, so you can sign in with Tesla again. Afterwards,
-          remove Uplink&apos;s key in your car&apos;s Locks settings.
+          remove Uplink&apos;s key: open Controls, then Locks in your car.
         </>
       }
       word="delete"
       submit="Delete my data"
+      strong={false}
       deleteAction={deleteEverything}
     />
   );
@@ -173,16 +183,17 @@ export function DeleteAccount() {
     <ConfirmDelete
       id="delete-account"
       title="Delete account"
-      description="Deletes all your data and your Uplink account."
+      description="Removes everything, including your Uplink account."
       question="Delete your Uplink account?"
       consequence={
         <>
           This deletes all your data and your Uplink account. It can&apos;t be undone. Uplink is invite-only, so you would
-          need a new invite to come back. Afterwards, remove Uplink&apos;s key in your car&apos;s Locks settings.
+          need a new invite to come back. Afterwards, remove Uplink&apos;s key: open Controls, then Locks in your car.
         </>
       }
       word="delete account"
       submit="Delete account"
+      strong
       deleteAction={deleteWholeAccount}
     />
   );
