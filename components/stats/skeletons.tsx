@@ -58,7 +58,7 @@ export function DrivingSkeleton() {
         </div>
       </SkSection>
       <SkSection gap={6}>
-        <SkHead title="Trips" description="11 trips · 11 drives" />
+        <SkHead title="Trips" description="11 trips · 11 drives" note="Open a trip to see its map, speed and battery use." />
         <SkTripRows />
         <SkShowMore />
       </SkSection>
@@ -115,7 +115,7 @@ export function ChargingSkeleton() {
         <SkLine>AC charging efficiency 92%</SkLine>
       </SkSection>
       <SkSection gap={6}>
-        <SkHead title="Charging sessions" description="9 sessions · 39.8 kWh" />
+        <SkHead title="Charging sessions" description="9 sessions · 39.8 kWh" note="Open a session to see where, how much and what it cost." />
         <SkSessions />
       </SkSection>
       <SkSection gap={3}>

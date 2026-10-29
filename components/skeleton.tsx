@@ -30,8 +30,8 @@ export function Loading({ className, children }: { className?: string; children:
 }
 
 // A section's title and the one line under it (ChartCard's and the sections' own heading block). `gap`
-// is the space between them: 1 for a chart card, 2 for Places.
-export function SkHead({ title, description, gap = 1, level = "h2" }: { title: string; description?: string; gap?: 1 | 2; level?: "h2" | "h3" }) {
+// is the space between them: 1 for a chart card, 2 for Places. `note`: a second line (Trips' "Open a trip…").
+export function SkHead({ title, description, note, gap = 1, level = "h2" }: { title: string; description?: string; note?: string; gap?: 1 | 2; level?: "h2" | "h3" }) {
   return (
     <div className={gap === 1 ? "space-y-1" : "space-y-2"}>
       <p className={cn("font-medium tracking-heading", level === "h2" ? "text-lg" : "text-base")}>
@@ -40,6 +40,11 @@ export function SkHead({ title, description, gap = 1, level = "h2" }: { title: s
       {description && (
         <p className="text-sm">
           <Ph>{description}</Ph>
+        </p>
+      )}
+      {note && (
+        <p className="text-sm">
+          <Ph>{note}</Ph>
         </p>
       )}
     </div>

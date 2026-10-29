@@ -59,7 +59,8 @@ for (const phone of [false, true]) {
   await p.getByText("No change yet. Try again in a few minutes.").waitFor({ timeout: 15000 }).then(() => check(`${tag} /setup Check again feedback`, true), () => check(`${tag} /setup Check again feedback`, false));
 
   t = await go("/setup?step=done");
-  check(`${tag} /setup done copy`, t.includes("Your car is sending live data.") && t.includes("Go to your dashboard"));
+  check(`${tag} /setup done copy`, t.includes("Your car is set up") && t.includes("Go to your dashboard"));
+  check(`${tag} /setup done: no Connect button, ticks shown`, (await p.getByRole("link", { name: "Connect your car" }).count()) === 0 && t.includes("Live"));
 
   t = await go("/");
   check(`${tag} / About km (no ≈)`, t.includes("About ") && !t.includes("≈"));

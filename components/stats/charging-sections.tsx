@@ -233,6 +233,7 @@ export function SessionList({ sessions, more }: { sessions: Listed[]; more: Load
           {sessions.length} {sessions.length === 1 ? "session" : "sessions"}
           {energyTotal > 0 && ` · ${formatKwh(energyTotal)}`}
         </p>
+        <p className="text-sm text-muted-foreground">Open a session to see where, how much and what it cost.</p>
       </div>
       <SessionRows list={paged(rows, CHARGING_PREVIEW)} months={months} costs={costs} load={more} />
     </section>

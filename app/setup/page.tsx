@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CircleCheck } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -36,27 +37,48 @@ function demoView(done: boolean): SetupView {
 }
 
 // Only states worth saying: a step still to do needs no label.
-const STEP_WORDS: Partial<Record<StepState, string>> = { done: "Done", unknown: "Not known yet" };
+const STEP_WORDS: Partial<Record<StepState, string>> = { unknown: "Not known yet" };
 
-function StepBadge({ state }: { state: StepState }) {
+// A finished step: a green circled tick. Live data that's on gets a soft pulse instead, as it keeps
+// running. Reduced motion: the dot holds still.
+function StepBadge({ state, live = false }: { state: StepState; live?: boolean }) {
+  if (state === "done" && live) {
+    return (
+      <span className="inline-flex items-center gap-2 text-sm whitespace-nowrap text-positive">
+        <span aria-hidden className="relative flex size-2.5">
+          <span className="absolute inset-0 animate-ping rounded-full bg-positive opacity-60 motion-reduce:animate-none" />
+          <span className="relative size-2.5 rounded-full bg-positive" />
+        </span>
+        Live
+      </span>
+    );
+  }
+  if (state === "done") {
+    return (
+      <span className="text-positive">
+        <CircleCheck aria-hidden className="size-6" />
+        <span className="sr-only">Done</span>
+      </span>
+    );
+  }
   if (!STEP_WORDS[state]) return null;
   return (
-    <span className={cn("inline-flex items-center gap-1.5 text-xs whitespace-nowrap", state === "done" ? "text-foreground" : "text-muted-foreground")}>
-      <span aria-hidden className={cn("size-1.5 rounded-full", state === "done" ? "bg-positive" : "bg-faint")} />
+    <span className="inline-flex items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground">
+      <span aria-hidden className="size-1.5 rounded-full bg-faint" />
       {STEP_WORDS[state]}
     </span>
   );
 }
 
-function Step({ n, title, state, children }: { n: number; title: string; state: StepState; children: React.ReactNode }) {
+function Step({ n, title, state, live, children }: { n: number; title: string; state: StepState; live?: boolean; children: React.ReactNode }) {
   return (
     <li className="space-y-4 border-t py-6">
-      <div className="flex items-baseline justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <h2 className="text-lg font-medium tracking-heading">
           <span className="mr-1.5 text-muted-foreground tabular-nums">{n}.</span>
           {title}
         </h2>
-        <StepBadge state={state} />
+        <StepBadge state={state} live={live} />
       </div>
       {children}
     </li>
@@ -158,6 +180,19 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
       {cars.length === 0 && (
         <p className="mb-6 text-sm text-muted-foreground">Uplink is still finding your car on your Tesla account. Check again in a minute.</p>
       )}
+      {/* Both done: said first, in the open, with the way on. */}
+      {ready && (
+        <div role="status" className="mb-8 flex flex-wrap items-center gap-x-4 gap-y-3 border border-positive/40 bg-positive/5 p-4">
+          <CircleCheck aria-hidden className="size-6 shrink-0 text-positive" />
+          <div className="min-w-48 flex-1">
+            <p className="font-medium">Your car is set up</p>
+            <p className="text-sm text-muted-foreground">It sends live data whenever it&apos;s awake.</p>
+          </div>
+          <Link href="/" prefetch={true} className={cn(buttonVariants({ size: "lg" }), "max-sm:w-full")}>
+            Go to your dashboard
+          </Link>
+        </div>
+      )}
       <ol>
         <Step n={1} title="Add Uplink's key" state={key}>
           <p className="text-sm text-muted-foreground">
@@ -169,14 +204,14 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
               Connect your car
             </a>
           )}
-          {key !== "done" && <KeyGuide />}
+          <KeyGuide />
           {/* Tesla's app says "Request timed out" when the car is asleep or out of reach while the key is added. */}
           <p className="text-xs text-faint">
             {key !== "done" && "Request timed out? Wake the car and try again. "}Remove the key any time in the car&apos;s Controls, then Locks.
           </p>
           <CarList cars={cars} words={keyWords} />
         </Step>
-        <Step n={2} title="Turn on live data" state={streaming}>
+        <Step n={2} title="Turn on live data" state={streaming} live>
           <p className="text-sm text-muted-foreground">
             {streaming === "done"
               ? "Your car is sending live data."
@@ -204,16 +239,17 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
           <CarList cars={cars} words={(car) => streamingWords(car, canSend, view.needsLocation)} />
         </Step>
       </ol>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t pt-6">
-        {ready && <p className="w-full text-sm">Your car is set up. It sends live data whenever it&apos;s awake.</p>}
-        {!ready && <CheckAgain checkedAt={view.checkedAt} />}
-        {key === "done" && (
-          <Link href="/" prefetch={true} className={buttonVariants({ size: "lg" })}>
-            Go to your dashboard
-          </Link>
-        )}
-        {!ready && view.checkedAt && <p className="text-xs text-faint">Setup last checked {formatAgo(view.checkedAt, now)}</p>}
-      </div>
+      {!ready && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t pt-6">
+          <CheckAgain checkedAt={view.checkedAt} />
+          {key === "done" && (
+            <Link href="/" prefetch={true} className={buttonVariants({ size: "lg" })}>
+              Go to your dashboard
+            </Link>
+          )}
+          {view.checkedAt && <p className="text-xs text-faint">Setup last checked {formatAgo(view.checkedAt, now)}</p>}
+        </div>
+      )}
       {!ready && (
         <p className="mt-10 text-sm text-muted-foreground">
           Without live data, Uplink still checks your car every 12 hours for its software version, battery and charging.

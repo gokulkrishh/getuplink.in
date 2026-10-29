@@ -39,8 +39,8 @@ const STEPS = [
 
 const SHOWCASE = [
   {
-    title: "Your car's whole history",
-    body: "The Tesla app shows today. Uplink keeps the rest.",
+    title: "Your car's history, kept",
+    body: "The Tesla app shows today. Uplink keeps every day from when you sign in, and Supercharging back to your first charge.",
     points: ["How long each update waited", "Odometer at every update", "Supercharging spend in rupees"],
     mock: <HistoryMock />,
   },

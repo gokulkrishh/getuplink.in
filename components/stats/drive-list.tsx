@@ -43,6 +43,7 @@ export function DriveList({ drives, now, routes, more }: { drives: Drive[]; now:
         <p className="text-sm text-muted-foreground tabular-nums">
           {trips.length} {trips.length === 1 ? "trip" : "trips"} · {drives.length} {drives.length === 1 ? "drive" : "drives"}
         </p>
+        <p className="text-sm text-muted-foreground">Open a trip to see its map, speed and battery use.</p>
       </div>
       <TripRows list={paged(tripRows(trips, now, routes), LIST_PREVIEW)} load={more} />
     </section>
