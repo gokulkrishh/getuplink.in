@@ -19,6 +19,8 @@ export class FakeDb {
   missing = new Set<string>();
   // Tables whose new rows get the next id, like an identity column.
   autoIds = new Set<string>();
+  // Answers a query with an error, as supabase-js does when the connection drops, while this returns true.
+  failing: ((query: { table: string; op: string; patch: Row | null }) => boolean) | null = null;
 
   withId(table: string, row: Row): Row {
     if (!this.autoIds.has(table) || row.id !== undefined) return row;
@@ -196,6 +198,7 @@ class FakeQuery {
     this.db.calls.push({ table: this.table, op: this.op, filters: this.filters.map(([d]) => d) });
     // A table whose migration isn't applied: PostgREST's "not in the schema cache".
     if (this.db.missing.has(this.table)) return { data: null, error: { message: `Could not find the table '${this.table}'`, code: "PGRST205" } } as never;
+    if (this.db.failing?.({ table: this.table, op: this.op, patch: this.patch })) return { data: null, error: { message: "TypeError: fetch failed" } } as never;
     const all = this.db.rows(this.table);
     const hit = (r: Row) => this.filters.every(([, f]) => f(r));
     if (this.op === "insert") {

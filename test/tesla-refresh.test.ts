@@ -1,15 +1,23 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, jest, mock, test } from "bun:test";
 import type { Owner } from "@/lib/server/data/owner";
 import { FakeDb } from "./fake-db";
 
 // Tesla's token endpoint as the outage on 25 Oct 2026 suggests it behaves: a refresh token works once,
 // and presenting a spent one revokes everything issued from it, the pair just stored included.
+// A slow answer spends the token only when it answers; one given up on (aborted) spends nothing.
 const tesla = {
   requests: 0,
   valid: new Set<string>(),
   spent: new Set<string>(),
   access: new Set<string>(),
   next: 0,
+  // How long the next refresh takes to answer, once.
+  slowMs: 0,
+  // The next refresh spends its token and issues a pair, then the connection drops before the answer.
+  dropAfterSpend: false,
+  // Refresh requests open now per refresh token, and the most ever open at once for one token.
+  open: new Map<string, number>(),
+  maxOpen: 0,
   issue() {
     const n = ++this.next;
     this.valid.add(`r${n}`);
@@ -34,6 +42,25 @@ process.env.TESLA_REDIRECT_URI = "https://app.example/api/auth/callback";
 
 const idToken = (sub: string) => `x.${Buffer.from(JSON.stringify({ sub })).toString("base64url")}.y`;
 
+// Resolves after `ms`, or rejects as fetch does when the request is aborted first.
+const answerAfter = (ms: number, signal?: AbortSignal | null) =>
+  new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) return reject(signal.reason);
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener("abort", () => {
+      clearTimeout(timer);
+      reject(signal.reason);
+    });
+  });
+
+// Moves fake time on in 10 ms steps, letting every query and request due in each step run.
+async function elapse(ms: number) {
+  for (let t = 0; t < ms; t += 10) {
+    jest.advanceTimersByTime(10);
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+}
+
 const fakeFetch = (async (input: string | URL | Request, init?: RequestInit) => {
   const url = String(input);
   await new Promise((resolve) => setTimeout(resolve, 20));
@@ -43,17 +70,34 @@ const fakeFetch = (async (input: string | URL | Request, init?: RequestInit) => 
     // A sign-in: the code names the Tesla account signing in.
     if (body.get("grant_type") === "authorization_code") return Response.json({ ...tesla.issue(), id_token: idToken(body.get("code")!) });
     const token = body.get("refresh_token")!;
-    if (!tesla.valid.has(token)) {
-      // Reuse of a spent token: revoke the whole chain.
-      if (tesla.spent.has(token)) {
-        tesla.valid.clear();
-        tesla.access.clear();
+    const open = (tesla.open.get(token) ?? 0) + 1;
+    tesla.open.set(token, open);
+    tesla.maxOpen = Math.max(tesla.maxOpen, open);
+    try {
+      if (tesla.slowMs) {
+        const ms = tesla.slowMs;
+        tesla.slowMs = 0;
+        await answerAfter(ms, init?.signal);
       }
-      return new Response(JSON.stringify({ error: "login_required", error_description: "The refresh_token is invalid" }), { status: 401 });
+      if (!tesla.valid.has(token)) {
+        // Reuse of a spent token: revoke the whole chain.
+        if (tesla.spent.has(token)) {
+          tesla.valid.clear();
+          tesla.access.clear();
+        }
+        return new Response(JSON.stringify({ error: "login_required", error_description: "The refresh_token is invalid" }), { status: 401 });
+      }
+      tesla.valid.delete(token);
+      tesla.spent.add(token);
+      const pair = tesla.issue();
+      if (tesla.dropAfterSpend) {
+        tesla.dropAfterSpend = false;
+        throw new TypeError("fetch failed");
+      }
+      return Response.json(pair);
+    } finally {
+      tesla.open.set(token, tesla.open.get(token)! - 1);
     }
-    tesla.valid.delete(token);
-    tesla.spent.add(token);
-    return Response.json(tesla.issue());
   }
   const bearer = new Headers(init?.headers).get("Authorization")?.replace("Bearer ", "");
   if (url.endsWith("/api/1/users/region")) {
@@ -66,6 +110,8 @@ const fakeFetch = (async (input: string | URL | Request, init?: RequestInit) => 
 
 const { asOwner } = await import("@/lib/server/data/owner");
 const { fleetGet, NotConnectedError, signIn } = await import("@/lib/server/tesla");
+// A second copy of the module: another server instance, with its own in-memory refreshes.
+const otherInstance = (await import(`@/lib/server/tesla${"?instance=b"}`)) as typeof import("@/lib/server/tesla");
 const OWNER: Owner = asOwner(1, "owner");
 const OTHER: Owner = asOwner(2, "other");
 
@@ -84,7 +130,11 @@ function users() {
 // this file runs, and then a token request would go to Tesla.
 beforeEach(() => {
   globalThis.fetch = fakeFetch;
-  Object.assign(tesla, { requests: 0, valid: new Set(), spent: new Set(), access: new Set(), next: 0 });
+  Object.assign(tesla, { requests: 0, valid: new Set(), spent: new Set(), access: new Set(), next: 0, slowMs: 0, dropAfterSpend: false, open: new Map(), maxOpen: 0 });
+});
+
+afterEach(() => {
+  jest.useRealTimers();
 });
 
 const tokensOf = (userId: number) => fake.rows("user_tokens").filter((r) => r.user_id === userId);
@@ -139,6 +189,49 @@ describe("Tesla token refresh", () => {
     expect(tokensOf(1)[0].refresh_token_enc).toBe("enc:r3");
     expect(tokensOf(2)[0].refresh_token_enc).toBe("enc:r4");
     expect(tesla.valid).toEqual(new Set(["r3", "r4"]));
+  });
+
+  test("a token answer slower than the lease never overlaps another instance's refresh with the same token", async () => {
+    jest.useFakeTimers();
+    tesla.slowMs = 35_000;
+    const first = fleetGet<string>(OWNER, "/api/1/vehicles").catch((err: Error) => err);
+    // The 30 s lease has run out, so another instance takes the refresh over.
+    await elapse(31_000);
+    const second = otherInstance.fleetGet<string>(OWNER, "/api/1/vehicles").catch((err: Error) => err);
+    await elapse(10_000);
+    expect(tesla.maxOpen).toBe(1);
+    expect(await first).toBeInstanceOf(Error);
+    expect(await second).toBe("ok");
+    expect(row().refresh_token_enc).toBe("enc:r2");
+    expect(tesla.valid).toEqual(new Set(["r2"]));
+  });
+
+  test("a refresh lost after it reached Tesla keeps the lease, so no one sends the spent token meanwhile", async () => {
+    jest.useFakeTimers();
+    tesla.dropAfterSpend = true;
+    const first = fleetGet<string>(OWNER, "/api/1/vehicles").catch((err: Error) => err);
+    await elapse(1_000);
+    expect(await first).toBeInstanceOf(Error);
+    expect(Date.parse(row().refreshing_until as string)).toBeGreaterThan(Date.now());
+    const second = otherInstance.fleetGet<string>(OWNER, "/api/1/vehicles").catch((err: Error) => err);
+    await elapse(20_000);
+    expect(tesla.requests).toBe(1);
+    expect(tesla.valid).toEqual(new Set(["r2"]));
+    // Disconnecting ends the wait.
+    Object.assign(row(), { access_token_enc: null, refresh_token_enc: null, expires_at: null, refreshing_until: null });
+    await elapse(1_000);
+    expect(await second).toBeInstanceOf(otherInstance.NotConnectedError);
+  });
+
+  test("a save that fails once is tried again, and the owner stays signed in", async () => {
+    let failures = 1;
+    fake.failing = ({ table, op, patch }) => table === "user_tokens" && op === "update" && Boolean(patch?.refresh_token_enc) && failures-- > 0;
+    expect(await fleetGet<string>(OWNER, "/api/1/vehicles")).toBe("ok");
+    expect(row().refresh_token_enc).toBe("enc:r2");
+    // The next refresh spends r2, not the spent r1.
+    row().expires_at = soon();
+    expect(await fleetGet<string>(OWNER, "/api/1/vehicles")).toBe("ok");
+    expect(tesla.valid).toEqual(new Set(["r3"]));
   });
 
   test("a user with no token row isn't connected, and is never handed anyone else's", async () => {
