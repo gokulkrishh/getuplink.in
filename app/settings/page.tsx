@@ -5,6 +5,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
+import { buttonVariants } from "@/components/ui/button";
 import { ThemePicker } from "@/components/theme-picker";
 import { STATES } from "@/lib/india-states";
 import { formatAgo, formatDate, formatSeen, formatShortDate } from "@/lib/format";
@@ -136,15 +137,17 @@ async function Settings() {
             }
           />
         ) : (
-          <Row title="Tesla account" description="Not connected" />
+          <Row
+            title="Tesla account"
+            description="Not connected"
+            control={
+              <a href="/api/auth/connect" className={buttonVariants({ variant: "outline", size: "lg" })}>
+                Connect Tesla
+              </a>
+            }
+          />
         )}
-        <Row
-          title="Sign out everywhere"
-          description="Signs out every device, including this one."
-          control={
-            <SignOutEverywhere />
-          }
-        />
+        <SignOutEverywhere />
       </Group>
 
       <Group title="Your data">
@@ -272,7 +275,12 @@ function HomeState({ home }: { home: OwnHomeState }) {
       description={
         <>
           <p>For the India rollout map. Only the state is kept here.</p>
-          {home.askLocation && <p className="text-faint">Sign in again to let Uplink read your car&apos;s location.</p>}
+          {home.askLocation && <p className="text-faint">
+              <a href="/api/auth/connect" className="underline decoration-muted-foreground/60 underline-offset-4 hover:text-foreground hover:decoration-foreground">
+                Sign in again
+              </a>{" "}
+              to let Uplink read your car&apos;s location.
+            </p>}
         </>
       }
       control={

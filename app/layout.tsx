@@ -56,11 +56,18 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body className="flex min-h-full flex-col">
+        {/* First stop for the keyboard: hidden until focused, then fixed in the corner so nothing moves. */}
+        <a
+          href="#content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:bg-background focus:px-4 focus:py-2.5 focus:text-sm focus:font-medium focus:text-foreground"
+        >
+          Skip to content
+        </a>
         {/* Reads the address, so it waits behind Suspense and never holds up a page's static shell. */}
         <Suspense fallback={null}>
           <TopLoader />
         </Suspense>
-        <main className="flex w-full flex-1 flex-col">{children}</main>
+        <main id="content" tabIndex={-1} className="flex w-full flex-1 flex-col focus:outline-none">{children}</main>
         <RowLinks />
       </body>
     </html>
