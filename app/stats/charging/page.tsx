@@ -13,7 +13,7 @@ import { ChargeRange } from "@/components/stats/charge-range";
 import { ChargingMap, DcCurves } from "@/components/stats/charging-extras";
 import { moreCharges } from "./actions";
 import { CURVES, heldFrom, loadChargingExtras, PINNED } from "@/lib/server/charging-extra";
-import { type ChargingLists, listCharges, loadChargingLists, startedIn, withGoogleNames } from "@/lib/server/charging-lists";
+import { type ChargingLists, listCharges, loadChargingLists, startedIn } from "@/lib/server/charging-lists";
 import { EnergyAdded, PaidFor, SessionList, Summary } from "@/components/stats/charging-sections";
 import { eachFrame } from "@/components/home/frames";
 import { customScope } from "@/components/stats/periods";
@@ -62,14 +62,11 @@ async function loadCharging(query: CustomQuery | null): Promise<{
   const vin = car?.vin ?? null;
   const range = query && customRange("custom", query.from ?? undefined, query.to ?? undefined, now);
   const frame = range && rangeTimeframe(range, now);
-  const [{ sessions, streamSessions, invoices, extras }, figures, rangeDriving] = await Promise.all([
-    loadChargingLists(owner, vin, now),
+  const [{ sessions, streamSessions, invoices, extras, rangeExtras }, figures, rangeDriving] = await Promise.all([
+    loadChargingLists(owner, vin, now, frame?.span ?? null),
     loadDrivingFigures(owner, vin, now),
     frame ? loadRangeDriving(owner, "normal", vin, frame, now) : null,
   ]);
-  const rangeExtras = frame
-    ? await loadChargingExtras(owner, vin, streamSessions.filter(startedIn(frame.span)), { tesla: sessions, invoices, now }).then(withGoogleNames)
-    : null;
   const custom =
     range && frame && rangeExtras
       ? { range, frame, driving: rangeDriving, extras: rangeExtras, held: heldFrom(streamSessions.filter(startedIn(frame.span))) }

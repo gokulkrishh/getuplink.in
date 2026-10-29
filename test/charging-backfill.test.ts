@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import { standIn } from "./stand-in";
 import type { Owner } from "@/lib/server/data/owner";
 
 // Tesla's charging history for one car, served 50 a time, and the charging_sessions table, behind enough
@@ -64,7 +65,7 @@ class Query {
 mock.module("server-only", () => ({}));
 mock.module("@/lib/server/supabase", () => ({ db: () => ({ from: (table: string) => new Query(table) }) }));
 mock.module("@/lib/server/crypto", () => ({ encrypt: (s: string) => `enc:${s}`, decrypt: (s: string) => s.slice(4) }));
-mock.module("@/lib/server/receipts", () => ({ deleteAllInvoices: async () => {} }));
+await standIn("@/lib/server/receipts", { deleteAllInvoices: async () => {} });
 // The backfill pauses between pages; nothing here needs real time to pass.
 const realSetTimeout = globalThis.setTimeout;
 

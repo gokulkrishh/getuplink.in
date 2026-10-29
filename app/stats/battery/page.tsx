@@ -62,16 +62,20 @@ async function loadBattery(query: CustomQuery | null): Promise<{
   const car = await loadPrimaryVehicle(owner);
   const vin = car?.vin ?? null;
   const range = query && customRange("custom", query.from ?? undefined, query.to ?? undefined, now);
-  const [window, sessions] = await Promise.all([loadWindowStats(owner, vin, now), loadStreamSessions(owner)]);
-  const [extras, places, presence, priced, modes] = await Promise.all([
-    loadBatteryExtras(owner, vin, window.trend, now),
-    // Where each stretch was parked; never fails the page.
-    loadStretchPlaces(owner, vin, window.driving),
+  // Only the extras and the parked places need the window; the tips' reads start alongside it.
+  const [window, sessions, presence, priced, modes] = await Promise.all([
+    loadWindowStats(owner, vin, now),
+    loadStreamSessions(owner),
     // For the tips: when the car woke while parked, and what the owner pays per kWh.
     car ? loadPresence(owner, car, now).then((p) => p.days).catch(() => []) : [],
     loadPricedCharges(owner, now),
     // Which modes the car reported on while parked, so a tip names one only when it was on.
     vin ? loadReadingsByField(owner, vin, [...MODE_FIELDS], new Date(now - DRIVE_DAYS * 86_400_000).toISOString(), new Date(now).toISOString()).catch(() => null) : null,
+  ]);
+  const [extras, places] = await Promise.all([
+    loadBatteryExtras(owner, vin, window.trend, now),
+    // Where each stretch was parked; never fails the page.
+    loadStretchPlaces(owner, vin, window.driving),
   ]);
   return { window, sessions, extras, places, custom: range && { range, frame: rangeTimeframe(range, now) }, presence, priced, modes: modes ?? undefined, vehicleId: car?.id ?? null, now };
 }
