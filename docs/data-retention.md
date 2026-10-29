@@ -45,6 +45,7 @@ How it's caught:
 - That answer can be up to an hour old (`tesla_answer_cache`), so it is kept only when it is at least as new as the stored one (`saveKeyStatus`): a key /setup just confirmed isn't undone by the next check. Seen on 29 Oct 2026, when the 02:30 check put back the 02:00 "no key" over /setup's 02:21 "key added".
 - A removed key also clears the stored streaming answer. When /setup or the scheduled check sees the key back, it asks about streaming in the same pass, and sends the config again if the car lost it.
 - The bell drops a health check's key or config problem once /setup has a good answer from after that check (`SETTLED_BY_SETUP` in `lib/alerts.ts`). On /setup, the bell waits for the page's own check before reading.
+- A car marked synced that has never sent data has its config reread every 10 minutes instead of once a day (`streamingStale`, `streamingDue` in `lib/server/setup.ts`), at the scheduled check or a /setup visit, and the config sent if Tesla says there is none. Its first data ends this. Seen on 29 Oct 2026: a new owner's car was marked synced at sign-up from Tesla's `{synced: true, config: null}`, so no config went out, and its first drive the next morning was lost while the row waited a day.
 - Every other owner's paired key is rechecked when they open the app, after an hour if their cars have sent nothing for an hour (`keyStale`, `SILENT_RECHECK_MS` in `lib/setup-status.ts`). A car sending data plainly has its key, so this costs nothing until a car goes quiet.
 
 How it's shown:

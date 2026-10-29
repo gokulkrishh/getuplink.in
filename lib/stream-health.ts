@@ -106,7 +106,7 @@ export function streamPart(input: StreamInputs): { status: Status; problems: str
 
 // What the health check should write onto a car's row from its fresh answer about the car's config: the
 // state Tesla said, when it differs from the row's. The same state isn't written again, so a synced car is
-// still reread daily by /setup (streamingStale). Null: nothing to write (row not known, or answer not understood).
+// still reread by /setup and the scheduled check (streamingStale: daily, or every 10 minutes until it first sends data). Null: nothing to write (row not known, or answer not understood).
 export function streamingToRecord(row: Streaming | null | undefined, fresh: Streaming | null): Streaming | null {
   if (row === undefined || fresh === null || fresh === row) return null;
   return fresh;

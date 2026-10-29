@@ -295,6 +295,21 @@ describe("/setup and the streaming config", () => {
     expect(carRow(NEW_VIN).streaming).toBe("pending");
   });
 
+  test("/setup also reads again a synced car that has never sent data, and sends the config it lacks", async () => {
+    tesla.paired.add(NEW_VIN);
+    tesla.configs.set(NEW_VIN, "synced-empty");
+    Object.assign(carRow(NEW_VIN), {
+      key_paired: true,
+      key_checked_at: new Date(NOW - 2 * 60 * MIN).toISOString(),
+      streaming: "synced",
+      streaming_checked_at: new Date(NOW - 2 * 60 * MIN).toISOString(),
+    });
+    await loadSetup(NEW_USER, { now: NOW });
+    expect(asked(`/api/1/vehicles/${NEW_VIN}/fleet_telemetry_config`)).toBe(1);
+    expect(asked("/api/1/vehicles/fleet_telemetry_config_jws")).toBe(1);
+    expect(carRow(NEW_VIN).streaming).toBe("pending");
+  });
+
   test("a silent synced car is read again at most every 10 minutes", async () => {
     tesla.configs.set(OWNER_VIN, "synced");
     Object.assign(carRow(OWNER_VIN), {
