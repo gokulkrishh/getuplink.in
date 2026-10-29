@@ -75,10 +75,11 @@ describe("checkStations", () => {
   });
 
   test("past its time budget it starts no more accounts and says it isn't done", async () => {
-    let now = 0;
-    // Each read of the clock moves it a minute on, so the second account starts past the 45 s budget.
-    const result = await checkStations(() => (now += 60_000));
+    let reads = 0;
+    // The start and the first account's check read 0; after the first account a minute has passed.
+    const result = await checkStations(() => (reads++ < 2 ? 0 : 60_000));
     expect(result.done).toBe(false);
+    expect(asked.some((a) => a.startsWith("access-1"))).toBe(true);
     expect(asked.some((a) => a.startsWith("access-2"))).toBe(false);
   });
 });
