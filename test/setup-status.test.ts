@@ -9,6 +9,7 @@ import {
   keyStale,
   keyStep,
   PAIRED_RECHECK_MS,
+  SILENT_RECHECK_MS,
   parseConfigSent,
   signInPath,
   parseFleetStatus,
@@ -99,6 +100,17 @@ describe("rechecking", () => {
     expect(keyStale(car({ keyPaired: false, keyCheckedAt: ago(KEY_RECHECK_MS) }), NOW)).toBe(true);
     expect(keyStale(car({ keyPaired: true, keyCheckedAt: ago(KEY_RECHECK_MS * 3) }), NOW)).toBe(false);
     expect(keyStale(car({ keyPaired: true, keyCheckedAt: ago(PAIRED_RECHECK_MS) }), NOW)).toBe(true);
+  });
+
+  test("a paired key within the hour once the cars have gone quiet, since a removed key stops the data", () => {
+    const paired = car({ keyPaired: true, keyCheckedAt: ago(SILENT_RECHECK_MS) });
+    // Nothing sent for an hour (or ever): checked again.
+    expect(keyStale(paired, NOW, NOW - SILENT_RECHECK_MS)).toBe(true);
+    expect(keyStale(paired, NOW, null)).toBe(true);
+    // Sending data: the key is plainly there.
+    expect(keyStale(paired, NOW, NOW - 60_000)).toBe(false);
+    // Checked within the hour: not again yet, however quiet.
+    expect(keyStale(car({ keyPaired: true, keyCheckedAt: ago(SILENT_RECHECK_MS - 1) }), NOW, null)).toBe(false);
   });
 });
 

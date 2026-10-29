@@ -17,6 +17,7 @@ import {
 } from "@/lib/setup-status";
 import type { Owner } from "./data/owner";
 import { carSetups, carsWithoutSetup, markConfigSent, saveKeyStatus, saveStreaming, SetupSchemaMissing } from "./data/setup";
+import { lastReadingAt } from "./telemetry";
 import { canSendConfig, signedTelemetryConfig } from "./telemetry-config";
 import { fleetGetBody, fleetPost, hasScope, LOCATION_SCOPE, NotConnectedError } from "./tesla";
 
@@ -163,7 +164,12 @@ export async function setupGate(owner: Owner, { admin = false, now = Date.now() 
       const { cars, store } = await load(owner);
       // Before the migration nothing can be kept, so nothing is asked and nobody is sent to /setup.
       if (!store.persistent) return [];
-      await refreshKeys(owner, cars.filter((car) => keyStale(car, now)), store, now);
+      // A paired key checked over an hour ago is rechecked when the cars have also gone quiet (keyStale):
+      // the newest reading is read only then, so most page views add no query.
+      const mightBeSilent = cars.some((car) => car.keyPaired === true && !keyStale(car, now) && keyStale(car, now, null));
+      const last = mightBeSilent ? await lastReadingAt(owner) : null;
+      const since = mightBeSilent ? (last ? Date.parse(last) : null) : undefined;
+      await refreshKeys(owner, cars.filter((car) => keyStale(car, now, since)), store, now);
       return cars;
     });
     return gateFor({ demo: false, admin: false, cars });

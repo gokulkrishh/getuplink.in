@@ -17,18 +17,25 @@ export type CarSetup = {
 };
 
 const MINUTE = 60_000;
-// Recheck a key Tesla hasn't confirmed at most every 10 minutes, and one it has once a day (a key can be
-// removed from the car, but that's rare and the 6-hourly check notices too).
+// Recheck a key Tesla hasn't confirmed at most every 10 minutes, and one it has once a day. A key removed
+// from the car stops it sending data, so a paired key is rechecked sooner, after SILENT_RECHECK_MS, while
+// the owner's cars have sent nothing for that long: a car that's sending data plainly still has the key,
+// and costs nothing.
 export const KEY_RECHECK_MS = 10 * MINUTE;
 export const PAIRED_RECHECK_MS = 24 * 60 * MINUTE;
+export const SILENT_RECHECK_MS = 60 * MINUTE;
 export const STREAMING_RECHECK_MS = 10 * MINUTE;
 // Never send the same car its config twice within this, whatever Tesla says meanwhile.
 export const RESEND_AFTER_MS = 60 * MINUTE;
 
 const age = (at: string | null, now: number) => (at ? now - Date.parse(at) : Infinity);
 
-export function keyStale(car: CarSetup, now: number): boolean {
-  return age(car.keyCheckedAt, now) >= (car.keyPaired === true ? PAIRED_RECHECK_MS : KEY_RECHECK_MS);
+// `lastReadingAt`: when the owner's cars last sent data (ms), null for never; left out, silence isn't weighed.
+export function keyStale(car: CarSetup, now: number, lastReadingAt?: number | null): boolean {
+  const checked = age(car.keyCheckedAt, now);
+  if (car.keyPaired !== true) return checked >= KEY_RECHECK_MS;
+  if (checked >= PAIRED_RECHECK_MS) return true;
+  return lastReadingAt !== undefined && checked >= SILENT_RECHECK_MS && (lastReadingAt === null || now - lastReadingAt >= SILENT_RECHECK_MS);
 }
 
 export function streamingStale(car: CarSetup, now: number): boolean {

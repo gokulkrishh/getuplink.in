@@ -135,10 +135,19 @@ describe("the setup gate", () => {
   test("the owner, whose car has the key, is never gated, and Tesla is asked once, not per view", async () => {
     expect(await setupGate(OWNER, { now: NOW })).toBe("pass");
     expect(await setupGate(OWNER, { now: NOW + 5 * MIN })).toBe("pass");
-    expect(await setupGate(OWNER, { now: NOW + 60 * MIN })).toBe("pass");
+    expect(await setupGate(OWNER, { now: NOW + 59 * MIN })).toBe("pass");
     expect(asked("/api/1/vehicles/fleet_status")).toBe(1);
     expect(carRow(OWNER_VIN).key_paired).toBe(true);
     expect(counted("fleet_status")).toBe(1);
+  });
+
+  test("a car that has sent nothing for an hour has its key checked again, and a removed key is caught", async () => {
+    expect(await setupGate(OWNER, { now: NOW })).toBe("pass");
+    // The key is removed from the car; it sends nothing from then on (this fake has no readings at all).
+    tesla.paired.clear();
+    expect(await setupGate(OWNER, { now: NOW + 60 * MIN })).toBe("setup");
+    expect(asked("/api/1/vehicles/fleet_status")).toBe(2);
+    expect(carRow(OWNER_VIN).key_paired).toBe(false);
   });
 
   test("the admin is passed without asking Tesla", async () => {
