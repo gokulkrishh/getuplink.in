@@ -60,6 +60,11 @@ describe("fleet_telemetry_config", () => {
     expect(parseTelemetryConfig(telemetryConfig.full)).toBe("full");
   });
 
+  // Seen live on 29 Oct 2026 after the key was removed and added back: Tesla says synced with no config.
+  test("synced with no config is 'none', so the config is sent again", () => {
+    expect(parseTelemetryConfig({ response: { synced: true, config: null, key_paired: true, limit_reached: false } })).toBe("none");
+  });
+
   test("an empty or missing answer is unknown, never 'none' (which would send a config)", () => {
     expect(parseTelemetryConfig(telemetryConfig.empty)).toBeNull();
     expect(parseTelemetryConfig(telemetryConfig.null)).toBeNull();

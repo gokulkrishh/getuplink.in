@@ -58,14 +58,14 @@ export function parseFleetStatus(body: unknown, vins: string[]): Map<string, boo
 }
 
 // GET /api/1/vehicles/{vin}/fleet_telemetry_config answers {response: {synced, config, limit_reached, ...}}:
-// `synced` means the car runs the config it was sent. No config at all is "none". Null: not understood.
+// `synced` means the car runs the config it was sent, but only with a config: a car whose key was removed and
+// added back answers synced with config null, and has none. No config at all is "none". Null: not understood.
 export function parseTelemetryConfig(body: unknown): Streaming | null {
   const response = (body as { response?: unknown } | null)?.response;
   if (!response || typeof response !== "object") return null;
   const r = response as Record<string, unknown>;
-  if (r.synced === true) return "synced";
   const config = r.config;
-  if (config && typeof config === "object") return "pending";
+  if (config && typeof config === "object") return r.synced === true ? "synced" : "pending";
   if (r.limit_reached === true) return "full";
   // Only an answer that says so is "none" (an empty one is unknown): "none" is what lets Uplink send a config.
   if (config === null || (r.synced === false && config === undefined)) return "none";
