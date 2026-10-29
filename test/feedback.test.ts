@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { deviceName, feedbackInput } from "@/lib/feedback";
+import { deviceName } from "@/lib/feedback";
+import { feedbackInput } from "@/lib/server/feedback";
 
 describe("feedback", () => {
   const sent = { topic: "broken", bother: "lot", message: "  The spend chart shows 0 for today.  ", pagePath: "/stats/charging?period=week", pageTitle: "Charging", viewport: "390x844", userAgent: "x", theme: "dark" };
