@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Sparkles, ThumbsDown, ThumbsUp, X } from "lu
 import { useEffect, useRef, useState, useTransition } from "react";
 import { voteTip } from "@/app/tip-actions";
 import type { Tip, TipScope } from "@/lib/ai-tips";
+import { Button } from "@/components/ui/button";
 import { orOffline } from "@/lib/offline";
 import type { Vote } from "@/lib/tip-votes";
 import { cn } from "@/lib/utils";
@@ -12,6 +13,8 @@ import { cn } from "@/lib/utils";
 // held on a phone and two wider (lib/ai-tips.ts MAX_CHARS keeps every tip within them), so turning between
 // a short and a long tip doesn't move it either.
 const BOX = "space-y-2 border px-4 py-3";
+// A card's × in its top-right corner, matched with the share card's.
+export const DISMISS_X = "-my-1 -mr-1.5 shrink-0 max-sm:-my-2";
 const THANKS_MS = 5000;
 const DISMISSED_KEY = "uplink:tips-dismissed";
 const DISMISSED_MAX = 200;
@@ -157,9 +160,11 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
             </div>
           )}
           {vote && (
-            <button type="button" onClick={dismiss} aria-label="Dismiss this tip" title="Dismiss this tip" className={cn(CONTROL, "size-6 justify-center")}>
-              <X className="size-3.5" aria-hidden="true" />
-            </button>
+            // The same × as the share card's (components/home/share-nudge.tsx): size, icon and right edge. The
+            // negative margins keep the header row's height, so the box doesn't grow.
+            <Button type="button" variant="ghost" size="icon-sm" onClick={dismiss} aria-label="Dismiss this tip" title="Dismiss this tip" className={DISMISS_X}>
+              <X className="size-4" aria-hidden="true" />
+            </Button>
           )}
         </div>
       </div>

@@ -149,6 +149,7 @@ async function Settings() {
 
       <Group title="Your data">
         <Row
+          id="share"
           title="Share with other owners"
           description="Adds your car to the totals on Owners. Turning it off deletes your figures, and your car leaves the totals at 3:30 AM."
           control={<ShareSwitch on={sharing?.on ?? false} />}

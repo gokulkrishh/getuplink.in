@@ -2,6 +2,7 @@ import "server-only";
 import { type Finding, modelFindings } from "@/lib/ai-tips";
 import type { BlockedTip, JevVerdict } from "@/lib/jev-checks";
 import { DEMO } from "@/lib/demo";
+import type { NudgeFigures } from "@/lib/share-nudge";
 
 // A second look at each AI tip by TypeSafe's Jev, a decision model on OpenRouter's Decisions API
 // (https://openrouter.ai/docs/guides/community/jev): given the findings the tip writer got and the tip, the
@@ -120,4 +121,53 @@ export async function checkTipsWithJev<T extends { kind: string; text: string }>
     else out.tips.push({ ...t, jev: v });
   });
   return out;
+}
+
+// ---- The share card's daily decision (lib/share-nudge.ts, lib/server/share-nudge.ts) ----
+// Whether comparing with other owners would interest this owner this week, from a few of their figures:
+// numbers only (NudgeFigures), never location, place names, VIN or anything naming the owner.
+
+const SHARE_QUESTION = "interesting";
+
+export function shareNudgeRequest(figures: NudgeFigures) {
+  return {
+    model: JEV_MODEL,
+    state: { figures },
+    questions: {
+      [SHARE_QUESTION]: {
+        type: "noul",
+        instructions:
+          "These are one Tesla owner's driving figures: this week against their own usual weeks. Uplink can show them how their car compares with other owners' cars (totals across at least 5 cars). Would that comparison be interesting for this owner this week?",
+        criteria: {
+          true: "This week has something an owner would want to compare, such as more driving than usual or energy use that changed.",
+          false: "This week is too quiet or too ordinary for a comparison to be interesting.",
+        },
+      },
+    },
+    provider: { data_collection: "deny" },
+  };
+}
+
+// Jev's probability of "yes, interesting", or null when it can't be had (off, an error, a bad answer, over
+// TIMEOUT_MS). Never throws.
+export async function askShareInterest(figures: NudgeFigures): Promise<number | null> {
+  if (!jevOn()) return null;
+  try {
+    const res = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.OPENROUTER_API_KEY?.trim()}`, "Content-Type": "application/json", "X-Title": "Uplink" },
+      body: JSON.stringify(shareNudgeRequest(figures)),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (!res.ok) {
+      console.warn("Jev share decision unavailable: OpenRouter", res.status);
+      return null;
+    }
+    const body = (await res.json()) as { answers?: Record<string, { type?: unknown; noul?: unknown }> } | null;
+    const answer = body?.answers?.[SHARE_QUESTION];
+    const p = answer?.noul;
+    return answer?.type === "noul" && typeof p === "number" && Number.isFinite(p) && p >= 0 && p <= 1 ? p : null;
+  } catch {
+    return null;
+  }
 }

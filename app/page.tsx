@@ -27,6 +27,8 @@ import { newestTime } from "@/lib/last-synced";
 import { recentlyLines } from "@/lib/recently";
 import { rotationDueAt, rotationNotice, tyreRotation } from "@/lib/tyre-rotation";
 import { RotationNotice } from "@/components/home/rotation-notice";
+import { ShareNudgeCard } from "@/components/home/share-nudge";
+import { shareNudgeCheck } from "@/lib/server/share-nudge";
 import type { DemoScenario } from "@/lib/demo";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -37,7 +39,9 @@ import { type Home, loadHome } from "@/lib/server/home";
 // on every server render; redirect() throws, so a signed-out result is never cached. The demo
 // scenario is an argument, so each one gets its own entry; the period is not, since it switches in the
 // browser.
-async function loadOwnHome(demo: DemoScenario): Promise<{ home: Home; now: number }> {
+// shareCard: whether the card asking the owner to share shows (lib/share-nudge.ts), decided here with the rest
+// so it renders with the tiles and nothing below it moves. Not now and Share refresh this cache (updateTag).
+async function loadOwnHome(demo: DemoScenario): Promise<{ home: Home; now: number; shareCard: boolean }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   // 60s is enough for a per-link prefetch (30s minimum); the App Shell would need 5 minutes.
@@ -46,8 +50,9 @@ async function loadOwnHome(demo: DemoScenario): Promise<{ home: Home; now: numbe
   if (!owner) redirect(SIGNED_OUT_PATH);
   // The clock is read here, inside the cache, because reading it while rendering blocks prerendering.
   const now = Date.now();
-  const home = await loadHome(owner, demo, now);
-  return { home, now };
+  const [home, shareCheck] = await Promise.all([loadHome(owner, demo, now), shareNudgeCheck(owner)]);
+  const shareCard = home.kind === "ready" && shareCheck(home.figures.since, now);
+  return { home, now, shareCard };
 }
 
 // "Good morning" before noon, "Good afternoon" until 5 PM, "Good evening" after, India time.
@@ -57,7 +62,7 @@ function greeting(now: number): string {
 }
 
 // A glance at the last 7 days: the four headline numbers, the tips and the charge level. Each tile leads to its Stats tab.
-function Totals({ home, now }: { home: Extract<Home, { kind: "ready" }>; now: number }) {
+function Totals({ home, now, shareCard }: { home: Extract<Home, { kind: "ready" }>; now: number; shareCard: boolean }) {
   const { streamOnly } = matchSessions(home.sessions, home.streamSessions, now);
   const { window } = home;
   const figures = withDriveEfficiency(home.figures, window.driving.drives, now);
@@ -98,6 +103,8 @@ function Totals({ home, now }: { home: Extract<Home, { kind: "ready" }>; now: nu
           ),
           { steady: true },
         )}
+        {/* The card asking the owner to share, when it's due, right under the week's tiles. */}
+        {shareCard && <ShareNudgeCard />}
         {/* The AI's tips on the week stream in after the rest, in a box of the same size. */}
         {/* A quiet week has no tips, so no box. */}
         {primaryId && findings.length > 0 && (
@@ -122,7 +129,7 @@ function TyreNotice({ odometerKm }: { odometerKm: number | null }) {
 async function HomeContent() {
   // Only demo mode reads the scenario, so the real page stays as it was.
   const demo: DemoScenario = "normal";
-  const { home, now } = await loadOwnHome(demo);
+  const { home, now, shareCard } = await loadOwnHome(demo);
   const failedRun = home.kind === "ready" && home.lastRun?.ok === false ? home.lastRun : null;
   const cars = home.kind === "ready" ? home.cars : [];
   // The primary car, as loadHome picks it: the first with a VIN. The odometer is its.
@@ -147,7 +154,7 @@ async function HomeContent() {
             </div>
           ))}
           <PeriodScope>
-            <Totals home={home} now={now} />
+            <Totals home={home} now={now} shareCard={shareCard} />
           </PeriodScope>
           {cars.some((car) => car.latest?.error) && (
             <p className="text-sm text-muted-foreground">The car went to sleep during the last check. Uplink will try again.</p>

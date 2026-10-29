@@ -20,7 +20,7 @@ const SERVICES: ReactNode[] = [
   "Supabase, to store it (Mumbai)",
   "Vercel, to run the website (Mumbai)",
   "Fly.io, to receive your car's live data (Singapore)",
-  "OpenRouter and Anthropic, to write tips and drive summaries from your figures, never your location or VIN",
+  "OpenRouter and Anthropic, to write tips and drive summaries and to decide when to suggest sharing, from your figures only, never your location or VIN",
   "OpenStreetMap and Google, for place names",
   "CARTO, for map tiles",
 ];

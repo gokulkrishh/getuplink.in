@@ -3,14 +3,16 @@ export function Row({
   description,
   control,
   children,
+  id,
 }: {
+  id?: string;
   title: React.ReactNode;
   description?: React.ReactNode;
   control?: React.ReactNode;
   children?: React.ReactNode;
 }) {
   return (
-    <div className="py-4">
+    <div id={id} className="scroll-mt-20 py-4">
       {/* Phones stack the control under the text, so neither is squeezed into a narrow column. The
           control stays on the right at every width. */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-8">

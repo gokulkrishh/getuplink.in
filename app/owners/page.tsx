@@ -1,6 +1,7 @@
 import { ChevronDown, EyeOff, Trash2, Users } from "lucide-react";
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { CarTabs } from "@/components/car-tabs";
@@ -8,7 +9,7 @@ import { ChartCard } from "@/components/chart-card";
 import { Header } from "@/components/header";
 import { OptionBar } from "@/components/owners/option-bar";
 import { BandBar, HourStrip, ShareStrip } from "@/components/owners/highlight-bar";
-import { ShareButton, StopSharing } from "@/components/owners/share-controls";
+import { ShareButton } from "@/components/owners/share-controls";
 import { Loading, Ph, SkFigures } from "@/components/skeleton";
 import { Figures } from "@/components/stats/figures";
 import { Words } from "@/components/stats/charge-supply";
@@ -376,15 +377,27 @@ function NotSharing({ sharers }: { sharers: number }) {
   );
 }
 
+// The line that says the owner shares. Stopping is only in Settings, so it links there.
+function SharingOn({ text }: { text: string }) {
+  return (
+    <p className="min-w-0 flex-1 text-sm">
+      {text} Stop any time in{" "}
+      <Link href="/settings#share" className="underline underline-offset-2">
+        Settings
+      </Link>
+      .
+    </p>
+  );
+}
+
 // Sharing, but too few owners are in the totals yet: how far along it is, as one step per owner needed,
-// what the page will answer once it fills in, and the way to stop.
+// and what the page will answer once it fills in.
 function Waiting({ counted }: { counted: number }) {
   const short = counted < MIN_CARS;
   return (
     <div className="space-y-10">
       <section className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border px-4 py-3">
-        <p className="min-w-0 flex-1 text-sm">You&apos;re sharing. Your car will be part of the totals.</p>
-        <StopSharing />
+        <SharingOn text="You're sharing. Your car will be part of the totals." />
       </section>
       <section className="space-y-4">
         <div className="space-y-1">
@@ -431,10 +444,9 @@ async function Owners() {
   const facts = factLine(page.stats, formatHour);
   return (
     <div className="space-y-10">
-      {/* That the owner shares, in a box of its own so it isn't missed, with the way to stop on the right. */}
+      {/* That the owner shares, in a box of its own so it isn't missed, with the way to stop in Settings. */}
       <section className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border px-4 py-3">
-        <p className="min-w-0 flex-1 text-sm">You&apos;re sharing. Your car is part of these totals.</p>
-        <StopSharing />
+        <SharingOn text="You're sharing. Your car is part of these totals." />
       </section>
       <div className="space-y-6">
         {/* Who's in the figures and over what: the page's period, named once. */}
@@ -518,10 +530,7 @@ function OwnersSkeleton() {
     <Loading className="space-y-10">
       <div className="flex h-[102px] flex-wrap items-center justify-between gap-x-4 gap-y-3 border px-4 py-3 sm:h-[58px]">
         <p className="text-sm">
-          <Ph>You&apos;re sharing. Your car is part of these totals.</Ph>
-        </p>
-        <p className="text-sm">
-          <Ph>Stop sharing</Ph>
+          <Ph>You&apos;re sharing. Your car is part of these totals. Stop any time in Settings.</Ph>
         </p>
       </div>
       <div className="h-[1108.5px] space-y-6 overflow-hidden sm:h-[704px]">

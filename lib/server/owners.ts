@@ -39,6 +39,7 @@ import {
   sharingOf,
   sharingOwners,
 } from "./data/owners";
+import { saveShareAnswer } from "./data/share-nudge";
 import { MissingSchema } from "./data/usage";
 import { demoData, demoReadings } from "./demo";
 import { demoOwnerSummaries } from "./demo/owners";
@@ -375,6 +376,14 @@ export async function publishStats(at: number): Promise<number> {
 // would differ from the last totals by that car alone, so comparing the two would give its values away.
 export async function setSharing(owner: Owner, on: boolean, now = Date.now()): Promise<void> {
   await setSharingFlag(owner, on, iso(now));
+  // The home share card's columns (20261114120000_share_nudge.sql): before that migration, nothing to keep.
+  // Off must be kept, or the card could ask again an owner who chose to stop, so its failure fails the switch
+  // and the owner tries again. On only closes the window, so its failure is only logged.
+  await saveShareAnswer(owner, on, iso(now)).catch((err) => {
+    if (err instanceof MissingSchema) return;
+    if (!on) throw err;
+    console.warn("Closing the share card's window failed:", messageOf(err));
+  });
   if (on) return;
   const { error } = await ownerDb(owner).from("fleet_car_days").delete();
   if (error) throw new Error(`Deleting shared figures failed: ${error.message}`);

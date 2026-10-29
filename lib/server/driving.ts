@@ -108,6 +108,17 @@ export async function loadWindowStats(owner: Owner, vin: string | null, now: num
   };
 }
 
+// Only the drives of the last `days`, from one read of the drive fields over that span: the share card's
+// nightly figures need about five weeks, not the home window's 90 days. The archive holds only drives older
+// than the readings kept, so it isn't needed here.
+export async function loadRecentDrives(owner: Owner, vin: string, now: number, days: number): Promise<Drive[]> {
+  const driveFrom = now - days * 86_400_000;
+  const readings = await loadReadingsByField(owner, vin, WINDOW_FIELDS, new Date(driveFrom).toISOString(), new Date(now).toISOString());
+  if (!readings) return [];
+  const [gear, odometer, battery, energy, lifetime, range, charge] = WINDOW_FIELDS.map((field) => readings[field]);
+  return analyseDriving({ gear, odometer, battery, energy, lifetime, range, charge }, now).drives;
+}
+
 function withArchive(driving: Driving, archived: Drive[], driveFrom: number): Driving {
   return archived.length ? { ...driving, drives: withArchivedDrives(driving.drives, archived, driveFrom) } : driving;
 }
