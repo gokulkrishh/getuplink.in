@@ -56,10 +56,12 @@ const answerAfter = (ms: number, signal?: AbortSignal | null) =>
   });
 
 // Moves fake time on in 10 ms steps, letting every query and request due in each step run.
+// Fake time in 100 ms steps, finer than the code's own timers (300 ms and up), letting pending work settle
+// after each. Ten-millisecond steps took over 5 s of real time for 41 s of fake time on CI's runner.
 async function elapse(ms: number) {
-  for (let t = 0; t < ms; t += 10) {
-    jest.advanceTimersByTime(10);
-    await new Promise((resolve) => setImmediate(resolve));
+  for (let t = 0; t < ms; t += 100) {
+    jest.advanceTimersByTime(100);
+    for (let k = 0; k < 2; k++) await new Promise((resolve) => setImmediate(resolve));
   }
 }
 
@@ -267,6 +269,16 @@ describe("Tesla token refresh", () => {
     expect(await otherInstance.fleetGet<string>(OWNER, "/api/1/vehicles")).toBe("ok");
     expect(tesla.requests).toBe(2);
     expect(row().refresh_token_enc).toBe("enc:r2");
+  });
+
+  // A 502 or 504 is a gateway giving up, and Tesla may still have spent the token behind it.
+  test("a gateway error from the token endpoint keeps the lease, as no answer does", async () => {
+    for (const status of [500, 502, 504]) {
+      tesla.failStatus = status;
+      await expect(fleetGet<string>(OWNER, "/api/1/vehicles")).rejects.toThrow(`(${status})`);
+      expect(Date.parse(row().refreshing_until as string)).toBeGreaterThan(Date.now());
+      row().refreshing_until = null;
+    }
   });
 
   test("a save that hangs is given up on and tried again well inside the lease", async () => {

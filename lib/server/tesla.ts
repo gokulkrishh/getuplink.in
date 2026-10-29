@@ -330,10 +330,11 @@ async function refreshOnce(owner: Owner, stored: StoredTokens): Promise<string> 
       refresh_token: stored.refreshToken,
     });
   } catch (err) {
-    // An error answer from Tesla (a 4xx or 5xx) means the token wasn't spent, so the next caller may try at
-    // once. No answer (a timeout, a dropped connection) or a 200 we couldn't read may have spent it, so the
-    // lease stays until it runs out rather than let the next caller send it again.
-    if (err instanceof TeslaError && err.status >= 400) await releaseLease(owner, stored);
+    // A 4xx, or a 503 (Tesla turning requests away), means the token wasn't spent, so the next caller may try
+    // at once. No answer (a timeout, a dropped connection), a 200 we couldn't read, or a 500, 502 or 504 (a
+    // gateway that gave up while Tesla may still have spent it) may have spent it, so the lease stays until
+    // it runs out rather than let the next caller send it again.
+    if (err instanceof TeslaError && ((err.status >= 400 && err.status < 500) || err.status === 503)) await releaseLease(owner, stored);
     // A disconnect or a sign-in may have replaced the tokens meanwhile; if so, use those.
     const current = await readTokens(owner);
     if (!current) throw new NotConnectedError();
