@@ -42,3 +42,7 @@ Before a commit, all three pass:
 - `bun run build`
 
 To see the app with a sample car and no Tesla account: `bun run demo:start` (a built demo copy on port 3210) and `bun run demo:stop`. The `verify-uplink` skill drives it for screenshots. Local and live share one Supabase database.
+
+## Worktrees
+
+Work in a worktree under `.claude/worktrees/<branch>`, one per task. Once its branch is merged to main, remove the worktree and delete the branch straight away (`git worktree remove`, `git branch -d`) without asking. First copy over any gitignored files the main checkout needs (such as `certificates/`). Keep a worktree only while it still holds unmerged work. Stop any demo copies you started there (`cleanup.sh <port>`) at the same time. Leave other sessions' worktrees alone.
