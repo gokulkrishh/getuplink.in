@@ -10,6 +10,13 @@ describe("guardForm", () => {
     });
     expect(await run(null, new FormData())).toBe(OFFLINE);
   });
+  test("a server failure isn't called a dropped connection", async () => {
+    const failure = Object.assign(new Error("An error occurred in the Server Components render."), { digest: "1234" });
+    const run = guardForm(async () => {
+      throw failure;
+    });
+    await expect(run(null, new FormData())).rejects.toBe(failure);
+  });
   test("an action that finishes clears the line", async () => {
     const seen: FormData[] = [];
     const form = new FormData();

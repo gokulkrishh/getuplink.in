@@ -22,11 +22,13 @@ function Submit({ pending }: { pending: boolean }) {
 // The box is the owner's own consent before Tesla's scope screen (Tesla Fleet API Agreement 9.3.2, DPDP Act
 // s. 6(1)); the action checks it again, since a form can be posted without it. See docs/legal-review.md.
 // Offline, the page stays and says so under the button (guardForm), and the box stays ticked: the form is
-// sent from onSubmit, not its action prop, so React doesn't reset it when the action returns.
+// sent from onSubmit, not its action prop, so React doesn't reset it when the action returns. The action prop
+// stays for a tap before the page's script has loaded: React skips it once onSubmit prevents the default.
 export function InviteSignIn({ action }: { action: (form: FormData) => Promise<void> }) {
   const [error, run, pending] = useActionState(guardForm(action), null);
   return (
     <form
+      action={action}
       onSubmit={(e) => {
         e.preventDefault();
         const form = new FormData(e.currentTarget);

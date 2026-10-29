@@ -29,10 +29,11 @@ export const usePeriod = (): { period: HomePeriod; range: DateRange | null } => 
   return { period, range };
 };
 
-// The range the page shows for Custom, and today as the server saw it (null outside a scope with Custom).
+// The range the page shows for Custom, and today as the server saw it (null outside a scope with Custom, and
+// while a picked range loads, when the address still holds the old dates).
 export const useShownRange = (): { range: DateRange | null; today: string | null } => {
-  const { range, custom } = useContext(PeriodContext);
-  return { range, today: custom?.today ?? null };
+  const { range, custom, pending } = useContext(PeriodContext);
+  return { range, today: pending ? null : (custom?.today ?? null) };
 };
 
 // A section that depends on the period, rendered by the server for each one; shows the one picked. With
