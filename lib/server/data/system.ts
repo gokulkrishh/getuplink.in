@@ -28,11 +28,9 @@ export type UserRow = {
   // Issued-at times (ms) of sessions signed out one at a time (Sign out).
   signed_out_sessions: number[];
   created_at: string;
-  // 'admin' for the admin (set by hand), else 'user' (20261031120000_users_role_no_email.sql).
-  role: string;
 };
 
-const USER_COLUMNS = "id, tesla_sub, status, sessions_valid_after, signed_out_sessions, created_at, role";
+const USER_COLUMNS = "id, tesla_sub, status, sessions_valid_after, signed_out_sessions, created_at";
 
 export const ownerOf = (user: Pick<UserRow, "id" | "tesla_sub">): Owner => asOwner(Number(user.id), user.tesla_sub);
 
@@ -102,6 +100,17 @@ export const WAITLIST = "waitlist";
 export const DECLINED = "declined";
 export const SUSPENDED = "suspended";
 export const ADMIN_ROLE = "admin";
+
+// The user's role, read fresh on every admin check (never cached). Null for no such user, and while the
+// role column doesn't exist yet (its migration not applied): then nobody is an admin.
+export async function userRole(id: number): Promise<string | null> {
+  const { data, error } = await db().from("users").select("role").eq("id", id).maybeSingle();
+  if (error) {
+    if (error.code === "42703" || error.code === "PGRST204") return null; // undefined column
+    throw new Error(`Reading account failed: ${error.message}`);
+  }
+  return (data?.role as string | undefined) ?? null;
+}
 
 // A Tesla login Uplink doesn't know asks to join: a users row with its Tesla account id and status
 // waitlist, nothing else (created_at is when it asked). A repeat changes nothing, so it keeps its place.

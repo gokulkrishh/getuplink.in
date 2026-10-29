@@ -64,27 +64,35 @@ describe("buildAlerts", () => {
   });
 
   // On 29 Oct one database blip at 3:16 PM put "Live car data: having problems" in the bell, and the next
-  // check was fine. A part is in the bell once two checks in a row found it not working.
-  test("one failed health check after a good one waits for the next before it's in the bell", () => {
+  // check was fine. A lone problem after good checks waits for the next; anything worse shows at once.
+  test("one failed health check after good ones waits for the next before it's in the bell", () => {
     const blip = { component: "Car data stream", status: "degraded", problems: ["Couldn't check the Tesla config: Reading the database timed out"], checkedAt: CHECKED };
-    expect(buildAlerts({ ...ok, health: [{ ...blip, before: "operational" }] })).toEqual([]);
-    expect(buildAlerts({ ...ok, health: [{ ...blip, before: "degraded" }] }).map((a) => a.key)).toEqual(["health:Car data stream"]);
-    expect(buildAlerts({ ...ok, health: [{ ...blip, status: "down", before: "degraded" }] }).map((a) => a.key)).toEqual(["health:Car data stream"]);
+    const keys = (recent: string[], status = "degraded") => buildAlerts({ ...ok, health: [{ ...blip, status, recent }] }).map((a) => a.key);
+    expect(keys(["operational", "operational", "operational"])).toEqual([]);
+    expect(keys(["degraded", "operational", "operational"])).toEqual(["health:Car data stream"]);
+    // Failing every other check is a problem, not a blip.
+    expect(keys(["operational", "degraded", "operational"])).toEqual(["health:Car data stream"]);
+    // Down shows straight away.
+    expect(keys(["operational", "operational", "operational"], "down")).toEqual(["health:Car data stream"]);
+    // With no earlier checks known it shows, as before.
+    expect(keys([])).toEqual(["health:Car data stream"]);
   });
 
-  test("the latest health check per part carries the status of the one before it", () => {
+  test("the latest health check per part carries the statuses of the few before it, newest first", () => {
     const row = (component: string, status: string, checked_at: string) => ({ component, status, problems: [], checked_at });
     const latest = latestPerComponent([
       row("Car data stream", "degraded", "2026-10-29T09:46:02Z"),
       row("Database", "operational", "2026-10-29T09:46:01Z"),
       row("Car data stream", "operational", "2026-10-29T09:15:38Z"),
-      row("Database", "operational", "2026-10-29T09:15:37Z"),
+      row("Car data stream", "degraded", "2026-10-29T08:45:38Z"),
+      row("Car data stream", "operational", "2026-10-29T08:15:38Z"),
+      row("Car data stream", "operational", "2026-10-29T07:45:38Z"),
       row("Website", "down", "2026-10-29T09:46:00Z"),
     ]);
-    expect(latest.map((h) => [h.component, h.status, h.before])).toEqual([
-      ["Car data stream", "degraded", "operational"],
-      ["Database", "operational", "operational"],
-      ["Website", "down", null],
+    expect(latest.map((h) => [h.component, h.status, h.recent])).toEqual([
+      ["Car data stream", "degraded", ["operational", "degraded", "operational"]],
+      ["Database", "operational", []],
+      ["Website", "down", []],
     ]);
   });
 

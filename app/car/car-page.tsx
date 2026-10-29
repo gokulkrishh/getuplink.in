@@ -43,7 +43,7 @@ async function loadCar(id: string): Promise<CarDetails | null> {
 }
 
 // The primary car's id and VIN (/car has no id, so the header's Car link needs no data): one small read,
-// after which the car's details, its state and its averages are all read at once.
+// after which the car's details and its state are read at once.
 async function loadPrimary(): Promise<{ id: string; vin: string } | null> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
@@ -58,7 +58,7 @@ const PAGE_FIELDS = [...CAR_NOW_FIELDS, "Odometer", "Version"];
 
 // The car's average consumption, as its own trip meters show it, worked out from the drives Uplink saw.
 type Average = { label: string; whPerKm: number; km: number };
-type Live = { state: Omit<CarState, "flags">; stream: Stream; now: CarNow | null; notices: string[]; at: number };
+type Live = { state: Omit<CarState, "flags">; stream: Stream; now: CarNow | null; notices: string[]; at: number; averages: Average[] };
 
 // The car's state now, in the same private cache as the page: the latest check and newest streamed reading
 // the way home reads them (loadCarState, so "Last synced" matches home), the battery with newer streamed
@@ -72,25 +72,14 @@ async function loadLive(id: string, vin: string | null): Promise<Live> {
   if (!owner) redirect(SIGNED_OUT_PATH);
   const at = Date.now();
   // The flags come with the state's read of the last online check.
-  const [{ flags, ...state }, stream, arrivals] = await Promise.all([
+  const [{ flags, ...state }, stream, arrivals, window, lastCharges] = await Promise.all([
     loadCarState(owner, { id, vin }, "normal"),
     vin ? loadStream(owner, vin, PAGE_FIELDS) : {},
     vin ? loadTyreArrivals(owner, vin, at) : {},
+    loadWindowStats(owner, vin, at),
+    vin ? loadStreamSessions(owner, 5) : [],
   ]);
-  return { state, stream, now: vin ? carNow(stream, at, flags.tyres, arrivals) : null, notices: flags.notices, at };
-}
-
-// The averages read 90 days of drives, the page's longest read, so they have their own private cache and
-// stream in after the rest of the page: the Average consumption tiles and the Range tile's note.
-async function loadAverages(vin: string | null): Promise<Average[]> {
-  "use cache: private";
-  cacheTag(OWNER_DATA_TAG);
-  cacheLife({ stale: 60 });
-  const owner = await currentOwner();
-  if (!owner) redirect(SIGNED_OUT_PATH);
-  const at = Date.now();
-  const [window, lastCharges] = await Promise.all([loadWindowStats(owner, vin, at), vin ? loadStreamSessions(owner, 5) : []]);
-  return averages(window.driving.drives, lastCharges.find((c) => c.vin === vin && c.ended_at !== null)?.ended_at ?? null, at);
+  return { state, stream, now: vin ? carNow(stream, at, flags.tyres, arrivals) : null, notices: flags.notices, at, averages: averages(window.driving.drives, lastCharges.find((c) => c.vin === vin && c.ended_at !== null)?.ended_at ?? null, at) };
 }
 
 // Since the last charge, the last 30 days, and since the first drive Uplink saw, each when it has enough
@@ -200,8 +189,8 @@ const SHUT_ROWS = new Set(["Locked", "Doors", "Windows", "Charge port door"]);
 // The charge and range from the latest online check, newer streamed values laid over it, then carNow's
 // rows, with locks, doors, windows and the charge port door as one tile. Temperatures are measures; the
 // rest are words.
-// `rangeNote` is the Range tile's note: the range at the owner's own driving (RangeNote).
-function nowFigures(state: Omit<CarState, "flags">, now: CarNow | null, shut: string | null, rangeNote: ReactNode): Figure[] {
+// `ownKm` is the range at the owner's own driving, when it can be worked out (see ownRange).
+function nowFigures(state: Omit<CarState, "flags">, now: CarNow | null, shut: string | null, ownKm: number | null): Figure[] {
   const s = state.lastOnline;
   const figures: Figure[] = [];
   if (s?.battery_level != null) {
@@ -218,7 +207,7 @@ function nowFigures(state: Omit<CarState, "flags">, now: CarNow | null, shut: st
   }
   // Tesla's figure is an estimate on a test cycle; the owner's own driving gives another, kept to one line.
   if (s?.battery_range_km != null)
-    figures.push({ label: "Range", value: formatRangeKm(s.battery_range_km), note: rangeNote });
+    figures.push({ label: "Range", value: formatRangeKm(s.battery_range_km), note: ownKm !== null ? `About ${formatRangeKm(ownKm)} at your driving` : "Tesla's estimate" });
   const rows = new Map(now?.rows ?? []);
   let shutShown = false;
   for (const [label, value] of now?.rows ?? []) {
@@ -296,36 +285,14 @@ function ownRange(level: number | null, usableKwh: number | null, averages: Aver
   return level === null || usableKwh === null || !average ? null : ((level / 100) * usableKwh * 1000) / average.whPerKm;
 }
 
-// The Range tile's note, once the averages are in; until then a faint line of the same length.
-async function RangeNote({ averages, level, usableKwh }: { averages: Promise<Average[]>; level: number | null; usableKwh: number | null }) {
-  const ownKm = ownRange(level, usableKwh, await averages);
-  return ownKm !== null ? `About ${formatRangeKm(ownKm)} at your driving` : "Tesla's estimate";
-}
-
-async function AverageConsumption({ averages }: { averages: Promise<Average[]> }) {
-  const shown = await averages;
-  if (shown.length === 0) return null;
-  return (
-    <Section title="Average consumption">
-      {/* Like the car's trip meters: energy per km over the driving in each span. */}
-      <Figures figures={shown.map((a) => ({ label: a.label, value: formatWhPerKm(a.whPerKm), note: `Over ${formatKm(a.km)}` }))} label="Average consumption" />
-    </Section>
-  );
-}
-
-function Car({ car, live, averages }: { car: CarDetails; live: Live; averages: Promise<Average[]> }) {
+function Car({ car, live }: { car: CarDetails; live: Live }) {
   const { state, stream, now, notices, at } = live;
   const reading = (field: string) => stream[field];
   const odometer = odometerKm(car.polledOdometer, reading("Odometer") && { miles: reading("Odometer").value, at: reading("Odometer").at });
   const version = currentVersion(car.rowVersion, car.checkedVersion, reading("Version") && { version: reading("Version").value, at: reading("Version").at });
   const syncedAt = newestTime([state.latest?.polled_at, state.streamAt]);
   const rhd = car.steering === "Right-hand drive" ? true : car.steering === "Left-hand drive" ? false : null;
-  const rangeNote = (
-    <Suspense fallback={<Ph>About 364 km at your driving</Ph>}>
-      <RangeNote averages={averages} level={state.lastOnline?.battery_level ?? null} usableKwh={car.battery?.kwh ?? null} />
-    </Suspense>
-  );
-  const figures = nowFigures(state, now, shutSummary(stream, rhd), rangeNote);
+  const figures = nowFigures(state, now, shutSummary(stream, rhd), ownRange(state.lastOnline?.battery_level ?? null, car.battery?.kwh ?? null, live.averages));
   const tyres = now?.tyres ?? [];
   const seen = tyreSeen(tyres, at);
   const rotation = tyreRotation(odometer);
@@ -386,9 +353,12 @@ function Car({ car, live, averages }: { car: CarDetails; live: Live; averages: P
         </Section>
       )}
 
-      <Suspense fallback={<AveragesSkeleton />}>
-        <AverageConsumption averages={averages} />
-      </Suspense>
+      {live.averages.length > 0 && (
+        <Section title="Average consumption">
+          {/* Like the car's trip meters: energy per km over the driving in each span. */}
+          <Figures figures={live.averages.map((a) => ({ label: a.label, value: formatWhPerKm(a.whPerKm), note: `Over ${formatKm(a.km)}` }))} label="Average consumption" />
+        </Section>
+      )}
 
       {(tyres.length > 0 || rotation) && (
         <section className="space-y-3">
@@ -454,35 +424,19 @@ function Car({ car, live, averages }: { car: CarDetails; live: Live; averages: P
   );
 }
 
-// The primary car's ids are known before its details, so its state and averages are read alongside them; a
-// car picked by id has its VIN only with its details.
+// The primary car's ids are known before its details, so its state is read alongside them; a car picked by
+// id has its VIN only with its details.
 async function CarContent({ id }: { id: Promise<string | null> }) {
   const carId = await id;
-  const primary = carId === null ? await loadPrimary() : null;
-  if (carId === null && !primary) return <p className="text-sm text-muted-foreground">No car on your Tesla account yet.</p>;
-  const averages = primary ? loadAverages(primary.vin) : null;
-  const [car, live] = await Promise.all([loadCar(carId ?? primary!.id), primary ? loadLive(primary.id, primary.vin) : null]);
-  if (!car && carId === null) return <p className="text-sm text-muted-foreground">No car on your Tesla account yet.</p>;
+  if (carId === null) {
+    const primary = await loadPrimary();
+    const [car, live] = primary ? await Promise.all([loadCar(primary.id), loadLive(primary.id, primary.vin)]) : [null, null];
+    if (!car || !live) return <p className="text-sm text-muted-foreground">No car on your Tesla account yet.</p>;
+    return <Car car={car} live={live} />;
+  }
+  const car = await loadCar(carId);
   if (!car) notFound();
-  return <Car car={car} live={live ?? (await loadLive(car.id, car.vin))} averages={averages ?? loadAverages(car.vin)} />;
-}
-
-// The Average consumption section's place while its 90 days of drives are read: the same title and tiles.
-function AveragesSkeleton() {
-  return (
-    <SkSection gap={3}>
-      <p className="text-lg font-medium tracking-heading" aria-hidden="true">
-        <Ph>Average consumption</Ph>
-      </p>
-      <SkFigures
-        tiles={[
-          { label: "Since last charge", value: "120 Wh/km", note: "Over 97.8 km" },
-          { label: "Last 30 days", value: "119 Wh/km", note: "Over 1,096.4 km" },
-          { label: "Since 30 Jul", value: "128 Wh/km", note: "Over 2,846.4 km" },
-        ]}
-      />
-    </SkSection>
-  );
+  return <Car car={car} live={await loadLive(car.id, car.vin)} />;
 }
 
 // Faint blocks in the shape of the page, section by section, in the same layout classes: the header card,
@@ -564,7 +518,16 @@ function CarSkeleton() {
           ]}
         />,
       )}
-      <AveragesSkeleton />
+      {section(
+        "Average consumption",
+        <SkFigures
+          tiles={[
+            { label: "Since last charge", value: "120 Wh/km", note: "Over 97.8 km" },
+            { label: "Last 30 days", value: "119 Wh/km", note: "Over 1,096.4 km" },
+            { label: "Since 30 Jul", value: "128 Wh/km", note: "Over 2,846.4 km" },
+          ]}
+        />,
+      )}
       {section(
         "Tyres",
         <>

@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { DEMO } from "@/lib/demo";
 import { isValidSession, SESSION_COOKIE, sessionClaims } from "@/lib/session";
 import { DEMO_OWNER, type Owner } from "./data/owner";
-import { APPROVED, ownerOf, type UserRow } from "./data/system";
+import { APPROVED, ownerOf } from "./data/system";
 import { sessionUser } from "./tesla";
 
 export type { Owner } from "./data/owner";
@@ -13,13 +13,6 @@ export type { Owner } from "./data/owner";
 // everywhere" or "Disconnect Tesla", and gets the account it is for: every per-user read and write takes that Owner.
 export async function currentOwner(): Promise<Owner | null> {
   if (DEMO) return DEMO_OWNER;
-  const user = await sessionAccount();
-  return user && ownerOf(user);
-}
-
-// The users row a current session names (the checks above), or null. The admin check reads its role
-// from this same row (lib/server/admin.ts), so a page's session and admin checks are one read.
-export async function sessionAccount(): Promise<UserRow | null> {
   const cookie = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!(await isValidSession(cookie))) return null;
   const claims = sessionClaims(cookie);
@@ -31,7 +24,7 @@ export async function sessionAccount(): Promise<UserRow | null> {
   if (user?.status !== APPROVED || user.signed_out_sessions.includes(claims.issuedAt)) return null;
   const validAfter = new Date(user.sessions_valid_after).getTime();
   // -infinity (never revoked) reads as 0.
-  return claims.issuedAt >= (Number.isFinite(validAfter) ? validAfter : 0) ? user : null;
+  return claims.issuedAt >= (Number.isFinite(validAfter) ? validAfter : 0) ? ownerOf(user) : null;
 }
 
 export async function hasCurrentSession(): Promise<boolean> {
