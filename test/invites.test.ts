@@ -194,6 +194,18 @@ describe("places and modes", () => {
     expect(row().used_at ?? null).toBeNull();
   });
 
+  test("two invites redeemed at once for the last place: one joins, the other is told it's full and its invite stays unused", async () => {
+    process.env.MAX_USERS = "3"; // the admin and user 2 hold two places
+    garages.friend = [FRIEND_VIN];
+    garages.neighbour = [OTHER_VIN];
+    const [first, second] = [await invite(), await invite("999999")];
+    const results = await Promise.all([signIn("friend", { inviteHash: first.hash }), signIn("neighbour", { inviteHash: second.hash })]);
+    expect(results.filter((r) => typeof r === "object")).toHaveLength(1);
+    expect(results).toContain("full");
+    expect(fake.rows("users").filter((u) => u.status === "approved")).toHaveLength(3);
+    expect([first.row().used_at ?? null, second.row().used_at ?? null].filter((at) => at === null)).toHaveLength(1);
+  });
+
   test("an unknown login without an invite is refused in invite mode", async () => {
     garages.stranger = [FRIEND_VIN];
     expect(await signIn("stranger")).toBe("invite-only");

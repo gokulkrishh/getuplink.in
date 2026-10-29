@@ -144,6 +144,22 @@ describe("the cap", () => {
     expect(statuses().filter((s) => s === "approved")).toHaveLength(3);
   });
 
+  test("two approvals at once for the last place: one is approved, the other is told it's full", async () => {
+    process.env.MAX_USERS = "3"; // the admin and user 2 hold two places
+    const results = await Promise.all([decideAccount("approve", 3, null), decideAccount("approve", 4, null)]);
+    expect(results.filter((r) => r === null)).toHaveLength(1);
+    expect(results).toContain("All 3 places are used.");
+    expect(statuses().filter((s) => s === "approved")).toHaveLength(3);
+  });
+
+  test("before the approve_within_cap migration, approving past MAX_USERS is still refused", async () => {
+    fake.missingRpcs.add("approve_within_cap");
+    process.env.MAX_USERS = "3";
+    expect(await decideAccount("approve", 3, null)).toBeNull();
+    expect(await decideAccount("approve", 4, null)).toBe("All 3 places are used.");
+    expect(statuses().filter((s) => s === "approved")).toHaveLength(3);
+  });
+
   test("defaults to 25", async () => {
     for (let id = 10; id < 33; id++) fake.rows("users").push(user(id, "approved")); // 25 approved
     expect(await decideAccount("approve", 3, null)).toBe("All 25 places are used.");
