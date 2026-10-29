@@ -111,6 +111,8 @@ function ConfirmDelete({
   const [error, action] = useActionState(guarded(deleteAction), null);
   const trigger = useRef<HTMLButtonElement>(null);
   const input = useRef<HTMLInputElement>(null);
+  // Controlled, so a failed action (a dropped connection) resets the form without clearing the typed word.
+  const [typed, setTyped] = useState("");
   useAskingFocus(asking, input, trigger);
   const errorId = `${id}-error`;
   return (
@@ -137,7 +139,7 @@ function ConfirmDelete({
           <p className="text-muted-foreground">{consequence}</p>
           <label className="block space-y-1.5">
             <span className="block text-sm text-muted-foreground">Type {word} to confirm</span>
-            <Input ref={input} name="confirm" {...NO_AUTOFILL} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder={word} className="h-9 max-sm:h-10 max-w-48" aria-invalid={error ? true : undefined} aria-describedby={error ? errorId : undefined} />
+            <Input ref={input} name="confirm" value={typed} onChange={(e) => setTyped(e.target.value)} {...NO_AUTOFILL} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder={word} className="h-9 max-sm:h-10 max-w-48" aria-invalid={error ? true : undefined} aria-describedby={error ? errorId : undefined} />
           </label>
           {error && (
             <p id={errorId} role="alert" className="text-sm text-destructive">
@@ -147,7 +149,10 @@ function ConfirmDelete({
           {/* Right-aligned with the action last; reversed so it stays first in tab order and gets focus on open. */}
           <div className="flex flex-row-reverse gap-2 pt-1">
             <Submit pendingLabel="Deleting">{submit}</Submit>
-            <Button type="button" variant="ghost" size="lg" onClick={() => setAsking(false)}>
+            <Button type="button" variant="ghost" size="lg" onClick={() => {
+                setAsking(false);
+                setTyped("");
+              }}>
               Cancel
             </Button>
           </div>

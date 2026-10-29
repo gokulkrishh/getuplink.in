@@ -1,5 +1,4 @@
 import { Loading, Ph, SkBigLabel, SkBlock, SkChart, SkChartCaptioned, SkFigures, SkHead, SkHeadline, SkLine, SkSection, SkShowMore, SkTable, SkTripRows } from "@/components/skeleton";
-import { AiNotesSkeleton } from "@/components/home/week-tips";
 import { CHARGING_PREVIEW } from "@/components/stats/charging-sections";
 
 // What each Stats topic shows while its data loads: its sections in order, each built from the section's own
@@ -88,7 +87,6 @@ const panel = (h: string, phone: string) => `${h} ${phone}`;
 export function ChargingSkeleton() {
   return (
     <>
-      <AiNotesSkeleton />
       <SkSection gap={8}>
         <SkSection>
           <SkHead title="Spend" />
@@ -314,7 +312,6 @@ function SkSessions() {
 export function BatterySkeleton() {
   return (
     <>
-      <AiNotesSkeleton />
       <SkSection>
         <SkHead title="Battery health" description="What the battery holds now, against its best week." />
         <SkFigures
@@ -509,7 +506,6 @@ export function DriveSkeleton() {
               { label: "Hard moments", value: "3", note: "3 brakes · your usual 3" },
             ]}
           />
-          <AiNotesSkeleton />
         </SkSection>
         <SkSection>
           <p className="text-lg font-medium tracking-heading" aria-hidden="true">
@@ -610,7 +606,6 @@ export function ChargeSkeleton() {
         <Ph>Bengaluru · Today, 27 Oct 2026 · 4:08 PM to 6:20 PM</Ph>
       </p>
       <div className="space-y-12">
-        <AiNotesSkeleton />
         <SkSection>
           <SkHead title="Power and battery level" description="Charging power and battery level through the charge." />
           <div className="space-y-3" aria-hidden="true">

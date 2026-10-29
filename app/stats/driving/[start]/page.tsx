@@ -1,14 +1,14 @@
 import { ScrollX } from "@/components/scroll-x";
-import { AiNotes, AiNotesSkeleton } from "@/components/home/week-tips";
+import { AiNotes } from "@/components/home/week-tips";
 import { DriveSkeleton } from "@/components/stats/skeletons";
-import { TipsBox } from "@/components/tips-box";
+import { loadTipsBox } from "@/components/tips-box";
 import { DRIVE_TIPS, driveFindings, TRIP_TIPS } from "@/lib/drive-tips";
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { after } from "next/server";
-import { Suspense } from "react";
+import { type ReactNode, Suspense } from "react";
 import { Header } from "@/components/header";
 import { BackLink } from "@/components/stats/back-link";
 import { ChartCard } from "@/components/chart-card";
@@ -68,7 +68,7 @@ async function loadDetail(start: number, leg: boolean): Promise<{ owner: Owner; 
 // the route on a map with its start, stops and end, a timeline of legs and stops, then the battery and
 // speed across the whole trip.
 // `words` holds each line's text, the AI's or the code's (see lib/drive-facts.ts and lib/drive-wording.ts).
-function Drive({ detail, view, words, now }: { detail: DriveDetail; view: DriveView; words: Partial<Record<WordingField, ShownLine>>; now: number }) {
+function Drive({ detail, view, words, tipsBox, now }: { detail: DriveDetail; view: DriveView; words: Partial<Record<WordingField, ShownLine>>; tipsBox: ReactNode; now: number }) {
   const { speed, rangeUsedKm, topKmh, outsideC, route, pins, accel, power, grade, climate } = detail;
   // The trip's totals are its legs' raw sums, each rounded on its own when shown.
   const { trip } = detail;
@@ -99,18 +99,6 @@ function Drive({ detail, view, words, now }: { detail: DriveDetail; view: DriveV
   const line = (field: WordingField) => (words[field] ? <AiLine line={words[field]} /> : null);
   const what = trip.stops ? "trip" : "drive";
   const wentTiles = howItWent(view.facts);
-  const tips = driveFindings({
-    km: trip.km,
-    kwh: trip.kwh,
-    usual: detail.usual,
-    moments,
-    power,
-    speed,
-    grade,
-    legs: trip.legs,
-    usableKwh: detail.usableKwh,
-    climate: climate ? summariseClimate(climate) : null,
-  });
   return (
     <>
       <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">{trip.stops ? "Trip" : "Drive"}</h1>
@@ -125,11 +113,7 @@ function Drive({ detail, view, words, now }: { detail: DriveDetail; view: DriveV
             <Figures figures={wentTiles} />
             {words.summary?.ai && <AiNotes title="Summary" notes={[{ text: words.summary.text }]} />}
             {/* What to do, from this drive against the usual (lib/drive-tips.ts); no box with nothing to say. */}
-            {tips.length > 0 && (
-              <Suspense fallback={<AiNotesSkeleton />}>
-                <TipsBox surface={trip.legs.length > 1 ? TRIP_TIPS : DRIVE_TIPS} vehicleId={detail.vehicleId} at={trip.start} daily={false} entity={String(trip.start)} findings={tips} />
-              </Suspense>
-            )}
+            {tipsBox}
           </section>
         )}
         <section className="space-y-4">
@@ -374,7 +358,27 @@ async function DriveLoader({ params, searchParams }: Pick<PageProps<"/stats/driv
   const key = { vehicleId: detail.vehicleId, start: detail.trip.start, scope: detail.trip.legs.length > 1 ? "trip" : "drive" } as const;
   const stored = await loadDriveWording(owner, key, view.facts);
   if (stored.generate) after(() => generateDriveWording(owner, key, view.facts));
-  return <Drive detail={detail} view={view} words={pickWords(view.code, stored.words)} now={now} />;
+  const { trip } = detail;
+  const tipsBox = await loadTipsBox({
+    surface: trip.legs.length > 1 ? TRIP_TIPS : DRIVE_TIPS,
+    vehicleId: detail.vehicleId,
+    at: trip.start,
+    daily: false,
+    entity: String(trip.start),
+    findings: driveFindings({
+      km: trip.km,
+      kwh: trip.kwh,
+      usual: detail.usual,
+      moments: view.moments,
+      power: detail.power,
+      speed: detail.speed,
+      grade: detail.grade,
+      legs: trip.legs,
+      usableKwh: detail.usableKwh,
+      climate: detail.climate ? summariseClimate(detail.climate) : null,
+    }),
+  });
+  return <Drive detail={detail} view={view} words={pickWords(view.code, stored.words)} tipsBox={tipsBox} now={now} />;
 }
 
 export default function Page({ params, searchParams }: PageProps<"/stats/driving/[start]">) {

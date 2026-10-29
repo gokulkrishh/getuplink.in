@@ -19,8 +19,7 @@ import { periodFrames } from "@/lib/frames";
 import { hasNoHistory } from "@/lib/dashboard-summary";
 import { daysLabel } from "@/lib/periods";
 import { istDay, istDayStart } from "@/lib/telemetry-derive";
-import { AiNotesSkeleton } from "@/components/home/week-tips";
-import { TipsBox } from "@/components/tips-box";
+import { loadTipsBox } from "@/components/tips-box";
 import { batteryFindings } from "@/lib/battery-tips";
 import { averagePrice, pricedCharges } from "@/lib/charge-tips";
 import { WEEK_TIPS, weekFindings } from "@/lib/week-wording";
@@ -80,7 +79,7 @@ function greeting(now: number): string {
 }
 
 // A glance at the last 7 days: the four headline numbers, the tips and the charge level. Each tile leads to its Stats tab.
-function Totals({ home, now, shareCard }: { home: Ready<HomeNow> & Ready<HomeWeek>; now: number; shareCard: boolean }) {
+async function Totals({ home, now, shareCard }: { home: Ready<HomeNow> & Ready<HomeWeek>; now: number; shareCard: boolean }) {
   const { streamOnly } = matchSessions(home.sessions, home.streamSessions, now);
   const { window } = home;
   const figures = withDriveEfficiency(home.figures, window.driving.drives, now);
@@ -107,6 +106,8 @@ function Totals({ home, now, shareCard }: { home: Ready<HomeNow> & Ready<HomeWee
     ...batteryFindings({ parked: window.driving.parked, presence: [], level: [], avgPrice: averagePrice(priced), now, heavyFrom: frame.span.from }).filter((f) => f.kind === "heavyDrain"),
   ];
   const today = istDayStart(istDay(now));
+  // Read with the week, so the box and the tiles arrive together; none on a quiet week.
+  const tipsBox = await loadTipsBox({ surface: WEEK_TIPS, vehicleId: primaryId, at: today, daily: true, entity: String(today), findings });
   return (
     <div className="space-y-12">
       <section aria-label="Totals" className="space-y-6">
@@ -130,13 +131,8 @@ function Totals({ home, now, shareCard }: { home: Ready<HomeNow> & Ready<HomeWee
         {/* The card asking the owner to share, when it's due, right under the week's tiles. Always mounted, so
             its "You're sharing" note outlives the refresh that drops the card once sharing is on. */}
         <ShareNudgeCard show={shareCard} />
-        {/* The AI's tips on the week stream in after the rest, in a box of the same size. */}
-        {/* A quiet week has no tips, so no box. */}
-        {primaryId && findings.length > 0 && (
-          <Suspense fallback={<AiNotesSkeleton />}>
-            <TipsBox surface={WEEK_TIPS} vehicleId={primaryId} at={today} daily entity={String(today)} findings={findings} />
-          </Suspense>
-        )}
+        {/* The AI's tips on the week. A quiet week has none, so no box. */}
+        {tipsBox}
       </section>
       {/* The week in one picture: the level drops as the car drives and rises as it charges. The rest is a tap away on Stats. */}
       <ChargeLevelChart level={window.level} now={now} frame={frame} />
@@ -302,7 +298,6 @@ function TotalsSkeleton() {
           <p className="text-sm"><span className={line}>Here&apos;s your car&apos;s last 7 days, 21 Oct to 27 Oct.</span></p>
         </div>
         <div className="h-[391px] border bg-muted/40 motion-safe:animate-pulse sm:h-[174px]" />
-        <AiNotesSkeleton />
       </div>
       {/* The charge level chart below, its heading and a block of its usual height. */}
       <SkSection>

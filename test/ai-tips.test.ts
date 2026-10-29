@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { checkTips, DROP_AT, demoTips, type Finding, MAX_FINDINGS, modelFindings, rankWithVotes, tipProblem, tipsKey, tipsRequest, topFindings, votesNote } from "@/lib/ai-tips";
+import { checkTips, DROP_AT, demoTips, type Finding, MAX_FINDINGS, modelFindings, rankWithVotes, findingsToSend, tipProblem, tipsKey, tipsRequest, topFindings, tipsToShow, votesNote } from "@/lib/ai-tips";
 import { kindLabel, netByKind, summariseVotes, tipVoteInput } from "@/lib/tip-votes";
 import { WEEK_TIPS } from "@/lib/week-wording";
 
@@ -133,5 +133,32 @@ describe("AI tips: code finds, AI words", () => {
     expect(rows[0].examples.map((e) => e.tip)).toEqual(["P1.", "P2.", "P3."]);
     expect(kindLabel("pastEighty")).toBe("Past eighty");
     expect(kindLabel("cheaperNearby")).toBe("Cheaper nearby");
+  });
+});
+
+describe("which notes the tips box shows", () => {
+  const f = (kind: string, score: number) => finding(kind, score, { n: score });
+  test("an LFP car is not told to keep to 90%", () => {
+    const list = [f("highDays", 900), f("hardMoments", 100)];
+    expect(findingsToSend(list, {}, true).map((x) => x.kind)).toEqual(["hardMoments"]);
+    expect(findingsToSend(list, {}, false).map((x) => x.kind)).toEqual(["highDays", "hardMoments"]);
+    expect(findingsToSend(list, {}, null).map((x) => x.kind)).toEqual(["highDays", "hardMoments"]);
+  });
+  test("votes rank the findings and drop a kind voted down too often", () => {
+    const list = [f("a", 500), f("b", 400), f("c", 300)];
+    expect(findingsToSend(list, { c: 2 }, false).map((x) => x.kind)).toEqual(["c", "a", "b"].slice(0, MAX_FINDINGS));
+    expect(findingsToSend(list, { a: DROP_AT }, false).map((x) => x.kind)).not.toContain("a");
+  });
+  test("a note voted not useful isn't shown; one voted useful, or not voted on, is", () => {
+    const tips = [
+      { kind: "a", text: "One." },
+      { kind: "b", text: "Two." },
+      { kind: "c", text: "Three." },
+    ];
+    expect(tipsToShow(tips, { "One.": -1, "Two.": 1 }).map((t) => t.text)).toEqual(["Two.", "Three."]);
+  });
+  test("nothing stored, or all voted down, shows nothing", () => {
+    expect(tipsToShow([], {})).toEqual([]);
+    expect(tipsToShow([{ kind: "a", text: "One." }], { "One.": -1 })).toEqual([]);
   });
 });

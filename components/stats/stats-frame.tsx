@@ -3,6 +3,7 @@ import { type ReactNode, Suspense, ViewTransition } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Header } from "@/components/header";
 import { Loading } from "@/components/skeleton";
+import { DatesNote } from "./dates-note";
 import { PeriodPicker, PeriodScope } from "./period-scope";
 import { type CustomScope, PAGE_PERIODS, type View } from "./periods";
 import { ViewTabs, ViewTabsShell } from "./view-tabs";
@@ -16,7 +17,12 @@ export function StatsFrame({ custom, periodSwitch = true, children }: { custom: 
       {/* Fades in over the skeleton when the topic's data arrives (see StatsSkeleton); nothing else moves. */}
       <ViewTransition enter="stats-in" default="none">
         <div className="space-y-12">
-          {periodSwitch && <PeriodPicker />}
+          {periodSwitch && (
+            <div className="space-y-3">
+              <PeriodPicker />
+              <DatesNote />
+            </div>
+          )}
           {children}
         </div>
       </ViewTransition>

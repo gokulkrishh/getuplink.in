@@ -21,8 +21,7 @@ import { type BatteryExtras, loadBatteryExtras } from "@/lib/server/battery-extr
 import { loadPrimaryVehicle } from "@/lib/server/telemetry";
 import { loadStretchPlaces } from "@/lib/server/parked-places";
 import type { SpotName } from "@/lib/charge-names";
-import { AiNotesSkeleton } from "@/components/home/week-tips";
-import { TipsBox } from "@/components/tips-box";
+import { loadTipsBox } from "@/components/tips-box";
 import type { DayStrip } from "@/lib/awake";
 import { BATTERY_TIPS, batteryFindings } from "@/lib/battery-tips";
 import { averagePrice, type PricedCharge } from "@/lib/charge-tips";
@@ -89,6 +88,8 @@ async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "sear
   // The tips (lib/battery-tips.ts), over what the page holds: the period switch doesn't change them.
   const tips = batteryFindings({ parked: driving.parked, presence, level: level?.points ?? [], avgPrice: averagePrice(priced), now, modes });
   const today = istDayStart(istDay(now));
+  // Read with the page's data, so the box and the page arrive together; none when there are no tips to show.
+  const tipsBox = enough ? await loadTipsBox({ surface: BATTERY_TIPS, vehicleId, at: today, daily: true, entity: String(today), findings: tips }) : null;
 
   return (
     // One switch drives every section. Each period draws only what it has (a quiet one is a line, not a
@@ -96,11 +97,7 @@ async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "sear
     <StatsFrame custom={customScope(custom?.range ?? null, now)} periodSwitch={enough}>
       {enough ? (
         <div className="space-y-12">
-          {vehicleId && tips.length > 0 && (
-            <Suspense fallback={<AiNotesSkeleton />}>
-              <TipsBox surface={BATTERY_TIPS} vehicleId={vehicleId} at={today} daily entity={String(today)} findings={tips} />
-            </Suspense>
-          )}
+          {tipsBox}
           {eachFrame(frames, () => (
             <BatteryHealth trend={trend} range={range} drives={driving.drives} now={now} />
           ))}

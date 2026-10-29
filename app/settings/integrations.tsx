@@ -166,9 +166,9 @@ export function McpConnector({ connectors, now }: { connectors: Connector[] | nu
             <li>Add a connector below, named after your AI. Its token is shown once, so keep this page open until it&apos;s saved in your AI.</li>
             <li>In your AI, add a custom MCP connector (in Grok, open Connectors, then New connector, then Custom) with the URL below.</li>
             <li>
-              In Claude: under Authentication choose No sign-in, then Add header. Paste the header name, Authorization, and the header value, which starts with Bearer.
+              In Claude: under Authentication choose No sign-in, then Add header. A header is a name and a value that tells Uplink it&apos;s you. Use the name Authorization. Its value is the word Bearer, a space, then your token.
             </li>
-            <li>In other AIs, use the same header, or paste the token alone where it asks for an API key.</li>
+            <li>In other AIs, use the same header, or paste the token alone where it asks for an API key. An API key is another word for your token.</li>
           </ol>
         </ManualInstructions>
         <Copyable label="Connector URL" value={CONNECTOR_URL} />
@@ -228,6 +228,7 @@ export function BotTemplate() {
       }
     >
       <div className="mt-4 space-y-3">
+        <p className="text-sm text-muted-foreground">It reads your Gmail for charging invoices every 6 hours, and any invoice you send it in chat. It never replies to or sends mail. Like any connector, it can also read your car data in Uplink.</p>
         <p className="text-sm text-muted-foreground">
           {BOT_TEMPLATE_URL && "In Grok Bot, choose Add to Grok, then add a connector above and paste its token. "}
           For any other bot, paste the manual instructions.

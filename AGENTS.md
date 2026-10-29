@@ -55,6 +55,7 @@ Which checks a change gets is set here, not left to judgement on the day:
 - **Security-critical changes**: run `/security-review` before merge whenever a change touches sign-in, sessions or cookies (`proxy.ts`, `lib/server/auth.ts`), admin checks, Tesla tokens or their refresh (`lib/server/tesla.ts`), connector tokens or `/api/mcp`, invites, the waitlist or the owner cap, sharing, API or cron routes and their secrets, file uploads, encryption, or database access rules and migrations. Both reviews when both apply.
 - **Launch QA** (`launch-qa` skill, the five personas): before inviting more owners, before a major feature goes live, and after changes to the way in (home, waitlist, invite, sign-in, setup).
 - **Migrations:** additive only. The code must work with and without the new column. Read the SQL before it's applied.
+- **After merge:** check the merged commit on main: both Vercel production deployments (getuplink.in, uplink-demo) and the main CI run. Report them with the merge; if one fails, read its build logs and say why first.
 
 ## Worktrees
 

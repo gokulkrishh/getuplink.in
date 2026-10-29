@@ -19,7 +19,7 @@ const DESCRIPTION = "Software updates, Supercharger spend, battery and kilometre
 // Served at getuplink.in/ (proxy.ts rewrites it to /home), so its links and preview image use that host.
 export const metadata: Metadata = {
   metadataBase: new URL(HOME_URL),
-  title: { absolute: "Uplink · Your Tesla's updates, charging and driving, in one place" },
+  title: { absolute: "Uplink · Your Tesla's updates, charging and driving, on one page" },
   description: DESCRIPTION,
   robots: { index: true, follow: true },
   alternates: { canonical: "/" },
@@ -115,7 +115,7 @@ export default function HomePage() {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 sm:px-8">
       <header className="flex h-16 items-center justify-between gap-4 text-sm">
-        <Link href="/" className="inline-flex items-center gap-2 font-medium">
+        <Link href="/" className="tap-target inline-flex items-center gap-2 font-medium">
           <Logo className="size-5" />
           Uplink
         </Link>
@@ -129,7 +129,7 @@ export default function HomePage() {
         <div>
           <p className="text-xs tracking-wide text-faint uppercase">For Tesla owners in India</p>
           <h1 className="mt-5 text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl 2xl:text-6xl">
-            Your Tesla, all in one place.
+            Your Tesla, on one page.
           </h1>
           <p className="mt-6 max-w-md text-lg text-muted-foreground">
             Updates, trips, charging and battery for your Tesla, from the day you sign in.
@@ -216,7 +216,7 @@ export default function HomePage() {
         </div>
         <p className="mt-6 text-sm text-muted-foreground">
           Revoke access from your Tesla account, or delete everything from Settings, any time.{" "}
-          <Link href="/privacy" className="underline decoration-muted-foreground/60 underline-offset-4 hover:text-foreground">
+          <Link href="/privacy" className="tap-target underline decoration-muted-foreground/60 underline-offset-4 hover:text-foreground">
             Read the privacy page
           </Link>
         </p>

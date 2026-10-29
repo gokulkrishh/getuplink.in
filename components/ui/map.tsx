@@ -43,7 +43,9 @@ function loadMapLibre() {
   return maplibrePromise;
 }
 
-if (typeof window !== "undefined") loadMapLibre().catch(() => {});
+// How far below the viewport a map may be and still start loading: far enough that it is ready by the time
+// it is scrolled to, near enough that a map far down the page costs nothing on first load.
+const NEAR_VIEWPORT = "800px 0px";
 
 const defaultStyles = {
   dark: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
@@ -315,8 +317,31 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
   // Expose the map instance to the parent component
   useImperativeHandle(ref, () => mapInstance as MapLibreGL.Map, [mapInstance]);
 
-  // Initialize the map once maplibre-gl has loaded
+  // The library, the style and the tiles load only once the map is near the viewport; until then the
+  // container keeps its size with the loader in it, so nothing moves when the map arrives.
+  const [near, setNear] = useState(false);
   useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setNear(true);
+      return;
+    }
+    const watcher = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        setNear(true);
+        watcher.disconnect();
+      },
+      { rootMargin: NEAR_VIEWPORT },
+    );
+    watcher.observe(el);
+    return () => watcher.disconnect();
+  }, []);
+
+  // Initialize the map once it is near and maplibre-gl has loaded
+  useEffect(() => {
+    if (!near) return;
     let cancelled = false;
     let map: MapLibreGL.Map | undefined;
 
@@ -377,7 +402,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       setIsStyleLoaded(false);
       setMapInstance(null);
     };
-  }, []);
+  }, [near]);
 
   // Sync controlled viewport to map
   useEffect(() => {

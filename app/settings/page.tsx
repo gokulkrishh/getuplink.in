@@ -276,7 +276,7 @@ function HomeState({ home }: { home: OwnHomeState }) {
         <>
           <p>For the India rollout map. Only the state is kept here.</p>
           {home.askLocation && <p className="text-faint">
-              <a href="/api/auth/connect" className="underline decoration-muted-foreground/60 underline-offset-4 hover:text-foreground hover:decoration-foreground">
+              <a href="/api/auth/connect" className="tap-target underline decoration-muted-foreground/60 underline-offset-4 hover:text-foreground hover:decoration-foreground">
                 Sign in again
               </a>{" "}
               to let Uplink read your car&apos;s location.

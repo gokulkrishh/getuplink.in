@@ -295,8 +295,9 @@ function PinTip({ tip, onEnter, onLeave, onClose }: { tip: Tip; onEnter: () => v
     <MapPopup longitude={tip.lng} latitude={tip.lat} closeOnClick={false} focusAfterOpen={false} offset={18} className="max-w-none rounded-none border-0 bg-transparent p-0 shadow-none">
       <div ref={body} className="block max-w-64 border bg-background px-2.5 py-1.5 text-xs text-foreground shadow-md tabular-nums">
         <span className="block font-medium">{tip.lines[0]}</span>
-        {tip.lines.slice(1).map((l) => (
-          <span key={l} className="block text-muted-foreground">
+        {tip.lines.slice(1).map((l, i) => (
+          // Two pins at one spot can say the same thing, so the text alone isn't a key.
+          <span key={`${i}-${l}`} className="block text-muted-foreground">
             {l}
           </span>
         ))}
@@ -403,7 +404,19 @@ function JourneyBadge({ kinds, stop }: { kinds: MapPin["kind"][]; stop: number |
   return <span className={cn(BADGE, RING, "size-5 bg-foreground text-[10px] text-background")}>{stop ?? ""}</span>;
 }
 
-type Group = { pins: MapPin[]; lat: number; lng: number };
+type Group = { pins: MapPin[]; lat: number; lng: number; key: string };
+
+// A key for each group that is its own, though two pins can share a kind, a time and a latitude (stops at one
+// place, a place visited twice): the second one is numbered.
+function keyed(groups: Omit<Group, "key">[]): Group[] {
+  const seen = new globalThis.Map<string, number>();
+  return groups.map((g) => {
+    const base = `${g.pins[0].kind}-${g.pins[0].t}-${g.pins[0].lat}`;
+    const n = seen.get(base) ?? 0;
+    seen.set(base, n + 1);
+    return { ...g, key: n ? `${base}-${n}` : base };
+  });
+}
 
 // What a pin says in its tip: its kind and time, then whatever the page knows about it.
 function pinLines(pin: MapPin, journey: boolean): string[] {
@@ -458,14 +471,14 @@ export function TripMap({
 
   // Pins at one spot share a marker, so a round trip shows "A B" instead of two badges on top of each other.
   const groups = useMemo(() => {
-    if (!journey) return pins.map((p) => ({ pins: [p], lat: p.lat, lng: p.lng }));
-    const out: Group[] = [];
+    if (!journey) return keyed(pins.map((p) => ({ pins: [p], lat: p.lat, lng: p.lng })));
+    const out: Omit<Group, "key">[] = [];
     for (const p of pins) {
       const near = out.find((g) => metres(g, p) < NEAR_M);
       if (near) near.pins.push(p);
       else out.push({ pins: [p], lat: p.lat, lng: p.lng });
     }
-    return out;
+    return keyed(out);
   }, [pins, journey]);
 
   // A chip in the middle of each leg of a trip.
@@ -509,12 +522,11 @@ export function TripMap({
   });
 
   // Names beside the pins that have one, where they fit.
-  const groupKey = (g: Group) => `${g.pins[0].kind}-${g.pins[0].t}-${g.pins[0].lat}`;
   const labelItems = useMemo(
     () =>
       groups.map((g) => {
         const size = journey ? 24 : (g.pins[0].size ?? 16);
-        return { key: groupKey(g), lat: g.lat, lng: g.lng, r: size / 2, text: g.pins.find((p) => p.name)?.name, rank: size * 1e13 + g.pins[0].t };
+        return { key: g.key, lat: g.lat, lng: g.lng, r: size / 2, text: g.pins.find((p) => p.name)?.name, rank: size * 1e13 + g.pins[0].t };
       }),
     [groups, journey],
   );
@@ -572,7 +584,7 @@ export function TripMap({
                 const lead = g.pins[0];
                 const size = lead.size ?? (lead.kind === "stop" ? 12 : 16);
                 const stop = journey && g.pins.some((p) => p.kind === "stop") && single ? ++stopNumber : null;
-                const key = groupKey(g);
+                const key = g.key;
                 const name = g.pins.find((p) => p.name)?.name;
                 const side = sides.get(key);
                 return (

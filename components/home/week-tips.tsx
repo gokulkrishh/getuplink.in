@@ -207,22 +207,3 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
     </div>
   );
 }
-
-// In the notes' place while they load: plain blocks, since there may turn out to be none.
-// The empty row under it stands for the vote buttons.
-export function AiNotesSkeleton() {
-  return (
-    <div data-skeleton="tips" aria-hidden="true">
-      <div className={BOX}>
-        <div className="flex h-6 items-center">
-          <div className="h-3 w-16 animate-pulse bg-muted" />
-        </div>
-        <div className={cn("space-y-2 pt-1", TIPS_LINES)}>
-          <div className="h-3 w-full animate-pulse bg-muted" />
-          <div className="h-3 w-2/3 animate-pulse bg-muted" />
-        </div>
-      </div>
-      <div className="h-8" />
-    </div>
-  );
-}

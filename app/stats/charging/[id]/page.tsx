@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { type ReactNode, Suspense } from "react";
-import { AiNotesSkeleton } from "@/components/home/week-tips";
 import { ChargeSkeleton } from "@/components/stats/skeletons";
-import { TipsBox } from "@/components/tips-box";
+import { loadTipsBox } from "@/components/tips-box";
 import { CHARGE_TIPS, chargeFindings, type PricedCharge } from "@/lib/charge-tips";
 import { loadPricedCharges } from "@/lib/server/charge-tips";
 import { loadPrimaryVehicle } from "@/lib/server/telemetry";
@@ -119,7 +118,7 @@ function Charge({ detail, now, tips }: { detail: ChargeDetail; now: number; tips
         <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">
           {/* The name opens the spot in Google Maps, dotted like the other links beside it. */}
           {mapsHref ? (
-            <a href={mapsHref} target="_blank" rel="noopener" title="Open in Google Maps" className="underline decoration-dotted decoration-muted-foreground underline-offset-4 transition-colors hover:decoration-foreground">
+            <a href={mapsHref} target="_blank" rel="noopener" title="Open in Google Maps" className="tap-target underline decoration-dotted decoration-muted-foreground underline-offset-4 transition-colors hover:decoration-foreground">
               {place}
             </a>
           ) : (
@@ -171,13 +170,7 @@ async function ChargeLoader({ params }: { params: Promise<{ id: string }> }) {
     <Charge
       detail={detail}
       now={now}
-      tips={
-        vehicleId && tips.length > 0 ? (
-          <Suspense fallback={<AiNotesSkeleton />}>
-            <TipsBox surface={CHARGE_TIPS} vehicleId={vehicleId} at={at} daily={false} entity={String(detail.session.id)} findings={tips} />
-          </Suspense>
-        ) : null
-      }
+      tips={await loadTipsBox({ surface: CHARGE_TIPS, vehicleId, at, daily: false, entity: String(detail.session.id), findings: tips })}
     />
   );
 }
