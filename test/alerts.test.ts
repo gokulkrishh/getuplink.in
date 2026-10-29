@@ -26,14 +26,14 @@ describe("buildAlerts", () => {
     expect(buildAlerts({ ...failed, connected: false }).map((a) => a.key)).toEqual(["disconnected"]);
   });
 
-  test("the admin sees a part of Uplink that isn't working, with what the health check found", () => {
+  test("the admin sees a part of Uplink that isn't working, what the health check found and how to fix it", () => {
     const health = [
       { component: "Car data stream", status: "degraded", problems: ["No streaming config on the car"] },
       { component: "Database", status: "operational", problems: [] },
       { component: "Website", status: "down", problems: [] },
     ];
     expect(buildAlerts({ ...ok, health }).map((a) => [a.title, a.detail, a.href])).toEqual([
-      ["Live car data: having problems", "No streaming config on the car.", "/admin"],
+      ["Live car data: having problems", "No streaming config on the car. Add Uplink's key on the car again, then open Setup to send the streaming setting.", "/setup"],
       ["Website: down", "See Health on the admin page.", "/admin"],
     ]);
   });
