@@ -16,4 +16,4 @@ Use before a launch, before inviting more owners, or after a change to the way i
 - **Before**: each persona returns JSON `{id, route, element, step, expected, saw, screenshot, severity, kind}`. Merge on route + element and rank by how many personas hit it.
 - **Fix** in a worktree, each fix agent owning its own files.
 - **After**: resume the same persona agents (SendMessage) on a demo copy of the branch. Each repeats its own findings first (fixed / still broken / new), then walks the journey again for regressions.
-- End with `.claude/skills/verify-uplink/scripts/launch-checklist.mjs` and `before-after.mjs` (see SKILL.md step 6).
+- End with `.claude/skills/verify/scripts/launch-checklist.mjs` and `before-after.mjs` (see SKILL.md step 6).

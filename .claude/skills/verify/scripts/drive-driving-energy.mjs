@@ -1,7 +1,7 @@
 // Proof run for features/stats-driving.md: the Distance chart carries the period's energy. Week, then its
 // tallest bar's tip (hover, or a tap on a phone), then Year, where Efficiency by season and Time at each
 // speed join the page. Prints the sections, the energy line and the tip, and saves screenshots.
-// Usage: bun --install=force .claude/skills/verify-uplink/scripts/drive-driving-energy.mjs [--phone] [--run <name>]
+// Usage: bun --install=force .claude/skills/verify/scripts/drive-driving-energy.mjs [--phone] [--run <name>]
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { evidenceDir, open } from "./browser.mjs";

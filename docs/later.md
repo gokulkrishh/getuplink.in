@@ -24,7 +24,7 @@ Size: medium (a table for grants and views, the Settings switch, a read-only vie
 Before 13 May 2027 (DPDP core duties) add what the law asks: how to withdraw consent, how to complain (to Uplink, then the Data Protection Board), and a grievance contact. See docs/legal-review.md.
 
 ### Demo scenarios
-Demo mode can't show the waitlist after sign-in, a valid invite, a removed key, or the bell with alerts. Adding these as `?scenario=` states would let `verify-uplink` and `launch-qa` reach them.
+Demo mode can't show the waitlist after sign-in, a valid invite, a removed key, or the bell with alerts. Adding these as `?scenario=` states would let `verify` and `launch-qa` reach them.
 
 ## Small issues (from the 29 Oct 2026 launch QA)
 - After a dropped connection, the Delete confirm box in Settings clears the typed word (`app/settings/confirm-actions.tsx`: control the input's value).
