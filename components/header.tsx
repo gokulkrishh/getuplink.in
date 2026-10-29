@@ -89,10 +89,10 @@ function BellMenu({ alerts, now }: { alerts: Alert[]; now: number }) {
   return <AlertsMenu alerts={alerts} now={now} className={BELL} />;
 }
 
-// The bell's place while the alerts load.
+// The bell's place while the alerts load: grey, as with nothing to show, so it only lights up when something needs you.
 function BellPlaceholder() {
   return (
-    <span className={BELL} aria-hidden>
+    <span className={cn(BELL, "text-muted-foreground/40")} aria-hidden>
       <Bell className="size-4" />
     </span>
   );
