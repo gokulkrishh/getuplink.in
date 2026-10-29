@@ -206,6 +206,18 @@ describe("places and modes", () => {
     expect([first.row().used_at ?? null, second.row().used_at ?? null].filter((at) => at === null)).toHaveLength(1);
   });
 
+  test("before the approve_within_cap migration, an invite still joins, and a full Uplink still refuses", async () => {
+    fake.missingRpcs.add("approve_within_cap");
+    garages.friend = [FRIEND_VIN];
+    const { hash, row } = await invite();
+    expect(typeof (await signIn("friend", { inviteHash: hash }))).toBe("object");
+    expect(userBySub("friend")?.status).toBe("approved");
+    expect(row().used_by).toBe(userBySub("friend")!.id);
+    process.env.MAX_USERS = "3";
+    garages.neighbour = [OTHER_VIN];
+    expect(await signIn("neighbour", { inviteHash: (await invite("999999")).hash })).toBe("full");
+  });
+
   test("an unknown login without an invite is refused in invite mode", async () => {
     garages.stranger = [FRIEND_VIN];
     expect(await signIn("stranger")).toBe("invite-only");

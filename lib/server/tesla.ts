@@ -218,19 +218,20 @@ async function joinThroughInvite(sub: string, user: UserRow | null, accessToken:
   const suffix = invite.vin_suffix;
   const car = (await accountVins(accessToken)).find((vin) => vinMatches(vin, suffix));
   if (!car) return "invite-car";
-  // A count then the claim, as approving from the waitlist does (lib/server/waitlist.ts decide).
+  // A quick refusal when already full. The approve checks the cap again with the count in the same
+  // transaction (approveWithinCap), so of two invites racing for the last place only one gets in.
   if (isFull(await approvedCount(), maxUsers())) return "full";
   if (!(await claimInvite(invite.id, new Date(now).toISOString()))) return "invite-invalid";
-  let joined: UserRow | null;
+  let joined: UserRow | "full" | null;
   try {
-    joined = await approveThroughInvite(sub, user);
+    joined = await approveThroughInvite(sub, user, maxUsers());
   } catch (err) {
     await releaseInvite(invite.id).catch(() => {});
     throw err;
   }
-  if (!joined) {
+  if (joined === "full" || !joined) {
     await releaseInvite(invite.id).catch(() => {});
-    return "not-approved";
+    return joined === "full" ? "full" : "not-approved";
   }
   await recordInviteUse(invite.id, joined.id, joinedLabel(car));
   return joined;

@@ -174,20 +174,35 @@ export async function moveAccount(id: number, from: string[], to: string): Promi
   return (rows?.length ?? 0) === 1;
 }
 
-// A Tesla login joins through an invite: approved at once. A waitlist row already there is moved (approve,
-// as the admin would); otherwise a new row with its Tesla account id. The row it ends as, or null when the
-// account is neither new nor waiting (decided meanwhile).
-export async function approveThroughInvite(sub: string, existing: UserRow | null): Promise<UserRow | null> {
-  if (existing) {
-    if (!(await moveAccount(existing.id, [WAITLIST], APPROVED))) return null;
-  } else {
-    const now = new Date().toISOString();
-    check(
-      await db()
-        .from("users")
-        .upsert({ tesla_sub: sub, status: APPROVED, approved_at: now, updated_at: now }, { onConflict: "tesla_sub", ignoreDuplicates: true }),
-    );
-  }
+export type CapResult = "approved" | "full" | "gone";
+
+// Approves one account while fewer than `max` are approved: an existing one (from one of the `from` states,
+// never an admin's) or a new invite login by its Tesla sub. "gone" when it isn't in one of those states, or
+// the login already has a row. The count and the approve happen in one transaction (approve_within_cap), so
+// two approvals racing for the last place can't both get it. Before that migration: the count, then the
+// approve, which a race can still pass.
+export async function approveWithinCap(max: number, account: { id: number; from: string[] } | { sub: string }): Promise<CapResult> {
+  const args = "id" in account ? { p_max: max, p_user_id: account.id, p_from: account.from } : { p_max: max, p_sub: account.sub };
+  const { data, error } = await db().rpc("approve_within_cap", args);
+  if (!error) return data as CapResult;
+  if (error.code !== "PGRST202" && error.code !== "42883") throw new Error(error.message);
+  if ((await approvedCount()) >= max) return "full";
+  if ("id" in account) return (await moveAccount(account.id, account.from, APPROVED)) ? "approved" : "gone";
+  const now = new Date().toISOString();
+  const rows = check(
+    await db()
+      .from("users")
+      .upsert({ tesla_sub: account.sub, status: APPROVED, approved_at: now, updated_at: now }, { onConflict: "tesla_sub", ignoreDuplicates: true })
+      .select("id"),
+  ) as unknown[] | null;
+  return (rows?.length ?? 0) === 1 ? "approved" : "gone";
+}
+
+// A Tesla login joins through an invite: approved at once if a place is free. A waitlist row already there
+// is moved (approve, as the admin would); otherwise a new row with its Tesla account id. The row it ends as,
+// "full", or null when the account is neither new nor waiting (decided meanwhile).
+export async function approveThroughInvite(sub: string, existing: UserRow | null, max: number): Promise<UserRow | "full" | null> {
+  if ((await approveWithinCap(max, existing ? { id: existing.id, from: [WAITLIST] } : { sub })) === "full") return "full";
   const user = await userBySub(sub);
   return user?.status === APPROVED ? user : null;
 }
