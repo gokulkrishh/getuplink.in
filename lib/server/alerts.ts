@@ -23,7 +23,7 @@ export async function loadAlerts(owner: Owner, admin: boolean): Promise<Alert[]>
   ]);
   return buildAlerts({
     connected: account?.kind !== "disconnected",
-    cars: cars.map((c) => ({ vin: c.vin, name: c.name, keyPaired: c.keyPaired })),
+    cars,
     lastRun: account?.kind === "ready" ? account.lastRun : null,
     health,
   });

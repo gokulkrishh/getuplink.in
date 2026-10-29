@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { OFFLINE, orOffline } from "@/lib/offline";
 import type { FeedbackStatus } from "@/lib/server/data/system";
 import { markFeedback } from "./actions";
 
@@ -31,7 +32,7 @@ export function MarkButtons({ id, status }: { id: number; status: FeedbackStatus
           disabled={pending}
           onClick={() =>
             start(async () => {
-              setError((await markFeedback(id, n.to)).error);
+              setError((await orOffline(markFeedback(id, n.to), { error: OFFLINE })).error);
             })
           }
         >

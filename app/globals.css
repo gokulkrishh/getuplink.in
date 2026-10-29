@@ -335,6 +335,23 @@ html .maplibregl-map {
   }
 }
 
+/* The one thing to do on a page (Connect your car on /setup): a soft accent glow that breathes around the
+   button. One small element, so animating its shadow is cheap. Reduced motion: the glow holds still. */
+@utility glow {
+  box-shadow: 0 0 12px 1px color-mix(in oklab, var(--chart-accent) 45%, transparent);
+  animation: glow-breathe 2.4s ease-in-out infinite;
+}
+@keyframes glow-breathe {
+  50% {
+    box-shadow: 0 0 22px 4px color-mix(in oklab, var(--chart-accent) 70%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .glow {
+    animation: none;
+  }
+}
+
 /* A thin, quiet scroll bar for a table or chart that scrolls sideways. */
 @utility scroll-thin {
   scrollbar-width: thin;

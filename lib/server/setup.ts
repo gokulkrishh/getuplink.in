@@ -70,8 +70,12 @@ async function refreshKeys(owner: Owner, cars: CarSetup[], store: Store, now: nu
     paired = new Map();
   }
   for (const car of cars) {
+    const was = car.keyPaired;
     car.keyPaired = paired.get(car.vin) ?? null;
     car.keyCheckedAt = at;
+    // A key just added back: the car may have lost its streaming config with the key, so whatever was said
+    // about streaming before is asked again in this same pass (loadSetup, checkSetup).
+    if (was === false && car.keyPaired === true) car.streamingCheckedAt = null;
     await store.saveKey(car.vin, car.keyPaired, at);
   }
 }
@@ -181,8 +185,9 @@ export async function setupGate(owner: Owner, { admin = false, now = Date.now() 
 
 // What Tesla just said about Uplink's key on a car, from the health check (lib/server/stream-health.ts),
 // kept on the car's row as /setup keeps it. A key removed from the car stops it sending data, and this is
-// how the owner hears of it within the half hour instead of at the daily recheck. Never throws: the health
-// check carries on without it.
+// how the owner hears of it within the half hour instead of at the daily recheck. `at` is when Tesla said
+// it, which can be up to an hour ago: an answer /setup got since then stands (saveKeyStatus). Never throws:
+// the health check carries on without it.
 export async function recordKeyStatus(owner: Owner, vin: string, paired: boolean, at: string): Promise<void> {
   if (DEMO) return;
   try {

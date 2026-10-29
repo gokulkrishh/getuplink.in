@@ -34,6 +34,7 @@ import type { Owner } from "@/lib/server/data/owner";
 import { AiLine } from "@/components/ai-line";
 import { stationAt } from "@/lib/stations";
 import type { UserPlace } from "@/lib/user-places";
+import { isDriveStart } from "@/lib/stats-paths";
 import { Measure } from "@/components/measure";
 
 export const metadata: Metadata = { title: "Trip" };
@@ -45,7 +46,7 @@ const ACCEL_UNIT = "km/h per second";
 const MS2_TO_KMHS = 3.6;
 // Each signed trace coloured by what its sign means (see "Colour by meaning" in docs/charts.md), with the
 // words the tooltip and legend use for each side.
-const POWER_SIDES: { above: Side; below: Side } = { above: { tone: "cool", words: "Drawing" }, below: { tone: "charge", words: "Regen" } };
+const POWER_SIDES: { above: Side; below: Side } = { above: { tone: "cool", words: "Drawing" }, below: { tone: "charge", words: "Won back" } };
 const ACCEL_SIDES: { above: Side; below: Side } = { above: { tone: "cool", words: "Speeding up" }, below: { tone: "warm", words: "Braking" } };
 const GRADE_SIDES: { above: Side; below: Side } = { above: { tone: "warm", words: "Uphill" }, below: { tone: "cool", words: "Downhill" } };
 
@@ -352,7 +353,7 @@ function highlights(power: { t: number; v: number }[], accel: { t: number; v: nu
   // Acceleration tiles say "8.8 km/h" with "Gained in one second" under it: the full unit doesn't fit a
   // tile on a phone, and the note reads more plainly anyway.
   return {
-    power: [...figure("Most power", peak(power, 1), 1, formatKw), ...figure("Most regen", peak(power, -1), -1, formatKw)],
+    power: [...figure("Most power", peak(power, 1), 1, formatKw), ...figure("Most won back", peak(power, -1), -1, formatKw)],
     accel: [
       ...figure("Hardest acceleration", peak(accel, 1), 1, (v) => `${formatNumber(v, 1)} km/h`, "Gained in one second, at"),
       ...figure("Hardest braking", peak(accel, -1), -1, (v) => `${formatNumber(v, 1)} km/h`, "Lost in one second, at"),
@@ -362,7 +363,7 @@ function highlights(power: { t: number; v: number }[], accel: { t: number; v: nu
 
 async function DriveLoader({ params, searchParams }: Pick<PageProps<"/stats/driving/[start]">, "params" | "searchParams">) {
   const [{ start }, query] = await Promise.all([params, searchParams]);
-  if (!/^\d{12,14}$/.test(start)) notFound();
+  if (!isDriveStart(start)) notFound();
   const { owner, detail, now } = await loadDetail(Number(start), query.leg !== undefined);
   if (!detail) notFound();
   // The words: the AI's when stored for these exact facts, else the code sentences. Read on every view,

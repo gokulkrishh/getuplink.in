@@ -173,7 +173,7 @@ function HomeSkeleton() {
         <div className="space-y-1 sm:w-60 sm:shrink-0">
           <p className="flex h-5 items-baseline gap-x-2 leading-5 sm:justify-end">
             <span className="font-mono text-base font-medium"><span className={line}>67%</span></span>
-            <span className="text-sm"><span className={line}>≈ 294 km</span></span>
+            <span className="text-sm"><span className={line}>About 294 km</span></span>
           </p>
           <div className="flex h-5 items-center gap-2">
             <div className="relative h-0.5 w-full max-w-60 min-w-0 flex-1 bg-border">

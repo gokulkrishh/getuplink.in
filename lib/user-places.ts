@@ -60,9 +60,12 @@ export function parsePlaceId(value: unknown): string | null {
   return id.length >= 10 && id.length <= PLACE_ID_MAX && /^[A-Za-z0-9_-]+$/.test(id) ? id : null;
 }
 
+// A form's text as a number; blank is no number (Number("") is 0, which would pass as a real coordinate).
+const coordinate = (v: unknown) => (typeof v === "string" ? (v.trim() === "" ? Number.NaN : Number(v)) : v);
+
 export function parsePoint(lat: unknown, lng: unknown): LatLng | null {
-  const a = typeof lat === "string" ? Number(lat) : lat;
-  const b = typeof lng === "string" ? Number(lng) : lng;
+  const a = coordinate(lat);
+  const b = coordinate(lng);
   if (typeof a !== "number" || typeof b !== "number" || !Number.isFinite(a) || !Number.isFinite(b)) return null;
   if (Math.abs(a) > 90 || Math.abs(b) > 180 || (a === 0 && b === 0)) return null;
   return { lat: a, lng: b };

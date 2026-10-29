@@ -1,4 +1,5 @@
 import { describeRunError } from "@/lib/run-error";
+import type { CarSetup } from "@/lib/setup-status";
 import { componentLabel, isStatus, STATUS_WORD } from "@/lib/status";
 
 // What the header's bell lists: problems the owner should know about now, each with where to fix it. Built
@@ -9,25 +10,42 @@ export type Alert = { key: string; title: string; detail: string; href: string }
 
 export type AlertInputs = {
   connected: boolean;
-  // Each car's name and whether Tesla last said Uplink's key is on it (null: not known).
-  cars: { vin: string; name: string | null; keyPaired: boolean | null }[];
+  // Each car's name and what Tesla last said, with when, about Uplink's key on it and its streaming (null: not known).
+  cars: Pick<CarSetup, "vin" | "name" | "keyPaired" | "keyCheckedAt" | "streaming" | "streamingCheckedAt">[];
   // The owner's latest check, with a token error already cleared when they signed in since.
   lastRun: { ok: boolean | null; error: string | null } | null;
   // The admin's view of Uplink itself: each part's latest health check. Empty for everyone else.
-  health: { component: string; status: string; problems: string[] }[];
+  health: { component: string; status: string; problems: string[]; checkedAt: string }[];
 };
+
+type Car = AlertInputs["cars"][number];
+const after = (at: string | null, checkedAt: string) => at !== null && Date.parse(at) > Date.parse(checkedAt);
+
+// Health check problems that /setup (or its Check again) answers too. The health check runs every half
+// hour on Tesla's answer from up to an hour before, so when every car has a good answer from after the
+// check, the problem is over and isn't shown.
+const SETTLED_BY_SETUP: { match: RegExp; settled: (car: Car, checkedAt: string) => boolean }[] = [
+  { match: /key isn't paired/, settled: (c, at) => c.keyPaired === true && after(c.keyCheckedAt, at) },
+  { match: /No streaming config/, settled: (c, at) => (c.streaming === "synced" || c.streaming === "pending") && after(c.streamingCheckedAt, at) },
+  { match: /isn't synced/, settled: (c, at) => c.streaming === "synced" && after(c.streamingCheckedAt, at) },
+];
+
+function stillOpen(problem: string, cars: Car[], checkedAt: string): boolean {
+  const rule = SETTLED_BY_SETUP.find((r) => r.match.test(problem));
+  return !rule || cars.length === 0 || !cars.every((car) => rule.settled(car, checkedAt));
+}
 
 // What to do about a health check's problem (lib/server/stream-health.ts), and where. A problem the owner
 // can act on gets its fix; the rest point to Health on the admin page.
 const FIXES: { match: RegExp; fix: string; href: string }[] = [
   {
     match: /No streaming config|key isn't paired|config has expired|config expires/,
-    fix: "Add Uplink's key on the car again, then open Setup to send the streaming setting.",
+    fix: "Add Uplink's key to the car again, then open the setup page.",
     href: "/setup",
   },
   { match: /isn't synced/, fix: "Wake the car in the Tesla app so it picks up the setting.", href: "/setup" },
   { match: /disconnected/, fix: "Sign in with Tesla again.", href: "/settings" },
-  { match: /No streamed data|stream error/, fix: "Open Setup and choose Check again.", href: "/setup" },
+  { match: /No streamed data|stream error/, fix: "Open the setup page and choose Check again.", href: "/setup" },
 ];
 
 export function buildAlerts(input: AlertInputs): Alert[] {
@@ -50,8 +68,11 @@ export function buildAlerts(input: AlertInputs): Alert[] {
   }
   for (const h of input.health) {
     if (!isStatus(h.status) || h.status === "operational") continue;
-    const fix = FIXES.find((f) => h.problems.some((p) => f.match.test(p)));
-    const found = h.problems.length ? `${h.problems.join(". ")}.` : "";
+    const problems = h.problems.filter((p) => stillOpen(p, input.cars, h.checkedAt));
+    // Every problem it found is over.
+    if (h.problems.length > 0 && problems.length === 0) continue;
+    const fix = FIXES.find((f) => problems.some((p) => f.match.test(p)));
+    const found = problems.length ? `${problems.join(". ")}.` : "";
     alerts.push({
       key: `health:${h.component}`,
       title: `${componentLabel(h.component)}: ${STATUS_WORD[h.status].toLowerCase()}`,

@@ -25,7 +25,7 @@ export function DrivingSkeleton() {
       <SkSection>
         <SkHead title="Distance" />
         <SkHeadline value="279.4 km" line="Driven, 43.7 km more than the 7 days before." />
-        <SkChartCaptioned caption="32.6 kWh used, 5.5 kWh won back with regen, 117 Wh/km, the same as the 7 days before." />
+        <SkChartCaptioned caption="32.6 kWh used, 5.5 kWh won back while slowing, 117 Wh/km, the same as the 7 days before." />
       </SkSection>
       <SkSection>
         <SkHead title="Efficiency" description="Energy used per kilometre, in Wh/km. Lower is better." />
@@ -223,7 +223,7 @@ function SkMap({ legend }: { legend: string }) {
 function SkSessions() {
   return (
     <div aria-hidden="true">
-    <div className="max-sm:-mx-1 max-sm:px-1 sm:-mx-3 sm:px-3">
+    <div className="overflow-hidden max-sm:-mx-1 max-sm:px-1 sm:-mx-3 sm:px-3">
       <div className="max-sm:min-w-xl">
         <div className="space-y-2">
           <p className="text-sm font-medium">
@@ -295,7 +295,7 @@ export function BatterySkeleton() {
         <SkFigures
           tiles={[
             { label: "Usable capacity now", value: "64.1 kWh", note: "Latest week, 0.8% below the best week, 64.6 kWh" },
-            { label: "Real range at 100%", value: "≈ 537 km", note: "At your 119 Wh/km, from 1,096.4 km driven in the last 30 days" },
+            { label: "Real range at 100%", value: "About 537 km", note: "At your 119 Wh/km, from 1,096.4 km driven in the last 30 days" },
           ]}
         />
       </SkSection>
@@ -545,12 +545,12 @@ export function DriveSkeleton() {
           <SkTrace title="Speed" description="Top 51 km/h, mostly 31 to 46 km/h." legend="" />
           <SkTrace
             title="Power"
-            description="About 3.2 kWh drawn, 0.4 kWh won back by regen (12%)."
+            description="About 3.2 kWh drawn, 0.4 kWh won back while slowing (12%)."
             peaks={[
               { label: "Most power", value: "49.8 kW", note: "At 8:24 AM" },
-              { label: "Most regen", value: "47.1 kW", note: "At 8:19 AM" },
+              { label: "Most won back", value: "47.1 kW", note: "At 8:19 AM" },
             ]}
-            legend="Drawing Regen"
+            legend="Drawing Won back"
           />
           <SkTrace title="Climate" description="AC off. Outside 25.9 to 26.2 °C." legend="Inside Outside AC off" />
           <SkTrace

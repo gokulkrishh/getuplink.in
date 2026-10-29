@@ -65,6 +65,13 @@ describe("input checks", () => {
     expect(parsePoint(null, null)).toBeNull();
   });
 
+  test("a blank coordinate isn't zero", () => {
+    expect(parsePoint("", "72.88")).toBeNull();
+    expect(parsePoint("19.07", " ")).toBeNull();
+    expect(parsePoint("", "")).toBeNull();
+    expect(parsePoint(" 19.07 ", "72.88")).toEqual({ lat: 19.07, lng: 72.88 });
+  });
+
   test("ids", () => {
     expect(parseId("12")).toBe(12);
     expect(parseId("0")).toBeNull();

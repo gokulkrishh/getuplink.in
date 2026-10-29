@@ -4,12 +4,19 @@ import { Logo } from "@/components/logo";
 import { STATUS_URL } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
+// The one address for questions, access requests and leaving the waitlist (also on /privacy and /terms).
+export const CONTACT_EMAIL = "getuplink.app@gmail.com";
+
 const PAGES = [
   { key: "privacy", href: "/privacy", label: "Privacy" },
   { key: "terms", href: "/terms", label: "Terms" },
   // Its own host: a client-side fetch of /status would be redirected across origins and blocked.
   { key: "status", href: STATUS_URL, label: "Status" },
 ] as const;
+
+// Padded to a 44px-tall target without moving the text.
+const FOOTER_LINK =
+  "px-2 py-3 underline decoration-border decoration-dotted underline-offset-4 transition-colors duration-150 hover:text-foreground hover:decoration-foreground";
 
 type Page = (typeof PAGES)[number]["key"];
 
@@ -60,22 +67,21 @@ export function PlainPage({
         </p>
         <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 text-sm text-muted-foreground">
           <span>Not affiliated with Tesla, Inc.</span>
-          <nav aria-label="About Uplink" className="flex gap-4">
+          <nav aria-label="About Uplink" className="flex flex-wrap gap-x-2">
             {PAGES.map((page) =>
               page.key === current ? (
-                <span key={page.key} aria-current="page" className="text-foreground">
+                <span key={page.key} aria-current="page" className="px-2 py-3 text-foreground">
                   {page.label}
                 </span>
               ) : (
-                <Link
-                  key={page.key}
-                  href={page.href}
-                  className="underline decoration-border decoration-dotted underline-offset-4 transition-colors duration-150 hover:text-foreground hover:decoration-foreground"
-                >
+                <Link key={page.key} href={page.href} className={FOOTER_LINK}>
                   {page.label}
                 </Link>
               ),
             )}
+            <a href={`mailto:${CONTACT_EMAIL}`} className={FOOTER_LINK}>
+              Contact
+            </a>
           </nav>
         </div>
       </footer>

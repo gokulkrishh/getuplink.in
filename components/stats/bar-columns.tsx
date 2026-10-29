@@ -57,7 +57,7 @@ export function BarColumns({
   // Too many columns to fit at MIN_COLUMN_PX each, the chart scrolls sideways from its newest end.
   return (
     <ScrollEnd label={ariaLabel}>
-    <div ref={box} style={fit ? undefined : { minWidth: columns * MIN_COLUMN_PX }}>
+    <div ref={box} className="overflow-x-clip" style={fit ? undefined : { minWidth: columns * MIN_COLUMN_PX }}>
     <TapColumns
       className={cn("grid items-end", fit && columns > 31 ? "gap-px" : labelEvery ? "gap-0.5" : dense ? "gap-1" : "gap-3")}
       style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}

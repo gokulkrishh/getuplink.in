@@ -195,7 +195,7 @@ function UpdatesSkeleton() {
             {[0, 1, 2].map((k) => (
               <li key={k} className="history-cols border-t py-[11px] max-sm:py-[13.5px]">
                 <span className="pl-5 font-mono"><Ph>2026.38.5.1</Ph></span>
-                {["16 Oct", "18 Oct", "8,584.0km"].map((v) => (
+                {["16 Oct", "18 Oct", "8,584.0 km"].map((v) => (
                   <span key={v} className="text-right whitespace-nowrap"><Ph>{v}</Ph></span>
                 ))}
                 <span className="col-span-full -mt-1 pb-0.5 pl-5 text-xs"><Ph>Downloaded in 45 min · Installed in 32 min</Ph></span>

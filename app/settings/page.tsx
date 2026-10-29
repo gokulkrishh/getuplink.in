@@ -123,7 +123,14 @@ async function Settings() {
 
       <Group title="Account">
         {account.connected ? (
-          <DisconnectTesla description={connectedDescription} />
+          <DisconnectTesla
+            description={
+              <>
+                <p>{connectedDescription}</p>
+                <p className="text-faint">Disconnecting stops Uplink reading your car. Your history stays.</p>
+              </>
+            }
+          />
         ) : (
           <Row title="Tesla account" description="Not connected" />
         )}
@@ -184,7 +191,7 @@ function SettingsSkeleton() {
             description={
               <>
                 <p>{text("Your car sends data while it's awake. Uplink never wakes it.")}</p>
-                <p>{text("Full check every 12 hours, last at 4:51 PM IST")}</p>
+                <p>{text("Full check every 12 hours, last at 4:51 PM")}</p>
               </>
             }
             control={<p className="text-sm whitespace-nowrap">{text("Synced 2 minutes ago")}</p>}
@@ -192,7 +199,7 @@ function SettingsSkeleton() {
           <Row
             key="home"
             title={<Ph>Home state</Ph>}
-            description={<p>{text("For the India rollout map. Uplink keeps only the state, never where your car is.")}</p>}
+            description={<p>{text("For the India rollout map. Only the state is kept here.")}</p>}
             control={
               <p className="text-right text-sm">
                 {text("Karnataka")}
@@ -256,7 +263,7 @@ function HomeState({ home }: { home: OwnHomeState }) {
       title="Home state"
       description={
         <>
-          <p>For the India rollout map. Uplink keeps only the state, never where your car is.</p>
+          <p>For the India rollout map. Only the state is kept here.</p>
           {home.askLocation && <p className="text-faint">Sign in again to let Uplink read your car&apos;s location.</p>}
         </>
       }

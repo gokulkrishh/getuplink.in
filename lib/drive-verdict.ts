@@ -165,13 +165,13 @@ export function traceEnergy(power: Point[], legs?: { start: number; end: number 
   return { drawn, regen };
 }
 
-// "About 3.1 kWh drawn, 0.4 kWh won back by regen (13%)."
+// "About 3.1 kWh drawn, 0.4 kWh won back while slowing (13%)."
 export function powerVerdict(power: Point[], legs?: { start: number; end: number }[]): string | null {
   if (power.length < 2) return null;
   const { drawn, regen } = traceEnergy(power, legs);
   if (drawn < 0.05) return `Peak ${formatNumber(Math.max(...power.map((p) => p.v)), 1)} kW.`;
-  if (regen < 0.05) return `About ${formatKwh(drawn)} drawn, nothing won back by regen.`;
-  return `About ${formatKwh(drawn)} drawn, ${formatKwh(regen)} won back by regen (${formatPercent((regen / drawn) * 100)}).`;
+  if (regen < 0.05) return `About ${formatKwh(drawn)} drawn, nothing won back while slowing.`;
+  return `About ${formatKwh(drawn)} drawn, ${formatKwh(regen)} won back while slowing (${formatPercent((regen / drawn) * 100)}).`;
 }
 
 // "Gentle: no hard starts or stops." or "1 hard start at 9:50 PM and 2 hard brakes, at 9:59 PM and 10:03 PM."

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { shareFigures } from "@/app/owners/actions";
 import { Button } from "@/components/ui/button";
+import { OFFLINE, orOffline } from "@/lib/offline";
 import { cn } from "@/lib/utils";
 
 function useShare() {
@@ -12,7 +13,7 @@ function useShare() {
   const [error, setError] = useState<string | null>(null);
   const change = (on: boolean, done?: () => void) =>
     start(async () => {
-      const failed = await shareFigures(on);
+      const failed = await orOffline(shareFigures(on), OFFLINE);
       setError(failed);
       if (!failed) {
         done?.();

@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Sparkles, ThumbsDown, ThumbsUp, X } from "lu
 import { useEffect, useRef, useState, useTransition } from "react";
 import { voteTip } from "@/app/tip-actions";
 import type { Tip, TipScope } from "@/lib/ai-tips";
+import { orOffline } from "@/lib/offline";
 import type { Vote } from "@/lib/tip-votes";
 import { cn } from "@/lib/utils";
 
@@ -74,7 +75,8 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
   };
   const tip = current?.text ?? "";
   const kind = current?.kind;
-  const send = (input: Parameters<typeof voteTip>[0]) => startTransition(() => void voteTip(input));
+  // A vote that can't be sent is dropped: it isn't worth an error.
+  const send = (input: Parameters<typeof voteTip>[0]) => startTransition(() => void orOffline(voteTip(input), null));
   const cast = (value: Vote) => {
     if (!vote || !kind) return;
     // Tapping the chosen one again takes the vote back.
@@ -93,7 +95,8 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
     waiting.current = down;
     setReplacing(down);
     startTransition(async () => {
-      const fresh = await voteTip(input, vote.swap);
+      // No answer (or no connection): the box stops waiting and shows the tips it has.
+      const fresh = await orOffline(voteTip(input, vote.swap), null);
       const current = waiting.current === down;
       // Undone meanwhile: the new note still joins the end, but the box stays where it is.
       if (fresh) setAdded((a) => (a.some((t) => t.text === fresh.text) || given.some((t) => t.text === fresh.text) ? a : [...a, fresh]));
@@ -137,7 +140,8 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
           {/* Shimmers once as the notes arrive; turning to the next one doesn't replay it. */}
           <span className="ai-shimmer">{title}</span>
         </div>
-        <div className="flex items-center gap-3">
+        {/* On a phone each button's tap area is 44px wide, so they sit far enough apart not to overlap. */}
+        <div className="flex items-center gap-3 max-sm:gap-4">
           {/* ‹ 2 of 3 ›: back and on, each wrapping round. */}
           {current && shownTips.length > 1 && (
             <div className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums">
@@ -192,8 +196,10 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
           ) : (
             <>
               <span className="mr-1 text-xs leading-4 text-muted-foreground">Was this useful?</span>
-              {thumb(1, "Useful", ThumbsUp)}
-              {thumb(-1, "Not useful", ThumbsDown)}
+              <span className="flex items-center max-sm:gap-4">
+                {thumb(1, "Useful", ThumbsUp)}
+                {thumb(-1, "Not useful", ThumbsDown)}
+              </span>
             </>
           ))
         )}

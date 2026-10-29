@@ -173,6 +173,7 @@ class FakeQuery {
       const value = rest.join(".");
       if (op === "is" && value === "null") return (r: Row) => r[column] === null || r[column] === undefined;
       if (op === "lt") return (r: Row) => typeof r[column] === "string" && Date.parse(r[column] as string) < Date.parse(value);
+      if (op === "lte") return (r: Row) => typeof r[column] === "string" && Date.parse(r[column] as string) <= Date.parse(value);
       throw new Error(`Unexpected or(${part})`);
     });
     this.filters.push([`(${expression})`, (r) => parts.some((p) => p(r))]);

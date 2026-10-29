@@ -39,6 +39,9 @@ A car streams only while Uplink's virtual key is on it. Remove the key (on the c
 How it's caught:
 
 - The half-hourly health check (`lib/server/stream-health.ts`) asks Tesla about one car and keeps the key answer on its row (`recordKeyStatus`).
+- That answer can be up to an hour old (`tesla_answer_cache`), so it is kept only when it is at least as new as the stored one (`saveKeyStatus`): a key /setup just confirmed isn't undone by the next check. Seen on 29 Oct 2026, when the 02:30 check put back the 02:00 "no key" over /setup's 02:21 "key added".
+- A removed key also clears the stored streaming answer. When /setup or the 6-hourly check sees the key back, it asks about streaming in the same pass, and sends the config again if the car lost it.
+- The bell drops a health check's key or config problem once /setup has a good answer from after that check (`SETTLED_BY_SETUP` in `lib/alerts.ts`). On /setup, the bell waits for the page's own check before reading.
 - Every other owner's paired key is rechecked when they open the app, after an hour if their cars have sent nothing for an hour (`keyStale`, `SILENT_RECHECK_MS` in `lib/setup-status.ts`). A car sending data plainly has its key, so this costs nothing until a car goes quiet.
 
 How it's shown:

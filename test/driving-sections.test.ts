@@ -14,7 +14,7 @@ const period = (current: Partial<DrivingFigure>, bars: Partial<DrivingFigure>[],
 describe("energyCaption", () => {
   test("used, regen and Wh/km, compared on Wh/km with the span before (lower is better)", () => {
     const p = period({ km: 130.6, kwh: 14.5, whPerKm: 111, regenKwh: 2.6 }, [{ km: 100, kwh: 11, regenKwh: 2 }, { km: 30.6, kwh: 3.5, regenKwh: 0.6 }], { km: 120, kwh: 14, whPerKm: 115, regenKwh: 2 });
-    expect(energyCaption(p, "the 7 days before")).toBe("14.5 kWh used, 2.6 kWh won back with regen, 111 Wh/km, 4 Wh/km better than the 7 days before.");
+    expect(energyCaption(p, "the 7 days before")).toBe("14.5 kWh used, 2.6 kWh won back while slowing, 111 Wh/km, 4 Wh/km better than the 7 days before.");
   });
   test("the same Wh/km as before says so", () => {
     const p = period({ km: 100, kwh: 11, whPerKm: 110 }, [{ km: 100, kwh: 11 }], { km: 90, kwh: 10, whPerKm: 111 });

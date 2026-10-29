@@ -73,6 +73,13 @@ Proof standards:
 - Demo data is generated, not the owner's. A change that only shows with real data (Supabase rows, Tesla answers) can't be proven here; say so instead of claiming it.
 - Settings actions that write (Create token, Delete my data, Sign out everywhere) run against demo mode, which has no database. Read the action's demo branch before treating its result as proof.
 
+## Beyond one change
+
+- **Try to break it**: the `launch-qa` skill (`.claude/skills/launch-qa/`), five first-time owners (impatient, skeptic, mobile on slow 3G, literal reader, breaker) as subagents, before and after a fix.
+- **Scenarios**: the home page takes `?scenario=` (`DEMO_SCENARIOS` in `lib/demo.ts`: parked, charging, updating, installing, firstWeek); `/setup?step=done` shows setup finished. Not reachable in demo yet: the waitlist after sign-in, a valid invite, a removed key, the alerts bell with problems. Say so rather than claim them.
+- **Before/after**: `scripts/before-after.mjs <before port> <after port> <route>...` shoots the same pages from two demo copies, desktop and 375px phone.
+- **Launch checklist**: `scripts/launch-checklist.mjs` checks the first-time path on desktop and phone (copy, overflow, offline handling, 404s, page errors) and prints PASS/FAIL. Run it yourself, phone layout included, instead of handing the owner a checklist.
+
 ## Cleanup
 
 ```bash

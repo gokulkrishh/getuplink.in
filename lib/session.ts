@@ -4,14 +4,14 @@ export const SESSION_MAX_AGE = 60 * 60 * 24 * 30;
 export const STATE_COOKIE = "tiu_oauth_state";
 
 // The host the browser used. Route handlers and actions can see the server's own host instead (the dev
-// server reports localhost:3000 for app.uplink.localhost), so prefer the forwarded one.
+// server reports localhost:3000 for app.getuplink.localhost), so prefer the forwarded one.
 export function requestHost(headers: { get(name: string): string | null }): string | null {
   return headers.get("x-forwarded-host") ?? headers.get("host");
 }
 
 // The session cookie is shared with the home page so it can show "Dashboard" to a signed-in owner; it
-// stays HttpOnly. getuplink.in in production, uplink.localhost locally; host-only elsewhere (previews).
-export const SHARED_DOMAINS = ["getuplink.in", "uplink.localhost"];
+// stays HttpOnly. getuplink.in in production, getuplink.localhost locally; host-only elsewhere (previews).
+export const SHARED_DOMAINS = ["getuplink.in", "getuplink.localhost"];
 export function sessionCookieDomain(host: string | null | undefined): string | undefined {
   const name = host?.split(":")[0];
   return SHARED_DOMAINS.find((d) => name === d || name?.endsWith(`.${d}`));

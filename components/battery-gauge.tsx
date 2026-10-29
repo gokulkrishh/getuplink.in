@@ -52,8 +52,8 @@ export function BatteryGauge({ snapshot, parked = null, now, align = "start", se
       <p className={cn("flex h-5 items-baseline gap-x-2 leading-5", end && "sm:justify-end")}>
         <span className="font-mono text-base font-medium tabular-nums">{level}%</span>
         {snapshot.battery_range_km != null && (
-          // Tesla's estimate, so "≈".
-          <span className="text-sm text-muted-foreground tabular-nums">≈ {formatRangeKm(snapshot.battery_range_km)}</span>
+          // Tesla's estimate, so "About".
+          <span className="text-sm text-muted-foreground tabular-nums">About {formatRangeKm(snapshot.battery_range_km)}</span>
         )}
       </p>
       <div className="flex h-5 items-center gap-2">

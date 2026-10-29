@@ -10,6 +10,7 @@ import { BOT_INSTRUCTIONS, BOT_NAME, BOT_TEMPLATE_URL, CONNECTOR_INSTRUCTIONS, C
 import { type Connector, CONNECTOR_LIMIT, CONNECTOR_NAME_MAX, connectorName } from "@/lib/connectors";
 import { formatAgo, formatDate, formatShortDate } from "@/lib/format";
 import { NO_AUTOFILL } from "@/lib/no-autofill";
+import { OFFLINE, orOffline } from "@/lib/offline";
 import { addConnector, deleteConnector } from "./actions";
 import { useAskingFocus } from "./confirm-actions";
 import { Row } from "./row";
@@ -60,7 +61,7 @@ function ConnectorItem({ connector, now }: { connector: Connector; now: number }
   const used = connector.usedAt ? `Last used ${formatAgo(connector.usedAt, now)}` : "Not used yet";
   const remove = () =>
     start(async () => {
-      const failed = await deleteConnector(connector.id);
+      const failed = await orOffline(deleteConnector(connector.id), OFFLINE);
       setError(failed);
       if (!failed) setAsking(false);
     });
@@ -116,7 +117,7 @@ function AddConnector({ count, onAdded }: { count: number; onAdded: (added: { na
     event.preventDefault();
     if (!connectorName(name)) return setError(`Give it a name of up to ${CONNECTOR_NAME_MAX} characters.`);
     start(async () => {
-      const result = await addConnector(name);
+      const result = await orOffline(addConnector(name), { error: OFFLINE });
       if ("error" in result) return setError(result.error);
       setError(null);
       setName("");

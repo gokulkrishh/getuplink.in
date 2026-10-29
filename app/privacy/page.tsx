@@ -36,7 +36,7 @@ function Out({ href, children }: { href: string; children: ReactNode }) {
 const STORED = [
   "Your Tesla account id and when you first signed in",
   "Your Tesla account's sign-in tokens, encrypted",
-  "Each car's VIN, name, model, colour and configuration",
+  "Each car's VIN (its unique number), name, model, colour and configuration",
   "Software version and update status",
   "Whether Tesla shows an unpaid Supercharger balance or the car at a service centre",
   "Battery level, range, charge limit, charging state and battery temperature",
@@ -49,7 +49,9 @@ const STORED = [
   "Each car's home state, such as Karnataka, for the India rollout map",
   "The name of the charging station each charge happened at, such as Statiq, Koramangala",
   "A log of each check of your car, and how many Tesla API calls your account made",
-  "Your connectors: the name you give each, its token stored only as a hash, and when it was last used",
+  "Your connectors: the name you give each, its token stored only in a scrambled form that can't be turned back, and when it was last used",
+  "Feedback you send: your words, how you felt, the page you were on, your screen size, browser and theme",
+  "Your votes on tips",
   "If you share with other owners: each car's figures for each day (distance, energy, charges, climate and settings) for the Owners totals, and a key made from the VIN so a car two accounts share counts once",
   "If you joined through an invite: the last 6 characters of the invited car's VIN, the inviter's note on it, and the car's model and last 4 VIN characters once you join",
 ];
@@ -65,9 +67,24 @@ export default function PrivacyPage() {
     <PlainPage
       title="Privacy"
       intro="What Uplink stores about you and your car, who else gets it, and how to delete it."
-      meta="Last updated 28 October 2026"
+      meta="Last updated 29 October 2026"
       current="privacy"
     >
+      <PlainSection title="In short">
+        <ul className={PLAIN_LIST}>
+          <li>
+            Uplink stores what your car sends while it&apos;s awake: battery, charging and driving, and where the car is,
+            including trip routes.
+          </li>
+          <li>
+            You see it in the app. Uplink&apos;s operator can reach the database to run it. Other owners see totals only
+            if you turn on sharing.
+          </li>
+          <li>Finished drives are kept for good. Most other figures go after 7 to 120 days.</li>
+          <li>Delete my data in Settings removes it, or email us.</li>
+        </ul>
+      </PlainSection>
+
       <PlainSection title="Who we are">
         <p>
           Uplink is a free, independent tool for Tesla owners in India, run by one person in India. It is not affiliated
@@ -138,13 +155,13 @@ export default function PrivacyPage() {
         <p>Two ways.</p>
         <ul className={PLAIN_LIST}>
           <li>
-            Uplink checks Tesla&apos;s Fleet API about every 12 hours, and less often as it nears its monthly Tesla
+            Uplink checks Tesla&apos;s Fleet API (how apps ask Tesla for car data) about every 12 hours, and less often as it nears its monthly Tesla
             budget. During a charge it checks once more, to name the station. It only reads a car that is already online.
             The location it reads then is used to find the state and the station, and isn&apos;t stored.
           </li>
           <li>
             Once you add Uplink&apos;s key to your car, the car sends changes to Uplink while it&apos;s awake: every
-            field Tesla&apos;s Fleet Telemetry offers for your car, including its location.
+            field Tesla&apos;s Fleet Telemetry (how a car sends data by itself) offers for your car, including its location.
           </li>
         </ul>
       </PlainSection>
@@ -194,13 +211,17 @@ export default function PrivacyPage() {
         </ul>
         <p>
           Vercel sees your IP address and Fly.io sees your car&apos;s. Each keeps short logs of requests. An invite link
-          counts tries by IP address for a few minutes, in memory only.
+          briefly uses your IP address to stop misuse, and never saves it.
         </p>
         <p>
           To word a drive&apos;s page, Uplink sends that drive&apos;s figures (distance, times, Wh/km, hard brakes and
           starts, speed, energy, road grade and battery %) to OpenRouter, which passes them to Anthropic&apos;s Claude.
           Never your location, place names, VIN or anything that names you. Uplink asks for providers that don&apos;t
           keep or train on it, and stores the text with your drive.
+        </p>
+        <p>
+          Tips are written the same way, from the figures behind each tip and your car&apos;s model. Charging tips also
+          send the names and towns of stations you&apos;ve used. Never your location, VIN or anything that names you.
         </p>
         <p>
           TypeSafe&apos;s Jev, also through OpenRouter, checks each tip&apos;s text and the figures behind it. Never your
@@ -221,9 +242,14 @@ export default function PrivacyPage() {
         <ul className={PLAIN_LIST}>
           <li>
             Live data from your car is kept as long as a page shows it: charging, battery, odometer, lifetime counters and
-            software updates for good; trip routes, speed and location for 120 days; a few cabin, battery and tyre figures
-            for 14 to 22 days; the rest for 7 days. The latest figure of each kind is always kept, so the car page can
-            show it.
+            software updates for good; speed, location, cabin temperature and battery range for 120 days; a few battery
+            and tyre figures for 14 to 22 days; the rest for 7 days. The latest figure of each kind is always kept, so
+            the car page can show it.
+          </li>
+          <li>
+            Each finished drive is also saved for good, once a night: its route, speed, battery, temperatures,
+            acceleration, power and road slope, thinned to about one point every 30 seconds. It goes when you delete
+            your data.
           </li>
           <li>Where the car was at the start of each charge is kept with that charge, for the charging map.</li>
           <li>Daily figures you share with other owners are kept 35 days, and deleted at once when you turn sharing off.</li>
@@ -237,7 +263,7 @@ export default function PrivacyPage() {
         <ul className={PLAIN_LIST}>
           <li>
             Delete my data in Settings removes your cars, history, snapshots, live data, charges,
-            invoices, places, check logs, shared daily figures, connectors and Tesla tokens, and turns sharing with
+            invoices, places, check logs, feedback, tip votes, shared daily figures, connectors and Tesla tokens, and turns sharing with
             other owners off. It stops your car sending live data to Uplink, unless
             another Uplink user tracks it. Your account id and Tesla API call counts stay, so you can sign in again.
           </li>
@@ -293,9 +319,11 @@ export default function PrivacyPage() {
 
       <PlainSection title="Security">
         <p>
-          The database is encrypted on disk with AES-256, and Uplink encrypts your Tesla tokens again with AES-256 before
-          storing them. Connector tokens are stored only as hashes. Data travels encrypted over TLS. For your car&apos;s
-          live data, the car and Uplink each prove who they are first. Only Uplink&apos;s servers can read the database.
+          Our database host encrypts the database and invoice files on disk. Uplink encrypts your Tesla sign-in tokens
+          again before storing them. Connector tokens are stored only in a scrambled form that can&apos;t be turned back.
+          Data travels encrypted, the padlock in your browser. For your car&apos;s live data, the car and Uplink each
+          prove who they are first. Only Uplink&apos;s servers and its operator can read the database. None of it is
+          open to the public.
         </p>
       </PlainSection>
 

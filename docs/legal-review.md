@@ -268,7 +268,7 @@ A January 2026 MeitY proposal to cut the 18 months to 12 was aimed at Significan
 | Proof of consent | s. 6(10) | Recommended (#4). |
 | Cease and erase on withdrawal, processors too | s. 6(6), s. 8(7) | Disconnect, Delete my data, Delete account; readings past their use go daily (`lib/telemetry-retention.ts`). |
 | Keep logs a year | r. 6(1)(e), r. 8(3) | #3. |
-| Security safeguards | s. 8(5); r. 6 | Privacy: Security, and /privacy/car-data. AES-256 at rest for the whole database (Supabase), AES-256-GCM tokens on top, hashed connector tokens, TLS, mutual TLS for the car stream, service-role-only database. Not end-to-end: the receiver decrypts to store. |
+| Security safeguards | s. 8(5); r. 6 | Privacy: Security, and /privacy/car-data. AES-256 at rest for the whole database and storage (Supabase, supabase.com/security), AES-256-GCM tokens on top, hashed connector tokens, TLS, mutual TLS for the car stream, service-role-only database (RLS on every table, no anon or authenticated grants, private invoice bucket, checked 29 Oct 2026). Not end-to-end: the receiver decrypts to store. The page says this in plain words (29 Oct 2026): no algorithms, no rate limits. |
 | Processor contracts | s. 8(2); r. 6(1)(f) | #15. |
 | Breach: tell each person and the Board (in full within 72 hours) | s. 8(6); r. 7 | Privacy: If there's a breach (in the app; no email is held). An in-app banner for it isn't built (Recommended: a site-wide notice). |
 | Contact who answers questions; repeat it in each reply | s. 8(9); r. 9 | Privacy: Grievance Officer. **Every reply to a rights request must repeat this contact.** |
@@ -337,6 +337,7 @@ Pages:
 - Terms, Agreeing: signing in, and on an invite ticking its box.
 - Terms, Liability: except fraud or wilful misconduct.
 - Privacy, Who else gets it (28 Oct 2026): TypeSafe's Jev, through OpenRouter, checks each tip's text and the figures behind it.
+- Privacy (29 Oct 2026 audit): What Uplink stores lists feedback (words, feeling, page, screen size, browser, theme) and tip votes, and Deleting your data names them (`lib/server/data/erase.ts` already deleted both). Who else gets it names the tip writer (`lib/ai-tips.ts` `modelFindings` to `WORDING_MODEL`): the figures, the car's model and, for charging tips, station names and towns (`lib/charge-tips.ts`). Security drops AES-256 and TLS by name and says the operator can read the database too. The invite's IP check is described without its window.
 
 Code:
 

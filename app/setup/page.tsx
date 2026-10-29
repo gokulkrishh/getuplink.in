@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
@@ -12,12 +13,16 @@ import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { loadSetup, type SetupView } from "@/lib/server/setup";
 import { cn } from "@/lib/utils";
 import { CheckAgain } from "./check-again";
+import scan from "./guide/key-1-scan.jpg";
+import approve from "./guide/key-2-approve.jpg";
+import added from "./guide/key-3-done.jpg";
 
 export const metadata: Metadata = { title: "Setup · Uplink" };
 
-// Demo mode has no Tesla: one car part way through (?step=done shows it finished).
+// Demo mode has no Tesla: one car part way through (?step=done shows it finished). Its last check holds
+// still for ten minutes, so Check again (which asks no one in demo) says nothing changed, as a real one would.
 function demoView(done: boolean): SetupView {
-  const at = new Date(Date.now() - 2 * 60_000).toISOString();
+  const at = new Date(Math.floor(Date.now() / 600_000) * 600_000 - 2 * 60_000).toISOString();
   const car: CarSetup = {
     vin: "DEMO",
     name: "Demo car",
@@ -103,6 +108,31 @@ function CarList({ cars, words }: { cars: CarSetup[]; words: (car: CarSetup) => 
   );
 }
 
+// What adding the key looks like, from the owner's own phone (car name, owner and Tesla's code blurred). Three across from sm up;
+// on a phone they scroll sideways in their own row so the page doesn't.
+const GUIDE = [
+  { image: scan, alt: "Tesla's page with a code to scan", caption: "Scan the QR code with your phone" },
+  { image: approve, alt: "The Tesla app asking to allow access for app.getuplink.in", caption: "Tap Approve" },
+  { image: added, alt: "The Tesla app saying Success", caption: "Come back and tap Check again" },
+];
+
+function KeyGuide() {
+  return (
+    <div>
+      <ol className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-1 sm:grid sm:grid-cols-3 sm:overflow-visible">
+        {GUIDE.map(({ image, alt, caption }, i) => (
+          <li key={i} className="w-[45%] shrink-0 snap-start sm:w-auto">
+            <Image src={image} alt={alt} sizes="(min-width: 640px) 200px, 45vw" className="rounded-2xl border" />
+            <p className="mt-2 text-sm font-medium">
+              <span className="text-muted-foreground">{i + 1}.</span> {caption}
+            </p>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchParams">) {
   const params = await searchParams;
   // Per request: the status and the clock are read now, never prerendered.
@@ -130,34 +160,38 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
       )}
       <ol>
         <Step n={1} title="Add Uplink's key" state={key}>
+          <p className="text-sm text-muted-foreground">
+            The key lets your car send data to Uplink. It can&apos;t unlock or drive the car.
+          </p>
           {key !== "done" && (
-            <p className="text-sm text-muted-foreground">
-              Open this link on the phone with the Tesla app, then approve the key in the app or on the car&apos;s screen.
-            </p>
-          )}
-          {key !== "done" && (
-            <a href={KEY_PAIRING_URL} className={cn(buttonVariants({ size: "lg" }), "h-11 w-full gap-2 px-4 text-base sm:w-auto")}>
+            <a href={KEY_PAIRING_URL} className={cn(buttonVariants({ size: "lg" }), "glow h-11 w-full gap-2 px-4 text-base sm:w-auto")}>
               <SolidKey />
-              Add the key in the Tesla app
+              Connect your car
             </a>
           )}
+          {key !== "done" && <KeyGuide />}
           {/* Tesla's app says "Request timed out" when the car is asleep or out of reach while the key is added. */}
-          {key !== "done" && (
-            <p className="text-sm text-muted-foreground">
-              The car needs to be awake. If the Tesla app says the request timed out, wake the car, stay near it and open the link again.
-            </p>
-          )}
-          <p className="text-sm text-muted-foreground">
-            Uplink only reads data, never sends commands. Remove the key anytime in the car&apos;s Locks settings.
+          <p className="text-xs text-faint">
+            {key !== "done" && "Request timed out? Wake the car and try again. "}Remove the key any time in the car&apos;s Controls, then Locks.
           </p>
           <CarList cars={cars} words={keyWords} />
         </Step>
         <Step n={2} title="Turn on live data" state={streaming}>
           <p className="text-sm text-muted-foreground">
-            {canSend
-              ? "Once the key is added, Uplink turns on live data. The car starts sending the next time it's awake."
-              : "Once the key is added, Uplink turns this on for you."}
+            {streaming === "done"
+              ? "Your car is sending live data."
+              : canSend
+                ? "Once the key is added, Uplink turns on live data. The car starts sending the next time it's awake."
+                : "Once the key is added, Uplink turns this on for you."}
           </p>
+          {!(canSend && view.needsLocation && streaming !== "done") && (
+            <p className="text-sm text-muted-foreground">
+              Live data includes where your car goes.{" "}
+              <Link href="/privacy" className="underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-foreground">
+                Read the privacy page
+              </Link>
+            </p>
+          )}
           {canSend && view.needsLocation && streaming !== "done" && (
             <p className="text-sm">
               Live data includes where your car is. Tesla shares that only if you allow location.{" "}
@@ -172,17 +206,17 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
       </ol>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t pt-6">
         {ready && <p className="w-full text-sm">Your car is set up. It sends live data whenever it&apos;s awake.</p>}
-        {!ready && <CheckAgain />}
+        {!ready && <CheckAgain checkedAt={view.checkedAt} />}
         {key === "done" && (
           <Link href="/" prefetch={true} className={buttonVariants({ size: "lg" })}>
-            Open Uplink
+            Go to your dashboard
           </Link>
         )}
-        {!ready && view.checkedAt && <p className="text-xs text-faint">Checked {formatAgo(view.checkedAt, now)}</p>}
+        {!ready && view.checkedAt && <p className="text-xs text-faint">Setup last checked {formatAgo(view.checkedAt, now)}</p>}
       </div>
       {!ready && (
         <p className="mt-10 text-sm text-muted-foreground">
-          Without these, Uplink still checks your car every 12 hours for its software version, battery and charging.
+          Without live data, Uplink still checks your car every 12 hours for its software version, battery and charging.
         </p>
       )}
     </>
@@ -194,7 +228,7 @@ export default function SetupPage({ searchParams }: PageProps<"/setup">) {
   if (DEMO_SITE) notFound();
   return (
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
-      <Header setup={false} />
+      <Header setup={false} onSetup />
       <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">Set up your car</h1>
       <p className="mt-1 mb-8 text-sm text-muted-foreground">Two steps, and your car sends Uplink live data.</p>
       <Suspense fallback={<div role="status" aria-busy="true" className="h-64 bg-muted motion-safe:animate-pulse"><span className="sr-only">Loading…</span></div>}>

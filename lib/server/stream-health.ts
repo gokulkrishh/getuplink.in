@@ -6,6 +6,7 @@ import { fleetLastReadingAt, fleetLastSeen, healthCheckCar, pingDatabase, record
 import { NotConnectedError } from "./tesla";
 import { streamState, type TelemetryErrors } from "./tesla-stream-state";
 import { recordKeyStatus } from "./setup";
+import { carSetups } from "./data/setup";
 import { currentErrors, daysUntilExpiry, EXPIRY_WARN_DAYS, shortReason, streamFreshness } from "@/lib/stream-health";
 import { worstStatus, type Status } from "@/lib/status";
 
@@ -135,7 +136,9 @@ async function checkStream(now: number): Promise<Stream> {
       if (!car.owner) throw new NotConnectedError();
       const owner = car.owner;
       // Reused for up to an hour (see streamState): the rest of the checks stay live on every call.
-      const state = await withTimeout(streamState(owner, vin, now), "Asking Tesla");
+      // What /setup last heard about this car: a stored answer it has since contradicted isn't reused.
+      const heard = await carSetups(owner).then((cars) => cars.find((c) => c.vin === vin) ?? null).catch(() => null);
+      const state = await withTimeout(streamState(owner, vin, now, heard), "Asking Tesla");
       const { config: cfg, errors: errs } = state;
       out.teslaFetchedAt = state.fetchedAt;
       // Kept on the car, so a key removed from it shows on the owner's pages (see recordKeyStatus).

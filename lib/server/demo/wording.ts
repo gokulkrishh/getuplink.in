@@ -11,7 +11,7 @@ function summary(f: DriveFacts): string | null {
   // One sentence on why, as the model writes it: the tiles above already give the figures.
   const climbs = f.grade?.climbs;
   if (climbs) return `Most of the energy went on the climbs, the steepest ${climbs.steepest} at ${climbs.at}.`;
-  if (f.power?.regen) return `Regen won back ${f.power.regen} on the way.`;
+  if (f.power?.regen) return `Slowing down won back ${f.power.regen} on the way.`;
   if (f.hard && f.hard.brakeTimes.length > 0) return `The hard braking at ${f.hard.brakeTimes[0]} cost a little extra.`;
   return null;
 }

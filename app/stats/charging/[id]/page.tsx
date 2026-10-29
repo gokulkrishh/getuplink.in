@@ -23,6 +23,7 @@ import { formatClock, formatDate, formatDurationExact, formatKw, formatKwh, form
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { type ChargeDetail, loadChargeDetail } from "@/lib/server/charge-curve";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
+import { isChargeId } from "@/lib/stats-paths";
 
 export const metadata: Metadata = { title: "Charge" };
 
@@ -160,7 +161,7 @@ function Charge({ detail, now, tips }: { detail: ChargeDetail; now: number; tips
 
 async function ChargeLoader({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!/^\d{1,15}$/.test(id)) notFound();
+  if (!isChargeId(id)) notFound();
   const { detail, priced, vehicleId, now } = await loadDetail(Number(id));
   if (!detail) notFound();
   const tips = chargeTips(detail, priced);

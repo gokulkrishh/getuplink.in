@@ -139,7 +139,7 @@ Fleet API calls are billed per request, and Tesla takes $10 off each month. Upli
 
 ```sh
 bun install
-bun dev         # http://localhost:3000
+bun dev         # http://app.getuplink.localhost:3000 (home at getuplink.localhost:3000)
 bun run lint
 bun run build
 ```
@@ -151,6 +151,16 @@ bun run demo
 ```
 
 Runs `bun dev` with generated data for one car ("Demo car", ten months of updates, three months of driving, charging and battery readings) and signs you in without Tesla or the database. A bar at the top of the home and Updates pages switches the car between parked, charging, downloading an update, installing one, and its first week. Nothing is read from or written to Supabase or Tesla. Demo mode only works under `bun dev`: production builds ignore the flag.
+
+### Local HTTPS
+
+```sh
+brew install mkcert
+scripts/local-https.sh   # once: a trusted certificate for *.getuplink.localhost and localhost
+bun run dev:https        # https://app.getuplink.localhost:3000
+```
+
+Tesla accepts only the `http://localhost:3000/api/auth/callback` redirect locally, not an https one, so sign in with Tesla under plain `bun dev`. Use `dev:https` for everything after that.
 
 Sign in with Tesla only works against the registered redirect URI, so local dev at `localhost` can't sign in unless you add a localhost redirect URI to the Tesla app and set `TESLA_REDIRECT_URI` to match.
 

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { PlainPage } from "@/components/plain-page";
+import { CONTACT_EMAIL, PlainPage } from "@/components/plain-page";
+import { buttonVariants } from "@/components/ui/button";
 import { allowInviteLookup, clientAddress, type InviteLookup, lookupInvite } from "@/lib/server/invites";
 import { startInviteSignIn } from "./actions";
 import { InviteSignIn } from "./invite-sign-in";
@@ -14,11 +15,11 @@ export const metadata: Metadata = { title: "Invite", robots: { index: false }, r
 export const instant = false;
 
 const MESSAGES: Record<Exclude<InviteLookup, "unused">, { title: string; intro: string }> = {
-  used: { title: "This invite link was already used", intro: "Each link works once. Ask for a new one." },
-  expired: { title: "This invite link has expired", intro: "Links last a day. Ask for a new one." },
-  revoked: { title: "This invite link doesn't work", intro: "Ask whoever sent it for a new one." },
-  unknown: { title: "This invite link doesn't work", intro: "Check the link, or ask for a new one." },
-  unavailable: { title: "This invite link doesn't work", intro: "Check the link, or ask for a new one." },
+  used: { title: "This invite link was already used", intro: "Each link works once. Email us for a new one." },
+  expired: { title: "This invite link has expired", intro: "Links last a day. Email us for a new one." },
+  revoked: { title: "This invite link doesn't work", intro: "Ask whoever sent it for a new one, or email us." },
+  unknown: { title: "This invite link doesn't work", intro: "Check the link, or email us for a new one." },
+  unavailable: { title: "This invite link doesn't work", intro: "Check the link, or email us for a new one." },
 };
 
 const LIMITED = { title: "Too many tries", intro: "Wait a few minutes, then open the link again." };
@@ -31,7 +32,17 @@ async function Invite({ params }: { params: Promise<{ token: string }> }) {
   const now = Date.now();
   if (!allowInviteLookup(address, now)) return <PlainPage home="/home" {...LIMITED} />;
   const state = await lookupInvite(token, now);
-  if (state !== "unused") return <PlainPage home="/home" {...MESSAGES[state]} />;
+  if (state !== "unused") {
+    return (
+      <PlainPage home="/home" {...MESSAGES[state]}>
+        <div>
+          <a href={`mailto:${CONTACT_EMAIL}?subject=Uplink%20invite`} className={buttonVariants({ size: "lg" })}>
+            Email {CONTACT_EMAIL}
+          </a>
+        </div>
+      </PlainPage>
+    );
+  }
   return (
     <PlainPage
       home="/home"

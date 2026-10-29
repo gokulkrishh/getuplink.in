@@ -20,7 +20,7 @@ export async function SessionCta({
   className?: string;
   // Signed out, show nothing (sign-up is by invite link only).
   dashboardOnly?: boolean;
-  // Signed out, a quiet "Sign in" text link instead, for accounts that already have access (the header).
+  // Signed out, a plain "Sign in" button instead, for accounts that already have access (the header).
   signInLink?: boolean;
 }) {
   // The session check reads the clock, so render this only at request time, never ahead of it.
@@ -36,7 +36,7 @@ export async function SessionCta({
   }
   if (signInLink) {
     return (
-      <a href="/api/auth/connect" className={cn("text-muted-foreground transition-colors duration-150 hover:text-foreground", className)}>
+      <a href="/api/auth/connect" className={cn(buttonVariants({ variant: "outline", size }), className)}>
         Sign in
       </a>
     );

@@ -43,10 +43,10 @@ export function BatteryHealth({
   if (latestKwh && usage) {
     figures.push({
       label: "Real range at 100%",
-      value: `≈ ${formatRangeKm((latestKwh * 1000) / usage.whPerKm)}`,
+      value: `About ${formatRangeKm((latestKwh * 1000) / usage.whPerKm)}`,
       note: `At your ${formatNumber(usage.whPerKm, DECIMALS.whPerKm)} Wh/km, from ${formatKm(usage.km)} driven in the last ${CONSUMPTION_DAYS} days`,
     });
-  } else if (full) figures.push({ label: "Range at 100% now", value: `≈ ${full.now}`, note: full.note });
+  } else if (full) figures.push({ label: "Range at 100% now", value: `About ${full.now}`, note: full.note });
   if (figures.length === 0) return null;
 
   return (

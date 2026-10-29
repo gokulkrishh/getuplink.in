@@ -22,13 +22,14 @@ export default function CarDataPage() {
     <PlainPage
       title="Car data we store"
       intro="Every figure from your Tesla that Uplink stores, and how long each is kept."
-      meta="Last updated 27 October 2026"
+      meta="Last updated 29 October 2026"
     >
       <PlainSection title="How long">
         <p>
           Your car sends these while it&apos;s awake, when they change. The latest figure of each kind is always kept, so
           your car&apos;s page can show it. Older figures go after the time shown, and everything goes when you delete
-          your data. The rest of what Uplink stores is on the{" "}
+          your data. The exception is a finished drive: each night Uplink saves its route, speed, battery and
+          temperatures for good, thinned to about one point every 30 seconds. The rest of what Uplink stores is on the{" "}
           <Link href="/privacy" className={LINK}>
             Privacy
           </Link>{" "}

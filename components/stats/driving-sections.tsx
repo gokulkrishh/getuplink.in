@@ -66,7 +66,7 @@ export function energyLines(figure: DrivingFigure | undefined): TipRow[] {
   return lines;
 }
 
-// The line under the Distance chart: "14.5 kWh used, 2.6 kWh won back with regen, 111 Wh/km, 4 Wh/km
+// The line under the Distance chart: "14.5 kWh used, 2.6 kWh won back while slowing, 111 Wh/km, 4 Wh/km
 // better than the 7 days before." Only the parts known: energy used is the bars' raw sum (see knownBars;
 // a bar with no figure and no driving used nothing), regen only when it won any, Wh/km where the span has
 // one. The comparison is of Wh/km, lower the better, where both spans have one (more kWh over more km isn't
@@ -80,7 +80,7 @@ export function energyCaption(driving: DrivingPeriod, previousLabel: string | nu
   const regen = sumKnown(bars.map((v) => v?.regenKwh ?? null));
   const parts: string[] = [];
   if (used > 0) parts.push(`${formatKwh(used)} used`);
-  if (regen > 0) parts.push(`${formatKwh(regen)} won back with regen`);
+  if (regen > 0) parts.push(`${formatKwh(regen)} won back while slowing`);
   if (current.whPerKm !== null) parts.push(`${formatNumber(current.whPerKm, DECIMALS.whPerKm)} Wh/km`);
   if (parts.length === 0) return null;
   const compared =

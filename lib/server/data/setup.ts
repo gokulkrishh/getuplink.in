@@ -57,8 +57,12 @@ export async function carsWithoutSetup(owner: Owner): Promise<CarSetup[]> {
   return ((data ?? []) as Row[]).map(toCar);
 }
 
+// Only an answer at least as new as the stored one replaces it: the health check stores Tesla's answer from up to
+// an hour before (lib/server/tesla-stream-state.ts), which must not undo what /setup just heard. A car
+// without the key streams nothing, so a removal also drops the streaming answer, to be asked again.
 export async function saveKeyStatus(owner: Owner, vin: string, paired: boolean | null, at: string): Promise<void> {
-  const { error } = await ownerDb(owner).from("vehicles").update({ key_paired: paired, key_checked_at: at }).eq("vin", vin);
+  const patch = paired === false ? { key_paired: false, key_checked_at: at, streaming: null, streaming_checked_at: null } : { key_paired: paired, key_checked_at: at };
+  const { error } = await ownerDb(owner).from("vehicles").update(patch).eq("vin", vin).or(`key_checked_at.is.null,key_checked_at.lte.${at}`);
   if (error) fail(error);
 }
 

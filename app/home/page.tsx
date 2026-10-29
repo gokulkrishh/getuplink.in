@@ -6,6 +6,7 @@ import { DashboardPreview } from "@/components/dashboard-preview";
 import { AssistantMock } from "@/components/home/assistant-mock";
 import { CarGlanceMock } from "@/components/home/car-glance-mock";
 import { HistoryMock } from "@/components/home/history-mock";
+import { CONTACT_EMAIL } from "@/components/plain-page";
 import { InviteOnly } from "@/components/home/invite-only";
 import { SessionCta } from "@/components/home/session-cta";
 import { LoginError } from "@/components/login-error";
@@ -28,8 +29,11 @@ export const metadata: Metadata = {
 };
 
 const STEPS = [
-  { title: "Sign in on Tesla's page", body: "Uplink never sees your password." },
-  { title: "Add Uplink's key to your car", body: "Lets the car send data. Can't unlock or drive." },
+  {
+    title: "Sign in on Tesla's page",
+    body: "Uplink never sees your password. Tesla's page asks for your car's location and charging access. Uplink only reads them.",
+  },
+  { title: "Add Uplink's key to your car", body: "The key lets your car send data to Uplink. It can't unlock or drive." },
   { title: "Updates show up on their own", body: "Data arrives whenever your car is awake." },
 ];
 
@@ -74,14 +78,17 @@ const CANNOT = [
 const FAQ = [
   {
     q: "Why add Uplink's key to my car?",
-    a: "It lets your car send live data. It can't unlock or drive, and you can remove it in Locks settings.",
+    a: "It lets your car send live data. It can't unlock or drive, and you can remove it in the car's Controls, then Locks.",
   },
   { q: "Which cars work?", a: "Any Tesla that works with apps like Uplink, including the Indian Model Y." },
   {
     q: "How do I delete my data?",
-    a: "Use Delete my data in Settings, or Delete account to remove your account too. Then remove Uplink's key in your car's Locks settings.",
+    a: "Use Delete my data in Settings, or Delete account to remove your account too. Then remove Uplink's key in your car's Controls, then Locks.",
   },
 ];
+
+// Padded to a 44px-tall target without moving the text.
+const FOOTER_LINK = "px-2 py-3 text-muted-foreground transition-colors duration-150 hover:text-foreground";
 
 // Cached so the page stays static: the year is read through the cache, not per request.
 async function Year() {
@@ -117,7 +124,7 @@ export default function HomePage() {
       </header>
 
       {/* Hero: the job, the price and the risk, all above the fold. */}
-      <section className="grid items-center gap-16 py-20 lg:grid-cols-2 lg:gap-12 lg:py-28">
+      <section className="grid grid-cols-[minmax(0,1fr)] items-center gap-16 py-20 lg:grid-cols-2 lg:gap-12 lg:py-28">
         <div>
           <p className="text-xs tracking-wide text-faint uppercase">For Tesla owners in India</p>
           <h1 className="mt-5 text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl 2xl:text-6xl">
@@ -126,16 +133,18 @@ export default function HomePage() {
           <p className="mt-6 max-w-md text-lg text-muted-foreground">
             Software updates, charging spend, battery and kilometres driven.
           </p>
-          <div className="mt-10 flex flex-wrap items-center gap-3">
+          <p className="mt-4 text-sm font-medium">Free to use.</p>
+          <div className="mt-8 flex flex-wrap items-center gap-3">
             {/* Signed in: Dashboard. Signed out: nothing here; sign-up is by invite link, sign-in is in the header. */}
             <Suspense>
               <SessionCta dashboardOnly />
             </Suspense>
-            <a href={DEMO_URL} className={buttonVariants({ size: "xl" })}>
+            <a href={DEMO_URL} className={buttonVariants({ variant: "secondary", size: "xl" })}>
               See the demo
             </a>
-            <InviteOnly />
+            <span className="text-xs text-faint">Opens a sample car on a separate site.</span>
           </div>
+          <InviteOnly className="mt-6" />
           <p className="mt-6 text-xs text-faint">Read-only · Never wakes your car · Revoke access any time</p>
           {/* Renders nothing (and takes no space) unless sign-in failed, so the page doesn't shift. */}
           <Suspense>
@@ -158,7 +167,7 @@ export default function HomePage() {
       </section>
 
       {SHOWCASE.map((item, i) => (
-        <section key={item.title} className="grid items-center gap-14 py-20 lg:grid-cols-2 lg:gap-16">
+        <section key={item.title} className="grid grid-cols-[minmax(0,1fr)] items-center gap-14 py-20 lg:grid-cols-2 lg:gap-16">
           <div className={i % 2 === 1 ? "lg:order-2" : undefined}>
             <h2 className="text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl">{item.title}</h2>
             <p className="mt-5 text-lg text-muted-foreground">{item.body}</p>
@@ -179,7 +188,7 @@ export default function HomePage() {
       <section className="py-24">
         <h2 className="text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl">Read-only by design</h2>
         <p className="mt-5 max-w-2xl text-lg text-muted-foreground">
-          Tesla&apos;s official Fleet API, read access only.
+          Uplink uses Tesla&apos;s official data access, and only reads.
         </p>
         <div className="mt-12 grid border sm:grid-cols-2">
           <div className="p-6 sm:p-8">
@@ -243,24 +252,28 @@ export default function HomePage() {
           <a href={DEMO_URL} className={buttonVariants({ variant: "secondary", size: "xl" })}>
             See the demo
           </a>
-          <InviteOnly />
+          <span className="text-xs text-faint">Opens a sample car on a separate site.</span>
         </div>
+        <InviteOnly className="-mt-2" />
       </section>
 
       <footer className="mt-auto flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 py-8 text-xs text-faint">
         <span>
           &copy; <Year /> · Uplink is not affiliated with Tesla, Inc.
         </span>
-        <nav aria-label="Legal" className="ml-auto flex gap-4">
-          <Link href="/privacy" className="text-muted-foreground transition-colors duration-150 hover:text-foreground">
+        <nav aria-label="Legal" className="ml-auto flex gap-x-2">
+          <Link href="/privacy" className={FOOTER_LINK}>
             Privacy
           </Link>
-          <Link href="/terms" className="text-muted-foreground transition-colors duration-150 hover:text-foreground">
+          <Link href="/terms" className={FOOTER_LINK}>
             Terms
           </Link>
-          <Link href={STATUS_URL} className="text-muted-foreground transition-colors duration-150 hover:text-foreground">
+          <Link href={STATUS_URL} className={FOOTER_LINK}>
             Status
           </Link>
+          <a href={`mailto:${CONTACT_EMAIL}`} className={FOOTER_LINK}>
+            Contact
+          </a>
         </nav>
       </footer>
     </div>

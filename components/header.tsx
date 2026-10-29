@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { cacheLife } from "next/cache";
-import { Bell, LogOut, Settings, ShieldCheck } from "lucide-react";
+import { Bell, Info, LogOut, Settings, ShieldCheck, TriangleAlert } from "lucide-react";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { logout } from "@/app/actions";
 import { AvatarBlob } from "@/components/avatar-blob";
 import { FeedbackButton } from "@/components/feedback-button";
+import { FeedbackMenuItem } from "@/components/feedback-menu-item";
 import { Logo } from "@/components/logo";
+import { buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { isAdmin } from "@/lib/server/admin";
 import { currentOwner } from "@/lib/server/auth";
+import type { Alert } from "@/lib/alerts";
 import { loadAlerts } from "@/lib/server/alerts";
 import { setupGate } from "@/lib/server/setup";
 import { DEMO } from "@/lib/demo";
@@ -68,17 +71,26 @@ const BELL = "tap-target relative flex size-8 items-center justify-center rounde
 // The alerts bell: a blue dot when something needs the owner (a key removed from the car, Tesla access
 // expired, a failed check, and for the admin a part of Uplink not working; see lib/alerts.ts), and the
 // list with where to fix each. From what's stored, so it never holds the page up on Tesla.
+// Demo mode has no account to check, so its bell opens to "No problems right now." rather than doing nothing.
 async function AlertsBell() {
-  if (DEMO) return <BellPlaceholder />;
+  if (DEMO) return <BellMenu alerts={[]} />;
   await connection();
   const owner = await currentOwner();
   if (!owner) return null;
-  const alerts = await loadAlerts(owner, await adminSession());
+  return <BellMenu alerts={await loadAlerts(owner, await adminSession())} />;
+}
+
+function BellMenu({ alerts }: { alerts: Alert[] }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label={alerts.length === 0 ? "Alerts, none" : `Alerts, ${alerts.length} ${alerts.length === 1 ? "problem" : "problems"}`}
-        className={cn(BELL, "cursor-pointer hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none data-popup-open:bg-muted")}
+        // Greyed out with nothing to say; full strength, with the dot, when something needs the owner.
+        className={cn(
+          BELL,
+          alerts.length === 0 ? "text-muted-foreground/40" : "text-foreground",
+          "cursor-pointer hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none data-popup-open:bg-muted",
+        )}
       >
         <Bell className="size-4" aria-hidden />
         {alerts.length > 0 && <span className="absolute top-1 right-1 size-2 rounded-full bg-chart-accent ring-2 ring-background" aria-hidden />}
@@ -99,7 +111,7 @@ async function AlertsBell() {
   );
 }
 
-// The bell's place while the alerts load, and in demo mode (no account to check).
+// The bell's place while the alerts load.
 function BellPlaceholder() {
   return (
     <span className={BELL} aria-hidden>
@@ -122,28 +134,49 @@ async function SetupGate() {
   if (gate === "pass") return null;
   if (gate === "key-removed") {
     return (
-      <p role="status" className="-mt-12 mb-12 border-l-2 pl-3 text-sm text-muted-foreground">
-        Uplink&apos;s key is no longer on your car, so it stopped sending data.{" "}
-        <Link href="/setup" className="underline decoration-border underline-offset-4 hover:decoration-foreground">
-          Add the key again
-        </Link>
-      </p>
+      <SetupNote urgent icon={<TriangleAlert className="size-4 text-destructive" aria-hidden />} action="Add the key again">
+        <span className="font-medium">Uplink&apos;s key is no longer on your car.</span> Your car has stopped sending data.
+      </SetupNote>
     );
   }
   return (
-    <p role="status" className="-mt-12 mb-12 border-l-2 pl-3 text-sm text-muted-foreground">
-      Uplink couldn&apos;t check your car&apos;s key with Tesla. It will try again.{" "}
-      <Link href="/setup" className="underline decoration-border underline-offset-4 hover:decoration-foreground">
-        Setup
+    <SetupNote icon={<Info className="size-4 text-muted-foreground" aria-hidden />} action="Open setup">
+      Uplink couldn&apos;t check your car&apos;s key with Tesla. It will try again.
+    </SetupNote>
+  );
+}
+
+// The gate's note under the header: a tinted box with what's wrong and a button to /setup. `urgent` (the
+// key is gone, so no data comes in) is red-tinted; the rest are calm. On a phone the button sits under the
+// words; from sm up, beside them.
+function SetupNote({ urgent = false, icon, action, children }: { urgent?: boolean; icon: React.ReactNode; action: string; children: React.ReactNode }) {
+  return (
+    <div
+      role="status"
+      className={cn(
+        "-mt-12 mb-12 grid grid-cols-[auto_1fr] items-start gap-x-3 gap-y-3 border p-3 text-sm sm:grid-cols-[auto_1fr_auto] sm:items-center",
+        urgent ? "border-destructive/40 bg-destructive/5 text-foreground dark:bg-destructive/10" : "bg-muted/60 text-muted-foreground",
+      )}
+    >
+      <span className="flex h-5 items-center">{icon}</span>
+      <p>{children}</p>
+      <Link
+        href="/setup"
+        prefetch={true}
+        className={cn(buttonVariants({ variant: urgent ? "default" : "outline", size: "sm" }), "col-start-2 justify-self-start sm:col-start-3")}
+      >
+        {action}
       </Link>
-    </p>
+    </div>
   );
 }
 
 // The same header on every signed-in page; `current` marks the page's own link (Stats for every /stats page).
 // The logo is the way home. Updates and the India rollout sit under Car.
 // `setup={false}` leaves out the setup gate: Settings (sign out, disconnect, delete), the admin pages and /setup itself.
-export function Header({ current, setup = true }: { current?: Section; setup?: boolean }) {
+// `onSetup`: the page is /setup, which an owner has to finish before anything else works, so the header
+// keeps only the logo and the account menu (Settings, Sign out): no page links, no bell.
+export function Header({ current, setup = true, onSetup = false }: { current?: Section; setup?: boolean; onSetup?: boolean }) {
   return (
     <>
     {/* Every signed-in page has the header, so the feedback button rides with it. */}
@@ -155,7 +188,7 @@ export function Header({ current, setup = true }: { current?: Section; setup?: b
       </Link>
       {/* Tighter on the narrowest phones (320 px), where the alerts bell would otherwise push the row wider than the screen. */}
       <nav aria-label="Main" className="flex items-center gap-4 whitespace-nowrap text-muted-foreground max-[359px]:gap-2">
-        {NAV.map((item) => (
+        {!onSetup && NAV.map((item) => (
           <Link
             key={item.section}
             href={item.href}
@@ -169,9 +202,11 @@ export function Header({ current, setup = true }: { current?: Section; setup?: b
         {/* The menu's Sign out item submits this form by id, so signing out stays the same POST to the
             server action; the form sits outside the menu because the menu's popup unmounts on close. */}
         <form id="sign-out" action={logout} hidden />
-        <Suspense fallback={<BellPlaceholder />}>
-          <AlertsBell />
-        </Suspense>
+        {!onSetup && (
+          <Suspense fallback={<BellPlaceholder />}>
+            <AlertsBell />
+          </Suspense>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label="Account menu"
@@ -186,6 +221,7 @@ export function Header({ current, setup = true }: { current?: Section; setup?: b
               <Settings aria-hidden />
               Settings
             </DropdownMenuItem>
+            <FeedbackMenuItem />
             <Suspense>
               <AdminItem />
             </Suspense>

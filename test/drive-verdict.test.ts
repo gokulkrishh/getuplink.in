@@ -113,7 +113,7 @@ describe("chart verdicts", () => {
     const { drawn, regen } = traceEnergy(power);
     expect(drawn).toBeCloseTo(9.0, 1);
     expect(regen).toBeCloseTo(2.0, 1);
-    expect(powerVerdict(power)).toBe("About 9.0 kWh drawn, 2.0 kWh won back by regen (22%).");
+    expect(powerVerdict(power)).toBe("About 9.0 kWh drawn, 2.0 kWh won back while slowing (22%).");
   });
   test("power: a gap between readings, or a leg's end, adds nothing", () => {
     expect(traceEnergy([at(0, 36), at(11, 36)]).drawn).toBe(0);
@@ -122,7 +122,7 @@ describe("chart verdicts", () => {
   });
   test("power: a short hop", () => {
     expect(powerVerdict([at(0, 5), at(1, 6)])).toBe("Peak 6.0 kW.");
-    expect(powerVerdict([...Array(600)].map((_, k) => at(k, 12)))).toBe("About 2.0 kWh drawn, nothing won back by regen.");
+    expect(powerVerdict([...Array(600)].map((_, k) => at(k, 12)))).toBe("About 2.0 kWh drawn, nothing won back while slowing.");
   });
   test("acceleration: the hard moments and when", () => {
     expect(accelVerdict([])).toBe("Gentle: no hard starts or stops.");

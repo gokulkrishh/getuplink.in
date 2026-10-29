@@ -198,7 +198,7 @@ function nowFigures(state: Omit<CarState, "flags">, now: CarNow | null, shut: st
   }
   // Tesla's figure is an estimate on a test cycle; the owner's own driving gives another, kept to one line.
   if (s?.battery_range_km != null)
-    figures.push({ label: "Range", value: formatRangeKm(s.battery_range_km), note: ownKm !== null ? `≈ ${formatRangeKm(ownKm)} at your driving` : "Tesla's estimate" });
+    figures.push({ label: "Range", value: formatRangeKm(s.battery_range_km), note: ownKm !== null ? `About ${formatRangeKm(ownKm)} at your driving` : "Tesla's estimate" });
   const rows = new Map(now?.rows ?? []);
   let shutShown = false;
   for (const [label, value] of now?.rows ?? []) {
@@ -494,7 +494,7 @@ function CarSkeleton() {
         <SkFigures
           tiles={[
             { label: "Charge", value: "68%", note: "Charging at 7.2 kW" },
-            { label: "Range", value: "294 km", note: "≈ 364 km at your driving" },
+            { label: "Range", value: "294 km", note: "About 364 km at your driving" },
             { label: "Locks and doors", value: "Locked, charge port open", words: true },
             { label: "Sentry Mode", value: "Off", words: true },
             { label: "Temperature inside", value: "36.3 °C", note: "Outside 32.2 °C" },

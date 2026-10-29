@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NO_AUTOFILL } from "@/lib/no-autofill";
+import { OFFLINE, orOffline } from "@/lib/offline";
 import { deleteEverything, deleteWholeAccount, disconnect, signOutEverywhereWithError } from "./actions";
 import { Row } from "./row";
 
@@ -31,10 +32,15 @@ function Submit({ children, pendingLabel, ref }: { children: string; pendingLabe
   );
 }
 
+// A dropped connection rejects the action; show it inline instead of the full-page error.
+function guarded<A extends unknown[]>(run: (...args: A) => Promise<string | null>) {
+  return (...args: A) => orOffline(run(...args), OFFLINE);
+}
+
 // Two steps: the button asks, the confirmation repeats the consequence.
-export function DisconnectTesla({ description }: { description: string }) {
+export function DisconnectTesla({ description }: { description: React.ReactNode }) {
   const [asking, setAsking] = useState(false);
-  const [error, action] = useActionState(disconnect, null);
+  const [error, action] = useActionState(guarded(disconnect), null);
   const trigger = useRef<HTMLButtonElement>(null);
   const first = useRef<HTMLButtonElement>(null);
   useAskingFocus(asking, first, trigger);
@@ -45,7 +51,7 @@ export function DisconnectTesla({ description }: { description: string }) {
       control={
         !asking ? (
           <Button ref={trigger} type="button" variant="outline" size="lg" onClick={() => setAsking(true)}>
-            Disconnect
+            Disconnect Tesla
           </Button>
         ) : null
       }
@@ -98,7 +104,7 @@ function ConfirmDelete({
   deleteAction: DeleteAction;
 }) {
   const [asking, setAsking] = useState(false);
-  const [error, action] = useActionState(deleteAction, null);
+  const [error, action] = useActionState(guarded(deleteAction), null);
   const trigger = useRef<HTMLButtonElement>(null);
   const input = useRef<HTMLInputElement>(null);
   useAskingFocus(asking, input, trigger);
@@ -110,7 +116,7 @@ function ConfirmDelete({
       control={
         !asking ? (
           <Button ref={trigger} type="button" variant="destructive" size="lg" onClick={() => setAsking(true)}>
-            Delete
+            {submit}
           </Button>
         ) : null
       }
@@ -184,7 +190,7 @@ export function DeleteAccount() {
 
 // "Sign out everywhere" with its failure shown next to the button.
 export function SignOutEverywhere() {
-  const [error, action] = useActionState(signOutEverywhereWithError, null);
+  const [error, action] = useActionState(guarded(signOutEverywhereWithError), null);
   return (
     <form action={action} className="flex flex-col items-end gap-1">
       <Button type="submit" variant="outline" size="lg">

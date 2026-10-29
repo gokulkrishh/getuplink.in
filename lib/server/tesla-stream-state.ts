@@ -1,5 +1,6 @@
 import "server-only";
 import { messageOf } from "@/lib/errors";
+import type { CarSetup } from "@/lib/setup-status";
 import type { Owner } from "./data/owner";
 import { cachedAnswer, MissingSchema, saveAnswer } from "./data/usage";
 import { fleetGet } from "./tesla";
@@ -23,6 +24,20 @@ export function isFresh(stored: { vin: string; fetched_at: string } | null, vin:
   return age >= 0 && age < TESLA_ANSWER_MS;
 }
 
+type Heard = Pick<CarSetup, "keyPaired" | "keyCheckedAt" | "streaming" | "streamingCheckedAt">;
+
+// Whether /setup (lib/server/setup.ts) has heard from Tesla since this stored answer, and heard something
+// else about the key or the car's config. The stored answer is then out of date, so Tesla is asked again:
+// otherwise the next health check would bring back a problem the owner has just fixed.
+export function overtaken(stored: { fetched_at: string; body: unknown }, car: Heard | null): boolean {
+  if (!car) return false;
+  const cfg = (stored.body as { config?: TelemetryConfig } | null)?.config ?? null;
+  const since = (at: string | null) => at !== null && Date.parse(at) > Date.parse(stored.fetched_at);
+  if (since(car.keyCheckedAt) && car.keyPaired !== null && typeof cfg?.key_paired === "boolean" && car.keyPaired !== cfg.key_paired) return true;
+  const hasConfig = Boolean(cfg?.config);
+  return since(car.streamingCheckedAt) && car.streaming !== null && (car.streaming === "synced" || car.streaming === "pending") !== hasConfig;
+}
+
 let warned = false;
 const warnOnce = (err: unknown) => {
   if (err instanceof MissingSchema || warned) return;
@@ -30,9 +45,10 @@ const warnOnce = (err: unknown) => {
   console.warn("Stored Tesla answer unavailable; asking Tesla:", messageOf(err));
 };
 
-export async function streamState(owner: Owner, vin: string, now: number): Promise<StreamState> {
+// `car`: what /setup last heard about this car, if known (see overtaken).
+export async function streamState(owner: Owner, vin: string, now: number, car: Heard | null = null): Promise<StreamState> {
   const stored = await cachedAnswer(NAME).catch((err) => (warnOnce(err), null));
-  if (stored && isFresh(stored, vin, now)) {
+  if (stored && isFresh(stored, vin, now) && !overtaken(stored, car)) {
     const body = stored.body as { config?: TelemetryConfig; errors?: TelemetryErrors } | null;
     return { config: body?.config ?? null, errors: body?.errors ?? null, fetchedAt: stored.fetched_at };
   }

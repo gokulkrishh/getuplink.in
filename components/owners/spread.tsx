@@ -22,7 +22,7 @@ export function Spread({ bins, unit, label }: { bins: SpreadBin[]; unit?: string
   const max = Math.max(2, Math.ceil(most / 2) * 2);
   return (
     <ChartFrame max={max} unit="cars" xUnit={unit}>
-      <div ref={box}>
+      <div ref={box} className="overflow-x-clip">
         <TapColumns className="grid items-end gap-1" style={{ gridTemplateColumns: `repeat(${bins.length}, minmax(0, 1fr))` }} aria-label={label}>
           {bins.map((b, k) => {
             const cars = `${b.cars} ${b.cars === 1 ? "car" : "cars"}`;

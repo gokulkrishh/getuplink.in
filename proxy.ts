@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { DEMO } from "@/lib/demo";
 import { EXPIRE_HOST_ONLY_SESSION, isValidSession, requestHost, SESSION_COOKIE, sessionCookieDomain, sessionCookieValues } from "@/lib/session";
 import { METADATA_PATHS } from "@/lib/site";
+import { isMissingStatsDetail } from "@/lib/stats-paths";
 import { statsRedirect } from "@/lib/stats-redirect";
 
 // Exact paths reachable without a session. Anything not listed here needs one.
@@ -31,28 +32,28 @@ const PUBLIC_PATHS = new Set([
 ]);
 
 // The bare domain serves the public home page; every other path there goes to the app.
-// Locally the same split runs on uplink.localhost (home) and app.uplink.localhost (dashboard), which can
+// Locally the same split runs on getuplink.localhost (home) and app.getuplink.localhost (dashboard), which can
 // share the session cookie like getuplink.in does. Plain localhost (Tesla's local redirect URI) forwards there.
-const MARKETING_HOSTS = new Set(["getuplink.in", "www.getuplink.in", "uplink.localhost", "localhost"]);
+const MARKETING_HOSTS = new Set(["getuplink.in", "www.getuplink.in", "getuplink.localhost", "localhost"]);
 const MARKETING_PATHS = new Set(["/home", "/privacy", "/privacy/car-data", "/terms", "/status", "/agents.md", "/robots.txt", "/sitemap.xml", ...METADATA_PATHS]);
 const APP_ORIGIN = "https://app.getuplink.in";
 
 // The status page has its own host. It serves only /status, the icons and preview images; anything else goes to the home page host.
-const STATUS_HOSTS = new Set(["status.getuplink.in", "status.uplink.localhost"]);
+const STATUS_HOSTS = new Set(["status.getuplink.in", "status.getuplink.localhost"]);
 const STATUS_PATHS = new Set(["/status", "/robots.txt", ...METADATA_PATHS]);
 const HOME_ORIGIN = "https://getuplink.in";
 
 function homeOrigin(url: URL): string {
-  return url.hostname.endsWith("localhost") ? `${url.protocol}//uplink.localhost${url.port ? `:${url.port}` : ""}` : HOME_ORIGIN;
+  return url.hostname.endsWith("localhost") ? `${url.protocol}//getuplink.localhost${url.port ? `:${url.port}` : ""}` : HOME_ORIGIN;
 }
 
 function statusOrigin(url: URL): string {
-  return url.hostname.endsWith("localhost") ? `${url.protocol}//status.uplink.localhost${url.port ? `:${url.port}` : ""}` : "https://status.getuplink.in";
+  return url.hostname.endsWith("localhost") ? `${url.protocol}//status.getuplink.localhost${url.port ? `:${url.port}` : ""}` : "https://status.getuplink.in";
 }
 
 function appOrigin(url: URL): string {
-  const local = url.hostname === "localhost" || url.hostname === "uplink.localhost";
-  return local ? `${url.protocol}//app.uplink.localhost${url.port ? `:${url.port}` : ""}` : APP_ORIGIN;
+  const local = url.hostname === "localhost" || url.hostname === "getuplink.localhost";
+  return local ? `${url.protocol}//app.getuplink.localhost${url.port ? `:${url.port}` : ""}` : APP_ORIGIN;
 }
 
 export async function proxy(request: NextRequest) {
@@ -88,6 +89,7 @@ export async function proxy(request: NextRequest) {
 
   // Old Stats links (/stats?view=…) land on the page that has that topic now.
   if (pathname === "/stats") return NextResponse.redirect(new URL(statsRedirect(request.nextUrl.searchParams), request.url));
+  if (isMissingStatsDetail(pathname)) return NextResponse.rewrite(new URL("/__not-found", request.url));
 
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
   // Invite links (/invite/<token>): opened by someone without an account yet. The page checks the token itself.

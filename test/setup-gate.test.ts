@@ -95,7 +95,7 @@ const PRIVATE_PEM = privateKey.export({ type: "sec1", format: "pem" }).toString(
 const CA_PEM = "-----BEGIN CERTIFICATE-----\nTESTCA\n-----END CERTIFICATE-----";
 
 const { asOwner } = await import("@/lib/server/data/owner");
-const { loadSetup, setupGate, checkSetup } = await import("@/lib/server/setup");
+const { loadSetup, setupGate, checkSetup, recordKeyStatus } = await import("@/lib/server/setup");
 const OWNER: Owner = asOwner(1, "owner");
 const NEW_USER: Owner = asOwner(2, "new");
 
@@ -243,6 +243,37 @@ describe("/setup and the streaming config", () => {
     expect(view.needsLocation).toBe(true);
     expect(asked("/api/1/vehicles/fleet_telemetry_config_jws")).toBe(0);
     expect(carRow(NEW_VIN).telemetry_config_sent_at).toBeUndefined();
+  });
+
+  // The health check stores what Tesla said about the key, from an answer it reuses for up to an hour
+  // (lib/server/tesla-stream-state.ts). Only an answer newer than the stored one may replace it.
+  test("an older key answer never overwrites a newer one; a newer removal does, and drops the streaming answer", async () => {
+    await loadSetup(OWNER, { now: NOW });
+    expect(carRow(OWNER_VIN)).toMatchObject({ key_paired: true, streaming: "synced" });
+    // The half-hourly check, on Tesla's answer from 20 minutes before /setup asked: no change.
+    await recordKeyStatus(OWNER, OWNER_VIN, false, new Date(NOW - 20 * MIN).toISOString());
+    expect(carRow(OWNER_VIN)).toMatchObject({ key_paired: true, key_checked_at: new Date(NOW).toISOString(), streaming: "synced" });
+    expect(await setupGate(OWNER, { admin: true, now: NOW })).toBe("pass");
+    // A removal Tesla reports after that: kept, and the old "synced" goes with it (a car without the key streams nothing).
+    await recordKeyStatus(OWNER, OWNER_VIN, false, new Date(NOW + 5 * MIN).toISOString());
+    expect(carRow(OWNER_VIN)).toMatchObject({ key_paired: false, streaming: null, streaming_checked_at: null });
+    expect(await setupGate(OWNER, { admin: true, now: NOW + 5 * MIN })).toBe("key-removed");
+  });
+
+  test("a key added back has its streaming asked again at once, and the config sent if the car lost it", async () => {
+    // As the owner's row was: the key removed (said by the health check), "synced" still kept from before.
+    Object.assign(carRow(OWNER_VIN), {
+      key_paired: false,
+      key_checked_at: new Date(NOW - 30 * MIN).toISOString(),
+      streaming: "synced",
+      streaming_checked_at: new Date(NOW - 5 * 60 * MIN).toISOString(),
+    });
+    tesla.configs.clear();
+    const view = await loadSetup(OWNER, { now: NOW });
+    expect(view.cars[0].keyPaired).toBe(true);
+    expect(asked(`/api/1/vehicles/${OWNER_VIN}/fleet_telemetry_config`)).toBe(1);
+    expect(asked("/api/1/vehicles/fleet_telemetry_config_jws")).toBe(1);
+    expect(carRow(OWNER_VIN).streaming).toBe("pending");
   });
 
   test("the 6-hourly check sends the config to a car paired while nobody had /setup open", async () => {

@@ -2,10 +2,12 @@
 
 import { Dialog } from "@base-ui/react/dialog";
 import { Check, SmilePlus, X } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { sendFeedback } from "@/app/feedback/actions";
 import { Button } from "@/components/ui/button";
+import { FEEDBACK_EVENT } from "@/components/feedback-open";
 import { BOTHER, type Bother, botherLabel, isProblem, MESSAGE_MAX, type Topic, TOPICS, topicLabel } from "@/lib/feedback";
+import { OFFLINE, orOffline } from "@/lib/offline";
 import { cn } from "@/lib/utils";
 
 // The theme the owner is looking at: their pick, else the system's.
@@ -60,6 +62,16 @@ export function FeedbackButton() {
         ? { label: "What do you like?", hint: "What works well, so it stays that way." }
         : { label: "What happened?", hint: "What you saw, and what you expected." };
 
+  // Other places (the phone account menu) ask for the form through a window event.
+  useEffect(() => {
+    const show = () => {
+      setPath(location.pathname);
+      setOpen(true);
+    };
+    window.addEventListener(FEEDBACK_EVENT, show);
+    return () => window.removeEventListener(FEEDBACK_EVENT, show);
+  }, []);
+
   const reset = () => {
     setBother(null);
     setTopic(null);
@@ -70,7 +82,8 @@ export function FeedbackButton() {
   const send = () =>
     start(async () => {
       if (!topic) return;
-      const result = await sendFeedback({
+      const result = await orOffline(
+        sendFeedback({
         bother: problem ? bother : null,
         topic,
         message,
@@ -79,12 +92,18 @@ export function FeedbackButton() {
         viewport: `${innerWidth}x${innerHeight}`,
         userAgent: navigator.userAgent.slice(0, 400),
         theme: theme(),
-      });
+        }),
+        { ok: false, error: OFFLINE },
+      );
       if (result.ok) setSent(true);
       else setError(result.error);
     });
 
   return (
+    <>
+    {/* Room under the page for the button (44px, 16px off the bottom), so the end of every page can be
+        scrolled clear of it. Phones have no floating button (feedback is in the account menu), so only sm and up. Hoisted by React into the head; it matches only while the button is on the page. */}
+    <style href="feedback-button-room" precedence="default">{"@media (min-width:40rem){body:has([data-feedback-button]){padding-bottom:3.75rem}}"}</style>
     <Dialog.Root
       open={open}
       onOpenChange={(next) => {
@@ -94,8 +113,9 @@ export function FeedbackButton() {
       }}
     >
       <Dialog.Trigger
+        data-feedback-button
         aria-label="Send feedback"
-        className="fixed right-4 bottom-4 z-40 inline-flex size-11 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+        className="fixed right-4 bottom-4 z-40 inline-flex max-sm:hidden size-11 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
       >
         <SmilePlus className="size-5" aria-hidden="true" />
       </Dialog.Trigger>
@@ -170,5 +190,6 @@ export function FeedbackButton() {
         </Dialog.Popup>
       </Dialog.Portal>
     </Dialog.Root>
+    </>
   );
 }

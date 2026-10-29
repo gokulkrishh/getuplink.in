@@ -62,7 +62,7 @@ globalThis.fetch = (async (input: string | URL | Request) => {
   return Response.json({ response: { fleet_telemetry_errors: [] } });
 }) as typeof fetch;
 
-const { isFresh, streamState, TESLA_ANSWER_MS } = await import("@/lib/server/tesla-stream-state");
+const { isFresh, overtaken, streamState, TESLA_ANSWER_MS } = await import("@/lib/server/tesla-stream-state");
 const { asOwner } = await import("@/lib/server/data/owner");
 const owner = asOwner(1, "sub-1");
 const VIN = "VIN0000000000001";
@@ -118,6 +118,31 @@ describe("the health check's Tesla answer", () => {
     expect(a.config?.synced).toBe(true);
     expect(b.fetchedAt).toBe(new Date(NOW + MIN).toISOString());
     expect(teslaPaths).toHaveLength(4);
+  });
+
+  // 29 Oct 2026: the key was added back and /setup heard so at 02:21, but the 02:30 check reused Tesla's
+  // 02:00 "no key, no config" answer. A stored answer /setup has since contradicted is asked again.
+  test("is asked again when /setup has heard differently since", async () => {
+    await streamState(owner, VIN, NOW);
+    const since = new Date(NOW + 21 * MIN).toISOString();
+    const car = { keyPaired: true, keyCheckedAt: since, streaming: "synced" as const, streamingCheckedAt: since };
+    // Agrees with the stored answer (key on, config synced): reused.
+    await streamState(owner, VIN, NOW + 30 * MIN, car);
+    expect(teslaPaths).toHaveLength(2);
+    // Disagrees: asked again.
+    await streamState(owner, VIN, NOW + 30 * MIN, { ...car, streaming: "none" });
+    expect(teslaPaths).toHaveLength(4);
+  });
+
+  test("overtaken: only an answer from after the stored one, that says something else", () => {
+    const stored = { fetched_at: new Date(NOW).toISOString(), body: { config: { key_paired: false, config: null } } };
+    const later = new Date(NOW + 21 * MIN).toISOString();
+    const earlier = new Date(NOW - MIN).toISOString();
+    expect(overtaken(stored, { keyPaired: true, keyCheckedAt: later, streaming: null, streamingCheckedAt: null })).toBe(true);
+    expect(overtaken(stored, { keyPaired: true, keyCheckedAt: earlier, streaming: null, streamingCheckedAt: null })).toBe(false);
+    expect(overtaken(stored, { keyPaired: false, keyCheckedAt: later, streaming: "none", streamingCheckedAt: later })).toBe(false);
+    expect(overtaken(stored, { keyPaired: null, keyCheckedAt: later, streaming: "pending", streamingCheckedAt: later })).toBe(true);
+    expect(overtaken(stored, null)).toBe(false);
   });
 
   test("freshness: same car, under an hour old, not from the future", () => {

@@ -120,7 +120,7 @@ export function StackedBars({
       <ChartFrame max={max} unit="kWh">
         {/* As in BarColumns: too many columns to fit, it scrolls sideways from its newest end. */}
         <ScrollEnd label={ariaLabel}>
-          <div ref={box} style={fit ? undefined : { minWidth: columns * MIN_COLUMN_PX }}>
+          <div ref={box} className="overflow-x-clip" style={fit ? undefined : { minWidth: columns * MIN_COLUMN_PX }}>
             {list}
           </div>
         </ScrollEnd>

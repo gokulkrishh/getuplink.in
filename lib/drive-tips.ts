@@ -77,8 +77,8 @@ export function driveFindings(input: DriveTipsInput): Finding[] {
           regenWonBack: regen ? formatKwh(regen.regen) : null,
           energyDrawn: regen ? formatKwh(regen.drawn) : null,
         },
-        hint: brakes.length > 0 ? "Easing off earlier before stops lets regen win energy back." : "Gentle starts use less energy.",
-        say: `This drive had ${plural(n, "hard moment")} against your usual ${usual}. Easing off earlier before stops lets regen slow the car and win energy back.`,
+        hint: brakes.length > 0 ? "Easing off earlier before stops wins energy back." : "Gentle starts use less energy.",
+        say: `This drive had ${plural(n, "hard moment")} against your usual ${usual}. Easing off earlier before stops lets the car slow itself and win energy back.`,
       });
     } else if (regen) {
       // A smooth drive: what regen did, worth knowing on its own.
@@ -86,8 +86,8 @@ export function driveFindings(input: DriveTipsInput): Finding[] {
         kind: "regen",
         score: IMPACT.info(100),
         facts: { regenWonBack: formatKwh(regen.regen), energyDrawn: formatKwh(regen.drawn), share: formatPercent((regen.regen / regen.drawn) * 100) },
-        hint: "Lifting off early lets regen win back more.",
-        say: `Regen won back ${formatKwh(regen.regen)} of the ${formatKwh(regen.drawn)} this drive drew. Lifting off early and smoothly wins back more.`,
+        hint: "Lifting off early wins back more.",
+        say: `Slowing down won back ${formatKwh(regen.regen)} of the ${formatKwh(regen.drawn)} this drive drew. Lifting off early and smoothly wins back more.`,
       });
     }
   }
@@ -140,8 +140,8 @@ export function driveFindings(input: DriveTipsInput): Finding[] {
         kind: "climbs",
         score: IMPACT.info(200 + climbs.length),
         facts: { climbs: climbs.length, steepest: formatPercent(steepest.v), steepestAt: formatClock(steepest.t), descents: descents.length },
-        hint: "Climbs take extra energy, and regen wins some back downhill.",
-        say: `This drive had ${plural(climbs.length, "climb")}, the steepest ${formatPercent(steepest.v)} at ${formatClock(steepest.t)}. Climbs take extra energy, and regen wins some back on the way down.`,
+        hint: "Climbs take extra energy, and slowing down wins some back downhill.",
+        say: `This drive had ${plural(climbs.length, "climb")}, the steepest ${formatPercent(steepest.v)} at ${formatClock(steepest.t)}. Climbs take extra energy, and slowing down wins some back on the way down.`,
       });
     }
   }

@@ -8,7 +8,7 @@ import { join } from "node:path";
 
 const CACHE = process.env.PLAYWRIGHT_BROWSERS_PATH ?? join(homedir(), "Library/Caches/ms-playwright");
 
-function headlessShell() {
+export function headlessShell() {
   const dirs = readdirSync(CACHE)
     .filter((d) => d.startsWith("chromium_headless_shell-"))
     .sort((a, b) => Number(b.split("-")[1]) - Number(a.split("-")[1]));
