@@ -9,13 +9,25 @@ const MODELS: [prefix: string, name: string][] = [
 
 export const MILES_TO_KM = 1.609344;
 
-export function modelName(carType: string | null | undefined): string | null {
+// Tesla reports the six-seat Model Y L as car_type "modely" with a third row (third_row_seats "FlatFold").
+// The older seven-seat Model Y had one too, but ended before the 2025 model year, so the VIN's year tells
+// them apart; without a VIN the car stays a Model Y.
+export function modelName(
+  carType: string | null | undefined,
+  { thirdRowSeats, vin }: { thirdRowSeats?: string | null; vin?: string | null } = {},
+): string | null {
   const type = carType?.toLowerCase() ?? "";
-  return MODELS.find(([prefix]) => type.startsWith(prefix))?.[1] ?? null;
+  const name = MODELS.find(([prefix]) => type.startsWith(prefix))?.[1] ?? null;
+  const thirdRow = !!thirdRowSeats && thirdRowSeats !== "None";
+  return name === "Model Y" && thirdRow && (modelYear(vin) ?? 0) >= 2025 ? "Model Y L" : name;
 }
+
+// Paint codes whose name in the Tesla app isn't the code itself.
+const PAINTS: Record<string, string> = { SilkroadSilver: "Cosmic Silver" };
 
 // "MidnightSilver" -> "Midnight Silver"
 export function colorName(color: string | null | undefined): string | null {
+  if (color && PAINTS[color]) return PAINTS[color];
   const name = color?.replace(/([a-z])([A-Z])/g, "$1 $2").trim();
   return name || null;
 }
@@ -42,9 +54,9 @@ export function driveLabel(trim: string | null | undefined, performance: string 
   return /d$/i.test(trim) ? "All-wheel drive" : "Rear-wheel drive";
 }
 
-// "Crossflow19" -> 19″ Crossflow
+// "Crossflow19" -> 19″ Crossflow; "MachinaV219" (a design's second version) -> 19″ Machina
 export function wheelsLabel(wheel: string | null | undefined): string | null {
-  const m = wheel?.match(/^([A-Za-z]+?)(\d{2})$/);
+  const m = wheel?.match(/^([A-Za-z]+?)(?:V\d)?(\d{2})$/);
   return m ? `${m[2]}″ ${colorName(m[1])}` : colorName(wheel);
 }
 
@@ -91,9 +103,10 @@ export function likelyLfp(vin: string | null | undefined, defaultChargeToMax: bo
   return !!vin && vin.charAt(10).toUpperCase() === "C" && defaultChargeToMax === true;
 }
 
-// From the drive units the car reports; null when it reports none.
-export function motorLayout(rear: string | null | undefined, front: string | null | undefined): string | null {
-  if (rear && front) return "Dual motor";
+// From the drive units the car reports; null when it reports none. Some all-wheel-drive cars name only the
+// rear unit, so a dual-motor badge (trim_badging ending in "d", see driveLabel) counts as two.
+export function motorLayout(rear: string | null | undefined, front: string | null | undefined, trim?: string | null): string | null {
+  if (rear && (front || /d$/i.test(trim ?? ""))) return "Dual motor";
   return rear ? "Single rear motor" : null;
 }
 

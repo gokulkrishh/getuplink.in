@@ -81,6 +81,7 @@ export type LastCharge = {
 
 type Config = Partial<{
   car_type: string;
+  third_row_seats: string;
   trim_badging: string;
   performance_package: string;
   efficiency_package: string;
@@ -123,7 +124,7 @@ function details(
 ): CarDetails {
   const config = check?.config ?? {};
   const state = check?.state ?? {};
-  const model = modelName(config.car_type);
+  const model = modelName(config.car_type, { thirdRowSeats: config.third_row_seats, vin });
   return {
     id,
     name: name || model || "Tesla",
@@ -146,7 +147,7 @@ function details(
     exteriorTrim: colorName(config.exterior_trim),
     pack: trimLabel(config.trim_badging),
     likelyLfp: likelyLfp(vin, config.default_charge_to_max),
-    motor: motorLayout(config.rear_drive_unit, config.front_drive_unit),
+    motor: motorLayout(config.rear_drive_unit, config.front_drive_unit, config.trim_badging),
     rearDriveUnit: config.rear_drive_unit ?? null,
     tyrePressure: tyrePressureLabel(state.tpms_rcp_front_value, state.tpms_rcp_rear_value),
     rowVersion,

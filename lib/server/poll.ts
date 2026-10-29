@@ -46,7 +46,7 @@ type SoftwareUpdate = {
 type VehicleData = {
   vehicle_state?: { car_version?: string; odometer?: number; software_update?: SoftwareUpdate };
   charge_state?: { battery_level?: number; battery_range?: number; charging_state?: string; charge_limit_soc?: number };
-  vehicle_config?: { car_type?: string; exterior_color?: string; trim_badging?: string };
+  vehicle_config?: { car_type?: string; third_row_seats?: string; exterior_color?: string; trim_badging?: string };
   // Only with the location scope. Never stored: see homeStateFrom.
   drive_state?: { latitude?: number; longitude?: number; native_latitude?: number; native_longitude?: number };
 };
@@ -213,7 +213,7 @@ async function pollVehicle(owner: Owner, vehicle: FleetVehicle, now: string, loc
         last_seen_at: now,
         ...(version ? { current_version: version } : {}),
         ...(config.car_type
-          ? { model: modelName(config.car_type), exterior_color: colorName(config.exterior_color), trim_badging: config.trim_badging ?? null }
+          ? { model: modelName(config.car_type, { thirdRowSeats: config.third_row_seats, vin: vehicle.vin }), exterior_color: colorName(config.exterior_color), trim_badging: config.trim_badging ?? null }
           : {}),
       }, CAR_KEY),
   );
