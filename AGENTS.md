@@ -25,6 +25,14 @@ Every word a user sees (labels, descriptions, ⓘ notes, captions, empty states,
 - **Say the period once.** A chart names its period at the top, never again underneath (see docs/charts.md).
 - **Only known facts.** Never show a guessed time, length or number; show what was seen.
 
+## Docs
+
+Read the doc for the area before changing it. Each records decisions the owner made and why.
+
+- `docs/charts.md`: every chart's rules (titles, units, tooltips, axes, scrolling, touch, periods).
+- `docs/data-retention.md`: how long data is kept, the drive archive, Tesla token refresh, and how a car that stops sending data is caught and shown (alerts bell).
+- `docs/tesla-billing.md`, `docs/costs.md`: what Tesla bills and what Uplink costs to run.
+
 ## Checks
 
 Before a commit, all three pass:
