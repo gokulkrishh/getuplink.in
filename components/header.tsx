@@ -23,7 +23,7 @@ import { isAdmin } from "@/lib/server/admin";
 import { currentOwner } from "@/lib/server/auth";
 import { AlertsMenu } from "@/components/alerts-menu";
 import { type Alert } from "@/lib/alerts";
-import { demoAlerts, loadAlerts } from "@/lib/server/alerts";
+import { bellAlerts } from "@/lib/server/alerts";
 import { setupGate } from "@/lib/server/setup";
 import { DEMO } from "@/lib/demo";
 import { cn } from "@/lib/utils";
@@ -75,14 +75,11 @@ const BELL = "tap-target relative flex size-8 items-center justify-center rounde
 // running out, a car gone quiet, an unpaid Supercharger balance, Tesla not connected, a failed check, and
 // for the admin a part of Uplink not working) and "Good to know" (news, like a service visit). Only what
 // needs the owner lights the blue dot and counts in the label. From what's stored, so it never holds the
-// page up on Tesla. Demo mode shows a sample of each part.
+// page up on Tesla. Demo mode shows a sample of each part. Read through bellAlerts' short private cache.
 async function AlertsBell() {
-  // Request time only: the alerts and their "since" read the clock.
-  await connection();
-  if (DEMO) return <BellMenu alerts={demoAlerts()} now={Date.now()} />;
-  const owner = await currentOwner();
-  if (!owner) return null;
-  return <BellMenu alerts={await loadAlerts(owner, await adminSession())} now={Date.now()} />;
+  const bell = await bellAlerts();
+  if (!bell) return null;
+  return <BellMenu alerts={bell.alerts} now={bell.now} />;
 }
 
 function BellMenu({ alerts, now }: { alerts: Alert[]; now: number }) {

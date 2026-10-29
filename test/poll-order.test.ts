@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import { standIn } from "./stand-in";
 
 // The 6-hourly check against a database that answers every query with nothing, and a Tesla account with
 // one car, to pin down the order of its steps. Only the streamed-version sync is replaced, to log when it ran.
@@ -49,7 +50,7 @@ mock.module("@/lib/server/supabase", () => ({
   db: () => ({ from: (table: string) => query(table), rpc: (fn: string) => (fn.startsWith("claim_") ? Promise.resolve({ data: true, error: null }) : query("rpc")) }),
 }));
 mock.module("@/lib/server/crypto", () => ({ encrypt: (s: string) => `enc:${s}`, decrypt: (s: string) => s.slice(4) }));
-mock.module("@/lib/server/receipts", () => ({ deleteAllInvoices: async () => {} }));
+await standIn("@/lib/server/receipts", { deleteAllInvoices: async () => {} });
 mock.module("@/lib/server/stream-versions", () => ({
   syncStreamVersions: async () => {},
   syncStreamVersionsForAllCars: async () => {},

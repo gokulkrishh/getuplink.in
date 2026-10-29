@@ -5,13 +5,13 @@ import { accountLabel, failureOutcome, type Outcome } from "@/lib/failed-checks"
 import { istDay, type Status } from "@/lib/status";
 import { runErrorReason } from "@/lib/run-error";
 import { normaliseVersion } from "@/lib/versions";
-import { currentOwner } from "./auth";
+import { sessionAccount } from "./auth";
 import { demoData, demoFleet } from "./demo";
 import { missingEnv } from "./env";
 import { DEMO_OWNER, type Owner } from "./data/owner";
 import { carsNotStreaming, type WaitingCar } from "./data/setup";
 import { unknownCodes } from "@/lib/car";
-import { accountCars, ADMIN_ROLE, adminTotals, carCodes, failureContext, userRole } from "./data/system";
+import { accountCars, ADMIN_ROLE, adminTotals, carCodes, failureContext, ownerOf } from "./data/system";
 import { canSendConfig } from "./telemetry-config";
 import { COMPONENTS } from "./stream-health";
 
@@ -20,7 +20,7 @@ export const RECENT_DAYS = 7;
 
 // The admin is a role on the users row (users.role = 'admin', set by hand), never anything in code or env.
 // Admin means a current session (currentOwner: signed, not revoked, approved) whose user has that role,
-// read fresh from the database. Uncached: every admin action calls this again. In demo mode the demo
+// read fresh from the database in the session check's own read. Uncached: every admin action calls this again. In demo mode the demo
 // owner is an admin.
 export async function adminOwner(): Promise<Owner | null> {
   // The public demo site has no admin: no Admin, Waitlist or Costs in its menu, and those pages are a 404.
@@ -28,9 +28,8 @@ export async function adminOwner(): Promise<Owner | null> {
   if (DEMO_SITE) return null;
   if (DEMO) return DEMO_OWNER;
   if (missingEnv().length) return null;
-  const owner = await currentOwner();
-  if (!owner) return null;
-  return (await userRole(owner.userId)) === ADMIN_ROLE ? owner : null;
+  const user = await sessionAccount();
+  return user?.role === ADMIN_ROLE ? ownerOf(user) : null;
 }
 
 export async function isAdmin(): Promise<boolean> {
