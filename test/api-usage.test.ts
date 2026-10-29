@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import { standIn } from "./stand-in";
 
 // Counting Fleet API requests, and the cron's per-user batching and budget guard, against a scripted
 // database and a scripted Tesla. Made-up users and VINs.
@@ -92,7 +93,7 @@ mock.module("@/lib/server/supabase", () => ({
   }),
 }));
 mock.module("@/lib/server/crypto", () => ({ encrypt: (s: string) => `enc:${s}`, decrypt: (s: string) => s.slice(4) }));
-mock.module("@/lib/server/receipts", () => ({ deleteAllInvoices: async () => {} }));
+await standIn("@/lib/server/receipts", { deleteAllInvoices: async () => {} });
 mock.module("@/lib/server/stream-versions", () => ({
   syncStreamVersions: async () => {},
   syncStreamVersionsForAllCars: async () => {},
