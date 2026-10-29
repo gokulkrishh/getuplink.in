@@ -42,4 +42,7 @@ describe("runErrorReason", () => {
     expect(runErrorReason(error)).toBe("Didn't finish");
     expect(describeRunError(error)).toBe("The last check didn't finish. Uplink will try again at the next check.");
   });
+  test("so is it giving up on claiming the token refresh", () => {
+    expect(runErrorReason("Claiming the token refresh failed: AbortError: The operation was aborted due to timeout")).toBe("Didn't finish");
+  });
 });
