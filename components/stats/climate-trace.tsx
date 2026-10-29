@@ -5,6 +5,7 @@ import { clockTicks } from "@/components/stats/drive-lanes";
 import { type Climate, inSpans, type Run, tempAxis, valueAt } from "@/lib/drive-climate";
 import { formatCelsius, formatClock } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { evenStops, PLOT_FOCUS, plotKeys } from "@/components/stats/plot-keys";
 
 // The lines, by name, with their colours written out in full so Tailwind finds each class. Inside and
 // outside keep the colours of the Temperatures chart on the Battery page.
@@ -85,9 +86,10 @@ export function ClimateTrace({ label, climate, from, to }: { label: string; clim
           </div>
           <div
             ref={plot}
-            className="relative h-28 min-w-0 flex-1 touch-pan-y"
-            role="img"
+            className={cn("relative h-28 min-w-0 flex-1 touch-pan-y", PLOT_FOCUS)}
+            role="group"
             aria-label={`${label} from ${formatClock(from)} to ${formatClock(to)}, between ${formatCelsius(Math.min(...values))} and ${formatCelsius(Math.max(...values))}`}
+            {...plotKeys(at, setAt, evenStops(from, to))}
             onPointerMove={(e) => pick(e.clientX)}
             onPointerDown={(e) => pick(e.clientX)}
             onPointerLeave={(e) => e.pointerType === "mouse" && setAt(null)}
@@ -120,6 +122,12 @@ export function ClimateTrace({ label, climate, from, to }: { label: string; clim
             </svg>
             {cursor !== null && (
               <>
+                <span role="status" className="sr-only">
+                  {formatClock(cursor)}:{" "}
+                  {shown.length === 0 && !off
+                    ? "no data here"
+                    : [off && inWindow ? "AC off" : null, ...shown.map((line) => `${line.name} ${formatCelsius(line.v)}`)].filter(Boolean).join(", ")}
+                </span>
                 <div className="pointer-events-none absolute inset-y-0 w-px bg-muted-foreground" style={{ left: `${xPct(cursor)}%` }} aria-hidden="true" />
                 {shown.map((line) => (
                   <div
@@ -132,7 +140,7 @@ export function ClimateTrace({ label, climate, from, to }: { label: string; clim
                 <div
                   className="pointer-events-none absolute top-0 z-10 border bg-background px-2 py-1 text-xs whitespace-nowrap tabular-nums shadow-sm"
                   style={{ left: `${xPct(cursor)}%`, transform: `translateX(${xPct(cursor) > 50 ? "calc(-100% - 8px)" : "8px"})` }}
-                  aria-live="polite"
+                  aria-hidden="true"
                 >
                   <span className="block text-muted-foreground">{formatClock(cursor)}</span>
                   {shown.length === 0 && !off ? (
