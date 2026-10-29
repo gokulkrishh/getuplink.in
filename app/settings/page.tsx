@@ -154,7 +154,7 @@ async function Settings() {
         <Row
           id="share"
           title="Share with other owners"
-          description="Adds your car to the totals on Owners. Turning it off deletes your figures, and your car leaves the totals at 3:30 AM."
+          description="Adds your car to the totals on Compare. Turning it off deletes your figures, and your car leaves the totals at 3:30 AM."
           control={<ShareSwitch on={sharing?.on ?? false} />}
         />
         <DeleteMyData />
@@ -226,7 +226,7 @@ function SettingsSkeleton() {
           <Row
             key="share"
             title={<Ph>Share with other owners</Ph>}
-            description={<p>{text("Adds your car to the totals on Owners. Turning it off deletes your figures, and your car leaves the totals at 3:30 AM.")}</p>}
+            description={<p>{text("Adds your car to the totals on Compare. Turning it off deletes your figures, and your car leaves the totals at 3:30 AM.")}</p>}
             control={<div className="h-6 w-11 rounded-full bg-muted motion-safe:animate-pulse" aria-hidden="true" />}
           />,
           <Row key="data" title={<Ph>Delete my data</Ph>} description={<p>{text("Removes your car data and disconnects Tesla. You can sign in again.")}</p>} control={button} />,

@@ -13,7 +13,7 @@ For bug fixes, the operator sometimes needs to see what an owner sees. A silent 
 4. Maps and places stay hidden unless the owner also ticks "include my trips".
 5. One line on the privacy page describing it.
 
-Size: medium (a table for grants and views, the Settings switch, a read-only view mode, the log). Research uses totals across owners (Owners page) or demo data, never one account.
+Size: medium (a table for grants and views, the Settings switch, a read-only view mode, the log). Research uses totals across owners (the Compare page) or demo data, never one account.
 
 ### Alerts bell, after 1 to 5 ship
 - "Update ready for <car>" under "Good to know", from `pendingUpdate`. It clears itself once installed.

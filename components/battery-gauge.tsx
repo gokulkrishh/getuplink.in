@@ -36,7 +36,22 @@ export function batteryState(snapshot: Snapshot, parked: Parked | null, now: num
 // `align="end"` lines it up on the right from sm up (Home's car row); it stays left on a phone.
 // `sentry` marks Sentry Mode watching, on the state line.
 // `parked="pending"`: when it parked is still loading (Home streams it in), so a faint line holds its place.
-export function BatteryGauge({ snapshot, parked = null, now, align = "start", sentry = false }: { snapshot: Snapshot; parked?: Parked | null | "pending"; now: number; align?: "start" | "end"; sentry?: boolean }) {
+// `holdRow`: that line was shown, so the row keeps its height once loaded even with nothing to say.
+export function BatteryGauge({
+  snapshot,
+  parked = null,
+  now,
+  align = "start",
+  sentry = false,
+  holdRow = false,
+}: {
+  snapshot: Snapshot;
+  parked?: Parked | null | "pending";
+  now: number;
+  align?: "start" | "end";
+  sentry?: boolean;
+  holdRow?: boolean;
+}) {
   const end = align === "end";
   const level = Math.min(100, Math.max(0, snapshot.battery_level ?? 0));
   const limit = snapshot.charge_limit != null ? Math.min(100, Math.max(0, snapshot.charge_limit)) : null;
@@ -84,7 +99,9 @@ export function BatteryGauge({ snapshot, parked = null, now, align = "start", se
         <p className={cn("text-sm", end && "sm:text-right")} aria-hidden="true">
           <span className="bg-muted text-transparent motion-safe:animate-pulse">Parked since 3:30 PM</span>
         </p>
-      ) : (state || watching) && (
+      ) : !state && !watching ? (
+        holdRow && <p className="h-5" aria-hidden="true" />
+      ) : (
         // Inline, not a flex row: a wrapping line in a right-aligned flex row leaves the bolt on the
         // left and the words on the right. Filled, the bolt stays one shape at this size.
         <p className={cn("text-sm tabular-nums", charging ? "text-charge" : "text-faint", end && "sm:text-right")}>
