@@ -9,7 +9,7 @@ import { Headline } from "@/components/home/headline";
 import { NowStrip } from "@/components/home/now-strip";
 import { Recently } from "@/components/home/recently";
 import { ChargeLevelChart } from "@/components/stats/charge-level";
-import { CarNotices, CheckedFooter, OwnerNotices } from "@/components/owner-notices";
+import { CarNotices, CheckedFooter, OwnerNotices, WeekNotice } from "@/components/owner-notices";
 import { eachFrame } from "@/components/home/frames";
 import { PeriodScope } from "@/components/stats/period-scope";
 import { matchSessions } from "@/lib/charge-sessions";
@@ -155,7 +155,7 @@ function TyreNotice({ odometerKm }: { odometerKm: number | null }) {
 // before the stations job has built its session from the readings (every 15 minutes), so it never waits.
 async function PrimaryStrip({ car, odometerKm, now, week }: { car: HomeCar; odometerKm: number | null; now: number; week: WeekLoad }) {
   const w = await week;
-  return <NowStrip car={car} odometerKm={odometerKm} parkedNow={w?.kind === "ready" ? w.window.driving.parkedNow : null} now={now} />;
+  return <NowStrip car={car} odometerKm={odometerKm} parkedNow={w?.kind === "ready" ? w.window.driving.parkedNow : null} now={now} holdRow />;
 }
 
 // The last 24 hours' drive and charge, from the week's read.
@@ -164,12 +164,11 @@ async function RecentFor({ vin, now, week }: { vin: string; now: number; week: W
   return w?.kind === "ready" ? <Recently items={recentlyLines(w.window.driving.drives, w.streamSessions, now, vin)} /> : null;
 }
 
-// The week's totals, tips and charge level. When the week can't be read the strip stays, with the same
-// notice the page shows when nothing loads.
+// The week's totals, tips and charge level. When the week can't be read (or the account changed between
+// the two reads) the strip stays, with a notice naming the week, not the car shown above it.
 async function WeekTotals({ home, now, shareCard, week }: { home: Ready<HomeNow>; now: number; shareCard: boolean; week: WeekLoad }) {
   const w = await week;
-  if (!w) return null;
-  if (w.kind === "error") return <OwnerNotices data={w} count={0} failedRun={null} />;
+  if (w?.kind !== "ready") return <WeekNotice />;
   return (
     <PeriodScope>
       <Totals home={{ ...home, ...w }} now={now} shareCard={shareCard} />
@@ -208,8 +207,9 @@ async function HomeContent() {
             <div key={car.vehicle.id} className="space-y-6">
               <CarNotices notices={car.notices} />
               {car.vehicle.id === primaryId && <TyreNotice odometerKm={home.figures.odometerKm} />}
-              {car.vehicle.id === primaryId && car.lastOnline?.charging_state !== "Charging" ? (
-                // Until the week's read says when it parked, a faint line holds the parked line's place.
+              {car.vehicle.id === primaryId && car.lastOnline?.charging_state !== "Charging" && home.lastReadingAt !== null ? (
+                // Until the week's read says when it parked, a faint line holds the parked line's place. A car that
+                // never sent data has no parked line coming, so it doesn't wait and keeps no empty row.
                 <Suspense fallback={<NowStrip car={car} odometerKm={home.figures.odometerKm} parkedNow="pending" now={now} />}>
                   <PrimaryStrip car={car} odometerKm={home.figures.odometerKm} now={now} week={week} />
                 </Suspense>

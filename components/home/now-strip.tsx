@@ -9,7 +9,8 @@ import { currentVersion } from "@/lib/versions";
 // The car right now: name and status, then the battery as the biggest thing on the page with what the
 // car is doing under it, then its software (version, odometer, any update) in a card that opens /updates.
 // `odometerKm` and `parkedNow` are known for the primary car only; "pending" while parkedNow still loads.
-export function NowStrip({ car, odometerKm, parkedNow, now }: { car: HomeCar; odometerKm: number | null; parkedNow: ParkedNow | null | "pending"; now: number }) {
+// `holdRow`: the parked line was pending, so its row stays once loaded (see BatteryGauge).
+export function NowStrip({ car, odometerKm, parkedNow, now, holdRow = false }: { car: HomeCar; odometerKm: number | null; parkedNow: ParkedNow | null | "pending"; now: number; holdRow?: boolean }) {
   const { vehicle, latest, lastOnline, streamAt } = car;
   // A car that streamed in the last few minutes is awake: keep the page fresh so new data shows up on its own.
   const awake = streamAt !== null && now - Date.parse(streamAt) < AWAKE_MS;
@@ -42,7 +43,7 @@ export function NowStrip({ car, odometerKm, parkedNow, now }: { car: HomeCar; od
         </p>
         {!version && <p className="text-sm text-muted-foreground">Asleep at every check so far. Open the Tesla app to wake the car. This page updates on its own.</p>}
       </div>
-      {battery && <BatteryGauge snapshot={battery} parked={parkedNow} now={now} align="end" sentry={car.sentry} />}
+      {battery && <BatteryGauge snapshot={battery} parked={parkedNow} now={now} align="end" sentry={car.sentry} holdRow={holdRow} />}
     </section>
   );
 }

@@ -17,17 +17,47 @@ import { MAX_PAGES, PAGE } from "./telemetry";
 // A window reaching back past the drive readings' retention also gets the archived drives' slimmed readings
 // (lib/drive-archive.ts), merged in, so an old trip reads as a recent one does, a little coarser.
 export async function loadReadingsByField(owner: Owner, vin: string, fields: string[], from: string, to: string): Promise<Record<string, Reading[]> | null> {
-  if (DEMO) return Object.fromEntries(fields.map((field) => [field, demoReadings(field, from, to)]));
-  const page = (k: number, count?: "exact") =>
-    ownerDb(owner)
-      .readings("field, created_at, value", { count })
-      .eq("vin", vin)
-      .in("field", fields)
-      .gte("created_at", from)
-      .lt("created_at", to)
+  return loadReadingsInWindows(owner, vin, fields, [{ from: Date.parse(from), to: Date.parse(to) }]);
+}
+
+// A window of time [from, to), in ms.
+export type TimeWindow = { from: number; to: number };
+
+// The windows sent in one request's or=: each adds about 95 characters to the URL.
+const WINDOWS_PER_QUERY = 10;
+const chunked = <T>(list: T[]) => Array.from({ length: Math.ceil(list.length / WINDOWS_PER_QUERY) }, (_, k) => list.slice(k * WINDOWS_PER_QUERY, (k + 1) * WINDOWS_PER_QUERY));
+const iso = (t: number) => new Date(t).toISOString();
+
+// As loadReadingsByField, for several windows: only the rows inside one of them come back (an or= of their
+// ranges, a few windows per request so no URL gets long), so far-apart windows don't pull everything between
+// them. Windows wholly past the readings' retention go to the archive only.
+export async function loadReadingsInWindows(owner: Owner, vin: string, fields: string[], windows: TimeWindow[]): Promise<Record<string, Reading[]> | null> {
+  if (DEMO) {
+    const each = windows.map((w) => Object.fromEntries(fields.map((field) => [field, demoReadings(field, iso(w.from), iso(w.to))])));
+    return each.length === 1 ? each[0] : mergeReadings(fields, ...each);
+  }
+  const now = Date.now();
+  const live = windows.filter((w) => w.to > now - DRIVE_DAYS * 86_400_000);
+  const reads = await Promise.all(chunked(live).map((group) => loadLiveReadings(owner, vin, fields, group)));
+  if (reads.some((r) => r === null)) return null;
+  const byField = reads.length === 1 ? reads[0]! : mergeReadings(fields, ...(reads as Record<string, Reading[]>[]));
+  const old = windows.filter((w) => w.from < now - ARCHIVED_AFTER_MS);
+  if (old.length === 0) return byField;
+  const archived = await loadArchivedReadings(owner, vin, fields, old);
+  return archived ? mergeReadings(fields, byField, archived) : byField;
+}
+
+async function loadLiveReadings(owner: Owner, vin: string, fields: string[], windows: TimeWindow[]): Promise<Record<string, Reading[]> | null> {
+  const from = iso(Math.min(...windows.map((w) => w.from)));
+  const to = iso(Math.max(...windows.map((w) => w.to)));
+  const within = windows.map((w) => `and(created_at.gte.${iso(w.from)},created_at.lt.${iso(w.to)})`).join(",");
+  const page = (k: number, count?: "exact") => {
+    const q = ownerDb(owner).readings("field, created_at, value", { count }).eq("vin", vin).in("field", fields).gte("created_at", from).lt("created_at", to);
+    return (windows.length > 1 ? q.or(within) : q)
       .order("field", { ascending: true })
       .order("created_at", { ascending: true })
       .range(k * PAGE, (k + 1) * PAGE - 1);
+  };
   const first = await page(0, "exact");
   const total = first.count ?? first.data?.length ?? 0;
   const pages = Math.min(Math.ceil(total / PAGE), MAX_PAGES * fields.length);
@@ -40,28 +70,39 @@ export async function loadReadingsByField(owner: Owner, vin: string, fields: str
     }
     for (const r of data ?? []) byField[r.field as string]?.push({ at: r.created_at as string, value: r.value as unknown });
   }
-  if (Date.parse(from) >= Date.now() - ARCHIVED_AFTER_MS) return byField;
-  const archived = await loadArchivedReadings(owner, vin, fields, Date.parse(from), Date.parse(to));
-  return archived ? mergeReadings(fields, byField, archived) : byField;
+  return byField;
 }
 
 // Readings older than this may be gone (DRIVE_DAYS, less a day or two for the daily run's timing), so a
 // window reaching back past it reads the archive too.
 const ARCHIVED_AFTER_MS = (DRIVE_DAYS - 2) * 86_400_000;
 
-// The archived drives' readings of these fields within [from, to), by field: those of every drive whose
-// kept span overlaps it. Null when the archive can't be read (or isn't there yet).
-async function loadArchivedReadings(owner: Owner, vin: string, fields: string[], from: number, to: number): Promise<Record<string, Reading[]> | null> {
-  const { data, error } = await ownerDb(owner)
-    .archivedDrives("readings")
-    .eq("vin", vin)
-    .lt("readings_from", new Date(to).toISOString())
-    .gt("readings_to", new Date(from).toISOString());
-  if (error) {
-    console.warn("Archived readings unavailable:", error.message);
+// The archived drives' readings of these fields within the windows, by field: those of every drive whose
+// kept span overlaps one, each unpacked only for the windows it overlaps. Null when the archive can't be read
+// (or isn't there yet).
+async function loadArchivedReadings(owner: Owner, vin: string, fields: string[], windows: TimeWindow[]): Promise<Record<string, Reading[]> | null> {
+  const reads = await Promise.all(
+    chunked(windows).map((group) => {
+      const q = ownerDb(owner).archivedDrives("readings, readings_from, readings_to").eq("vin", vin);
+      return group.length > 1
+        ? q.or(group.map((w) => `and(readings_from.lt.${iso(w.to)},readings_to.gt.${iso(w.from)})`).join(","))
+        : q.lt("readings_from", iso(group[0].to)).gt("readings_to", iso(group[0].from));
+    }),
+  );
+  const failed = reads.find((r) => r.error);
+  if (failed?.error) {
+    console.warn("Archived readings unavailable:", failed.error.message);
     return null;
   }
-  return mergeReadings(fields, ...(data ?? []).map((row) => unpackReadings(row.readings as PackedReadings, fields, from, to)));
+  // A drive matched by two requests is unpacked twice; mergeReadings keeps one of each reading.
+  const rows = reads.flatMap((r) => r.data ?? []);
+  return mergeReadings(
+    fields,
+    ...rows.flatMap((row) => {
+      const [kept, until] = [Date.parse(row.readings_from as string), Date.parse(row.readings_to as string)];
+      return windows.filter((w) => w.from < until && w.to > kept).map((w) => unpackReadings(row.readings as PackedReadings, fields, w.from, w.to));
+    }),
+  );
 }
 
 const ACCEL = "LongitudinalAcceleration";
