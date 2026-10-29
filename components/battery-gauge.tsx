@@ -35,12 +35,14 @@ export function batteryState(snapshot: Snapshot, parked: Parked | null, now: num
 // The level and range as the biggest thing on the page, the meter under them, and the state line last.
 // `align="end"` lines it up on the right from sm up (Home's car row); it stays left on a phone.
 // `sentry` marks Sentry Mode watching, on the state line.
-export function BatteryGauge({ snapshot, parked = null, now, align = "start", sentry = false }: { snapshot: Snapshot; parked?: Parked | null; now: number; align?: "start" | "end"; sentry?: boolean }) {
+// `parked="pending"`: when it parked is still loading (Home streams it in), so a faint line holds its place.
+export function BatteryGauge({ snapshot, parked = null, now, align = "start", sentry = false }: { snapshot: Snapshot; parked?: Parked | null | "pending"; now: number; align?: "start" | "end"; sentry?: boolean }) {
   const end = align === "end";
   const level = Math.min(100, Math.max(0, snapshot.battery_level ?? 0));
   const limit = snapshot.charge_limit != null ? Math.min(100, Math.max(0, snapshot.charge_limit)) : null;
   const charging = snapshot.charging_state === "Charging";
-  const state = batteryState(snapshot, parked, now);
+  const pending = parked === "pending" && !charging;
+  const state = batteryState(snapshot, parked === "pending" ? null : parked, now);
   // Sentry Mode's mark leads the parked line. A charge's line has the bolt instead.
   const watching = sentry && !charging;
   // Three rows of one text line each (the level, the meter, the state), so on Home they line up with the
@@ -77,7 +79,12 @@ export function BatteryGauge({ snapshot, parked = null, now, align = "start", se
         {/* The limit by the meter's end, where its tick is. Charging says it in words instead. */}
         {limit != null && !charging && <span className="shrink-0 text-xs leading-none text-faint tabular-nums">Limit {limit}%</span>}
       </div>
-      {(state || watching) && (
+      {pending ? (
+        // The skeleton's own line (app/page.tsx), so nothing moves while it loads.
+        <p className={cn("text-sm", end && "sm:text-right")} aria-hidden="true">
+          <span className="bg-muted text-transparent motion-safe:animate-pulse">Parked since 3:30 PM</span>
+        </p>
+      ) : (state || watching) && (
         // Inline, not a flex row: a wrapping line in a right-aligned flex row leaves the bolt on the
         // left and the words on the right. Filled, the bolt stays one shape at this size.
         <p className={cn("text-sm tabular-nums", charging ? "text-charge" : "text-faint", end && "sm:text-right")}>

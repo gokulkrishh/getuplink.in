@@ -20,8 +20,8 @@ The header's "Stats" link, Home → "See all trips", or the Stats tabs → "Driv
 Ready-made proof run (period switch, then a trip):
 
 ```bash
-bun --install=force .claude/skills/verify-uplink/scripts/drive-driving.mjs           # desktop
-bun --install=force .claude/skills/verify-uplink/scripts/drive-driving.mjs --phone   # phone list layout
+bun --install=force .claude/skills/verify/scripts/drive-driving.mjs           # desktop
+bun --install=force .claude/skills/verify/scripts/drive-driving.mjs --phone   # phone list layout
 ```
 
 It prints the `aria-pressed` state before and after switching to Week, the trip it opened, and errors, and saves `1-default.png`, `2-week.png` and `3-trip.png` under `$TMPDIR/uplink-verify-evidence/driving[-phone]/`.

@@ -8,8 +8,8 @@ import { currentVersion } from "@/lib/versions";
 
 // The car right now: name and status, then the battery as the biggest thing on the page with what the
 // car is doing under it, then its software (version, odometer, any update) in a card that opens /updates.
-// `odometerKm` and `parkedNow` are known for the primary car only.
-export function NowStrip({ car, odometerKm, parkedNow, now }: { car: HomeCar; odometerKm: number | null; parkedNow: ParkedNow | null; now: number }) {
+// `odometerKm` and `parkedNow` are known for the primary car only; "pending" while parkedNow still loads.
+export function NowStrip({ car, odometerKm, parkedNow, now }: { car: HomeCar; odometerKm: number | null; parkedNow: ParkedNow | null | "pending"; now: number }) {
   const { vehicle, latest, lastOnline, streamAt } = car;
   // A car that streamed in the last few minutes is awake: keep the page fresh so new data shows up on its own.
   const awake = streamAt !== null && now - Date.parse(streamAt) < AWAKE_MS;

@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { PLOT_FOCUS, plotKeys } from "@/components/stats/plot-keys";
 import { Measure } from "@/components/measure";
 
 export type Series = { name: string; className: string; points: { x: number; y: number }[] };
@@ -15,7 +16,8 @@ const CHAR_PX = 7; // a 12px axis character, roughly, to fit the x labels withou
 // `formatY`'s text. With `gap`, a line breaks where readings are further apart than that, rather than drawing
 // a straight line across a time with no readings. Hover or tap anywhere for a tooltip with each line's value
 // at that x, and a dot on each line. A line with no reading near that x is left out of the tooltip rather than
-// showing a far-off value. On a touch screen a vertical swipe still scrolls the page, and a tap elsewhere
+// showing a far-off value. With the keyboard, Left and Right step through the readings, Home and End jump to
+// the ends, and Esc or leaving the chart hides the tooltip. On a touch screen a vertical swipe still scrolls the page, and a tap elsewhere
 // hides the tooltip. Never wider than its column, so it never scrolls sideways.
 export function LineChart({
   series,
@@ -96,6 +98,8 @@ export function LineChart({
     if (!rect || rect.width === 0) return;
     setAt(x0 + Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)) * (x1 - x0));
   };
+  // Arrow keys step through every reading's x in turn.
+  const keys = plotKeys(at, setAt, [...new Set(xs)].sort((a, b) => a - b));
   const hits =
     at === null
       ? []
@@ -149,9 +153,10 @@ export function LineChart({
           </div>
           <div
             ref={plot}
-            className="relative h-28 min-w-0 flex-1 touch-pan-y"
-            role="img"
+            className={cn("relative h-28 min-w-0 flex-1 touch-pan-y", PLOT_FOCUS)}
+            role="group"
             aria-label={label}
+            {...keys}
             onPointerMove={(e) => pick(e.clientX)}
             onPointerDown={(e) => pick(e.clientX)}
             onPointerLeave={(e) => e.pointerType === "mouse" && setAt(null)}
@@ -171,6 +176,11 @@ export function LineChart({
             </svg>
             {cursor !== null && (
               <>
+                <span role="status" className="sr-only">
+                  {hits.length === 0
+                    ? `${formatX(cursor)}: no data here`
+                    : `${formatX(cursor)}: ${hits.map(({ s, p }) => (drawn.length > 1 ? `${s.name} ${formatY(p.y)}` : formatY(p.y))).join(", ")}`}
+                </span>
                 <div className="pointer-events-none absolute inset-y-0 w-px bg-muted-foreground" style={{ left: `${xPct(cursor)}%` }} aria-hidden="true" />
                 {hits.map(({ s, p }) => (
                   <svg
@@ -186,7 +196,7 @@ export function LineChart({
                 <div
                   className="pointer-events-none absolute top-0 z-10 border bg-background px-2 py-1 text-xs whitespace-nowrap tabular-nums shadow-sm"
                   style={{ left: `${xPct(cursor)}%`, transform: `translateX(${xPct(cursor) > 50 ? "calc(-100% - 8px)" : "8px"})` }}
-                  aria-live="polite"
+                  aria-hidden="true"
                 >
                   <span className="block text-muted-foreground">{formatX(cursor)}</span>
                   {hits.length === 0 ? (

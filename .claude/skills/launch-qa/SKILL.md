@@ -5,10 +5,10 @@ description: Launch QA for Uplink - five first-time owners (impatient, skeptic, 
 
 # Launch QA
 
-A full run is about ten subagents (five before, five after) plus fix agents, so keep it for launches and big changes. For one page, use `verify-uplink` instead.
+A full run is about ten subagents (five before, five after) plus fix agents, so keep it for launches and big changes. For one page, use `verify` instead.
 
 ## 1. Start
-- Launch a demo copy of the code under test on its own port (`.claude/skills/verify-uplink/scripts/launch.sh 3220`). Never use the owner's 3000, or a demo copy someone else started. Run `doctor.sh`. A failing `/settings` on an old copy is staleness, not a finding.
+- Launch a demo copy of the code under test on its own port (`.claude/skills/verify/scripts/launch.sh 3220`). Never use the owner's 3000, or a demo copy someone else started. Run `doctor.sh`. A failing `/settings` on an old copy is staleness, not a finding.
 - Warm every route once with curl, so dev compile time isn't read as slowness.
 - Demo never writes to the shared Supabase. Never drive live forms.
 
@@ -35,7 +35,7 @@ A full run is about ten subagents (five before, five after) plus fix agents, so 
 - Fix what's new and rerun the affected checks.
 
 ## 6. Prove it and hand over
-- Run `.claude/skills/verify-uplink/scripts/launch-checklist.mjs` (desktop and 375px phone, PASS/FAIL). Extend it with checks for this run's fixes. Use `before-after.mjs <old port> <new port> <routes>` for screenshots side by side. Look at the phone screenshots yourself. Don't hand the owner a click-through checklist.
+- Run `.claude/skills/verify/scripts/launch-checklist.mjs` (desktop and 375px phone, PASS/FAIL). Extend it with checks for this run's fixes. Use `before-after.mjs <old port> <new port> <routes>` for screenshots side by side. Look at the phone screenshots yourself. Don't hand the owner a click-through checklist.
 - Report:
   - what was run
   - the ranked table (problem, how many personas, now fixed or not)

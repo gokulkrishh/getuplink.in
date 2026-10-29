@@ -1,6 +1,6 @@
 // Before/after screenshots: the same pages from two demo copies (say main on 3210 and your branch on 3230),
 // desktop and phone, saved side by side as <page>-<layout>-before.png / -after.png.
-// Run: bun --install=force .claude/skills/verify-uplink/scripts/before-after.mjs 3210 3230 /home /setup /settings
+// Run: bun --install=force .claude/skills/verify/scripts/before-after.mjs 3210 3230 /home /setup /settings
 import { join } from "node:path";
 import { chromium } from "playwright-core";
 import { evidenceDir, headlessShell } from "./browser.mjs";

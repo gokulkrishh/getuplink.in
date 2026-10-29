@@ -5,6 +5,7 @@ import { Measure } from "@/components/measure";
 import { withUnit } from "@/components/stats/bar-parts";
 import { formatClock, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { evenStops, PLOT_FOCUS, plotKeys } from "@/components/stats/plot-keys";
 
 type Point = { t: number; v: number };
 
@@ -193,9 +194,10 @@ export function DriveTrace({
           </div>
           <div
             ref={plot}
-            className="relative h-28 min-w-0 flex-1 touch-pan-y"
-            role="img"
+            className={cn("relative h-28 min-w-0 flex-1 touch-pan-y", PLOT_FOCUS)}
+            role="group"
             aria-label={`${label} from ${formatClock(from)} to ${formatClock(to)}, between ${axisNumber.format(Math.min(...vs))} and ${axisNumber.format(Math.max(...vs))} ${unit}`}
+            {...plotKeys(at, setAt, evenStops(from, to))}
             onPointerMove={(e) => pick(e.clientX)}
             onPointerDown={(e) => pick(e.clientX)}
             onPointerLeave={(e) => e.pointerType === "mouse" && setAt(null)}
@@ -235,6 +237,9 @@ export function DriveTrace({
               ))}
             {cursor !== null && (
               <>
+                <span role="status" className="sr-only">
+                  {formatClock(cursor)}: {hit ? words(hit.v) : "no data here"}
+                </span>
                 <div className="pointer-events-none absolute inset-y-0 w-px bg-muted-foreground" style={{ left: `${xPct(cursor)}%` }} aria-hidden="true" />
                 {hit && (
                   <div
@@ -246,7 +251,7 @@ export function DriveTrace({
                 <div
                   className="pointer-events-none absolute top-0 z-10 border bg-background px-2 py-1 text-xs whitespace-nowrap tabular-nums shadow-sm"
                   style={{ left: `${xPct(cursor)}%`, transform: `translateX(${xPct(cursor) > 50 ? "calc(-100% - 8px)" : "8px"})` }}
-                  aria-live="polite"
+                  aria-hidden="true"
                 >
                   <span className="block text-muted-foreground">{formatClock(cursor)}</span>
                   <span className="block font-mono">{hit ? <Measure text={words(hit.v)} /> : <span className="font-sans text-muted-foreground">No data here</span>}</span>

@@ -7,7 +7,7 @@ import { type Band, efficiencyBands, type LatLng, type Place, places, speedHisto
 import { num, type Reading } from "@/lib/telemetry-derive";
 import { type SpotName, spotName } from "@/lib/charge-names";
 import { stationAt } from "@/lib/stations";
-import { placeKey, placeNames } from "./place-names";
+import { cachedPlaceNames, placeKey } from "./place-names";
 import { loadUserPlaces } from "./user-places";
 import { loadReadingsByField } from "./telemetry-window";
 
@@ -28,6 +28,8 @@ export type DrivingExtras = {
   byAc: Band[];
   places: NamedPlace[];
   visited: { lat: number; lng: number; t: number }[];
+  // The shown places with no area name kept yet, for the caller to look up after the response (placeNames).
+  unnamed: { lat: number; lng: number }[];
 };
 
 const timed = (readings: Reading[] | undefined, scale = 1): TimedValue[] =>
@@ -52,7 +54,7 @@ export async function loadDrivingExtras(owner: Owner, vin: string | null, allDri
   return extras;
 }
 
-const EMPTY: DrivingExtras = { speed: [], byTemp: [], bySpeed: [], byAc: [], places: [], visited: [] };
+const EMPTY: DrivingExtras = { speed: [], byTemp: [], bySpeed: [], byAc: [], places: [], visited: [], unnamed: [] };
 
 // The same insights for each of `windows`, in order, from one read of the readings that spans them all: for
 // a page that draws them for every period. The periods' windows all end now and nest, so the read is the
@@ -88,8 +90,9 @@ export async function loadDrivingExtrasFor(owner: Owner, vin: string | null, all
     return { drives, locations, parked, speed: within(all.speed), temp: within(all.temp) };
   });
   const tags = await loadUserPlaces(owner);
-  // Area names for every shown place, Home and Work included, so a flag sits beside a real name.
-  const names = await placeNames(each.flatMap((w) => w?.parked.slice(0, 15) ?? [])).catch(() => new Map<string, string>());
+  // Area names for every shown place, Home and Work included, so a flag sits beside a real name. Only the
+  // names kept already, so the load never waits on a lookup; the rest are `unnamed`.
+  const names = await cachedPlaceNames(each.flatMap((w) => w?.parked.slice(0, 15) ?? [])).catch(() => new Map<string, string>());
   return each.map((w) => {
     if (!w) return EMPTY;
     const { drives, locations, parked, speed, temp } = w;
@@ -105,6 +108,7 @@ export async function loadDrivingExtrasFor(owner: Owner, vin: string | null, all
       // the rows it shows (withGoogleNames).
       places: parked.map((p) => ({ ...p, ...spotName(tags, p, { station: stationAt(p.lat, p.lng), place: names.get(placeKey(p)) }) })),
       visited,
+      unnamed: parked.slice(0, 15).filter((p) => !names.has(placeKey(p))).map((p) => ({ lat: p.lat, lng: p.lng })),
     };
   });
 }
