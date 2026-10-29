@@ -1,12 +1,9 @@
 import "server-only";
-import { cacheLife, cacheTag } from "next/cache";
 import { type Alert, type AlertCar, buildAlerts } from "@/lib/alerts";
 import { DEMO } from "@/lib/demo";
 import { messageOf } from "@/lib/errors";
-import { isAdmin } from "./admin";
-import { currentOwner } from "./auth";
 import { loadCarFlags } from "./car-flags";
-import { loadOwnerCars, OWNER_DATA_TAG } from "./dashboard";
+import { loadOwnerCars } from "./dashboard";
 import { demoData } from "./demo";
 import type { Owner } from "./data/owner";
 import { carSetups, configExpiries, SetupSchemaMissing } from "./data/setup";
@@ -14,19 +11,6 @@ import { latestHealth } from "./data/system";
 import { carLastReadingAt } from "./telemetry";
 
 const DAY_MS = 86_400_000;
-
-// The bell's alerts for the signed-in owner, with the time they were read (null when signed out). One
-// browser-only private cache per session, kept a minute and cleared with the page data, so moving between
-// pages doesn't read them again each time. The clock is read inside the cache, as the page loaders do.
-export async function bellAlerts(): Promise<{ alerts: Alert[]; now: number } | null> {
-  "use cache: private";
-  cacheTag(OWNER_DATA_TAG);
-  cacheLife({ stale: 60 });
-  if (DEMO) return { alerts: demoAlerts(), now: Date.now() };
-  const owner = await currentOwner();
-  if (!owner) return null;
-  return { alerts: await loadAlerts(owner, await isAdmin()), now: Date.now() };
-}
 
 // The header bell's alerts for this owner (see lib/alerts.ts), from what's stored: the cars' key, streaming
 // and config expiry answers (kept by /setup and the health check), each car's newest data and the flags at
