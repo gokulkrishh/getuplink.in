@@ -177,6 +177,15 @@ async function WeekTotals({ home, now, shareCard, week }: { home: Ready<HomeNow>
   );
 }
 
+// What sits under the totals lands with the week's read, so it never moves when they arrive.
+async function WithWeek({ week, children }: { week: WeekLoad; children: React.ReactNode }) {
+  await week.then(
+    () => undefined,
+    () => undefined,
+  );
+  return children;
+}
+
 async function HomeContent() {
   // Only demo mode reads the scenario, so the real page stays as it was.
   const demo: DemoScenario = "normal";
@@ -219,12 +228,20 @@ async function HomeContent() {
             <WeekTotals home={home} now={now} shareCard={shareCard} week={week} />
           </Suspense>
           {cars.some((car) => car.latest?.error) && (
-            <p className="text-sm text-muted-foreground">The car went to sleep during the last check. Uplink will try again.</p>
+            <Suspense>
+              <WithWeek week={week}>
+                <p className="text-sm text-muted-foreground">The car went to sleep during the last check. Uplink will try again.</p>
+              </WithWeek>
+            </Suspense>
           )}
         </div>
       )}
       {home.kind === "ready" && (
-        <CheckedFooter syncedAt={newestTime(cars.flatMap((car) => [car.latest?.polled_at, car.streamAt]))} now={now} />
+        <Suspense>
+          <WithWeek week={week}>
+            <CheckedFooter syncedAt={newestTime(cars.flatMap((car) => [car.latest?.polled_at, car.streamAt]))} now={now} />
+          </WithWeek>
+        </Suspense>
       )}
     </>
   );
