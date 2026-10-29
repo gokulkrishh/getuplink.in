@@ -88,7 +88,7 @@ export function ShareStrip({ options }: { options: { key: string; label: string;
   const top = marks.filter((m) => !m.yours).sort((a, b) => b.share - a.share)[0];
   const names = [
     ...(mine ? [{ key: mine.key, text: `You: ${mine.label}`, at: mine.centre, strong: true }] : []),
-    ...(top && (!mine || Math.abs(top.centre - mine.centre) > 0.35) ? [{ key: top.key, text: top.label, at: top.centre, strong: false }] : []),
+    ...(top && (!mine || Math.abs(top.centre - mine.centre) > 0.35) ? [{ key: top.key, text: `Most: ${top.label}`, at: top.centre, strong: false }] : []),
   ];
   return (
     <div ref={box} className="space-y-1.5">

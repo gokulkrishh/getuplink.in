@@ -44,6 +44,8 @@ for (const phone of [false, true]) {
   check(`${tag} /invite bad link says who to ask`, t.includes("ask the person who invited you for a new one"));
 
   t = await go("/setup");
+  check(`${tag} /setup title once`, (await p.title()) === "Setup · Uplink", await p.title());
+  check(`${tag} /setup Approve says where`, t.includes("Tap Approve in the Tesla app"));
   check(`${tag} /setup key explained`, t.includes("It can't unlock or drive the car."));
   check(`${tag} /setup header is logo + account menu only`, (await p.getByRole("navigation", { name: "Main" }).getByRole("link").count()) === 0 && (await p.getByRole("button", { name: /^Alerts/ }).count()) === 0 && (await p.getByRole("button", { name: "Account menu" }).count()) === 1);
   check(`${tag} /setup button reads Connect your car`, (await p.getByRole("link", { name: "Connect your car" }).count()) === 1);
@@ -84,9 +86,25 @@ for (const phone of [false, true]) {
   const tripHref = await p.locator("a[href^='/stats/driving/']").evaluateAll((as) => as.map((a) => a.getAttribute("href")).find((h) => /\/stats\/driving\/\d{12}/.test(h)));
   t = await go(tripHref);
   check(`${tag} trip page no "regen"`, !/regen/i.test(t));
-  await go("/stats/charging");
+  t = await go("/stats/charging");
+  // Launch QA 29 Oct 2026: the DC sessions list reads in full on a phone (name on its own line, powers apart).
+  if (phone) {
+    check(`phone /stats/charging no sideways scroll`, (await sw(p)) <= 375, `scrollWidth ${await sw(p)}`);
+    const names = p.locator("div.sm\\:hidden li p:last-child");
+    check(`phone /stats/charging charger names not cut`, (await names.count()) > 0 && (await names.evaluateAll((els) => els.every((e) => e.scrollWidth <= e.clientWidth + 1))));
+  }
+  t = await go("/stats/driving?period=custom&from=2030-01-01&to=2030-02-01");
+  check(`${tag} custom future dates name what's shown`, t.includes("Uplink couldn't use those dates, so it shows") && !t.includes("Pick dates up to today."));
+  t = await go("/updates");
+  check(`${tag} /updates says Awake, not Online`, t.includes("Awake") && !/\bOnline\b/.test(t));
+  t = await go("/owners");
+  check(`${tag} /owners says Period, not Covers`, t.includes("Period") && !/\bCovers\b/.test(t));
 
   t = await go("/settings");
+  if (phone) {
+    const hits = await p.locator("main ~ footer a, footer a").evaluateAll((as) => as.filter((a) => /Privacy|Terms|Status/.test(a.textContent)).map((a) => Math.round(a.getBoundingClientRect().height)));
+    check(`phone /settings footer links 24px or taller`, hits.length >= 3 && hits.every((h) => h >= 24), hits.join(","));
+  }
   check(`${tag} /settings button labels`, ["Disconnect Tesla", "Delete my data", "Delete account"].every((n) => t.includes(n)));
   check(`${tag} /settings Tesla row note`, t.includes("Disconnecting stops Uplink reading your car. Your history stays."));
   check(`${tag} /settings home state line`, t.includes("Only the state is kept here.") && !t.includes("never where your car is"));
@@ -96,6 +114,15 @@ for (const phone of [false, true]) {
   await p.getByText("Couldn't reach Uplink. Check your connection and try again.").first().waitFor({ timeout: 8000 }).then(() => check(`${tag} /settings offline shows inline line`, true), () => check(`${tag} /settings offline shows inline line`, false));
   check(`${tag} /settings offline stays on page`, !(await text(p)).includes("Couldn't load this page"));
   await p.screenshot({ path: join(dir, `${tag}_settings_offline.png`) });
+  await c.setOffline(false);
+
+  // Header Sign out while offline stays on the page with the usual line (Launch QA 29 Oct 2026).
+  await go("/stats/battery");
+  await c.setOffline(true);
+  await (phone ? p.getByRole("button", { name: "Account menu" }).tap() : p.getByRole("button", { name: "Account menu" }).click());
+  await p.getByRole("menuitem", { name: "Sign out" }).click().catch(() => {});
+  await p.getByText("Couldn't reach Uplink. Check your connection and try again.").first().waitFor({ timeout: 8000 }).then(() => check(`${tag} offline Sign out shows inline line`, true), () => check(`${tag} offline Sign out shows inline line`, false));
+  check(`${tag} offline Sign out stays on page`, !(await text(p)).includes("Couldn't load this page"));
   await c.setOffline(false);
 
   await go("/privacy");
@@ -157,7 +184,7 @@ for (const phone of [false, true]) {
 // Pages are loaded in a fresh context each, with the observer in place before any of the page's own script.
 for (const phone of [false, true]) {
   const tag = phone ? "phone" : "desktop";
-  for (const u of ["/", "/stats/driving", "/settings"]) {
+  for (const u of ["/", "/stats/driving", "/stats/charging", "/owners", "/settings"]) {
     const { c, p } = await ctx(phone);
     await p.addInitScript(() => {
       window.__cls = 0;

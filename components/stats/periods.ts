@@ -1,4 +1,4 @@
-import { type DayRange, dayIso, isoDay, type Period } from "@/lib/periods";
+import { type DayRange, dayIso, daysLabel, isoDay, type Period } from "@/lib/periods";
 import { istDay } from "@/lib/telemetry-derive";
 
 export type { Period };
@@ -67,6 +67,32 @@ export function urlRange(from: string | null | undefined, to: string | null | un
 // dates at all is fine, it opens on the last 30 days.
 export function unreadableDates(from: string | null | undefined, to: string | null | undefined): boolean {
   return Boolean(from || to) && urlRange(from, to) === null;
+}
+
+// A drawn range in words, as charts name it: "1 Oct to 20 Oct", with the year when it isn't this one.
+function shownWords(shown: DateRange, today: string): string {
+  return daysLabel(isoDay(shown.from)!, isoDay(shown.to)!, isoDay(today)! * 86_400_000);
+}
+
+// The line under the switch when a Custom link's dates aren't the ones shown, or null. Dates that can't be
+// read open on the last 30 days; dates in the future, before 2012 or the wrong way round are moved, so the
+// line names the range the figures below are for.
+export function datesNote(
+  period: string | null | undefined,
+  from: string | null | undefined,
+  to: string | null | undefined,
+  shown: DateRange | null,
+  today: string,
+): string | null {
+  if (period !== "custom") return null;
+  if (unreadableDates(from, to)) return "Uplink couldn't read those dates, so it shows the last 30 days.";
+  if (!from || !to || !shown || (shown.from === from && shown.to === to)) return null;
+  return `Uplink couldn't use those dates, so it shows ${shownWords(shown, today)}.`;
+}
+
+// The picker's line for dates it can't pick: what to fix, and that the figures are still for the range shown.
+export function pickerLine(problem: string, shown: DateRange, today: string): string {
+  return `${problem} The page still shows ${shownWords(shown, today)}.`;
 }
 
 // A page's query for a period: none for the one the page opens on, and for Custom its dates, or none, which

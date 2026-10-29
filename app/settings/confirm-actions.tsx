@@ -61,7 +61,7 @@ export function DisconnectTesla({ description }: { description: React.ReactNode 
         <form action={action} className="mt-4 space-y-3 border-l-2 border-destructive pl-4 text-sm">
           <p className="font-medium">Disconnect your Tesla account?</p>
           <p className="text-muted-foreground">
-            Uplink stops reading your car and signs you out everywhere. Your history stays. To reconnect, sign in with
+            Uplink stops reading your car, removes your AI connectors and signs you out everywhere. Your history stays. To reconnect, sign in with
             Tesla again. To remove Uplink&apos;s key, open Controls, then Locks in your car.
           </p>
           {error && (

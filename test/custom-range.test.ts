@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { customScope, PAGE_PERIODS, parsePeriod, periodQuery, statsHref, unreadableDates, urlRange } from "@/components/stats/periods";
+import { customScope, datesNote, PAGE_PERIODS, parsePeriod, periodQuery, pickerLine, statsHref, unreadableDates, urlRange } from "@/components/stats/periods";
 import { periodFrames } from "@/lib/frames";
 import type { DrivingFigures, DrivingPeriod } from "@/lib/driving-figures";
 import { clipSpan, customQuery, customRange, isoDay, reachesBefore, rangeTimeframe, recentSpan } from "@/lib/periods";
@@ -123,5 +123,38 @@ describe("periodFrames", () => {
     expect(frames.map((f) => f.key)).toEqual(["day", "week", "month", "year", "all", "custom"]);
     expect(frames.at(-1)!.driving).toBeNull();
     expect(frames.at(-1)!.frame.title).toBe(rangeTimeframe(range, now).title);
+  });
+});
+
+describe("a Custom page names the range it shows", () => {
+  const today = "2026-10-25";
+  const shown = (from: string, to: string) => ({ from, to });
+  test("dates in the future: the page says which day it shows instead", () => {
+    expect(datesNote("custom", "2030-01-01", "2030-02-01", shown("2026-10-25", "2026-10-25"), today)).toBe(
+      "Uplink couldn't use those dates, so it shows 25 Oct.",
+    );
+  });
+  test("dates the wrong way round: the page names the range it drew", () => {
+    expect(datesNote("custom", "2026-10-20", "2026-10-01", shown("2026-10-01", "2026-10-20"), today)).toBe(
+      "Uplink couldn't use those dates, so it shows 1 Oct to 20 Oct.",
+    );
+  });
+  test("dates that can't be read open on the last 30 days, as before", () => {
+    expect(datesNote("custom", "xx", "2026-10-01", shown("2026-09-26", "2026-10-25"), today)).toBe(
+      "Uplink couldn't read those dates, so it shows the last 30 days.",
+    );
+  });
+  test("no note when the page shows the dates asked for, or none were given", () => {
+    expect(datesNote("custom", "2026-09-01", "2026-09-30", shown("2026-09-01", "2026-09-30"), today)).toBeNull();
+    expect(datesNote("custom", null, null, shown("2026-09-26", "2026-10-25"), today)).toBeNull();
+    expect(datesNote("week", "2030-01-01", "2030-02-01", null, today)).toBeNull();
+  });
+  test("a rejected pick says the figures are still for the range shown", () => {
+    expect(pickerLine("Pick dates up to today.", shown("2026-10-01", "2026-10-20"), today)).toBe(
+      "Pick dates up to today. The page still shows 1 Oct to 20 Oct.",
+    );
+    expect(pickerLine("Pick dates up to today.", shown("2025-12-30", "2026-01-02"), today)).toBe(
+      "Pick dates up to today. The page still shows 30 Dec 2025 to 2 Jan 2026.",
+    );
   });
 });

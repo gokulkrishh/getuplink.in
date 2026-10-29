@@ -99,7 +99,7 @@ export function ChargeLevelChart({
               <Value text={formatPercent(latest.level)} />
             </span>
             <span className="text-base text-muted-foreground">
-              latest reading, {formatShortDate(latest.at)}, {formatClock(latest.at)}
+              latest figure, {formatShortDate(latest.at)}, {formatClock(latest.at)}
             </span>
           </p>
         )

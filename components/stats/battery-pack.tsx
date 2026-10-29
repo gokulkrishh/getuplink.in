@@ -17,12 +17,12 @@ export function BatteryPack({ trend, frame }: { trend: WeeklyPack[]; frame: Time
     <ChartCard
       title="Usable capacity by week"
       description={`Usable capacity week by week. Latest week ${formatKwh(latest.kwh)}.`}
-      info="The scale starts near your figures, not at zero, so small changes show."
+      info="The chart doesn't start at zero, so small changes are easier to see."
       caption={cut}
       empty={
         weeks.length < 2 &&
         (weeks.length === 1
-          ? `Week of ${formatShortDate(weeks[0].weekStart)}: ${formatKwh(weeks[0].kwh)}. A line needs two weeks.`
+          ? `Week of ${formatShortDate(weeks[0].weekStart)}: ${formatKwh(weeks[0].kwh)}. The line appears after two weeks.`
           : "No weekly estimate.")
       }
     >

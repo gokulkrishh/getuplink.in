@@ -124,7 +124,7 @@ export function DriveStatsSection({ stats, partial = false }: { stats: DriveStat
   // leave out moves too short to count as one, so a second total here would disagree with it.
   const figures = [
     { label: "Trips", value: compactNumber.format(stats.trips), note: `${compactNumber.format(stats.drives)} ${stats.drives === 1 ? "drive" : "drives"}` },
-    { label: "Typical drive", value: formatKm(stats.medianKm), note: "Half are longer" },
+    { label: "Typical drive", value: formatKm(stats.medianKm), note: "Half your drives are longer" },
     { label: "Longest drive", value: formatKm(stats.longestKm) },
     { label: "Time driving", value: formatDuration(stats.hours * 3600) },
   ];

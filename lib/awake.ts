@@ -66,7 +66,7 @@ export function hasPresence(strips: DayStrip[]): boolean {
   return strips.some((d) => d.runs.some((r) => r.state !== "unknown"));
 }
 
-export const PRESENCE_LABEL: Record<Presence, string> = { online: "Online", asleep: "Asleep", offline: "Offline", unknown: "No data" };
+export const PRESENCE_LABEL: Record<Presence, string> = { online: "Awake", asleep: "Asleep", offline: "Out of reach", unknown: "No data" };
 
 // "7:12 PM to 7:40 PM", "11:30 AM to 6:05 PM": both ends in full, like every span of time in the app.
 function clockRange(start: number, end: number): string {
@@ -86,8 +86,8 @@ function spans(times: number[]): [number, number][] {
 
 const MAX_SPANS = 3;
 
-// Only what was seen, in IST, 12-hour like the strip's axis: "Online · 8:12 AM" for one reading,
-// "Online · 7:12–7:40 PM · 28 min" when steady readings show it awake throughout, "Asleep · 2:00 AM"
+// Only what was seen, in IST, 12-hour like the strip's axis: "Awake · 8:12 AM" for one reading,
+// "Awake · 7:12–7:40 PM · 28 min" when steady readings show it awake throughout, "Asleep · 2:00 AM"
 // for a check. A length shows only when it's known. "No data · 12:00 AM–6:00 AM" for a gap.
 export function runLabel(run: Run): string {
   const label = PRESENCE_LABEL[run.state];

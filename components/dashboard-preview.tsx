@@ -43,7 +43,7 @@ export function DashboardPreview() {
           <span>Model Y · Diamond Black</span>
           <span className="flex items-center gap-1.5">
             <span className="size-1.5 rounded-full bg-positive" />
-            Online
+            Awake
           </span>
         </div>
         <p className="mt-2 font-mono text-4xl font-medium tracking-tight tabular-nums">2026.38.3.1</p>

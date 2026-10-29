@@ -1,16 +1,20 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { unreadableDates } from "./periods";
+import { useShownRange } from "./period-scope";
+import { datesNote } from "./periods";
 
-// A Custom link whose dates can't be read opens on the last 30 days; this says so, so the dates shown are not
-// taken for the ones in the link.
+// A Custom link whose dates aren't the ones shown says so and names what is: dates that can't be read open on
+// the last 30 days, and the server moves dates in the future or the wrong way round. So the figures below are
+// never taken for the dates in the link.
 export function DatesNote() {
   const params = useSearchParams();
-  if (params.get("period") !== "custom" || !unreadableDates(params.get("from"), params.get("to"))) return null;
+  const { range, today } = useShownRange();
+  const note = today ? datesNote(params.get("period"), params.get("from"), params.get("to"), range, today) : null;
+  if (!note) return null;
   return (
     <p role="status" className="text-sm text-muted-foreground">
-      Uplink couldn&apos;t read those dates, so it shows the last 30 days.
+      {note}
     </p>
   );
 }

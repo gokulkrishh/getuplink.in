@@ -1452,8 +1452,8 @@ const CHOICE_PICKS: ChoicePick[] = [
     key: "chargeLimit",
     weight: 0.9,
     odd: (y, top, share, most) =>
-      most ? `You charge to ${y}. Most owners with your battery charge to ${top}.` : `You charge to ${y}. The most common limit with your battery is ${top}, set by ${share} of owners.`,
-    same: (y, most) => (most ? `You charge to ${y}, like most owners with your battery.` : `You charge to ${y}, the most common limit with your battery.`),
+      most ? `You charge to ${y}. Most owners with the same battery charge to ${top}.` : `You charge to ${y}. The most common limit with the same battery is ${top}, set by ${share} of owners.`,
+    same: (y, most) => (most ? `You charge to ${y}, like most owners with the same battery.` : `You charge to ${y}, the most common limit with the same battery.`),
   },
   {
     key: "sentryUsed",

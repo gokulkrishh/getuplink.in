@@ -44,9 +44,9 @@ export function UpdateBanner({
   // With no update on its way, the version is plain text: the header's Updates link opens the history.
   if (!pending)
     return version ? (
-      <p className="flex items-center gap-2 text-sm text-muted-foreground tabular-nums">
+      <p className="flex items-center text-sm text-muted-foreground tabular-nums">
         <span className="truncate">{version}</span>
-        {odometerKm !== null && <span className="shrink-0">· {formatKm(odometerKm)}</span>}
+        {odometerKm !== null && <span className="shrink-0 whitespace-pre"> · {formatKm(odometerKm)}</span>}
       </p>
     ) : null;
   return (
@@ -59,9 +59,9 @@ export function UpdateBanner({
       {moving && <AutoRefresh />}
       <span className="min-w-0 space-y-1">
         {version && (
-          <span className="flex items-center gap-2 tabular-nums">
+          <span className="flex items-center tabular-nums">
             <span className="truncate">{version}</span>
-            {odometerKm !== null && <span className="shrink-0 text-muted-foreground">· {formatKm(odometerKm)}</span>}
+            {odometerKm !== null && <span className="shrink-0 whitespace-pre text-muted-foreground"> · {formatKm(odometerKm)}</span>}
           </span>
         )}
         {pending && (
