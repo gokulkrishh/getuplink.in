@@ -73,4 +73,12 @@ describe("checkStations", () => {
     const second = fake.rows("stream_charge_sessions").find((r) => r.user_id === 2)!;
     expect(second.station_checked_at).not.toBeNull();
   });
+
+  test("past its time budget it starts no more accounts and says it isn't done", async () => {
+    let now = 0;
+    // Each read of the clock moves it a minute on, so the second account starts past the 45 s budget.
+    const result = await checkStations(() => (now += 60_000));
+    expect(result.done).toBe(false);
+    expect(asked.some((a) => a.startsWith("access-2"))).toBe(false);
+  });
 });

@@ -15,6 +15,8 @@ const OPEN_WITHIN_MS = 12 * 60 * MIN;
 // Readings that only come while charging; one in this window means the sessions are worth a rebuild.
 const CHARGING_FIELDS = ["DetailedChargeState", "ACChargingPower", "DCChargingPower", "ACChargingEnergyIn", "DCChargingEnergyIn"];
 const RECENT_MS = 45 * MIN;
+// The route has 60 s; stop starting accounts well before that. What's left goes 15 minutes later.
+const BUDGET_MS = 45_000;
 
 type FleetVehicle = { vin: string; state: string };
 type VehicleData = {
@@ -22,7 +24,7 @@ type VehicleData = {
   drive_state?: { latitude?: number; longitude?: number; native_latitude?: number; native_longitude?: number };
 };
 
-export type StationCheckResult = { sessions: number; labelled: number; skipped?: string };
+export type StationCheckResult = { sessions: number; labelled: number; skipped?: string; done?: boolean };
 
 // Rebuilds sessions only for cars that streamed charging readings lately: the poll runs every 12 hours,
 // so without this a charge in progress wouldn't be in the table yet. Database only, no Tesla call.
@@ -100,18 +102,27 @@ async function stationNow(owner: Owner, vin: string): Promise<{ label: string | 
 
 // Every 15 minutes (app/api/cron/stations), for each account in turn. Costs nothing at Tesla unless a
 // session needs a name, and then at most one vehicle_data call per car for its unlabelled sessions, each
-// session tried once.
-export async function checkStations(): Promise<StationCheckResult> {
+// session tried once. One account failing (tokens refused, Tesla down) doesn't stop the others.
+export async function checkStations(clock = Date.now): Promise<StationCheckResult> {
   if (DEMO) return { sessions: 0, labelled: 0, skipped: "demo" };
-  const total: StationCheckResult = { sessions: 0, labelled: 0 };
+  const started = clock();
+  const total: StationCheckResult = { sessions: 0, labelled: 0, done: true };
   const skipped = new Set<string>();
   // Naming a station is optional: past the Tesla budget only the database rebuild runs.
   const spent = (await budgetState()).level === "stopped";
   for (const owner of await accountOwners()) {
-    const result = await checkOwnerStations(owner, spent);
-    total.sessions += result.sessions;
-    total.labelled += result.labelled;
-    if (result.skipped) skipped.add(result.skipped);
+    if (clock() - started > BUDGET_MS) {
+      total.done = false;
+      break;
+    }
+    try {
+      const result = await checkOwnerStations(owner, spent);
+      total.sessions += result.sessions;
+      total.labelled += result.labelled;
+      if (result.skipped) skipped.add(result.skipped);
+    } catch (err) {
+      console.warn(`Station check for user ${owner.userId} failed:`, err instanceof Error ? err.message : err);
+    }
   }
   return skipped.size ? { ...total, skipped: [...skipped].join(", ") } : total;
 }
