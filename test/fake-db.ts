@@ -84,7 +84,22 @@ export class FakeDb {
       return (args.p_limit as number) - left;
     }
     if (fn === "approve_within_cap") return this.approveWithinCap(args);
+    if (fn === "counter_values_at") return this.valuesAt(args);
     return [];
+  }
+
+  // counter_values_at, the boundary rows only: per boundary and field, the newest reading the user sees at
+  // or before it (no first-ever rows).
+  private valuesAt(args: Record<string, unknown>): BoundReadingRow[] {
+    const seen = this.visibleReadings().filter((r) => r.vin === args.p_vin && r.user_id === args.p_user_id);
+    return (args.p_at as string[]).flatMap((at) =>
+      (args.p_fields as string[]).flatMap((field) => {
+        const newest = seen
+          .filter((r) => r.field === field && Date.parse(r.created_at as string) <= (at === "infinity" ? Infinity : Date.parse(at)))
+          .sort((a, b) => Date.parse(b.created_at as string) - Date.parse(a.created_at as string))[0];
+        return newest ? [{ field, at, value: newest.value, created_at: newest.created_at as string }] : [];
+      }),
+    );
   }
 
   // As the approve_within_cap migration has it: the count and the approve in one step, no other approval
@@ -108,6 +123,7 @@ export class FakeDb {
 }
 
 const READINGS_VIEW = "user_telemetry_readings";
+type BoundReadingRow = { field: string; at: string; value: unknown; created_at: string };
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 1));
 

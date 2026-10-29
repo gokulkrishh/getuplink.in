@@ -22,7 +22,9 @@ import {
   skipReason,
   carLive,
   streamingLive,
+  streamingStale,
   streamingStep,
+  STREAMING_RECHECK_MS,
 } from "@/lib/setup-status";
 import { EXPIRY_WARN_DAYS } from "@/lib/stream-health";
 
@@ -172,6 +174,18 @@ describe("rechecking", () => {
     expect(keyStale(paired, NOW, NOW - 60_000)).toBe(false);
     // Checked within the hour: not again yet, however quiet.
     expect(keyStale(car({ keyPaired: true, keyCheckedAt: ago(SILENT_RECHECK_MS - 1) }), NOW, null)).toBe(false);
+  });
+
+  test("a synced config once a day, or every 10 minutes while the car has never sent data", () => {
+    const synced = (checked: number) => car({ keyPaired: true, streaming: "synced", streamingCheckedAt: ago(checked) });
+    // Silence not weighed: once a day, as before.
+    expect(streamingStale(synced(STREAMING_RECHECK_MS), NOW)).toBe(false);
+    expect(streamingStale(synced(PAIRED_RECHECK_MS), NOW)).toBe(true);
+    // Never sent anything: Tesla's "synced" may hide a missing config, so it's read again soon.
+    expect(streamingStale(synced(STREAMING_RECHECK_MS), NOW, null)).toBe(true);
+    expect(streamingStale(synced(STREAMING_RECHECK_MS - 1), NOW, null)).toBe(false);
+    // Has sent data: the config plainly works.
+    expect(streamingStale(synced(STREAMING_RECHECK_MS), NOW, NOW - 60_000)).toBe(false);
   });
 });
 

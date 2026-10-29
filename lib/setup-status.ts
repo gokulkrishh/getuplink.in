@@ -46,8 +46,13 @@ export function keyStale(car: CarSetup, now: number, lastReadingAt?: number | nu
   return lastReadingAt !== undefined && checked >= SILENT_RECHECK_MS && (lastReadingAt === null || now - lastReadingAt >= SILENT_RECHECK_MS);
 }
 
-export function streamingStale(car: CarSetup, now: number): boolean {
-  return age(car.streamingCheckedAt, now) >= (car.streaming === "synced" ? PAIRED_RECHECK_MS : STREAMING_RECHECK_MS);
+// A synced config is reread once a day, or every STREAMING_RECHECK_MS while the car has never sent data
+// (`lastReadingAt` null): Tesla has answered "synced" for a car with no config from Uplink, and a car that
+// has sent data plainly has one. `lastReadingAt` as in keyStale; left out, silence isn't weighed.
+export function streamingStale(car: CarSetup, now: number, lastReadingAt?: number | null): boolean {
+  const checked = age(car.streamingCheckedAt, now);
+  if (car.streaming !== "synced") return checked >= STREAMING_RECHECK_MS;
+  return checked >= PAIRED_RECHECK_MS || (lastReadingAt === null && checked >= STREAMING_RECHECK_MS);
 }
 
 // ---- Tesla's answers ----

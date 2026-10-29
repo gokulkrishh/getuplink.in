@@ -161,6 +161,20 @@ async function refreshStreaming(owner: Owner, cars: CarSetup[], store: Store, no
   }
 }
 
+// The cars whose streaming config is due a read (streamingStale). A synced car's newest reading is read only
+// when it could make the car due: checked over STREAMING_RECHECK_MS ago but within the day.
+async function streamingDue(owner: Owner, cars: CarSetup[], now: number): Promise<Set<CarSetup>> {
+  const due = await Promise.all(
+    cars.map(async (car) => {
+      if (streamingStale(car, now)) return true;
+      if (!streamingStale(car, now, null)) return false;
+      const last = await carLastReadingAt(owner, car.vin).catch(() => undefined);
+      return streamingStale(car, now, last === undefined ? undefined : last === null ? null : Date.parse(last));
+    }),
+  );
+  return new Set(cars.filter((_, i) => due[i]));
+}
+
 // One refresh of each kind per user at a time in this instance: the header's prefetches open several
 // pages at once, and each would otherwise ask Tesla the same thing.
 const inflight = new Map<string, Promise<unknown>>();
@@ -268,7 +282,8 @@ export async function loadSetup(owner: Owner, { force = false, now = Date.now() 
     // Before the migration nothing is stored, so every car is asked each time.
     const due = (at: string | null, stale: boolean) => !store.persistent || (force ? !recent(at) : stale);
     await refreshKeys(owner, cars.filter((car) => due(car.keyCheckedAt, keyStale(car, now))), store, now);
-    await refreshStreaming(owner, cars.filter((car) => due(car.streamingCheckedAt, streamingStale(car, now))), store, now);
+    const stale = force || !store.persistent ? new Set<CarSetup>() : await streamingDue(owner, cars, now);
+    await refreshStreaming(owner, cars.filter((car) => due(car.streamingCheckedAt, stale.has(car))), store, now);
     return cars;
   });
   const times = cars.flatMap((c) => [c.keyCheckedAt, c.streamingCheckedAt]).filter((t): t is string => t !== null);
@@ -289,7 +304,8 @@ export async function checkSetup(owner: Owner, now: number = Date.now()): Promis
       const { cars, store } = await load(owner);
       if (!store.persistent) return cars;
       await refreshKeys(owner, cars.filter((car) => keyStale(car, now)), store, now);
-      await refreshStreaming(owner, cars.filter((car) => streamingStale(car, now)), store, now);
+      const stale = await streamingDue(owner, cars, now);
+      await refreshStreaming(owner, cars.filter((car) => stale.has(car)), store, now);
       return cars;
     });
   } catch (err) {

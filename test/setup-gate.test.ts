@@ -53,7 +53,9 @@ mock.module("@/lib/server/crypto", () => ({ encrypt: (s: string) => `enc:${s}`, 
 // The Fleet API: which VINs have the key, which have a streaming config, and every request.
 const tesla = {
   paired: new Set<string>(),
-  configs: new Map<string, "synced" | "pending">(),
+  // "synced-empty": Tesla's answer for a car with no config from Uplink that it still calls synced
+  // ({synced: true, config: null}), as a real car answered after joining (29 Oct 2026).
+  configs: new Map<string, "synced" | "pending" | "synced-empty">(),
   failStatus: false,
   requests: [] as { method: string; path: string; body: unknown }[],
 };
@@ -84,7 +86,8 @@ const fakeFetch = (async (input: string | URL | Request, init?: RequestInit) => 
   const config = url.pathname.match(/^\/api\/1\/vehicles\/([^/]+)\/fleet_telemetry_config$/);
   if (config) {
     const state = tesla.configs.get(decodeURIComponent(config[1]));
-    return Response.json({ response: { synced: state === "synced", config: state ? { hostname: "telemetry.example" } : null, limit_reached: false } });
+    const body = state && state !== "synced-empty" ? { hostname: "telemetry.example" } : null;
+    return Response.json({ response: { synced: state === "synced" || state === "synced-empty", config: body, limit_reached: false } });
   }
   return new Response("not found", { status: 404 });
 }) as typeof fetch;
@@ -274,6 +277,50 @@ describe("/setup and the streaming config", () => {
     expect(asked(`/api/1/vehicles/${OWNER_VIN}/fleet_telemetry_config`)).toBe(1);
     expect(asked("/api/1/vehicles/fleet_telemetry_config_jws")).toBe(1);
     expect(carRow(OWNER_VIN).streaming).toBe("pending");
+  });
+
+  test("a car marked synced that has never sent data has its config read again within the hour, and sent when it has none", async () => {
+    // As a real new owner's row was: marked synced two hours ago from Tesla's {synced: true, config: null}.
+    tesla.paired.add(NEW_VIN);
+    tesla.configs.set(NEW_VIN, "synced-empty");
+    Object.assign(carRow(NEW_VIN), {
+      key_paired: true,
+      key_checked_at: new Date(NOW - 2 * 60 * MIN).toISOString(),
+      streaming: "synced",
+      streaming_checked_at: new Date(NOW - 2 * 60 * MIN).toISOString(),
+    });
+    await checkSetup(NEW_USER, NOW);
+    expect(asked(`/api/1/vehicles/${NEW_VIN}/fleet_telemetry_config`)).toBe(1);
+    expect(asked("/api/1/vehicles/fleet_telemetry_config_jws")).toBe(1);
+    expect(carRow(NEW_VIN).streaming).toBe("pending");
+  });
+
+  test("a silent synced car is read again at most every 10 minutes", async () => {
+    tesla.configs.set(OWNER_VIN, "synced");
+    Object.assign(carRow(OWNER_VIN), {
+      key_paired: true,
+      key_checked_at: new Date(NOW).toISOString(),
+      streaming: "synced",
+      streaming_checked_at: new Date(NOW - 2 * 60 * MIN).toISOString(),
+    });
+    await checkSetup(OWNER, NOW);
+    await checkSetup(OWNER, NOW + 5 * MIN);
+    expect(asked(`/api/1/vehicles/${OWNER_VIN}/fleet_telemetry_config`)).toBe(1);
+    await checkSetup(OWNER, NOW + 11 * MIN);
+    expect(asked(`/api/1/vehicles/${OWNER_VIN}/fleet_telemetry_config`)).toBe(2);
+    expect(asked("/api/1/vehicles/fleet_telemetry_config_jws")).toBe(0);
+  });
+
+  test("a synced car that has sent data waits the day before its config is read again", async () => {
+    fake.rows("telemetry_readings").push({ vin: OWNER_VIN, field: "Soc", created_at: new Date(NOW - 30 * MIN).toISOString(), value: 70 });
+    Object.assign(carRow(OWNER_VIN), {
+      key_paired: true,
+      key_checked_at: new Date(NOW).toISOString(),
+      streaming: "synced",
+      streaming_checked_at: new Date(NOW - 2 * 60 * MIN).toISOString(),
+    });
+    await checkSetup(OWNER, NOW);
+    expect(asked(`/api/1/vehicles/${OWNER_VIN}/fleet_telemetry_config`)).toBe(0);
   });
 
   test("the 6-hourly check sends the config to a car paired while nobody had /setup open", async () => {
