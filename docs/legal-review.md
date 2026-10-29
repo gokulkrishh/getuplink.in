@@ -338,6 +338,7 @@ Pages:
 - Terms, Liability: except fraud or wilful misconduct.
 - Privacy, Who else gets it (28 Oct 2026): TypeSafe's Jev, through OpenRouter, checks each tip's text and the figures behind it.
 - Privacy (29 Oct 2026 audit): What Uplink stores lists feedback (words, feeling, page, screen size, browser, theme) and tip votes, and Deleting your data names them (`lib/server/data/erase.ts` already deleted both). Who else gets it names the tip writer (`lib/ai-tips.ts` `modelFindings` to `WORDING_MODEL`): the figures, the car's model and, for charging tips, station names and towns (`lib/charge-tips.ts`). Security drops AES-256 and TLS by name and says the operator can read the database too. The invite's IP check is described without its window.
+- Privacy (29 Oct 2026, layered): the page opens with one six-line In short: what's stored (location included), who sees it, Mumbai, Singapore and data handled outside India, how long, deleting and withdrawing consent, and the Grievance Officer's email with the VIN, 30 days and then the Board. Every earlier section follows word for word, under its own title as a sub-heading, in four closed folds (What Uplink keeps and why, Who else sees it, Your choices and rights, About this page), so the section names cited above still point at the same text.
 
 Code:
 

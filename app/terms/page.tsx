@@ -35,7 +35,7 @@ const SECTIONS: { title: string; body: ReactNode }[] = [
     title: "Agreeing",
     body: (
       <>
-        Uplink is a free app run by one person in India. By signing in, or by ticking the box on an invite, you agree to
+        Uplink is an app run by one person in India. It's free for now, and that may change at any time. By signing in, or by ticking the box on an invite, you agree to
         these terms and to the{" "}
         <Link href="/privacy" className={LINK}>
           Privacy

@@ -133,7 +133,7 @@ export default function HomePage() {
           <p className="mt-6 max-w-md text-lg text-muted-foreground">
             Software updates, charging spend, battery and kilometres driven.
           </p>
-          <p className="mt-4 text-sm font-medium">Free to use.</p>
+          <p className="mt-4 text-sm font-medium">Free for now. This may change.</p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             {/* Signed in: Dashboard. Signed out: nothing here; sign-up is by invite link, sign-in is in the header. */}
             <Suspense>

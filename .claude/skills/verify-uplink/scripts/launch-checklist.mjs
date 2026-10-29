@@ -24,7 +24,7 @@ for (const phone of [false, true]) {
   const go = async (u) => { await p.goto(u, { waitUntil: "networkidle" }); await p.screenshot({ path: join(dir, `${tag}${u.replace(/[^a-z0-9]+/gi, "_")}.png`), fullPage: true }); return text(p); };
 
   let t = await go("/home");
-  check(`${tag} /home Free to use`, t.includes("Free to use."));
+  check(`${tag} /home free for now`, t.includes("Free for now. This may change."));
   check(`${tag} /home demo caption`, t.includes("Opens a sample car on a separate site."));
   check(`${tag} /home invite line`, t.includes("No invite yet? Email getuplink.app@gmail.com"));
   check(`${tag} /home Tesla permissions warning`, /asks for your car's location and charging access/.test(t));
@@ -96,7 +96,9 @@ for (const phone of [false, true]) {
   await p.screenshot({ path: join(dir, `${tag}_settings_offline.png`) });
   await c.setOffline(false);
 
-  t = await go("/privacy");
+  await go("/privacy");
+  // The full text sits in closed folds, which innerText skips: open them all first.
+  t = await p.evaluate(() => { document.querySelectorAll("details").forEach((d) => { d.open = true; }); return document.body.innerText; });
   check(`${tag} /privacy In short + archive + date`, t.includes("In short") && t.includes("Each finished drive is also saved for good") && t.includes("29 October 2026") && t.includes("speed, location, cabin temperature and battery range for 120 days"));
 
   const r = await p.goto("/stats/driving/notadate");

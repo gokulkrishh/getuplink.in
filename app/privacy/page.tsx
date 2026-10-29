@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { HOME_URL } from "@/lib/site";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { FoldToggle } from "@/components/fold-toggle";
 import { PLAIN_LIST, PlainPage, PlainSection } from "@/components/plain-page";
+import { OpenOnHash } from "./open-on-hash";
 
 export const metadata: Metadata = {
   title: "Privacy",
@@ -62,6 +64,33 @@ const NOT_DONE = [
   "There are no ads and no tracking. One cookie keeps you signed in, short-lived ones protect the Tesla sign-in and an invite link, and your theme choice is saved in your browser.",
 ];
 
+// The full text, closed until opened. The id lets a link open it (see OpenOnHash).
+function Fold({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+  return (
+    <details id={id} className="group scroll-mt-6">
+      <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 rounded-sm py-3 text-base font-medium focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+        {title}
+        <FoldToggle />
+      </summary>
+      <div className="space-y-3 pt-1 pb-8 text-base leading-relaxed text-foreground">
+        {children}
+      </div>
+    </details>
+  );
+}
+
+// One section inside a fold, under its own heading. An id lets a link open the fold and land on it.
+function Part({ id, title, children }: { id?: string; title: string; children: ReactNode }) {
+  return (
+    <div className="space-y-3 pt-5 first:pt-0">
+      <h3 id={id} className="scroll-mt-6 font-medium">
+        {title}
+      </h3>
+      {children}
+    </div>
+  );
+}
+
 export default function PrivacyPage() {
   return (
     <PlainPage
@@ -72,281 +101,289 @@ export default function PrivacyPage() {
     >
       <PlainSection title="In short">
         <ul className={PLAIN_LIST}>
+          <li>Uplink stores what your car sends while it&apos;s awake, including where it is, plus your charges and places.</li>
           <li>
-            Uplink stores what your car sends while it&apos;s awake: battery, charging and driving, and where the car is,
-            including trip routes.
+            You and the AI you connect see it. Uplink&apos;s operator can reach it to run Uplink. Other owners see totals
+            only if you share.
           </li>
           <li>
-            You see it in the app. Uplink&apos;s operator can reach the database to run it. Other owners see totals only
-            if you turn on sharing.
+            It&apos;s stored in Mumbai. Live car data passes through Singapore, and some services handle data outside India.{" "}
+            <a href="#services" className={LINK}>
+              See every service
+            </a>
+            .
           </li>
           <li>Finished drives are kept for good. Most other figures go after 7 to 120 days.</li>
-          <li>Delete my data in Settings removes it, or email us.</li>
-        </ul>
-      </PlainSection>
-
-      <PlainSection title="Who we are">
-        <p>
-          Uplink is a free, independent tool for Tesla owners in India, run by one person in India. It is not affiliated
-          with Tesla. It decides what is stored and why, so it is responsible for your data.
-        </p>
-        <p>
-          Uplink follows India&apos;s Digital Personal Data Protection Act, 2023, the DPDP Rules, 2025 and the IT Act&apos;s
-          rules on personal data.
-        </p>
-      </PlainSection>
-
-      <PlainSection title="Signing in">
-        <p>
-          On an invite link, you first tick that you&apos;re 18 or over and agree to this page and the Terms. Then you sign
-          in on Tesla&apos;s own page. Uplink never sees your Tesla password.
-        </p>
-        <p>Tesla&apos;s page asks you to allow:</p>
-        <ul className={PLAIN_LIST}>
-          <li>Profile information. Uplink keeps only your Tesla account id from it, not your name or email.</li>
-          <li>Vehicle information, for everything on your car&apos;s pages.</li>
-          <li>Vehicle location, for trip routes, the charging map and your home state.</li>
+          <li>Delete my data in Settings removes it. To withdraw consent, Disconnect there or revoke Uplink in your Tesla account.</li>
           <li>
-            Charging management. Uplink uses it only to read your Supercharger history and invoices. It never starts or
-            stops a charge.
-          </li>
-        </ul>
-        <p>
-          You can leave Vehicle location unticked. Tesla then sends no location: trips show no route, and there&apos;s no
-          charging map.
-        </p>
-        <p>
-          On the waitlist, Uplink keeps only your Tesla account id and when you asked. No sign-in tokens, no email and
-          nothing about your car until you&apos;re approved and sign in again.
-        </p>
-      </PlainSection>
-
-      <PlainSection title="What Uplink stores">
-        <ul className={PLAIN_LIST}>
-          {STORED.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
-        <p>
-          <Link href="/privacy/car-data" className={LINK}>
-            Car data we store
-          </Link>{" "}
-          lists every figure from your car and how long each is kept.
-        </p>
-      </PlainSection>
-
-      <PlainSection title="What Uplink doesn't do">
-        <ul className={PLAIN_LIST}>
-          {NOT_DONE.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
-      </PlainSection>
-
-      <PlainSection title="Why">
-        <p>
-          To show your versions, update status, history, trips, charging and energy use, and which states each update has
-          reached. To answer the AI you connect, if you connect one. If you share with other owners, to add your car to
-          their totals. To keep Uplink within its Tesla budget. Nothing else.
-        </p>
-      </PlainSection>
-
-      <PlainSection title="How data arrives">
-        <p>Two ways.</p>
-        <ul className={PLAIN_LIST}>
-          <li>
-            Uplink checks Tesla&apos;s Fleet API (how apps ask Tesla for car data) about every 12 hours, and less often as it nears its monthly Tesla
-            budget. During a charge it checks once more, to name the station. It only reads a car that is already online.
-            The location it reads then is used to find the state and the station, and isn&apos;t stored.
-          </li>
-          <li>
-            Once you add Uplink&apos;s key to your car, the car sends changes to Uplink while it&apos;s awake: every
-            field Tesla&apos;s Fleet Telemetry (how a car sends data by itself) offers for your car, including its location.
+            Send questions or complaints to our Grievance Officer at <Mail /> with your car&apos;s VIN. We answer within 30
+            days, then you can go to the Data Protection Board of India.
           </li>
         </ul>
       </PlainSection>
 
-      <PlainSection title="Uplink's key">
-        <p>
-          The key lets your car send data to Uplink. It can&apos;t unlock or drive the car, and Uplink never sends
-          commands. Remove it any time in your car&apos;s Locks settings.
-        </p>
-      </PlainSection>
-
-      <PlainSection title="Who else gets it">
-        <ul className={PLAIN_LIST}>
-          <li>Supabase stores the database and invoice files in Mumbai.</li>
-          <li>Vercel hosts the app. Its servers for Uplink run in Mumbai, and pages are served from Vercel&apos;s worldwide network.</li>
-          <li>Fly.io runs the receiver your car sends live data to, in Singapore. It passes the data on to the database.</li>
-          <li>
-            Tesla, which Uplink asks for your car&apos;s data. Tesla may use what Uplink sends it under{" "}
-            <Out href="https://www.tesla.com/legal/privacy">Tesla&apos;s Privacy Notice</Out>.
-          </li>
-          <li>
-            Google Maps, when you use Name this place: the spot&apos;s coordinates, to suggest nearby places, and what you type
-            in its search. If you pick one, Uplink keeps only its ID and asks Google for the name each time a page shows it.{" "}
-            <Out href="https://policies.google.com/privacy">Google&apos;s Privacy Policy</Out> applies.
-          </li>
-          <li>
-            OpenStreetMap&apos;s Nominatim: a spot&apos;s coordinates, rounded to about 100 metres, with nothing about you,
-            to look up the area name. Area and charging station names come from OpenStreetMap, ©{" "}
-            <Out href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</Out>, under the ODbL licence.
-          </li>
-          <li>CARTO serves the map tiles to your browser, so it sees your IP address and the part of the map you view.</li>
-          <li>
-            The AI you connect, if you add a connector. It reads your data under its own terms. Remove its connector in
-            Settings to stop it.
-          </li>
-          <li>
-            Another Uplink user who has your car on their Tesla account sees its data from when they added it, not before.
-          </li>
-          <li>
-            Signed-in owners see rollout totals: how many cars run each version, by state. No names or VINs.
-          </li>
-          <li>
-            If you turn on sharing on Owners, other owners who share see totals across at least 5 cars, such as how far
-            owners drive. Never your car, trips or places. Turning it off removes your figures from the totals at the next daily update, at 3:30 AM.
-          </li>
-          <li>Authorities, only when Indian law requires it.</li>
-        </ul>
-        <p>
-          Vercel sees your IP address and Fly.io sees your car&apos;s. Each keeps short logs of requests. An invite link
-          briefly uses your IP address to stop misuse, and never saves it.
-        </p>
-        <p>
-          To word a drive&apos;s page, Uplink sends that drive&apos;s figures (distance, times, Wh/km, hard brakes and
-          starts, speed, energy, road grade and battery %) to OpenRouter, which passes them to Anthropic&apos;s Claude.
-          Never your location, place names, VIN or anything that names you. Uplink asks for providers that don&apos;t
-          keep or train on it, and stores the text with your drive.
-        </p>
-        <p>
-          Tips are written the same way, from the figures behind each tip and your car&apos;s model. Charging tips also
-          send the names and towns of stations you&apos;ve used. Never your location, VIN or anything that names you.
-        </p>
-        <p>
-          TypeSafe&apos;s Jev, also through OpenRouter, checks each tip&apos;s text and the figures behind it. Never your
-          location, place names, VIN or anything that names you.
-        </p>
-        <p>
-          Vercel, Supabase, Fly.io, OpenRouter and Anthropic are US companies. The receiver, and some of these services, handle data outside
-          India.
-        </p>
-        <p>
-          Uplink&apos;s operator can reach the database to run and fix Uplink, and sees the waitlist (account numbers and
-          dates) and API costs.
-        </p>
-      </PlainSection>
-
-      <PlainSection title="How long we keep it">
-        <p>Until you delete it, except these.</p>
-        <ul className={PLAIN_LIST}>
-          <li>
-            Live data from your car is kept as long as a page shows it: charging, battery, odometer, lifetime counters and
-            software updates for good; speed, location, cabin temperature and battery range for 120 days; a few battery
-            and tyre figures for 14 to 22 days; the rest for 7 days. The latest figure of each kind is always kept, so
-            the car page can show it.
-          </li>
-          <li>
-            Each finished drive is also saved for good, once a night: its route, speed, battery, temperatures,
-            acceleration, power and road slope, thinned to about one point every 30 seconds. It goes when you delete
-            your data.
-          </li>
-          <li>Where the car was at the start of each charge is kept with that charge, for the charging map.</li>
-          <li>Daily figures you share with other owners are kept 35 days, and deleted at once when you turn sharing off.</li>
-          <li>Area names, such as Koramangala, are kept by rounded spot, with nothing about who parked there.</li>
-          <li>Deleted data can stay in the database host&apos;s backups until they expire.</li>
-          <li>If a law makes Uplink keep something longer, it keeps only that, only as long as required.</li>
-        </ul>
-      </PlainSection>
-
-      <PlainSection title="Deleting your data">
-        <ul className={PLAIN_LIST}>
-          <li>
-            Delete my data in Settings removes your cars, history, snapshots, live data, charges,
-            invoices, places, check logs, feedback, tip votes, shared daily figures, connectors and Tesla tokens, and turns sharing with
-            other owners off. It stops your car sending live data to Uplink, unless
-            another Uplink user tracks it. Your account id and Tesla API call counts stay, so you can sign in again.
-          </li>
-          <li>
-            Delete account does the same, then removes your account. Your Tesla API call counts stay in Uplink&apos;s
-            monthly totals, without your account. An invite you joined through stays used, without your car or the
-            inviter&apos;s note.
-          </li>
-          <li>
-            On a car another Uplink user also tracks, the data from their time with it stays theirs.
-          </li>
-          <li>After either, remove Uplink&apos;s key in your car&apos;s Locks settings.</li>
-        </ul>
-      </PlainSection>
-
-      <PlainSection title="Withdrawing consent">
-        <p>Any time, as easily as you signed in:</p>
-        <ul className={PLAIN_LIST}>
-          <li>
-            Disconnect in Settings removes your Tesla tokens, so Uplink stops reading your car. It stops your car
-            sending live data too, unless another Uplink user tracks it. Your history stays.
-          </li>
-          <li>Revoke Uplink&apos;s access from your Tesla account, and Uplink can no longer read your car.</li>
-          <li>Revoke only its location access there, and Tesla stops sending where the car is.</li>
-          <li>Delete my data or Delete account in Settings stops the reading and deletes what was read.</li>
-          <li>To leave the waitlist, email us the date you asked.</li>
-        </ul>
-        <p>What Uplink read before you withdrew stays lawful.</p>
-      </PlainSection>
-
-      <PlainSection title="Your rights">
-        <p>You can:</p>
-        <ul className={PLAIN_LIST}>
-          <li>See your data. The app shows it, and on request we send a summary and who it was shared with.</li>
-          <li>Correct or complete it.</li>
-          <li>Delete it, in Settings or by asking us.</li>
-          <li>Name someone to use these rights for you if you die or can&apos;t act yourself.</li>
-          <li>Complain to us, and then to the Data Protection Board of India if you&apos;re not satisfied.</li>
-        </ul>
-        <p>
-          Email <Mail /> with your request and your car&apos;s VIN, so we can find your account. We may ask you to show the
-          car is yours. We confirm within 2 days and answer within 30 days.
-        </p>
-        <p>If you drive a car that someone tracks on Uplink, you can write to us about your trips too.</p>
-      </PlainSection>
-
-      <PlainSection title="Grievance Officer">
-        <p>
-          Questions, requests or complaints about your data go to Uplink&apos;s Grievance Officer at <Mail />. Replies come
-          within 30 days.
-        </p>
-      </PlainSection>
-
-      <PlainSection title="Security">
-        <p>
-          Our database host encrypts the database and invoice files on disk. Uplink encrypts your Tesla sign-in tokens
-          again before storing them. Connector tokens are stored only in a scrambled form that can&apos;t be turned back.
-          Data travels encrypted, the padlock in your browser. For your car&apos;s live data, the car and Uplink each
-          prove who they are first. Only Uplink&apos;s servers and its operator can read the database. None of it is
-          open to the public.
-        </p>
-      </PlainSection>
-
-      <PlainSection title="If there's a breach">
-        <p>
-          If your data is exposed, Uplink tells you in the app without delay: what happened, what it means for you, what
-          is being done and what you can do. It also reports it to the Data Protection Board, to CERT-In and to Tesla.
-        </p>
-      </PlainSection>
-
-      <PlainSection title="Age">
-        <p>
-          Uplink is for adults. Don&apos;t sign in if you&apos;re under 18. An invite asks you to confirm this. An account
-          found to be a child&apos;s is deleted.
-        </p>
-      </PlainSection>
-
-      <PlainSection title="Changes">
-        <p>
-          This page shows the date it was last updated. If Uplink starts collecting more, or using it for something new,
-          it asks you first.
-        </p>
-      </PlainSection>
+      <section aria-labelledby="in-full">
+        <h2 id="in-full" className="sr-only">
+          In full
+        </h2>
+        <div className="divide-y border-y">
+        <Fold id="keeps" title="What Uplink keeps and why">
+          <Part id="signing-in" title="Signing in">
+            <p>
+              On an invite link, you first tick that you&apos;re 18 or over and agree to this page and the Terms. Then you sign
+              in on Tesla&apos;s own page. Uplink never sees your Tesla password.
+            </p>
+            <p>Tesla&apos;s page asks you to allow:</p>
+            <ul className={PLAIN_LIST}>
+              <li>Profile information. Uplink keeps only your Tesla account id from it, not your name or email.</li>
+              <li>Vehicle information, for everything on your car&apos;s pages.</li>
+              <li>Vehicle location, for trip routes, the charging map and your home state.</li>
+              <li>
+                Charging management. Uplink uses it only to read your Supercharger history and invoices. It never starts or
+                stops a charge.
+              </li>
+            </ul>
+            <p>
+              You can leave Vehicle location unticked. Tesla then sends no location: trips show no route, and there&apos;s no
+              charging map.
+            </p>
+            <p>
+              On the waitlist, Uplink keeps only your Tesla account id and when you asked. No sign-in tokens, no email and
+              nothing about your car until you&apos;re approved and sign in again.
+            </p>
+          </Part>
+          <Part title="How data arrives">
+            <p>Two ways.</p>
+            <ul className={PLAIN_LIST}>
+              <li>
+                Uplink checks Tesla&apos;s Fleet API (how apps ask Tesla for car data) about every 12 hours, and less often as it nears its monthly Tesla
+                budget. During a charge it checks once more, to name the station. It only reads a car that is already online.
+                The location it reads then is used to find the state and the station, and isn&apos;t stored.
+              </li>
+              <li>
+                Once you add Uplink&apos;s key to your car, the car sends changes to Uplink while it&apos;s awake: every
+                field Tesla&apos;s Fleet Telemetry (how a car sends data by itself) offers for your car, including its location.
+              </li>
+            </ul>
+          </Part>
+          <Part title="Uplink's key">
+            <p>
+              The key lets your car send data to Uplink. It can&apos;t unlock or drive the car, and Uplink never sends
+              commands. Remove it any time in your car&apos;s Locks settings.
+            </p>
+          </Part>
+          <Part id="stores" title="What Uplink stores">
+            <ul className={PLAIN_LIST}>
+              {STORED.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+            <p>
+              <Link href="/privacy/car-data" className={LINK}>
+                Car data we store
+              </Link>{" "}
+              lists every figure from your car and how long each is kept.
+            </p>
+          </Part>
+          <Part title="What Uplink doesn't do">
+            <ul className={PLAIN_LIST}>
+              {NOT_DONE.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </Part>
+          <Part title="Why">
+            <p>
+              To show your versions, update status, history, trips, charging and energy use, and which states each update has
+              reached. To answer the AI you connect, if you connect one. If you share with other owners, to add your car to
+              their totals. To keep Uplink within its Tesla budget. Nothing else.
+            </p>
+          </Part>
+          <Part id="keep" title="How long we keep it">
+            <p>Until you delete it, except these.</p>
+            <ul className={PLAIN_LIST}>
+              <li>
+                Live data from your car is kept as long as a page shows it: charging, battery, odometer, lifetime counters and
+                software updates for good; speed, location, cabin temperature and battery range for 120 days; a few battery
+                and tyre figures for 14 to 22 days; the rest for 7 days. The latest figure of each kind is always kept, so
+                the car page can show it.
+              </li>
+              <li>
+                Each finished drive is also saved for good, once a night: its route, speed, battery, temperatures,
+                acceleration, power and road slope, thinned to about one point every 30 seconds. It goes when you delete
+                your data.
+              </li>
+              <li>Where the car was at the start of each charge is kept with that charge, for the charging map.</li>
+              <li>Daily figures you share with other owners are kept 35 days, and deleted at once when you turn sharing off.</li>
+              <li>Area names, such as Koramangala, are kept by rounded spot, with nothing about who parked there.</li>
+              <li>Deleted data can stay in the database host&apos;s backups until they expire.</li>
+              <li>If a law makes Uplink keep something longer, it keeps only that, only as long as required.</li>
+            </ul>
+          </Part>
+        </Fold>
+        <Fold id="others" title="Who else sees it">
+          <Part id="services" title="Who else gets it">
+            <ul className={PLAIN_LIST}>
+              <li>Supabase stores the database and invoice files in Mumbai.</li>
+              <li>Vercel hosts the app. Its servers for Uplink run in Mumbai, and pages are served from Vercel&apos;s worldwide network.</li>
+              <li>Fly.io runs the receiver your car sends live data to, in Singapore. It passes the data on to the database.</li>
+              <li>
+                Tesla, which Uplink asks for your car&apos;s data. Tesla may use what Uplink sends it under{" "}
+                <Out href="https://www.tesla.com/legal/privacy">Tesla&apos;s Privacy Notice</Out>.
+              </li>
+              <li>
+                Google Maps, when you use Name this place: the spot&apos;s coordinates, to suggest nearby places, and what you type
+                in its search. If you pick one, Uplink keeps only its ID and asks Google for the name each time a page shows it.{" "}
+                <Out href="https://policies.google.com/privacy">Google&apos;s Privacy Policy</Out> applies.
+              </li>
+              <li>
+                OpenStreetMap&apos;s Nominatim: a spot&apos;s coordinates, rounded to about 100 metres, with nothing about you,
+                to look up the area name. Area and charging station names come from OpenStreetMap, ©{" "}
+                <Out href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</Out>, under the ODbL licence.
+              </li>
+              <li>CARTO serves the map tiles to your browser, so it sees your IP address and the part of the map you view.</li>
+              <li>
+                The AI you connect, if you add a connector. It reads your data under its own terms. Remove its connector in
+                Settings to stop it.
+              </li>
+              <li>
+                Another Uplink user who has your car on their Tesla account sees its data from when they added it, not before.
+              </li>
+              <li>
+                Signed-in owners see rollout totals: how many cars run each version, by state. No names or VINs.
+              </li>
+              <li>
+                If you turn on sharing on Owners, other owners who share see totals across at least 5 cars, such as how far
+                owners drive. Never your car, trips or places. Turning it off removes your figures from the totals at the next daily update, at 3:30 AM.
+              </li>
+              <li>Authorities, only when Indian law requires it.</li>
+            </ul>
+            <p>
+              Vercel sees your IP address and Fly.io sees your car&apos;s. Each keeps short logs of requests. An invite link
+              briefly uses your IP address to stop misuse, and never saves it.
+            </p>
+            <p>
+              To word a drive&apos;s page, Uplink sends that drive&apos;s figures (distance, times, Wh/km, hard brakes and
+              starts, speed, energy, road grade and battery %) to OpenRouter, which passes them to Anthropic&apos;s Claude.
+              Never your location, place names, VIN or anything that names you. Uplink asks for providers that don&apos;t
+              keep or train on it, and stores the text with your drive.
+            </p>
+            <p>
+              Tips are written the same way, from the figures behind each tip and your car&apos;s model. Charging tips also
+              send the names and towns of stations you&apos;ve used. Never your location, VIN or anything that names you.
+            </p>
+            <p>
+              TypeSafe&apos;s Jev, also through OpenRouter, checks each tip&apos;s text and the figures behind it. Never your
+              location, place names, VIN or anything that names you.
+            </p>
+            <p>
+              Vercel, Supabase, Fly.io, OpenRouter and Anthropic are US companies. The receiver, and some of these services, handle data outside
+              India.
+            </p>
+            <p>
+              Uplink&apos;s operator can reach the database to run and fix Uplink, and sees the waitlist (account numbers and
+              dates) and API costs.
+            </p>
+          </Part>
+          <Part id="security" title="Security">
+            <p>
+              Our database host encrypts the database and invoice files on disk. Uplink encrypts your Tesla sign-in tokens
+              again before storing them. Connector tokens are stored only in a scrambled form that can&apos;t be turned back.
+              Data travels encrypted, the padlock in your browser. For your car&apos;s live data, the car and Uplink each
+              prove who they are first. Only Uplink&apos;s servers and its operator can read the database. None of it is
+              open to the public.
+            </p>
+          </Part>
+          <Part title="If there's a breach">
+            <p>
+              If your data is exposed, Uplink tells you in the app without delay: what happened, what it means for you, what
+              is being done and what you can do. It also reports it to the Data Protection Board, to CERT-In and to Tesla.
+            </p>
+          </Part>
+        </Fold>
+        <Fold id="choices" title="Your choices and rights">
+          <Part id="delete" title="Deleting your data">
+            <ul className={PLAIN_LIST}>
+              <li>
+                Delete my data in Settings removes your cars, history, snapshots, live data, charges,
+                invoices, places, check logs, feedback, tip votes, shared daily figures, connectors and Tesla tokens, and turns sharing with
+                other owners off. It stops your car sending live data to Uplink, unless
+                another Uplink user tracks it. Your account id and Tesla API call counts stay, so you can sign in again.
+              </li>
+              <li>
+                Delete account does the same, then removes your account. Your Tesla API call counts stay in Uplink&apos;s
+                monthly totals, without your account. An invite you joined through stays used, without your car or the
+                inviter&apos;s note.
+              </li>
+              <li>
+                On a car another Uplink user also tracks, the data from their time with it stays theirs.
+              </li>
+              <li>After either, remove Uplink&apos;s key in your car&apos;s Locks settings.</li>
+            </ul>
+          </Part>
+          <Part title="Withdrawing consent">
+            <p>Any time, as easily as you signed in:</p>
+            <ul className={PLAIN_LIST}>
+              <li>
+                Disconnect in Settings removes your Tesla tokens, so Uplink stops reading your car. It stops your car
+                sending live data too, unless another Uplink user tracks it. Your history stays.
+              </li>
+              <li>Revoke Uplink&apos;s access from your Tesla account, and Uplink can no longer read your car.</li>
+              <li>Revoke only its location access there, and Tesla stops sending where the car is.</li>
+              <li>Delete my data or Delete account in Settings stops the reading and deletes what was read.</li>
+              <li>To leave the waitlist, email us the date you asked.</li>
+            </ul>
+            <p>What Uplink read before you withdrew stays lawful.</p>
+          </Part>
+          <Part id="rights" title="Your rights">
+            <p>You can:</p>
+            <ul className={PLAIN_LIST}>
+              <li>See your data. The app shows it, and on request we send a summary and who it was shared with.</li>
+              <li>Correct or complete it.</li>
+              <li>Delete it, in Settings or by asking us.</li>
+              <li>Name someone to use these rights for you if you die or can&apos;t act yourself.</li>
+              <li>Complain to us, and then to the Data Protection Board of India if you&apos;re not satisfied.</li>
+            </ul>
+            <p>
+              Email <Mail /> with your request and your car&apos;s VIN, so we can find your account. We may ask you to show the
+              car is yours. We confirm within 2 days and answer within 30 days.
+            </p>
+            <p>If you drive a car that someone tracks on Uplink, you can write to us about your trips too.</p>
+          </Part>
+          <Part title="Grievance Officer">
+            <p>
+              Questions, requests or complaints about your data go to Uplink&apos;s Grievance Officer at <Mail />. Replies come
+              within 30 days.
+            </p>
+          </Part>
+          <Part id="age" title="Age">
+            <p>
+              Uplink is for adults. Don&apos;t sign in if you&apos;re under 18. An invite asks you to confirm this. An account
+              found to be a child&apos;s is deleted.
+            </p>
+          </Part>
+        </Fold>
+        <Fold id="about" title="About this page">
+          <Part id="who" title="Who we are">
+            <p>
+              Uplink is an independent tool for Tesla owners in India, run by one person in India. It&apos;s free for now, and
+              that may change at any time. It is not affiliated with Tesla. It decides what is stored and why, so it is responsible for your data.
+            </p>
+            <p>
+              Uplink follows India&apos;s Digital Personal Data Protection Act, 2023, the DPDP Rules, 2025 and the IT Act&apos;s
+              rules on personal data.
+            </p>
+          </Part>
+          <Part id="changes" title="Changes">
+            <p>
+              This page shows the date it was last updated. If Uplink starts collecting more, or using it for something new,
+              it asks you first.
+            </p>
+          </Part>
+        </Fold>
+        </div>
+      </section>
+      <OpenOnHash />
     </PlainPage>
   );
 }
