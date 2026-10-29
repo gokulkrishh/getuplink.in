@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { cacheLife } from "next/cache";
-import { LogOut, Settings, ShieldCheck } from "lucide-react";
+import { Bell, LogOut, Settings, ShieldCheck } from "lucide-react";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { isAdmin } from "@/lib/server/admin";
 import { currentOwner } from "@/lib/server/auth";
+import { loadAlerts } from "@/lib/server/alerts";
 import { setupGate } from "@/lib/server/setup";
 import { DEMO } from "@/lib/demo";
 import { cn } from "@/lib/utils";
@@ -59,6 +60,51 @@ async function AdminItem() {
       <ShieldCheck aria-hidden />
       Admin
     </DropdownMenuItem>
+  );
+}
+
+const BELL = "tap-target relative flex size-8 items-center justify-center rounded-full text-muted-foreground";
+
+// The alerts bell: a blue dot when something needs the owner (a key removed from the car, Tesla access
+// expired, a failed check, and for the admin a part of Uplink not working; see lib/alerts.ts), and the
+// list with where to fix each. From what's stored, so it never holds the page up on Tesla.
+async function AlertsBell() {
+  if (DEMO) return <BellPlaceholder />;
+  await connection();
+  const owner = await currentOwner();
+  if (!owner) return null;
+  const alerts = await loadAlerts(owner, await adminSession());
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label={alerts.length === 0 ? "Alerts, none" : `Alerts, ${alerts.length} ${alerts.length === 1 ? "problem" : "problems"}`}
+        className={cn(BELL, "cursor-pointer hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none data-popup-open:bg-muted")}
+      >
+        <Bell className="size-4" aria-hidden />
+        {alerts.length > 0 && <span className="absolute top-1 right-1 size-2 rounded-full bg-chart-accent ring-2 ring-background" aria-hidden />}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-72">
+        {alerts.length === 0 ? (
+          <p className="px-2 py-1.5 text-sm text-muted-foreground">No problems right now.</p>
+        ) : (
+          alerts.map((a) => (
+            <DropdownMenuItem key={a.key} render={<Link href={a.href} prefetch={true} />} className="flex-col items-start gap-0.5 whitespace-normal">
+              <span className="text-sm text-foreground">{a.title}</span>
+              <span className="text-xs text-muted-foreground">{a.detail}</span>
+            </DropdownMenuItem>
+          ))
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+// The bell's place while the alerts load, and in demo mode (no account to check).
+function BellPlaceholder() {
+  return (
+    <span className={BELL} aria-hidden>
+      <Bell className="size-4" />
+    </span>
   );
 }
 
@@ -107,7 +153,8 @@ export function Header({ current, setup = true }: { current?: Section; setup?: b
         <Logo className="size-5" />
         Uplink
       </Link>
-      <nav aria-label="Main" className="flex items-center gap-4 whitespace-nowrap text-muted-foreground">
+      {/* Tighter on the narrowest phones (320 px), where the alerts bell would otherwise push the row wider than the screen. */}
+      <nav aria-label="Main" className="flex items-center gap-4 whitespace-nowrap text-muted-foreground max-[359px]:gap-2">
         {NAV.map((item) => (
           <Link
             key={item.section}
@@ -122,6 +169,9 @@ export function Header({ current, setup = true }: { current?: Section; setup?: b
         {/* The menu's Sign out item submits this form by id, so signing out stays the same POST to the
             server action; the form sits outside the menu because the menu's popup unmounts on close. */}
         <form id="sign-out" action={logout} hidden />
+        <Suspense fallback={<BellPlaceholder />}>
+          <AlertsBell />
+        </Suspense>
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label="Account menu"

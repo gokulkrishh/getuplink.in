@@ -621,6 +621,16 @@ export async function healthHistory(since: string, latest: number): Promise<{ da
   return { daily: check(daily) as DailyCheck[], latest: check(recent) as LatestCheck[] };
 }
 
+// Each checked part's latest health check with the problems it found, for the admin's alerts bell. The
+// checks run every half hour for a handful of parts, so the newest few rows hold every part's latest.
+export type HealthNow = { component: string; status: string; problems: string[] };
+export async function latestHealth(): Promise<HealthNow[]> {
+  const rows = check(await db().from("health_checks").select("component, status, problems, checked_at").order("checked_at", { ascending: false }).limit(20)) as (HealthNow & { checked_at: string })[];
+  const latest = new Map<string, HealthNow>();
+  for (const r of rows) if (!latest.has(r.component)) latest.set(r.component, { component: r.component, status: r.status, problems: r.problems ?? [] });
+  return [...latest.values()];
+}
+
 // The latest `limit` checks that weren't working and recorded why, newest first, for the status page's
 // latest issues. Bounded, so the page never reads the whole history.
 export type FailedCheck = { component: string; status: string; checked_at: string };
