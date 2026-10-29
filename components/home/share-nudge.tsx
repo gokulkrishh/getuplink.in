@@ -1,7 +1,8 @@
 "use client";
 
-import { Users, X } from "lucide-react";
-import { useState, useTransition } from "react";
+import { CircleCheck, Users, X } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState, useTransition } from "react";
 import { dismissShareCard } from "@/app/owners/actions";
 import { useShare } from "@/components/owners/share-controls";
 import { Button } from "@/components/ui/button";
@@ -9,12 +10,44 @@ import { OFFLINE, orOffline } from "@/lib/offline";
 
 // Home's one-line card asking an owner who doesn't share whether they'd like to (lib/share-nudge.ts decides
 // when). Share turns sharing on through the same action as Settings; the cross is Not now, which hides it for
-// at least 30 days. Hidden on the tap, so it doesn't sit there while the page refreshes.
-export function ShareNudgeCard() {
+// at least 30 days. Hidden on the tap, so it doesn't sit there while the page refreshes. After Share it says
+// so for a few seconds, then goes; `show` is the server's say, and the note stays even once that turns false.
+const SHARED_NOTE_MS = 6_000;
+
+export function ShareNudgeCard({ show }: { show: boolean }) {
   const [hidden, setHidden] = useState(false);
+  const [shared, setShared] = useState(false);
+  const [fading, setFading] = useState(false);
+  useEffect(() => {
+    if (!shared) return;
+    const fade = setTimeout(() => setFading(true), SHARED_NOTE_MS - 400);
+    const gone = setTimeout(() => setShared(false), SHARED_NOTE_MS);
+    return () => {
+      clearTimeout(fade);
+      clearTimeout(gone);
+    };
+  }, [shared]);
   const share = useShare();
   const [dismissing, start] = useTransition();
   const [failed, setFailed] = useState<string | null>(null);
+  if (shared) {
+    return (
+      <section
+        role="status"
+        aria-label="Sharing is on"
+        className={`flex items-center gap-3 border border-positive/40 bg-positive/5 px-4 py-3 transition-opacity duration-300 motion-reduce:transition-none ${fading ? "opacity-0" : "opacity-100"}`}
+      >
+        <CircleCheck className="size-4 shrink-0 text-positive" aria-hidden="true" />
+        <p className="text-sm">
+          You&apos;re sharing.{" "}
+          <Link href="/owners" className="underline decoration-border underline-offset-4 hover:decoration-foreground">
+            See how you compare
+          </Link>
+        </p>
+      </section>
+    );
+  }
+  if (!show) return null;
   if (hidden) return null;
   const busy = share.pending || dismissing;
   const error = failed ?? share.error;
@@ -33,7 +66,7 @@ export function ShareNudgeCard() {
             <p className="text-sm font-medium">Compare your car with other owners</p>
             <p className="text-sm text-muted-foreground">Only combined figures are shown, never who you are or where you drive.</p>
           </div>
-          <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => share.change(true, () => setHidden(true))}>
+          <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => share.change(true, () => setShared(true))}>
             {share.pending ? "Sharing…" : "Share"}
           </Button>
         </div>

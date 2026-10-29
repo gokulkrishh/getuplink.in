@@ -103,8 +103,9 @@ function Totals({ home, now, shareCard }: { home: Extract<Home, { kind: "ready" 
           ),
           { steady: true },
         )}
-        {/* The card asking the owner to share, when it's due, right under the week's tiles. */}
-        {shareCard && <ShareNudgeCard />}
+        {/* The card asking the owner to share, when it's due, right under the week's tiles. Always mounted, so
+            its "You're sharing" note outlives the refresh that drops the card once sharing is on. */}
+        <ShareNudgeCard show={shareCard} />
         {/* The AI's tips on the week stream in after the rest, in a box of the same size. */}
         {/* A quiet week has no tips, so no box. */}
         {primaryId && findings.length > 0 && (
