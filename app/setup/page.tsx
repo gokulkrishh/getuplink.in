@@ -243,7 +243,7 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
           {!(canSend && view.needsLocation && streaming !== "done") && (
             <p className="text-sm text-muted-foreground">
               Live data includes where your car goes.{" "}
-              <Link href="/privacy" className="underline decoration-muted-foreground/60 underline-offset-4 hover:text-foreground hover:decoration-foreground">
+              <Link href="/privacy" className="tap-target underline decoration-muted-foreground/60 underline-offset-4 hover:text-foreground hover:decoration-foreground">
                 Read the privacy page
               </Link>
             </p>
@@ -251,7 +251,7 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
           {canSend && view.needsLocation && streaming !== "done" && (
             <p className="text-sm">
               Live data includes where your car is. Tesla shares that only if you allow location.{" "}
-              <a href="/api/auth/connect" className="underline decoration-muted-foreground/60 underline-offset-4 hover:decoration-foreground">
+              <a href="/api/auth/connect" className="tap-target underline decoration-muted-foreground/60 underline-offset-4 hover:decoration-foreground">
                 Sign in again
               </a>{" "}
               and allow it.

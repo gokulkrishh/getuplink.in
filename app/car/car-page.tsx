@@ -150,7 +150,7 @@ function CarHeader({ car, odometer, version, syncedAt, at }: { car: CarDetails; 
                   href="/updates"
                   prefetch={true}
                   translate="no"
-                  className="inline-flex items-center gap-0.5 font-mono font-medium tabular-nums underline decoration-muted-foreground/60 decoration-dotted underline-offset-4 transition-colors duration-150 hover:decoration-foreground"
+                  className="tap-target inline-flex items-center gap-0.5 font-mono font-medium tabular-nums underline decoration-muted-foreground/60 decoration-dotted underline-offset-4 transition-colors duration-150 hover:decoration-foreground"
                 >
                   {version}
                   <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />
@@ -168,7 +168,7 @@ function CarHeader({ car, odometer, version, syncedAt, at }: { car: CarDetails; 
                   prefetch={true}
                   // The unit is inline-block, so the dotted underline runs under the number only (a smaller unit
                   // would sit it at another height).
-                  className="inline-flex items-center gap-0.5 font-mono font-medium tabular-nums underline decoration-muted-foreground/60 decoration-dotted underline-offset-4 transition-colors duration-150 hover:decoration-foreground [&_span]:inline-block"
+                  className="tap-target inline-flex items-center gap-0.5 font-mono font-medium tabular-nums underline decoration-muted-foreground/60 decoration-dotted underline-offset-4 transition-colors duration-150 hover:decoration-foreground [&_span]:inline-block"
                 >
                   <Measure text={formatKwh(battery.kwh)} size="tile" />
                   <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />

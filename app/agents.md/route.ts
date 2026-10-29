@@ -7,7 +7,7 @@ import { DEMO_URL } from "@/lib/demo";
 
 const AGENTS_MD = `# Uplink
 
-A read-only companion for Tesla owners in India: software updates, charging, driving and battery, in one place.
+A read-only companion for Tesla owners in India: software updates, charging, driving and battery, on one page.
 
 Uplink reads the owner's car through Tesla's official Fleet API, read access only. It never wakes the car and can't unlock, drive or send commands. Uplink is invite-only for now: an owner joins through an invite link, then signs in with their Tesla account at https://app.getuplink.in.
 

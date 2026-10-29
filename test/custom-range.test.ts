@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { customScope, PAGE_PERIODS, parsePeriod, periodQuery, statsHref, urlRange } from "@/components/stats/periods";
+import { customScope, PAGE_PERIODS, parsePeriod, periodQuery, statsHref, unreadableDates, urlRange } from "@/components/stats/periods";
 import { periodFrames } from "@/lib/frames";
 import type { DrivingFigures, DrivingPeriod } from "@/lib/driving-figures";
 import { clipSpan, customQuery, customRange, isoDay, reachesBefore, rangeTimeframe, recentSpan } from "@/lib/periods";
@@ -94,6 +94,14 @@ describe("period links", () => {
     expect(urlRange("2026-09-01", "2026-09-30")).toEqual({ from: "2026-09-01", to: "2026-09-30" });
     expect(urlRange("2026-09-01", null)).toBeNull();
     expect(urlRange("2026-09-01", "30/09/2026")).toBeNull();
+  });
+  test("unreadableDates is true only when dates are given but can't be read", () => {
+    expect(unreadableDates("xx", null)).toBe(true);
+    expect(unreadableDates("2026-09-01", "30/09/2026")).toBe(true);
+    expect(unreadableDates("2026-09-01", null)).toBe(true);
+    expect(unreadableDates(null, null)).toBe(false);
+    expect(unreadableDates("", undefined)).toBe(false);
+    expect(unreadableDates("2026-09-01", "2026-09-30")).toBe(false);
   });
   test("customScope gives the drawn range and today as date inputs hold them", () => {
     expect(customScope({ from: day("2026-09-01"), to: day("2026-09-30") }, now)).toEqual({ range: { from: "2026-09-01", to: "2026-09-30" }, today: "2026-10-25" });

@@ -63,6 +63,12 @@ export function urlRange(from: string | null | undefined, to: string | null | un
   return from && to && isoDay(from) !== null && isoDay(to) !== null ? { from, to } : null;
 }
 
+// Whether a Custom URL carries dates that can't be read: a from or to is there, but not both as dates. No
+// dates at all is fine, it opens on the last 30 days.
+export function unreadableDates(from: string | null | undefined, to: string | null | undefined): boolean {
+  return Boolean(from || to) && urlRange(from, to) === null;
+}
+
 // A page's query for a period: none for the one the page opens on, and for Custom its dates, or none, which
 // opens on the last 30 days.
 export function periodQuery(period: HomePeriod, range: DateRange | null, page: PeriodSet): string {

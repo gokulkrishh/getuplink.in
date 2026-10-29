@@ -3,8 +3,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { SyncChargingSessions } from "@/components/background-sync";
-import { AiNotesSkeleton } from "@/components/home/week-tips";
-import { TipsBox } from "@/components/tips-box";
+import { loadTipsBox } from "@/components/tips-box";
 import { CHARGING_TIPS, chargingFindings, pricedCharges } from "@/lib/charge-tips";
 import { chargeStops } from "@/lib/bar-stops";
 import { istDay, istDayStart } from "@/lib/telemetry-derive";
@@ -107,6 +106,8 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
     tapered: extras.curves.flatMap((c) => (c.taper ? [{ at: Date.parse(c.date), taper: c.taper }] : [])),
   });
   const today = istDayStart(istDay(now));
+  // Read with the page's data, so the box and the page arrive together; none when there are no tips to show.
+  const tipsBox = listed.length > 0 ? await loadTipsBox({ surface: CHARGING_TIPS, vehicleId, at: today, daily: true, entity: String(today), findings: tips }) : null;
   const extrasFor = (key: string) => (key === "custom" && custom ? { ...custom.extras, held: custom.held } : { ...extras, held });
 
   return (
@@ -115,11 +116,7 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
         <NotYet title="No charges yet">Your charges will show up here, wherever you plug in.</NotYet>
       ) : (
         <div className="space-y-12">
-          {vehicleId && tips.length > 0 && (
-            <Suspense fallback={<AiNotesSkeleton />}>
-              <TipsBox surface={CHARGING_TIPS} vehicleId={vehicleId} at={today} daily entity={String(today)} findings={tips} />
-            </Suspense>
-          )}
+          {tipsBox}
           {(bills.length > 0 || unbilled.length > 0 || sessions.length > 0) &&
             eachFrame(frames, (f) => {
               const { frame, driving } = fromSince(f, chargingSince, now);

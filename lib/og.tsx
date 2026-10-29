@@ -85,12 +85,12 @@ export function ogImage({ headline, line, host, tag }: Card): ImageResponse {
 // The cards for each part of Uplink. The opengraph-image and twitter-image routes render the same one.
 export const CARDS = {
   home: {
-    alt: "Uplink: your Tesla's updates, charging and battery, in one place. Made for India.",
-    card: { headline: "Your Tesla's updates, charging and battery, in one place.", line: "Made for India. Read-only.", host: "getuplink.in" },
+    alt: "Uplink: your Tesla's updates, charging and battery, on one page. Made for India.",
+    card: { headline: "Your Tesla's updates, charging and battery, on one page.", line: "Made for India. Read-only.", host: "getuplink.in" },
   },
   app: {
-    alt: "Uplink: your Tesla's updates, charging and battery, in one place.",
-    card: { headline: "Your Tesla's updates, charging and battery, in one place.", line: "Made for India. Read-only.", host: "app.getuplink.in" },
+    alt: "Uplink: your Tesla's updates, charging and battery, on one page.",
+    card: { headline: "Your Tesla's updates, charging and battery, on one page.", line: "Made for India. Read-only.", host: "app.getuplink.in" },
   },
   demo: {
     alt: "Uplink demo: a sample car's updates, charging and battery.",
@@ -101,7 +101,7 @@ export const CARDS = {
     card: { headline: "Is Uplink working?", line: "The website, database and live car data, day by day.", host: "status.getuplink.in", tag: "Status" },
   },
   invite: {
-    alt: "You're invited to Uplink: your Tesla's updates, charging and battery, in one place.",
-    card: { headline: "You're invited to Uplink.", line: "Your Tesla's updates, charging and battery, in one place. Made for India.", host: "app.getuplink.in", tag: "Invite" },
+    alt: "You're invited to Uplink: your Tesla's updates, charging and battery, on one page.",
+    card: { headline: "You're invited to Uplink.", line: "Your Tesla's updates, charging and battery, on one page. Made for India.", host: "app.getuplink.in", tag: "Invite" },
   },
 } satisfies Record<string, { alt: string; card: Card }>;

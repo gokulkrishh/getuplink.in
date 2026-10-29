@@ -39,7 +39,7 @@ async function Invite({ params }: { params: Promise<{ token: string }> }) {
         meta={
           <>
             Already have access?{" "}
-            <a href="/api/auth/connect" className="underline decoration-muted-foreground/60 underline-offset-4 hover:text-foreground hover:decoration-foreground">
+            <a href="/api/auth/connect" className="tap-target underline decoration-muted-foreground/60 underline-offset-4 hover:text-foreground hover:decoration-foreground">
               Sign in with Tesla
             </a>
           </>
@@ -51,7 +51,7 @@ async function Invite({ params }: { params: Promise<{ token: string }> }) {
     <PlainPage
       home="/home"
       title="You're invited to Uplink"
-      intro="Your Tesla's software updates, charging and drives, in one place. Read-only: it never wakes, unlocks or drives the car."
+      intro="Your Tesla's software updates, charging and drives, on one page. Read-only: it never wakes, unlocks or drives the car."
     >
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">

@@ -105,6 +105,17 @@ export function topFindings(findings: Finding[]): Finding[] {
     .map(({ f }) => f);
 }
 
+// The findings the tips are written for: with an LFP battery "Tesla suggests a daily limit of 90% or less" would
+// be wrong, so that finding is left out; then the owner's votes rank the rest and the top few go.
+export function findingsToSend(findings: Finding[], net: Readonly<Record<string, number>>, lfp: boolean | null): Finding[] {
+  return topFindings(rankWithVotes(lfp ? findings.filter((f) => f.kind !== "highDays") : findings, net));
+}
+
+// The stored tips the box shows: a tip the owner voted not useful isn't shown again.
+export function tipsToShow(tips: Tip[], votes: Readonly<Record<string, number>>): Tip[] {
+  return tips.filter((t) => votes[t.text] !== -1);
+}
+
 // What the model sees for each finding: its kind, its figures and its hint. Never the score or the demo line.
 export function modelFindings(sent: Finding[]) {
   // Without a hint, the finding says so outright: the model otherwise invents advice to round a tip off.

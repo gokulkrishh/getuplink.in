@@ -9,7 +9,7 @@ export const APP_URL = "https://app.getuplink.in";
 export const STATUS_URL = "https://status.getuplink.in";
 export const SITE_URL = DEMO_SITE ? DEMO_URL : APP_URL;
 
-export const TAGLINE = "Your Tesla's updates, charging and battery, in one place. Made for India.";
+export const TAGLINE = "Your Tesla's updates, charging and battery, on one page. Made for India.";
 
 // Metadata merges shallowly: a page that sets openGraph or twitter replaces the parent's whole object,
 // so pages spread these in. og:url is left to the pages that have one public address (home, status).

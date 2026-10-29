@@ -25,13 +25,3 @@ Before 13 May 2027 (DPDP core duties) add what the law asks: how to withdraw con
 
 ### Demo scenarios
 Demo mode can't show the waitlist after sign-in, a valid invite, a removed key, or the bell with alerts. Adding these as `?scenario=` states would let `verify` and `launch-qa` reach them.
-
-## Small issues (from the 29 Oct 2026 launch QA)
-- After a dropped connection, the Delete confirm box in Settings clears the typed word (`app/settings/confirm-actions.tsx`: control the input's value).
-- A nonsense custom period (`?period=custom&from=xx`) quietly shows the last 30 days with no note (`components/stats/periods.ts`, `urlRange`).
-- React "unique key" warning on a trip page, from `TripMap` (`components/stats/trip-map.tsx`, maybe the `key` spread through `tipOn`).
-- Home idioms: "all in one place", "Updates show up on their own", "keeps the rest".
-- Settings > Advanced connector steps still use "header", "Bearer" and "API key". These are allowed where the owner must type them, but could explain more.
-- The Grok bot link in Settings > Advanced doesn't say what the bot can read.
-- A few inline links are 22 to 26px tall (email links on /home and /waitlist, Privacy on /terms).
-- On slow 3G the full load takes 16 to 26 s on a dev server. Measure a production build before acting.

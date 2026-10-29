@@ -12,6 +12,7 @@ import { MoreLink } from "@/components/more-link";
 import { CheckedFooter, OwnerNotices } from "@/components/owner-notices";
 import { ReleaseNotesToggle } from "@/components/release-notes";
 import { AwakeTimeline } from "@/components/stats/awake-timeline";
+import { DatesNote } from "@/components/stats/dates-note";
 import { ByPeriod, PeriodPicker, PeriodScope } from "@/components/stats/period-scope";
 import { customScope, PAGE_PERIODS } from "@/components/stats/periods";
 import { VersionHistory } from "@/components/updates/history";
@@ -78,7 +79,7 @@ function CarUpdates({ car, notes, label, range, now }: { car: UpdatesCar; notes:
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Asleep at every check so far. Open the Tesla app to wake the car. This page updates on its own.
+            Asleep at every check so far. Open the Tesla app to wake the car. This page updates by itself.
           </p>
         )}
       </header>
@@ -109,6 +110,7 @@ function CarUpdates({ car, notes, label, range, now }: { car: UpdatesCar; notes:
           <h2 className={heading}>Stats</h2>
           {hasStats && <PeriodPicker />}
         </div>
+        {hasStats && <DatesNote />}
         {hasStats ? (
           <ByPeriod
             panels={{

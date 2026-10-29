@@ -382,7 +382,7 @@ function SharingOn({ text }: { text: string }) {
   return (
     <p className="min-w-0 flex-1 text-sm">
       {text} Stop any time in{" "}
-      <Link href="/settings#share" className="underline decoration-muted-foreground/60 underline-offset-4">
+      <Link href="/settings#share" className="tap-target underline decoration-muted-foreground/60 underline-offset-4">
         Settings
       </Link>
       .
