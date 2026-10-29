@@ -73,6 +73,14 @@ Proof standards:
 - Demo data is generated, not the owner's. A change that only shows with real data (Supabase rows, Tesla answers) can't be proven here; say so instead of claiming it.
 - Settings actions that write (Create token, Delete my data, Sign out everywhere) run against demo mode, which has no database. Read the action's demo branch before treating its result as proof.
 
+Look like a designer before calling it done. "It renders" and "0 FAIL" aren't enough:
+- Open every screenshot you took: phone and desktop, light and dark.
+- Alignment: a leading icon's centre matches the first text line's centre within 2px. Measure it with `boundingBox`.
+- Spacing: related controls (thumbs, arrows, a button and its text) sit close together. Measure the visible gap, not just the box.
+- Placement: on phones the action sits under the text, aligned left, where reading ends. Nothing should float alone on the right.
+- Reuse: before building a style (glow, link, button, card), search `app/globals.css` and `components/ui` for one that exists, and match the nearest similar component.
+- An agent's "done" includes its screenshots. Open them yourself before passing anything on to the owner.
+
 ## Beyond one change
 
 - **Try to break it**: the `launch-qa` skill (`.claude/skills/launch-qa/`), five first-time owners (impatient, skeptic, mobile on slow 3G, literal reader, breaker) as subagents, before and after a fix.
