@@ -1,6 +1,6 @@
 // The header's bell and what it lists: each alert a row with a picture, its title, what to do and since when.
 import Link from "next/link";
-import { Bell, CircleCheck, ChevronRight, Hourglass, IndianRupee, KeyRound, Server, TriangleAlert, Unplug, WifiOff, Wrench, type LucideIcon } from "lucide-react";
+import { Bell, ChevronRight, Hourglass, IndianRupee, KeyRound, Server, TriangleAlert, Unplug, WifiOff, Wrench, type LucideIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,12 +49,7 @@ const ROW = "group/alert whitespace-normal rounded-md outline-none focus-visible
 
 function Empty() {
   return (
-    <div className="flex min-h-11 items-center gap-3 px-2 py-2">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-positive" aria-hidden>
-        <CircleCheck className="size-4" />
-      </span>
-      <p className="text-sm text-muted-foreground">No problems right now.</p>
-    </div>
+    <p className="flex min-h-11 items-center px-2 py-2 text-sm text-muted-foreground">All good. Nothing needs you right now.</p>
   );
 }
 
