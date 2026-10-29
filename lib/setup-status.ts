@@ -14,6 +14,9 @@ export type CarSetup = {
   streaming: Streaming | null;
   streamingCheckedAt: string | null;
   configSentAt: string | null;
+  // When the car's config runs out, from the read of it in this same pass (lib/server/setup.ts
+  // refreshStreaming). Left out when not read: the stored copy is the bell's (lib/server/alerts.ts).
+  configExpiresAt?: string | null;
 };
 
 const MINUTE = 60_000;
@@ -27,6 +30,11 @@ export const SILENT_RECHECK_MS = 60 * MINUTE;
 export const STREAMING_RECHECK_MS = 10 * MINUTE;
 // Never send the same car its config twice within this, whatever Tesla says meanwhile.
 export const RESEND_AFTER_MS = 60 * MINUTE;
+// Renew a car's config this many days before it runs out (it lasts TELEMETRY_EXP_DAYS, 360). A synced car's
+// config is read once a day (streamingStale), so this gives about 30 tries, each at least RESEND_AFTER_MS
+// apart, before the bell warns at EXPIRY_WARN_DAYS (14): room for a car parked asleep for a couple of weeks
+// to wake and take it. It costs one extra send per car a year.
+export const RENEW_WITHIN_DAYS = 30;
 
 const age = (at: string | null, now: number) => (at ? now - Date.parse(at) : Infinity);
 
@@ -72,6 +80,25 @@ export function parseTelemetryConfig(body: unknown): Streaming | null {
   return null;
 }
 
+// When the car's streaming config runs out: the same answer's config.exp (unix seconds). After it the car
+// stops sending data to Uplink. Null without a config or an exp.
+export function parseConfigExpiry(body: unknown): string | null {
+  const response = (body as { response?: unknown } | null)?.response;
+  const config = response && typeof response === "object" ? (response as { config?: unknown }).config : null;
+  const exp = config && typeof config === "object" ? (config as { exp?: unknown }).exp : null;
+  return typeof exp === "number" && Number.isFinite(exp) ? new Date(exp * 1000).toISOString() : null;
+}
+
+// What to store as a car's config expiry from the same answer: the exp; null when Tesla says the car has no
+// config from Uplink ("none" or "full"); undefined (keep what's stored) when the answer isn't understood or
+// a config's exp can't be read, so a known expiry is never wiped by a partial answer.
+export function expiryToRecord(body: unknown): string | null | undefined {
+  const streaming = parseTelemetryConfig(body);
+  if (streaming === "none" || streaming === "full") return null;
+  if (streaming === null) return undefined;
+  return parseConfigExpiry(body) ?? undefined;
+}
+
 // POST /api/1/vehicles/fleet_telemetry_config_jws answers {response: {updated_vehicles, skipped_vehicles:
 // {missing_key: [...], unsupported_hardware: [...], unsupported_firmware: [...], max_configs: [...]}}}.
 export type ConfigSent = { updated: number; skipped: Record<string, string[]> };
@@ -90,10 +117,31 @@ export function skipReason(sent: ConfigSent, vin: string): string | null {
   return Object.entries(sent.skipped).find(([, list]) => list.includes(vin))?.[0] ?? null;
 }
 
-// Whether Uplink should send this car its streaming config now: its key is on, Tesla says it has no
-// config from Uplink (never a car that has one, synced or not), and it wasn't just sent one.
+// Whether Uplink should send this car its streaming config now: its key is on, it wasn't just sent one,
+// and Tesla says it has no config from Uplink, or has one (synced or not) that runs out within
+// RENEW_WITHIN_DAYS. A config whose expiry wasn't read is never replaced.
+// One renewal per window: once one went in it, none other, since Tesla may answer the config read with the
+// old exp until the car takes the new one (and the car may sleep for days).
 export function shouldSendConfig(car: CarSetup, now: number): boolean {
-  return car.keyPaired === true && car.streaming === "none" && age(car.configSentAt, now) >= RESEND_AFTER_MS;
+  if (car.keyPaired !== true || age(car.configSentAt, now) < RESEND_AFTER_MS) return false;
+  if (car.streaming === "none") return true;
+  const expiresAt = car.configExpiresAt ?? null;
+  return (car.streaming === "synced" || car.streaming === "pending") && renewDue(expiresAt, now) && !renewalSent(car.configSentAt, expiresAt);
+}
+
+const RENEW_WITHIN_MS = RENEW_WITHIN_DAYS * 24 * 60 * MINUTE;
+
+export function renewDue(expiresAt: string | null, now: number): boolean {
+  const at = expiresAt ? Date.parse(expiresAt) : NaN;
+  return !Number.isNaN(at) && at - now < RENEW_WITHIN_MS;
+}
+
+// Whether Uplink already sent a renewal for a config running out at `expiresAt`: a send inside its window.
+// The bell's warning reads it too (lib/alerts.ts): sent and not taken, the car has to wake.
+export function renewalSent(sentAt: string | null, expiresAt: string | null): boolean {
+  const sent = sentAt ? Date.parse(sentAt) : NaN;
+  const at = expiresAt ? Date.parse(expiresAt) : NaN;
+  return !Number.isNaN(sent) && !Number.isNaN(at) && sent >= at - RENEW_WITHIN_MS;
 }
 
 // ---- The gate ----

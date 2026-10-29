@@ -24,14 +24,15 @@ function shown(result: string | null | LinkResult): Shown {
 
 // A row of the Access lists: what it is on the left, its buttons together on the right (below it on a
 // phone when they don't fit), and what the last one did as one line across the whole row.
-export function ActionRow({ children, actions }: { children: ReactNode; actions: RowAction[] }) {
+// `id` is the row's link target, so other admin pages can point at it.
+export function ActionRow({ children, actions, id }: { children: ReactNode; actions: RowAction[]; id?: string }) {
   const [clicked, setClicked] = useState<number | null>(null);
   const [result, dispatch, pending] = useActionState(async (_previous: Shown, form: FormData): Promise<Shown> => {
     const picked = actions[Number(form.get("action"))];
     return picked ? shown(await picked.action(null, form)) : null;
   }, null);
   return (
-    <li className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 py-3">
+    <li id={id} className="flex flex-wrap scroll-mt-20 items-start justify-between gap-x-4 gap-y-2 py-3">
       <div className="min-w-0 flex-1 basis-44 space-y-0.5">{children}</div>
       {actions.length > 0 && (
         <form action={dispatch} className="ml-auto flex shrink-0 items-center gap-2">

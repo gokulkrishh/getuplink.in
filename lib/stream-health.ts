@@ -1,6 +1,9 @@
 // Pure decisions for the streaming health check (app/api/health/stream), kept free of server-only
 // imports so they can be tested on their own.
 
+import type { Streaming } from "@/lib/setup-status";
+import { type Status, worstStatus } from "@/lib/status";
+
 const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
 
@@ -72,4 +75,39 @@ export function currentErrors(errors: { error_name?: string; created_at?: string
   const since = lastReading ? Date.parse(lastReading) : -Infinity;
   const live = (errors ?? []).filter((e) => !e.created_at || !(Date.parse(e.created_at) <= since));
   return [...new Set(live.map((e) => e.error_name || "unknown"))];
+}
+
+// "Live car data" on the status page and Health: whether Uplink's side works. Only system problems count:
+// no data while cars that should stream were awake (fleet-wide), Tesla's API failing, receiver errors Tesla
+// reports, or our own read failing. One owner's car (its key, its config, its expiry, its account) is
+// theirs: kept on the car's row and shown in their bell (lib/alerts.ts), never here.
+export type StreamInputs = {
+  freshness: Freshness | null;
+  freshnessError: string | null;
+  // A failed request to Tesla's API for the config (not a disconnected account: that's the owner's).
+  teslaError: string | null;
+  // Tesla's stream errors still current (currentErrors).
+  streamErrors: string[];
+};
+
+export function streamPart(input: StreamInputs): { status: Status; problems: string[] } {
+  let status: Status = "operational";
+  const problems: string[] = [];
+  const flag = (s: Status, problem: string) => {
+    status = worstStatus(status, s);
+    problems.push(problem);
+  };
+  if (input.freshness?.stale) flag("down", `No streamed data for ${input.freshness.hours} h while cars were awake`);
+  if (input.freshnessError) flag("degraded", `Couldn't check stream freshness: ${input.freshnessError}`);
+  if (input.teslaError) flag("degraded", `Couldn't check the Tesla config: ${input.teslaError}`);
+  if (input.streamErrors.length) flag("degraded", `Tesla reported a stream error (${input.streamErrors.slice(0, 2).join(", ")}) and no data has arrived since`);
+  return { status, problems };
+}
+
+// What the health check should write onto a car's row from its fresh answer about the car's config: the
+// state Tesla said, when it differs from the row's. The same state isn't written again, so a synced car is
+// still reread daily by /setup (streamingStale). Null: nothing to write (row not known, or answer not understood).
+export function streamingToRecord(row: Streaming | null | undefined, fresh: Streaming | null): Streaming | null {
+  if (row === undefined || fresh === null || fresh === row) return null;
+  return fresh;
 }

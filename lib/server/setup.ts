@@ -6,6 +6,7 @@ import {
   type Gate,
   gateFor,
   keyStale,
+  expiryToRecord,
   parseConfigSent,
   parseFleetStatus,
   parseTelemetryConfig,
@@ -16,7 +17,7 @@ import {
   streamingStale,
 } from "@/lib/setup-status";
 import type { Owner } from "./data/owner";
-import { carSetups, carsWithoutSetup, markConfigSent, saveKeyStatus, saveStreaming, SetupSchemaMissing } from "./data/setup";
+import { carSetups, carsWithoutSetup, markConfigSent, saveConfigExpiry, saveKeyStatus, saveStreaming, saveStreamingIfNewer, SetupSchemaMissing } from "./data/setup";
 import { lastReadingAt } from "./telemetry";
 import { canSendConfig, signedTelemetryConfig } from "./telemetry-config";
 import { fleetGetBody, fleetPost, hasScope, LOCATION_SCOPE, NotConnectedError } from "./tesla";
@@ -34,6 +35,8 @@ type Store = {
   saveKey(vin: string, paired: boolean | null, at: string): Promise<void>;
   saveStreaming(vin: string, streaming: Streaming | null, at: string): Promise<void>;
   markSent(vin: string, at: string): Promise<void>;
+  // When the car's config runs out; never throws (the column may not exist yet, see recordConfigExpiry).
+  saveExpiry(vin: string, expiresAt: string | null): Promise<void>;
   persistent: boolean;
 };
 
@@ -41,10 +44,11 @@ const rowStore = (owner: Owner): Store => ({
   saveKey: (vin, paired, at) => saveKeyStatus(owner, vin, paired, at),
   saveStreaming: (vin, streaming, at) => saveStreaming(owner, vin, streaming, at),
   markSent: (vin, at) => markConfigSent(owner, vin, at),
+  saveExpiry: (vin, expiresAt) => recordConfigExpiry(owner, vin, expiresAt),
   persistent: true,
 });
 
-const NO_STORE: Store = { saveKey: async () => {}, saveStreaming: async () => {}, markSent: async () => {}, persistent: false };
+const NO_STORE: Store = { saveKey: async () => {}, saveStreaming: async () => {}, markSent: async () => {}, saveExpiry: async () => {}, persistent: false };
 
 // The owner's cars and where their answers go.
 async function load(owner: Owner): Promise<{ cars: CarSetup[]; store: Store }> {
@@ -80,7 +84,9 @@ async function refreshKeys(owner: Owner, cars: CarSetup[], store: Store, now: nu
   }
 }
 
-// Each car with the key: its streaming config, and Uplink's config sent when it has none.
+// Each car with the key: its streaming config, and Uplink's config sent when it has none or when its
+// config runs out within RENEW_WITHIN_DAYS. A renewal Tesla takes waits for the car like a first one
+// ("pending", read again within STREAMING_RECHECK_MS), and that read brings the new expiry.
 async function refreshStreaming(owner: Owner, cars: CarSetup[], store: Store, now: number): Promise<void> {
   const at = new Date(now).toISOString();
   await Promise.all(
@@ -88,8 +94,10 @@ async function refreshStreaming(owner: Owner, cars: CarSetup[], store: Store, no
       .filter((car) => car.keyPaired === true)
       .map(async (car) => {
         let streaming: Streaming | null = null;
+        let body: unknown;
         try {
-          streaming = parseTelemetryConfig(await fleetGetBody(owner, `/api/1/vehicles/${encodeURIComponent(car.vin)}/fleet_telemetry_config`));
+          body = await fleetGetBody(owner, `/api/1/vehicles/${encodeURIComponent(car.vin)}/fleet_telemetry_config`);
+          streaming = parseTelemetryConfig(body);
         } catch (err) {
           if (err instanceof NotConnectedError) return;
           console.warn("Reading a car's streaming config failed:", messageOf(err));
@@ -97,6 +105,14 @@ async function refreshStreaming(owner: Owner, cars: CarSetup[], store: Store, no
         car.streaming = streaming;
         car.streamingCheckedAt = at;
         await store.saveStreaming(car.vin, streaming, at);
+        // From the same answer: null without a config; an answer not understood, or a config whose exp
+        // can't be read, leaves the stored expiry (expiryToRecord).
+        // Kept on the car too, so a config running out is renewed below (shouldSendConfig).
+        const expiry = expiryToRecord(body);
+        if (expiry !== undefined) {
+          car.configExpiresAt = expiry;
+          await store.saveExpiry(car.vin, expiry);
+        }
       }),
   );
   // Only where the send can be remembered: without the columns, every page view could send again.
@@ -194,6 +210,32 @@ export async function recordKeyStatus(owner: Owner, vin: string, paired: boolean
     await saveKeyStatus(owner, vin, paired, at);
   } catch (err) {
     if (!(err instanceof SetupSchemaMissing)) console.warn("Saving the key status failed:", messageOf(err));
+  }
+}
+
+// What the health check just heard about a car's config when it differs from the row (streamingToRecord):
+// a config lost from the car shows as "none", which /setup and the 6-hourly check reread within 10 minutes
+// (streamingStale) and send again, instead of waiting a day on a stale "synced". `at` is when Tesla said it;
+// a newer answer from /setup stands. Never throws: the health check carries on without it.
+export async function recordStreaming(owner: Owner, vin: string, streaming: Streaming, at: string): Promise<void> {
+  if (DEMO) return;
+  try {
+    await saveStreamingIfNewer(owner, vin, streaming, at);
+  } catch (err) {
+    if (!(err instanceof SetupSchemaMissing)) console.warn("Saving the streaming state failed:", messageOf(err));
+  }
+}
+
+// When a car's streaming config runs out, from /setup's read of it or the health check's (`olderThan`: when
+// Tesla gave that answer, kept only when /setup hasn't read the config since; see saveConfigExpiry). The
+// bell warns before it (lib/alerts.ts). Never throws: before 20261113120000_config_expiry.sql there's
+// nowhere to keep it, and the warning is simply missing.
+export async function recordConfigExpiry(owner: Owner, vin: string, expiresAt: string | null, olderThan?: string): Promise<void> {
+  if (DEMO) return;
+  try {
+    await saveConfigExpiry(owner, vin, expiresAt, olderThan);
+  } catch (err) {
+    if (!(err instanceof SetupSchemaMissing)) console.warn("Saving the config expiry failed:", messageOf(err));
   }
 }
 

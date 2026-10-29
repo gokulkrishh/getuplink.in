@@ -157,7 +157,7 @@ async function Updates({ searchParams }: Pick<PageProps<"/updates">, "searchPara
         </PeriodScope>
       )}
       {data.kind === "ready" && (
-        <CheckedFooter syncedAt={newestTime(cars.flatMap((car) => [car.latest?.polled_at, car.streamAt]))} now={now} lastRun={data.lastRun} showError={cars.length > 0} />
+        <CheckedFooter syncedAt={newestTime(cars.flatMap((car) => [car.latest?.polled_at, car.streamAt]))} now={now} />
       )}
     </>
   );

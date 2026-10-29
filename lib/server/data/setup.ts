@@ -71,8 +71,39 @@ export async function saveStreaming(owner: Owner, vin: string, streaming: Stream
   if (error) fail(error);
 }
 
+// The health check's word on a car's config (lib/server/stream-health.ts), from Tesla's answer of up to an
+// hour before: kept only when nothing newer is stored, as saveKeyStatus does, so it never undoes /setup.
+export async function saveStreamingIfNewer(owner: Owner, vin: string, streaming: Streaming, at: string): Promise<void> {
+  const { error } = await ownerDb(owner)
+    .from("vehicles")
+    .update({ streaming, streaming_checked_at: at })
+    .eq("vin", vin)
+    .or(`streaming_checked_at.is.null,streaming_checked_at.lte.${at}`);
+  if (error) fail(error);
+}
+
 export async function markConfigSent(owner: Owner, vin: string, at: string): Promise<void> {
   const { error } = await ownerDb(owner).from("vehicles").update({ telemetry_config_sent_at: at }).eq("vin", vin);
+  if (error) fail(error);
+}
+
+// ---- When each car's streaming config runs out (20261113120000_config_expiry.sql) ----
+// Kept apart from the reads and writes above, so before that migration only the warning is missing: these
+// throw SetupSchemaMissing, which their callers leave out quietly.
+
+// The owner's cars' config expiry by VIN; a car with nothing stored is left out.
+export async function configExpiries(owner: Owner): Promise<Map<string, string>> {
+  const { data, error } = await ownerDb(owner).from("vehicles").select("vin, telemetry_config_expires_at").not("vin", "is", null).not("telemetry_config_expires_at", "is", null);
+  if (error) fail(error);
+  return new Map(((data ?? []) as { vin: string; telemetry_config_expires_at: string }[]).map((r) => [r.vin, r.telemetry_config_expires_at]));
+}
+
+// `olderThan`: the health check's answer can be up to an hour old, so it is kept only when /setup hasn't
+// read the car's config since (streaming_checked_at). /setup's own fresh answer is always kept.
+export async function saveConfigExpiry(owner: Owner, vin: string, expiresAt: string | null, olderThan?: string): Promise<void> {
+  let query = ownerDb(owner).from("vehicles").update({ telemetry_config_expires_at: expiresAt }).eq("vin", vin);
+  if (olderThan) query = query.or(`streaming_checked_at.is.null,streaming_checked_at.lte.${olderThan}`);
+  const { error } = await query;
   if (error) fail(error);
 }
 

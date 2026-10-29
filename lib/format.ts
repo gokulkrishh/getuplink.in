@@ -178,6 +178,18 @@ export function formatDayLabel(value: string | number | Date, now: number): stri
   return days === 0 ? "Today" : days === 1 ? "Yesterday" : formatShortDate(value);
 }
 
+const weekday = new Intl.DateTimeFormat("en-GB", { timeZone: IST, weekday: "long" });
+
+// When something began, for a short note beside it: "since 7:15 AM" today, "since yesterday", "since
+// Tuesday" within the week, "since 22 Oct" before that (IST). `now` is passed in as for formatSeen.
+export function formatSince(value: string | number | Date, now: number): string {
+  const days = istDay(now) - istDay(new Date(value).getTime());
+  if (days <= 0) return `since ${formatClock(value)}`;
+  if (days === 1) return "since yesterday";
+  if (days < 7) return `since ${weekday.format(new Date(value))}`;
+  return `since ${formatShortDate(value)}`;
+}
+
 const relative = new Intl.RelativeTimeFormat("en-IN", { numeric: "auto" });
 
 // "just now", "3 minutes ago", "2 hours ago", "yesterday", "3 days ago"; older than a week falls back

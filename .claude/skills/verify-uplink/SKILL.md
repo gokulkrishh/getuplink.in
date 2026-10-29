@@ -76,7 +76,7 @@ Proof standards:
 ## Beyond one change
 
 - **Try to break it**: the `launch-qa` skill (`.claude/skills/launch-qa/`), five first-time owners (impatient, skeptic, mobile on slow 3G, literal reader, breaker) as subagents, before and after a fix.
-- **Scenarios**: the home page takes `?scenario=` (`DEMO_SCENARIOS` in `lib/demo.ts`: parked, charging, updating, installing, firstWeek); `/setup?step=done` shows setup finished. Not reachable in demo yet: the waitlist after sign-in, a valid invite, a removed key, the alerts bell with problems. Say so rather than claim them.
+- **Scenarios**: the home page takes `?scenario=` (`DEMO_SCENARIOS` in `lib/demo.ts`: parked, charging, updating, installing, firstWeek); `/setup?step=done` shows setup finished. The alerts bell shows a fixed sample in demo (`demoAlerts` in `lib/server/alerts.ts`): one "Needs you" row (access running out) and one "Good to know" row (service centre). Not reachable in demo yet: the waitlist after sign-in, a valid invite, a removed key, the bell's empty state, a "since" time on a row. Say so rather than claim them.
 - **Before/after**: `scripts/before-after.mjs <before port> <after port> <route>...` shoots the same pages from two demo copies, desktop and 375px phone.
 - **Launch checklist**: `scripts/launch-checklist.mjs` checks the first-time path on desktop and phone (copy, overflow, offline handling, 404s, page errors) and prints PASS/FAIL. Run it yourself, phone layout included, instead of handing the owner a checklist.
 

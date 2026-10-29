@@ -65,9 +65,10 @@ for (const phone of [false, true]) {
   t = await go("/");
   check(`${tag} / About km (no ≈)`, t.includes("About ") && !t.includes("≈"));
   const bell = p.getByRole("button", { name: /^Alerts/ });
-  check(`${tag} / bell greyed out`, await bell.evaluate((e) => /\/ 0\.4\)$/.test(getComputedStyle(e).color)));
+  // Demo's bell carries sample alerts (one "Needs you"), so it's full strength with a dot.
+  check(`${tag} / bell says what needs you`, /needs you/i.test((await bell.getAttribute("aria-label")) ?? ""));
   await (phone ? bell.tap() : bell.click());
-  await p.getByText("No problems right now.").waitFor({ timeout: 8000 }).then(() => check(`${tag} / bell opens`, true), () => check(`${tag} / bell opens`, false));
+  await p.getByText("Needs you", { exact: true }).waitFor({ timeout: 8000 }).then(() => check(`${tag} / bell opens`, true), () => check(`${tag} / bell opens`, false));
   await p.keyboard.press("Escape");
   if (phone) {
     check(`phone / no floating feedback button`, !(await p.locator("[data-feedback-button]").isVisible()));

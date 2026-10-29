@@ -5,10 +5,11 @@ import { demoData, demoLastReadingAt } from "./demo";
 import { fleetLastReadingAt, fleetLastSeen, healthCheckCar, pingDatabase, recordHealthChecks } from "./data/system";
 import { NotConnectedError } from "./tesla";
 import { streamState, type TelemetryErrors } from "./tesla-stream-state";
-import { recordKeyStatus } from "./setup";
+import { recordConfigExpiry, recordKeyStatus, recordStreaming } from "./setup";
+import { expiryToRecord, parseTelemetryConfig } from "@/lib/setup-status";
 import { carSetups } from "./data/setup";
-import { currentErrors, daysUntilExpiry, EXPIRY_WARN_DAYS, shortReason, streamFreshness } from "@/lib/stream-health";
-import { worstStatus, type Status } from "@/lib/status";
+import { currentErrors, type Freshness, shortReason, streamFreshness, streamingToRecord, streamPart } from "@/lib/stream-health";
+import type { Status } from "@/lib/status";
 
 const RECEIVER_HOST = "telemetry.getuplink.in";
 const CHECK_TIMEOUT_MS = 8000;
@@ -91,16 +92,17 @@ async function checkReceiver(): Promise<Part> {
 
 type Stream = Part & { reading: string | null; online: string | null; synced: boolean | null; expiresAt: string | null; teslaFetchedAt: string | null };
 
-// Readings stopped while the car was online = down. A config that is missing, unsynced, expiring or
-// reporting errors, or a check that couldn't run = degraded.
+// Whether Uplink's side of the live data works (streamPart): data arriving while cars that should stream
+// are awake, Tesla's API answering, and no receiver errors from Tesla. Tesla is asked about one car; what
+// it says about that car itself (key, config, expiry) isn't a system problem. It is kept on the car's row
+// instead (key, streaming state, expiry), where /setup, the 6-hourly check and the owner's bell act on it.
 async function checkStream(now: number): Promise<Stream> {
   const out: Stream = { status: "operational", problems: [], reading: null, online: null, synced: null, expiresAt: null, teslaFetchedAt: null };
-  const flag = (status: Status, problem: string) => {
-    out.status = worstStatus(out.status, status);
-    out.problems.push(problem);
-  };
+  let freshness: Freshness | null = null;
+  let freshnessError: string | null = null;
+  let teslaError: string | null = null;
 
-  const freshness = async () => {
+  const fresh = async () => {
     try {
       const [last, seen] = await withTimeout(
         Promise.all([
@@ -116,10 +118,9 @@ async function checkStream(now: number): Promise<Stream> {
       if (seen.error) throw new Error(seen.error.message);
       out.reading = last;
       out.online = (seen.data?.last_seen_at as string | undefined) ?? null;
-      const f = streamFreshness(out.reading, out.online, now);
-      if (f.stale) flag("down", `No streamed data for ${f.hours} h while the car was online`);
+      freshness = streamFreshness(out.reading, out.online, now);
     } catch (err) {
-      flag("degraded", `Couldn't check stream freshness: ${shortReason(err)}`);
+      freshnessError = shortReason(err);
     }
   };
 
@@ -127,14 +128,9 @@ async function checkStream(now: number): Promise<Stream> {
   const config = async () => {
     try {
       const car = await withTimeout(healthCheckCar(), "Reading the database");
-      if (!car) {
-        flag("degraded", "Couldn't check the Tesla config: no vehicle found");
-        return;
-      }
-      const { vin } = car;
-      // No account to ask with reads as disconnected, like a missing token.
-      if (!car.owner) throw new NotConnectedError();
-      const owner = car.owner;
+      // No car, or nobody approved to ask about it: nothing of Uplink's to check.
+      if (!car?.owner) return;
+      const { vin, owner } = car;
       // Reused for up to an hour (see streamState): the rest of the checks stay live on every call.
       // What /setup last heard about this car: a stored answer it has since contradicted isn't reused.
       const heard = await carSetups(owner).then((cars) => cars.find((c) => c.vin === vin) ?? null).catch(() => null);
@@ -143,32 +139,31 @@ async function checkStream(now: number): Promise<Stream> {
       out.teslaFetchedAt = state.fetchedAt;
       // Kept on the car, so a key removed from it shows on the owner's pages (see recordKeyStatus).
       if (typeof cfg?.key_paired === "boolean") await recordKeyStatus(owner, vin, cfg.key_paired, state.fetchedAt);
-      if (!cfg || !cfg.config) {
-        flag("degraded", "No streaming config on the car");
-      } else {
+      // A config state other than the row's (lost, or waiting on the car) is kept too, so the next /setup
+      // visit or 6-hourly check acts on it (sends a lost config again) instead of a day later.
+      const streaming = streamingToRecord(heard ? heard.streaming : undefined, cfg ? parseTelemetryConfig({ response: cfg }) : null);
+      if (streaming) await recordStreaming(owner, vin, streaming, state.fetchedAt);
+      if (cfg) {
         out.synced = typeof cfg.synced === "boolean" ? cfg.synced : null;
-        if (out.synced === false) flag("degraded", "Tesla says the streaming config isn't synced");
-        if (cfg.key_paired === false) flag("degraded", "Uplink's key isn't paired with the car");
-        const exp = cfg.config.exp;
+        const exp = cfg.config?.exp;
         if (typeof exp === "number") out.expiresAt = new Date(exp * 1000).toISOString();
-        const days = daysUntilExpiry(exp, now);
-        if (days !== null && days < EXPIRY_WARN_DAYS) {
-          flag("degraded", days < 0 ? "Streaming config has expired" : `Streaming config expires in ${days} days`);
-        }
+        // Kept on the car as /setup keeps it, so its owner is warned before it runs out (lib/alerts.ts).
+        // A config whose exp can't be read leaves the stored one (expiryToRecord).
+        const expiry = expiryToRecord({ response: cfg });
+        if (expiry !== undefined) await recordConfigExpiry(owner, vin, expiry, state.fetchedAt);
       }
       teslaErrors = errs?.fleet_telemetry_errors ?? [];
     } catch (err) {
-      if (err instanceof NotConnectedError) flag("degraded", "Tesla account disconnected");
-      else flag("degraded", `Couldn't check the Tesla config: ${shortReason(err)}`);
+      // A disconnected account is its owner's to fix (their bell says so), not Uplink's.
+      if (!(err instanceof NotConnectedError)) teslaError = shortReason(err);
     }
   };
 
-  await Promise.all([freshness(), config()]);
+  await Promise.all([fresh(), config()]);
   // Tesla keeps an error in its list long after the stream recovers, so one only counts while no reading
   // has arrived since it (see currentErrors).
-  const current = currentErrors(teslaErrors, out.reading);
-  if (current.length) flag("degraded", `Tesla reported a stream error (${current.slice(0, 2).join(", ")}) and no data has arrived since`);
-  return out;
+  const part = streamPart({ freshness, freshnessError, teslaError, streamErrors: currentErrors(teslaErrors, out.reading) });
+  return { ...out, ...part };
 }
 
 // Runs every check once. Shared by the token-protected health route and the status page's history.

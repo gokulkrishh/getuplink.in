@@ -5,6 +5,7 @@ import { type Owner, ownerDb } from "./data/owner";
 import { type BoundReading, latestByField, type Stream } from "@/lib/telemetry";
 import type { Reading } from "@/lib/telemetry-derive";
 import { LATEST } from "./energy";
+import { PRESENCE_FIELDS } from "@/lib/awake";
 
 export { applyStream } from "@/lib/telemetry";
 
@@ -86,6 +87,16 @@ export async function loadReadings(owner: Owner, vin: string, field: string, fro
     if ((data?.length ?? 0) < PAGE) break;
   }
   return rows;
+}
+
+// When one car last sent data: the newest of its presence fields (lib/awake.ts), which stream every few
+// minutes while it's awake. One request, each field a step back on the index (readingsBefore), so it's
+// cheap enough for every page's alerts bell. Null when it never sent any. Throws on a read error.
+export async function carLastReadingAt(owner: Owner, vin: string): Promise<string | null> {
+  if (DEMO) return demoLastReadingAt();
+  const latest = await readingsBefore(owner, vin, PRESENCE_FIELDS, LATEST);
+  const newest = Math.max(...Object.values(latest).map((r) => Date.parse(r.at)).filter((t) => !Number.isNaN(t)));
+  return Number.isFinite(newest) ? new Date(newest).toISOString() : null;
 }
 
 // The owner's first car with a VIN, read once per page and handed to the loaders that need them.

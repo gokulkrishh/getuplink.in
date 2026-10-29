@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { cacheLife } from "next/cache";
-import { Bell, Info, LogOut, Settings, ShieldCheck, TriangleAlert } from "lucide-react";
+import { Bell, LogOut, Settings, ShieldCheck, TriangleAlert } from "lucide-react";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
@@ -13,14 +13,17 @@ import { buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { isAdmin } from "@/lib/server/admin";
 import { currentOwner } from "@/lib/server/auth";
-import type { Alert } from "@/lib/alerts";
-import { loadAlerts } from "@/lib/server/alerts";
+import { type Alert, needsYou } from "@/lib/alerts";
+import { formatSince } from "@/lib/format";
+import { demoAlerts, loadAlerts } from "@/lib/server/alerts";
 import { setupGate } from "@/lib/server/setup";
 import { DEMO } from "@/lib/demo";
 import { cn } from "@/lib/utils";
@@ -68,24 +71,36 @@ async function AdminItem() {
 
 const BELL = "tap-target relative flex size-8 items-center justify-center rounded-full text-muted-foreground";
 
-// The alerts bell: a blue dot when something needs the owner (a key removed from the car, Tesla access
-// expired, a failed check, and for the admin a part of Uplink not working; see lib/alerts.ts), and the
-// list with where to fix each. From what's stored, so it never holds the page up on Tesla.
-// Demo mode has no account to check, so its bell opens to "No problems right now." rather than doing nothing.
+// The alerts bell, in two parts (see lib/alerts.ts): "Needs you" (a key removed from the car, access
+// running out, a car gone quiet, an unpaid Supercharger balance, Tesla not connected, a failed check, and
+// for the admin a part of Uplink not working) and "Good to know" (news, like a service visit). Only what
+// needs the owner lights the blue dot and counts in the label. From what's stored, so it never holds the
+// page up on Tesla. Demo mode shows a sample of each part.
 async function AlertsBell() {
-  if (DEMO) return <BellMenu alerts={[]} />;
+  // Request time only: the alerts and their "since" read the clock.
   await connection();
+  if (DEMO) return <BellMenu alerts={demoAlerts()} now={Date.now()} />;
   const owner = await currentOwner();
   if (!owner) return null;
-  return <BellMenu alerts={await loadAlerts(owner, await adminSession())} />;
+  return <BellMenu alerts={await loadAlerts(owner, await adminSession())} now={Date.now()} />;
 }
 
-function BellMenu({ alerts }: { alerts: Alert[] }) {
+function bellLabel(count: number): string {
+  if (count === 0) return "Alerts, nothing needs you";
+  return `Alerts, ${count} ${count === 1 ? "needs" : "need"} you`;
+}
+
+function BellMenu({ alerts, now }: { alerts: Alert[]; now: number }) {
+  const count = needsYou(alerts);
+  const sections = [
+    { label: "Needs you", rows: alerts.filter((a) => a.kind === "action") },
+    { label: "Good to know", rows: alerts.filter((a) => a.kind === "info") },
+  ].filter((s) => s.rows.length > 0);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label={alerts.length === 0 ? "Alerts, none" : `Alerts, ${alerts.length} ${alerts.length === 1 ? "problem" : "problems"}`}
-        // Greyed out with nothing to say; full strength, with the dot, when something needs the owner.
+        aria-label={bellLabel(count)}
+        // Greyed out with nothing to say; full strength with anything, and the dot when something needs the owner.
         className={cn(
           BELL,
           alerts.length === 0 ? "text-muted-foreground/40" : "text-foreground",
@@ -93,17 +108,24 @@ function BellMenu({ alerts }: { alerts: Alert[] }) {
         )}
       >
         <Bell className="size-4" aria-hidden />
-        {alerts.length > 0 && <span className="absolute top-1 right-1 size-2 rounded-full bg-chart-accent ring-2 ring-background" aria-hidden />}
+        {count > 0 && <span className="absolute top-0.5 right-0.5 size-2 rounded-full bg-chart-accent" aria-hidden />}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">
-        {alerts.length === 0 ? (
+        {sections.length === 0 ? (
           <p className="px-2 py-1.5 text-sm text-muted-foreground">No problems right now.</p>
         ) : (
-          alerts.map((a) => (
-            <DropdownMenuItem key={a.key} render={<Link href={a.href} prefetch={true} />} className="flex-col items-start gap-0.5 whitespace-normal">
-              <span className="text-sm text-foreground">{a.title}</span>
-              <span className="text-xs text-muted-foreground">{a.detail}</span>
-            </DropdownMenuItem>
+          sections.map((section, i) => (
+            <DropdownMenuGroup key={section.label}>
+              {i > 0 && <DropdownMenuSeparator />}
+              <DropdownMenuLabel>{section.label}</DropdownMenuLabel>
+              {section.rows.map((a) => (
+                <DropdownMenuItem key={a.key} render={<Link href={a.href} prefetch={true} />} className="flex-col items-start gap-0.5 whitespace-normal">
+                  <span className="text-sm text-foreground">{a.title}</span>
+                  <span className="text-xs text-muted-foreground">{a.detail}</span>
+                  {a.since && <span className="text-xs text-faint">{formatSince(a.since, now)}</span>}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
           ))
         )}
       </DropdownMenuContent>
@@ -121,7 +143,8 @@ function BellPlaceholder() {
 }
 
 // Sends an owner whose car lacks Uplink's key to /setup (lib/server/setup.ts setupGate). It reads the
-// stored answer, asking Tesla only when that's old; when Tesla's answer is missing it shows a note instead.
+// stored answer, asking Tesla only when that's old. The admin, never sent there, gets the one red note when
+// the key is gone. A key Tesla didn't answer for shows no note: the bell lists it under Good to know.
 // Streams in behind its own Suspense, so the redirect is a client-side one once the shell is out.
 async function SetupGate() {
   if (DEMO) return null;
@@ -131,40 +154,25 @@ async function SetupGate() {
   if (!owner) return null;
   const gate = await setupGate(owner, { admin: await adminSession() });
   if (gate === "setup") redirect("/setup");
-  if (gate === "pass") return null;
-  if (gate === "key-removed") {
-    return (
-      <SetupNote urgent icon={<TriangleAlert className="size-4 text-destructive" aria-hidden />} action="Add the key again">
-        <span className="font-medium">Uplink&apos;s key is no longer on your car.</span> Your car has stopped sending data.
-      </SetupNote>
-    );
-  }
+  if (gate !== "key-removed") return null;
   return (
-    <SetupNote icon={<Info className="size-4 text-muted-foreground" aria-hidden />} action="Open setup">
-      Uplink couldn&apos;t check your car&apos;s key with Tesla. It will try again.
+    <SetupNote icon={<TriangleAlert className="size-4 text-destructive" aria-hidden />} action="Add the key again">
+      <span className="font-medium">Uplink&apos;s key is no longer on your car.</span> Your car has stopped sending data.
     </SetupNote>
   );
 }
 
-// The gate's note under the header: a tinted box with what's wrong and a button to /setup. `urgent` (the
-// key is gone, so no data comes in) is red-tinted; the rest are calm. On a phone the button sits under the
-// words; from sm up, beside them.
-function SetupNote({ urgent = false, icon, action, children }: { urgent?: boolean; icon: React.ReactNode; action: string; children: React.ReactNode }) {
+// The gate's one note under the header: the key is gone, so no data comes in. A red-tinted box with a
+// button to /setup. On a phone the button sits under the words; from sm up, beside them.
+function SetupNote({ icon, action, children }: { icon: React.ReactNode; action: string; children: React.ReactNode }) {
   return (
     <div
       role="status"
-      className={cn(
-        "-mt-12 mb-12 grid grid-cols-[auto_1fr] items-start gap-x-3 gap-y-3 border p-3 text-sm sm:grid-cols-[auto_1fr_auto] sm:items-center",
-        urgent ? "border-destructive/40 bg-destructive/5 text-foreground dark:bg-destructive/10" : "bg-muted/60 text-muted-foreground",
-      )}
+      className="-mt-12 mb-12 grid grid-cols-[auto_1fr] items-start gap-x-3 gap-y-3 border border-destructive/40 bg-destructive/5 p-3 text-sm text-foreground sm:grid-cols-[auto_1fr_auto] sm:items-center dark:bg-destructive/10"
     >
       <span className="flex h-5 items-center">{icon}</span>
       <p>{children}</p>
-      <Link
-        href="/setup"
-        prefetch={true}
-        className={cn(buttonVariants({ variant: urgent ? "default" : "outline", size: "sm" }), "col-start-2 justify-self-start sm:col-start-3")}
-      >
+      <Link href="/setup" prefetch={true} className={cn(buttonVariants({ variant: "default", size: "sm" }), "col-start-2 justify-self-start sm:col-start-3")}>
         {action}
       </Link>
     </div>

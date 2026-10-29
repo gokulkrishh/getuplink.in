@@ -10,15 +10,19 @@ import {
   keyStep,
   PAIRED_RECHECK_MS,
   SILENT_RECHECK_MS,
+  expiryToRecord,
+  parseConfigExpiry,
   parseConfigSent,
   signInPath,
   parseFleetStatus,
   parseTelemetryConfig,
+  RENEW_WITHIN_DAYS,
   RESEND_AFTER_MS,
   shouldSendConfig,
   skipReason,
   streamingStep,
 } from "@/lib/setup-status";
+import { EXPIRY_WARN_DAYS } from "@/lib/stream-health";
 
 const PAIRED = "TESTVIN00000PAIRED";
 const UNPAIRED = "TESTVIN0000UNPAIRED";
@@ -95,6 +99,56 @@ describe("when to send the config", () => {
     expect(shouldSendConfig(car({ keyPaired: true, streaming: null }), NOW)).toBe(false);
     expect(shouldSendConfig(car({ keyPaired: false, streaming: "none" }), NOW)).toBe(false);
     expect(shouldSendConfig(car({ keyPaired: null, streaming: "none" }), NOW)).toBe(false);
+  });
+
+  // Renewal: a car's config runs out (TELEMETRY_EXP_DAYS after it was sent), so Uplink sends a fresh one
+  // RENEW_WITHIN_DAYS before, long before the bell warns (EXPIRY_WARN_DAYS).
+  const expires = (days: number) => new Date(NOW + days * 86_400_000).toISOString();
+
+  test("renews a config that runs out within the window, synced or waiting on the car", () => {
+    expect(RENEW_WITHIN_DAYS).toBeGreaterThan(EXPIRY_WARN_DAYS);
+    expect(shouldSendConfig(car({ keyPaired: true, streaming: "synced", configExpiresAt: expires(RENEW_WITHIN_DAYS - 1) }), NOW)).toBe(true);
+    expect(shouldSendConfig(car({ keyPaired: true, streaming: "pending", configExpiresAt: expires(3) }), NOW)).toBe(true);
+    // Already run out: the car stopped sending, so a fresh one is all the more needed.
+    expect(shouldSendConfig(car({ keyPaired: true, streaming: "synced", configExpiresAt: expires(-1) }), NOW)).toBe(true);
+  });
+
+  test("not outside the window, not when the expiry isn't known, not without the key, and not twice within the hour", () => {
+    expect(shouldSendConfig(car({ keyPaired: true, streaming: "synced", configExpiresAt: expires(RENEW_WITHIN_DAYS + 1) }), NOW)).toBe(false);
+    expect(shouldSendConfig(car({ keyPaired: true, streaming: "synced", configExpiresAt: null }), NOW)).toBe(false);
+    expect(shouldSendConfig(car({ keyPaired: false, streaming: "synced", configExpiresAt: expires(3) }), NOW)).toBe(false);
+    expect(shouldSendConfig(car({ keyPaired: true, streaming: "full", configExpiresAt: expires(3) }), NOW)).toBe(false);
+    expect(shouldSendConfig(car({ keyPaired: true, streaming: "synced", configExpiresAt: expires(3), configSentAt: ago(RESEND_AFTER_MS - 1) }), NOW)).toBe(false);
+    // A renewal an hour ago is still this window's one renewal (see below).
+    expect(shouldSendConfig(car({ keyPaired: true, streaming: "synced", configExpiresAt: expires(3), configSentAt: ago(RESEND_AFTER_MS) }), NOW)).toBe(false);
+    // Sent long before this config's window (that send made it): renew.
+    expect(shouldSendConfig(car({ keyPaired: true, streaming: "synced", configExpiresAt: expires(3), configSentAt: ago(300 * 86_400_000) }), NOW)).toBe(true);
+  });
+
+  // One renewal per window. Tesla may answer the config read with the old exp until the car takes the new
+  // one, or with the new exp at once; neither may make Uplink send again every hour while the car sleeps.
+  test("once a renewal went in this window, no other, whichever exp Tesla answers with", () => {
+    // Tesla keeps the old exp until the car syncs: sent two days ago, still inside the window, so not again.
+    const sent = ago(2 * 86_400_000);
+    expect(shouldSendConfig(car({ keyPaired: true, streaming: "pending", configExpiresAt: expires(10), configSentAt: sent }), NOW)).toBe(false);
+    expect(shouldSendConfig(car({ keyPaired: true, streaming: "synced", configExpiresAt: expires(10), configSentAt: sent }), NOW)).toBe(false);
+    // Tesla answers with the new exp: outside the window, nothing to send.
+    expect(shouldSendConfig(car({ keyPaired: true, streaming: "pending", configExpiresAt: expires(359), configSentAt: sent }), NOW)).toBe(false);
+    // A car that lost its config still gets one at once.
+    expect(shouldSendConfig(car({ keyPaired: true, streaming: "none", configExpiresAt: expires(10), configSentAt: sent }), NOW)).toBe(true);
+  });
+
+  test("what to store as the expiry: the exp, null when there's no config, nothing when a config's exp can't be read", () => {
+    const exp = new Date(1999999999 * 1000).toISOString();
+    expect(expiryToRecord(telemetryConfig.synced)).toBe(exp);
+    expect(expiryToRecord(telemetryConfig.pending)).toBe(exp);
+    expect(expiryToRecord(telemetryConfig.none)).toBeNull();
+    expect(expiryToRecord(telemetryConfig.full)).toBeNull();
+    // A config without a readable exp keeps what is stored, so a known expiry isn't lost.
+    expect(expiryToRecord({ response: { synced: true, config: { hostname: "x" } } })).toBeUndefined();
+    expect(expiryToRecord({ response: { synced: false, config: { exp: "soon" } } })).toBeUndefined();
+    expect(expiryToRecord(telemetryConfig.empty)).toBeUndefined();
+    expect(expiryToRecord(null)).toBeUndefined();
   });
 });
 
@@ -176,5 +230,19 @@ describe("where a sign-in lands", () => {
   });
   test("every car with the key lands on home", () => {
     expect(signInPath([{ keyPaired: true }, { keyPaired: true }])).toBe("/");
+  });
+});
+
+describe("when the streaming config runs out", () => {
+
+  test("the config's exp, as a time", () => {
+    expect(parseConfigExpiry(telemetryConfig.synced)).toBe(new Date(1999999999 * 1000).toISOString());
+    expect(parseConfigExpiry(telemetryConfig.pending)).toBe(new Date(1999999999 * 1000).toISOString());
+  });
+
+  test("no config, no exp or an answer not understood is null", () => {
+    for (const body of [telemetryConfig.none, telemetryConfig.full, telemetryConfig.empty, telemetryConfig.null, null, { response: { config: { exp: "soon" } } }]) {
+      expect(parseConfigExpiry(body)).toBeNull();
+    }
   });
 });

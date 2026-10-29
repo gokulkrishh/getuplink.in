@@ -1,5 +1,5 @@
 import "server-only";
-import { carNotices } from "@/lib/car-notices";
+import { carNotices, type FlagsSeen, flagsSeen } from "@/lib/car-notices";
 import type { CheckedTyres, TyreFlags } from "@/lib/car-now";
 import { DEMO } from "@/lib/demo";
 import { demoData } from "./demo";
@@ -8,7 +8,9 @@ import { type Owner, ownerDb } from "./data/owner";
 // What the latest online check said beyond the car's state: Tesla's notices (an unpaid Supercharger
 // balance, the car in service) and which tyres it warned about. Only checks that found the car online keep
 // Tesla's response (see poll.ts), so a car asleep since still shows what its last online check said.
-export type CarFlagsNow = { notices: string[]; tyres: CheckedTyres | null };
+export type CarFlagsNow = { notices: string[]; seen: FlagsSeen; tyres: CheckedTyres | null };
+
+const NONE: CarFlagsNow = { notices: [], seen: flagsSeen(null), tyres: null };
 
 const SIDES = ["fl", "fr", "rl", "rr"] as const;
 
@@ -34,17 +36,19 @@ function flags(row: Record<string, unknown>, kind: "soft" | "hard"): TyreFlags {
 
 // The flags from a row read with polled_at and FLAG_COLUMNS; none without a row.
 export function carFlagsFrom(row: Record<string, unknown> | null): CarFlagsNow {
-  if (!row) return { notices: [], tyres: null };
+  if (!row) return NONE;
   const soft = flags(row, "soft");
   const hard = flags(row, "hard");
+  const tesla = { supercharger_payment_needed: row.payment, in_service: row.service };
   return {
-    notices: carNotices({ supercharger_payment_needed: row.payment, in_service: row.service }),
+    notices: carNotices(tesla),
+    seen: flagsSeen(tesla),
     tyres: Object.keys(soft).length || Object.keys(hard).length ? { at: row.polled_at as string, soft, hard } : null,
   };
 }
 
 // The demo car's tyre warnings are streamed (see generate.ts), newer than its last check.
-export const demoCarFlags = (): CarFlagsNow => ({ notices: carNotices(demoData().flags), tyres: null });
+export const demoCarFlags = (): CarFlagsNow => ({ notices: carNotices(demoData().flags), seen: flagsSeen(demoData().flags), tyres: null });
 
 // Nothing to say when the read fails: these are extras on pages that work without them.
 export async function loadCarFlags(owner: Owner, vehicleId: string): Promise<CarFlagsNow> {
@@ -60,7 +64,7 @@ export async function loadCarFlags(owner: Owner, vehicleId: string): Promise<Car
     .maybeSingle();
   if (error) {
     console.warn("Last check's flags unavailable:", error.message);
-    return { notices: [], tyres: null };
+    return NONE;
   }
   // A select built from a string has no row type.
   return carFlagsFrom(data as unknown as Record<string, unknown> | null);

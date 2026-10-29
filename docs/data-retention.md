@@ -38,7 +38,8 @@ A car streams only while Uplink's virtual key is on it. Remove the key (on the c
 
 How it's caught:
 
-- The half-hourly health check (`lib/server/stream-health.ts`) asks Tesla about one car and keeps the key answer on its row (`recordKeyStatus`).
+- The half-hourly health check (`lib/server/stream-health.ts`) asks Tesla about one car and keeps what it says on the car's row: the key (`recordKeyStatus`), the config's expiry (`recordConfigExpiry`), and the config's state when it differs from the row (`recordStreaming`). A config lost from the car then reads "none", so the next /setup visit or 6-hourly check (rereading within 10 minutes) sends it again, instead of a stale "synced" waiting a day. Seen on 29 Oct 2026: the row said synced from a read before the parse fix while Tesla said the car had no config.
+- That car's own state never marks "Live car data" on the status page or Health. Only Uplink's side does (`streamPart` in `lib/stream-health.ts`): no data while cars running Uplink's config were awake (fleet-wide), Tesla's API failing, receiver errors Tesla reports, or our own read failing. A car's key, config, expiry or disconnected account is its owner's, in their bell.
 - That answer can be up to an hour old (`tesla_answer_cache`), so it is kept only when it is at least as new as the stored one (`saveKeyStatus`): a key /setup just confirmed isn't undone by the next check. Seen on 29 Oct 2026, when the 02:30 check put back the 02:00 "no key" over /setup's 02:21 "key added".
 - A removed key also clears the stored streaming answer. When /setup or the 6-hourly check sees the key back, it asks about streaming in the same pass, and sends the config again if the car lost it.
 - The bell drops a health check's key or config problem once /setup has a good answer from after that check (`SETTLED_BY_SETUP` in `lib/alerts.ts`). On /setup, the bell waits for the page's own check before reading.
@@ -46,7 +47,20 @@ How it's caught:
 
 How it's shown:
 
-- The header's alerts bell (`lib/alerts.ts`, `lib/server/alerts.ts`) has a blue dot when something needs the owner, and lists each with where to fix it: the key not on a car (/setup), Tesla not connected or the last check failed (Settings), and for the admin a part of Uplink not working (/admin). Built from stored answers only, never asking Tesla.
-- A non-admin owner without the key is sent to /setup. The admin is never redirected, but sees a note under the header instead.
+- The header's alerts bell (`lib/alerts.ts`, `lib/server/alerts.ts`) lists each alert with where to fix it, in two parts. Built from stored answers only, never asking Tesla.
+  - **Needs you** (only these light the blue dot and count in the bell's label): the key not on a car (/setup); a car's streaming access running out within `EXPIRY_WARN_DAYS` although Uplink tried to renew it (/setup); a car with the key that has sent no data for over a day although Uplink's check saw it awake after its last data (/setup, with "since" its last data); an unpaid Supercharger balance (home); Tesla not connected or the last check failed (Settings); and for the admin a part of Uplink not working (/admin), minus any problem a car's own row already says.
+  - **Good to know**: a car at a Tesla service centre, and a key Tesla was asked about but didn't answer for (Uplink asks again on its own).
+- A row shows "since …" only when the start is known. Today that is only the quiet car, from its last data: a key or flag answer's time is when Uplink last asked, not when the problem began.
+- A non-admin owner without the key is sent to /setup. The admin is never redirected, but sees the one red note under the header instead. No other note sits under the header, and the home and Updates footers no longer repeat a failed check: the bell has both.
+
+### Streaming access running out
+
+Each car's config carries an expiry (`exp`, set to 360 days ahead when Uplink sends it, `TELEMETRY_EXP_DAYS`). Uplink keeps it on the car's row (`vehicles.telemetry_config_expires_at`, `supabase/migrations/20261113120000_config_expiry.sql`) whenever it reads the config: /setup, its Check again and the 6-hourly check (`refreshStreaming`), and the health check for its one car (`recordConfigExpiry`, kept only when /setup hasn't read it since). Before that migration nothing is kept and the warning is simply missing.
+
+Uplink renews it on its own: `shouldSendConfig` (`lib/setup-status.ts`) sends a fresh config to a car with the key whose config runs out within `RENEW_WITHIN_DAYS` (30), from the expiry read in the same pass, once per window (`renewalSent`: Tesla may keep answering with the old exp until the car takes the new one, so a second send would just repeat), and only with the location scope and signing keys a first send needs. A config answer without a readable exp never wipes a stored expiry (`expiryToRecord`). Tesla holds a taken renewal as "pending" until the car wakes; the next read (within 10 minutes of a /setup visit or the 6-hourly check) brings the new expiry. A warning therefore means the renewal hasn't taken: when one was sent for this config the bell says to wake the car in the Tesla app, otherwise to open setup to see what's needed. While a renewal waits for the car, /setup's streaming step shows it waiting, as for a first config.
+
+### A car gone quiet
+
+The bell reads each paired car's newest data from its presence fields (`carLastReadingAt`, one indexed lookup per field), and compares it with the latest time the 6-hourly check found the car awake (`vehicles.last_seen_at`). A car parked asleep for days sends nothing and isn't flagged; one seen awake two hours or more after its last data, with that data over a day old, is.
 
 To fix a removed key: approve the key again at https://tesla.com/_ak/app.getuplink.in (the car awake), then open /setup, which sends the streaming config again.

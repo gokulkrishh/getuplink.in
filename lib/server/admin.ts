@@ -1,6 +1,7 @@
 import "server-only";
 import { DEMO, DEMO_SITE } from "@/lib/demo";
 import { compareVersions } from "@/lib/rollout";
+import { accountLabel, failureOutcome, type Outcome } from "@/lib/failed-checks";
 import { istDay, type Status } from "@/lib/status";
 import { runErrorReason } from "@/lib/run-error";
 import { normaliseVersion } from "@/lib/versions";
@@ -10,7 +11,7 @@ import { missingEnv } from "./env";
 import { DEMO_OWNER, type Owner } from "./data/owner";
 import { carsNotStreaming, type WaitingCar } from "./data/setup";
 import { unknownCodes } from "@/lib/car";
-import { ADMIN_ROLE, adminTotals, carCodes, userRole } from "./data/system";
+import { accountCars, ADMIN_ROLE, adminTotals, carCodes, failureContext, userRole } from "./data/system";
 import { canSendConfig } from "./telemetry-config";
 import { COMPONENTS } from "./stream-health";
 
@@ -36,6 +37,16 @@ export async function isAdmin(): Promise<boolean> {
   return (await adminOwner()) !== null;
 }
 
+type AccountName = ReturnType<typeof accountLabel>;
+
+export type FailedCheck = {
+  at: string;
+  userId: number | null;
+  reason: string;
+  account: AccountName | null;
+  outcome: Outcome | null; // null when the check has no account
+};
+
 export type AdminPage = {
   simulated: boolean; // demo mode: every figure comes from the simulated fleet
   owners: number;
@@ -46,15 +57,16 @@ export type AdminPage = {
   versions: { version: string; cars: number }[]; // newest first
   noVersion: number; // cars never seen online, so no version yet
   // The latest few failed checks: when, whose, and why in a few words (never the error text, which can quote a VIN).
-  runs: { total: number; failed: number; failures: { at: string; userId: number | null; reason: string }[] };
+  // `account` names the account like Admin > Access does; `outcome` says whether it was fixed since.
+  runs: { total: number; failed: number; failures: FailedCheck[] };
   // Per component: its latest check, and the checks that found it not working in the last RECENT_DAYS days.
   health: ComponentHealthSummary[];
   // Cars that don't stream to Uplink yet (/setup's two steps), by user id: null before the car_setup
   // migration. sendsConfig: whether Uplink sends the streaming config itself (its keys are set).
-  notStreaming: WaitingCar[] | null;
+  notStreaming: (WaitingCar & { account: AccountName })[] | null;
   sendsConfig: boolean;
   // Cars reporting a model or pack code lib/car.ts doesn't know yet, by user id; null when it couldn't be read.
-  unknownCars: { userId: number; codes: string[] }[] | null;
+  unknownCars: { userId: number; account: AccountName; codes: string[] }[] | null;
 };
 
 function spread(versions: (string | null)[]): Pick<AdminPage, "versions" | "noVersion"> {
@@ -116,7 +128,11 @@ export async function loadAdmin(now: number): Promise<AdminPage> {
       runs: {
         total: fleet.runs.length,
         failed: failed.length,
-        failures: failed.slice(0, 5).map((r) => ({ at: r.started_at, userId: 1, reason: runErrorReason("fetch failed") })),
+        failures: failed.slice(0, 5).map((r) => {
+          const failure = { at: r.started_at, reason: runErrorReason("fetch failed") };
+          const lastGoodAt = fleet.runs.find((o) => o.ok && o.started_at > r.started_at)?.started_at ?? null;
+          return { ...failure, userId: 1, account: accountLabel(1, { name: "Demo Model Y", vinSuffix: "D30519" }), outcome: failureOutcome(failure, { lastGoodAt, tokensSavedAt: null }) };
+        }),
       },
       health: healthSummary(
         demoData().healthDaily,
@@ -140,6 +156,14 @@ export async function loadAdmin(now: number): Promise<AdminPage> {
     }),
   ]);
   const cars = totals.cars;
+  const failedUsers = [...new Set(totals.failures.flatMap((r) => (r.user_id === null ? [] : [Number(r.user_id)])))];
+  const listed = [...new Set([...failedUsers, ...(notStreaming ?? []).map((c) => c.userId), ...(codes ?? []).map((c) => c.userId)])];
+  // Naming and "fixed since" are extras: if reading them fails, the lists still show each row.
+  const [named, later] = await Promise.all([
+    accountCars(listed).catch(() => new Map<number, { name: string | null; vinSuffix: string | null }>()),
+    failureContext(totals.failures.flatMap((r) => (r.user_id === null ? [] : [{ userId: Number(r.user_id), at: r.started_at }]))).catch(() => null),
+  ]);
+  const account = (userId: number) => accountLabel(userId, named.get(userId));
   return {
     simulated: false,
     owners: totals.owners,
@@ -149,11 +173,22 @@ export async function loadAdmin(now: number): Promise<AdminPage> {
     runs: {
       total: totals.runs,
       failed: totals.failed,
-      failures: totals.failures.map((r) => ({ at: r.started_at, userId: r.user_id === null ? null : Number(r.user_id), reason: runErrorReason(r.error) })),
+      failures: totals.failures.map((r) => {
+        const userId = r.user_id === null ? null : Number(r.user_id);
+        const reason = runErrorReason(r.error);
+        const known = userId === null ? undefined : later?.get(userId);
+        return {
+          at: r.started_at,
+          userId,
+          reason,
+          account: userId === null ? null : account(userId),
+          outcome: known ? failureOutcome({ at: r.started_at, reason }, known) : null,
+        };
+      }),
     },
     health: healthSummary(totals.health as DailyCheck[], totals.latest, totals.problems, sinceDay),
-    notStreaming,
+    notStreaming: notStreaming && notStreaming.map((c) => ({ ...c, account: account(c.userId) })),
     sendsConfig: canSendConfig(),
-    unknownCars: codes && codes.map((c) => ({ userId: c.userId, codes: unknownCodes(c.config) })).filter((c) => c.codes.length > 0),
+    unknownCars: codes && codes.map((c) => ({ userId: c.userId, account: account(c.userId), codes: unknownCodes(c.config) })).filter((c) => c.codes.length > 0),
   };
 }

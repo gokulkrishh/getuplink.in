@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { AdminPage as AdminFrame } from "@/components/admin/admin-page";
+import { accessAnchor, outcomeLine } from "@/lib/failed-checks";
 import { formatDateTime, formatSeen } from "@/lib/format";
 import { STATUS_URL } from "@/lib/site";
 import { STATUS_WORD } from "@/lib/status";
@@ -45,12 +47,24 @@ function Group({ title, note, children }: { title: string; note?: React.ReactNod
 }
 
 // A row with no value is an empty state: its label alone.
-function Item({ label, value, muted }: { label: string; value?: string; muted?: boolean }) {
+function Item({ label, value, muted }: { label: React.ReactNode; value?: string; muted?: boolean }) {
   return (
     <div className="flex items-baseline justify-between gap-4 py-3 text-sm">
       <dt className="text-muted-foreground">{label}</dt>
       {value !== undefined && <dd className={muted ? "text-faint" : "font-mono font-medium tabular-nums"}>{muted ? value : <Measure text={value} />}</dd>}
     </div>
+  );
+}
+
+// An account named as Admin > Access names it, linking to its row there.
+function AccountName({ id, account }: { id: number; account: { name: string; vin: string | null } }) {
+  return (
+    <>
+      <Link href={`/admin/waitlist#${accessAnchor(id)}`} className="underline underline-offset-2 hover:text-foreground">
+        {account.name}
+      </Link>
+      {account.vin && <span className="font-mono text-xs text-faint"> · VIN …{account.vin}</span>}
+    </>
   );
 }
 
@@ -116,7 +130,7 @@ export default async function Page() {
           data.notStreaming.map((car, i) => (
             <Item
               key={`${car.userId}-${i}`}
-              label={`User ${car.userId}`}
+              label={<AccountName id={car.userId} account={car.account} />}
               value={
                 car.keyPaired === false
                   ? "No key yet"
@@ -140,7 +154,7 @@ export default async function Page() {
       {data.unknownCars && data.unknownCars.length > 0 && (
         <Group title="Cars Uplink can't name yet" note="Add these codes to lib/car.ts so the car page names the model and pack.">
           {data.unknownCars.map((car) => (
-            <Item key={car.userId} label={`User ${car.userId}`} value={car.codes.join(", ")} />
+            <Item key={car.userId} label={<AccountName id={car.userId} account={car.account} />} value={car.codes.join(", ")} />
           ))}
         </Group>
       )}
@@ -165,11 +179,22 @@ export default async function Page() {
           <dl className="divide-y border-y">
             {runs.failures.map((f, i) => (
               <div key={`${f.at}-${i}`} className="flex items-baseline justify-between gap-4 py-3 text-sm">
-                <dt className="text-muted-foreground">
-                  {f.reason}
-                  {f.userId !== null && <span className="text-faint"> · User {f.userId}</span>}
+                <dt className="min-w-0">
+                  <span className="text-muted-foreground">{f.reason}</span>
+                  {f.account && f.userId !== null && (
+                    <span className="block">
+                      <AccountName id={f.userId} account={f.account} />
+                    </span>
+                  )}
                 </dt>
-                <dd className="text-right text-faint">{formatSeen(f.at, now)}</dd>
+                <dd className="shrink-0 text-right">
+                  <span className="block text-faint">{formatSeen(f.at, now)}</span>
+                  {f.outcome && (
+                    <span className={cn("block text-xs", f.outcome.state === "open" ? "text-destructive" : "text-muted-foreground")}>
+                      {outcomeLine(f.outcome, (at) => formatSeen(at, now))}
+                    </span>
+                  )}
+                </dd>
               </div>
             ))}
           </dl>

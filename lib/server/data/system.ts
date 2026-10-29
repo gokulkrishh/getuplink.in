@@ -608,6 +608,36 @@ export async function adminTotals(since: string, healthSince: string, components
   };
 }
 
+// For the admin's failed checks: each failed account's latest good check after its earliest listed failure,
+// and when its Tesla tokens were last saved (a sign-in or a refresh). Together they say whether a failure
+// was fixed (failureOutcome, lib/failed-checks.ts).
+export async function failureContext(failures: { userId: number; at: string }[]): Promise<Map<number, { lastGoodAt: string | null; tokensSavedAt: string | null }>> {
+  const context = new Map<number, { lastGoodAt: string | null; tokensSavedAt: string | null }>();
+  if (failures.length === 0) return context;
+  // Each account from its earliest listed failure: one small query each (Admin lists at most 5 failures),
+  // on the (user_id, started_at desc) index, so a busy account's checks never crowd out another's.
+  const from = new Map<number, string>();
+  for (const f of failures) if (!from.has(f.userId) || Date.parse(f.at) < Date.parse(from.get(f.userId)!)) from.set(f.userId, f.at);
+  const ids = [...from.keys()];
+  const [good, tokens] = await Promise.all([
+    Promise.all(
+      ids.map(async (id) => {
+        const rows = check(
+          await db().from("poll_runs").select("started_at").eq("user_id", id).eq("ok", true).gt("started_at", from.get(id)!).order("started_at", { ascending: false }).limit(1),
+        ) as { started_at: string }[];
+        return [id, rows[0]?.started_at ?? null] as const;
+      }),
+    ),
+    db().from("user_tokens").select("user_id, updated_at").not("access_token_enc", "is", null).in("user_id", ids),
+  ]);
+  for (const [id, lastGoodAt] of good) context.set(id, { lastGoodAt, tokensSavedAt: null });
+  for (const r of check(tokens) as { user_id: number; updated_at: string }[]) {
+    const c = context.get(Number(r.user_id));
+    if (c) c.tokensSavedAt = r.updated_at;
+  }
+  return context;
+}
+
 // ---- Status page and health checks ----
 
 export type DailyCheck = { component: string; day: string; status: string; up: number; total: number };
@@ -663,8 +693,19 @@ export function pingDatabase() {
 }
 
 // When any car was last online at a check, and when any car last streamed: the stream's freshness.
+// The latest time a check found awake a car that should be streaming: on its owner's account and, as Tesla
+// last said, running Uplink's config. A car without the key or a config sends nothing by design, which is
+// its owner's to fix (their bell), so its being awake doesn't make the stream look down.
 export function fleetLastSeen() {
-  return db().from("vehicles").select("last_seen_at").not("last_seen_at", "is", null).order("last_seen_at", { ascending: false }).limit(1).maybeSingle();
+  return db()
+    .from("vehicles")
+    .select("last_seen_at")
+    .not("last_seen_at", "is", null)
+    .is("readings_until", null)
+    .eq("streaming", "synced")
+    .order("last_seen_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 }
 
 export async function fleetLastReadingAt(): Promise<string | null> {

@@ -148,7 +148,7 @@ async function HomeContent() {
         </div>
       )}
       {home.kind === "ready" && (
-        <CheckedFooter syncedAt={newestTime(cars.flatMap((car) => [car.latest?.polled_at, car.streamAt]))} now={now} lastRun={home.lastRun} showError={cars.length > 0} />
+        <CheckedFooter syncedAt={newestTime(cars.flatMap((car) => [car.latest?.polled_at, car.streamAt]))} now={now} />
       )}
     </>
   );

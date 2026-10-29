@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
+import { accessAnchor } from "@/lib/failed-checks";
 import { AdminPage } from "@/components/admin/admin-page";
 import { Figures } from "@/components/stats/figures";
 import { InfoButton } from "@/components/info-button";
@@ -108,6 +109,7 @@ function List({ title, accounts, empty, when, buttons, more, before = [] }: {
           {accounts.map((a) => (
             <ActionRow
               key={a.id}
+              id={accessAnchor(a.id)}
               actions={buttons.map((b) => ({ label: b.label, pendingLabel: b.pendingLabel, primary: b.primary, disabled: b.disabled, action: decideAccount.bind(null, b.decision, a.id) }))}
             >
               <p className="text-sm font-medium">

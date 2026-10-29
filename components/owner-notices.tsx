@@ -86,30 +86,14 @@ export function CarNotices({ notices }: { notices: string[] }) {
 }
 
 // "Last synced …" (see lastSyncedText), from the same times as the car page's header: the newest of each
-// car's latest check and newest streamed reading. When the last poll failed, why. `children` go first.
-export function CheckedFooter({
-  syncedAt,
-  now,
-  lastRun,
-  showError,
-  children,
-}: {
-  syncedAt: string | null;
-  now: number;
-  lastRun: PollRun | null;
-  showError: boolean;
-  children?: ReactNode;
-}) {
-  if (!syncedAt && !lastRun && !children) return null;
+// car's latest check and newest streamed reading. `children` go first. A failed last check isn't repeated
+// here: the header's alerts bell lists it.
+export function CheckedFooter({ syncedAt, now, children }: { syncedAt: string | null; now: number; children?: ReactNode }) {
+  if (!syncedAt && !children) return null;
   return (
     <footer className="mt-24 space-y-2 text-xs text-faint">
       {children}
       {syncedAt && <p>{lastSyncedText(syncedAt, now)}</p>}
-      {showError && lastRun?.ok === false && lastRun.error && (
-        <div className="text-muted-foreground">
-          <RunError error={lastRun.error} />
-        </div>
-      )}
     </footer>
   );
 }
