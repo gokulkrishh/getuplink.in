@@ -43,6 +43,16 @@ Before a commit, all three pass:
 
 To see the app with a sample car and no Tesla account: `bun run demo:start` (a built demo copy on port 3210) and `bun run demo:stop`. The `verify-uplink` skill drives it for screenshots. Local and live share one Supabase database.
 
+## Before merging
+
+Which checks a change gets is set here, not left to judgement on the day:
+
+- **Every change:** the three checks above.
+- **Any page, component or copy change:** drive it on a demo copy (`verify-uplink`), desktop and 375px phone, and run `.claude/skills/verify-uplink/scripts/launch-checklist.mjs`. Look at the screenshots, don't hand the owner a checklist.
+- **Any logic change** (server code, data, Tesla answers, alerts, setup): a test that fails first, built from a real answer's shape where there is one, and an independent review of the diff (`/code-review`) before merge.
+- **Launch QA** (`launch-qa` skill, the five personas): before inviting more owners, before a major feature goes live, and after changes to the way in (home, waitlist, invite, sign-in, setup).
+- **Migrations:** additive only. The code must work with and without the new column. Read the SQL before it's applied.
+
 ## Worktrees
 
 Work in a worktree under `.claude/worktrees/<branch>`. Keep the number small: related changes, and small follow-ups to work still open, go into a worktree that's already open. Only start a new one when work must ship separately (an urgent fix) or would clash with what's open. Once its branch is merged to main, remove the worktree and delete the branch straight away (`git worktree remove`, `git branch -d`) without asking. First copy over any gitignored files the main checkout needs (such as `certificates/`). Keep a worktree only while it still holds unmerged work. Stop any demo copies you started there (`cleanup.sh <port>`) at the same time. Leave other sessions' worktrees alone.
