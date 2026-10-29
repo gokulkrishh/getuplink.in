@@ -242,7 +242,7 @@ function UpdatesSkeleton() {
             <div className="h-4" />
           </div>
           <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-            {["Online", "Asleep", "Offline", "No data"].map((label) => (
+            {["Awake", "Asleep", "Out of reach", "No data"].map((label) => (
               <li key={label} className="inline-flex items-center gap-1.5">
                 <span className="size-2 bg-muted" />
                 <Ph>{label}</Ph>

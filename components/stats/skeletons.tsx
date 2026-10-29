@@ -15,7 +15,7 @@ export function DrivingSkeleton() {
         <SkFigures
           tiles={[
             { label: "Trips", value: "11", note: "11 drives" },
-            { label: "Typical drive", value: "16.8 km", note: "Half are longer" },
+            { label: "Typical drive", value: "16.8 km", note: "Half your drives are longer" },
             { label: "Longest drive", value: "47.4 km" },
             { label: "Time driving", value: "9 h 57 min" },
           ]}
@@ -195,7 +195,27 @@ export function ChargingSkeleton() {
           <SkHead title="DC charging speed" description="Charging power by battery level, from 1 DC charge. It drops as the battery fills." />
           <SkBlock className={panel("h-[208px]", "max-sm:h-[247px]")} />
         </SkSection>
-        <SkTable head={["#", "Date", "Charger", "Peak", "Average"]} rows={1} />
+        <SkTable head={["#", "Date", "Charger", "Peak", "Average"]} rows={1} className="max-sm:hidden" />
+        {/* The phone list DcCurves draws: the charger's name on its own line under the date and powers. */}
+        <div className="sm:hidden" aria-hidden="true">
+          <div className="grid grid-cols-[1.5rem_1fr_5rem_5rem] gap-x-3 border-b py-2 text-xs">
+            <Ph>#</Ph>
+            <Ph>Date</Ph>
+            <Ph className="justify-self-end">Peak</Ph>
+            <Ph className="justify-self-end">Average</Ph>
+          </div>
+          <div className="py-3 text-sm">
+            <p className="grid grid-cols-[1.5rem_1fr_5rem_5rem] items-baseline gap-x-3">
+              <Ph className="text-xs">00</Ph>
+              <Ph>28 Oct</Ph>
+              <Ph className="justify-self-end">00.0 kW</Ph>
+              <Ph className="justify-self-end">00.0 kW</Ph>
+            </p>
+            <p className="mt-1 pl-[calc(1.5rem+0.75rem)] text-xs">
+              <Ph>Supercharger, Placeholder</Ph>
+            </p>
+          </div>
+        </div>
       </SkSection>
       <SkSection>
         <SkHead title="Charging map" description="Last 7 days. Bigger pins added more energy." gap={2} />
@@ -345,7 +365,7 @@ export function BatterySkeleton() {
       </SkSection>
       <SkSection>
         <SkHead title="Full pack by week, per Tesla" description="Full-pack energy, as the car reports it." />
-        <SkLine>Week of 26 Oct: 62.1 kWh. A line needs two weeks.</SkLine>
+        <SkLine>Week of 26 Oct: 62.1 kWh. The line appears after two weeks.</SkLine>
       </SkSection>
       <SkSection>
         <SkHead title="Capacity by distance" description="Usable capacity each week, against the odometer." />

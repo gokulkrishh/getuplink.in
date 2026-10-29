@@ -251,14 +251,14 @@ export default function SettingsPage() {
       <Suspense fallback={<SettingsSkeleton />}>
         <Settings />
       </Suspense>
-      <footer className="mt-16 flex justify-end gap-4 text-xs text-muted-foreground">
-        <Link href="/privacy" className="hover:text-foreground transition-colors duration-150">
+      <footer className="mt-13 -mr-2 flex justify-end text-xs text-muted-foreground">
+        <Link href="/privacy" className="px-2 py-3 transition-colors duration-150 hover:text-foreground">
           Privacy
         </Link>
-        <Link href="/terms" className="hover:text-foreground transition-colors duration-150">
+        <Link href="/terms" className="px-2 py-3 transition-colors duration-150 hover:text-foreground">
           Terms
         </Link>
-        <Link href={STATUS_URL} className="hover:text-foreground transition-colors duration-150">
+        <Link href={STATUS_URL} className="px-2 py-3 transition-colors duration-150 hover:text-foreground">
           Status
         </Link>
       </footer>

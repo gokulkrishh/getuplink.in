@@ -28,7 +28,7 @@ export function CarGlanceMock() {
         </span>
         <span className="flex shrink-0 items-center gap-1.5 text-xs text-faint">
           <span className="size-1.5 rounded-full bg-positive" />
-          Online
+          Awake
         </span>
       </div>
 

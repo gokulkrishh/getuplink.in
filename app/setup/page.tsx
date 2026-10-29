@@ -19,7 +19,7 @@ import scan from "./guide/key-1-scan.jpg";
 import approve from "./guide/key-2-approve.jpg";
 import added from "./guide/key-3-done.jpg";
 
-export const metadata: Metadata = { title: "Setup · Uplink" };
+export const metadata: Metadata = { title: "Setup" };
 
 // Demo mode has no Tesla: one car part way through (?step=done, or the Just connected scenario, shows it finished). Its last check holds
 // still for ten minutes, so Check again (which asks no one in demo) says nothing changed, as a real one would.
@@ -135,7 +135,7 @@ function CarList({ cars, words }: { cars: CarSetup[]; words: (car: CarSetup) => 
 // on a phone they scroll sideways in their own row so the page doesn't.
 const GUIDE = [
   { image: scan, alt: "Tesla's page with a code to scan", caption: "Scan the QR code with your phone" },
-  { image: approve, alt: "The Tesla app asking to allow access for app.getuplink.in", caption: "Tap Approve" },
+  { image: approve, alt: "The Tesla app asking to allow access for app.getuplink.in", caption: "Tap Approve in the Tesla app" },
   { image: added, alt: "The Tesla app saying Success", caption: "Come back and tap Check again" },
 ];
 
@@ -212,7 +212,7 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
           {/* Once the key is on, the photos are a tap away instead of in the way. */}
           {key === "done" ? (
             <details>
-              <summary className="cursor-pointer text-sm text-muted-foreground underline decoration-muted-foreground/60 underline-offset-4 hover:text-foreground hover:decoration-foreground">
+              <summary className="tap-target cursor-pointer text-sm text-muted-foreground underline decoration-muted-foreground/60 underline-offset-4 hover:text-foreground hover:decoration-foreground">
                 See how
               </summary>
               <div className="pt-4">
@@ -224,7 +224,7 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
           )}
           {/* Tesla's app says "Request timed out" when the car is asleep or out of reach while the key is added. */}
           <p className="text-xs text-faint">
-            {key !== "done" && "Request timed out? Wake the car and try again. "}Remove the key any time in the car&apos;s Controls, then Locks.
+            {key !== "done" && "Request timed out? Wake your car in the Tesla app and try again. "}Remove the key any time in the car&apos;s Controls, then Locks.
           </p>
           <CarList cars={cars} words={keyWords} />
         </Step>
@@ -273,7 +273,7 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
       )}
       {!ready && (
         <p className="mt-10 text-sm text-muted-foreground">
-          Without live data, Uplink still checks your car every 12 hours for its software version, battery and charging.
+          Without live data, Uplink still checks your car at least once a day for its software version, battery and charging.
         </p>
       )}
     </>

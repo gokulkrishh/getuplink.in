@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createContext, useContext, useEffect, useOptimistic, useState, useTransition, type ReactNode } from "react";
 import { dayIso, isoDay } from "@/lib/periods";
 import { cn } from "@/lib/utils";
-import { type CustomScope, type DateRange, defaultPeriod, type HomePeriod, PAGE_PERIODS, parsePeriod, type PeriodSet, urlRange } from "./periods";
+import { type CustomScope, type DateRange, defaultPeriod, type HomePeriod, PAGE_PERIODS, parsePeriod, type PeriodSet, pickerLine } from "./periods";
 import { LIST_KEY, REMEMBERED_LISTS } from "./list-memory";
 import { PeriodSwitch } from "./period-switch";
 
@@ -27,6 +27,12 @@ const PeriodContext = createContext<Scope>({ period: defaultPeriod(PAGE_PERIODS.
 export const usePeriod = (): { period: HomePeriod; range: DateRange | null } => {
   const { period, range } = useContext(PeriodContext);
   return { period, range };
+};
+
+// The range the page shows for Custom, and today as the server saw it (null outside a scope with Custom).
+export const useShownRange = (): { range: DateRange | null; today: string | null } => {
+  const { range, custom } = useContext(PeriodContext);
+  return { range, today: custom?.today ?? null };
 };
 
 // A section that depends on the period, rendered by the server for each one; shows the one picked. With
@@ -69,7 +75,9 @@ export function PeriodScope({ periods = PAGE_PERIODS.home, custom, children }: {
   const raw = params.get("period");
   const asking = asked !== null;
   const period: HomePeriod = custom && (raw === "custom" || asking) ? "custom" : parsePeriod(raw ?? undefined, periods);
-  const range = custom ? ((asking ? asked : null) ?? urlRange(params.get("from"), params.get("to")) ?? custom.range) : null;
+  // The range the panels are for: the one the server drew, which moves dates in the future or the wrong way
+  // round (see DatesNote), not the URL's. A range being picked shows at once, while it loads.
+  const range = custom ? ((asking ? asked : null) ?? custom.range) : null;
   const search = params.toString();
   // The trips and charges lists remember their period, so the page of one links back to it.
   useEffect(() => {
@@ -177,7 +185,7 @@ function RangePicker({ range, today, pending, onPick }: { range: DateRange; toda
       </span>
       {problem && (
         <p id="range-problem" className="w-full text-xs text-destructive">
-          {problem}
+          {pickerLine(problem, range, today)}
         </p>
       )}
     </div>

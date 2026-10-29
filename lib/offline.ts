@@ -12,3 +12,9 @@ export function orOffline<T>(action: Promise<T>, failed: T): Promise<T> {
     return failed;
   });
 }
+
+// A form's action for useActionState: null once it has run, OFFLINE when it couldn't be reached. For forms
+// whose action ends in a redirect (sign out, Sign in with Tesla), so offline the page stays and says why.
+export function guardForm(action: (form: FormData) => Promise<unknown>) {
+  return (_: string | null, form: FormData): Promise<string | null> => orOffline(action(form).then(() => null), OFFLINE);
+}

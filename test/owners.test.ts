@@ -313,6 +313,6 @@ describe("picked for you", () => {
   test("a choice where the owner is in the minority says what most owners do", () => {
     const cars = Array.from({ length: 10 }, (_, k) => with_({ chargeLimit: k < 8 ? "100" : "90" }));
     const [first] = pick(cars, with_({ chargeLimit: "80" }));
-    expect(first.line).toBe("You charge to 80%. Most owners with your battery charge to 100%.");
+    expect(first.line).toBe("You charge to 80%. Most owners with the same battery charge to 100%.");
   });
 });

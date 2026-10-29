@@ -19,7 +19,7 @@ const MONTHS = [
 export function HistoryMock() {
   const max = Math.max(...MONTHS.map((m) => m.amount));
   return (
-    <div aria-hidden="true" className="border bg-background p-6 text-sm select-none">
+    <div aria-hidden="true" className="border bg-background p-4 text-sm select-none sm:p-6">
       <div className="flex items-center gap-4 pb-5">
         <div className="min-w-0 flex-1">
           <p className="truncate">Home to Whitefield</p>
@@ -29,19 +29,19 @@ export function HistoryMock() {
           18.4<span className="ml-0.5 text-xs text-faint">km</span>
         </span>
       </div>
-      <div className="flex items-baseline gap-4 pb-2 text-xs text-faint">
+      <div className="flex items-baseline gap-3 pb-2 text-xs text-faint sm:gap-4">
         <span className="flex-1">Version</span>
         <span className="hidden w-16 text-right sm:block">Received</span>
         <span className="w-16 text-right">Installed</span>
-        <span className="w-20 text-right">Odometer</span>
+        <span className="hidden w-20 text-right sm:block">Odometer</span>
       </div>
       <ol>
         {ROWS.map((r) => (
-          <li key={r.version} className="flex items-baseline gap-4 border-t py-2.5">
+          <li key={r.version} className="flex items-baseline gap-3 border-t py-2.5 sm:gap-4">
             <span className="min-w-0 flex-1 truncate font-mono">{r.version}</span>
             <span className="hidden w-16 text-right text-faint tabular-nums sm:block">{r.received}</span>
             <span className="w-16 text-right text-muted-foreground tabular-nums">{r.installed}</span>
-            <span className="w-20 text-right text-faint tabular-nums">
+            <span className="hidden w-20 text-right text-faint tabular-nums sm:block">
               {r.km}
               <span className="ml-0.5 text-xs">km</span>
             </span>

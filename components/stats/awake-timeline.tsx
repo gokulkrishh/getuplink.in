@@ -5,9 +5,9 @@ import { formatDayLabel, formatShortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const STATES: { state: Presence; label: string; className: string }[] = [
-  { state: "online", label: "Online", className: "bg-chart-accent" },
+  { state: "online", label: "Awake", className: "bg-chart-accent" },
   { state: "asleep", label: "Asleep", className: "bg-muted-foreground/30" },
-  { state: "offline", label: "Offline", className: "bg-muted-foreground/70" },
+  { state: "offline", label: "Out of reach", className: "bg-muted-foreground/70" },
   // Hollow with a hairline, like its legend square, so a day with no data can't pass for asleep.
   { state: "unknown", label: "No data", className: "border border-muted-foreground/25" },
 ];
@@ -64,7 +64,7 @@ export function AwakeTimeline({ days: all, now }: { days: DayStrip[]; now: numbe
   );
 }
 
-// What was seen that day, for screen readers: "Online · 8:12 AM. Asleep · 2:00 PM."
+// What was seen that day, for screen readers: "Awake · 8:12 AM. Asleep · 2:00 PM."
 function summary(d: DayStrip): string {
   const seen = d.runs.filter((r) => r.state !== "unknown");
   return seen.length ? `${seen.map(runLabel).join(". ")}.` : "No data.";

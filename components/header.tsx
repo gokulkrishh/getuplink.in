@@ -4,11 +4,11 @@ import { Bell, LogOut, Settings, ShieldCheck, TriangleAlert } from "lucide-react
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { logout } from "@/app/actions";
 import { AvatarBlob } from "@/components/avatar-blob";
 import { FeedbackButton } from "@/components/feedback-button";
 import { FeedbackMenuItem } from "@/components/feedback-menu-item";
 import { Logo } from "@/components/logo";
+import { SignOutForm } from "@/components/sign-out-form";
 import { buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -145,7 +145,7 @@ export function Header({ current, setup = true, onSetup = false }: { current?: S
     <>
     {/* Every signed-in page has the header, so the feedback button rides with it. */}
     <FeedbackButton />
-    <header className="mb-16 flex items-center justify-between gap-4 text-sm">
+    <header className="relative mb-16 flex items-center justify-between gap-4 text-sm">
       <Link href="/" prefetch={true} className="tap-target flex shrink-0 items-center gap-2.5 font-medium">
         <Logo className="size-5" />
         Uplink
@@ -164,8 +164,9 @@ export function Header({ current, setup = true, onSetup = false }: { current?: S
           </Link>
         ))}
         {/* The menu's Sign out item submits this form by id, so signing out stays the same POST to the
-            server action; the form sits outside the menu because the menu's popup unmounts on close. */}
-        <form id="sign-out" action={logout} hidden />
+            server action; the form sits outside the menu because the menu's popup unmounts on close. Offline,
+            it says so under the header (see SignOutForm). */}
+        <SignOutForm />
         {!onSetup && (
           <Suspense fallback={<BellPlaceholder />}>
             <AlertsBell />

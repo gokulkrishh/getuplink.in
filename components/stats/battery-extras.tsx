@@ -52,7 +52,7 @@ export function Temperatures({ temps, frame }: { temps: BatteryExtras["temps"]; 
                 return v !== undefined && { label: s.name, value: formatCelsius(v) };
               })}
             />
-            <p className="text-xs text-faint">Latest reading, {when(last)}</p>
+            <p className="text-xs text-faint">Latest figure, {when(last)}</p>
           </div>
         )
       }
@@ -126,7 +126,7 @@ export function CapacityByKm({ points, frame }: { points: BatteryExtras["capacit
       empty={
         shown.length < 2 &&
         (shown.length === 1
-          ? `Week of ${formatShortDate(shown[0].weekStart)}: ${formatKwh(shown[0].y)} at ${formatKm(shown[0].x)}. A line needs two weeks.`
+          ? `Week of ${formatShortDate(shown[0].weekStart)}: ${formatKwh(shown[0].y)} at ${formatKm(shown[0].x)}. The line appears after two weeks.`
           : "No weekly estimate.")
       }
     >
@@ -156,7 +156,7 @@ export function TeslaPackByWeek({ pack, frame }: { pack: BatteryExtras["teslaPac
       empty={
         shown.length < 2 &&
         (shown.length === 1
-          ? `Week of ${formatShortDate(shown[0].weekStart)}: ${formatKwh(shown[0].kwh)}. A line needs two weeks.`
+          ? `Week of ${formatShortDate(shown[0].weekStart)}: ${formatKwh(shown[0].kwh)}. The line appears after two weeks.`
           : "No new figure from Tesla.")
       }
     >

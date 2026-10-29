@@ -454,7 +454,7 @@ async function Owners() {
           figures={[
             { label: "Owners sharing", value: formatCount(page.stats.owners) },
             { label: "Cars", value: formatCount(page.stats.cars), note: page.you ? undefined : "Yours join after the next update" },
-            { label: "Covers", value: <Words>Last 30 days</Words>, note: "Updated daily at 3:30 AM" },
+            { label: "Period", value: <Words>Last 30 days</Words>, note: "Updated daily at 3:30 AM" },
           ]}
         />
         {picks.length > 0 && (
@@ -474,7 +474,7 @@ async function Owners() {
       </div>
       {/* Every comparison, closed until asked for: the highlights above are the page's answer. */}
       <details className="group/all">
-        <summary className="flex cursor-pointer list-none items-center gap-1.5 text-sm font-medium [&::-webkit-details-marker]:hidden">
+        <summary className="tap-target flex cursor-pointer list-none items-center gap-1.5 text-sm font-medium [&::-webkit-details-marker]:hidden">
           <span className="group-open/all:hidden">See all comparisons</span>
           <span className="hidden group-open/all:inline">Hide all comparisons</span>
           <ChevronDown className="size-4 text-muted-foreground transition-transform duration-150 group-open/all:rotate-180" aria-hidden="true" />
@@ -538,7 +538,7 @@ function OwnersSkeleton() {
           tiles={[
             { label: "Owners sharing", value: "39" },
             { label: "Cars", value: "40" },
-            { label: "Covers", value: "Last 30 days", note: "Updated daily at 3:30 AM", words: true },
+            { label: "Period", value: "Last 30 days", note: "Updated daily at 3:30 AM", words: true },
           ]}
         />
         <div className="space-y-3">
@@ -548,7 +548,7 @@ function OwnersSkeleton() {
           {Array.from({ length: 4 }, (_, k) => (
             <div key={k} className="h-[159px] space-y-4 border p-4 sm:h-[109px]">
               <p className="text-sm">
-                <Ph>You charge to 80%. Most owners with your battery charge to 100%.</Ph>
+                <Ph>You charge to 80%. Most owners with the same battery charge to 100%.</Ph>
               </p>
               <Ph className="block h-1.5 w-full">{" "}</Ph>
             </div>

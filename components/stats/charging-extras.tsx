@@ -46,7 +46,7 @@ export function DcCurves({ curves, frame, note }: { curves: (Curve & { serial?: 
       </ChartCard>
       {curves.length > 0 && (
         <>
-          <div>
+          <div className="max-sm:hidden">
             <table className="w-full table-fixed text-sm tabular-nums">
               <colgroup>
                 <col className="w-8 sm:w-10" />
@@ -76,6 +76,29 @@ export function DcCurves({ curves, frame, note }: { curves: (Curve & { serial?: 
                 ))}
               </tbody>
             </table>
+          </div>
+          {/* On a phone the columns don't fit: the charger's name gets its own line, so it never cuts, and the
+              two powers get a column each. */}
+          <div className="sm:hidden">
+            <div className="grid grid-cols-[1.5rem_1fr_5rem_5rem] gap-x-3 border-b py-2 text-xs text-faint">
+              <span>#</span>
+              <span>Date</span>
+              <span className="text-right">Peak</span>
+              <span className="text-right">Average</span>
+            </div>
+            <ul className="divide-y text-sm tabular-nums">
+              {curves.map((c) => (
+                <li key={c.id} className="py-3">
+                  <p className="grid grid-cols-[1.5rem_1fr_5rem_5rem] items-baseline gap-x-3">
+                    <span className="font-mono text-xs text-faint">{c.serial ?? ""}</span>
+                    <span className="whitespace-nowrap">{formatShortDate(c.date)}</span>
+                    <span className="text-right font-mono whitespace-nowrap">{c.peakKw !== null && <Measure text={formatKw(c.peakKw)} />}</span>
+                    <span className="text-right font-mono whitespace-nowrap">{c.avgKw !== null && <Measure text={formatKw(c.avgKw)} />}</span>
+                  </p>
+                  <p className="mt-1 pl-[calc(1.5rem+0.75rem)] text-xs text-muted-foreground">{c.name}</p>
+                </li>
+              ))}
+            </ul>
           </div>
         </>
       )}
