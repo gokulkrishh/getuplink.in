@@ -43,6 +43,10 @@ export const SCOPES = ["openid", "offline_access", "user_data", "vehicle_device_
 
 // Refresh a little early so a token never expires mid-poll.
 const REFRESH_MARGIN_MS = 5 * 60 * 1000;
+// Every request to Tesla gives up after this, body included. Well under the refresh lease (LEASE_MS), so a
+// token request is over before another instance may take the refresh over, and a hung Fleet call can't
+// hold a check past its function's time limit.
+const TESLA_TIMEOUT_MS = 10_000;
 
 type TokenResponse = {
   access_token: string;
@@ -75,7 +79,7 @@ async function teslaFetch(userId: number, path: string, init: { method?: string;
   const headers: Record<string, string> = { Authorization: `Bearer ${init.token}` };
   if (init.json !== undefined) headers["Content-Type"] = "application/json";
   const body = init.json === undefined ? undefined : JSON.stringify(init.json);
-  const res = await fetch(`${fleetApiBase()}${path}`, { method, headers, body, cache: "no-store" });
+  const res = await fetch(`${fleetApiBase()}${path}`, { method, headers, body, cache: "no-store", signal: AbortSignal.timeout(TESLA_TIMEOUT_MS) });
   if (isBillable(res.status)) await countRequest(userId, kindOf(method, path));
   return res;
 }
@@ -100,6 +104,7 @@ async function tokenRequest(params: Record<string, string>): Promise<TokenRespon
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams(params),
     cache: "no-store",
+    signal: AbortSignal.timeout(TESLA_TIMEOUT_MS),
   });
   if (!res.ok) {
     throw new TeslaError(`Token request failed (${res.status}): ${await res.text()}`, res.status);
@@ -269,8 +274,11 @@ export async function signIn(code: string, options: { inviteHash?: string | null
 // instance share one per user (inflight), and across instances the first claims a short lease on the
 // user's row while the others wait for the tokens it stores. The new pair is stored with a compare-and-swap
 // on the refresh token we read, so a disconnect in the meantime is never overwritten.
+// The lease covers the token request (TESLA_TIMEOUT_MS) and saving its answer (SAVE_ATTEMPTS).
 const LEASE_MS = 30_000;
 const WAIT_STEP_MS = 500;
+const SAVE_ATTEMPTS = 3;
+const SAVE_RETRY_MS = 300;
 const inflight = new Map<number, { refreshTokenEnc: string; promise: Promise<string> }>();
 
 function refresh(owner: Owner, stored: StoredTokens): Promise<string> {
@@ -301,26 +309,40 @@ async function refreshOnce(owner: Owner, stored: StoredTokens): Promise<string> 
       refresh_token: stored.refreshToken,
     });
   } catch (err) {
-    await releaseLease(owner, stored);
+    // Only Tesla's answer says the token wasn't spent. A timeout, a dropped connection or a 5xx may have
+    // spent it, so the lease stays until it runs out rather than let the next caller send it again.
+    if (err instanceof TeslaError && err.status < 500) await releaseLease(owner, stored);
     // A disconnect or a sign-in may have replaced the tokens meanwhile; if so, use those.
     const current = await readTokens(owner);
     if (!current) throw new NotConnectedError();
     if (current.refreshTokenEnc !== stored.refreshTokenEnc) return current.accessToken;
     throw err;
   }
-  const { data, error } = await ownerDb(owner)
-    .from("user_tokens")
-    .update({
-      access_token_enc: encrypt(tokens.access_token),
-      refresh_token_enc: encrypt(tokens.refresh_token),
-      expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
-      scope: tokens.scope ?? null,
-      refreshing_until: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("refresh_token_enc", stored.refreshTokenEnc)
-    .select("user_id");
-  if (error) throw new Error(`Saving tokens failed: ${error.message}`);
+  // The old refresh token is spent now, so losing this pair signs the owner out: try the save again. A save
+  // that landed but reported an error matches nothing the next time, and falls through to the read below.
+  const saved = {
+    access_token_enc: encrypt(tokens.access_token),
+    refresh_token_enc: encrypt(tokens.refresh_token),
+    expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+    scope: tokens.scope ?? null,
+    refreshing_until: null,
+    updated_at: new Date().toISOString(),
+  };
+  let data: { user_id: unknown }[] | null = null;
+  for (let attempt = 1; ; attempt++) {
+    const result = await ownerDb(owner).from("user_tokens").update(saved).eq("refresh_token_enc", stored.refreshTokenEnc).select("user_id");
+    if (!result.error) {
+      data = result.data;
+      break;
+    }
+    if (attempt === SAVE_ATTEMPTS) {
+      console.error(
+        `Tesla token refresh for user ${owner.userId}: saving the new tokens failed ${SAVE_ATTEMPTS} times, so the next refresh will sign them out: ${result.error.message}`,
+      );
+      throw new Error(`Saving tokens failed: ${result.error.message}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, SAVE_RETRY_MS));
+  }
   if (data?.length === 1) return tokens.access_token;
   // Nothing matched: the owner disconnected (don't write tokens back) or signed in again meanwhile.
   const current = await readTokens(owner);

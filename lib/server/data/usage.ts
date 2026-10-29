@@ -140,7 +140,7 @@ export async function releaseCheck(userId: number, nextAt?: string): Promise<voi
 }
 
 // Before the migration: when the newest check of anyone started, so the 15-minute cron still checks only
-// every 6 hours.
+// every CHECK_EVERY_MS.
 export async function lastRunStartedAt(): Promise<string | null> {
   const { data, error } = await db().from("poll_runs").select("started_at").order("started_at", { ascending: false }).limit(1).maybeSingle();
   if (error) throw new Error(error.message);
