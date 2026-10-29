@@ -10,13 +10,13 @@ const SPARK_HEIGHT = 24;
 
 // One value per slot, null where there's nothing to draw. `current` is the slot holding now. `tips` names
 // each slot and its value for the tooltip ("23 Oct", "46 km"), null for a slot with nothing known.
-// `opens` is where each bar leads, its days on a Stats page, or null.
+// `opens` is where each bar leads and the words for it ("Open drive"), or null.
 export type Spark = {
   kind: "bars" | "line";
   values: (number | null)[];
   current: number;
   tips: ({ title: string; value: string } | null)[];
-  opens?: (string | null)[];
+  opens?: ({ href: string; label: string } | null)[];
 };
 
 // The period's shape behind a headline number: bars for totals, a line for a rate. With nothing to draw
@@ -65,7 +65,7 @@ export function Sparkline({ kind, values, current, tips, opens, tone = "accent" 
       onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}
       onClick={(e) => {
         const k = slotAt(e.clientX);
-        const href = opens?.[k];
+        const href = opens?.[k]?.href;
         if (!touch.current && !href) return;
         e.preventDefault();
         e.stopPropagation();
@@ -113,6 +113,8 @@ export function Sparkline({ kind, values, current, tips, opens, tone = "accent" 
           <span className="text-muted-foreground">{tip.title}</span> <span className="font-mono tabular-nums">
             <Measure text={tip.value} />
           </span>
+          {/* Where the bar goes: a click, or a second tap, follows it. */}
+          {opens?.[active] && <span className="mt-1 block underline decoration-border decoration-dotted underline-offset-4">{opens[active]!.label}</span>}
         </span>
       )}
     </div>

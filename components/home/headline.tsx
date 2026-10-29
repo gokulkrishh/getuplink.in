@@ -3,6 +3,7 @@ import { ChevronRight, Moon, Sunrise } from "lucide-react";
 import { fitFont } from "@/components/measure";
 import { MoreLink } from "@/components/more-link";
 import { PeriodLink } from "@/components/home/more-link";
+import type { Stops } from "@/lib/bar-stops";
 import { barOpens } from "@/components/stats/bar-parts";
 import { statsHref, type View } from "@/components/stats/periods";
 import { type Bill, billsBySlot, billsIn, energyBySlot, energyIn } from "@/lib/charging-figures";
@@ -127,6 +128,7 @@ export function Headline({
   bills,
   chargingSince,
   lastReadingAt,
+  stops,
 }: {
   // A period or a range picked by date, and the primary car's driving figures for it (null when they
   // couldn't be read); `since` is its first odometer reading.
@@ -143,6 +145,8 @@ export function Headline({
   chargingSince: number | null;
   // The primary car's newest reading, null for none, undefined when it couldn't be read (see hasNoHistory).
   lastReadingAt: string | null | undefined;
+  // The drives and charges behind the bars, so a day with just one opens it (see barOpens).
+  stops: { driving: Stops; charging: Stops };
 }) {
   const { span, previous: before, slots } = frame;
   const label = frame.previousLabel ?? "";
@@ -186,7 +190,7 @@ export function Headline({
     decimals: number,
     format: (n: number) => string,
     skip: number,
-    view: View,
+    view: "driving" | "charging",
   ): { value: number | null; spark: Spark } => {
     const parts = upToNow(values);
     const known = parts.some((v) => v !== null);
@@ -200,7 +204,7 @@ export function Headline({
         current: currentSlot < 0 ? -1 : currentSlot - skip,
         tips: shown.map((v, k) => (v === null || showsZero(format(v)) ? null : { title: slotTitle(slots[k + skip]), value: format(v) })),
         // A bar with a figure opens its days on the tile's Stats page, as the Stats charts' bars do.
-        opens: shown.map((v, k) => (v === null || showsZero(format(v)) ? null : (barOpens(slots[k + skip].days, view)?.href ?? null))),
+        opens: shown.map((v, k) => (v === null || showsZero(format(v)) ? null : barOpens(slots[k + skip].days, view, stops[view]))),
       },
     };
   };

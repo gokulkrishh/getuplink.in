@@ -1,3 +1,4 @@
+import type { Stops } from "@/lib/bar-stops";
 import type { TipRow } from "@/components/stats/bar-parts";
 import type { ReactNode } from "react";
 import { ChartCard } from "@/components/chart-card";
@@ -32,7 +33,7 @@ export function Headline({ value, children }: { value: string; children: ReactNo
 // Distance for the period or range, with a bar per slot of it (see Timeframe), and the energy it took: each
 // bar's tip adds its kWh and Wh/km (see energyLines), and the one line under the chart sums the period's
 // energy and regen (see energyCaption). One chart says what three (Distance, Energy use, Regen) did.
-export function Distance({ frame, driving }: Pick<Frame, "frame" | "driving">) {
+export function Distance({ frame, driving, stops }: Pick<Frame, "frame" | "driving"> & { stops: Stops }) {
   // The counters couldn't be read for a range picked by date: say so in the chart's place rather than show 0 km.
   if (!driving) return <ChartCard title="Distance" empty={"Couldn't read the car's counters."} />;
   // A period without driving still shows, at 0 km with a note in place of the chart, so picking Day before
@@ -52,7 +53,7 @@ export function Distance({ frame, driving }: Pick<Frame, "frame" | "driving">) {
       summary={hasBars(bars) ? <Headline value={formatKm(total)}>{headline("Driven", compared)}</Headline> : undefined}
       empty={hasBars(bars) ? undefined : "No driving."}
     >
-      <Bars bars={bars} valueLabel="Distance" ariaLabel={`Distance per ${frame.slotName}`} unit="km" labelEvery={frame.labelEvery} fit view="driving" />
+      <Bars bars={bars} valueLabel="Distance" ariaLabel={`Distance per ${frame.slotName}`} unit="km" labelEvery={frame.labelEvery} fit view="driving" stops={stops} />
     </ChartCard>
   );
 }

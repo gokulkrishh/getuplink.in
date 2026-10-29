@@ -7,6 +7,7 @@ import { DriveList } from "@/components/stats/drive-list";
 import { SeasonEfficiency } from "@/components/stats/season-efficiency";
 import { Distance, DriveStatsSection } from "@/components/stats/driving-sections";
 import { customScope, type HomePeriod, PERIODS } from "@/components/stats/periods";
+import { driveStops } from "@/lib/bar-stops";
 import { driveStats, withDriveEfficiency } from "@/lib/drive-stats";
 import { type Day, stripsBetween } from "@/lib/day-timeline";
 import { EfficiencyBands, Places, SpeedBands } from "@/components/stats/driving-extras";
@@ -154,7 +155,7 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
           })}
           {eachFrame(frames, (f) => {
             const { frame, driving: figures_ } = fromSince(f, figures.since, now);
-            return <Distance frame={frame} driving={figures_} />;
+            return <Distance frame={frame} driving={figures_} stops={driveStops(driving.drives, now)} />;
           })}
           {eachFrame(frames, ({ key, frame }) => (
             <EfficiencyBands byTemp={byFrame[key]?.extras.byTemp ?? []} bySpeed={byFrame[key]?.extras.bySpeed ?? []} byAc={byFrame[key]?.extras.byAc ?? []} note={insightsNote(key, frame.span)} />

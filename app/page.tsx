@@ -1,3 +1,4 @@
+import { chargeStops, driveStops } from "@/lib/bar-stops";
 import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -74,6 +75,12 @@ function Totals({ home, now, shareCard }: { home: Extract<Home, { kind: "ready" 
   const frames = periodFrames(figures, null, window.driving.drives, now).filter((f) => f.key === "week");
   // Real bills, counted as Charging counts them: Tesla's for Superchargers, attached invoices for the rest.
   const bills = chargingBills(home.sessions, streamOnly, home.invoices);
+  // What a day's bar opens when the day held one drive or one charge (see barOpens).
+  const { pairs } = matchSessions(home.sessions, home.streamSessions, now);
+  const stops = {
+    driving: driveStops(window.driving.drives, now),
+    charging: chargeStops([...pairs.map((p) => ({ started_at: p.tesla.started_at, stream: p.stream })), ...streamOnly.map((s) => ({ started_at: s.started_at, stream: s }))]),
+  };
   // The tips' findings (lib/week-wording.ts), with the week's heaviest parked stretch from the Battery tips
   // when it drew far more than usual. Ranked together; the model sees the top few.
   const { frame } = frames[0];
@@ -99,7 +106,7 @@ function Totals({ home, now, shareCard }: { home: Extract<Home, { kind: "ready" 
         {eachFrame(
           frames,
           ({ key, frame, driving }) => (
-            <Headline key={key} frame={frame} driving={driving} since={figures.since} now={now} sessions={home.sessions} streamOnly={streamOnly} bills={bills} chargingSince={chargingSince} lastReadingAt={home.lastReadingAt} />
+            <Headline key={key} frame={frame} driving={driving} since={figures.since} now={now} sessions={home.sessions} streamOnly={streamOnly} bills={bills} chargingSince={chargingSince} lastReadingAt={home.lastReadingAt} stops={stops} />
           ),
           { steady: true },
         )}

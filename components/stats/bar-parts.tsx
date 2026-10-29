@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
 import { Measure } from "@/components/measure";
-import { showsZero } from "@/lib/format";
+import { type Stops, stopsOnDay } from "@/lib/bar-stops";
+import { formatShortDate, showsZero } from "@/lib/format";
 import { statsHref, type View } from "@/components/stats/periods";
 import { measureParts } from "@/lib/measure";
-import type { SlotDays } from "@/lib/periods";
+import { isoDay, type SlotDays } from "@/lib/periods";
+import { istDayStart } from "@/lib/telemetry-derive";
 import { cn } from "@/lib/utils";
 
 // The pieces Bars, BarColumns and StackedBars share. No directive: they render on either side.
@@ -15,7 +17,7 @@ import { cn } from "@/lib/utils";
 // start boundary, with a tick, instead of centred under it: for blocks of hours, where "6 AM" under the
 // 6 AM to 9 AM bar reads as "at 6 AM" (see Slot). `days` is the day, month or year the bar covers, when it
 // covers one: the tip's title in full ("Sun, 26 Oct") and what the column opens (see barOpens).
-export type Bar = { key: string; label: string; value: number; display: string; isCurrent: boolean; blank?: boolean; tip?: TipRow | TipRow[]; axis?: string; edge?: boolean; days?: SlotDays };
+export type Bar = { key: string; label: string; value: number; display: string; isCurrent: boolean; blank?: boolean; tip?: TipRow | TipRow[]; axis?: string; edge?: boolean; days?: SlotDays; opens?: Opens | null };
 
 // The tip's title: the bar's days in full where it covers a day, a month or a year, else its label.
 export const barTitle = (b: Pick<Bar, "label" | "days">) => b.days?.title ?? b.label;
@@ -27,26 +29,33 @@ export const tipLines = (tip: TipRow | TipRow[] | undefined): TipRow[] => (tip =
 // A row as screen readers hear it: "Energy 1.0 kWh".
 export const rowWords = (row: TipRow) => (typeof row === "string" ? row : `${row.label} ${row.value}`);
 
-// Where a column leads, and the words for it in the tip: a bar of one day opens that day's page; a bar of a
-// month or a year opens the same days on `view`'s Stats page as a range picked by date. A bar of hours leads
-// nowhere, nor does a month or year on a chart that names no page (Home's previews), nor a bar of speeds.
+// Where a column leads, and the words for it in the tip. A bar of one day opens its one drive or charge, when
+// the day held exactly one (`stops`, see lib/bar-stops.ts), else the day's list: the same days on `view`'s
+// Stats page as a range picked by date, named for what is in it ("Open 28 Oct's drives"). A bar of a month
+// or a year opens its days there too ("Open Sept 2026", "Open 2026"), where a page is named. A bar of hours
+// leads nowhere, nor does a month or year on a chart that names no page, nor a bar of speeds.
 export type Opens = { href: string; label: string };
 
-export function barOpens(days: SlotDays | undefined, view?: View): Opens | null {
+export function barOpens(days: SlotDays | undefined, view?: View, stops?: Stops): Opens | null {
   if (!days) return null;
-  // A bar opens its days as the Stats page's Custom range: a day on Driving when no page is named, a month or
-  // year only where one is.
+  // A day opens on Driving when no page is named; a month or year only where one is.
   const page = view ?? (days.kind === "day" ? "driving" : null);
-  return page ? { href: statsHref(page, "custom", { from: days.from, to: days.to }), label: `Open ${days.kind}` } : null;
+  if (!page) return null;
+  const list = statsHref(page, "custom", { from: days.from, to: days.to });
+  const start = istDayStart(isoDay(days.from) ?? 0);
+  if (days.kind !== "day") return { href: list, label: `Open ${days.title}` };
+  const one = stops && days.from === days.to ? stopsOnDay(stops, isoDay(days.from) ?? 0) : null;
+  if (one?.known && one.items.length === 1 && one.items[0].href) return { href: one.items[0].href, label: page === "charging" ? "Open charge" : "Open drive" };
+  return { href: list, label: `Open ${formatShortDate(start + 12 * 3_600_000)}'s ${page === "charging" ? "charges" : "drives"}` };
 }
 
 // What a column holds. Tab reaches it, with a ring, so its tip can be read without a pointer (focus shows the
 // tip like hover does, see BarTip); when the column leads somewhere (`opens`) it is a link there, which a
-// click or Enter follows. `words` is the column for screen readers, its label first: the axis label under
+// click or Enter follows. `words` is the column for screen readers, its label first and where it leads last: the axis label under
 // the bar is visual only, shown only where it fits.
 export function Column({ opens, words, children }: { opens: Opens | null; words: string; children: ReactNode }) {
   const className = "flex w-full flex-col items-center gap-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring";
-  const sr = <span className="sr-only">{words}</span>;
+  const sr = <span className="sr-only">{opens ? `${words}, ${opens.label}` : words}</span>;
   if (opens) {
     return (
       <Link href={opens.href} prefetch={false} className={className}>
@@ -170,10 +179,8 @@ export function BarTip({ title, lines, opens = null }: { title: string; lines: (
       {opens && (
         // Not in the Tab order: the column itself is the link a keyboard follows.
         <Link href={opens.href} prefetch={false} tabIndex={-1} data-tip-link className="mt-1 block py-0.5 underline decoration-border decoration-dotted underline-offset-4 hover:decoration-foreground">
-          {/* A mouse can click the bar or this; a tap pins the tip, and this is the way on. */}
-          {/* The same words for a day, a month or a year: the tip's title already says which. */}
-          <span className="group-data-[tapped=true]:hidden">Click to open</span>
-          <span className="hidden group-data-[tapped=true]:inline">Open</span>
+          {/* The words say where it goes: a mouse can click the bar or this, and a tap pins the tip, so this is the way on. */}
+          {opens.label}
         </Link>
       )}
     </span>

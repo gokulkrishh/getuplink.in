@@ -16,6 +16,8 @@ import { inSpan, type Slot, type Span, type Timeframe } from "@/lib/periods";
 import { barsSpan } from "@/components/stats/chart-caption";
 import type { ChargingSession } from "@/lib/server/charging";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
+import { barOpens } from "@/components/stats/bar-parts";
+import type { Stops } from "@/lib/bar-stops";
 import { Measure } from "@/components/measure";
 
 // The Charging page's sections: spend, energy added by charger kind, and every session by month.
@@ -39,6 +41,7 @@ export function Summary({
   km,
   frame,
   chargingSince,
+  stops,
 }: {
   bills: Bill[];
   unbilled: { started_at: string }[];
@@ -46,6 +49,7 @@ export function Summary({
   km: number | null;
   frame: Timeframe;
   chargingSince: number | null;
+  stops: Stops;
 }) {
   const { span, slots } = frame;
   const { kwh, count, acPerKwh, dcPerKwh } = billsIn(bills, span);
@@ -81,7 +85,7 @@ export function Summary({
         caption={barsSpan(frame)}
         empty={hasBars(bars) ? undefined : "No bills."}
       >
-        <Bars bars={bars} valueLabel="Spent" ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} fit view="charging" />
+        <Bars bars={bars} valueLabel="Spent" ariaLabel={`Spend per ${frame.slotName}`} prefix="₹" labelEvery={frame.labelEvery} fit view="charging" stops={stops} />
       </ChartCard>
       {/* What only some periods have (the rates, these lines) goes under the chart, so it stays put on a switch.
           With no bill and no time on a charger, the empty line above says it all. */}
@@ -166,11 +170,13 @@ export function EnergyAdded({
   streamOnly,
   frame,
   chargingSince,
+  stops,
 }: {
   sessions: ChargingSession[];
   streamOnly: StreamChargeSession[];
   frame: Timeframe;
   chargingSince: number | null;
+  stops: Stops;
 }) {
   const { span, slots } = frame;
   const before = trackedBefore(frame, chargingSince);
@@ -191,7 +197,7 @@ export function EnergyAdded({
   total = sumKnown(energy.map((e, k) => (slots[k].ahead ? null : sumKnown(e))));
   const bars: StackedBar[] = slots.map((slot, k) => {
     const sum = sumKnown(energy[k]);
-    return { key: String(slot.id), label: slot.label, axis: slot.axis, edge: slot.edge, days: slot.days, total: sum, display: formatNumber(sum, DECIMALS.kWh), isCurrent: slot.isCurrent, segments: energy[k], blank: slot.ahead || undefined };
+    return { key: String(slot.id), label: slot.label, axis: slot.axis, edge: slot.edge, days: slot.days, total: sum, display: formatNumber(sum, DECIMALS.kWh), isCurrent: slot.isCurrent, segments: energy[k], blank: slot.ahead || undefined, opens: barOpens(slot.days, "charging", stops) };
   });
   const efficiency = chargeEfficiency(streamOnly.filter((s) => s.kind === "ac" && inSpan(Date.parse(s.started_at), span)));
   // Any column that shows above 0.0 kWh; without one, the empty line stands alone, as on Spend.
@@ -206,7 +212,7 @@ export function EnergyAdded({
         caption={barsSpan(frame)}
         empty={charged ? undefined : "No charging."}
       >
-        <StackedBars bars={bars} series={ENERGY_SERIES} ariaLabel={`Energy added per ${frame.slotName}`} labelEvery={frame.labelEvery} fit view="charging" />
+        <StackedBars bars={bars} series={ENERGY_SERIES} ariaLabel={`Energy added per ${frame.slotName}`} labelEvery={frame.labelEvery} fit />
       </ChartCard>
       {efficiency !== null && (
         <p className="flex items-center gap-1.5 text-sm">

@@ -5,7 +5,7 @@ Everything about drives for a period. On Week (the default): Distance (bars, wit
 ## Sub-features
 
 - Period switch (Day, Week, Month, Year, All, Custom); every section follows it.
-- Charts with hover and tap tips. A Distance bar's tip: the date, km, kWh used, Wh/km, then "Open day" / "Open month".
+- Charts with hover and tap tips. A Distance bar's tip: the date, km, kWh used, Wh/km, then a link that says where it goes: "Open drive" for a day with one drive, "Open 28 Oct's drives" for several, "Open October" for a month.
 - Under the Distance chart, one line like "14.5 kWh used, 2.6 kWh won back with regen, 111 Wh/km, 4 Wh/km better than the 7 days before." (only the parts known; with no energy reading the caption names the bars' span instead).
 - Places map (MapLibre) and the place list; "Name this place" opens a naming sheet.
 - Trips table (desktop) and trip list (phone); each row links to `/stats/driving/<start>`.

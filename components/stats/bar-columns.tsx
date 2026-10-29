@@ -2,8 +2,7 @@
 
 import { useRef } from "react";
 import { useAxisLabels, useBarTips, useValueLabels } from "@/components/stats/axis-labels";
-import { AxisLabel, type Bar, BAR_MAX, barOpens, BarTip, barTitle, Column, MIN_COLUMN_PX, MIN_COLUMNS, rowWords, type TipRow, tipLines, ValueLabel, withUnit } from "@/components/stats/bar-parts";
-import type { View } from "@/components/stats/periods";
+import { AxisLabel, type Bar, BAR_MAX, BarTip, barTitle, Column, MIN_COLUMN_PX, MIN_COLUMNS, rowWords, type TipRow, tipLines, ValueLabel, withUnit } from "@/components/stats/bar-parts";
 import { ScrollEnd } from "@/components/stats/scroll-end";
 import { TapColumns } from "@/components/stats/tap-columns";
 import { showsZero } from "@/lib/format";
@@ -16,7 +15,7 @@ import { cn } from "@/lib/utils";
 // sideways; a chart with very many (90 days) gets hairline gaps so its bars keep some width.
 // A bar whose figure shows as zero at its unit's precision ("0.0") draws nothing, so bar and label agree.
 // `valueWords` follow the value in the tip: "20%" then "of driving time".
-// A column of a day, a month or a year opens it (see barOpens; `view` names the page a month or year opens on).
+// A column of a day, a month or a year opens where its `opens` says (see barOpens, which Bars calls).
 export function BarColumns({
   bars,
   max,
@@ -26,7 +25,6 @@ export function BarColumns({
   valueWords,
   valueLabel,
   fit = false,
-  view,
 }: {
   bars: Bar[];
   max: number;
@@ -37,7 +35,6 @@ export function BarColumns({
   // Names the bar's own figure in its tip, like "Distance"; without it the figure is a plain line.
   valueLabel?: string;
   fit?: boolean;
-  view?: View;
 }) {
   const dense = bars.length > 6;
   // Slots before the first value (before the history starts) keep their column and label but draw nothing,
@@ -72,8 +69,8 @@ export function BarColumns({
           </li>
         ) : (
           <li key={b.key} className="group relative">
-            <BarTip lines={[value(b), ...tipLines(b.tip)]} title={barTitle(b)} opens={barOpens(b.days, view)} />
-            <Column opens={barOpens(b.days, view)} words={[barTitle(b), value(b), ...tipLines(b.tip)].map(rowWords).join(", ")}>
+            <BarTip lines={[value(b), ...tipLines(b.tip)]} title={barTitle(b)} opens={b.opens ?? null} />
+            <Column opens={b.opens ?? null} words={[barTitle(b), value(b), ...tipLines(b.tip)].map(rowWords).join(", ")}>
               {dense ? <span className="h-4" /> : <ValueLabel display={b.display} unit={unit} />}
               <div className="flex h-20 w-full items-end justify-center">
                 {b.value > 0 && (

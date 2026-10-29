@@ -6,6 +6,7 @@ import { SyncChargingSessions } from "@/components/background-sync";
 import { AiNotesSkeleton } from "@/components/home/week-tips";
 import { TipsBox } from "@/components/tips-box";
 import { CHARGING_TIPS, chargingFindings, pricedCharges } from "@/lib/charge-tips";
+import { chargeStops } from "@/lib/bar-stops";
 import { istDay, istDayStart } from "@/lib/telemetry-derive";
 import { ChargeHabits } from "@/components/stats/charge-habits";
 import { ChargeRange } from "@/components/stats/charge-range";
@@ -83,6 +84,8 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
   // Real bills: Tesla's for Superchargers, attached invoices for the rest. A finished charge with
   // neither is counted as unbilled, never priced.
   const bills = chargingBills(sessions, streamOnly, invoices);
+  // What a day's bar opens when the day held one charge (see barOpens).
+  const stops = chargeStops(listed);
   const unbilled = streamOnly.filter((s) => s.ended_at !== null && !invoices.has(s.id));
   // Each period, and the range picked by date; only the distance driven in each is read here.
   const frames = periodFrames(figures, custom, [], now);
@@ -123,10 +126,10 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
           {(bills.length > 0 || unbilled.length > 0 || sessions.length > 0) &&
             eachFrame(frames, (f) => {
               const { frame, driving } = fromSince(f, chargingSince, now);
-              return <Summary bills={bills} unbilled={unbilled} charged={chargingTime(sessions, streamOnly, frame.span)} km={driving?.current.km ?? null} frame={frame} chargingSince={chargingSince} />;
+              return <Summary bills={bills} unbilled={unbilled} charged={chargingTime(sessions, streamOnly, frame.span)} km={driving?.current.km ?? null} frame={frame} chargingSince={chargingSince} stops={stops} />;
             })}
           {streamSessions.length > 0 &&
-            eachFrame(frames, (f) => <EnergyAdded sessions={sessions} streamOnly={streamOnly} frame={fromSince(f, chargingSince, now).frame} chargingSince={chargingSince} />)}
+            eachFrame(frames, (f) => <EnergyAdded sessions={sessions} streamOnly={streamOnly} frame={fromSince(f, chargingSince, now).frame} chargingSince={chargingSince} stops={stops} />)}
           {eachFrame(frames, ({ key, frame }) => {
             const shown = listed.filter(startedIn(frame.span));
             return shown.length > 0 ? (

@@ -1,6 +1,7 @@
 import { BarColumns } from "@/components/stats/bar-columns";
-import { type Bar } from "@/components/stats/bar-parts";
+import { type Bar, barOpens } from "@/components/stats/bar-parts";
 import type { View } from "@/components/stats/periods";
+import type { Stops } from "@/lib/bar-stops";
 import { showsZero } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +35,7 @@ export function Bars({
   valueWords,
   valueLabel,
   view,
+  stops,
 }: {
   bars: Bar[];
   ariaLabel: string;
@@ -57,13 +59,15 @@ export function Bars({
   // The Stats page a bar of a month or a year opens, as a range picked by date (see barOpens). A bar of
   // one day opens the day's page on any chart.
   view?: View;
+  // The drives or charges behind the bars, so a day with just one opens it (see barOpens).
+  stops?: Stops;
 }) {
   if (empty && !bars.some((b) => b.value > 0 && !showsZero(b.display))) return <EmptyChart>{empty}</EmptyChart>;
   const max = niceMax(Math.max(1, ...bars.map((b) => b.value)));
   return (
     <Captioned caption={caption}>
       <ChartFrame max={max} prefix={prefix} unit={unit} xUnit={xUnit}>
-        <BarColumns bars={bars} max={max} ariaLabel={ariaLabel} labelEvery={labelEvery} unit={unit} valueWords={valueWords} valueLabel={valueLabel} fit={fit} view={view} />
+        <BarColumns bars={bars.map((b) => ({ ...b, opens: barOpens(b.days, view, stops) }))} max={max} ariaLabel={ariaLabel} labelEvery={labelEvery} unit={unit} valueWords={valueWords} valueLabel={valueLabel} fit={fit} />
       </ChartFrame>
     </Captioned>
   );
