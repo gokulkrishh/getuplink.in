@@ -92,12 +92,16 @@ export function shouldSendConfig(car: CarSetup, now: number): boolean {
 // ---- The gate ----
 
 // "pass": show the page. "setup": send the user to /setup, only when Tesla said a car of theirs lacks the
-// key. "unknown": Tesla's answer is missing for a car, so show the page with a small note.
-export type Gate = "pass" | "setup" | "unknown";
+// key. "unknown": Tesla's answer is missing for a car, so show the page with a small note. "key-removed":
+// the admin's car lost Uplink's key (removed on the car or in the Tesla app), so it stopped sending data;
+// the page shows with a note pointing to /setup, since the admin is never sent there.
+export type Gate = "pass" | "setup" | "unknown" | "key-removed";
 
 export function gateFor(input: { demo: boolean; admin: boolean; cars: Pick<CarSetup, "keyPaired" | "keyCheckedAt">[] }): Gate {
-  // Demo mode has no Tesla, and the admin is the owner whose car streams already.
-  if (input.demo || input.admin) return "pass";
+  // Demo mode has no Tesla. The admin is the owner whose car streams already, so is never sent to /setup,
+  // but is told when Tesla says the key is gone: nothing else would say why the data stopped.
+  if (input.demo) return "pass";
+  if (input.admin) return input.cars.some((car) => car.keyPaired === false) ? "key-removed" : "pass";
   if (input.cars.some((car) => car.keyPaired === false)) return "setup";
   // Asked, and Tesla's answer didn't say: a note, not a gate.
   if (input.cars.some((car) => car.keyPaired === null && car.keyCheckedAt !== null)) return "unknown";

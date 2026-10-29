@@ -5,6 +5,7 @@ import { demoData, demoLastReadingAt } from "./demo";
 import { fleetLastReadingAt, fleetLastSeen, healthCheckCar, pingDatabase, recordHealthChecks } from "./data/system";
 import { NotConnectedError } from "./tesla";
 import { streamState, type TelemetryErrors } from "./tesla-stream-state";
+import { recordKeyStatus } from "./setup";
 import { currentErrors, daysUntilExpiry, EXPIRY_WARN_DAYS, shortReason, streamFreshness } from "@/lib/stream-health";
 import { worstStatus, type Status } from "@/lib/status";
 
@@ -137,6 +138,8 @@ async function checkStream(now: number): Promise<Stream> {
       const state = await withTimeout(streamState(owner, vin, now), "Asking Tesla");
       const { config: cfg, errors: errs } = state;
       out.teslaFetchedAt = state.fetchedAt;
+      // Kept on the car, so a key removed from it shows on the owner's pages (see recordKeyStatus).
+      if (typeof cfg?.key_paired === "boolean") await recordKeyStatus(owner, vin, cfg.key_paired, state.fetchedAt);
       if (!cfg || !cfg.config) {
         flag("degraded", "No streaming config on the car");
       } else {

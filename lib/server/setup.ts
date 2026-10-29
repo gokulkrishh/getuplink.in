@@ -154,8 +154,11 @@ function once<T>(key: string, work: () => Promise<T>): Promise<T> {
 // Whether this signed-in page should send the owner to /setup. `admin`: the session is the admin's (the
 // owner, whose car streams already), who is never sent there. Never throws: a failure shows the page.
 export async function setupGate(owner: Owner, { admin = false, now = Date.now() }: { admin?: boolean; now?: number } = {}): Promise<Gate> {
-  if (DEMO || admin) return "pass";
+  if (DEMO) return "pass";
   try {
+    // The admin's pages never wait on Tesla: only what's stored, which the health check keeps current
+    // (recordKeyStatus), so a key removed from the car shows within the half hour.
+    if (admin) return gateFor({ demo: false, admin: true, cars: (await load(owner)).cars });
     const cars = await once(`gate:${owner.userId}`, async () => {
       const { cars, store } = await load(owner);
       // Before the migration nothing can be kept, so nothing is asked and nobody is sent to /setup.
@@ -167,6 +170,19 @@ export async function setupGate(owner: Owner, { admin = false, now = Date.now() 
   } catch (err) {
     console.warn("Reading setup status failed:", messageOf(err));
     return "pass";
+  }
+}
+
+// What Tesla just said about Uplink's key on a car, from the health check (lib/server/stream-health.ts),
+// kept on the car's row as /setup keeps it. A key removed from the car stops it sending data, and this is
+// how the owner hears of it within the half hour instead of at the daily recheck. Never throws: the health
+// check carries on without it.
+export async function recordKeyStatus(owner: Owner, vin: string, paired: boolean, at: string): Promise<void> {
+  if (DEMO) return;
+  try {
+    await saveKeyStatus(owner, vin, paired, at);
+  } catch (err) {
+    if (!(err instanceof SetupSchemaMissing)) console.warn("Saving the key status failed:", messageOf(err));
   }
 }
 

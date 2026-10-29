@@ -123,12 +123,17 @@ describe("the gate", () => {
     expect(gateFor({ demo: true, admin: false, cars: [{ keyPaired: false, keyCheckedAt: checked }] })).toBe("pass");
   });
 
-  test("the owner is never gated: paired per Tesla, and passed as the admin whatever Tesla says", () => {
+  test("the owner is never gated: paired per Tesla, and as the admin never sent to /setup", () => {
     const owner = parseFleetStatus(fleetStatus, [PAIRED]).get(PAIRED)!;
     expect(gateFor({ demo: false, admin: false, cars: [{ keyPaired: owner, keyCheckedAt: checked }] })).toBe("pass");
-    for (const keyPaired of [true, false, null]) {
+    for (const keyPaired of [true, null]) {
       expect(gateFor({ demo: false, admin: true, cars: [{ keyPaired, keyCheckedAt: checked }] })).toBe("pass");
     }
+  });
+
+  test("the admin is told, not redirected, when Tesla says the key was removed", () => {
+    expect(gateFor({ demo: false, admin: true, cars: [{ keyPaired: false, keyCheckedAt: checked }] })).toBe("key-removed");
+    expect(gateFor({ demo: true, admin: true, cars: [{ keyPaired: false, keyCheckedAt: checked }] })).toBe("pass");
   });
 });
 

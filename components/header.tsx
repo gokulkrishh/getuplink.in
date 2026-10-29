@@ -74,6 +74,16 @@ async function SetupGate() {
   const gate = await setupGate(owner, { admin: await adminSession() });
   if (gate === "setup") redirect("/setup");
   if (gate === "pass") return null;
+  if (gate === "key-removed") {
+    return (
+      <p role="status" className="-mt-12 mb-12 border-l-2 pl-3 text-sm text-muted-foreground">
+        Uplink&apos;s key is no longer on your car, so it stopped sending data.{" "}
+        <Link href="/setup" className="underline decoration-border underline-offset-4 hover:decoration-foreground">
+          Add the key again
+        </Link>
+      </p>
+    );
+  }
   return (
     <p role="status" className="-mt-12 mb-12 border-l-2 pl-3 text-sm text-muted-foreground">
       Uplink couldn&apos;t check your car&apos;s key with Tesla. It will try again.{" "}

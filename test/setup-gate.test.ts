@@ -147,6 +147,13 @@ describe("the setup gate", () => {
     expect(tesla.requests).toHaveLength(0);
   });
 
+  test("the admin is told, from what's stored, when the key was removed from the car", async () => {
+    // The health check stored Tesla's answer (recordKeyStatus); the admin's page still asks Tesla nothing.
+    Object.assign(carRow(OWNER_VIN), { key_paired: false, key_checked_at: new Date(NOW).toISOString() });
+    expect(await setupGate(OWNER, { admin: true, now: NOW })).toBe("key-removed");
+    expect(tesla.requests).toHaveLength(0);
+  });
+
   test("a new owner without the key is sent to /setup, rechecked at most every 10 minutes", async () => {
     expect(await setupGate(NEW_USER, { now: NOW })).toBe("setup");
     expect(await setupGate(NEW_USER, { now: NOW + 9 * MIN })).toBe("setup");
