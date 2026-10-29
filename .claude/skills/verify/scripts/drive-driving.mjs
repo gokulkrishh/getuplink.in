@@ -1,6 +1,6 @@
 // Proof run for features/stats-driving.md: Stats > Driving opens on Week, the switch moves to Month (and the
 // URL says so), and a trip row opens that trip's page. Screenshots of each step go to the evidence folder.
-// Usage: bun --install=force .claude/skills/verify-uplink/scripts/drive-driving.mjs [--phone]
+// Usage: bun --install=force .claude/skills/verify/scripts/drive-driving.mjs [--phone]
 import { join } from "node:path";
 import { evidenceDir, open } from "./browser.mjs";
 

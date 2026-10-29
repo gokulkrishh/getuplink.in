@@ -1,7 +1,7 @@
 // Open one page of the verification instance, save a full-page screenshot and its visible text, and print
 // the page's headings and any browser errors.
 // Usage: bun --install=force shot.mjs <path> [--phone] [--dark] [--run <name>]
-//   e.g. bun --install=force .claude/skills/verify-uplink/scripts/shot.mjs /stats/driving --phone
+//   e.g. bun --install=force .claude/skills/verify/scripts/shot.mjs /stats/driving --phone
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { evidenceDir, open } from "./browser.mjs";

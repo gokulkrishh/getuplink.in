@@ -1,6 +1,6 @@
 // The launch checklist: every first-time-owner fix from the Oct 2026 persona run, checked on desktop and on a
 // 375px phone in one go. Prints PASS/FAIL per line; screenshots go to the evidence folder "launch-checklist".
-// Run: bun --install=force .claude/skills/verify-uplink/scripts/launch-checklist.mjs
+// Run: bun --install=force .claude/skills/verify/scripts/launch-checklist.mjs
 import { join } from "node:path";
 import { chromium } from "playwright-core";
 import { BASE, evidenceDir, headlessShell } from "./browser.mjs";
