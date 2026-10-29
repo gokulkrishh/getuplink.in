@@ -50,7 +50,9 @@ Which checks a change gets is set here, not left to judgement on the day:
 - **Every change:** the three checks above.
 - **Any page, component or copy change:** drive it on a demo copy (`verify`), desktop and 375px phone, and run `.claude/skills/verify/scripts/launch-checklist.mjs`. Look at the screenshots, don't hand the owner a checklist.
 - **No layout shift:** pending and loading states keep their size; launch-checklist measures it.
-- **Any logic change** (server code, data, Tesla answers, alerts, setup): a test that fails first, built from a real answer's shape where there is one, and an independent review of the diff (`/code-review`) before merge.
+- **Any logic change** (server code, data, Tesla answers, alerts, setup): a test that fails first, built from a real answer's shape where there is one.
+- **Big PRs** (any logic change, more than about 200 changed lines, or more than one area of the app): run `/code-review` on the PR before merge, fix what it confirms, and say in the PR what it found. A subagent's own review doesn't count.
+- **Security-critical changes**: run `/security-review` before merge whenever a change touches sign-in, sessions or cookies (`proxy.ts`, `lib/server/auth.ts`), admin checks, Tesla tokens or their refresh (`lib/server/tesla.ts`), connector tokens or `/api/mcp`, invites, the waitlist or the owner cap, sharing, API or cron routes and their secrets, file uploads, encryption, or database access rules and migrations. Both reviews when both apply.
 - **Launch QA** (`launch-qa` skill, the five personas): before inviting more owners, before a major feature goes live, and after changes to the way in (home, waitlist, invite, sign-in, setup).
 - **Migrations:** additive only. The code must work with and without the new column. Read the SQL before it's applied.
 
