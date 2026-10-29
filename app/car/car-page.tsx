@@ -33,15 +33,24 @@ import { cn } from "@/lib/utils";
 import { currentVersion } from "@/lib/versions";
 
 // Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx).
-// A null id is the primary car (/car), so the header's Car link needs no data.
-async function loadCar(id: string | null): Promise<CarDetails | null> {
+async function loadCar(id: string): Promise<CarDetails | null> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
   const owner = await currentOwner();
   if (!owner) redirect(SIGNED_OUT_PATH);
-  const carId = id ?? (await loadPrimaryVehicle(owner))?.id ?? null;
-  return carId ? loadCarDetails(owner, carId) : null;
+  return loadCarDetails(owner, id);
+}
+
+// The primary car's id and VIN (/car has no id, so the header's Car link needs no data): one small read,
+// after which the car's details and its state are read at once.
+async function loadPrimary(): Promise<{ id: string; vin: string } | null> {
+  "use cache: private";
+  cacheTag(OWNER_DATA_TAG);
+  cacheLife({ stale: 60 });
+  const owner = await currentOwner();
+  if (!owner) redirect(SIGNED_OUT_PATH);
+  return loadPrimaryVehicle(owner);
 }
 
 // The streamed fields the page reads beyond carNow's: the odometer and the version.
@@ -415,10 +424,17 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
   );
 }
 
+// The primary car's ids are known before its details, so its state is read alongside them; a car picked by
+// id has its VIN only with its details.
 async function CarContent({ id }: { id: Promise<string | null> }) {
   const carId = await id;
+  if (carId === null) {
+    const primary = await loadPrimary();
+    const [car, live] = primary ? await Promise.all([loadCar(primary.id), loadLive(primary.id, primary.vin)]) : [null, null];
+    if (!car || !live) return <p className="text-sm text-muted-foreground">No car on your Tesla account yet.</p>;
+    return <Car car={car} live={live} />;
+  }
   const car = await loadCar(carId);
-  if (!car && carId === null) return <p className="text-sm text-muted-foreground">No car on your Tesla account yet.</p>;
   if (!car) notFound();
   return <Car car={car} live={await loadLive(car.id, car.vin)} />;
 }

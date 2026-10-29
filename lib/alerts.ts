@@ -35,8 +35,28 @@ export type AlertInputs = {
   // The owner's latest check, with a token error already cleared when they signed in since.
   lastRun: { ok: boolean | null; error: string | null } | null;
   // The admin's view of Uplink itself: each part's latest health check. Empty for everyone else.
-  health: { component: string; status: string; problems: string[]; checkedAt: string }[];
+  health: HealthNow[];
 };
+
+// A part's latest health check, and the statuses of the few checks before it, newest first.
+export type HealthNow = { component: string; status: string; problems: string[]; checkedAt: string; recent?: string[] };
+
+const RECENT_CHECKS = 3;
+
+// Newest-first health rows to each part's latest check, with the statuses of up to three checks before it.
+export function latestPerComponent(rows: { component: string; status: string; problems: string[] | null; checked_at: string }[]): HealthNow[] {
+  const latest = new Map<string, HealthNow & { recent: string[] }>();
+  for (const r of rows) {
+    const seen = latest.get(r.component);
+    if (!seen) latest.set(r.component, { component: r.component, status: r.status, problems: r.problems ?? [], checkedAt: r.checked_at, recent: [] });
+    else if (seen.recent.length < RECENT_CHECKS) seen.recent.push(r.status);
+  }
+  return [...latest.values()];
+}
+
+// A lone "having problems" after good checks is often a blip, so the bell waits for the next check. Down,
+// or problems that keep coming back, show at once.
+const loneBlip = (h: HealthNow) => h.status === "degraded" && (h.recent?.length ?? 0) > 0 && h.recent!.every((s) => s === "operational");
 
 type Car = AlertCar;
 const DAY_MS = 86_400_000;
@@ -166,6 +186,7 @@ export function buildAlerts(input: AlertInputs): Alert[] {
   const said = (problem: string) => SAID_BY_CAR.some((s) => s.match.test(problem) && alerts.some((a) => a.key.startsWith(s.row)));
   for (const h of input.health) {
     if (!isStatus(h.status) || h.status === "operational") continue;
+    if (loneBlip(h)) continue;
     const problems = h.problems.filter((p) => stillOpen(p, input.cars, h.checkedAt) && !said(p));
     // Every problem it found is over, or a car's own row says it.
     if (h.problems.length > 0 && problems.length === 0) continue;

@@ -24,11 +24,21 @@ export type ChargingLists = {
 // The session rows get a Google-tagged spot's live name; the pins and curves keep `name`.
 export const withGoogleNames = async (x: ChargingExtras) => ({ ...x, spots: await withGoogleNamesBy(x.spots) });
 
-export async function loadChargingLists(owner: Owner, vin: string | null, now: number): Promise<ChargingLists> {
-  const [sessions, streamSessions] = await Promise.all([loadChargingSessions(owner), loadStreamSessions(owner)]);
-  const invoices = await invoicesBySession(owner, streamSessions.filter((s) => !s.supercharger).map((s) => s.id));
-  const extras = await loadChargingExtras(owner, vin, streamSessions, { tesla: sessions, invoices, now }).then(withGoogleNames);
-  return { sessions, streamSessions, invoices, extras };
+// The invoices need only the car's charges, so they don't wait for Tesla's. With a span (a range picked by
+// date), that range's extras are read alongside every charge's, from the same sessions and invoices.
+export async function loadChargingLists(owner: Owner, vin: string | null, now: number, span: Span | null = null): Promise<ChargingLists & { rangeExtras: ChargingExtras | null }> {
+  const stream = loadStreamSessions(owner);
+  const [sessions, streamSessions, invoices] = await Promise.all([
+    loadChargingSessions(owner),
+    stream,
+    stream.then((s) => invoicesBySession(owner, s.filter((c) => !c.supercharger).map((c) => c.id))),
+  ]);
+  const sources = { tesla: sessions, invoices, now };
+  const [extras, rangeExtras] = await Promise.all([
+    loadChargingExtras(owner, vin, streamSessions, sources).then(withGoogleNames),
+    span ? loadChargingExtras(owner, vin, streamSessions.filter(startedIn(span)), sources).then(withGoogleNames) : null,
+  ]);
+  return { sessions, streamSessions, invoices, extras, rangeExtras };
 }
 
 export const startedIn = (span: Span) => (s: { started_at: string }) => inSpan(Date.parse(s.started_at), span);
