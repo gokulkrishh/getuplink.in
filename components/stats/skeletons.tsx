@@ -115,7 +115,7 @@ export function ChargingSkeleton() {
         <SkLine>AC charging efficiency 92%</SkLine>
       </SkSection>
       <SkSection gap={6}>
-        <SkHead title="Charging sessions" description="9 sessions · 39.8 kWh" note="Open a session to see where, how much and what it cost." />
+        <SkHead title="Charging sessions" description="9 sessions · 39.8 kWh" note="Open a charge to see where, how much and what it cost." />
         <SkSessions />
       </SkSection>
       <SkSection gap={3}>
