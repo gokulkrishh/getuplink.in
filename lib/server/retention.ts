@@ -1,7 +1,7 @@
 import "server-only";
 import { DEMO } from "@/lib/demo";
 import { retentionRules } from "@/lib/telemetry-retention";
-import { pruneTelemetryBatch, pruneUnseenBatch } from "./data/system";
+import { forgetUnseenDriveArchive, pruneTelemetryBatch, pruneUnseenBatch } from "./data/system";
 
 // Rows per call. Each call is its own short transaction (see the migration).
 const BATCH = 5000;
@@ -33,6 +33,8 @@ export async function pruneTelemetry(now = Date.now): Promise<RetentionResult> {
     batches++;
     if (n < BATCH) break;
   }
+  // Archived drives nobody may see go with their readings (a small table: one call).
+  unseen += await forgetUnseenDriveArchive(null);
   while (now() - started < BUDGET_MS) {
     const { data, error } = await pruneTelemetryBatch({
       p_fields: rules.fields,

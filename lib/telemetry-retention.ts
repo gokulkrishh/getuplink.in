@@ -14,6 +14,10 @@ import { DRIVE_DAYS } from "@/lib/drives";
 //      the charging map pins each charge, of any age, from the Location 10 min either side of its start.
 //   3. A field nothing reads goes after DEFAULT_KEEP_DAYS.
 //
+// Drives outlive their readings: each night, before this runs, app/api/cron/archive stores every finished
+// drive with a slimmed copy of its readings (lib/drive-archive.ts), and loadReadingsByField reads that copy
+// for a window older than the readings kept. So the DRIVE_DAYS rows below only bound the full readings.
+//
 // Where each field is read, and over how long. Change this table with the reader, or retention deletes
 // what a page needs. "latest" reads only need rule 1.
 //

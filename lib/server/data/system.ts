@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/server/supabase";
 import { asOwner, type Owner } from "./owner";
+import type { ArchivedDriveRow } from "@/lib/drive-archive";
 
 // Fleet-wide reads and writes: everything that isn't one account's, or that runs before there is an
 // account to scope to (sign-in, the session check, the connector token). Each is named for what it reads,
@@ -333,7 +334,8 @@ const FORGET_BATCH = 5000;
 
 // Deletes a car's readings that no user's link may see any more, a batch at a time: all of them once
 // nobody tracks the car, otherwise only those outside every remaining user's window. Run after the
-// leaving user's car rows are gone. Returns how many rows went.
+// leaving user's car rows are gone. The car's archived drives nobody may see go with them. Returns how
+// many rows went.
 export async function forgetUnseenReadings(vin: string): Promise<number> {
   let total = 0;
   for (;;) {
@@ -341,8 +343,39 @@ export async function forgetUnseenReadings(vin: string): Promise<number> {
     if (error) throw new Error(`Deleting readings failed: ${error.message}`);
     const n = typeof data === "number" ? data : 0;
     total += n;
-    if (n < FORGET_BATCH) return total;
+    if (n < FORGET_BATCH) return total + (await forgetUnseenDriveArchive(vin));
   }
+}
+
+// ---- Drives kept past the readings' retention (lib/server/drive-archive.ts) ----
+// Stored once per VIN, like the readings: whoever tracks a car, a drive is written once (a second writer's
+// copy is ignored). Read per user through ownerDb(owner).archivedDrives.
+
+
+// When the newest drive archived for this car started and ended, or null when none is (or the table
+// isn't there yet: its migration not applied).
+export async function lastArchivedDrive(vin: string): Promise<{ start: number; end: number } | null> {
+  const { data, error } = await db().from("drive_archive").select("start_at, end_at").eq("vin", vin).order("start_at", { ascending: false }).limit(1).maybeSingle();
+  if (error) {
+    console.warn("Drive archive unavailable:", error.message);
+    return null;
+  }
+  return data ? { start: Date.parse(data.start_at as string), end: Date.parse(data.end_at as string) } : null;
+}
+
+export async function saveArchivedDrives(rows: ArchivedDriveRow[]): Promise<void> {
+  if (rows.length === 0) return;
+  const { error } = await db().from("drive_archive").upsert(rows, { onConflict: "vin,start_at", ignoreDuplicates: true });
+  if (error) throw new Error(`Archiving drives failed: ${error.message}`);
+}
+
+// Archived drives nobody may see any more, of one car or every car (see the migration). Before the
+// migration there is no function: nothing to delete.
+export async function forgetUnseenDriveArchive(vin: string | null): Promise<number> {
+  const { data, error } = await db().rpc("forget_unseen_drive_archive", { p_vin: vin });
+  if (error?.code === "PGRST202" || error?.code === "42883") return 0;
+  if (error) throw new Error(`Deleting archived drives failed: ${error.message}`);
+  return typeof data === "number" ? data : 0;
 }
 
 // The retention run's sweep over every car: one batch of readings nobody may see.

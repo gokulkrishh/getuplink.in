@@ -1,5 +1,6 @@
 import "server-only";
 import { type ChargeLevel, type WeeklyRange } from "@/lib/charge-level";
+import { withArchivedDrives } from "@/lib/drive-archive";
 import { analyseDriving, DRIVE_DAYS, type Driving } from "@/lib/drives";
 import { type DayKm, dailyDistance, dayBounds, istDay, istDayStart, num, type WeeklyPack } from "@/lib/telemetry-derive";
 import { DEMO } from "@/lib/demo";
@@ -11,6 +12,7 @@ import type { Drive } from "@/lib/drives";
 import { batteryTrend, trendWindow } from "./battery";
 import { chargeLevel, fullRange } from "./charge-level";
 import { demoCounter, demoCounters } from "./demo";
+import { loadArchivedDrives } from "./drive-archive";
 import { type Owner, ownerDb } from "./data/owner";
 import { type CounterColumn, LATEST, loadCounters, toColumn } from "./energy";
 import { loadReadingsByField } from "./telemetry-window";
@@ -72,6 +74,8 @@ export type WindowStats = { days: DayKm[]; driving: Driving; trend: WeeklyPack[]
 // Kilometres per IST day for the last 90 days (see dailyDistance), drives and parked drain for the last
 // 90 days (see lib/drives.ts) and the 12-week battery trend, from one read of the streamed readings that
 // covers all three windows. Each part keeps to its own window. Empty when the stream can't be read.
+// Drives from before the window come from the archive (lib/server/drive-archive.ts), whose readings are
+// gone, so the trip list goes back to the first drive archived.
 // In demo mode the readings come from the generator, through the same functions.
 export async function loadWindowStats(owner: Owner, vin: string | null, now: number): Promise<WindowStats> {
   const empty: WindowStats = { days: [], driving: { drives: [], drain: null, parked: [], parkedNow: null }, trend: [], level: null, range: [] };
@@ -80,7 +84,7 @@ export async function loadWindowStats(owner: Owner, vin: string | null, now: num
   const driveFrom = now - DRIVE_DAYS * 86_400_000;
   const from = new Date(Math.min(Date.parse(dailyFrom), driveFrom, trendWindow(now).from)).toISOString();
   const bounds = dayBounds(now, DRIVING_DAYS);
-  const [readings, before, polled] = await Promise.all([
+  const [readings, before, polled, archived] = await Promise.all([
     loadReadingsByField(owner, vin, WINDOW_FIELDS, from, new Date(now).toISOString()),
     // The last odometer reading before the daily window, so the first day has something to count from.
     DEMO
@@ -88,6 +92,7 @@ export async function loadWindowStats(owner: Owner, vin: string | null, now: num
       : ownerDb(owner).readings("value, created_at").eq("vin", vin).eq("field", "Odometer").lt("created_at", dailyFrom).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     // The polls' odometer at each midnight, merged with the stream's as the Distance bars merge them.
     loadPolledOdometers(owner, bounds.map((t) => new Date(t).toISOString())),
+    loadArchivedDrives(owner, vin, driveFrom),
   ]);
   if (!readings) return empty;
   const since = (field: string, ms: number) => readings[field].filter((r) => Date.parse(r.at) >= ms);
@@ -96,11 +101,15 @@ export async function loadWindowStats(owner: Owner, vin: string | null, now: num
   const start = beforeMiles === null ? null : { at: Date.parse(before.data!.created_at), value: beforeMiles };
   return {
     days: before.error ? [] : dailyDistance(since("Odometer", Date.parse(dailyFrom)), start, now, DRIVING_DAYS, polled?.bounds ?? null),
-    driving: analyseDriving({ gear, odometer, battery, energy, lifetime, range, charge }, now),
+    driving: withArchive(analyseDriving({ gear, odometer, battery, energy, lifetime, range, charge }, now), archived, driveFrom),
     trend: batteryTrend(readings.EnergyRemaining, readings.BatteryLevel, now),
     level: chargeLevel(readings.BatteryLevel, readings.DetailedChargeState, now),
     range: fullRange(readings.RatedRange, readings.BatteryLevel, now),
   };
+}
+
+function withArchive(driving: Driving, archived: Drive[], driveFrom: number): Driving {
+  return archived.length ? { ...driving, drives: withArchivedDrives(driving.drives, archived, driveFrom) } : driving;
 }
 
 // Wh/km in each of the last four Indian seasons (see seasonEfficiency), in one request: the counters at

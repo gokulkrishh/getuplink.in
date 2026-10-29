@@ -1,7 +1,9 @@
 import "server-only";
 import { firstArrival, TYRE_SEEN_FIELDS } from "@/lib/car-now";
 import { DEMO } from "@/lib/demo";
+import { mergeReadings, type PackedReadings, unpackReadings } from "@/lib/drive-archive";
 import { HARD_MS2 } from "@/lib/drive-verdict";
+import { DRIVE_DAYS } from "@/lib/drives";
 import { num, type Reading } from "@/lib/telemetry-derive";
 import { demoReadings } from "./demo";
 import { type Owner, ownerDb } from "./data/owner";
@@ -12,6 +14,8 @@ import { MAX_PAGES, PAGE } from "./telemetry";
 // the fixed upper bound keeps the offsets still while pages load. The first page brings the row count,
 // so the rest are fetched together. The page cap is the per-field one pooled (MAX_PAGES per field), so
 // past it the fields last in name order lose rows first. Null when the query fails (telemetry is a bonus).
+// A window reaching back past the drive readings' retention also gets the archived drives' slimmed readings
+// (lib/drive-archive.ts), merged in, so an old trip reads as a recent one does, a little coarser.
 export async function loadReadingsByField(owner: Owner, vin: string, fields: string[], from: string, to: string): Promise<Record<string, Reading[]> | null> {
   if (DEMO) return Object.fromEntries(fields.map((field) => [field, demoReadings(field, from, to)]));
   const page = (k: number, count?: "exact") =>
@@ -36,7 +40,28 @@ export async function loadReadingsByField(owner: Owner, vin: string, fields: str
     }
     for (const r of data ?? []) byField[r.field as string]?.push({ at: r.created_at as string, value: r.value as unknown });
   }
-  return byField;
+  if (Date.parse(from) >= Date.now() - ARCHIVED_AFTER_MS) return byField;
+  const archived = await loadArchivedReadings(owner, vin, fields, Date.parse(from), Date.parse(to));
+  return archived ? mergeReadings(fields, byField, archived) : byField;
+}
+
+// Readings older than this may be gone (DRIVE_DAYS, less a day or two for the daily run's timing), so a
+// window reaching back past it reads the archive too.
+const ARCHIVED_AFTER_MS = (DRIVE_DAYS - 2) * 86_400_000;
+
+// The archived drives' readings of these fields within [from, to), by field: those of every drive whose
+// kept span overlaps it. Null when the archive can't be read (or isn't there yet).
+async function loadArchivedReadings(owner: Owner, vin: string, fields: string[], from: number, to: number): Promise<Record<string, Reading[]> | null> {
+  const { data, error } = await ownerDb(owner)
+    .archivedDrives("readings")
+    .eq("vin", vin)
+    .lt("readings_from", new Date(to).toISOString())
+    .gt("readings_to", new Date(from).toISOString());
+  if (error) {
+    console.warn("Archived readings unavailable:", error.message);
+    return null;
+  }
+  return mergeReadings(fields, ...(data ?? []).map((row) => unpackReadings(row.readings as PackedReadings, fields, from, to)));
 }
 
 const ACCEL = "LongitudinalAcceleration";

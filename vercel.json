@@ -4,6 +4,7 @@
   "crons": [
     { "path": "/api/cron/poll", "schedule": "*/15 * * * *" },
     { "path": "/api/cron/stations", "schedule": "*/15 * * * *" },
+    { "path": "/api/cron/archive", "schedule": "0 21 * * *" },
     { "path": "/api/cron/retention", "schedule": "30 21 * * *" },
     { "path": "/api/cron/owners", "schedule": "0 22 * * *" }
   ]

@@ -11,6 +11,7 @@ const PUBLIC_PATHS = new Set([
   "/api/auth/signed-out", // only clears the session cookie
   "/api/cron/poll", // checks CRON_SECRET itself
   "/api/cron/stations", // checks CRON_SECRET itself
+  "/api/cron/archive", // checks CRON_SECRET itself
   "/api/cron/retention", // checks CRON_SECRET itself
   "/api/cron/owners", // checks CRON_SECRET itself
   "/api/health/stream", // checks HEALTH_TOKEN itself

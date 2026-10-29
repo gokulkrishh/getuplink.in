@@ -90,6 +90,11 @@ export const INVOICE_BUCKET = "charge-invoices";
 // them (forgetUnseenReadings in ./system.ts).
 const READINGS_VIEW = "user_telemetry_readings";
 
+// Drives kept past the readings' retention (20261112120000_drive_archive.sql), stored once per VIN like the
+// readings and read through the same window: the view user_drive_archive keeps each user's drives that
+// started while they tracked the car. Select only: lib/server/drive-archive.ts writes through ./system.ts.
+const DRIVE_ARCHIVE_VIEW = "user_drive_archive";
+
 // The one way to read or write an account's rows. Every query it builds is filtered to the owner (see
 // ownerKeys), so a caller can't forget to.
 export function ownerDb(owner: Owner) {
@@ -98,6 +103,8 @@ export function ownerDb(owner: Owner) {
     from: (table: OwnerTable) => ownerTable(table, owner),
     readings: ((...args: Parameters<Builder["select"]>) =>
       where(db().from(READINGS_VIEW).select(...args), { user_id: owner.userId })) as Builder["select"],
+    archivedDrives: ((...args: Parameters<Builder["select"]>) =>
+      where(db().from(DRIVE_ARCHIVE_VIEW).select(...args), { user_id: owner.userId })) as Builder["select"],
     rpc: (fn: OwnerRpc, args: Record<string, unknown>) => db().rpc(fn, { ...args, p_user_id: owner.userId }),
     invoices: () => db().storage.from(INVOICE_BUCKET),
   };
