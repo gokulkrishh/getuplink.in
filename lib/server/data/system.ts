@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/server/supabase";
 import { asOwner, type Owner } from "./owner";
+import { type HealthNow, latestPerComponent } from "@/lib/alerts";
 import type { ArchivedDriveRow } from "@/lib/drive-archive";
 
 // Fleet-wide reads and writes: everything that isn't one account's, or that runs before there is an
@@ -644,7 +645,6 @@ export async function healthHistory(since: string, latest: number): Promise<{ da
 
 // Each checked part's latest health check with the problems it found, for the admin's alerts bell. The
 // checks run every half hour for a handful of parts, so the newest few rows hold every part's latest.
-export type HealthNow = { component: string; status: string; problems: string[]; checkedAt: string };
 export async function latestHealth(): Promise<HealthNow[]> {
   const rows = check(await db().from("health_checks").select("component, status, problems, checked_at").order("checked_at", { ascending: false }).limit(20)) as {
     component: string;
@@ -652,9 +652,7 @@ export async function latestHealth(): Promise<HealthNow[]> {
     problems: string[] | null;
     checked_at: string;
   }[];
-  const latest = new Map<string, HealthNow>();
-  for (const r of rows) if (!latest.has(r.component)) latest.set(r.component, { component: r.component, status: r.status, problems: r.problems ?? [], checkedAt: r.checked_at });
-  return [...latest.values()];
+  return latestPerComponent(rows);
 }
 
 // The latest `limit` checks that weren't working and recorded why, newest first, for the status page's

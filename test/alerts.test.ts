@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { type AlertInputs, buildAlerts, expiryDays, needsYou, quietDays } from "@/lib/alerts";
+import { type AlertInputs, buildAlerts, expiryDays, latestPerComponent, needsYou, quietDays } from "@/lib/alerts";
 
 const CHECKED = "2026-10-29T02:00:00.000Z";
 const BEFORE = "2026-10-29T01:00:00.000Z";
@@ -60,6 +60,31 @@ describe("buildAlerts", () => {
     expect(buildAlerts({ ...ok, health }).map((a) => [a.kind, a.title, a.detail, a.href])).toEqual([
       ["action", "Live car data: having problems", "No streaming config on the car. Add Uplink's key to the car again, then open the setup page.", "/setup"],
       ["action", "Website: down", "See Health on the admin page.", "/admin"],
+    ]);
+  });
+
+  // On 29 Oct one database blip at 3:16 PM put "Live car data: having problems" in the bell, and the next
+  // check was fine. A part is in the bell once two checks in a row found it not working.
+  test("one failed health check after a good one waits for the next before it's in the bell", () => {
+    const blip = { component: "Car data stream", status: "degraded", problems: ["Couldn't check the Tesla config: Reading the database timed out"], checkedAt: CHECKED };
+    expect(buildAlerts({ ...ok, health: [{ ...blip, before: "operational" }] })).toEqual([]);
+    expect(buildAlerts({ ...ok, health: [{ ...blip, before: "degraded" }] }).map((a) => a.key)).toEqual(["health:Car data stream"]);
+    expect(buildAlerts({ ...ok, health: [{ ...blip, status: "down", before: "degraded" }] }).map((a) => a.key)).toEqual(["health:Car data stream"]);
+  });
+
+  test("the latest health check per part carries the status of the one before it", () => {
+    const row = (component: string, status: string, checked_at: string) => ({ component, status, problems: [], checked_at });
+    const latest = latestPerComponent([
+      row("Car data stream", "degraded", "2026-10-29T09:46:02Z"),
+      row("Database", "operational", "2026-10-29T09:46:01Z"),
+      row("Car data stream", "operational", "2026-10-29T09:15:38Z"),
+      row("Database", "operational", "2026-10-29T09:15:37Z"),
+      row("Website", "down", "2026-10-29T09:46:00Z"),
+    ]);
+    expect(latest.map((h) => [h.component, h.status, h.before])).toEqual([
+      ["Car data stream", "degraded", "operational"],
+      ["Database", "operational", "operational"],
+      ["Website", "down", null],
     ]);
   });
 

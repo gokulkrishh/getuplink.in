@@ -35,8 +35,22 @@ export type AlertInputs = {
   // The owner's latest check, with a token error already cleared when they signed in since.
   lastRun: { ok: boolean | null; error: string | null } | null;
   // The admin's view of Uplink itself: each part's latest health check. Empty for everyone else.
-  health: { component: string; status: string; problems: string[]; checkedAt: string }[];
+  health: HealthNow[];
 };
+
+// A part's latest health check, and the status of the check before it (null when there was none).
+export type HealthNow = { component: string; status: string; problems: string[]; checkedAt: string; before?: string | null };
+
+// Newest-first health rows to each part's latest check, paired with its previous status.
+export function latestPerComponent(rows: { component: string; status: string; problems: string[] | null; checked_at: string }[]): HealthNow[] {
+  const latest = new Map<string, HealthNow>();
+  for (const r of rows) {
+    const seen = latest.get(r.component);
+    if (!seen) latest.set(r.component, { component: r.component, status: r.status, problems: r.problems ?? [], checkedAt: r.checked_at, before: null });
+    else if (seen.before === null) seen.before = r.status;
+  }
+  return [...latest.values()];
+}
 
 type Car = AlertCar;
 const DAY_MS = 86_400_000;
@@ -166,6 +180,8 @@ export function buildAlerts(input: AlertInputs): Alert[] {
   const said = (problem: string) => SAID_BY_CAR.some((s) => s.match.test(problem) && alerts.some((a) => a.key.startsWith(s.row)));
   for (const h of input.health) {
     if (!isStatus(h.status) || h.status === "operational") continue;
+    // One failed check after a good one is often a blip; the bell waits for the next to agree.
+    if (h.before === "operational") continue;
     const problems = h.problems.filter((p) => stillOpen(p, input.cars, h.checkedAt) && !said(p));
     // Every problem it found is over, or a car's own row says it.
     if (h.problems.length > 0 && problems.length === 0) continue;
