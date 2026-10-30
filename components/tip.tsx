@@ -13,7 +13,7 @@ export function Tip({ align = "end", className, children }: { align?: "start" | 
     <span
       aria-hidden="true"
       className={cn(
-        "pointer-events-none absolute bottom-full z-10 mb-1.5 w-max max-w-[calc(100vw-2rem)] bg-foreground px-2 py-1 text-xs font-normal text-background opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 group-data-[open=true]:opacity-100",
+        "pointer-events-none absolute bottom-full z-10 mb-1.5 w-max max-w-[calc(100vw-2rem)] rounded-md bg-foreground px-2 py-1 text-xs font-normal text-background opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 group-data-[open=true]:opacity-100",
         align === "start" ? "left-0" : "right-0",
         className,
       )}
