@@ -70,7 +70,7 @@ function ConfirmBody({
         {word && (
           <label className="block space-y-1.5">
             <span className="block text-sm text-muted-foreground">Type {word} to confirm</span>
-            <Input ref={initialFocus} name="confirm" value={typed} onChange={(e) => setTyped(e.target.value)} {...NO_AUTOFILL} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder={word} className="h-9 max-sm:h-10 w-full" aria-invalid={error ? true : undefined} aria-describedby={error ? "confirm-error" : undefined} />
+            <Input ref={initialFocus} name="confirm" value={typed} onChange={(e) => setTyped(e.target.value)} {...NO_AUTOFILL} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder={word} className="w-full" aria-invalid={error ? true : undefined} aria-describedby={error ? "confirm-error" : undefined} />
           </label>
         )}
         {error && (
