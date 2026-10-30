@@ -4,12 +4,12 @@ How Uplink tells owners about new things. Rules are in `lib/whats-new.ts` (teste
 
 ## What owners see
 
-- **Welcome card** on Home, once, for an owner approved on or after `WELCOME_SINCE` (31 Oct 2026, India time). It says where everything else is. Owners approved before that date never see it. Once closed it never comes back; Settings > General > "Where things are" opens the same list on the What's new page any time.
+- **Welcome tour** on Home, once, for an owner approved on or after `WELCOME_SINCE` (31 Oct 2026, India time): a dialog over the page with a blurred backdrop and 5 steps (Home, Stats, Updates, Compare, Settings). The left half draws a slice of the app with a pointer that glides to the part the step is about; the right half has the words. Skip, the cross, Esc, tapping outside and "Got it" all close it for good. Owners approved before that date never see it. Settings > General > "Welcome tour" replays it any time and writes nothing. The What's new page keeps its "Where things are" list.
 - **What's new card** on Home, for the newest "card" entry the owner hasn't seen. A link underneath counts the others ("2 more on What's new").
 - **A line in the bell**, under "Good to know", for every unseen entry.
-- **The What's new page** (account menu), listing every entry newest first, with the same "Where things are" list as the welcome card.
+- **The What's new page** (account menu), listing every entry newest first, with a "Where things are" list.
 
-Home shows one card at a time: welcome, then news, then the share card.
+Home shows the welcome tour first. Under the greeting it shows one card at a time: news, then the share card.
 
 ## Card, bell or nothing
 
@@ -29,12 +29,12 @@ An entry reaches only owners approved before its date (India time). An owner app
 
 ## Seen
 
-One marker per owner: the id of the newest entry they have seen. Closing the card, tapping its button or opening the page moves it to the newest entry they can see, which clears the bell lines too. It only moves forward. Closing the welcome card also sets it, so a new owner never gets older news.
+One marker per owner: the id of the newest entry they have seen. Closing the card, tapping its button or opening the page moves it to the newest entry they can see, which clears the bell lines too. It only moves forward. Closing the welcome tour also sets it, so a new owner never gets older news.
 
 ## Storage
 
-Two columns on `users` (`supabase/migrations/20261117120000_whats_new.sql`): `welcomed_at` (when the welcome card was closed) and `whats_new_seen` (the marker). Before the migration runs, Home shows neither card, the bell shows no lines, and the page still lists entries.
+Two columns on `users` (`supabase/migrations/20261117120000_whats_new.sql`): `welcomed_at` (when the welcome tour was closed) and `whats_new_seen` (the marker). Before the migration runs, Home shows neither card, the bell shows no lines, and the page still lists entries.
 
 ## Demo
 
-`UPLINK_DEMO_SCENARIO=welcome` shows the welcome card. `UPLINK_DEMO_SCENARIO=news` shows the What's new card with "2 more" and a line in the bell. The page lists sample entries in any demo copy. The samples live in `lib/server/demo/whats-new.ts`, never in `WHATS_NEW`.
+`UPLINK_DEMO_SCENARIO=welcome` shows the welcome tour. `UPLINK_DEMO_SCENARIO=news` shows the What's new card with "2 more" and a line in the bell. The page lists sample entries in any demo copy. The samples live in `lib/server/demo/whats-new.ts`, never in `WHATS_NEW`.

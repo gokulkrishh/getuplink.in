@@ -6,6 +6,7 @@ import { SyncStreamSessions, SyncStreamVersions } from "@/components/background-
 import { Header } from "@/components/header";
 import { SkBlock, SkHead, SkSection } from "@/components/skeleton";
 import { Headline } from "@/components/home/headline";
+import { WelcomeTour } from "@/components/home/welcome-tour";
 import { NowStrip } from "@/components/home/now-strip";
 import { Recently } from "@/components/home/recently";
 import { ChargeLevelChart } from "@/components/stats/charge-level";
@@ -201,6 +202,8 @@ async function HomeContent() {
 
   return (
     <>
+      {/* The welcome is a dialog over the page, mounted once here so it never restarts when the week loads. */}
+      {card?.kind === "welcome" && <WelcomeTour persist />}
       <OwnerNotices data={home} count={cars.length} failedRun={failedRun} />
       {home.kind === "ready" && cars.length > 0 && (
         <div className="space-y-12">
@@ -293,7 +296,7 @@ function StripSkeleton() {
 
 // The week: the greeting, the tiles and the tips, then the charge level. Shown alone under the strip
 // while the week streams in, in Totals' own outer box.
-// `card`: Home's welcome or news card, already decided with the strip, drawn in its place here so the tiles
+// `card`: Home's news card, already decided with the strip, drawn in its place here so the tiles
 // don't move down when the week arrives. The whole-page skeleton draws none: the card isn't known yet.
 function TotalsSkeleton({ card = null }: { card?: HomeCardKind }) {
   return (
