@@ -134,14 +134,14 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
         )}
       </ul>
       {groups.length > 0 && (
-        <ul className="divide-y border-t text-sm">
-          <li className="flex gap-4 py-2 text-xs text-faint">
+        <ul className="divide-y rounded-lg border text-sm">
+          <li className="flex gap-4 px-4 py-2 text-xs text-faint">
             <span className="w-6 shrink-0">#</span>
             <span className="flex-1">State</span>
             <span className="w-14 text-right">Cars</span>
           </li>
           {groups.map((g, k) => (
-            <li key={g.code} className="flex gap-4 py-3 tabular-nums">
+            <li key={g.code} className="flex gap-4 px-4 py-3 tabular-nums">
               <span className="w-6 shrink-0 font-mono text-xs text-faint">{k + 1}</span>
               <span className="min-w-0 flex-1">{g.name}</span>
               <span className="w-14 text-right">{g.cars}</span>
