@@ -7,6 +7,7 @@ import type { Tip, TipScope } from "@/lib/ai-tips";
 import { Button } from "@/components/ui/button";
 import { orOffline } from "@/lib/offline";
 import type { Vote } from "@/lib/tip-votes";
+import { tipsInView, turn } from "@/lib/tips-in-view";
 import { cn } from "@/lib/utils";
 
 // The box, the same while loading, so the page doesn't move when the tips arrive. Five lines of tip text are
@@ -36,6 +37,9 @@ const CONTROL =
 // the box: while another is written in its place the box says so, with Undo, then shows the new one.
 export function AiNotes({ title, notes: given, vote }: { title: string; notes: (Pick<Tip, "text"> & Partial<Pick<Tip, "kind">>)[]; vote?: NoteVotes }) {
   const [at, setAt] = useState(0);
+  // A tip the box was sent to by its text (one swapped in, or brought back by Undo), so it stays up when the
+  // page renders again and the list around it changes.
+  const [on, setOn] = useState<string | null>(null);
   // Tips swapped in for ones voted down join the end, and the box turns to them.
   const [added, setAdded] = useState<Tip[]>([]);
   // Notes voted not useful, out of the box for good.
@@ -44,7 +48,6 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
   const [replacing, setReplacing] = useState<Tip | null>(null);
   // The same, for the answer to check it wasn't undone while it was being written.
   const waiting = useRef<Tip | null>(null);
-  const tips = [...given, ...added].filter((t) => !hidden.includes(t.text));
   const [votes, setVotes] = useState<Record<string, Vote>>(vote?.votes ?? {});
   // The vote just cast, so only its answer slides in: one from an earlier visit shows still.
   const [justVoted, setJustVoted] = useState<string | null>(null);
@@ -64,14 +67,20 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
       if (Array.isArray(saved)) setDismissed(saved.filter((t): t is string => typeof t === "string"));
     } catch {}
   }, []);
-  const shownTips = tips.filter((t) => !dismissed.includes(t.text));
+  const view = tipsInView({ given, added, hidden, dismissed, at, on });
+  const shownTips = view.tips;
   if (shownTips.length === 0 && !replacing) return null;
-  const current = !replacing && shownTips.length > 0 ? shownTips[at % shownTips.length] : null;
+  const current = !replacing && shownTips.length > 0 ? shownTips[view.index] : null;
+  const turnTo = (by: 1 | -1) => {
+    setAt(turn(view, by));
+    setOn(null);
+  };
   const dismiss = () => {
     if (!current) return;
     const next = [...dismissed.filter((t) => t !== current.text), current.text].slice(-DISMISSED_MAX);
     setDismissed(next);
-    setAt((k) => (shownTips.length > 1 ? k % (shownTips.length - 1) : 0));
+    setAt(shownTips.length > 1 ? view.index % (shownTips.length - 1) : 0);
+    setOn(null);
     try {
       localStorage.setItem(DISMISSED_KEY, JSON.stringify(next));
     } catch {}
@@ -92,7 +101,8 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
     // Not useful: the note leaves, and the next one takes its place.
     setHidden((h) => [...h, tip]);
     const left = shownTips.length - 1;
-    setAt((k) => (left > 0 ? k % left : 0));
+    setAt(left > 0 ? view.index % left : 0);
+    setOn(null);
     if (!vote.swap) return send(input);
     // Another is asked for: the box waits for it, then turns to it.
     const down = { text: tip, kind };
@@ -103,11 +113,12 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
       const fresh = await orOffline(voteTip(input, vote.swap), null);
       const current = waiting.current === down;
       // Undone meanwhile: the new note still joins the end, but the box stays where it is.
-      if (fresh) setAdded((a) => (a.some((t) => t.text === fresh.text) || given.some((t) => t.text === fresh.text) ? a : [...a, fresh]));
+      // The vote also renders the page again, so the new note can arrive in `given` as well: tipsInView shows it once.
+      if (fresh) setAdded((a) => (a.some((t) => t.text === fresh.text) ? a : [...a, fresh]));
       if (!current) return;
       waiting.current = null;
       setReplacing(null);
-      if (fresh) setAt(left);
+      if (fresh) setOn(fresh.text);
     });
   };
   // Undo while the replacement is written: the vote is taken back and the note returns.
@@ -119,7 +130,9 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
     setJustVoted(null);
     waiting.current = null;
     setReplacing(null);
-    setAt([...given, ...added].filter((t) => t.text === text || !hidden.includes(t.text)).findIndex((t) => t.text === text));
+    // The vote's render may already have left it out of `given`: it's kept here until the undo's own render.
+    setAdded((a) => (a.some((t) => t.text === text) ? a : [...a, { text, kind: downKind }]));
+    setOn(text);
     send({ scope: vote.scope, entity: vote.entity, kind: downKind, tip: text, vote: 0 });
   };
   const thumb = (value: Vote, label: string, Icon: typeof ThumbsUp) => (
@@ -144,13 +157,13 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
           {/* ‹ 2 of 3 ›: back and on, each wrapping round. */}
           {current && shownTips.length > 1 && (
             <div className="-my-1 flex items-center gap-1 text-xs text-muted-foreground tabular-nums max-sm:-my-2">
-              <Button type="button" variant="ghost" size="icon-sm" onClick={() => setAt((k) => (k + shownTips.length - 1) % shownTips.length)} aria-label="Previous tip" className="text-muted-foreground">
+              <Button type="button" variant="ghost" size="icon-sm" onClick={() => turnTo(-1)} aria-label="Previous tip" className="text-muted-foreground">
                 <ChevronLeft className="size-4" aria-hidden="true" />
               </Button>
               <span aria-live="polite">
-                {(at % shownTips.length) + 1} of {shownTips.length}
+                {view.index + 1} of {shownTips.length}
               </span>
-              <Button type="button" variant="ghost" size="icon-sm" onClick={() => setAt((k) => (k + 1) % shownTips.length)} aria-label="Next tip" className="text-muted-foreground">
+              <Button type="button" variant="ghost" size="icon-sm" onClick={() => turnTo(1)} aria-label="Next tip" className="text-muted-foreground">
                 <ChevronRight className="size-4" aria-hidden="true" />
               </Button>
             </div>
