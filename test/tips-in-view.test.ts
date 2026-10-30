@@ -7,7 +7,7 @@ const C = { kind: "c", text: "Tip C" };
 const texts = (v: { tips: { text: string }[]; index: number }) => ({ tips: v.tips.map((t) => t.text), on: v.tips[v.index]?.text });
 
 // The owner's report: "1 of 2", the first voted down, another tip written in its place. The vote's action
-// calls updateTag, so the page renders again and the tips from the server (`given`) now leave out the voted
+// called updateTag (now revalidateTag), so the page rendered again and the tips from the server (`given`) now leave out the voted
 // tip and hold the fresh one, which the box has also added itself.
 describe("a tip voted down and swapped", () => {
   test("action answers first, then the page renders again: the fresh tip shows once, and is the one up", () => {

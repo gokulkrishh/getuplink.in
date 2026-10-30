@@ -131,8 +131,9 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
     setJustVoted(null);
     waiting.current = null;
     setReplacing(null);
-    // The vote's render may already have left it out of `given`: it's kept here until the undo's own render.
-    setAdded((a) => (a.some((t) => t.text === text) ? a : [...a, { text, kind: downKind }]));
+    // Back in the box: from `given` when the server still lists it, else kept in `added`, so `added` never fills
+    // up with tips the server already has.
+    setAdded((a) => (a.some((t) => t.text === text) || given.some((t) => t.text === text) ? a : [...a, { text, kind: downKind }]));
     setOn(text);
     send({ scope: vote.scope, entity: vote.entity, kind: downKind, tip: text, vote: 0 });
   };
