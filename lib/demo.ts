@@ -18,6 +18,9 @@ export const DEMO_SCENARIOS = {
   // A car just added, with the key paired and live data set up, that has sent nothing yet: no drives, no
   // charges, no readings, one check. Process-wide, set before starting the server (see demoScenario).
   justConnected: "Just connected",
+  // The home cards that show once: a newly approved owner's welcome, and What's new with sample entries.
+  welcome: "Welcome card",
+  news: "What's new card",
 } as const;
 
 export type DemoScenario = keyof typeof DEMO_SCENARIOS;

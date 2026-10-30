@@ -25,6 +25,10 @@ Every word a user sees (labels, descriptions, ⓘ notes, captions, empty states,
 - **Say the period once.** A chart names its period at the top, never again underneath (see docs/charts.md).
 - **Only known facts.** Never show a guessed time, length or number; show what was seen.
 
+## Telling owners what's new
+
+When a change adds or visibly changes something owners use, add an entry to `lib/whats-new.ts` as a draft. Pick "card" or "bell" as `docs/whats-new.md` says, and write it with the `uplink-copy` skill. Fixes and behind-the-scenes work get no entry.
+
 ## Docs
 
 Read the doc for the area before changing it. Each records decisions the owner made and why.
@@ -32,6 +36,7 @@ Read the doc for the area before changing it. Each records decisions the owner m
 - `docs/charts.md`: every chart's rules (titles, units, tooltips, axes, scrolling, touch, periods).
 - `docs/data-retention.md`: how long data is kept, the drive archive, Tesla token refresh, and how a car that stops sending data is caught and shown (alerts bell).
 - `docs/tesla-billing.md`, `docs/costs.md`: what Tesla bills and what Uplink costs to run.
+- `docs/whats-new.md`: the welcome card, the What's new card, page and bell lines, and when an entry is a card, a bell line or nothing.
 - `docs/fonts.md`: the cut-down Geist files, why they draw exactly as before, and when to rerun `scripts/subset-fonts.py`.
 
 ## Checks
