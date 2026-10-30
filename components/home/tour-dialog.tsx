@@ -67,20 +67,22 @@ export function TourSlice({ children, focusY = 0 }: { children: ReactNode; focus
 // How long each step shows before the tour moves on by itself: time to read a headline, a line and three points.
 const STEP_MS = 8000;
 
-// "playing": moving on by itself. "stopped": the owner paused it or moved by hand. "ended": it played to the
-// last step. Nobody who prefers reduced motion gets it moving on by itself.
-type Play = "playing" | "stopped" | "ended";
+// "playing": moving on by itself. "paused": held by the play button, the fill kept where it was. "stopped": the
+// owner moved by hand or reached a button with the keyboard. "ended": it played to the last step. Nobody who
+// prefers reduced motion gets it moving on by itself.
+type Play = "playing" | "paused" | "stopped" | "ended";
 
 // The step dots and the play button, as on apple.com: the dots sit close in a soft capsule, the step showing
 // stretches into a pill, and while the tour plays a fill runs through that pill for the step's time. The fill
-// is a CSS animation whose end moves the tour on, so there is no timer to keep. Stopped or ended, the pill is
-// full. Each dot's tap area is the capsule's full height; the
+// is a CSS animation whose end moves the tour on, so there is no timer to keep. Paused holds the fill where it
+// is, and Play carries on from there. Stopped or ended, the pill is full. Each dot's tap area is the capsule's full height; the
 // marks are in px, so the phone's larger text doesn't widen them.
 function Slider({ steps, step, play, onPick, onPlay, onDone, className }: { steps: TourStep[]; step: number; play: Play; onPick: (n: number) => void; onPlay: () => void; onDone: () => void; className?: string }) {
   if (steps.length < 2) return null;
   const Icon = play === "playing" ? Pause : play === "ended" ? RotateCcw : Play;
+  const running = play === "playing" || play === "paused";
   return (
-    <div className={cn("flex items-center gap-2", className)}>
+    <div data-tour-slider className={cn("flex items-center gap-2", className)}>
       <div className="flex h-[36px] items-center rounded-full bg-foreground/[0.07] px-[8px] backdrop-blur-sm">
         {steps.map((s, i) => (
           <button
@@ -99,13 +101,10 @@ function Slider({ steps, step, play, onPick, onPlay, onDone, className }: { step
             >
               {i === step && (
                 <span
-                  key={`${s.key}-${play}`}
+                  key={`${s.key}-${running}`}
                   onAnimationEnd={onDone}
-                  style={{ animationDuration: `${STEP_MS}ms` }}
-                  className={cn(
-                    "absolute inset-y-0 left-0 w-full rounded-full bg-foreground",
-                    play === "playing" && "animate-tour-fill",
-                  )}
+                  style={{ animationDuration: `${STEP_MS}ms`, animationPlayState: play === "paused" ? "paused" : undefined }}
+                  className={cn("absolute inset-y-0 left-0 w-full rounded-full bg-foreground", running && "animate-tour-fill")}
                 />
               )}
             </span>
@@ -118,7 +117,7 @@ function Slider({ steps, step, play, onPick, onPlay, onDone, className }: { step
         onClick={onPlay}
         className="inline-flex size-[36px] shrink-0 cursor-pointer items-center justify-center rounded-full bg-foreground/[0.07] text-foreground backdrop-blur-sm transition-colors outline-none hover:bg-foreground/[0.12] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:bg-foreground/[0.15]"
       >
-        <Icon className={cn("size-[14px]", play !== "playing" && "fill-current", play === "ended" && "fill-none")} aria-hidden="true" />
+        <Icon className={cn("size-[14px]", (play === "paused" || play === "stopped") && "fill-current")} aria-hidden="true" />
       </button>
     </div>
   );
@@ -176,7 +175,9 @@ function Popup({ steps }: { steps: TourStep[] }) {
     setN(next);
   };
   // A move by hand (Next, Back, a dot, a swipe, an arrow key) means the owner is reading at their own pace.
+  // At either end it moves nothing, so it changes nothing ("Play again" stays).
   const go = (to: number) => {
+    if (Math.max(0, Math.min(steps.length - 1, to)) === n) return;
     setPlay("stopped");
     show(to);
   };
@@ -186,7 +187,7 @@ function Popup({ steps }: { steps: TourStep[] }) {
     else show(n + 1);
   };
   const onPlay = () => {
-    if (play === "playing") return setPlay("stopped");
+    if (play === "playing") return setPlay("paused");
     if (play === "ended") show(0);
     setPlay("playing");
   };
@@ -205,6 +206,12 @@ function Popup({ steps }: { steps: TourStep[] }) {
     <Dialog.Popup
       ref={popup}
       initialFocus={popup}
+      // Reaching Skip, Back or Next with the keyboard stops it: moving on to the last step would swap them
+      // for "Got it" and take the focus with them. The dots and play button stay put, so they don't.
+      onFocus={(e) => {
+        const at = e.target;
+        if (play === "playing" && at !== e.currentTarget && at.matches(":focus-visible") && !at.closest("[data-tour-slider]")) setPlay("stopped");
+      }}
       onKeyDown={(e) => {
         if (e.key === "ArrowRight") go(n + 1);
         else if (e.key === "ArrowLeft") go(n - 1);

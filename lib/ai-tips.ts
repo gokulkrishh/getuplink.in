@@ -10,7 +10,7 @@ import { numbersIn, WORDING_MODEL } from "@/lib/drive-wording";
 import type { PastVotes } from "@/lib/tip-votes";
 
 export const MAX_TIPS = 3;
-// The longest tip that fits the box's 5 lines on a phone and 3 on a wider screen (components/home/week-tips.tsx).
+// The longest tip: a few lines on a phone. The box (components/home/week-tips.tsx) is as tall as its longest tip.
 export const MAX_CHARS = 160;
 // The model sees at most this many findings, the most useful first.
 export const MAX_FINDINGS = 5;

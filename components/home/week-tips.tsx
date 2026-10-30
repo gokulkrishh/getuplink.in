@@ -10,9 +10,9 @@ import type { Vote } from "@/lib/tip-votes";
 import { tipsInView, turn, turnedTo } from "@/lib/tips-in-view";
 import { cn } from "@/lib/utils";
 
-// The box. Its text is as tall as the longest note in it, no taller: every note sits in the same grid cell,
-// all but the one showing unseen, so turning between a short and a long tip doesn't move the page, and
-// short tips don't leave an empty box.
+// The box. Its text is as tall as the longest note it was given, no taller: every note sits in the same grid
+// cell, all but the one showing unseen, so short tips don't leave an empty box, and turning, dismissing or
+// voting a tip down doesn't move the page (a note that leaves still holds its height).
 const BOX = "space-y-2 rounded-lg border px-4 py-3";
 // A card's × in its top-right corner, matched with the share card's.
 export const DISMISS_X = "-my-1 -mr-1.5 shrink-0 max-sm:-my-2";
@@ -177,20 +177,17 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
           )}
         </div>
       </div>
-      {/* The note shimmers with the title, so the sweep is seen across the words being read. The unseen notes
-          only give the cell its height; while a tip is replaced, the one voted down still holds its height, so
-          the box keeps its size until the new one arrives. */}
+      {/* The note shimmers with the title, so the sweep is seen across the words being read. The unseen notes,
+          every one given or swapped in (dismissed or voted down too), only give the cell its height. */}
       <p className="ai-shimmer grid text-sm" data-text={shown}>
         <span className={cn("col-start-1 row-start-1", replacing && "animate-pulse")} aria-live="polite">
           {shown}
         </span>
-        {[...shownTips.map((t) => t.text), ...(replacing ? [replacing.text] : [])]
-          .filter((text) => text !== shown)
-          .map((text) => (
-            <span key={text} aria-hidden="true" className="invisible col-start-1 row-start-1">
-              {text}
-            </span>
-          ))}
+        {[...given, ...added].map((t, i) => (
+          <span key={i} aria-hidden="true" className="invisible col-start-1 row-start-1">
+            {t.text}
+          </span>
+        ))}
       </p>
     </section>
   );
