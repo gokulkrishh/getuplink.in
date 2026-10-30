@@ -24,7 +24,6 @@ async function demoFacts(): Promise<Omit<CardFacts, "admin" | "shareDue">> {
   const jar = await cookies();
   const scenario = demoScenario();
   const welcomed = jar.get(DEMO_WELCOMED_COOKIE) !== undefined;
-  // A newly approved owner: never before or the demo would show nothing until that day.
   if (scenario === "welcome") return { entries: [], approvedAt: Date.now(), welcomedAt: welcomed ? 1 : null, seenId: null, schemaReady: true };
   if (scenario === "news") return { entries: DEMO_ENTRIES, approvedAt: DEMO_OLD_OWNER, welcomedAt: 1, seenId: jar.get(DEMO_SEEN_COOKIE)?.value ?? null, schemaReady: true };
   return { entries: [], approvedAt: null, welcomedAt: null, seenId: null, schemaReady: false };

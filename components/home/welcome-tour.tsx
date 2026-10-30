@@ -10,7 +10,7 @@ import { OFFLINE, orOffline } from "@/lib/offline";
 import { TOUR_SHOT, TOUR_TARGETS, type TourSpot } from "@/lib/tour-targets";
 import { cn } from "@/lib/utils";
 
-// The welcome for a newly approved owner (lib/whats-new.ts decides who): a short tour in a dialog over Home.
+// The welcome for every owner, once, until they close it (lib/whats-new.ts decides): a short tour in a dialog over Home.
 // On the left a screenshot of the real page, with a pointer that glides to the part the step is about. On the right the
 // words. Skip, the cross, Esc and "Got it" all close it, and any of them counts as seen.
 // Closing is never more than one tap, and nothing is trapped behind a step.

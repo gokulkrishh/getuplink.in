@@ -18,7 +18,7 @@ export const DEMO_SCENARIOS = {
   // A car just added, with the key paired and live data set up, that has sent nothing yet: no drives, no
   // charges, no readings, one check. Process-wide, set before starting the server (see demoScenario).
   justConnected: "Just connected",
-  // The home cards that show once: a newly approved owner's welcome, and release notes with sample entries.
+  // The home cards that show once: an owner's welcome tour, and release notes with sample entries.
   welcome: "Welcome card",
   news: "Release dialog",
   // Home as a guest sees it on a shared car: the guest tour instead of the owner's.
