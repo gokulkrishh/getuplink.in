@@ -32,6 +32,7 @@ Read the doc for the area before changing it. Each records decisions the owner m
 - `docs/charts.md`: every chart's rules (titles, units, tooltips, axes, scrolling, touch, periods).
 - `docs/data-retention.md`: how long data is kept, the drive archive, Tesla token refresh, and how a car that stops sending data is caught and shown (alerts bell).
 - `docs/tesla-billing.md`, `docs/costs.md`: what Tesla bills and what Uplink costs to run.
+- `docs/fonts.md`: the cut-down Geist files, why they draw exactly as before, and when to rerun `scripts/subset-fonts.py`.
 
 ## Checks
 

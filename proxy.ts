@@ -149,6 +149,8 @@ export async function proxy(request: NextRequest) {
   return dropGuestHint(request, NextResponse.redirect(browserUrl("/home", request)));
 }
 
+// Font files (public/fonts, scripts/subset-fonts.py) are static and public like _next/static: every page on every
+// host needs them, signed in or not, so they skip the proxy rather than being redirected.
 export const config = {
-  matcher: ["/((?!_next/static|_next/image).*)"],
+  matcher: ["/((?!_next/static|_next/image|fonts/).*)"],
 };

@@ -428,17 +428,34 @@ html .maplibregl-map {
   }
 }
 /* AI-written text: one light sweep across it when the page shows it, so it's noticed as AI's, then still.
-   Muted like other secondary text. Nothing moves for anyone who prefers reduced motion. */
+   transitions.dev's "Shimmer text": the text itself stays muted like other secondary text, and a copy of
+   it (data-text, set to the same string) on top carries a bright band clipped to the letters. The copy is
+   hidden from screen readers so the line isn't read twice. Nothing moves for anyone who prefers reduced motion.
+   --shimmer-iterations: infinite would keep it sweeping. */
 @utility ai-shimmer {
+  --shimmer-dur: 2s;
+  --shimmer-ease: linear;
+  --shimmer-band: 400%;
+  --shimmer-iterations: 1;
+  position: relative;
   color: var(--muted-foreground);
   @media (prefers-reduced-motion: no-preference) {
-    background: linear-gradient(100deg, var(--muted-foreground) 40%, var(--foreground) 50%, var(--muted-foreground) 60%);
-    background-size: 250% 100%;
-    background-position: 100% 0;
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    animation: ai-shimmer 1.6s ease-out 0.3s 1 both;
+    &::before {
+      content: attr(data-text);
+      content: attr(data-text) / "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image: linear-gradient(90deg, transparent 0%, transparent 40%, var(--foreground) 50%, transparent 60%, transparent 100%);
+      background-size: var(--shimmer-band) 100%;
+      background-position: 100% 0;
+      background-repeat: no-repeat;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      -webkit-text-fill-color: transparent;
+      animation: ai-shimmer var(--shimmer-dur) var(--shimmer-ease) 0.3s var(--shimmer-iterations);
+    }
   }
 }
 @keyframes ai-shimmer {
