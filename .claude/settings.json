@@ -34,7 +34,22 @@
       "mcp__claude_ai_Supabase__list_tables",
       "mcp__claude_ai_Supabase__list_migrations",
       "mcp__claude_ai_Supabase__get_advisors",
-      "mcp__claude_ai_Supabase__query_logs"
+      "mcp__claude_ai_Supabase__query_logs",
+      "Bash(./node_modules/.bin/tsc --noEmit *)",
+      "mcp__plugin_vercel_vercel__get_runtime_logs",
+      "mcp__plugin_vercel_vercel__list_deployments",
+      "mcp__plugin_vercel_vercel__list_projects",
+      "mcp__plugin_vercel_vercel__get_runtime_errors",
+      "mcp__plugin_vercel_vercel__get_project",
+      "mcp__ccd_pr__get_status",
+      "mcp__6214db87-4c62-45f5-b199-762f16219e85__list_deployments",
+      "mcp__claude_ai_Vercel__list_projects",
+      "mcp__Claude_Browser__preview_logs",
+      "mcp__claude_ai_Vercel__get_runtime_logs",
+      "mcp__fa75114c-7e69-4a93-b134-773379bf794c__list_projects",
+      "mcp__Claude_Browser__read_console_messages",
+      "mcp__claude_ai_Vercel__list_teams",
+      "mcp__claude_ai_Vercel__list_deployments"
     ]
   }
 }
