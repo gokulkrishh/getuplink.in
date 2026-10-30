@@ -1,6 +1,6 @@
 "use client";
 
-import { ScrollX } from "@/components/scroll-x";
+import { TableBox } from "@/components/scroll-x";
 import { SessionHeader } from "@/components/session-columns";
 import { GoogleMapsCredit } from "@/components/google-maps-credit";
 import { Measure } from "@/components/measure";
@@ -60,21 +60,21 @@ export function SessionRows({ list, months, costs, load }: { list: Paged<ChargeR
   for (const r of rows) groups.set(r.month, [...(groups.get(r.month) ?? []), r]);
   return (
     <>
-      <ScrollX className="max-sm:hidden sm:-mx-3 sm:px-3">
+      <div className="max-sm:hidden">
         <div className="space-y-10">
           {[...groups].map(([month, group]) => {
             const total = months.find((m) => m.month === month);
             return (
               <section key={month} className="space-y-2">
                 <h3 className="text-sm font-medium text-muted-foreground">{month}</h3>
-                <div>
+                <TableBox>
                   <SessionHeader costs={costs} numbered />
                   <ul className="divide-y border-t">
                     {group.map((r) => (
                       <SessionLine key={r.key} view={r.view} />
                     ))}
                   </ul>
-                </div>
+                </TableBox>
                 {total && (
                   <p className="pt-1 text-right text-xs text-faint tabular-nums">
                     {total.count} {total.count === 1 ? "charge" : "charges"}
@@ -85,7 +85,7 @@ export function SessionRows({ list, months, costs, load }: { list: Paged<ChargeR
             );
           })}
         </div>
-      </ScrollX>
+      </div>
       <div className="space-y-10 sm:hidden">
         {[...groups].map(([month, group]) => {
           const total = months.find((m) => m.month === month);
