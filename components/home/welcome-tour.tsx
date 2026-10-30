@@ -438,7 +438,7 @@ export function WelcomeTourButton() {
   return (
     <>
       <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-        Show
+        Take the tour
       </Button>
       <WelcomeTour open={open} onOpenChange={setOpen} persist={false} />
     </>

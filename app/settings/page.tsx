@@ -5,7 +5,6 @@ import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
-import { WelcomeTourButton } from "@/components/home/welcome-tour";
 import { buttonVariants } from "@/components/ui/button";
 import { ThemePicker } from "@/components/theme-picker";
 import { STATES } from "@/lib/india-states";
@@ -124,7 +123,6 @@ async function Settings() {
           control={<LiveStatus lastReading={lastReading} now={now} />}
         />
         <HomeState home={home} />
-        <Row title="Welcome tour" description="A short tour of what's where in Uplink." control={<WelcomeTourButton />} />
       </Group>
 
       <Group title="Account">
@@ -217,7 +215,6 @@ function SettingsSkeleton() {
               </p>
             }
           />,
-          <Row key="guide" title={<Ph>Welcome tour</Ph>} description={<p>{text("A short tour of what's where in Uplink.")}</p>} control={button} />,
         )}
         {group(
           "Account",
