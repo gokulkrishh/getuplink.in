@@ -56,10 +56,12 @@ export function Segmented<T extends string | number>({
 }) {
   const indicator = `tab-indicator-${useId().replace(/[^\w-]/g, "")}`;
   // The strip itself is lifted above the sliding highlight while it moves (`.tab-labels` in globals.css):
-  // without it the highlight, drawn over the page, would hide each label it passes.
+  // without it the highlight, drawn over the page, would hide each label it passes. w-fit: as wide as its
+  // options even in a column that stretches its children (the period picker on a phone), so the box never
+  // has empty space after the last one.
   return (
     <ViewTransition update="tab-labels" default="none">
-      <div role={role === "radio" ? "radiogroup" : "group"} aria-label={label} className="inline-flex max-w-full overflow-x-auto border [scrollbar-width:none]">
+      <div role={role === "radio" ? "radiogroup" : "group"} aria-label={label} className="inline-flex w-fit max-w-full overflow-x-auto border [scrollbar-width:none]">
         {options.map((option) => {
           const picked = option.value === value;
           return (

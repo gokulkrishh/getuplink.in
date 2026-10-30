@@ -12,7 +12,7 @@ export function AiLine({ line }: { line: ShownLine }) {
         <Sparkles className="size-3.5" aria-hidden="true" />
         <span className="sr-only">Written by AI</span>
       </span>
-      <span className="ai-shimmer min-w-0">{line.text}</span>
+      <span className="ai-shimmer min-w-0" data-text={line.text}>{line.text}</span>
     </span>
   );
 }

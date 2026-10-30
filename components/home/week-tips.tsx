@@ -78,6 +78,7 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
   };
   const tip = current?.text ?? "";
   const kind = current?.kind;
+  const shown = replacing ? "Finding you another tip…" : tip;
   // A vote that can't be sent is dropped: it isn't worth an error.
   const send = (input: Parameters<typeof voteTip>[0]) => startTransition(() => void orOffline(voteTip(input), null));
   const cast = (value: Vote) => {
@@ -136,7 +137,7 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
             <span className="sr-only">Written by AI</span>
           </span>
           {/* Shimmers once as the notes arrive; turning to the next one doesn't replay it. */}
-          <span className="ai-shimmer">{title}</span>
+          <span className="ai-shimmer" data-text={title}>{title}</span>
         </div>
         {/* On a phone each button's tap area is 44px wide, so they sit far enough apart not to overlap. */}
         <div className="flex items-center gap-3 max-sm:gap-4">
@@ -163,9 +164,10 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
           )}
         </div>
       </div>
-      {/* Tips (with votes) hold TIPS_LINES; a one-line note such as a drive's summary holds two lines, as before. */}
-      <p className={cn("text-sm text-muted-foreground", vote ? TIPS_LINES : NOTE_LINES, replacing && "animate-pulse")} aria-live="polite">
-        {replacing ? "Finding you another tip…" : tip}
+      {/* Tips (with votes) hold TIPS_LINES; a one-line note such as a drive's summary holds two lines, as before.
+          The note shimmers with the title, so the sweep is seen across the words being read. */}
+      <p className={cn("ai-shimmer text-sm", vote ? TIPS_LINES : NOTE_LINES, replacing && "animate-pulse")} data-text={shown} aria-live="polite">
+        {shown}
       </p>
     </section>
   );
