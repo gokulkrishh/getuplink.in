@@ -120,9 +120,9 @@ export function ChargingSkeleton() {
       </SkSection>
       <SkSection gap={3}>
         <SkHead title="What you paid for" description="Your spend, line by line from the bills." />
-        <div className="divide-y border-t border-b text-sm" aria-hidden="true">
+        <div className="divide-y rounded-lg border text-sm" aria-hidden="true">
           {["Charging", "Total"].map((label) => (
-            <div key={label} className="flex items-baseline justify-between gap-4 py-2.5">
+            <div key={label} className="flex items-baseline justify-between gap-4 px-4 py-2.5">
               <Ph>{label}</Ph>
               <Ph className="font-mono">₹417.84</Ph>
             </div>
@@ -247,9 +247,9 @@ function SkSessions() {
       <p className="text-sm font-medium">
         <Ph>October 2026</Ph>
       </p>
-      <ul className="divide-y border-t">
+      <ul className="divide-y rounded-lg border">
         {Array.from({ length: CHARGING_PREVIEW }, (_, k) => (
-          <li key={k} className="py-3 text-sm">
+          <li key={k} className="px-4 py-3 text-sm">
             <p className="flex items-baseline justify-between gap-3">
               <span className="font-medium">
                 <Ph>Home charger</Ph>
@@ -268,14 +268,14 @@ function SkSessions() {
         <Ph>9 charges, ₹417.84 billed</Ph>
       </p>
     </div>
-    <div className="overflow-hidden max-sm:hidden sm:-mx-3 sm:px-3">
+    <div className="overflow-hidden max-sm:hidden">
       <div>
         <div className="space-y-2">
           <p className="text-sm font-medium">
             <Ph>October 2026</Ph>
           </p>
-          <div>
-            <div className="grid grid-cols-charge-serial-cost gap-x-4 pb-2 text-xs">
+          <div className="rounded-lg border py-2">
+            <div className="grid grid-cols-charge-serial-cost gap-x-4 px-4 pb-2 text-xs">
               {["#", "Date", "Charge", "Energy", "Cost", ""].map((h, k) => (
                 <span key={k} className={k > 2 ? "text-right" : undefined}>
                   <Ph>{h}</Ph>
@@ -284,7 +284,7 @@ function SkSessions() {
             </div>
             <ul className="divide-y border-t">
               {Array.from({ length: CHARGING_PREVIEW }, (_, k) => (
-                <li key={k} className="grid grid-cols-charge-serial-cost items-start gap-x-4 py-4 text-sm">
+                <li key={k} className="grid grid-cols-charge-serial-cost items-start gap-x-4 px-4 py-4 text-sm">
                   <p className="pt-0.5 font-mono text-xs">
                     <Ph>1</Ph>
                   </p>
@@ -405,9 +405,9 @@ function SkParkedList() {
   return (
     <div aria-hidden="true">
       <div className="sm:hidden">
-        <ul className="divide-y border-t">
+        <ul className="divide-y rounded-lg border">
           {[0, 1, 2].map((k) => (
-            <li key={k} className="space-y-3 py-4 text-sm">
+            <li key={k} className="space-y-3 px-4 py-4 text-sm">
               <div className="flex flex-wrap items-baseline justify-between gap-x-3">
                 <p>
                   <Ph>#1 26 Oct, 8:06 PM</Ph>

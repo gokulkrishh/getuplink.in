@@ -78,7 +78,7 @@ function TripTableRow({ row }: { row: TripRow }) {
 function TripListRow({ row }: { row: TripRow }) {
   const second = [row.day, row.route ? row.times : null, row.duration, row.stops, row.kwh, row.used && `${row.used} of battery`].filter(Boolean);
   return (
-    <li className="group/row relative flex items-center gap-3 py-3 text-sm tabular-nums isolate before:absolute before:-inset-x-2 before:inset-y-0 before:-z-10 before:transition-colors before:duration-150 hover:before:bg-muted focus-within:before:bg-muted active:before:bg-muted">
+    <li className="group/row relative flex items-center gap-3 px-4 py-3 text-sm tabular-nums isolate before:absolute before:inset-0 before:-z-10 before:transition-colors before:duration-150 hover:before:bg-muted focus-within:before:bg-muted active:before:bg-muted">
       <div className="min-w-0 flex-1">
         <p className="flex items-baseline justify-between gap-3">
           <span className="min-w-0 font-medium">
@@ -105,7 +105,7 @@ export function TripRows({ list, load }: { list: Paged<TripRow>; load?: LoadMore
   const { rows, button } = usePaged(list, load ?? (async () => []));
   return (
     <>
-      <ul className="divide-y border-t sm:hidden">
+      <ul className="divide-y rounded-lg border sm:hidden">
         {rows.map((r) => (
           <TripListRow key={r.start} row={r} />
         ))}

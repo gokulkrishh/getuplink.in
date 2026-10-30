@@ -181,9 +181,9 @@ export function SkTripRows({ rows = 3 }: { rows?: number }) {
   const head = ["#", "When", "Trip", "Distance · time", "Energy · battery"];
   return (
     <>
-      <ul className="divide-y border-t sm:hidden" aria-hidden="true">
+      <ul className="divide-y rounded-lg border sm:hidden" aria-hidden="true">
         {Array.from({ length: rows }, (_, r) => (
-          <li key={r} className="flex items-center gap-3 py-3 text-sm">
+          <li key={r} className="flex items-center gap-3 px-4 py-3 text-sm">
             <div className="min-w-0 flex-1">
               <p className="flex items-baseline justify-between gap-3 font-medium">
                 <Ph>8:18 AM to 8:52 AM</Ph>

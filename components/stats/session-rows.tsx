@@ -21,7 +21,7 @@ export type MonthTotal = { month: string; count: number; billed: string | null }
 function SessionListRow({ view, costs }: { view: SessionView; costs: boolean }) {
   const second = [view.energy === null ? <span key="e" className="text-faint">—</span> : <Measure key="e" text={view.energy} />, ...(costs ? [view.cost ? <span key="c">{view.cost.money}</span> : <span key="c" className="text-faint">—</span>] : [])];
   return (
-    <li className="group/row relative flex items-center gap-3 py-3 text-sm isolate before:absolute before:-inset-x-2 before:inset-y-0 before:-z-10 before:transition-colors before:duration-150 hover:before:bg-muted focus-within:before:bg-muted active:before:bg-muted">
+    <li className="group/row relative flex items-center gap-3 px-4 py-3 text-sm isolate before:absolute before:inset-0 before:-z-10 before:transition-colors before:duration-150 hover:before:bg-muted focus-within:before:bg-muted active:before:bg-muted">
       <div className="min-w-0 flex-1">
         <p className="flex items-baseline justify-between gap-3">
           <span className="min-w-0 font-medium">
@@ -92,7 +92,7 @@ export function SessionRows({ list, months, costs, load }: { list: Paged<ChargeR
           return (
             <section key={month} className="space-y-2">
               <h3 className="text-sm font-medium text-muted-foreground">{month}</h3>
-              <ul className="divide-y border-t">
+              <ul className="divide-y rounded-lg border">
                 {group.map((r) => (
                   <SessionListRow key={r.key} view={r.view} costs={costs} />
                 ))}
