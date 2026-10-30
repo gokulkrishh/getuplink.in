@@ -50,7 +50,7 @@ const ROW = "group/alert whitespace-normal rounded-md outline-none focus-visible
 
 function Empty() {
   return (
-    <p className="flex min-h-11 items-center px-2 py-2 text-sm text-muted-foreground">All good. Nothing needs you right now.</p>
+    <p className="flex min-h-20 items-center justify-center px-2 py-2 text-center text-sm text-muted-foreground">Nothing to see</p>
   );
 }
 
