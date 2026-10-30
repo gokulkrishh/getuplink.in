@@ -211,7 +211,7 @@ function UpdatesSkeleton() {
           <p className={heading}><Ph>Stats</Ph></p>
           <div className="inline-flex max-w-full overflow-hidden rounded-lg border">
             {["Month", "Year", "All", "Custom"].map((label) => (
-              <span key={label} className="tap-target inline-flex h-7 items-center justify-center px-2.5 text-[0.8rem] max-sm:h-9 max-sm:px-2"><Ph>{label}</Ph></span>
+              <span key={label} className="tap-target inline-flex h-8 items-center justify-center px-2.5 text-[0.8rem] max-sm:h-10 max-sm:px-2"><Ph>{label}</Ph></span>
             ))}
           </div>
         </div>

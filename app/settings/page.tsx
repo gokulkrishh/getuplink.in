@@ -227,9 +227,9 @@ function SettingsSkeleton() {
             title={<Ph>Theme</Ph>}
             description={text("Saved in this browser.")}
             control={
-              <div className="inline-flex rounded-lg bg-muted text-sm motion-safe:animate-pulse max-sm:h-[42px]" aria-hidden="true">
+              <div className="inline-flex rounded-lg bg-muted text-sm motion-safe:animate-pulse max-sm:h-[47px]" aria-hidden="true">
                 {["System", "Light", "Dark"].map((label) => (
-                  <span key={label} className="invisible border-y px-3 py-1.5 first:border-l last:border-r max-sm:py-2">
+                  <span key={label} className="invisible border-y px-3 py-2 first:border-l last:border-r max-sm:py-3">
                     {label}
                   </span>
                 ))}
