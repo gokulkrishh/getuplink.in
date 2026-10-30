@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { tipsInView, turn } from "@/lib/tips-in-view";
+import { tipsInView, turn, turnedTo } from "@/lib/tips-in-view";
 
 const A = { kind: "a", text: "Tip A" };
 const B = { kind: "b", text: "Tip B" };
@@ -59,6 +59,18 @@ describe("Undo while another tip is written", () => {
     // Then the undo's own render: A is back where it was.
     const later = tipsInView({ given: [A, B, C], added: [A, C], hidden: [], dismissed: [], at: 1, on: A.text });
     expect(texts(later)).toEqual({ tips: [A.text, B.text, C.text], on: A.text });
+  });
+});
+
+describe("turning", () => {
+  test("the tip turned to stays up when the page renders again with the tips in another order", () => {
+    // A thumbs-up also renders the page again; the server may list the tips in a new order.
+    const start = tipsInView({ given: [A, B, C], added: [], hidden: [], dismissed: [], at: 0 });
+    const on = turnedTo(start, 1);
+    expect(on).toBe(B.text);
+    const reordered = tipsInView({ given: [C, A, B], added: [], hidden: [], dismissed: [], at: 1, on });
+    expect(texts(reordered).on).toBe(B.text);
+    expect(turnedTo(tipsInView({ given: [], added: [], hidden: [], dismissed: [], at: 0 }), 1)).toBeNull();
   });
 });
 

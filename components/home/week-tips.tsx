@@ -7,7 +7,7 @@ import type { Tip, TipScope } from "@/lib/ai-tips";
 import { Button } from "@/components/ui/button";
 import { orOffline } from "@/lib/offline";
 import type { Vote } from "@/lib/tip-votes";
-import { tipsInView, turn } from "@/lib/tips-in-view";
+import { tipsInView, turn, turnedTo } from "@/lib/tips-in-view";
 import { cn } from "@/lib/utils";
 
 // The box, the same while loading, so the page doesn't move when the tips arrive. Five lines of tip text are
@@ -71,9 +71,10 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
   const shownTips = view.tips;
   if (shownTips.length === 0 && !replacing) return null;
   const current = !replacing && shownTips.length > 0 ? shownTips[view.index] : null;
+  // Kept on the tip turned to by its text, so a vote's new render can't move the box to another one.
   const turnTo = (by: 1 | -1) => {
     setAt(turn(view, by));
-    setOn(null);
+    setOn(turnedTo(view, by));
   };
   const dismiss = () => {
     if (!current) return;

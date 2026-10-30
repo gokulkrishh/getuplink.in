@@ -35,3 +35,9 @@ export function turn(view: { tips: unknown[]; index: number }, by: 1 | -1): numb
   const n = view.tips.length;
   return n === 0 ? 0 : (view.index + by + n) % n;
 }
+
+// The text of the tip a turn lands on, for the box to stay on by its text: a vote renders the page again,
+// and the server may list the tips in another order. Null when there are none.
+export function turnedTo(view: { tips: { text: string }[]; index: number }, by: 1 | -1): string | null {
+  return view.tips[turn(view, by)]?.text ?? null;
+}
