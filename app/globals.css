@@ -234,11 +234,9 @@
   [tabindex] {
     touch-action: manipulation;
   }
-  /* A long press on a control doesn't select its label or open the copy menu, as in a native app. Only
-     controls: text that is content (addresses, numbers, links in a sentence) stays selectable. */
+  /* A long press on a button or tab doesn't select its label or open the copy menu, as in a native app.
+     Not summaries or button-like rows: those hold versions, dates and figures owners copy. */
   button,
-  summary,
-  [role="button"],
   [role="tab"] {
     -webkit-user-select: none;
     user-select: none;
@@ -292,7 +290,7 @@
     @apply text-muted-foreground!;
   }
   /* Only where something can hover: on a phone a tapped link would keep the colour. */
-  @media (hover: hover) and (pointer: fine) {
+  @media (hover: hover) {
     .maplibregl-ctrl-attrib a:hover {
       @apply text-foreground!;
     }

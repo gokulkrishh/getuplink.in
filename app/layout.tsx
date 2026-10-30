@@ -4,6 +4,7 @@ import { THEME_COLORS, THEME_SCRIPT } from "@/lib/theme";
 import { GUEST_SCRIPT } from "@/lib/view-links";
 import { Suspense } from "react";
 import { RowLinks } from "@/components/row-links";
+import { SkipLink } from "@/components/skip-link";
 import { TopLoader } from "@/components/top-loader";
 import { preloadFonts } from "@/lib/fonts";
 import "./fonts.css";
@@ -60,12 +61,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="flex min-h-full flex-col">
         {/* First stop for the keyboard: hidden until focused, then fixed in the corner so nothing moves. */}
-        <a
-          href="#content"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-lg focus:bg-background focus:px-4 focus:py-2.5 focus:text-sm focus:font-medium focus:text-foreground"
-        >
-          Skip to content
-        </a>
+        <SkipLink />
         {/* Reads the address, so it waits behind Suspense and never holds up a page's static shell. */}
         <Suspense fallback={null}>
           <TopLoader />

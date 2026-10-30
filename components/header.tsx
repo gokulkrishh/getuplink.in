@@ -272,6 +272,9 @@ export function Header({ current, setup = true, onSetup = false }: { current?: S
           <OwnerControls>{ownerControls}</OwnerControls>
         </Suspense>
       </nav>
+      {/* Where "Skip to content" lands: the header's bottom edge, taking no space, so the next Tab is the
+          page's first control (components/skip-link.tsx). */}
+      <span id="content-start" tabIndex={-1} className="absolute top-full left-0 outline-none" />
     </header>
     {setup && (
       <Suspense>
