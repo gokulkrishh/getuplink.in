@@ -36,6 +36,8 @@ const nextConfig: NextConfig = {
     ];
     return [
       { source: "/:path*", headers: security },
+      // The font files' names carry a hash of their contents (scripts/subset-fonts.py), so a name never changes meaning.
+      { source: "/fonts/:file([^/]+\\.woff2)", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
       ...["app.getuplink.in", "status.getuplink.in", "demo.getuplink.in"].map((host) => ({
         source: "/:path*",
         has: [{ type: "host" as const, value: host }],
