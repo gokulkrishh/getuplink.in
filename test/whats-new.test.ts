@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { DEMO_ENTRIES } from "@/lib/server/demo/whats-new";
 import { copyViolations } from "@/lib/copy-rules";
-import { ENTRY_ICONS, type Entry, KINDS, newEntryIds, newestVisibleId, pickHomeCard, seenUpTo, unseenEntries, visibleEntries, WHATS_NEW, whatsNewAlerts } from "@/lib/whats-new";
+import { type Entry, KINDS, newEntryIds, newestVisibleId, pickHomeCard, seenUpTo, unseenEntries, visibleEntries, WHATS_NEW, whatsNewAlerts } from "@/lib/whats-new";
 
 const entry = (id: string, audience: Entry["audience"] = "owners", show: Entry["show"] = "dialog"): Entry => ({
   id,
@@ -12,7 +12,6 @@ const entry = (id: string, audience: Entry["audience"] = "owners", show: Entry["
   text: "Text",
   version: "0.1",
   kind: "New feature",
-  icon: "Sparkles",
   audience,
   show,
 });
@@ -23,9 +22,9 @@ const NEW = ist("2026-11-05"); // a newer owner
 const base = { entries: [] as Entry[], now: NOW, admin: false, approvedAt: OLD as number | null, welcomedAt: 1 as number | null, seenId: null as string | null, shareDue: false, schemaReady: true };
 
 describe("WHATS_NEW", () => {
-  test("Guest access is the admin's alone, like the feature: an owner sees nothing yet", () => {
-    expect(WHATS_NEW.map((e) => [e.id, e.audience])).toEqual([["2026-10-30-guest-access", "admin"]]);
-    expect(visibleEntries(WHATS_NEW, false)).toEqual([]);
+  test("Guest access is announced to every owner, the admin included", () => {
+    expect(WHATS_NEW.map((e) => [e.id, e.audience])).toEqual([["2026-10-30-guest-access", "owners"]]);
+    expect(visibleEntries(WHATS_NEW, false).map((e) => e.id)).toEqual(["2026-10-30-guest-access"]);
     expect(visibleEntries(WHATS_NEW, true).map((e) => e.id)).toEqual(["2026-10-30-guest-access"]);
   });
 });
@@ -113,7 +112,9 @@ describe("bell level", () => {
   test("the bell lists every unseen visible entry, newest first, as info lines", () => {
     const alerts = whatsNewAlerts(facts);
     expect(alerts.map((a) => a.key)).toEqual(["whats-new-2026-11-25-c", "whats-new-2026-11-20-b"]);
-    expect(alerts[0]).toMatchObject({ kind: "info", title: bell.title, detail: bell.text, href: "/release-notes", since: "2026-11-25T00:00:00+05:30" });
+    expect(alerts[0]).toMatchObject({ kind: "info", title: bell.title, detail: bell.text, href: "/release-notes" });
+    // An entry has a date, not a time: the bell would print midnight ("since 12:00 AM") as if it were known.
+    expect(alerts[0].since).toBeNull();
   });
   test("same rules as the card: seen, drafts, joined later, no schema", () => {
     expect(whatsNewAlerts({ ...facts, seenId: bell.id })).toEqual([]);
@@ -167,7 +168,6 @@ describe.each([
       expect(new Date(`${e.date}T00:00:00Z`).toISOString().slice(0, 10)).toBe(e.date);
       expect(["dialog", "bell"]).toContain(e.show);
       expect(KINDS).toContain(e.kind);
-      expect(ENTRY_ICONS).toContain(e.icon);
       expect(["draft", "admin", "owners"]).toContain(e.audience);
       expect(e.version).toMatch(/^\d+\.\d+(\.\d+)?$/);
       expect("link" in e).toBe(false);

@@ -24,7 +24,6 @@ import { Loading, Ph } from "@/components/skeleton";
 import { Row } from "./row";
 import { FoldToggle } from "@/components/fold-toggle";
 import { ShareSwitch } from "@/components/owners/share-controls";
-import { isAdmin } from "@/lib/server/admin";
 import { loadViewLinks } from "@/lib/server/view-links";
 import type { ViewLink } from "@/lib/view-links";
 import { ViewLinks } from "./view-links";
@@ -75,9 +74,8 @@ async function loadSettings(): Promise<{
   cacheLife({ stale: 60 });
   const owner = await currentOwner();
   if (!owner) return ownerOnlyExit();
-  // View links are the admin's alone for now: undefined hides the section, null says they aren't set up yet.
+  // Every owner's guest links. Null says they aren't set up yet.
   const viewLinksFor = async (): Promise<ViewLink[] | null | undefined> => {
-    if (!(await isAdmin())) return undefined;
     const page = await loadViewLinks(owner, Date.now());
     return page.available ? page.links : null;
   };
@@ -184,11 +182,9 @@ async function Settings() {
   );
 }
 
-// The Guest access block's placeholder, only for the admin, who is the only one who gets the section. The
-// blocks are as tall as the empty form: the name and length fields (a label over a box), two tick rows, the
-// error line, the button.
-async function AdminGuestSkeleton() {
-  if (!(await isAdmin())) return null;
+// The Guest access block's placeholder. The blocks are as tall as the empty form: the name and length fields
+// (a label over a box), the two tick rows (32px, a little taller on a phone), the button.
+function GuestSkeleton() {
   const block = (className: string) => <div className={cn("rounded-md bg-muted motion-safe:animate-pulse", className)} aria-hidden="true" />;
   return (
     <Row title={<Ph>Guest access</Ph>} description={<p><Ph>Let someone you trust see your car data.</Ph></p>}>
@@ -203,9 +199,13 @@ async function AdminGuestSkeleton() {
             </div>
           ))}
         </div>
-        {block("h-11")}
-        {block("h-11")}
-        {block("h-5")}
+        <div>
+          {["w-32", "w-72"].map((width) => (
+            <div key={width} className="flex h-8 items-center max-sm:h-9">
+              {block(`h-4 ${width} max-w-full`)}
+            </div>
+          ))}
+        </div>
         <div className="flex justify-end">{block("h-9 w-40 rounded-lg max-sm:h-10")}</div>
       </div>
     </Row>
@@ -289,9 +289,7 @@ function SettingsSkeleton() {
               </div>
             }
           />,
-          <Suspense key="guest" fallback={null}>
-            <AdminGuestSkeleton />
-          </Suspense>,
+          <GuestSkeleton key="guest" />,
           <Row key="data" title={<Ph>Delete my data</Ph>} description={<p>{text("Removes your car data and disconnects Tesla. You can sign in again.")}</p>} control={button} />,
           <Row key="acct" title={<Ph>Delete account</Ph>} description={<p>{text("Removes everything, including your Uplink account.")}</p>} control={button} />,
         )}
