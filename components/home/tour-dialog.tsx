@@ -1,0 +1,248 @@
+"use client";
+
+import { Dialog } from "@base-ui/react/dialog";
+import { X } from "lucide-react";
+import { type CSSProperties, type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+// The shell both Home dialogs share: the welcome tour and the release dialog. A blurred Home behind, two
+// halves (a picture on the left, the words on the right), and a footer with dots, Skip, Back and Next. On a
+// phone it is a sheet from the bottom. Each dialog supplies its steps. Closing is never more than one tap.
+
+export type TourStep = {
+  key: string;
+  // What sits before the label, like a tinted "New". Optional.
+  chip?: ReactNode;
+  // A small grey line at the top of the words: the step's name, or "Version 0.4".
+  label: ReactNode;
+  title: ReactNode;
+  description: ReactNode;
+  // Under the description: the points, or a link.
+  extra?: ReactNode;
+  // The left half. The same component type in the same place on every step, so a pointer can glide.
+  preview: ReactNode;
+};
+
+// The left half's soft streaky backdrop: cool grey and blue-grey streaks, blurred; a darker set for dark theme.
+export function TourBackdrop() {
+  return (
+    <>
+      <div
+        className="absolute -inset-8 blur-xl dark:hidden"
+        style={{
+          backgroundImage:
+            "repeating-linear-gradient(0deg, rgba(255,255,255,.22) 0 5px, rgba(60,80,110,.12) 5px 13px), linear-gradient(100deg, #8ea3bb 0%, #61748c 28%, #c5cfdb 52%, #8fa0b4 76%, #aebccc 100%)",
+        }}
+      />
+      <div
+        className="absolute -inset-8 hidden blur-xl dark:block"
+        style={{
+          backgroundImage:
+            "repeating-linear-gradient(0deg, rgba(255,255,255,.06) 0 5px, rgba(0,0,0,.18) 5px 13px), linear-gradient(100deg, #2b3a4d 0%, #18222f 30%, #3d4c60 55%, #202c3b 78%, #33425a 100%)",
+        }}
+      />
+    </>
+  );
+}
+
+// Where a picture sits on the backdrop: inset from the top left, running off the right and bottom edges and
+// fading out at the bottom. Children are placed in a box of the picture's width.
+// `focusY` (px down the phone picture): the part to keep in view on a phone, where only the top shows. The
+// picture moves up until that part sits a little under halfway down the row, whose height follows the screen.
+export function TourSlice({ children, focusY = 0 }: { children: ReactNode; focusY?: number }) {
+  return (
+    <div className="absolute inset-0 overflow-hidden [mask-image:linear-gradient(to_bottom,#000_72%,transparent_100%)]">
+      <div
+        className="absolute top-4 left-4 w-[340px] max-sm:translate-y-[var(--lift)] max-sm:motion-safe:transition-transform max-sm:motion-safe:duration-[600ms] sm:top-7 sm:left-7 sm:w-[480px]"
+        style={{ "--lift": `calc(-1 * max(0px, ${focusY}px - min(110px, 9dvh)))` } as CSSProperties}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// Each dot is a 32 by 40 tap area round a small mark (px, so the phone's larger text doesn't widen them).
+function Dots({ steps, step, onPick, className }: { steps: TourStep[]; step: number; onPick: (n: number) => void; className?: string }) {
+  return (
+    <div className={cn("flex items-center gap-1", className)}>
+      {steps.map((s, i) => (
+        <button
+          key={s.key}
+          type="button"
+          aria-label={`Go to step ${i + 1} of ${steps.length}`}
+          aria-current={i === step ? "step" : undefined}
+          onClick={() => onPick(i)}
+          className="group flex h-[40px] w-[32px] cursor-pointer items-center justify-center outline-none"
+        >
+          <span
+            className={cn(
+              "block h-1.5 rounded-full transition-[width,background-color] duration-200 motion-reduce:transition-none group-focus-visible:ring-2 group-focus-visible:ring-ring/50",
+              i === step ? "w-5 bg-foreground" : "w-1.5 bg-foreground/20 group-hover:bg-foreground/40",
+            )}
+          />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// A step's words. The title and description are the dialog's own only for the step showing (`real`).
+function Words({ step, real }: { step: TourStep; real: boolean }) {
+  const Title = real ? Dialog.Title : "h2";
+  const Description = real ? Dialog.Description : "p";
+  return (
+    <>
+      <Title className="max-w-[16ch] text-xl leading-tight font-semibold tracking-heading text-balance sm:max-w-[20ch] sm:text-[1.75rem]">{step.title}</Title>
+      <Description className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-[15px]">{step.description}</Description>
+      {step.extra}
+    </>
+  );
+}
+
+// Tab and Shift+Tab go round the dialog's own buttons. Base UI traps focus too, but a frame late, so a fast
+// Tab could reach the page behind.
+function wrapTab(e: KeyboardEvent<HTMLDivElement>) {
+  if (e.key !== "Tab") return;
+  const all = [...e.currentTarget.querySelectorAll<HTMLElement>("button, a[href], [tabindex]:not([tabindex='-1'])")].filter(
+    (el) => !el.hasAttribute("disabled") && !el.closest("[aria-hidden='true']") && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== "hidden",
+  );
+  if (all.length === 0) return;
+  const first = all[0];
+  const last = all[all.length - 1];
+  const at = document.activeElement;
+  if (e.shiftKey ? at === first || at === e.currentTarget : at === last) {
+    e.preventDefault();
+    (e.shiftKey ? last : first).focus();
+  }
+}
+
+// The step state lives here, inside the popup, so it starts again at step 1 each time the dialog opens.
+// On a phone the sheet is never taller than the screen: the picture row shrinks on a short screen, the
+// words hold the height of the longest step (so nothing moves between steps) and scroll if they must, and
+// the footer stays at the bottom.
+function Popup({ steps }: { steps: TourStep[] }) {
+  const [n, setN] = useState(0);
+  const popup = useRef<HTMLDivElement>(null);
+  const step = steps[n];
+  const last = n === steps.length - 1;
+  const go = (to: number) => setN(Math.max(0, Math.min(steps.length - 1, to)));
+  return (
+    <Dialog.Popup
+      ref={popup}
+      initialFocus={popup}
+      onKeyDown={(e) => {
+        if (e.key === "ArrowRight") go(n + 1);
+        else if (e.key === "ArrowLeft") go(n - 1);
+        else wrapTab(e);
+      }}
+      className="fixed inset-x-0 bottom-0 z-50 flex max-h-dvh flex-col overflow-hidden border bg-background pb-[env(safe-area-inset-bottom)] text-foreground shadow-2xl outline-none motion-safe:transition-opacity motion-safe:duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:grid sm:h-[min(690px,calc(100dvh-2rem))] sm:w-[min(980px,calc(100vw-2rem))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:grid-cols-2 sm:grid-rows-1 sm:pb-0"
+    >
+      <div className="relative h-[min(230px,30dvh)] shrink-0 border-b [@media(max-height:640px)]:h-[26dvh] sm:h-auto sm:min-h-0 sm:border-r sm:border-b-0">
+        <div className="relative h-full min-h-0 overflow-hidden">{step.preview}</div>
+      </div>
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col p-5 max-sm:[@media(max-height:640px)]:py-4 sm:p-8">
+        {/* On a phone the dots sit at the right of this line, so the footer is one row and the sheet fits a small screen. */}
+        <div className="flex shrink-0 items-center gap-2.5 text-sm text-faint max-sm:-mt-2.5 max-sm:min-h-[40px] sm:pr-9">
+          {step.chip}
+          <span className="min-w-0 flex-1 truncate">{step.label}</span>
+          <Dots steps={steps} step={n} onPick={go} className="-mr-[13px] sm:hidden" />
+        </div>
+        {/* On a phone every step's words sit in one cell, the others unseen, so the cell is as tall as the longest. */}
+        <div className="grid min-h-0 flex-1 overflow-y-auto pt-4 sm:flex sm:flex-col sm:justify-center sm:overflow-visible sm:pt-0">
+          <div className="col-start-1 row-start-1">
+            <Words step={step} real />
+          </div>
+          {steps.map((s, i) =>
+            i === n ? null : (
+              <div key={s.key} aria-hidden="true" className="invisible col-start-1 row-start-1 sm:hidden">
+                <Words step={s} real={false} />
+              </div>
+            ),
+          )}
+        </div>
+        <div className="flex shrink-0 items-center justify-between gap-2 pt-4">
+          <Dots steps={steps} step={n} onPick={go} className="-ml-1.5 max-sm:hidden" />
+          <div className="flex flex-1 items-center justify-between gap-1.5 sm:flex-none sm:justify-end">
+            {/* On a phone Skip is quiet text at the left and the buttons are a size smaller, so all fit at 320px. */}
+            {!last ? (
+              <Dialog.Close render={<Button variant="ghost" className="max-sm:-ml-3 max-sm:h-9 max-sm:px-3 max-sm:text-muted-foreground" />} nativeButton>
+                Skip
+              </Dialog.Close>
+            ) : (
+              <span aria-hidden="true" />
+            )}
+            <div className="flex items-center gap-1.5">
+              {n > 0 && (
+                <Button variant="outline" className="max-sm:h-9 max-sm:px-3" onClick={() => go(n - 1)}>
+                  Back
+                </Button>
+              )}
+              {last ? (
+                <Dialog.Close render={<Button className="max-sm:h-9 max-sm:px-3" />} nativeButton>
+                  Got it
+                </Dialog.Close>
+              ) : (
+                <Button className="max-sm:h-9 max-sm:px-3" onClick={() => go(n + 1)}>
+                  Next
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* A 44px tap area. On a phone it sits at the sheet's top right, over the picture, on its own disc. */}
+      <Dialog.Close
+        aria-label="Close"
+        className="group absolute top-1 right-1 z-20 inline-flex size-11 cursor-pointer items-center justify-center rounded-full text-muted-foreground outline-none hover:text-foreground sm:top-2.5 sm:right-2.5"
+      >
+        <span className="inline-flex size-8 items-center justify-center rounded-full transition-colors group-focus-visible:outline-2 group-focus-visible:outline-ring max-sm:bg-background/85 max-sm:text-foreground max-sm:shadow-sm max-sm:backdrop-blur-sm">
+          <X className="size-4" aria-hidden="true" />
+        </span>
+      </Dialog.Close>
+    </Dialog.Popup>
+  );
+}
+
+// Open on its own unless `open` is given. `onOpenChange` hears every change, so a caller can store that the
+// dialog was closed.
+export function TourDialog({ steps, open, onOpenChange }: { steps: TourStep[]; open?: boolean; onOpenChange?: (open: boolean) => void }) {
+  const [own, setOwn] = useState(false);
+  const controlled = open !== undefined;
+  // Opens once the page under it has finished loading. Opening while the week is still streaming in makes
+  // React see attributes the dialog set on the page's own elements, and warn of a hydration mismatch.
+  // A dialog the caller opens (`open` given) needs no wait.
+  useEffect(() => {
+    if (controlled) return;
+    let tries = 0;
+    let delay: ReturnType<typeof setTimeout> | undefined;
+    const timer = setInterval(() => {
+      tries += 1;
+      if (document.readyState === "complete" && (!document.querySelector('[aria-busy="true"]') || tries > 40)) {
+        clearInterval(timer);
+        delay = setTimeout(() => setOwn(true), 300);
+      }
+    }, 150);
+    return () => {
+      clearInterval(timer);
+      clearTimeout(delay);
+    };
+  }, [controlled]);
+  return (
+    <Dialog.Root
+      open={controlled ? open : own}
+      // Tapping the backdrop does nothing: the cross, Skip, "Got it" and Esc close it.
+      disablePointerDismissal
+      onOpenChange={(next) => {
+        setOwn(next);
+        onOpenChange?.(next);
+      }}
+    >
+      <Dialog.Portal>
+        <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/30 backdrop-blur-xs motion-safe:transition-opacity motion-safe:duration-200 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0" />
+        <Popup steps={steps} />
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}

@@ -11,7 +11,7 @@ import { EXPIRY_WARN_DAYS, STALE_AFTER_MS } from "@/lib/stream-health";
 
 export type AlertKind = "action" | "info";
 // Which picture the bell shows beside an alert (components/alerts-menu.tsx maps each name to an icon).
-export type AlertIcon = "key" | "hourglass" | "no-data" | "unplugged" | "warning" | "payment" | "service" | "server";
+export type AlertIcon = "key" | "hourglass" | "no-data" | "unplugged" | "warning" | "payment" | "service" | "server" | "new";
 export type Alert = { key: string; kind: AlertKind; icon: AlertIcon; title: string; detail: string; href: string; since: string | null };
 
 export type AlertCar = Pick<CarSetup, "vin" | "name" | "keyPaired" | "keyCheckedAt" | "streaming" | "streamingCheckedAt"> & {

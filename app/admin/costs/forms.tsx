@@ -6,13 +6,11 @@ import { Input } from "@/components/ui/input";
 import type { EntryValues } from "@/lib/costs";
 import { NO_AUTOFILL } from "@/lib/no-autofill";
 import { PendingLabel } from "@/components/pending-label";
+import { NativeSelect } from "@/components/ui/native-select";
 
 type Action = (previous: string | null, form: FormData) => Promise<string | null>;
 
 const label = "flex flex-col gap-1 text-xs text-muted-foreground";
-const select =
-  "h-8 max-sm:h-10 w-full rounded-lg border border-input bg-transparent px-2 text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30";
-
 function Message({ message }: { message: string | null }) {
   if (!message) return null;
   return (
@@ -53,10 +51,10 @@ export function EntryForm({
         </label>
         <label className={label} htmlFor={`${id}-period`}>
           Billed
-          <select id={`${id}-period`} name="period" defaultValue={values?.period ?? "monthly"} className={select}>
+          <NativeSelect id={`${id}-period`} name="period" defaultValue={values?.period ?? "monthly"}>
             <option value="monthly">Monthly</option>
             <option value="yearly">Yearly</option>
-          </select>
+          </NativeSelect>
         </label>
         <label className={`${label} col-span-2 sm:col-span-1`} htmlFor={`${id}-renews`}>
           Renews on

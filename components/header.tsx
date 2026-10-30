@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { cacheLife } from "next/cache";
-import { Bell, LogOut, Settings, ShieldCheck, TriangleAlert } from "lucide-react";
+import { Bell, LogOut, Settings, ShieldCheck, Sparkles, TriangleAlert } from "lucide-react";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
@@ -30,6 +30,8 @@ import { type Alert } from "@/lib/alerts";
 import { demoAlerts, loadAlerts } from "@/lib/server/alerts";
 import { setupGate } from "@/lib/server/setup";
 import { DEMO } from "@/lib/demo";
+import { DEMO_OWNER } from "@/lib/server/data/owner";
+import { whatsNewBell } from "@/lib/server/whats-new";
 import { cn } from "@/lib/utils";
 
 export type Section = "stats" | "car" | "settings";
@@ -83,7 +85,7 @@ const BELL = "tap-target relative flex size-8 items-center justify-center rounde
 async function AlertsBell() {
   // Request time only: the alerts and their "since" read the clock.
   await connection();
-  if (DEMO) return <BellMenu alerts={demoAlerts()} now={Date.now()} />;
+  if (DEMO) return <BellMenu alerts={[...demoAlerts(), ...(await whatsNewBell(DEMO_OWNER, false))]} now={Date.now()} />;
   const owner = await currentOwner();
   if (!owner) return null;
   return <BellMenu alerts={await loadAlerts(owner, await adminSession())} now={Date.now()} />;
@@ -218,6 +220,10 @@ export function Header({ current, setup = true, onSetup = false }: { current?: S
           <DropdownMenuItem render={<Link href="/settings" prefetch={true} />}>
             <Settings aria-hidden />
             Settings
+          </DropdownMenuItem>
+          <DropdownMenuItem render={<Link href="/release-notes" prefetch={true} />}>
+            <Sparkles aria-hidden />
+            Release notes
           </DropdownMenuItem>
           <FeedbackMenuItem />
           <Suspense>

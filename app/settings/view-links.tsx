@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { CopyButton } from "@/components/copy-button";
 import { InfoButton } from "@/components/info-button";
@@ -8,6 +8,7 @@ import { PendingLabel } from "@/components/pending-label";
 import { AlertDialog, AlertDialogClose, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import { NO_AUTOFILL } from "@/lib/no-autofill";
 import { OFFLINE, orOffline } from "@/lib/offline";
 import {
@@ -27,12 +28,7 @@ import { copyViewLinkAction, endViewLinkAction, makeViewLinkAction, setViewLinkH
 import { cn } from "@/lib/utils";
 import { Row } from "./row";
 
-// As components/ui/native-select.tsx will do (PR #37): no browser arrow, room on the right, and its own
-// chevron 12px from the edge. Switch to NativeSelect once that lands.
 const HIDE_LOCATIONS_NOTE = "Your guest won't see maps, places or charger names.";
-
-const SELECT =
-  "h-9 max-sm:h-10 w-full appearance-none rounded-lg border border-input bg-transparent pr-9 pl-2 text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30";
 
 // Copy link on an open row: the link is rebuilt on the server (copyViewLinkAction) and put on the clipboard.
 // The clipboard gets a promise of the text, so Safari still counts it as the click's. Where the clipboard
@@ -242,16 +238,13 @@ function MakeViewLink({ count, onMade }: { count: number; onMade: (made: { label
         </label>
         <label className="flex flex-col gap-1 text-sm text-muted-foreground">
           Lasts
-          <span className="relative">
-            <select value={length} onChange={(e) => setLength(e.target.value)} className={SELECT}>
-              {VIEW_LINK_LENGTHS.map((l) => (
-                <option key={l.key} value={l.key}>
-                  {l.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-          </span>
+          <NativeSelect value={length} onChange={(e) => setLength(e.target.value)}>
+            {VIEW_LINK_LENGTHS.map((l) => (
+              <option key={l.key} value={l.key}>
+                {l.label}
+              </option>
+            ))}
+          </NativeSelect>
         </label>
       </div>
       {/* Can be changed later, while the link is open, from its row above. */}
