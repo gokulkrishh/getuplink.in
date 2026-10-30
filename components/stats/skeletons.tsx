@@ -173,7 +173,7 @@ export function ChargingSkeleton() {
                 <Ph>{day}</Ph>
               </span>
               {Array.from({ length: 8 }, (_, k) => (
-                <span key={k} className="h-6 bg-background max-sm:h-7" />
+                <span key={k} className="h-6 rounded-sm bg-background max-sm:h-7" />
               ))}
             </div>
           ))}

@@ -111,7 +111,7 @@ function Preview({ spot, near, page = false }: { spot: TourSpot; near: TourSpot[
     <div aria-hidden="true" className="relative h-full min-h-0 overflow-hidden">
       <TourBackdrop />
       <TourSlice focusY={focusY}>
-        <div className="relative border bg-background shadow-xl" style={{ aspectRatio: `${TOUR_SHOT.width} / ${TOUR_SHOT.height}` }}>
+        <div className="relative overflow-hidden rounded-lg border bg-background shadow-xl" style={{ aspectRatio: `${TOUR_SHOT.width} / ${TOUR_SHOT.height}` }}>
           {/* The whole page, blurred and dimmed, and the same page again on top, sharp, showing only the part the step is about. */}
           <div className="absolute inset-0 opacity-45 blur-[3px]">
             <Pictures spot={spot} near={near} />
@@ -123,7 +123,7 @@ function Preview({ spot, near, page = false }: { spot: TourSpot; near: TourSpot[
             <Pictures spot={spot} near={near} />
           </div>
           <span
-            className="absolute outline-2 outline-offset-2 outline-chart-accent motion-safe:transition-[left,top,width,height] motion-safe:duration-[600ms] motion-safe:ease-[cubic-bezier(.2,.7,.2,1)]"
+            className="absolute rounded-md outline-2 outline-offset-2 outline-chart-accent motion-safe:transition-[left,top,width,height] motion-safe:duration-[600ms] motion-safe:ease-[cubic-bezier(.2,.7,.2,1)]"
             style={{ left: `${t.x}%`, top: `${t.y}%`, width: `${t.w}%`, height: `${t.h}%` }}
           />
           <svg
@@ -149,7 +149,7 @@ const toSteps = (steps: Step[]): TourStep[] =>
     <ul className="mt-5 space-y-2.5 max-sm:[@media(max-height:640px)]:mt-3.5 max-sm:[@media(max-height:640px)]:space-y-1.5">
       {s.points.map((point) => (
         <li key={point} className="flex items-start gap-3 text-[15px] leading-snug text-foreground">
-          <span aria-hidden="true" className="mt-[0.5em] size-1.5 shrink-0 bg-foreground/60" />
+          <span aria-hidden="true" className="mt-[0.5em] size-1.5 shrink-0 rounded-full bg-foreground/60" />
           {point}
         </li>
       ))}

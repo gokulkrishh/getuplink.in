@@ -233,7 +233,7 @@ function UpdatesSkeleton() {
               {Array.from({ length: 14 }, (_, k) => (
                 <li key={k} className="flex items-center gap-3">
                   <span className="w-16 shrink-0 text-xs"><Ph>Yesterday</Ph></span>
-                  <div className="h-4 flex-1 bg-background/60" />
+                  <div className="h-4 flex-1 rounded-sm bg-background/60" />
                 </li>
               ))}
             </ol>
