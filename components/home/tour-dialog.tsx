@@ -1,14 +1,15 @@
 "use client";
 
 import { Dialog } from "@base-ui/react/dialog";
-import { X } from "lucide-react";
-import { type CSSProperties, type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { Pause, Play, RotateCcw, X } from "lucide-react";
+import { type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 // The shell both Home dialogs share: the welcome tour and the release dialog. A blurred Home behind, two
-// halves (a picture on the left, the words on the right), and a footer with dots, Skip, Back and Next. On a
-// phone it is a sheet from the bottom. Each dialog supplies its steps. Closing is never more than one tap.
+// halves (a picture on the left, the words on the right), and a footer with the step dots, Skip, Back and Next.
+// On a phone it is a sheet from the bottom. Each dialog supplies its steps. Closing is never more than one tap.
+// It moves on by itself like a slider on apple.com (see Slider below) until the owner takes over.
 
 export type TourStep = {
   key: string;
@@ -63,27 +64,61 @@ export function TourSlice({ children, focusY = 0 }: { children: ReactNode; focus
   );
 }
 
-// Each dot is a 32 by 40 tap area round a small mark (px, so the phone's larger text doesn't widen them).
-function Dots({ steps, step, onPick, className }: { steps: TourStep[]; step: number; onPick: (n: number) => void; className?: string }) {
+// How long each step shows before the tour moves on by itself: time to read a headline, a line and three points.
+const STEP_MS = 8000;
+
+// "playing": moving on by itself. "paused": held by the play button, the fill kept where it was. "stopped": the
+// owner moved by hand or reached a button with the keyboard. "ended": it played to the last step. Nobody who
+// prefers reduced motion gets it moving on by itself.
+type Play = "playing" | "paused" | "stopped" | "ended";
+
+// The step dots and the play button, as on apple.com: the dots sit close in a soft capsule, the step showing
+// stretches into a pill, and while the tour plays a fill runs through that pill for the step's time. The fill
+// is a CSS animation whose end moves the tour on, so there is no timer to keep. Paused holds the fill where it
+// is, and Play carries on from there. Stopped or ended, the pill is full. Each dot's tap area is the capsule's full height; the
+// marks are in px, so the phone's larger text doesn't widen them.
+function Slider({ steps, step, play, onPick, onPlay, onDone, className }: { steps: TourStep[]; step: number; play: Play; onPick: (n: number) => void; onPlay: () => void; onDone: () => void; className?: string }) {
+  if (steps.length < 2) return null;
+  const Icon = play === "playing" ? Pause : play === "ended" ? RotateCcw : Play;
+  const running = play === "playing" || play === "paused";
   return (
-    <div className={cn("flex items-center gap-1", className)}>
-      {steps.map((s, i) => (
-        <button
-          key={s.key}
-          type="button"
-          aria-label={`Go to step ${i + 1} of ${steps.length}`}
-          aria-current={i === step ? "step" : undefined}
-          onClick={() => onPick(i)}
-          className="group flex h-[40px] w-[32px] cursor-pointer items-center justify-center outline-none"
-        >
-          <span
-            className={cn(
-              "block h-1.5 rounded-full transition-[width,background-color] duration-200 motion-reduce:transition-none group-focus-visible:ring-2 group-focus-visible:ring-ring/50",
-              i === step ? "w-5 bg-foreground" : "w-1.5 bg-foreground/20 group-hover:bg-foreground/40",
-            )}
-          />
-        </button>
-      ))}
+    <div data-tour-slider className={cn("flex items-center gap-2", className)}>
+      <div className="flex h-[36px] items-center rounded-full bg-foreground/[0.07] px-[8px] backdrop-blur-sm">
+        {steps.map((s, i) => (
+          <button
+            key={s.key}
+            type="button"
+            aria-label={`Go to step ${i + 1} of ${steps.length}`}
+            aria-current={i === step ? "step" : undefined}
+            onClick={() => onPick(i)}
+            className="group/dot flex h-full cursor-pointer items-center px-[4px] outline-none"
+          >
+            <span
+              className={cn(
+                "relative block h-[8px] overflow-hidden rounded-full transition-[width,background-color] duration-300 ease-out motion-reduce:transition-none group-focus-visible/dot:outline-2 group-focus-visible/dot:outline-offset-2 group-focus-visible/dot:outline-ring",
+                i === step ? "w-[32px] bg-foreground/25" : "w-[8px] bg-foreground/30 group-hover/dot:bg-foreground/55",
+              )}
+            >
+              {i === step && (
+                <span
+                  key={`${s.key}-${running}`}
+                  onAnimationEnd={onDone}
+                  style={{ animationDuration: `${STEP_MS}ms`, animationPlayState: play === "paused" ? "paused" : undefined }}
+                  className={cn("absolute inset-y-0 left-0 w-full rounded-full bg-foreground", running && "animate-tour-fill")}
+                />
+              )}
+            </span>
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        aria-label={play === "playing" ? "Pause" : play === "ended" ? "Play again" : "Play"}
+        onClick={onPlay}
+        className="inline-flex size-[36px] shrink-0 cursor-pointer items-center justify-center rounded-full bg-foreground/[0.07] text-foreground backdrop-blur-sm transition-colors outline-none hover:bg-foreground/[0.12] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:bg-foreground/[0.15]"
+      >
+        <Icon className={cn("size-[14px]", (play === "paused" || play === "stopped") && "fill-current")} aria-hidden="true" />
+      </button>
     </div>
   );
 }
@@ -124,14 +159,59 @@ function wrapTab(e: KeyboardEvent<HTMLDivElement>) {
 // the footer stays at the bottom.
 function Popup({ steps }: { steps: TourStep[] }) {
   const [n, setN] = useState(0);
+  // Which way the last move went, so the words slide in from that side.
+  const [dir, setDir] = useState<1 | -1>(1);
+  // Plays from the start of each open (the popup mounts on open), unless reduced motion is on.
+  const [play, setPlay] = useState<Play>(() =>
+    steps.length > 1 && !matchMedia("(prefers-reduced-motion: reduce)").matches ? "playing" : "stopped",
+  );
   const popup = useRef<HTMLDivElement>(null);
+  const swipe = useRef<{ x: number; y: number } | null>(null);
   const step = steps[n];
   const last = n === steps.length - 1;
-  const go = (to: number) => setN(Math.max(0, Math.min(steps.length - 1, to)));
+  const show = (to: number) => {
+    const next = Math.max(0, Math.min(steps.length - 1, to));
+    setDir(next < n ? -1 : 1);
+    setN(next);
+  };
+  // A move by hand (Next, Back, a dot, a swipe, an arrow key) means the owner is reading at their own pace.
+  // At either end it moves nothing, so it changes nothing ("Play again" stays).
+  const go = (to: number) => {
+    if (Math.max(0, Math.min(steps.length - 1, to)) === n) return;
+    setPlay("stopped");
+    show(to);
+  };
+  const onDone = () => {
+    if (play !== "playing") return;
+    if (last) setPlay("ended");
+    else show(n + 1);
+  };
+  const onPlay = () => {
+    if (play === "playing") return setPlay("paused");
+    if (play === "ended") show(0);
+    setPlay("playing");
+  };
+  // A swipe across the picture on a touch screen: 40px sideways, and more sideways than down.
+  const onSwipeStart = (e: PointerEvent) => {
+    if (e.pointerType !== "mouse") swipe.current = { x: e.clientX, y: e.clientY };
+  };
+  const onSwipeEnd = (e: PointerEvent) => {
+    const from = swipe.current;
+    swipe.current = null;
+    if (!from) return;
+    const dx = e.clientX - from.x;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(e.clientY - from.y)) go(n + (dx < 0 ? 1 : -1));
+  };
   return (
     <Dialog.Popup
       ref={popup}
       initialFocus={popup}
+      // Reaching Skip, Back or Next with the keyboard stops it: moving on to the last step would swap them
+      // for "Got it" and take the focus with them. The dots and play button stay put, so they don't.
+      onFocus={(e) => {
+        const at = e.target;
+        if (play === "playing" && at !== e.currentTarget && at.matches(":focus-visible") && !at.closest("[data-tour-slider]")) setPlay("stopped");
+      }}
       onKeyDown={(e) => {
         if (e.key === "ArrowRight") go(n + 1);
         else if (e.key === "ArrowLeft") go(n - 1);
@@ -139,7 +219,12 @@ function Popup({ steps }: { steps: TourStep[] }) {
       }}
       className="fixed inset-x-0 bottom-0 z-50 flex max-h-dvh flex-col overflow-hidden rounded-t-xl border bg-background pb-[env(safe-area-inset-bottom)] text-foreground shadow-2xl outline-none motion-safe:transition-opacity motion-safe:duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 sm:inset-auto sm:rounded-xl sm:top-1/2 sm:left-1/2 sm:grid sm:h-[min(690px,calc(100dvh-2rem))] sm:w-[min(980px,calc(100vw-2rem))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:grid-cols-2 sm:grid-rows-1 sm:pb-0"
     >
-      <div className="relative h-[min(230px,30dvh)] shrink-0 border-b [@media(max-height:640px)]:h-[26dvh] sm:h-auto sm:min-h-0 sm:border-r sm:border-b-0">
+      {/* A swipe surface: the browser keeps up-and-down scrolling, sideways is the tour's (touch-action: pan-y). */}
+      <div
+        onPointerDown={onSwipeStart}
+        onPointerUp={onSwipeEnd}
+        onPointerCancel={() => (swipe.current = null)}
+        className="relative h-[min(230px,30dvh)] shrink-0 touch-pan-y border-b [@media(max-height:640px)]:h-[26dvh] sm:h-auto sm:min-h-0 sm:border-r sm:border-b-0">
         <div className="relative h-full min-h-0 overflow-hidden">{step.preview}</div>
       </div>
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col p-5 max-sm:[@media(max-height:640px)]:py-4 sm:p-8">
@@ -147,11 +232,17 @@ function Popup({ steps }: { steps: TourStep[] }) {
         <div className="flex shrink-0 items-center gap-2.5 text-sm text-faint max-sm:-mt-2.5 max-sm:min-h-[40px] sm:pr-9">
           {step.chip}
           <span className="min-w-0 flex-1 truncate">{step.label}</span>
-          <Dots steps={steps} step={n} onPick={go} className="-mr-[13px] sm:hidden" />
+          <Slider steps={steps} step={n} play={play} onPick={go} onPlay={onPlay} onDone={onDone} className="sm:hidden" />
         </div>
         {/* On a phone every step's words sit in one cell, the others unseen, so the cell is as tall as the longest. */}
         <div className="grid min-h-0 flex-1 overflow-y-auto overscroll-y-contain pt-4 sm:flex sm:flex-col sm:justify-center sm:overflow-visible sm:pt-0">
-          <div className="col-start-1 row-start-1">
+          <div
+            key={step.key}
+            className={cn(
+              "col-start-1 row-start-1 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-300 motion-safe:ease-out",
+              dir === 1 ? "motion-safe:slide-in-from-right-3" : "motion-safe:slide-in-from-left-3",
+            )}
+          >
             <Words step={step} real />
           </div>
           {steps.map((s, i) =>
@@ -163,7 +254,7 @@ function Popup({ steps }: { steps: TourStep[] }) {
           )}
         </div>
         <div className="flex shrink-0 items-center justify-between gap-2 pt-4">
-          <Dots steps={steps} step={n} onPick={go} className="-ml-1.5 max-sm:hidden" />
+          <Slider steps={steps} step={n} play={play} onPick={go} onPlay={onPlay} onDone={onDone} className="max-sm:hidden" />
           <div className="flex flex-1 items-center justify-between gap-1.5 sm:flex-none sm:justify-end">
             {/* On a phone Skip is quiet text at the left and the buttons are a size smaller, so all fit at 320px. */}
             {!last ? (

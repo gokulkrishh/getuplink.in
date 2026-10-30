@@ -10,17 +10,15 @@ import type { Vote } from "@/lib/tip-votes";
 import { tipsInView, turn, turnedTo } from "@/lib/tips-in-view";
 import { cn } from "@/lib/utils";
 
-// The box, the same while loading, so the page doesn't move when the tips arrive. Five lines of tip text are
-// held on a phone and two wider (lib/ai-tips.ts MAX_CHARS keeps every tip within them), so turning between
-// a short and a long tip doesn't move it either.
+// The box. Its text is as tall as the longest note it was given, no taller: every note sits in the same grid
+// cell, all but the one showing unseen, so short tips don't leave an empty box, and turning, dismissing or
+// voting a tip down doesn't move the page (a note that leaves still holds its height).
 const BOX = "space-y-2 rounded-lg border px-4 py-3";
 // A card's × in its top-right corner, matched with the share card's.
 export const DISMISS_X = "-my-1 -mr-1.5 shrink-0 max-sm:-my-2";
 const THANKS_MS = 5000;
 const DISMISSED_KEY = "uplink:tips-dismissed";
 const DISMISSED_MAX = 200;
-const TIPS_LINES = "min-h-25 sm:min-h-10";
-const NOTE_LINES = "min-h-15 sm:min-h-10";
 
 // Where the notes' votes go: the kind of page, the page (a day's start, a drive's start or a charge's id) and
 // the owner's votes so far, by tip. `swap` is where the tips are kept (the car and their time), so a tip
@@ -179,10 +177,17 @@ export function AiNotes({ title, notes: given, vote }: { title: string; notes: (
           )}
         </div>
       </div>
-      {/* Tips (with votes) hold TIPS_LINES; a one-line note such as a drive's summary holds two lines, as before.
-          The note shimmers with the title, so the sweep is seen across the words being read. */}
-      <p className={cn("ai-shimmer text-sm", vote ? TIPS_LINES : NOTE_LINES, replacing && "animate-pulse")} data-text={shown} aria-live="polite">
-        {shown}
+      {/* The note shimmers with the title, so the sweep is seen across the words being read. The unseen notes,
+          every one given or swapped in (dismissed or voted down too), only give the cell its height. */}
+      <p className="ai-shimmer grid text-sm" data-text={shown}>
+        <span className={cn("col-start-1 row-start-1", replacing && "animate-pulse")} aria-live="polite">
+          {shown}
+        </span>
+        {[...given, ...added].map((t, i) => (
+          <span key={i} aria-hidden="true" className="invisible col-start-1 row-start-1">
+            {t.text}
+          </span>
+        ))}
       </p>
     </section>
   );

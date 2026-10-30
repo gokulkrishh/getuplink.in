@@ -25,6 +25,12 @@
     from { opacity: 0; }
     to { opacity: 1; }
   }
+  /* The tour's step pill filling while it plays (components/home/tour-dialog.tsx). The duration is set inline. */
+  --animate-tour-fill: tour-fill linear both;
+  @keyframes tour-fill {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+  }
   /* A tip's vote answer ("You found this useful"): slides up and fades in. */
   --animate-vote-in: vote-in 0.25s ease-out;
   @keyframes vote-in {
