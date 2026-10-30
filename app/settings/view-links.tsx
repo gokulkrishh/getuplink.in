@@ -3,7 +3,6 @@
 import { Loader2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { CopyButton } from "@/components/copy-button";
-import { InfoButton } from "@/components/info-button";
 import { PendingLabel } from "@/components/pending-label";
 import { AlertDialog, AlertDialogClose, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
@@ -28,7 +27,6 @@ import { copyViewLinkAction, endViewLinkAction, makeViewLinkAction, setViewLinkH
 import { cn } from "@/lib/utils";
 import { Row } from "./row";
 
-const HIDE_LOCATIONS_NOTE = "Your guest won't see maps, places or charger names.";
 
 // Copy link on an open row: the link is rebuilt on the server (copyViewLinkAction) and put on the clipboard.
 // The clipboard gets a promise of the text, so Safari still counts it as the click's. Where the clipboard
@@ -93,7 +91,6 @@ function HideLocationsSwitch({ link, onChange }: { link: ViewLink; onChange: (hi
     });
   return (
     <div className="space-y-1">
-      <div className="flex items-center gap-1">
       <button
         type="button"
         role="switch"
@@ -108,8 +105,6 @@ function HideLocationsSwitch({ link, onChange }: { link: ViewLink; onChange: (hi
         </span>
         Hide locations
       </button>
-      <InfoButton label="Hide locations">{HIDE_LOCATIONS_NOTE}</InfoButton>
-      </div>
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
@@ -247,32 +242,32 @@ function MakeViewLink({ count, onMade }: { count: number; onMade: (made: { label
           </NativeSelect>
         </label>
       </div>
-      {/* Can be changed later, while the link is open, from its row above. */}
-      <div className="flex items-center gap-1">
-        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
+      {/* The two tick boxes sit together: 32px rows, a little taller on a phone for the thumb. Hide locations can be
+          changed later, while the link is open, from its row above. */}
+      <div>
+        <label className="flex min-h-8 w-fit cursor-pointer items-center gap-2 text-sm max-sm:min-h-9">
           <input type="checkbox" checked={hides.hideLocations} onChange={(e) => setHides({ hideLocations: e.target.checked })} className="size-4 shrink-0 accent-foreground" />
           Hide locations
         </label>
-        <InfoButton label="Hide locations">{HIDE_LOCATIONS_NOTE}</InfoButton>
+        <label className="flex min-h-8 w-fit cursor-pointer items-center gap-2 text-sm max-sm:min-h-9">
+          <input
+            type="checkbox"
+            checked={trusted}
+            onChange={(e) => {
+              setTrusted(e.target.checked);
+              setError(null);
+            }}
+            required
+            className="size-4 shrink-0 accent-foreground"
+          />
+          I trust this person with what I&apos;m sharing
+        </label>
       </div>
-      <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={trusted}
-          onChange={(e) => {
-            setTrusted(e.target.checked);
-            setError(null);
-          }}
-          required
-          className="size-4 shrink-0 accent-foreground"
-        />
-        I trust this person with what I&apos;m sharing
-      </label>
-      {/* The error's line is always there, so the button below never moves when it appears. */}
-      <p id="view-link-error" role="alert" className="min-h-5 text-sm text-destructive">
-        {error?.message}
-      </p>
-      <div className="flex justify-end">
+      {/* The error shares the button's row, so the button never moves when it appears. */}
+      <div className="flex items-center justify-between gap-3">
+        <p id="view-link-error" role="alert" className="text-sm text-destructive">
+          {error?.message}
+        </p>
         <Button type="submit" size="lg" className="relative" disabled={pending || !trusted} aria-busy={pending}>
           <PendingLabel pending={pending} label="Create guest link" pendingLabel="Creating" />
         </Button>
@@ -285,7 +280,7 @@ function MakeViewLink({ count, onMade }: { count: number; onMade: (made: { label
 function LinkBox({ url, children }: { url: string; children?: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2 pt-2">
-      <code className="min-w-0 flex-1 truncate border bg-muted px-2 py-1.5 font-mono text-sm select-all">{url}</code>
+      <code className="min-w-0 flex-1 truncate rounded-md border bg-muted px-2 py-1.5 font-mono text-sm select-all">{url}</code>
       <CopyButton text={url} label="Copy link" />
       {children}
     </div>
