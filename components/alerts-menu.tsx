@@ -1,6 +1,6 @@
 // The header's bell and what it lists: each alert a row with a picture, its title, what to do and since when.
 import Link from "next/link";
-import { Bell, ChevronRight, Hourglass, IndianRupee, KeyRound, Server, TriangleAlert, Unplug, WifiOff, Wrench, type LucideIcon } from "lucide-react";
+import { Bell, ChevronRight, Hourglass, IndianRupee, KeyRound, Server, Sparkles, TriangleAlert, Unplug, WifiOff, Wrench, type LucideIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +23,7 @@ const ICONS: Record<AlertIcon, LucideIcon> = {
   payment: IndianRupee,
   service: Wrench,
   server: Server,
+  new: Sparkles,
 };
 
 function bellLabel(count: number): string {

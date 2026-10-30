@@ -9,6 +9,7 @@ import type { Owner } from "./data/owner";
 import { carSetups, configExpiries, SetupSchemaMissing } from "./data/setup";
 import { latestHealth } from "./data/system";
 import { carLastReadingAt } from "./telemetry";
+import { whatsNewBell } from "./whats-new";
 
 const DAY_MS = 86_400_000;
 
@@ -48,13 +49,14 @@ export async function loadAlerts(owner: Owner, admin: boolean): Promise<Alert[]>
       };
     }),
   );
-  return buildAlerts({
+  const news = await whatsNewBell(owner, admin);
+  return [...buildAlerts({
     now,
     connected: account?.kind !== "disconnected",
     cars,
     lastRun: account?.kind === "ready" ? account.lastRun : null,
     health,
-  });
+  }), ...news];
 }
 
 // Demo mode has no account to check, so the bell shows a sample of each kind: the demo car's access
