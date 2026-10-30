@@ -1,11 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { preload } from "react-dom";
 import { OPEN_GRAPH, SITE_URL, TAGLINE, TWITTER } from "@/lib/site";
 import { THEME_SCRIPT } from "@/lib/theme";
 import { Suspense } from "react";
 import { RowLinks } from "@/components/row-links";
 import { TopLoader } from "@/components/top-loader";
-import { FONT_PRELOADS } from "@/lib/fonts";
+import { preloadFonts } from "@/lib/fonts";
 import "./fonts.css";
 import "./globals.css";
 
@@ -44,7 +43,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   // Geist and Geist Mono are cut down to what the app uses (scripts/subset-fonts.py, docs/fonts.md). Every page
   // preloads each one's core file; an extended file loads only on a page with one of its characters.
-  for (const href of FONT_PRELOADS) preload(href, { as: "font", type: "font/woff2", crossOrigin: "" });
+  preloadFonts();
   return (
     <html lang="en" suppressHydrationWarning className="h-full antialiased">
       <head>

@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { preload } from "react-dom";
 import { PlainPage } from "@/components/plain-page";
 import { Button } from "@/components/ui/button";
-import { FONT_PRELOADS } from "@/lib/fonts";
+import { preloadFonts } from "@/lib/fonts";
 import { THEME_SCRIPT } from "@/lib/theme";
 import "./fonts.css";
 import "./globals.css";
@@ -16,7 +15,7 @@ export default function GlobalError({ error, retry }: { error: unknown; retry: (
     console.error(error);
   }, [error]);
 
-  for (const href of FONT_PRELOADS) preload(href, { as: "font", type: "font/woff2", crossOrigin: "" });
+  preloadFonts();
   return (
     <html lang="en" suppressHydrationWarning className="h-full antialiased">
       <head>
