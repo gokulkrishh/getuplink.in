@@ -10,12 +10,14 @@ import { OFFLINE, orOffline } from "@/lib/offline";
 import { TOUR_SHOT, TOUR_TARGETS, type TourSpot } from "@/lib/tour-targets";
 import { cn } from "@/lib/utils";
 
-// The welcome for a newly approved owner (lib/whats-new.ts decides who): a short tour in a dialog over Home.
+// The welcome for every owner, once, until they close it (lib/whats-new.ts decides): a short tour in a dialog over Home.
 // On the left a screenshot of the real page, with a pointer that glides to the part the step is about. On the right the
 // words. Skip, the cross, Esc and "Got it" all close it, and any of them counts as seen.
 // Closing is never more than one tap, and nothing is trapped behind a step.
 
-type Step = { name: string; spot: TourSpot; title: string; lead: ReactNode; points: [string, string, string] };
+// `page`: the step is about a whole page (Stats, Updates, Compare), so the picture stays sharp everywhere and
+// only the outline and pointer show where it is. Otherwise only the outlined part is sharp.
+type Step = { name: string; spot: TourSpot; page?: boolean; title: string; lead: ReactNode; points: [string, string, string] };
 
 // A feature's name inside a sentence: stands out, but isn't a link.
 function Term({ children }: { children: ReactNode }) {
@@ -37,6 +39,7 @@ const STEPS: Step[] = [
   {
     name: "Stats",
     spot: "stats",
+    page: true,
     title: "Every drive and charge",
     lead: (
       <>
@@ -48,6 +51,7 @@ const STEPS: Step[] = [
   {
     name: "Updates",
     spot: "updates",
+    page: true,
     title: "Know when your update comes",
     lead: (
       <>
@@ -59,6 +63,7 @@ const STEPS: Step[] = [
   {
     name: "Compare",
     spot: "compare",
+    page: true,
     title: "See how you compare",
     lead: (
       <>
@@ -96,8 +101,9 @@ function Pictures({ spot, near }: { spot: TourSpot; near: TourSpot[] }) {
 }
 
 // The left half: the real page for the step, in the app's own theme, with an outline round the part the step
-// is about and a pointer that glides to it. Only that part is sharp; the rest is blurred and dimmed. Decorative: the words say all of it.
-function Preview({ spot, near }: { spot: TourSpot; near: TourSpot[] }) {
+// is about and a pointer that glides to it. On a step about one part, only that part is sharp and the rest is
+// blurred and dimmed; on a step about a whole page, all of it is sharp. Decorative: the words say all of it.
+function Preview({ spot, near, page = false }: { spot: TourSpot; near: TourSpot[]; page?: boolean }) {
   const t = TOUR_TARGETS[spot];
   // On a phone only the top of the picture shows: keep the pointer in view.
   const focusY = (t.at.y / 100) * PHONE_HEIGHT;
@@ -112,7 +118,7 @@ function Preview({ spot, near }: { spot: TourSpot; near: TourSpot[] }) {
           </div>
           <div
             className="absolute inset-0 motion-safe:transition-[clip-path] motion-safe:duration-[600ms] motion-safe:ease-[cubic-bezier(.2,.7,.2,1)]"
-            style={{ clipPath: `inset(calc(${t.y}% - ${PAD}px) calc(${100 - t.x - t.w}% - ${PAD}px) calc(${100 - t.y - t.h}% - ${PAD}px) calc(${t.x}% - ${PAD}px))` }}
+            style={{ clipPath: page ? "inset(0px 0px 0px 0px)" : `inset(calc(${t.y}% - ${PAD}px) calc(${100 - t.x - t.w}% - ${PAD}px) calc(${100 - t.y - t.h}% - ${PAD}px) calc(${t.x}% - ${PAD}px))` }}
           >
             <Pictures spot={spot} near={near} />
           </div>
@@ -149,7 +155,7 @@ const toSteps = (steps: Step[]): TourStep[] =>
       ))}
     </ul>
   ),
-  preview: <Preview spot={s.spot} near={[steps[i - 1]?.spot, steps[i + 1]?.spot].filter((x) => x !== undefined)} />,
+  preview: <Preview spot={s.spot} page={s.page} near={[steps[i - 1]?.spot, steps[i + 1]?.spot].filter((x) => x !== undefined)} />,
 }));
 
 const TOUR_STEPS = toSteps(STEPS);
