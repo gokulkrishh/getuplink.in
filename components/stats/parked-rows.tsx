@@ -92,7 +92,7 @@ function ParkedTable({ rows }: { rows: ParkedRow[] }) {
 // Phones: one block per stretch, its figures labelled in two columns.
 function ParkedBlocks({ rows }: { rows: ParkedRow[] }) {
   return (
-    <ul className="divide-y border-t">
+    <ul className="divide-y rounded-lg border">
       {rows.map((r) => {
         const figures = [
           ["Lost", r.lostWithRange],
@@ -101,7 +101,7 @@ function ParkedBlocks({ rows }: { rows: ParkedRow[] }) {
           ["Seen awake", r.awake],
         ];
         return (
-          <li key={r.start} className="space-y-3 py-4 text-sm">
+          <li key={r.start} className="space-y-3 px-4 py-4 text-sm">
             <div className="flex flex-wrap items-baseline justify-between gap-x-3">
               <p className="tabular-nums">
                 <span className="mr-2 font-mono text-xs text-faint">#{r.serial}</span>
