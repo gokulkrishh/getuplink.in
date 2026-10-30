@@ -45,7 +45,7 @@ export function DrivingSkeleton() {
                         <Ph>7 drives · 156.4 km</Ph>
                       </span>
                     </span>
-                    <span className="h-2 bg-muted motion-safe:animate-pulse" />
+                    <span className="h-2 rounded-full bg-muted motion-safe:animate-pulse" />
                     <span className="text-right font-mono">
                       <Ph>124 Wh/km</Ph>
                     </span>
@@ -154,7 +154,7 @@ export function ChargingSkeleton() {
                       <Ph>25 Oct · Home AC</Ph>
                       <Ph className="font-mono">60% to 80%</Ph>
                     </p>
-                    <div className="h-2 bg-muted motion-safe:animate-pulse" />
+                    <div className="h-2 rounded-full bg-muted motion-safe:animate-pulse" />
                   </div>
                 </li>
               ))}

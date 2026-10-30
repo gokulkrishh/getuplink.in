@@ -127,7 +127,7 @@ for (const phone of [false, true]) {
 
   await go("/privacy");
   t = await text(p);
-  check(`${tag} /privacy services + date`, t.includes("How we use your data") && t.includes("29 October 2026"));
+  check(`${tag} /privacy services + date`, t.includes("How we use your data") && t.includes("30 October 2026"));
 
   const r = await p.goto("/stats/driving/notadate");
   check(`${tag} bad trip is a 404`, r.status() === 404 && (await text(p)).includes("Page not found"));

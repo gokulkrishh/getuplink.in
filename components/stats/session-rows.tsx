@@ -21,7 +21,7 @@ export type MonthTotal = { month: string; count: number; billed: string | null }
 function SessionListRow({ view, costs }: { view: SessionView; costs: boolean }) {
   const second = [view.energy === null ? <span key="e" className="text-faint">—</span> : <Measure key="e" text={view.energy} />, ...(costs ? [view.cost ? <span key="c">{view.cost.money}</span> : <span key="c" className="text-faint">—</span>] : [])];
   return (
-    <li className="group/row relative flex items-center gap-3 py-3 text-sm transition-colors duration-150 hover:bg-muted focus-within:bg-muted active:bg-muted">
+    <li className="group/row relative -mx-2 flex items-center gap-3 rounded-lg px-2 py-3 text-sm transition-colors duration-150 hover:bg-muted focus-within:bg-muted active:bg-muted">
       <div className="min-w-0 flex-1">
         <p className="flex items-baseline justify-between gap-3">
           <span className="min-w-0 font-medium">

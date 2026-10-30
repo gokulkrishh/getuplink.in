@@ -23,10 +23,10 @@ const NEW = ist("2026-11-05"); // a newer owner
 const base = { entries: [] as Entry[], now: NOW, admin: false, approvedAt: OLD as number | null, welcomedAt: 1 as number | null, seenId: null as string | null, shareDue: false, schemaReady: true };
 
 describe("WHATS_NEW", () => {
-  test("ships one draft entry, so nobody sees anything yet", () => {
-    expect(WHATS_NEW.map((e) => [e.id, e.audience])).toEqual([["2026-11-20-guest-access", "draft"]]);
+  test("Guest access is the admin's alone, like the feature: an owner sees nothing yet", () => {
+    expect(WHATS_NEW.map((e) => [e.id, e.audience])).toEqual([["2026-10-30-guest-access", "admin"]]);
     expect(visibleEntries(WHATS_NEW, false)).toEqual([]);
-    expect(visibleEntries(WHATS_NEW, true)).toEqual([]);
+    expect(visibleEntries(WHATS_NEW, true).map((e) => e.id)).toEqual(["2026-10-30-guest-access"]);
   });
 });
 

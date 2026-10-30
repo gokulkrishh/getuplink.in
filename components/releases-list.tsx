@@ -172,7 +172,7 @@ export function ReleasesList({
                   aria-expanded={opened.has(e.id)}
                   onClick={() => tap(e.id)}
                   className={cn(
-                    "flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset",
+                    "flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset",
                     on ? "bg-muted" : "hover:bg-muted/50",
                   )}
                 >

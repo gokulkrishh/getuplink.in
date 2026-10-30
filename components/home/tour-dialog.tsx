@@ -197,7 +197,7 @@ function Popup({ steps }: { steps: TourStep[] }) {
         aria-label="Close"
         className="group absolute top-1 right-1 z-20 inline-flex size-11 cursor-pointer items-center justify-center rounded-full text-muted-foreground outline-none hover:text-foreground sm:top-2.5 sm:right-2.5"
       >
-        <span className="inline-flex size-8 items-center justify-center rounded-full transition-colors group-focus-visible:outline-2 group-focus-visible:outline-ring max-sm:bg-background/85 max-sm:text-foreground max-sm:shadow-sm max-sm:backdrop-blur-sm">
+        <span className="inline-flex size-8 items-center justify-center rounded-full transition-colors sm:group-hover:bg-muted group-focus-visible:outline-2 group-focus-visible:outline-ring max-sm:bg-background/85 max-sm:text-foreground max-sm:shadow-sm max-sm:backdrop-blur-sm">
           <X className="size-4" aria-hidden="true" />
         </span>
       </Dialog.Close>

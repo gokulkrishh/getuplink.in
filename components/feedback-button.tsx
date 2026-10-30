@@ -107,6 +107,8 @@ export function FeedbackButton() {
     <style href="feedback-button-room" precedence="default">{"@media (min-width:40rem){body:has([data-feedback-button]){padding-bottom:3.75rem}}"}</style>
     <Dialog.Root
       open={open}
+      // A tap outside doesn't close it, so a half-written message isn't lost. The ×, Esc and Done do.
+      disablePointerDismissal
       onOpenChange={(next) => {
         setOpen(next);
         if (next) setPath(location.pathname);
@@ -121,11 +123,11 @@ export function FeedbackButton() {
         <SmilePlus className="size-5" aria-hidden="true" />
       </Dialog.Trigger>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40" />
+        <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs" />
         <Dialog.Popup className="fixed inset-x-0 bottom-0 z-50 max-h-[90dvh] overflow-y-auto rounded-t-xl border bg-background p-5 text-sm text-foreground outline-none sm:inset-x-auto sm:right-4 sm:bottom-4 sm:rounded-xl sm:w-96">
           <div className="mb-5 flex items-center justify-between gap-4">
             <Dialog.Title className="text-lg font-medium tracking-heading">{sent ? "Feedback sent" : "Send feedback"}</Dialog.Title>
-            <Dialog.Close aria-label="Close" className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+            <Dialog.Close render={<Button variant="ghost" size="icon-sm" aria-label="Close" className="-mt-1 -mr-2 text-muted-foreground" />} nativeButton>
               <X className="size-4" aria-hidden="true" />
             </Dialog.Close>
           </div>
@@ -166,8 +168,9 @@ export function FeedbackButton() {
             >
               <Choices legend="What's it about?" options={TOPICS} value={topic} onChange={setTopic} />
               {problem && <Choices legend="How much is it bothering you?" options={BOTHER} value={bother} onChange={setBother} />}
+              <div className="space-y-2">
               <label className="block space-y-2">
-                <span className="text-sm font-medium">{prompt.label}</span>
+                <span className="block text-sm font-medium">{prompt.label}</span>
                 <textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
@@ -178,6 +181,7 @@ export function FeedbackButton() {
                 />
               </label>
               <p className="text-xs text-muted-foreground">Sent with the page you&apos;re on ({path}), your screen size and browser, so it&apos;s easy to find.</p>
+              </div>
               {error && (
                 <p role="alert" className="text-sm text-destructive">
                   {error}

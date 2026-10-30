@@ -47,7 +47,7 @@ function Placeholder() {
   return (
     <div className="rounded-lg bg-muted dark:bg-card px-3 pt-4 pb-2">
       <div className="h-40 w-full">
-        <div className="h-full w-full bg-background/60 motion-safe:animate-pulse" aria-busy="true" aria-label="Loading chart" />
+        <div className="h-full w-full rounded-md bg-background/60 motion-safe:animate-pulse" aria-busy="true" aria-label="Loading chart" />
       </div>
     </div>
   );

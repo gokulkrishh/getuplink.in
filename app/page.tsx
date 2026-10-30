@@ -272,7 +272,7 @@ function HomeSkeleton() {
   );
 }
 
-const line = "bg-muted text-transparent motion-safe:animate-pulse";
+const line = "rounded-md bg-muted text-transparent motion-safe:animate-pulse";
 
 // The car's strip: NowStrip's own row, with BatteryGauge's own track on the right from sm up.
 function StripSkeleton() {

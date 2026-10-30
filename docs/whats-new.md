@@ -23,7 +23,7 @@ At most 3 `dialog` entries per version, and a `dialog` entry needs a screenshot 
 
 ## Adding an entry
 
-Add it at the top of `WHATS_NEW`. Entries are release notes: `kind` (`"New feature"` or `"Improvement"`, shown under the title in the list), `icon` (a lucide name from `ENTRY_ICONS` in `lib/whats-new.ts`: Sparkles, Zap, BatteryCharging, Gauge, Car, Users, Link2, BellRing, Settings2, ChartColumn, MapPin, Wrench), `version` (Uplink's version, like "0.2"; it never goes down down the list), `date`, `title`, `text`, optional `more`, and an `image`. Write the words with the `uplink-copy` skill. The id is the date and a short name (`2026-11-20-guest-access`), so ids sort by date.
+Add it at the top of `WHATS_NEW`. Entries are release notes: `kind` (`"New feature"` or `"Improvement"`, shown under the title in the list), `icon` (a lucide name from `ENTRY_ICONS` in `lib/whats-new.ts`: Sparkles, Zap, BatteryCharging, Gauge, Car, Users, Link2, BellRing, Settings2, ChartColumn, MapPin, Wrench), `version` (Uplink's version, like "0.2"; it never goes down down the list), `date`, `title`, `text`, optional `more`, and an `image`. Write the words with the `uplink-copy` skill. The id is the date and a short name (`2026-10-30-guest-access`), so ids sort by date.
 
 The screenshot is a file in `public/whats-new/` (`/whats-new/name.webp`), about 1200px wide and under 120 KB, cropped to the part the entry is about. `image` holds its `src`, `alt` (plain words, same copy rules) and the file's real `width` and `height`, so the page keeps the space before it loads. A draft may have no image yet; an entry can't leave draft without one (`test/whats-new.test.ts` checks the file exists). Entries have no buttons or links.
 

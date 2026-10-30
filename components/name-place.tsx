@@ -236,7 +236,7 @@ export function NamePlace({ target, compact = false, className }: { target: Name
           <div className="mx-auto w-full max-w-md space-y-4 px-4 pt-6 pb-12 sm:pt-16">
             <div className="flex items-center justify-between gap-4">
               <Dialog.Title className="text-lg font-medium tracking-heading">{title}</Dialog.Title>
-              <Dialog.Close aria-label="Close" className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+              <Dialog.Close render={<Button variant="ghost" size="icon-sm" aria-label="Close" className="-mt-1 -mr-2 text-muted-foreground" />} nativeButton>
                 <X className="size-4" aria-hidden="true" />
               </Dialog.Close>
             </div>

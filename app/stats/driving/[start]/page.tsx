@@ -306,7 +306,7 @@ function Legs({ legs }: { legs: DriveDetail["trip"]["legs"] }) {
           </thead>
           <tbody className="divide-y">
             {legs.map((d, k) => (
-              <tr key={d.start} className="group/row relative cursor-pointer transition-colors duration-150 hover:bg-muted focus-within:bg-muted">
+              <tr key={d.start} className="group/row relative cursor-pointer *:transition-colors *:duration-150 hover:*:bg-muted focus-within:*:bg-muted [&>td:first-child]:rounded-l-lg [&>td:last-child]:rounded-r-lg">
                 <td className="py-3 pr-3 font-mono text-xs text-faint">{k + 1}</td>
                 <th scope="row" className="py-3 pr-4 text-left font-normal whitespace-nowrap">
                   <Link href={`/stats/driving/${d.start}?leg`} className={ROW_LINK}>
