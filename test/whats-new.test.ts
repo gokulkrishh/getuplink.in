@@ -108,7 +108,7 @@ describe("bell level", () => {
   test("the bell lists every unseen visible entry, newest first, as info lines", () => {
     const alerts = whatsNewAlerts(facts);
     expect(alerts.map((a) => a.key)).toEqual(["whats-new-2026-11-25-c", "whats-new-2026-11-20-b"]);
-    expect(alerts[0]).toMatchObject({ kind: "info", title: bell.title, detail: bell.text, href: "/releases", since: "2026-11-25T00:00:00+05:30" });
+    expect(alerts[0]).toMatchObject({ kind: "info", title: bell.title, detail: bell.text, href: "/whats-new", since: "2026-11-25T00:00:00+05:30" });
   });
   test("same rules as the card: seen, drafts, joined later, no schema", () => {
     expect(whatsNewAlerts({ ...facts, seenId: bell.id })).toEqual([]);
@@ -155,7 +155,7 @@ describe.each([
       expect({ id: e.id, image: e.image }).not.toEqual({ id: e.id, image: undefined });
       const img = e.image;
       if (!img) continue;
-      expect(img.src.startsWith("/releases/")).toBe(true);
+      expect(img.src.startsWith("/whats-new/")).toBe(true);
       expect({ src: img.src, exists: existsSync(join(process.cwd(), "public", img.src)) }).toEqual({ src: img.src, exists: true });
       expect(img.width).toBeGreaterThan(0);
       expect(img.height).toBeGreaterThan(0);

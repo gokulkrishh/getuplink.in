@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { cacheLife, cacheTag } from "next/cache";
 import { Sparkles } from "lucide-react";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Header } from "@/components/header";
+import { ReleasesList } from "@/components/releases-list";
 import { WhatsNewMark } from "@/components/whats-new-mark";
-import { formatShortDate } from "@/lib/format";
 import { isAdmin } from "@/lib/server/admin";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -28,8 +27,6 @@ async function load() {
 
 async function Entries() {
   const { entries, markId } = await load();
-  const releases = byVersion(entries);
-  const firstImageId = entries.find((e) => e.image)?.id;
   return (
     <>
       {markId !== null && <WhatsNewMark />}
@@ -38,37 +35,7 @@ async function Entries() {
           New things in Uplink will show up here.
         </EmptyState>
       ) : (
-        <div className="space-y-16">
-          {releases.map((r) => (
-            <section key={r.version} aria-labelledby={`v${r.version}`} className="space-y-8">
-              <h2 id={`v${r.version}`} className="flex items-baseline gap-3 text-lg font-medium tracking-heading">
-                Version {r.version}
-                <span className="text-sm font-normal text-muted-foreground">{formatShortDate(`${r.entries[0].date}T00:00:00+05:30`)}</span>
-              </h2>
-              <ul className="space-y-12">
-                {r.entries.map((e) => (
-                  <li key={e.id} className="space-y-3">
-                    <div className="space-y-0.5">
-                      <h3 className="text-sm font-medium">{e.title}</h3>
-                      <p className="text-sm text-muted-foreground">{e.more ? `${e.text} ${e.more}` : e.text}</p>
-                    </div>
-                    {e.image && (
-                      <Image
-                        src={e.image.src}
-                        alt={e.image.alt}
-                        width={e.image.width}
-                        height={e.image.height}
-                        sizes="(min-width: 672px) 632px, 100vw"
-                        priority={e.id === firstImageId}
-                        className="h-auto w-full border"
-                      />
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
-        </div>
+        <ReleasesList releases={byVersion(entries)} />
       )}
     </>
   );

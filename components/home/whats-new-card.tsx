@@ -3,7 +3,7 @@
 import { Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { markSeen } from "@/app/releases/actions";
+import { markSeen } from "@/app/whats-new/actions";
 import { Button } from "@/components/ui/button";
 import { OFFLINE, orOffline } from "@/lib/offline";
 import type { Entry } from "@/lib/whats-new";
@@ -30,7 +30,7 @@ export function WhatsNewCard({ entry, more }: { entry: Entry; more: number }) {
         <div className="min-w-0 flex-1 space-y-0.5">
           <p className="text-sm font-medium">New: {entry.title}</p>
           <p className="text-sm text-muted-foreground">{entry.text}</p>
-          <Link href="/releases" onClick={seen} className="inline-block pt-1.5 text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
+          <Link href="/whats-new" onClick={seen} className="inline-block pt-1.5 text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
             {more > 0 ? `See all ${more + 1} on What's new` : "See what's new"}
           </Link>
         </div>

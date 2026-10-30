@@ -20,7 +20,7 @@ export type Entry = {
   more?: string;
   // Uplink's version this shipped in, like "0.2". The page groups entries under it.
   version: string;
-  // A screenshot of the feature, a file in public/releases/. Every entry that is not a draft needs one
+  // A screenshot of the feature, a file in public/whats-new/. Every entry that is not a draft needs one
   // (test/whats-new.test.ts checks the file exists). Width and height are the file's own, so the page
   // holds the space before it loads.
   image?: { src: string; alt: string; width: number; height: number };
@@ -103,7 +103,7 @@ export function whatsNewAlerts(f: CardFacts): Alert[] {
     icon: "new",
     title: e.title,
     detail: e.text,
-    href: "/releases",
+    href: "/whats-new",
     since: `${e.date}T00:00:00+05:30`,
   }));
 }
