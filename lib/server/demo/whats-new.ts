@@ -20,7 +20,7 @@ export const DEMO_ENTRIES: Entry[] = [
     version: "0.3",
     title: "Take the tour again",
     text: "What's new has a button to take the welcome tour again, any time.",
-    image: { src: "/whats-new/demo/tour.webp", alt: "The top of What's new, with the Take the tour button on the right.", width: 1200, height: 191 },
+    image: { src: "/whats-new/demo/tour.webp", alt: "The top of What's new, with the Tour button on the right.", width: 1200, height: 191 },
     audience: "owners",
     show: "card",
   },
