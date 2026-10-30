@@ -95,7 +95,7 @@ export function sessionView(item: Listed, serial: number | undefined, now: numbe
     className: cn(
       columns(now !== undefined, costs, serial !== undefined),
       "grid items-start gap-x-4 py-4 text-sm",
-      href && "group/row relative cursor-pointer sm:-mx-3 sm:px-3 isolate before:absolute before:-inset-x-2 before:inset-y-0 sm:before:inset-x-0 before:-z-10 before:rounded-lg before:transition-colors before:duration-150 hover:before:bg-muted focus-within:before:bg-muted",
+      href && "group/row relative cursor-pointer sm:-mx-3 sm:px-3 isolate before:absolute before:-inset-x-2 before:inset-y-0 sm:before:inset-x-0 before:-z-10 before:transition-colors before:duration-150 hover:before:bg-muted focus-within:before:bg-muted",
     ),
     serial,
     date: now === undefined ? formatShortDate(item.started_at) : formatDayLabel(item.started_at, now),
