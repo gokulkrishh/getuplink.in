@@ -26,9 +26,9 @@ export function UpdateStats({ rows, now, covers }: { rows: UpdateRow[]; now: num
   ].filter((item) => item !== false);
   return (
     <div className="space-y-4">
-      <dl className="divide-y border-t">
+      <dl className="divide-y rounded-lg border">
         {items.map((item) => (
-          <div key={item.label} className="flex items-baseline justify-between gap-4 py-3 text-sm">
+          <div key={item.label} className="flex items-baseline justify-between gap-4 px-4 py-3 text-sm">
             <dt className="text-muted-foreground">{item.label}</dt>
             <dd className="font-mono font-medium tabular-nums"><Measure text={String(item.value)} /></dd>
           </div>

@@ -215,9 +215,9 @@ function UpdatesSkeleton() {
             ))}
           </div>
         </div>
-        <dl className="divide-y border-t">
+        <dl className="divide-y rounded-lg border">
           {["Average wait from offered to installed", "Updates this month", "Average time between updates", "Longest on one version"].map((label) => (
-            <div key={label} className="flex items-baseline justify-between gap-4 py-3 text-sm">
+            <div key={label} className="flex items-baseline justify-between gap-4 px-4 py-3 text-sm">
               <dt><Ph>{label}</Ph></dt>
               <dd className="font-mono font-medium"><Ph>2 days</Ph></dd>
             </div>
