@@ -23,11 +23,12 @@ function Notice({ title, children }: { title: string; children: React.ReactNode 
 }
 
 // Not configured, couldn't load, not connected, or connected with no cars. `count` is the cars there are
-// once ready; nothing renders while there is at least one.
-export function OwnerNotices({ data, count, failedRun }: { data: OwnerGate | { kind: "ready" }; count: number; failedRun: PollRun | null }) {
+// once ready; nothing renders while there is at least one. `viewer`: someone the owner sent a view link,
+// who gets no sign-in button or setup words, only what's the matter.
+export function OwnerNotices({ data, count, failedRun, viewer = false }: { data: OwnerGate | { kind: "ready" }; count: number; failedRun: PollRun | null; viewer?: boolean }) {
   return (
     <>
-      {data.kind === "misconfigured" && (
+      {data.kind === "misconfigured" && !viewer && (
         <EmptyState
           icon={<Settings2 className="size-7 text-faint" aria-hidden="true" />}
           title="Not configured"
@@ -49,7 +50,19 @@ export function OwnerNotices({ data, count, failedRun }: { data: OwnerGate | { k
         </Notice>
       )}
 
-      {data.kind === "disconnected" && (
+      {data.kind === "misconfigured" && viewer && (
+        <Notice title="Couldn't load this car">
+          <p>Try again in a while.</p>
+        </Notice>
+      )}
+
+      {data.kind === "disconnected" && viewer && (
+        <Notice title="Couldn't load this car">
+          <p>Its owner&apos;s Tesla account isn&apos;t connected to Uplink right now.</p>
+        </Notice>
+      )}
+
+      {data.kind === "disconnected" && !viewer && (
         <Notice title="Connect your Tesla account">
           <p>
             Uplink needs read-only access. It never wakes the car, so a version shows once the car is awake.
@@ -65,7 +78,7 @@ export function OwnerNotices({ data, count, failedRun }: { data: OwnerGate | { k
           </Notice>
         ) : (
           <EmptyState icon={<CarFront className="size-7 text-faint" aria-hidden="true" />} title="No cars yet">
-            No cars found on your Tesla account yet.
+            {viewer ? "No cars found on the owner's Tesla account yet." : "No cars found on your Tesla account yet."}
           </EmptyState>
         )
       )}

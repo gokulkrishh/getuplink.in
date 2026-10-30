@@ -2,6 +2,7 @@ import "server-only";
 import { DRIVE_DAYS } from "@/lib/drives";
 import { recentSpan, type Timeframe } from "@/lib/periods";
 import { type DrivingExtras, INSIGHT_DAYS } from "./driving-extra";
+import type { Owner } from "./data/owner";
 import { withGoogleNames } from "./google-place-names";
 
 const DAY = 86_400_000;
@@ -13,4 +14,5 @@ export const insightSpan = (frame: Timeframe, now: number) => recentSpan(frame.s
 export const PLACES_SHOWN = 15;
 
 // The insights with the table's places (the shown ones) given a Google-tagged place's live name; the map keeps `name`.
-export const withGooglePlaces = (list: DrivingExtras[]) => Promise.all(list.map(async (x) => ({ ...x, places: await withGoogleNames(x.places.slice(0, PLACES_SHOWN)) })));
+export const withGooglePlaces = (owner: Owner) => (list: DrivingExtras[]) =>
+  Promise.all(list.map(async (x) => ({ ...x, places: await withGoogleNames(owner, x.places.slice(0, PLACES_SHOWN)) })));

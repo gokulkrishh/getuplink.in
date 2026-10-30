@@ -3,7 +3,7 @@ import { feeLines } from "@/lib/charge-fees";
 import { DEMO } from "@/lib/demo";
 import { readAllRows, readPages } from "@/lib/paging";
 import { demoChargingFees, demoChargingSessions } from "./demo";
-import { type Owner, ownerDb } from "./data/owner";
+import { hides, type Owner, ownerDb, showsInvoices } from "./data/owner";
 import { fleetGet, TeslaError } from "./tesla";
 import { budgetState } from "./usage";
 
@@ -251,7 +251,7 @@ export async function loadChargingFees(owner: Owner, sessionId: string): Promise
 // Every one of the owner's sessions, newest first: All time and each period are worked out from this list. A missing table
 // or a read error shows as an empty list, with a log line.
 export async function loadChargingSessions(owner: Owner): Promise<ChargingSession[]> {
-  if (DEMO) return demoChargingSessions().map((s) => ({ ...s, lines: billLines(demoChargingFees(s.session_id), s.cost_total) }));
+  if (DEMO) return demoChargingSessions().map((s) => withHidden(owner, { ...s, lines: billLines(demoChargingFees(s.session_id), s.cost_total) }));
   const { data, error } = await readAllRows((from, to) =>
     ownerDb(owner)
       .from("charging_sessions")
@@ -275,5 +275,13 @@ export async function loadChargingSessions(owner: Owner): Promise<ChargingSessio
     currency: (row.currency as string | null) ?? null,
     invoices: Array.isArray(row.invoices) ? (row.invoices as ChargingInvoice[]) : [],
     lines: billLines(row.fees, num(row.cost_total)),
-  }));
+  })).map((s) => withHidden(owner, s));
+}
+
+// A session as a guest (a view link) may see it: what it cost, but never Tesla's invoice, and no
+// Supercharger site when the link hides locations. Left out here, where it's read, so no page, list or
+// download link can show it.
+function withHidden(owner: Owner, s: ChargingSession): ChargingSession {
+  const billed = showsInvoices(owner) ? s : { ...s, invoices: [] };
+  return hides(owner, "locations") ? { ...billed, site_name: null } : billed;
 }

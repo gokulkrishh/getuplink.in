@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { cacheLife } from "next/cache";
 import { Bell, LogOut, Settings, ShieldCheck, Sparkles, TriangleAlert } from "lucide-react";
 import { redirect } from "next/navigation";
@@ -20,7 +21,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { isAdmin } from "@/lib/server/admin";
-import { currentOwner } from "@/lib/server/auth";
+import { currentOwner, currentReader } from "@/lib/server/auth";
+import { ViewLinkWatch } from "@/components/view-link-watch";
+import { VIEW_BAR_COOKIE, viewBarOpen } from "@/lib/view-links";
+import { ViewerBar } from "@/components/viewer-bar";
 import { AlertsMenu } from "@/components/alerts-menu";
 import { type Alert } from "@/lib/alerts";
 import { demoAlerts, loadAlerts } from "@/lib/server/alerts";
@@ -92,9 +96,9 @@ function BellMenu({ alerts, now }: { alerts: Alert[]; now: number }) {
 }
 
 // The bell's place while the alerts load: grey, as with nothing to show, so it only lights up when something needs you.
-function BellPlaceholder() {
+function BellPlaceholder({ loading = false }: { loading?: boolean }) {
   return (
-    <span className={cn(BELL, "text-muted-foreground/40")} aria-hidden>
+    <span className={cn(BELL, "text-muted-foreground/40")} aria-hidden data-owner-placeholder={loading || undefined}>
       <Bell className="size-4" />
     </span>
   );
@@ -137,16 +141,115 @@ function SetupNote({ icon, action, children }: { icon: React.ReactNode; action: 
   );
 }
 
+// ---- Someone the owner sent a view link ----
+
+type ViewerHeader = { expiresAt: string };
+
+// Whether this request is a viewer's, and what their bar says. Private and short, like the session's.
+async function viewerSession(): Promise<ViewerHeader | null> {
+  "use cache: private";
+  cacheLife({ stale: 30 });
+  if (DEMO) return null;
+  const reader = await currentReader();
+  if (!reader?.viewer) return null;
+  const { viewer } = reader;
+  return { expiresAt: viewer.expiresAt };
+}
+
+// The owner's own controls (Sign out, the bell, the account menu, feedback): never a viewer's, whose nav is
+// just the page links. The owner's placeholders show while it's decided, so the owner's header never moves.
+async function OwnerControls({ children }: { children: React.ReactNode }) {
+  return (await viewerSession()) ? null : children;
+}
+
+// The guest pill floating at the bottom of every page (components/viewer-bar.tsx), open or folded as its
+// cookie says, and the watch for the link ending. It streams in after the shared static shell, but the
+// page's first script has already made room for it (GUEST_SCRIPT in lib/view-links.ts), so nothing moves.
+async function ViewerBanner() {
+  const viewer = await viewerSession();
+  if (!viewer) return null;
+  // Request time, so reading the clock below isn't part of the prerender.
+  await connection();
+  const open = viewBarOpen((await cookies()).get(VIEW_BAR_COOKIE)?.value, viewer.expiresAt, Date.now());
+  return (
+    <>
+      <ViewerBar open={open} expiresAt={viewer.expiresAt} />
+      <ViewLinkWatch />
+    </>
+  );
+}
+
 // The same header on every signed-in page; `current` marks the page's own link (Stats for every /stats page).
 // The logo is the way home. Updates and the India rollout sit under Car.
 // `setup={false}` leaves out the setup gate: Settings (sign out, disconnect, delete), the admin pages and /setup itself.
 // `onSetup`: the page is /setup, which an owner has to finish before anything else works, so the header
 // keeps only the logo and the account menu (Settings, Sign out): no page links, no bell.
 export function Header({ current, setup = true, onSetup = false }: { current?: Section; setup?: boolean; onSetup?: boolean }) {
+  // While it's decided whether this is a viewer: the owner's controls as placeholders, the same size, with
+  // nothing behind them read (the live bell and avatar render once, in OwnerControls' children). Marked
+  // data-owner-placeholder, so a guest's page never shows them (globals.css): Stats and Car stay put.
+  const loadingControls = (
+    <>
+      {!onSetup && <BellPlaceholder loading />}
+      <span className="flex size-8 items-center justify-center rounded-full border bg-background [&>*]:rounded-full" aria-hidden data-owner-placeholder>
+        <AvatarBlob seed={FALLBACK_SEED} />
+      </span>
+    </>
+  );
+  const ownerControls = (
+    <>
+      {/* The menu's Sign out item submits this form by id, so signing out stays the same POST to the
+          server action; the form sits outside the menu because the menu's popup unmounts on close. Offline,
+          it says so under the header (see SignOutForm). */}
+      <SignOutForm />
+      {!onSetup && (
+        <Suspense fallback={<BellPlaceholder />}>
+          <AlertsBell />
+        </Suspense>
+      )}
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          aria-label="Account menu"
+          className="tap-target flex size-8 cursor-pointer items-center justify-center rounded-full border [&>*]:rounded-full bg-background hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none data-popup-open:bg-muted"
+        >
+          <Suspense fallback={<AvatarBlob seed={FALLBACK_SEED} />}>
+            <AccountAvatar />
+          </Suspense>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-40">
+          <DropdownMenuItem render={<Link href="/settings" prefetch={true} />}>
+            <Settings aria-hidden />
+            Settings
+          </DropdownMenuItem>
+          <DropdownMenuItem render={<Link href="/release-notes" prefetch={true} />}>
+            <Sparkles aria-hidden />
+            Release notes
+          </DropdownMenuItem>
+          <FeedbackMenuItem />
+          <Suspense>
+            <AdminItem />
+          </Suspense>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem render={<button type="submit" form="sign-out" />} nativeButton className="w-full">
+            <LogOut aria-hidden />
+            Sign out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
+  );
   return (
     <>
-    {/* Every signed-in page has the header, so the feedback button rides with it. */}
-    <FeedbackButton />
+    {/* Every signed-in page has the header, so the feedback button rides with it. Never a guest's, not even
+        while loading: it is fixed to the corner, so arriving late moves nothing. */}
+    <Suspense>
+      <OwnerControls>
+        <FeedbackButton />
+      </OwnerControls>
+    </Suspense>
+    <Suspense>
+      <ViewerBanner />
+    </Suspense>
     <header className="relative mb-16 flex items-center justify-between gap-4 text-sm">
       <Link href="/" prefetch={true} className="tap-target flex shrink-0 items-center gap-2.5 font-medium">
         <Logo className="size-5" />
@@ -165,44 +268,9 @@ export function Header({ current, setup = true, onSetup = false }: { current?: S
             {item.label}
           </Link>
         ))}
-        {/* The menu's Sign out item submits this form by id, so signing out stays the same POST to the
-            server action; the form sits outside the menu because the menu's popup unmounts on close. Offline,
-            it says so under the header (see SignOutForm). */}
-        <SignOutForm />
-        {!onSetup && (
-          <Suspense fallback={<BellPlaceholder />}>
-            <AlertsBell />
-          </Suspense>
-        )}
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            aria-label="Account menu"
-            className="tap-target flex size-8 cursor-pointer items-center justify-center rounded-full border [&>*]:rounded-full bg-background hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none data-popup-open:bg-muted"
-          >
-            <Suspense fallback={<AvatarBlob seed={FALLBACK_SEED} />}>
-              <AccountAvatar />
-            </Suspense>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40">
-            <DropdownMenuItem render={<Link href="/settings" prefetch={true} />}>
-              <Settings aria-hidden />
-              Settings
-            </DropdownMenuItem>
-            <DropdownMenuItem render={<Link href="/release-notes" prefetch={true} />}>
-              <Sparkles aria-hidden />
-              Release notes
-            </DropdownMenuItem>
-            <FeedbackMenuItem />
-            <Suspense>
-              <AdminItem />
-            </Suspense>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem render={<button type="submit" form="sign-out" />} nativeButton className="w-full">
-              <LogOut aria-hidden />
-              Sign out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Suspense fallback={loadingControls}>
+          <OwnerControls>{ownerControls}</OwnerControls>
+        </Suspense>
       </nav>
     </header>
     {setup && (

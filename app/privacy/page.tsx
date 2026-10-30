@@ -37,7 +37,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 export default function PrivacyPage() {
   return (
-    <PlainPage title="Privacy" intro="What Uplink keeps about you and your car, and why." meta="Last updated 29 October 2026" current="privacy">
+    <PlainPage title="Privacy" intro="What Uplink keeps about you and your car, and why." meta="Last updated 30 October 2026" current="privacy">
       <Section title="What we collect">
         <p>
           Your Tesla account id, but not your name or email. Your car&apos;s details and the data it sends: battery, charging, drives
@@ -47,11 +47,12 @@ export default function PrivacyPage() {
       <Section title="Your car and Uplink's key">
         <p>
           Uplink only reads. It never unlocks, drives or sends commands to your car, and it never wakes it. You can remove its key
-          any time in the car&apos;s Controls, then Locks.
+          any time in the car&apos;s Controls &gt; Locks.
         </p>
       </Section>
       <Section title="How we use your data">
         <p>Only to show you your car in Uplink. It isn&apos;t sold or used for ads. If you choose to share, other owners see only combined figures.</p>
+        <p>If you create a guest link, the person who opens it sees your car in Uplink, including where it goes and parks unless you turn on Hide locations. They can&apos;t change anything, and the link ends when you choose.</p>
         <p>These services help run Uplink:</p>
         <ul className={PLAIN_LIST}>
           {SERVICES.map((service, i) => (
@@ -60,7 +61,7 @@ export default function PrivacyPage() {
         </ul>
       </Section>
       <Section title="Cookies">
-        <p>One cookie keeps you signed in, short-lived ones help you sign in, and one remembers light or dark. No tracking or analytics cookies.</p>
+        <p>One cookie keeps you signed in, short-lived ones help you sign in, and one remembers light or dark. Someone viewing a guest link gets cookies that keep their view open until the link ends. No tracking or analytics cookies.</p>
       </Section>
       <Section title="Deleting your data">
         <p>Delete my data in Settings removes your car&apos;s data. Delete account removes everything. Both are permanent.</p>

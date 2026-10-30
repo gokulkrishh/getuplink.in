@@ -229,18 +229,30 @@ describe("signed in as A", () => {
     const tags = await loadUserPlaces(A);
     expect(tags.find((t) => t.id === 30)).toEqual(expect.objectContaining({ name: null, googlePlaceId: "ChIJmadeUpOrchardMarket01" }));
     const spot = spotName(tags, { lat: 12, lng: 22 }, { place: "Hillgrove, Riverton" });
-    const [named] = await withGoogleNames([spot]);
+    const [named] = await withGoogleNames(A, [spot]);
     expect(named.google).toBe("Orchard Lane Market");
     // The pin-safe name is untouched: the area.
     expect(named.name).toEqual({ text: "Hillgrove, Riverton", source: "place" });
     expect(seen).toEqual([{ url: "https://places.googleapis.com/v1/places/ChIJmadeUpOrchardMarket01?languageCode=en", mask: "displayName", cache: "no-store" }]);
     expect(fake.rpcs.map((r) => r.args.p_sku)).toEqual(["placeDetailsPro"]);
     // Asked again on the next request: nothing was kept between them, in memory or in the database.
-    await withGoogleNames([spot]);
+    await withGoogleNames(A, [spot]);
     expect(seen).toHaveLength(2);
     expect(fake.rpcs.map((r) => r.args.p_sku)).toEqual(["placeDetailsPro", "placeDetailsPro"]);
     expect(fake.calls.filter((c) => c.op !== "select")).toEqual([]);
     expect(JSON.stringify(fake.tables)).not.toContain("Orchard Lane Market");
+  });
+
+  test("a view link's reader asks Google nothing: the row keeps its area name", async () => {
+    process.env.GOOGLE_MAPS_API_KEY = "test-key";
+    globalThis.fetch = (async (url: string | URL) => (fetched.push(String(url)), new Response(JSON.stringify({ displayName: { text: "Orchard Lane Market" } })))) as unknown as typeof fetch;
+    const tag = { id: 30, name: null, googlePlaceId: "ChIJmadeUpOrchardMarket01", lat: 12, lng: 22, radiusM: 75 };
+    const spot = spotName([tag], { lat: 12, lng: 22 }, { place: "Hillgrove, Riverton" });
+    const { asViewer } = await import("@/lib/server/data/owner");
+    const [named] = await withGoogleNames(asViewer(1, "made-up-a"), [spot]);
+    expect(shownName(named)).toEqual({ text: "Hillgrove, Riverton", google: false });
+    expect(fetched).toEqual([]);
+    expect(fake.rpcs).toEqual([]);
   });
 
   test("the sheet shows the tag's current Google name, looked up by the owner's own tag only", async () => {
@@ -262,17 +274,17 @@ describe("signed in as A", () => {
   test("without a key, or when Google fails, a Google-tagged place shows its area and nothing is counted", async () => {
     const tag = { id: 30, name: null, googlePlaceId: "ChIJmadeUpOrchardMarket01", lat: 12, lng: 22, radiusM: 75 };
     const spot = spotName([tag], { lat: 12, lng: 22 }, { place: "Hillgrove, Riverton" });
-    const [noKey] = await withGoogleNames([spot]);
+    const [noKey] = await withGoogleNames(A, [spot]);
     expect(shownName(noKey)).toEqual({ text: "Hillgrove, Riverton", google: false });
     expect(fetched).toEqual([]);
     process.env.GOOGLE_MAPS_API_KEY = "test-key";
     globalThis.fetch = (async (url: string | URL) => (fetched.push(String(url)), new Response("oops", { status: 500 }))) as unknown as typeof fetch;
-    const [failed] = await withGoogleNames([spot]);
+    const [failed] = await withGoogleNames(A, [spot]);
     expect(shownName(failed)).toEqual({ text: "Hillgrove, Riverton", google: false });
     globalThis.fetch = (async () => {
       throw new Error("network down");
     }) as unknown as typeof fetch;
-    const [down] = await withGoogleNames([spot]);
+    const [down] = await withGoogleNames(A, [spot]);
     expect(shownName(down)).toEqual({ text: "Hillgrove, Riverton", google: false });
     expect(fake.rpcs).toEqual([]);
   });

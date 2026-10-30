@@ -16,7 +16,8 @@ const pinName = (p: NamedPlace, k: number) => withCarFlag(mapName(p), p.tag) ?? 
 
 // A place as the table draws it: a Google place's name (credited) when the owner picked one, else the best
 // name; the car's flag as a small tag beside a real name, or alone when nothing else names the spot.
-export function placeRows(places: NamedPlace[]): PlaceRow[] {
+// `canName`: false for a guest, who never gets "Name this place".
+export function placeRows(places: NamedPlace[], canName = true): PlaceRow[] {
   return places.map((p, k) => {
     const shown = shownName(p);
     return {
@@ -26,7 +27,7 @@ export function placeRows(places: NamedPlace[]): PlaceRow[] {
       name: shown?.text ?? (p.tag ? CAR_FLAGS[p.tag] : `Place ${k + 1}`),
       google: !!shown?.google,
       flag: shown && p.tag ? CAR_FLAGS[p.tag] : null,
-      action: nameAction(p),
+      action: canName ? nameAction(p) : null,
       target: p.target,
       visits: p.visits,
       parked: formatDuration(p.parkedMs / 1000),
@@ -87,7 +88,7 @@ export function EfficiencyBands({ byTemp, bySpeed, byAc = [], note }: { byTemp: 
 
 // Where the car parks, after TeslaMate's locations: each spot by its best name (see spotName), with Home,
 // Work and Favourite from the car's own settings beside it, with visits and time parked; then everywhere it went on a map.
-export function Places({ places, visited, note, more }: { places: NamedPlace[]; visited: DrivingExtras["visited"]; more: LoadMore<PlaceRow> } & Covers) {
+export function Places({ places, visited, note, more, canName = true }: { places: NamedPlace[]; visited: DrivingExtras["visited"]; more: LoadMore<PlaceRow>; canName?: boolean } & Covers) {
   if (places.length === 0 && visited.length < 2) return null;
   const pins = places.map((p, k) => ({
     lat: p.lat,
@@ -104,7 +105,7 @@ export function Places({ places, visited, note, more }: { places: NamedPlace[]; 
         <p className="text-sm text-muted-foreground">Where you went and parked.</p>
       </div>
       {(pins.length > 0 || visited.length >= 2) && <TripMap route={visited} pins={pins} label="Everywhere the car went, with where it parked" legend="A place it parked. Bigger pins had more visits." />}
-      {places.length > 0 && <PlaceRows list={paged(placeRows(places), 5)} load={more} />}
+      {places.length > 0 && <PlaceRows list={paged(placeRows(places, canName), 5)} load={more} />}
       {note && <p className="text-sm text-faint">{note}</p>}
       <p className="text-sm text-faint">Names you give come first, then OpenStreetMap&apos;s. Places named from Google Maps show their area on the map. Home, Work and Favourite are the ones set in your car.</p>
     </section>

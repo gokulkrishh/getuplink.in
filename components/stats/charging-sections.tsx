@@ -12,6 +12,7 @@ import { DECIMALS, formatDuration, formatKm, formatKwh, formatMoney, formatNumbe
 import { hasBars, Headline, knownBars } from "@/components/stats/driving-sections";
 import { type LoadMore, paged } from "@/lib/list";
 import { chargeRows } from "@/lib/server/charging-lists";
+import { type Shown, SHOWS_ALL } from "@/lib/view-links";
 import { inSpan, type Slot, type Span, type Timeframe } from "@/lib/periods";
 import { barsSpan } from "@/components/stats/chart-caption";
 import type { ChargingSession } from "@/lib/server/charging";
@@ -226,9 +227,13 @@ export function EnergyAdded({
 // The first this many sessions (and stations) come with the page; the rest on "Show more".
 export const CHARGING_PREVIEW = 5;
 
+// What a charge's own page adds, saying only what this reader may see there.
+const openACharge = ({ locations }: Shown): string =>
+  locations ? "Open a charge to see where, how much and what it cost." : "Open a charge to see how much and what it cost.";
+
 // Every session in the period as one list under month headings: the first few now, the rest from `more`.
-export function SessionList({ sessions, more }: { sessions: Listed[]; more: LoadMore<ChargeRow> }) {
-  const { rows, months, costs } = chargeRows(sessions);
+export function SessionList({ sessions, more, shown = SHOWS_ALL }: { sessions: Listed[]; more: LoadMore<ChargeRow>; shown?: Shown }) {
+  const { rows, months, costs } = chargeRows(sessions, shown);
   // The total is the rows' raw energy added up, rounded once when shown, like each row.
   const energyTotal = sumKnown(sessions.map((s) => (s.tesla ? s.tesla.energy_kwh : s.stream?.energy_added_kwh)));
   return (
@@ -239,7 +244,7 @@ export function SessionList({ sessions, more }: { sessions: Listed[]; more: Load
           {sessions.length} {sessions.length === 1 ? "session" : "sessions"}
           {energyTotal > 0 && ` · ${formatKwh(energyTotal)}`}
         </p>
-        <p className="text-sm text-muted-foreground">Open a charge to see where, how much and what it cost.</p>
+        <p className="text-sm text-muted-foreground">{openACharge(shown)}</p>
       </div>
       <SessionRows list={paged(rows, CHARGING_PREVIEW)} months={months} costs={costs} load={more} />
     </section>

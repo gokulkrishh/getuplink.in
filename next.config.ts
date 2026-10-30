@@ -50,6 +50,11 @@ const nextConfig: NextConfig = {
       { source: "/waitlist", headers: noindex },
       // An invite's token is in its path: never indexed, and never sent on in a Referer.
       { source: "/invite/:path*", headers: [...noindex, { key: "Referrer-Policy", value: "no-referrer" }] },
+      // A view link's token is in its path too. Last, so these win over the security headers above.
+      { source: "/v/:path*", headers: [...noindex, { key: "Referrer-Policy", value: "no-referrer" }] },
+      // Someone the owner sent a view link (lib/server/view-links.ts): their pages are never indexed and never
+      // sent on in a Referer. proxy.ts also marks each response no-store.
+      { source: "/:path*", has: [{ type: "cookie" as const, key: "tiu_view" }], headers: [...noindex, { key: "Referrer-Policy", value: "no-referrer" }] },
     ];
   },
   // Tesla fetches the partner public key from this fixed path.

@@ -1,7 +1,7 @@
 import { after, NextResponse, type NextRequest } from "next/server";
 import { DEMO } from "@/lib/demo";
 import type { LoginErrorCode } from "@/lib/login-errors";
-import { createSession, EXPIRE_HOST_ONLY_SESSION, isValidSession, safeEqual, SESSION_COOKIE, SESSION_MAX_AGE, requestHost, sessionCookieDomain, STATE_COOKIE } from "@/lib/session";
+import { createSession, EXPIRE_HOST_ONLY_SESSION, isValidSession, safeEqual, SESSION_COOKIE, SESSION_MAX_AGE, browserUrl, requestHost, sessionCookieDomain, STATE_COOKIE } from "@/lib/session";
 import { INVITE_COOKIE, INVITE_COOKIE_PATH, inviteCookieHash } from "@/lib/server/invites";
 import { checkNow } from "@/lib/server/poll";
 import { afterSignInPath } from "@/lib/server/setup";
@@ -11,17 +11,16 @@ import { signIn, type SignInResult } from "@/lib/server/tesla";
 export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
-  if (DEMO) return NextResponse.redirect(new URL("/", request.url));
+  if (DEMO) return NextResponse.redirect(browserUrl("/", request));
   const params = request.nextUrl.searchParams;
   const code = params.get("code");
   const state = params.get("state") ?? "";
   const expected = request.cookies.get(STATE_COOKIE)?.value ?? "";
 
-  // Redirect on the host the browser used (app.getuplink.in / app.localhost); request.url can carry the
-  // server's own origin instead, which would land a freshly signed-in owner on the home page.
-  const origin = `${request.nextUrl.protocol}//${requestHost(request.headers) ?? request.nextUrl.host}`;
+  // Redirect on the host the browser used (browserUrl); request.url can carry the server's own origin
+  // instead, which would land a freshly signed-in owner on the home page.
   const done = (path: string, error?: LoginErrorCode) => {
-    const url = new URL(path, origin);
+    const url = browserUrl(path, request);
     if (error) url.searchParams.set("error", error);
     const res = NextResponse.redirect(url);
     res.cookies.delete({ name: STATE_COOKIE, path: "/api/auth" });

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { type ReactNode, Suspense } from "react";
 import { ChargeSkeleton } from "@/components/stats/skeletons";
 import { loadTipsBox } from "@/components/tips-box";
@@ -20,7 +20,9 @@ import { InvoiceSection } from "@/components/stats/invoice-lines";
 import { Figures } from "@/components/stats/figures";
 import { splitSite } from "@/lib/charge-sessions";
 import { formatClock, formatDate, formatDurationExact, formatKw, formatKwh, formatLevels, formatMoney, formatTempRange, withDayWord } from "@/lib/format";
-import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { requireReader } from "@/lib/server/auth";
+import { showsInvoices, shownTo } from "@/lib/server/data/owner";
+import { HIDDEN_PLACE, type Shown } from "@/lib/view-links";
 import { type ChargeDetail, loadChargeDetail } from "@/lib/server/charge-curve";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { isChargeId } from "@/lib/stats-paths";
@@ -30,16 +32,18 @@ export const metadata: Metadata = { title: "Charge" };
 
 // Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx).
 // With the owner's billed charges and car, for the tips.
-async function loadDetail(id: number): Promise<{ detail: ChargeDetail | null; priced: PricedCharge[]; vehicleId: string | null; now: number }> {
+// guest: someone the owner sent a guest link, who gets no owner controls and never an invoice.
+type DetailShown = Shown & { invoices: boolean; guest: boolean };
+
+async function loadDetail(id: number): Promise<{ detail: ChargeDetail | null; priced: PricedCharge[]; vehicleId: string | null; shown: DetailShown; now: number }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  const owner = await currentOwner();
-  if (!owner) redirect(SIGNED_OUT_PATH);
+  const { owner } = await requireReader();
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
   const now = Date.now();
   const [detail, priced, car] = await Promise.all([loadChargeDetail(owner, id, now), loadPricedCharges(owner, now), loadPrimaryVehicle(owner)]);
-  return { detail, priced, vehicleId: car?.id ?? null, now };
+  return { detail, priced, vehicleId: car?.id ?? null, shown: { ...shownTo(owner), invoices: showsInvoices(owner), guest: owner.viewOnly === true }, now };
 }
 
 // This charge against the owner's others (lib/charge-tips.ts).
@@ -56,7 +60,7 @@ function cost(tesla: ChargeDetail["tesla"], invoice: ChargeDetail["invoice"], en
   return !s.supercharger && s.ended_at ? "Not available" : null;
 }
 
-function Charge({ detail, now, tips }: { detail: ChargeDetail; now: number; tips: ReactNode }) {
+function Charge({ detail, now, tips, shown: reader }: { detail: ChargeDetail; now: number; tips: ReactNode; shown: DetailShown }) {
   const { session: s, tesla, invoice, curve } = detail;
   // Tesla's site for a Supercharger it billed, with its city under it; otherwise the best name known, or
   // the kind of charge when there's no name.
@@ -67,9 +71,15 @@ function Charge({ detail, now, tips }: { detail: ChargeDetail; now: number; tips
   const named = tesla ? (tag ? { text: tag, source: "tag" as const } : null) : streamName(s, invoice, detail.place, tag);
   const site = tesla ? splitSite(tesla.site_name) : null;
   const best = google ?? named?.text ?? null;
-  const { place, city } = site ? { place: best ?? site.place, city: site.city } : { place: best ?? chargeType(s), city: null };
+  // A guest whose link hides locations: the kind of charge as the title, and "Hidden" where its place goes.
+  const { place, city } = !reader.locations
+    ? { place: chargeType(s), city: HIDDEN_PLACE }
+    : site
+      ? { place: best ?? site.place, city: site.city }
+      : { place: best ?? chargeType(s), city: null };
   // A tagged spot gets the pencil; otherwise "Name this place" unless Tesla's site already names it.
-  const action = !detail.target ? null : tesla && !detail.target.tag ? null : nameAction({ name: named, target: detail.target });
+  // Never for a guest: naming a place is the owner's.
+  const action = !detail.target || reader.guest ? null : tesla && !detail.target.tag ? null : nameAction({ name: named, target: detail.target });
   // Where it was: the car's own location when it started, else a search for Tesla's site name.
   const mapsHref = detail.spot
     ? googleMapsUrl(detail.spot)
@@ -106,7 +116,8 @@ function Charge({ detail, now, tips }: { detail: ChargeDetail; now: number; tips
       ],
     },
     // An attached invoice has its own section below, with everything it printed.
-    { title: "Bill", rows: [["Cost", invoice ? null : cost(tesla, null, energy, currency, s)]] },
+    // An attached invoice has its own section below, for the owner; a viewer sees what it came to here.
+    { title: "Bill", rows: [["Cost", invoice && reader.invoices ? null : cost(tesla, invoice, energy, currency, s)]] },
   ];
   const sections = groups
     .map((g) => ({ title: g.title, rows: g.rows.filter((r): r is [string, string] => r[1] !== null) }))
@@ -151,7 +162,7 @@ function Charge({ detail, now, tips }: { detail: ChargeDetail; now: number; tips
             ))}
           </section>
         )}
-        {invoice && <InvoiceSection invoice={invoice} href={invoice.hasFile ? `/api/charging/receipt/${s.id}` : undefined} received={energy} />}
+        {invoice && reader.invoices && <InvoiceSection invoice={invoice} href={invoice.hasFile ? `/api/charging/receipt/${s.id}` : undefined} received={energy} />}
         <ChargeFees fees={detail.fees} currency={currency} />
         <ChargeSupply session={s} />
       </div>
@@ -162,7 +173,7 @@ function Charge({ detail, now, tips }: { detail: ChargeDetail; now: number; tips
 async function ChargeLoader({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!isChargeId(id)) notFound();
-  const { detail, priced, vehicleId, now } = await loadDetail(Number(id));
+  const { detail, priced, vehicleId, shown, now } = await loadDetail(Number(id));
   if (!detail) notFound();
   const tips = chargeTips(detail, priced);
   const at = Date.parse(detail.session.started_at);
@@ -170,6 +181,7 @@ async function ChargeLoader({ params }: { params: Promise<{ id: string }> }) {
     <Charge
       detail={detail}
       now={now}
+      shown={shown}
       tips={await loadTipsBox({ surface: CHARGE_TIPS, vehicleId, at, daily: false, entity: String(detail.session.id), findings: tips })}
     />
   );

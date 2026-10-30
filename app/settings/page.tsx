@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { STATUS_URL } from "@/lib/site";
 import { cacheLife, cacheTag } from "next/cache";
-import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
 import { buttonVariants } from "@/components/ui/button";
@@ -10,7 +9,7 @@ import { ThemePicker } from "@/components/theme-picker";
 import { STATES } from "@/lib/india-states";
 import { formatAgo, formatDate, formatSeen, formatShortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { currentOwner, ownerOnlyExit } from "@/lib/server/auth";
 import { lastCheckAt, OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { ownHomeState, type OwnHomeState } from "@/lib/server/home-state";
 import { lastReadingAt } from "@/lib/server/telemetry";
@@ -25,6 +24,10 @@ import { Loading, Ph } from "@/components/skeleton";
 import { Row } from "./row";
 import { FoldToggle } from "@/components/fold-toggle";
 import { ShareSwitch } from "@/components/owners/share-controls";
+import { isAdmin } from "@/lib/server/admin";
+import { loadViewLinks } from "@/lib/server/view-links";
+import type { ViewLink } from "@/lib/view-links";
+import { ViewLinks } from "./view-links";
 import { type Sharing } from "@/lib/server/data/owners";
 import { sharingState } from "@/lib/server/owners";
 
@@ -64,14 +67,21 @@ async function loadSettings(): Promise<{
   connectors: Connector[] | null;
   budget: BudgetState;
   sharing: Sharing | null;
+  viewLinks: ViewLink[] | null | undefined;
   now: number;
 }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
   const owner = await currentOwner();
-  if (!owner) redirect(SIGNED_OUT_PATH);
-  const [account, lastCheck, lastReading, home, connectors, budget, sharing] = await Promise.all([
+  if (!owner) return ownerOnlyExit();
+  // View links are the admin's alone for now: undefined hides the section, null says they aren't set up yet.
+  const viewLinksFor = async (): Promise<ViewLink[] | null | undefined> => {
+    if (!(await isAdmin())) return undefined;
+    const page = await loadViewLinks(owner, Date.now());
+    return page.available ? page.links : null;
+  };
+  const [account, lastCheck, lastReading, home, connectors, budget, sharing, viewLinks] = await Promise.all([
     accountInfo(owner),
     lastCheckAt(owner),
     lastReadingAt(owner),
@@ -92,13 +102,17 @@ async function loadSettings(): Promise<{
       console.warn("Sharing state unavailable:", (err as Error).message);
       return { on: false, since: null };
     }),
+    viewLinksFor().catch((err): null => {
+      console.warn("View links unavailable:", (err as Error).message);
+      return null;
+    }),
   ]);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
-  return { account, lastCheck, lastReading, home, connectors, budget, sharing, now: Date.now() };
+  return { account, lastCheck, lastReading, home, connectors, budget, sharing, viewLinks, now: Date.now() };
 }
 
 async function Settings() {
-  const { account, lastCheck, lastReading, home, connectors, budget, sharing, now } = await loadSettings();
+  const { account, lastCheck, lastReading, home, connectors, budget, sharing, viewLinks, now } = await loadSettings();
   // Past the Tesla budget checks slow down, then pause until the month resets (lib/server/poll.ts).
   const cadence =
     budget.level === "stopped"
@@ -132,7 +146,7 @@ async function Settings() {
               <>
                 <p>{connectedDescription}</p>
                 <p className="text-faint">Disconnecting stops Uplink reading your car. Your history stays.</p>
-                <p className="text-faint">To remove Uplink&apos;s key, open Controls, then Locks in your car.</p>
+                <p className="text-faint">To remove Uplink&apos;s key, open Controls &gt; Locks in your car.</p>
               </>
             }
           />
@@ -157,6 +171,7 @@ async function Settings() {
           description="Adds your car to the totals on the Compare page. Turning it off deletes your figures, and your car leaves the totals at 3:30 AM."
           control={<ShareSwitch on={sharing?.on ?? false} />}
         />
+        {viewLinks !== undefined && <ViewLinks links={viewLinks} now={now} />}
         <DeleteMyData />
         <DeleteAccount />
       </Group>
@@ -166,6 +181,34 @@ async function Settings() {
         <BotTemplate />
       </Advanced>
     </>
+  );
+}
+
+// The Guest access block's placeholder, only for the admin, who is the only one who gets the section. The
+// blocks are as tall as the empty form: the name and length fields (a label over a box), two tick rows, the
+// error line, the button.
+async function AdminGuestSkeleton() {
+  if (!(await isAdmin())) return null;
+  const block = (className: string) => <div className={`bg-muted motion-safe:animate-pulse ${className}`} aria-hidden="true" />;
+  return (
+    <Row title={<Ph>Guest access</Ph>} description={<p><Ph>Let someone you trust see your car data.</Ph></p>}>
+      <div className="mt-4 space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {["Who is it for", "Lasts"].map((label) => (
+            <div key={label} className="flex flex-col gap-1 text-sm">
+              <span>
+                <Ph>{label}</Ph>
+              </span>
+              {block("h-9 max-sm:h-10")}
+            </div>
+          ))}
+        </div>
+        {block("h-11")}
+        {block("h-11")}
+        {block("h-5")}
+        <div className="flex justify-end">{block("h-9 max-sm:h-10 w-40")}</div>
+      </div>
+    </Row>
   );
 }
 
@@ -184,7 +227,7 @@ function SettingsSkeleton() {
             title={<Ph>Theme</Ph>}
             description={text("Saved in this browser.")}
             control={
-              <div className="inline-flex bg-muted text-sm motion-safe:animate-pulse" aria-hidden="true">
+              <div className="inline-flex bg-muted text-sm motion-safe:animate-pulse max-sm:h-[42px]" aria-hidden="true">
                 {["System", "Light", "Dark"].map((label) => (
                   <span key={label} className="invisible border-y px-3 py-1.5 first:border-l last:border-r max-sm:py-2">
                     {label}
@@ -199,10 +242,15 @@ function SettingsSkeleton() {
             description={
               <>
                 <p>{text("Your car sends data while it's awake. Uplink never wakes it.")}</p>
-                <p>{text("Full check every 12 hours, last at 4:51 PM")}</p>
+                <p>{text("Full check every 12 hours, last at 4:51 PM IST")}</p>
               </>
             }
-            control={<p className="text-sm whitespace-nowrap">{text("Synced 2 minutes ago")}</p>}
+            control={
+              <p className="inline-flex items-center gap-2 text-sm whitespace-nowrap">
+                <span className="size-1.5" aria-hidden="true" />
+                <span>{text("Synced 2 minutes ago")}</span>
+              </p>
+            }
           />,
           <Row
             key="home"
@@ -218,7 +266,15 @@ function SettingsSkeleton() {
         )}
         {group(
           "Account",
-          <Row key="tesla" title={<Ph>Tesla account</Ph>} description={<p>{text("Connected since 4 Jan 2026")}</p>} control={button} />,
+          <Row key="tesla" title={<Ph>Tesla account</Ph>} description={
+              <>
+                <p>{text("Connected since 4 Jan 2026")}</p>
+                <p>{text("Disconnecting stops Uplink reading your car. Your history stays.")}</p>
+                <p>{text("To remove Uplink's key, open Controls > Locks in your car.")}</p>
+              </>
+            }
+            control={button}
+          />,
           <Row key="out" title={<Ph>Sign out everywhere</Ph>} description={<p>{text("Signs out every device, including this one.")}</p>} control={button} />,
         )}
         {group(
@@ -227,12 +283,19 @@ function SettingsSkeleton() {
             key="share"
             title={<Ph>Share with other owners</Ph>}
             description={<p>{text("Adds your car to the totals on the Compare page. Turning it off deletes your figures, and your car leaves the totals at 3:30 AM.")}</p>}
-            control={<div className="h-6 w-11 rounded-full bg-muted motion-safe:animate-pulse" aria-hidden="true" />}
+            control={
+              <div className="flex items-center max-sm:h-[52px]" aria-hidden="true">
+                <div className="h-6 w-11 rounded-full bg-muted motion-safe:animate-pulse" />
+              </div>
+            }
           />,
+          <Suspense key="guest" fallback={null}>
+            <AdminGuestSkeleton />
+          </Suspense>,
           <Row key="data" title={<Ph>Delete my data</Ph>} description={<p>{text("Removes your car data and disconnects Tesla. You can sign in again.")}</p>} control={button} />,
           <Row key="acct" title={<Ph>Delete account</Ph>} description={<p>{text("Removes everything, including your Uplink account.")}</p>} control={button} />,
         )}
-        <div className="mt-10 flex items-center justify-between gap-4">
+        <div className="mt-10 flex items-center justify-between gap-4 pb-2">
           <div>
             <p className="text-lg"><Ph>Advanced</Ph></p>
             <p className="text-sm"><Ph>Connect Claude, ChatGPT or Grok to your car&apos;s data.</Ph></p>

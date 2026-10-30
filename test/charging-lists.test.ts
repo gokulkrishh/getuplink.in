@@ -29,7 +29,7 @@ await standIn("@/lib/server/charging-extra", {
     return h.promise;
   },
 });
-await standIn("@/lib/server/google-place-names", { withGoogleNamesBy: async (spots: unknown) => spots });
+await standIn("@/lib/server/google-place-names", { withGoogleNamesBy: async (_owner: unknown, spots: unknown) => spots });
 
 const { loadChargingLists } = await import("@/lib/server/charging-lists");
 const { asOwner } = await import("@/lib/server/data/owner");

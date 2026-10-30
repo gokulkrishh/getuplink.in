@@ -1,4 +1,5 @@
 import "server-only";
+import { HIDDEN_PLACE } from "@/lib/view-links";
 import { type AcSupply, acSupply } from "@/lib/ac-charge";
 import {
   colorName,
@@ -20,7 +21,7 @@ import {
 import { DEMO } from "@/lib/demo";
 import { energyPoints, istWeek, istWeekStart, num, typicalChargeKw, type WeeklyPack, weeklyUsable } from "@/lib/telemetry-derive";
 import { demoData, demoStreamSessions } from "./demo";
-import { type Owner, ownerDb } from "./data/owner";
+import { hides, type Owner, ownerDb } from "./data/owner";
 import { loadReadingsByField } from "./telemetry-window";
 
 // What the car details page shows: the car's VIN and the vehicle_config section of the latest check that
@@ -186,7 +187,7 @@ type ChargeRow = {
 };
 
 // The newest finished session, AC or DC, wherever it was.
-async function loadLastCharge(owner: Owner, vin: string): Promise<LastCharge | null> {
+export async function loadLastCharge(owner: Owner, vin: string): Promise<LastCharge | null> {
   let data: ChargeRow | null;
   if (DEMO) {
     data = demoStreamSessions().find((s) => s.ended_at) ?? null;
@@ -224,7 +225,8 @@ async function loadLastCharge(owner: Owner, vin: string): Promise<LastCharge | n
     kw: kw !== null && kw > 0 ? Math.round(kw * 10) / 10 : null,
     kwh: kwh !== null && kwh > 0 ? kwh : null,
     levels: start !== null && end !== null && end > start ? { from: Math.round(start), to: Math.round(end) } : null,
-    station: data.station_name,
+    // Where it charged; "Hidden" for a guest whose link hides locations.
+    station: hides(owner, "locations") ? HIDDEN_PLACE : data.station_name,
     supply: ac ? acSupply(data) : null,
   };
 }

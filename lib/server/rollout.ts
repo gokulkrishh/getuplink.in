@@ -10,7 +10,7 @@ import { loadCarState, loadReleaseNotes, type Vehicle } from "./dashboard";
 import { demoData, demoFleet } from "./demo";
 import { missingEnv } from "./env";
 import { carStates } from "./home-state";
-import { type Owner, ownerDb } from "./data/owner";
+import { hides, type Owner, ownerDb } from "./data/owner";
 import { fleetOffers, fleetVersionChanges } from "./data/system";
 
 // This goes to the browser (the page's "use cache: private"), so it holds totals and the owner's own line only.
@@ -80,7 +80,14 @@ async function ownCar(owner: Owner): Promise<OwnCar> {
 // /rollout's totals, pooled across every car in the database. Only the totals leave this function: vehicle
 // ids are opaque keys inside buildRollout and buildArriving, VINs only join tables inside carStates (and read
 // the owner's own stream), and only versions, counts and the owner's own line leave the server.
+// A view link that hides locations gets no state map: with few cars in Uplink, the states could show where
+// the owner's car is.
 export async function loadRollout(owner: Owner, now: number): Promise<RolloutPage> {
+  const page = await readRollout(owner, now);
+  return page.kind === "ready" && hides(owner, "locations") ? { ...page, states: [] } : page;
+}
+
+async function readRollout(owner: Owner, now: number): Promise<RolloutPage> {
   if (DEMO) {
     const fleet = demoFleet();
     const changes = fleet.history.map((h) => ({ car: h.vehicle_id, version: h.version, previous: h.previous_version, at: h.detected_at, source: h.source }));

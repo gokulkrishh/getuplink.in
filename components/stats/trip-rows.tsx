@@ -16,6 +16,8 @@ export type TripRow = {
   day: string;
   times: string; // "8:10 AM to 8:42 AM"
   route: string | null; // "Home to Koramangala", when both ends are known
+  // A guest's link hides locations: `route` is "Hidden" (HIDDEN_PLACE), drawn muted with no underline.
+  placeHidden?: boolean;
   km: string;
   duration: string;
   stops: string | null; // "2 stops"
@@ -49,7 +51,10 @@ function TripTableRow({ row }: { row: TripRow }) {
       {/* Where it went. With no arrow column (it would sit off screen while the table scrolls), the name
           underlines when the row is hovered, as the link it is. */}
       <th scope="row" className="py-3 pr-3 text-left font-medium">
-        <Link href={`/stats/driving/${row.start}`} className={cn(ROW_LINK, !row.route && "font-normal text-muted-foreground")}>
+        <Link
+          href={`/stats/driving/${row.start}`}
+          className={cn(ROW_LINK, (!row.route || row.placeHidden) && "font-normal text-muted-foreground", row.placeHidden && "group-hover/row:no-underline")}
+        >
           {row.route ?? "Place not known"}
         </Link>
       </th>
@@ -78,7 +83,7 @@ function TripListRow({ row }: { row: TripRow }) {
         <p className="flex items-baseline justify-between gap-3">
           <span className="min-w-0 font-medium">
             <span className="mr-2 font-mono text-xs font-normal text-faint">{row.serial}</span>
-            <Link href={`/stats/driving/${row.start}`} className={ROW_LINK}>
+            <Link href={`/stats/driving/${row.start}`} className={cn(ROW_LINK, row.placeHidden && "font-normal text-muted-foreground group-hover/row:no-underline")}>
               {row.route ?? row.times}
             </Link>
           </span>

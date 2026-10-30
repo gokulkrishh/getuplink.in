@@ -13,7 +13,7 @@ import { cachedPlaceNames, placeKey } from "./place-names";
 import { googlePlaceName } from "./google-place-names";
 import { loadUserPlaces } from "./user-places";
 import { type NameTarget, nameTarget } from "@/lib/user-places";
-import { selectSessions, type StreamChargeSession, toStreamSession } from "./stream-charging";
+import { readableSession, selectSessions, type StreamChargeSession, toStreamSession } from "./stream-charging";
 import { type Owner, ownerDb } from "./data/owner";
 import { loadReadingsByField } from "./telemetry-window";
 
@@ -41,14 +41,17 @@ export type ChargeDetail = {
 };
 
 async function loadStreamSession(owner: Owner, id: number): Promise<StreamChargeSession | null> {
-  if (DEMO) return demoStreamSessions().find((s) => s.id === id) ?? null;
+  if (DEMO) {
+    const found = demoStreamSessions().find((s) => s.id === id);
+    return found ? readableSession(owner, found) : null;
+  }
   const { data, error } = await selectSessions((columns) => ownerDb(owner).from("stream_charge_sessions").select(columns).eq("id", id).maybeSingle());
   if (error) {
     console.warn("Streamed charging session unavailable:", error.message);
     return null;
   }
   // A select built from a string has no row type.
-  return data ? toStreamSession(data as unknown as Record<string, unknown>) : null;
+  return data ? readableSession(owner, toStreamSession(data as unknown as Record<string, unknown>)) : null;
 }
 
 export type ChargeSeries = { power: Reading[]; level: Reading[]; tempMin: Reading[]; tempMax: Reading[]; end: number };
@@ -99,7 +102,8 @@ export async function loadChargeDetail(owner: Owner, id: number, now: number): P
     spot ? loadUserPlaces(owner) : [],
   ]);
   const target = spot ? nameTarget(tags, spot) : null;
-  const google = target?.tag?.googlePlaceId ? await googlePlaceName(target.tag.googlePlaceId) : null;
+  // Never asked for a viewer (a view link): they see the area name, at no Google cost.
+  const google = target?.tag?.googlePlaceId && !owner.viewOnly ? await googlePlaceName(target.tag.googlePlaceId) : null;
   const taper = series ? taperTimes(levelSeries(series.level), start, end, session.start_level, session.end_level) : null;
   return { session, tesla: twin, invoice, curve, fees, spot, place: spot ? (places.get(placeKey(spot)) ?? null) : null, target, google, taper };
 }

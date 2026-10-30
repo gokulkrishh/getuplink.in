@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { Sparkles } from "lucide-react";
-import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Header } from "@/components/header";
@@ -9,7 +8,7 @@ import { WelcomeTourButton } from "@/components/home/welcome-tour";
 import { ReleasesList } from "@/components/releases-list";
 import { WhatsNewMark } from "@/components/whats-new-mark";
 import { isAdmin } from "@/lib/server/admin";
-import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { currentOwner, ownerOnlyExit } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { whatsNewPage } from "@/lib/server/whats-new";
 import { byVersion } from "@/lib/whats-new";
@@ -22,7 +21,8 @@ async function load() {
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
   const owner = await currentOwner();
-  if (!owner) redirect(SIGNED_OUT_PATH);
+  // A guest (a view link) gets not found: release notes are the owner's.
+  if (!owner) return ownerOnlyExit();
   return whatsNewPage(owner, await isAdmin());
 }
 

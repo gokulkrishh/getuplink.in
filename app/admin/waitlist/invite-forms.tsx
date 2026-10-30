@@ -8,7 +8,7 @@ import type { LinkResult } from "./actions";
 import { PendingLabel } from "@/components/pending-label";
 
 const field =
-  "h-9 w-full rounded-lg border bg-background px-3 text-sm outline-none placeholder:text-faint focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+  "h-9 w-full rounded-lg border bg-background px-3 text-sm text-foreground outline-none placeholder:text-faint focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 // A link the admin just made or asked for again, with Copy and, where the browser has it, Share (so it
 // can go straight to WhatsApp). Uplink sends nothing itself.

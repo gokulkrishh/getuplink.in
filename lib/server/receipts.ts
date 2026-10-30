@@ -8,7 +8,7 @@ import { loadDrivingFigures } from "./driving";
 import { selectSessions, toStreamSession } from "./stream-charging";
 import { DEMO } from "@/lib/demo";
 import { readAllRows } from "@/lib/paging";
-import { type Owner, ownerDb } from "./data/owner";
+import { type Owner, ownerDb, showsInvoices } from "./data/owner";
 import { loadPrimaryVehicle } from "./telemetry";
 
 // What the MCP connector (app/api/mcp) reads and writes. Each function returns plain data the tools
@@ -409,7 +409,15 @@ export type SessionInvoiceAmount = {
   lines: InvoiceLine[] | null;
 };
 
+// What each attached invoice came to. A guest (a view link) gets the amounts only, as a charge's cost:
+// never the invoice itself (its network, station, lines or file).
 export async function invoicesBySession(owner: Owner, ids: number[]): Promise<Map<number, SessionInvoiceAmount>> {
+  const all = await readInvoicesBySession(owner, ids);
+  if (showsInvoices(owner)) return all;
+  return new Map([...all].map(([id, i]) => [id, { ...i, network: "", station: null, hasFile: false, lines: null }]));
+}
+
+async function readInvoicesBySession(owner: Owner, ids: number[]): Promise<Map<number, SessionInvoiceAmount>> {
   if (DEMO) {
     const { demoInvoices } = await import("./demo");
     const all = demoInvoices();
@@ -461,7 +469,15 @@ export type SessionInvoice = {
 
 // The invoice attached to one session, for its page. Never fails the page: a read error (or a
 // database without the table yet) shows as no invoice.
+// As invoicesBySession: a guest gets what the charge cost and the kWh billed only, never the invoice's
+// network, station, number, times, lines, printed details or file.
 export async function sessionInvoice(owner: Owner, sessionId: number): Promise<SessionInvoice | null> {
+  const invoice = await readSessionInvoice(owner, sessionId);
+  if (!invoice || showsInvoices(owner)) return invoice;
+  return { ...invoice, network: "", station: null, hasFile: false, lines: null, invoiceNumber: null, startedAt: null, endedAt: null, details: [] };
+}
+
+async function readSessionInvoice(owner: Owner, sessionId: number): Promise<SessionInvoice | null> {
   if (DEMO) {
     const { demoInvoices } = await import("./demo");
     const i = demoInvoices().get(sessionId);
@@ -497,7 +513,9 @@ export async function sessionInvoice(owner: Owner, sessionId: number): Promise<S
 }
 
 // For the owner-only invoice route: the stored file of one of the owner's invoices.
+// Never for a guest (a view link). The route is the owner's alone too (proxy.ts).
 export async function invoiceFile(owner: Owner, sessionId: number): Promise<{ body: Blob; type: string } | null> {
+  if (!showsInvoices(owner)) return null;
   const { data, error } = await ownerDb(owner).from("charge_receipts").select("invoice_path").eq("session_id", sessionId).maybeSingle();
   if (error || !data?.invoice_path) return null;
   const file = await ownerDb(owner).invoices().download(data.invoice_path as string);

@@ -1,4 +1,5 @@
 import { Value } from "@/components/stats/figures";
+import { HIDDEN_PLACE, type Shown, SHOWS_ALL } from "@/lib/view-links";
 import { formatClock, formatDuration, formatKwh, formatNumber, formatPower, formatRangeKm, formatShortDate } from "@/lib/format";
 import { type DrainSummary, drainSummary, type ParkedNow, type ParkedPeriod, type ParkStats } from "@/lib/drives";
 import { backTo, overlapping } from "@/lib/kept";
@@ -40,14 +41,16 @@ function cells(r: Row, place: ShownName | null): ParkedRow {
 
 // The stretches overlapping the span, as the list shows them: the one going on now, then the finished ones,
 // newest first, numbered from 1 from the top. The page and "Show N more" (see moreParked) both draw from this.
-export function stretches(parked: ParkedPeriod[], parkedNow: ParkedNow | null, span: Span, places: Readonly<Record<number, SpotName>>) {
+// `shown`: a guest whose link hides locations gets "Hidden" as each stretch's place.
+export function stretches(parked: ParkedPeriod[], parkedNow: ParkedNow | null, span: Span, places: Readonly<Record<number, SpotName>>, shown: Shown = SHOWS_ALL) {
   const finished = overlapping(parked, span, (p) => p.start, (p) => p.end);
   const ongoing = parkedNow && parkedNow.start < span.to && parkedNow.end >= span.from ? parkedNow : null;
   const rows: Row[] = [
     ...(ongoing ? [{ ...ongoing, ongoing: true, atLeast: ongoing.fromFirstReading }] : []),
     ...[...finished].reverse().map((p) => ({ ...p, ongoing: false, atLeast: false })),
   ].map((r, i) => ({ ...r, serial: i + 1 }));
-  return { finished, ongoing, rows, texts: rows.map((r) => cells(r, shownName(places[r.start]))) };
+  const texts = rows.map((r) => (shown.locations ? cells(r, shownName(places[r.start])) : { ...cells(r, null), place: HIDDEN_PLACE, placeGoogle: false }));
+  return { finished, ongoing, rows, texts };
 }
 
 // Battery lost while parked, after TeslaMate's vampire drain, over the span: a headline of average power and
@@ -63,15 +66,17 @@ export function ParkedDrain({
   frame,
   places = {},
   more,
+  shown = SHOWS_ALL,
 }: {
   parked: ParkedPeriod[];
   parkedNow: ParkedNow | null;
   frame: Timeframe;
   places?: Readonly<Record<number, SpotName>>;
   more: LoadMore<ParkedRow>;
+  shown?: Shown;
 }) {
   if (parked.length === 0 && !parkedNow) return null;
-  const { finished, ongoing, rows, texts } = stretches(parked, parkedNow, frame.span, places);
+  const { finished, ongoing, rows, texts } = stretches(parked, parkedNow, frame.span, places, shown);
 
   // The median of finished stretches in the span once there are two; until then the one going on now, if
   // it's long enough to say anything per day.

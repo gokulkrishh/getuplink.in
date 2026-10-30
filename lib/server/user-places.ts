@@ -1,7 +1,7 @@
 import "server-only";
 import { DEMO } from "@/lib/demo";
 import { type LatLng, TAG_RADIUS_M, type UserPlace } from "@/lib/user-places";
-import { type Owner, ownerDb } from "./data/owner";
+import { hides, type Owner, ownerDb } from "./data/owner";
 
 // The owner's names for spots, in user_places. Every read and write goes through ownerDb, so it is the
 // signed-in owner's rows only (user_id; see ownerKeys). A row holds a typed name or a Google place ID,
@@ -35,7 +35,9 @@ const fromRow = (r: Row): UserPlace => ({
 
 // The owner's tags, newest first. Never throws: before the migration, or on an error, there are none.
 // "*" so the read works before and after google_place_id exists.
+// None for a view link that hides locations: the names and spots are the owner's places.
 export async function loadUserPlaces(owner: Owner): Promise<UserPlace[]> {
+  if (hides(owner, "locations")) return [];
   if (DEMO) return DEMO_TAGS;
   try {
     const { data, error } = await ownerDb(owner).from("user_places").select("*").order("updated_at", { ascending: false }).limit(MAX_TAGS);

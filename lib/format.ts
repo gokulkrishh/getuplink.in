@@ -166,6 +166,11 @@ export function formatSeen(value: string | number | Date, now: number): string {
   return formatDate(value) === formatDate(now) ? formatTime(value) : `${formatShortDate(value)}, ${formatTime(value)}`;
 }
 
+// "9:52 AM" when it is today (in IST), otherwise "21 Oct, 9:52 AM". `now` is passed in as for formatSeen.
+export function formatClockOn(value: string | number | Date, now: number): string {
+  return formatDate(value) === formatDate(now) ? formatClock(value) : `${formatShortDate(value)}, ${formatClock(value)}`;
+}
+
 // "Today, 27 Oct 2026" or "Yesterday, …": a full date led by Today or Yesterday when it is one (IST).
 export function withDayWord(date: string, value: string | number | Date, now: number): string {
   const days = istDay(now) - istDay(new Date(value).getTime());

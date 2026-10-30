@@ -1,4 +1,5 @@
 import { columns, SessionHeader } from "@/components/session-columns";
+import { HIDDEN_PLACE, type Shown, SHOWS_ALL } from "@/lib/view-links";
 import { SessionLine, type SessionView } from "@/components/session-line";
 import { type ChargeName, chargeName, chargeType, type SpotName } from "@/lib/charge-names";
 import { splitSite } from "@/lib/charge-sessions";
@@ -68,7 +69,8 @@ export function hasCosts(items: Listed[]): boolean {
 
 // One row's texts. The invoice download sits before the cost, so a row without one leaves no gap and the
 // last column stays flush right.
-export function sessionView(item: Listed, serial: number | undefined, now: number | undefined, costs: boolean): SessionView {
+// `shown`: what the reader may see; a guest whose link hides locations gets "Hidden" for the place.
+export function sessionView(item: Listed, serial: number | undefined, now: number | undefined, costs: boolean, shown: Shown = SHOWS_ALL): SessionView {
   const { tesla: s, stream, invoice: attached } = item;
   const invoice = s?.invoices.find((i) => i.contentId);
   const named = !s && stream ? (item.spot?.name ?? streamName(stream, attached)) : null;
@@ -99,8 +101,9 @@ export function sessionView(item: Listed, serial: number | undefined, now: numbe
     date: now === undefined ? formatShortDate(item.started_at) : formatDayLabel(item.started_at, now),
     clock: formatClock(item.started_at),
     href,
-    place,
-    google: google !== null,
+    place: shown.locations ? place : HIDDEN_PLACE,
+    ...(shown.locations ? {} : { placeHidden: true }),
+    google: shown.locations && google !== null,
     detail: detail.filter(Boolean).join(" · "),
     energy: energy === null ? null : formatKwh(energy),
     cost: !costs

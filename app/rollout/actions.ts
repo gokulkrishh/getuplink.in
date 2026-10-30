@@ -1,16 +1,14 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import type { ArrivingRow, VersionRow } from "@/components/rollout-lists";
 import { arrivingRows, versionRows } from "@/lib/rollout-rows";
-import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { requireReader } from "@/lib/server/auth";
 import { loadRollout } from "@/lib/server/rollout";
 
 // "Show N more" under the rollout's lists: the rows after the first `offset`, drawn as the page draws them.
 // Server actions are reachable by POST from anywhere, so these re-check the session and the offset.
 async function rolloutAfter(offset: number) {
-  const owner = await currentOwner();
-  if (!owner) redirect(SIGNED_OUT_PATH);
+  const { owner } = await requireReader();
   if (!Number.isInteger(offset) || offset < 0) return null;
   const data = await loadRollout(owner, Date.now());
   return data.kind === "ready" ? data : null;

@@ -2,6 +2,7 @@ import { hasCosts, type Listed, listSessions, sessionView, streamName, withSpots
 import type { ChargeRow, MonthTotal } from "@/components/stats/session-rows";
 import { matchSessions } from "@/lib/charge-sessions";
 import { formatMoney, formatMonth } from "@/lib/format";
+import { type Shown, SHOWS_ALL } from "@/lib/view-links";
 import { serials } from "@/lib/kept";
 import { inSpan, type Span } from "@/lib/periods";
 import { type StationRow, topStations } from "@/lib/top-stations";
@@ -22,7 +23,7 @@ export type ChargingLists = {
 };
 
 // The session rows get a Google-tagged spot's live name; the pins and curves keep `name`.
-export const withGoogleNames = async (x: ChargingExtras) => ({ ...x, spots: await withGoogleNamesBy(x.spots) });
+export const withGoogleNames = (owner: Owner) => async (x: ChargingExtras) => ({ ...x, spots: await withGoogleNamesBy(owner, x.spots) });
 
 // The invoices need only the car's charges, so they don't wait for Tesla's. With a span (a range picked by
 // date), that range's extras are read alongside every charge's, from the same sessions and invoices.
@@ -35,8 +36,8 @@ export async function loadChargingLists(owner: Owner, vin: string | null, now: n
   ]);
   const sources = { tesla: sessions, invoices, now };
   const [extras, rangeExtras] = await Promise.all([
-    loadChargingExtras(owner, vin, streamSessions, sources).then(withGoogleNames),
-    span ? loadChargingExtras(owner, vin, streamSessions.filter(startedIn(span)), sources).then(withGoogleNames) : null,
+    loadChargingExtras(owner, vin, streamSessions, sources).then(withGoogleNames(owner)),
+    span ? loadChargingExtras(owner, vin, streamSessions.filter(startedIn(span)), sources).then(withGoogleNames(owner)) : null,
   ]);
   return { sessions, streamSessions, invoices, extras, rangeExtras };
 }
@@ -98,7 +99,8 @@ function billed(rows: Listed[]) {
 
 // A period's charges (newest first) as list rows, numbered from the top row, 1: the charts in that period
 // use the same numbers (see streamSerial in the page). `costs` and the month totals are over all of them.
-export function chargeRows(inPeriod: Listed[]): { rows: ChargeRow[]; months: MonthTotal[]; costs: boolean } {
+// `shown`: what the reader may see; a view link that hides locations gets "Hidden" where a place goes.
+export function chargeRows(inPeriod: Listed[], shown: Shown = SHOWS_ALL): { rows: ChargeRow[]; months: MonthTotal[]; costs: boolean } {
   const serial = serials(inPeriod, (s) => s.key);
   const costs = hasCosts(inPeriod);
   // Over the whole period, not the page of rows sent first, so rows fetched later are marked too.
@@ -109,7 +111,7 @@ export function chargeRows(inPeriod: Listed[]): { rows: ChargeRow[]; months: Mon
     byMonth.set(month, [...(byMonth.get(month) ?? []), s]);
   }
   return {
-    rows: inPeriod.map((s) => ({ key: s.key, month: formatMonth(s.started_at), view: { ...sessionView(s, serial.get(s.key) ?? 0, undefined, costs), mostUsed: mostUsed !== null && stationOf(s) === mostUsed } })),
+    rows: inPeriod.map((s) => ({ key: s.key, month: formatMonth(s.started_at), view: { ...sessionView(s, serial.get(s.key) ?? 0, undefined, costs, shown), mostUsed: mostUsed !== null && stationOf(s) === mostUsed } })),
     months: [...byMonth].map(([month, rows]) => ({ month, count: rows.length, billed: billed(rows) })),
     costs,
   };

@@ -3,7 +3,7 @@ import { buildSessions, CHARGE_FIELDS, type ChargeReading } from "@/lib/charge-s
 import { DEMO } from "@/lib/demo";
 import { messageOf } from "@/lib/errors";
 import { demoStreamSessions } from "./demo";
-import { type Owner, ownerDb } from "./data/owner";
+import { hides, type Owner, ownerDb } from "./data/owner";
 import { readingsBefore } from "./telemetry";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -189,14 +189,17 @@ export function toStreamSession(row: Record<string, unknown>): StreamChargeSessi
 
 // The owner's sessions, newest first. A missing table or a read error throws.
 export async function readStreamSessions(owner: Owner, limit = LIST_LIMIT): Promise<StreamChargeSession[]> {
-  if (DEMO) return demoStreamSessions().slice(0, limit);
+  if (DEMO) return demoStreamSessions().slice(0, limit).map((s) => readableSession(owner, s));
   const { data, error } = await selectSessions((columns) =>
     ownerDb(owner).from("stream_charge_sessions").select(columns).order("started_at", { ascending: false }).limit(limit),
   );
   if (error) throw new Error(`Reading streamed charging sessions failed: ${error.message}`);
   // A select built from a string has no row type.
-  return ((data ?? []) as unknown as Record<string, unknown>[]).map(toStreamSession);
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map((row) => readableSession(owner, toStreamSession(row)));
 }
+
+// A session as this reader may see it: no station name for a view link that hides locations.
+export const readableSession = (owner: Owner, s: StreamChargeSession): StreamChargeSession => (hides(owner, "locations") ? { ...s, station_name: null } : s);
 
 // The same, for pages: a missing table or a read error shows as an empty list, with a log line.
 export async function loadStreamSessions(owner: Owner, limit = LIST_LIMIT): Promise<StreamChargeSession[]> {

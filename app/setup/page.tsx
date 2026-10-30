@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { CircleCheck } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
@@ -11,7 +11,7 @@ import { DEMO, DEMO_SITE, demoScenario } from "@/lib/demo";
 import { demoLastReadingAt } from "@/lib/server/demo";
 import { formatAgo } from "@/lib/format";
 import { type CarSetup, carLive, KEY_PAIRING_URL, keyStep, type StepState, streamingLive, streamingStep } from "@/lib/setup-status";
-import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { currentOwner, ownerOnlyExit } from "@/lib/server/auth";
 import { loadSetup, type SetupView } from "@/lib/server/setup";
 import { cn } from "@/lib/utils";
 import { CheckAgain } from "./check-again";
@@ -167,7 +167,7 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
     now = Date.now();
   } else {
     const owner = await currentOwner();
-    if (!owner) redirect(SIGNED_OUT_PATH);
+    if (!owner) return ownerOnlyExit();
     view = await loadSetup(owner);
     now = Date.now();
   }
@@ -224,7 +224,7 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
           )}
           {/* Tesla's app says "Request timed out" when the car is asleep or out of reach while the key is added. */}
           <p className="text-xs text-faint">
-            {key !== "done" && "Request timed out? Wake your car in the Tesla app and try again. "}Remove the key any time in the car&apos;s Controls, then Locks.
+            {key !== "done" && "Request timed out? Wake your car in the Tesla app and try again. "}Remove the key any time in the car&apos;s Controls &gt; Locks.
           </p>
           <CarList cars={cars} words={keyWords} />
         </Step>

@@ -174,7 +174,7 @@ export function FeedbackButton() {
                   maxLength={MESSAGE_MAX}
                   rows={4}
                   placeholder={prompt.hint}
-                  className="block w-full resize-y border bg-background px-3 py-2 text-sm placeholder:text-faint focus-visible:outline-2 focus-visible:outline-ring"
+                  className="block w-full resize-y border bg-background px-3 py-2 text-sm text-foreground placeholder:text-faint focus-visible:outline-2 focus-visible:outline-ring"
                 />
               </label>
               <p className="text-xs text-muted-foreground">Sent with the page you&apos;re on ({path}), your screen size and browser, so it&apos;s easy to find.</p>

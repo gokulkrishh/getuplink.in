@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { AdminPage as AdminFrame } from "@/components/admin/admin-page";
 import { accessAnchor, outcomeLine } from "@/lib/failed-checks";
@@ -9,7 +9,7 @@ import { STATUS_URL } from "@/lib/site";
 import { STATUS_WORD } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { type AdminPage, type ComponentHealthSummary, isAdmin, loadAdmin, RECENT_DAYS } from "@/lib/server/admin";
-import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { hasCurrentSession, ownerOnlyExit } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { Measure } from "@/components/measure";
 import { Figures } from "@/components/stats/figures";
@@ -29,7 +29,7 @@ async function loadAdminPage(): Promise<{ data: AdminPage; now: number }> {
   // 5 minutes or more lets the page come along with a link's prefetch, so the tabs switch at once (Next's
   // instant-navigation guide); saves still refresh it at once (updateTag).
   cacheLife({ stale: 300 });
-  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
+  if (!(await hasCurrentSession())) await ownerOnlyExit();
   if (!(await isAdmin())) notFound();
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
   const now = Date.now();

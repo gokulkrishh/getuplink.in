@@ -1,6 +1,6 @@
 import { chargeStops, driveStops } from "@/lib/bar-stops";
 import { cacheLife, cacheTag } from "next/cache";
-import { redirect } from "next/navigation";
+
 import { Suspense } from "react";
 import { SyncStreamSessions, SyncStreamVersions } from "@/components/background-sync";
 import { Header } from "@/components/header";
@@ -35,7 +35,7 @@ import { homeCardCheck } from "@/lib/server/whats-new";
 import { isAdmin } from "@/lib/server/admin";
 import type { HomeCard as HomeCardKind } from "@/lib/whats-new";
 import { DEMO, type DemoScenario, demoScenario } from "@/lib/demo";
-import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { requireReader } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type HomeCar, type HomeNow, type HomeWeek, loadHomeNow, loadHomeWeek } from "@/lib/server/home";
 
@@ -50,18 +50,24 @@ type Ready<T> = Extract<T, { kind: "ready" }>;
 // card: what Home shows, the welcome tour, the release dialog or the share card (lib/whats-new.ts,
 // lib/share-nudge.ts), decided with the strip so it is known before the tiles render and nothing below it moves. Not now and Share refresh this cache
 // (updateTag).
-async function loadOwnCar(demo: DemoScenario): Promise<{ home: HomeNow; now: number; card: HomeCardKind }> {
+async function loadOwnCar(demo: DemoScenario): Promise<{ home: HomeNow; now: number; card: HomeCardKind; viewer: boolean }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   // 60s is enough for a per-link prefetch (30s minimum); the App Shell would need 5 minutes.
   cacheLife({ stale: 60 });
-  const owner = await currentOwner();
-  if (!owner) redirect(SIGNED_OUT_PATH);
+  const { owner } = await requireReader();
   // The clock is read here, inside the cache, because reading it while rendering blocks prerendering.
   const now = Date.now();
-  const [home, shareCheck, cardCheck] = await Promise.all([loadHomeNow(owner, demo, now), shareNudgeCheck(owner), isAdmin().then((admin) => homeCardCheck(owner, admin))]);
-  const card = home.kind === "ready" ? cardCheck(shareCheck(home.figures.since, now), now) : null;
-  return { home, now, card };
+  // A viewer (a view link) gets nothing addressed to the owner: no share card, no welcome or release card, no
+  // to-dos, no sign-in, so their visit doesn't read them either.
+  const viewer = owner.viewOnly === true;
+  const [home, shareCheck, cardCheck] = await Promise.all([
+    loadHomeNow(owner, demo, now),
+    viewer ? () => false : shareNudgeCheck(owner),
+    viewer ? null : isAdmin().then((admin) => homeCardCheck(owner, admin)),
+  ]);
+  const card = cardCheck && home.kind === "ready" ? cardCheck(shareCheck(home.figures.since, now), now) : null;
+  return { home, now, card, viewer };
 }
 
 // The week's part, in its own private scope, cached and refreshed exactly as the strip's. The page draws
@@ -70,8 +76,7 @@ async function loadOwnWeek(demo: DemoScenario): Promise<HomeWeek> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  const owner = await currentOwner();
-  if (!owner) redirect(SIGNED_OUT_PATH);
+  const { owner } = await requireReader();
   return loadHomeWeek(owner, demo, Date.now());
 }
 
@@ -84,7 +89,7 @@ function greeting(now: number): string {
 }
 
 // A glance at the last 7 days: the four headline numbers, the tips and the charge level. Each tile leads to its Stats tab.
-async function Totals({ home, now, card }: { home: Ready<HomeNow> & Ready<HomeWeek>; now: number; card: HomeCardKind }) {
+async function Totals({ home, now, card, viewer }: { home: Ready<HomeNow> & Ready<HomeWeek>; now: number; card: HomeCardKind; viewer: boolean }) {
   const { streamOnly } = matchSessions(home.sessions, home.streamSessions, now);
   const { window } = home;
   const figures = withDriveEfficiency(home.figures, window.driving.drives, now);
@@ -135,7 +140,7 @@ async function Totals({ home, now, card }: { home: Ready<HomeNow> & Ready<HomeWe
         )}
         {/* The card asking the owner to share, when it's due, right under the week's tiles. Always mounted, so
             its "You're sharing" note outlives the refresh that drops the card once sharing is on. */}
-        <ShareNudgeCard show={card?.kind === "share"} />
+        {!viewer && <ShareNudgeCard show={card?.kind === "share"} />}
         {/* The AI's tips on the week. A quiet week has none, so no box. */}
         {tipsBox}
       </section>
@@ -167,12 +172,12 @@ async function RecentFor({ vin, now, week }: { vin: string; now: number; week: W
 
 // The week's totals, tips and charge level. When the week can't be read (or the account changed between
 // the two reads) the strip stays, with a notice naming the week, not the car shown above it.
-async function WeekTotals({ home, now, card, week }: { home: Ready<HomeNow>; now: number; card: HomeCardKind; week: WeekLoad }) {
+async function WeekTotals({ home, now, card, viewer, week }: { home: Ready<HomeNow>; now: number; card: HomeCardKind; viewer: boolean; week: WeekLoad }) {
   const w = await week;
   if (w?.kind !== "ready") return <WeekNotice />;
   return (
     <PeriodScope>
-      <Totals home={{ ...home, ...w }} now={now} card={card} />
+      <Totals home={{ ...home, ...w }} now={now} card={card} viewer={viewer} />
     </PeriodScope>
   );
 }
@@ -193,7 +198,7 @@ async function HomeContent() {
   const week = loadOwnWeek(demo);
   // Its parts handle a failure; this only keeps a sign-out (both redirect) from going unhandled here.
   week.catch(() => {});
-  const { home, now, card } = await loadOwnCar(demo);
+  const { home, now, card, viewer } = await loadOwnCar(demo);
   const failedRun = home.kind === "ready" && home.lastRun?.ok === false ? home.lastRun : null;
   const cars = home.kind === "ready" ? home.cars : [];
   // The primary car, as loadHomeNow picks it: the first with a VIN. The odometer is its.
@@ -201,17 +206,18 @@ async function HomeContent() {
 
   return (
     <>
-      {/* The welcome and the release dialog are dialogs over the page, mounted once here so they never restart when the week loads. */}
-      {DEMO && demoScenario() === "guest" ? <GuestTour /> : null}
+      {/* The welcome and the release dialog are dialogs over the page, mounted once here so they never restart when the week loads. A guest (a view link) gets the guest tour instead, never the owner's. */}
+      {viewer || (DEMO && demoScenario() === "guest") ? <GuestTour /> : null}
       {card?.kind === "welcome" && <WelcomeTour persist />}
       {card?.kind === "release" && <ReleaseDialog entries={card.entries} total={card.total} />}
-      <OwnerNotices data={home} count={cars.length} failedRun={failedRun} />
+      <OwnerNotices data={home} count={cars.length} failedRun={failedRun} viewer={viewer} />
       {home.kind === "ready" && cars.length > 0 && (
         <div className="space-y-12">
           {cars.map((car) => (
             <div key={car.vehicle.id} className="space-y-6">
               <CarNotices notices={car.notices} />
-              {car.vehicle.id === primaryId && <TyreNotice odometerKm={home.figures.odometerKm} />}
+              {/* The owner's to-do, so never a viewer's. */}
+              {!viewer && car.vehicle.id === primaryId && <TyreNotice odometerKm={home.figures.odometerKm} />}
               {car.vehicle.id === primaryId && car.lastOnline?.charging_state !== "Charging" && home.lastReadingAt !== null ? (
                 // Until the week's read says when it parked, a faint line holds the parked line's place. A car that
                 // never sent data has no parked line coming, so it doesn't wait and keeps no empty row.
@@ -230,7 +236,7 @@ async function HomeContent() {
             </div>
           ))}
           <Suspense fallback={<TotalsSkeleton />}>
-            <WeekTotals home={home} now={now} card={card} week={week} />
+            <WeekTotals home={home} now={now} card={card} viewer={viewer} week={week} />
           </Suspense>
           {cars.some((car) => car.latest?.error) && (
             <Suspense>
