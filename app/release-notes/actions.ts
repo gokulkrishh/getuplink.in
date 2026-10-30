@@ -32,5 +32,5 @@ export async function closeWelcome(): Promise<string | null> {
 }
 
 export async function markSeen(): Promise<string | null> {
-  return run("Marking What's new seen", (owner, admin) => markWhatsNewSeen(owner, admin));
+  return run("Marking release notes seen", (owner, admin) => markWhatsNewSeen(owner, admin));
 }

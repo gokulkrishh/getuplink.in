@@ -68,7 +68,7 @@ export function visibleEntries(entries: Entry[], admin: boolean): Entry[] {
   return entries.filter((e) => e.audience === "owners" || (e.audience === "admin" && admin)).sort(byNewest);
 }
 
-// What closing the welcome card or opening What's new stores as seen.
+// What closing the welcome card or opening Release notes stores as seen.
 export function newestVisibleId(entries: Entry[], admin: boolean): string | null {
   return visibleEntries(entries, admin)[0]?.id ?? null;
 }
@@ -108,7 +108,7 @@ export function unseenEntries(f: CardFacts): Entry[] {
   return visibleEntries(f.entries, f.admin).filter((e) => (f.seenId === null || e.id > f.seenId) && entryStart(e) > approvedAt);
 }
 
-// The entries to mark with a blue dot on What's new: the ones this owner hadn't seen when they opened the page
+// The entries to mark with a blue dot on Release notes: the ones this owner hadn't seen when they opened the page
 // (the same ones the bell lists). Read before opening marks them seen, so the dots last for that visit.
 export function newEntryIds(f: CardFacts): string[] {
   return unseenEntries(f).map((e) => e.id);
@@ -122,7 +122,7 @@ export function whatsNewAlerts(f: CardFacts): Alert[] {
     icon: "new",
     title: e.title,
     detail: e.text,
-    href: "/whats-new",
+    href: "/release-notes",
     since: `${e.date}T00:00:00+05:30`,
   }));
 }

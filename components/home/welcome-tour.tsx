@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
-import { closeWelcome } from "@/app/whats-new/actions";
+import { closeWelcome } from "@/app/release-notes/actions";
 import { TourBackdrop, TourDialog, TourSlice, type TourStep } from "@/components/home/tour-dialog";
 import { Button } from "@/components/ui/button";
 import { guestTourSeen, guestTourSeenCookie } from "@/lib/guest-tour";
@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 // The welcome for a newly approved owner (lib/whats-new.ts decides who): a short tour in a dialog over Home.
 // On the left a screenshot of the real page, with a pointer that glides to the part the step is about. On the right the
-// words. Skip, the cross, Esc, tapping outside and "Got it" all close it, and any of them counts as seen.
+// words. Skip, the cross, Esc and "Got it" all close it, and any of them counts as seen.
 // Closing is never more than one tap, and nothing is trapped behind a step.
 
 type Step = { name: string; spot: TourSpot; title: string; lead: ReactNode; points: [string, string, string] };
@@ -70,9 +70,9 @@ const STEPS: Step[] = [
   {
     name: "Settings",
     spot: "menu",
-    title: "Settings and what's new",
+    title: "Settings and release notes",
     lead: "Your photo opens the menu.",
-    points: ["Settings, for theme and sharing", "What's new, when Uplink adds something", "Feedback, straight to the person who builds Uplink"],
+    points: ["Settings, for theme and sharing", "Release notes, when Uplink adds something", "Feedback, straight to the person who builds Uplink"],
   },
 ];
 
@@ -80,9 +80,21 @@ const SPOTS = Object.keys(TOUR_TARGETS) as TourSpot[];
 // The picture is 480px wide on a desktop and 340px on a phone (TourSlice); its height follows.
 const PHONE_HEIGHT = 340 * (TOUR_SHOT.height / TOUR_SHOT.width);
 
+// Room round the sharp part, inside the outline.
+const PAD = 4;
+
+// All five pictures stacked: the current one shows, the others are clear, so a change cross-fades.
+function Pictures({ spot }: { spot: TourSpot }) {
+  return SPOTS.map((s) => (
+    <span key={s} className={cn("absolute inset-0 motion-safe:transition-opacity motion-safe:duration-300", s === spot ? "opacity-100" : "opacity-0")}>
+      <Image src={`/whats-new/tour/${s}-light.webp`} alt="" fill sizes="480px" className="object-cover dark:hidden" />
+      <Image src={`/whats-new/tour/${s}-dark.webp`} alt="" fill sizes="480px" className="hidden object-cover dark:block" />
+    </span>
+  ));
+}
+
 // The left half: the real page for the step, in the app's own theme, with an outline round the part the step
-// is about and a pointer that glides to it. All five pictures sit stacked and cross-fade, so the outline and
-// pointer move over a picture that changes under them. Decorative: the words say all of it.
+// is about and a pointer that glides to it. Only that part is sharp; the rest is blurred and dimmed. Decorative: the words say all of it.
 function Preview({ spot }: { spot: TourSpot }) {
   const t = TOUR_TARGETS[spot];
   // On a phone only the top 230px shows: lift the picture so the part the step is about is in view.
@@ -92,12 +104,16 @@ function Preview({ spot }: { spot: TourSpot }) {
       <TourBackdrop />
       <TourSlice lift={lift}>
         <div className="relative border bg-background shadow-xl" style={{ aspectRatio: `${TOUR_SHOT.width} / ${TOUR_SHOT.height}` }}>
-          {SPOTS.map((s) => (
-            <span key={s} className={cn("absolute inset-0 motion-safe:transition-opacity motion-safe:duration-300", s === spot ? "opacity-100" : "opacity-0")}>
-              <Image src={`/whats-new/tour/${s}-light.webp`} alt="" fill sizes="480px" className="object-cover dark:hidden" />
-              <Image src={`/whats-new/tour/${s}-dark.webp`} alt="" fill sizes="480px" className="hidden object-cover dark:block" />
-            </span>
-          ))}
+          {/* The whole page, blurred and dimmed, and the same page again on top, sharp, showing only the part the step is about. */}
+          <div className="absolute inset-0 opacity-45 blur-[3px]">
+            <Pictures spot={spot} />
+          </div>
+          <div
+            className="absolute inset-0 motion-safe:transition-[clip-path] motion-safe:duration-[600ms] motion-safe:ease-[cubic-bezier(.2,.7,.2,1)]"
+            style={{ clipPath: `inset(calc(${t.y}% - ${PAD}px) calc(${100 - t.x - t.w}% - ${PAD}px) calc(${100 - t.y - t.h}% - ${PAD}px) calc(${t.x}% - ${PAD}px))` }}
+          >
+            <Pictures spot={spot} />
+          </div>
           <span
             className="absolute outline-2 outline-offset-2 outline-chart-accent motion-safe:transition-[left,top,width,height] motion-safe:duration-[600ms] motion-safe:ease-[cubic-bezier(.2,.7,.2,1)]"
             style={{ left: `${t.x}%`, top: `${t.y}%`, width: `${t.w}%`, height: `${t.h}%` }}

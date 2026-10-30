@@ -40,10 +40,10 @@ const STEPS = [
     path: "/",
     before: async (page) => {
       await page.getByRole("button", { name: "Account menu" }).click();
-      await page.getByRole("menuitem", { name: "What's new" }).waitFor();
+      await page.getByRole("menuitem", { name: "Release notes" }).waitFor();
       await page.waitForTimeout(400);
     },
-    box: (page) => rect(page.getByRole("menuitem", { name: "What's new" }), 0),
+    box: (page) => rect(page.getByRole("menuitem", { name: "Release notes" }), 0),
   },
 ];
 

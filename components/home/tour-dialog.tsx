@@ -169,6 +169,8 @@ export function TourDialog({ steps, open, onOpenChange }: { steps: TourStep[]; o
   return (
     <Dialog.Root
       open={open ?? own}
+      // Tapping the backdrop does nothing: the cross, Skip, "Got it" and Esc close it.
+      disablePointerDismissal
       onOpenChange={(next) => {
         setOwn(next);
         onOpenChange?.(next);

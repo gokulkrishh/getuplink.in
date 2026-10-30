@@ -14,7 +14,7 @@ import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { whatsNewPage } from "@/lib/server/whats-new";
 import { byVersion } from "@/lib/whats-new";
 
-export const metadata: Metadata = { title: "What's new" };
+export const metadata: Metadata = { title: "Release notes" };
 
 // Session check and data in one browser-only private cache, as on Settings.
 async function load() {
@@ -49,7 +49,7 @@ export default function WhatsNewPage() {
       {/* The welcome tour, again: new owners see it once on Home; here anyone can replay it (it writes nothing). */}
       <div className="mb-8 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">What&apos;s new</h1>
+          <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">Release notes</h1>
           <p className="mt-1 text-sm text-muted-foreground">New in Uplink, newest first.</p>
         </div>
         <WelcomeTourButton />

@@ -114,7 +114,7 @@ describe("bell level", () => {
   test("the bell lists every unseen visible entry, newest first, as info lines", () => {
     const alerts = whatsNewAlerts(facts);
     expect(alerts.map((a) => a.key)).toEqual(["whats-new-2026-11-25-c", "whats-new-2026-11-20-b"]);
-    expect(alerts[0]).toMatchObject({ kind: "info", title: bell.title, detail: bell.text, href: "/whats-new", since: "2026-11-25T00:00:00+05:30" });
+    expect(alerts[0]).toMatchObject({ kind: "info", title: bell.title, detail: bell.text, href: "/release-notes", since: "2026-11-25T00:00:00+05:30" });
   });
   test("same rules as the card: seen, drafts, joined later, no schema", () => {
     expect(whatsNewAlerts({ ...facts, seenId: bell.id })).toEqual([]);

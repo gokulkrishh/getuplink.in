@@ -22,7 +22,7 @@ import { formatShortDate } from "@/lib/format";
 import type { Entry, EntryIcon } from "@/lib/whats-new";
 import { cn } from "@/lib/utils";
 
-// The What's new page, laid out like the release notes in a Tesla: pick a version, then a feature from the
+// The Release notes page, laid out like the release notes in a Tesla: pick a version, then a feature from the
 // list. On a desktop the feature opens in a pane beside the list; on a phone it opens under its row, one at
 // a time. A blue dot marks what was new to the owner when they opened the page (`newIds`, kept for the visit).
 const ICONS: Record<EntryIcon, LucideIcon> = {

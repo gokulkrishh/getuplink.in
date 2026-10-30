@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { FakeDb } from "./fake-db";
 
-// The What's new reads and writes (lib/server/whats-new.ts): closing the welcome card, the marker that only
+// The release notes reads and writes (lib/server/whats-new.ts): closing the welcome card, the marker that only
 // moves forward, and no card or bell line before the migration.
 
 let fake: FakeDb;
