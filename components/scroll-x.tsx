@@ -6,6 +6,17 @@ import { cn } from "@/lib/utils";
 // A table or list wider than the screen scrolls sideways instead of cutting its text short. While there's
 // more to one side, that edge fades out, so it's clear the rows go on, and a thin scroll bar sits below the
 // last row with room of its own.
+// A data table in a rounded box with room round it. The border is on this outer box and the fade on the
+// inner ScrollX, so the fade never eats the border. Tables whose end cells already pad themselves (for a
+// row's hover fill) pass px-1.
+export function TableBox({ className, children }: { className?: string; children: ReactNode }) {
+  return (
+    <div className={cn("rounded-lg border px-4 py-2", className)}>
+      <ScrollX>{children}</ScrollX>
+    </div>
+  );
+}
+
 export function ScrollX({ className, children }: { className?: string; children: ReactNode }) {
   const box = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ left: false, right: false });

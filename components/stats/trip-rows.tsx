@@ -1,6 +1,6 @@
 "use client";
 
-import { ScrollX } from "@/components/scroll-x";
+import { TableBox } from "@/components/scroll-x";
 import { usePaged } from "@/components/show-more";
 import type { LoadMore, Paged } from "@/lib/list";
 import Link from "next/link";
@@ -78,7 +78,7 @@ function TripTableRow({ row }: { row: TripRow }) {
 function TripListRow({ row }: { row: TripRow }) {
   const second = [row.day, row.route ? row.times : null, row.duration, row.stops, row.kwh, row.used && `${row.used} of battery`].filter(Boolean);
   return (
-    <li className="group/row relative -mx-2 flex items-center gap-3 rounded-lg px-2 py-3 text-sm tabular-nums transition-colors duration-150 hover:bg-muted focus-within:bg-muted active:bg-muted">
+    <li className="group/row relative flex items-center gap-3 py-3 text-sm tabular-nums isolate before:absolute before:-inset-x-2 before:inset-y-0 before:-z-10 before:rounded-lg before:transition-colors before:duration-150 hover:before:bg-muted focus-within:before:bg-muted active:before:bg-muted">
       <div className="min-w-0 flex-1">
         <p className="flex items-baseline justify-between gap-3">
           <span className="min-w-0 font-medium">
@@ -112,7 +112,7 @@ export function TripRows({ list, load }: { list: Paged<TripRow>; load?: LoadMore
       </ul>
       {/* The table sits 0.75rem wider than the column on each side and pads its outer cells by the same, so a
           highlighted row has room around its text while the text still lines up with the page. */}
-      <ScrollX className="-mx-3 max-sm:hidden">
+      <TableBox className="px-1 max-sm:hidden">
         <table className="w-full min-w-[44rem] table-fixed text-sm tabular-nums [&_td:first-child]:pl-3 [&_td:last-child]:pr-3 [&_th:first-child]:pl-3 [&_th:last-child]:pr-3">
           <colgroup>
             {COLUMNS.map((c) => (
@@ -134,7 +134,7 @@ export function TripRows({ list, load }: { list: Paged<TripRow>; load?: LoadMore
             ))}
           </tbody>
         </table>
-      </ScrollX>
+      </TableBox>
       {button}
     </>
   );

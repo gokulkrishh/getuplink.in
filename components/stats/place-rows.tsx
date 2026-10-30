@@ -3,7 +3,7 @@
 import { MapPin } from "lucide-react";
 import { GoogleMapsCredit } from "@/components/google-maps-credit";
 import { NamePlace } from "@/components/name-place";
-import { ScrollX } from "@/components/scroll-x";
+import { TableBox } from "@/components/scroll-x";
 import { usePaged } from "@/components/show-more";
 import type { LoadMore, Paged } from "@/lib/list";
 import type { NameTarget } from "@/lib/user-places";
@@ -29,7 +29,7 @@ export function PlaceRows({ list, load }: { list: Paged<PlaceRow>; load: LoadMor
   const { rows, button } = usePaged(list, load);
   return (
     <>
-      <ScrollX>
+      <TableBox>
         <table className="w-full min-w-md text-sm tabular-nums">
           <thead>
             <tr className="border-b text-left text-xs text-faint">
@@ -73,7 +73,7 @@ export function PlaceRows({ list, load }: { list: Paged<PlaceRow>; load: LoadMor
             ))}
           </tbody>
         </table>
-      </ScrollX>
+      </TableBox>
       {button}
     </>
   );

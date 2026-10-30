@@ -1,4 +1,4 @@
-import { ScrollX } from "@/components/scroll-x";
+import { TableBox } from "@/components/scroll-x";
 import { AiNotes } from "@/components/home/week-tips";
 import { DriveSkeleton } from "@/components/stats/skeletons";
 import { loadTipsBox } from "@/components/tips-box";
@@ -292,7 +292,7 @@ function Legs({ legs }: { legs: DriveDetail["trip"]["legs"] }) {
   return (
     <section className="space-y-4">
       <h2 className="text-lg font-medium tracking-heading">Legs</h2>
-      <ScrollX className="-mx-3">
+      <TableBox className="px-1">
         <table className="w-full min-w-md text-sm tabular-nums [&_td:first-child]:pl-3 [&_td:last-child]:pr-3 [&_th:first-child]:pl-3 [&_th:last-child]:pr-3">
           <thead>
             <tr className="border-b text-left text-xs text-faint">
@@ -325,7 +325,7 @@ function Legs({ legs }: { legs: DriveDetail["trip"]["legs"] }) {
             ))}
           </tbody>
         </table>
-      </ScrollX>
+      </TableBox>
     </section>
   );
 }

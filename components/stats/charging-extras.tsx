@@ -46,7 +46,7 @@ export function DcCurves({ curves, frame, note }: { curves: (Curve & { serial?: 
       </ChartCard>
       {curves.length > 0 && (
         <>
-          <div className="max-sm:hidden">
+          <div className="rounded-lg border px-4 py-2 max-sm:hidden">
             <table className="w-full table-fixed text-sm tabular-nums">
               <colgroup>
                 <col className="w-8 sm:w-10" />

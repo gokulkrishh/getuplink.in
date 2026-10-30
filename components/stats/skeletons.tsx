@@ -433,7 +433,7 @@ function SkParkedList() {
           ))}
         </ul>
       </div>
-      <div className="max-sm:hidden">
+      <div className="rounded-lg border px-4 py-2 max-sm:hidden">
         <table className="w-full table-fixed text-sm">
           <colgroup>
             {["w-10", "w-32", "w-28", "", "", "", "", "w-24"].map((w, k) => (
