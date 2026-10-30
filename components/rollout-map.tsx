@@ -52,7 +52,7 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-labelledby="map-version"
-            className="flex h-8 cursor-pointer items-center gap-2 border bg-background px-3 font-mono text-sm tabular-nums hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none data-popup-open:bg-muted"
+            className="flex h-8 cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 font-mono text-sm tabular-nums hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none data-popup-open:bg-muted"
           >
             {current.version}
             <ChevronDown className="size-3.5 text-muted-foreground" aria-hidden />
@@ -99,7 +99,7 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
         <span
           aria-hidden="true"
           className={cn(
-            "pointer-events-none absolute z-10 -translate-y-full border bg-background px-2 py-1 text-xs whitespace-nowrap",
+            "pointer-events-none absolute z-10 -translate-y-full rounded-md border bg-background px-2 py-1 text-xs whitespace-nowrap",
             hover.x > 0.6 ? "-translate-x-full" : hover.x > 0.4 && "-translate-x-1/2",
           )}
           style={{ left: `${hover.x * 100}%`, top: `calc(${hover.y * 100}% - 8px)` }}
@@ -118,7 +118,7 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
       {/* What the shades mean: the lightest is the fewest cars, the darkest the most. */}
       <ul className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-muted-foreground tabular-nums">
         <li className="flex items-center gap-1.5">
-          <span className="block size-3 border bg-muted" aria-hidden="true" />
+          <span className="block size-3 rounded-sm border bg-muted" aria-hidden="true" />
           No cars on this version
         </li>
         {groups.length > 0 && (

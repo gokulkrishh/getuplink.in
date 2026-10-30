@@ -338,10 +338,10 @@ async function JevChecks() {
 // tuning the tips, so they sit behind their own switch rather than among the messages.
 async function Views({ searchParams }: Pick<PageProps<"/admin/feedback">, "searchParams">) {
   const tips = (await searchParams).view === "tips";
-  const tab = (on: boolean) => cn("px-3 py-1.5 text-sm transition-colors duration-150", on ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground");
+  const tab = (on: boolean) => cn("px-3 py-1.5 text-sm transition-colors duration-150 focus-visible:-outline-offset-2", on ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground");
   return (
     <>
-      <nav aria-label="Show" className="inline-flex border">
+      <nav aria-label="Show" className="inline-flex overflow-hidden rounded-lg border">
         <Link href="/admin/feedback" aria-current={tips ? undefined : "page"} className={tab(!tips)}>
           Messages
         </Link>

@@ -19,7 +19,7 @@ const MONTHS = [
 export function HistoryMock() {
   const max = Math.max(...MONTHS.map((m) => m.amount));
   return (
-    <div aria-hidden="true" className="border bg-background p-4 text-sm select-none sm:p-6">
+    <div aria-hidden="true" className="rounded-lg border bg-background p-4 text-sm select-none sm:p-6">
       <div className="flex items-center gap-4 pb-5">
         <div className="min-w-0 flex-1">
           <p className="truncate">Home to Whitefield</p>
@@ -52,7 +52,7 @@ export function HistoryMock() {
         <span className="tracking-wide uppercase">Supercharging spend</span>
         <span className="font-mono tabular-nums">₹24/kWh</span>
       </div>
-      <ol className="mt-3 grid h-28 grid-cols-6 items-end gap-3 bg-muted px-4 pt-4 pb-3">
+      <ol className="mt-3 grid h-28 grid-cols-6 items-end gap-3 rounded-md bg-muted px-4 pt-4 pb-3">
         {MONTHS.map((m, i) => (
           <li key={m.label} className="flex h-full flex-col justify-end gap-2">
             <div

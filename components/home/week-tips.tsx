@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 // The box, the same while loading, so the page doesn't move when the tips arrive. Five lines of tip text are
 // held on a phone and two wider (lib/ai-tips.ts MAX_CHARS keeps every tip within them), so turning between
 // a short and a long tip doesn't move it either.
-const BOX = "space-y-2 border px-4 py-3";
+const BOX = "space-y-2 rounded-lg border px-4 py-3";
 // A card's × in its top-right corner, matched with the share card's.
 export const DISMISS_X = "-my-1 -mr-1.5 shrink-0 max-sm:-my-2";
 const THANKS_MS = 5000;

@@ -62,7 +62,7 @@ export function SkFigures({ tiles, className }: { tiles: { label: string; value:
   return (
     <div
       aria-hidden="true"
-      className="motion-safe:animate-pulse [&_*]:!text-transparent [&_dd]:self-start [&_dd]:bg-muted [&_dt]:self-start [&_dt]:bg-muted"
+      className="motion-safe:animate-pulse [&_*]:!text-transparent [&_dd]:self-start [&_dd]:rounded-sm [&_dd]:bg-muted [&_dt]:self-start [&_dt]:rounded-sm [&_dt]:bg-muted"
     >
       <Figures className={className} figures={tiles.map(({ bar, words, ...t }) => ({ ...t, value: words ? <Words>{t.value}</Words> : t.value, extra: bar ? <div className="h-1 bg-muted" /> : undefined }))} />
     </div>
@@ -71,12 +71,12 @@ export function SkFigures({ tiles, className }: { tiles: { label: string; value:
 
 // A chart's panel: Bars' and the line charts' ChartFrame, 160px (h-40) tall.
 export function SkChart({ className }: { className?: string }) {
-  return <div className={cn("h-40 bg-muted motion-safe:animate-pulse dark:bg-card", className)} />;
+  return <div className={cn("h-40 rounded-lg bg-muted motion-safe:animate-pulse dark:bg-card", className)} />;
 }
 
 // Any other filled box (a map, a plot, a heatmap): give it the real one's height.
 export function SkBlock({ className }: { className?: string }) {
-  return <div aria-hidden="true" className={cn("bg-muted motion-safe:animate-pulse", className)} />;
+  return <div aria-hidden="true" className={cn("rounded-md bg-muted motion-safe:animate-pulse", className)} />;
 }
 
 // A chart's panel with the line under it (Captioned: space-y-2, a text-sm caption).

@@ -34,7 +34,7 @@ function Tip({ lines, at }: { lines: string[]; at: number }) {
   return (
     <span
       aria-hidden="true"
-      className="pointer-events-none absolute bottom-full z-10 mb-2 border bg-background px-2 py-1 text-left text-xs whitespace-nowrap tabular-nums shadow-sm"
+      className="pointer-events-none absolute bottom-full z-10 mb-2 rounded-md border bg-background px-2 py-1 text-left text-xs whitespace-nowrap tabular-nums shadow-sm"
       style={right ? { right: `${(1 - at) * 100}%` } : { left: `${at * 100}%` }}
     >
       {lines.map((line, k) => (

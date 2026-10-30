@@ -17,7 +17,7 @@ const TURNS = [
 
 export function AssistantMock() {
   return (
-    <div aria-hidden="true" className="border bg-background p-6 text-sm select-none">
+    <div aria-hidden="true" className="rounded-lg border bg-background p-6 text-sm select-none">
       <div className="flex items-baseline justify-between gap-4 text-xs text-faint">
         <span className="tracking-wide uppercase">Your AI</span>
         <span className="font-mono">Uplink connector</span>
@@ -25,7 +25,7 @@ export function AssistantMock() {
       <ol className="mt-4">
         {TURNS.map((t) => (
           <li key={t.tool} className="border-t py-4">
-            <p className="ml-auto w-fit max-w-[85%] bg-muted px-3 py-2">{t.ask}</p>
+            <p className="ml-auto w-fit max-w-[85%] rounded-lg bg-muted px-3 py-2">{t.ask}</p>
             <p className="mt-3 text-xs text-faint">{t.step}</p>
             <p className="mt-1.5 text-muted-foreground">{t.answer}</p>
           </li>

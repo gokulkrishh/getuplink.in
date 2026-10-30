@@ -137,7 +137,7 @@ function Popup({ steps }: { steps: TourStep[] }) {
         else if (e.key === "ArrowLeft") go(n - 1);
         else wrapTab(e);
       }}
-      className="fixed inset-x-0 bottom-0 z-50 flex max-h-dvh flex-col overflow-hidden border bg-background pb-[env(safe-area-inset-bottom)] text-foreground shadow-2xl outline-none motion-safe:transition-opacity motion-safe:duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:grid sm:h-[min(690px,calc(100dvh-2rem))] sm:w-[min(980px,calc(100vw-2rem))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:grid-cols-2 sm:grid-rows-1 sm:pb-0"
+      className="fixed inset-x-0 bottom-0 z-50 flex max-h-dvh flex-col overflow-hidden rounded-t-xl border bg-background pb-[env(safe-area-inset-bottom)] text-foreground shadow-2xl outline-none motion-safe:transition-opacity motion-safe:duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 sm:inset-auto sm:rounded-xl sm:top-1/2 sm:left-1/2 sm:grid sm:h-[min(690px,calc(100dvh-2rem))] sm:w-[min(980px,calc(100vw-2rem))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:grid-cols-2 sm:grid-rows-1 sm:pb-0"
     >
       <div className="relative h-[min(230px,30dvh)] shrink-0 border-b [@media(max-height:640px)]:h-[26dvh] sm:h-auto sm:min-h-0 sm:border-r sm:border-b-0">
         <div className="relative h-full min-h-0 overflow-hidden">{step.preview}</div>

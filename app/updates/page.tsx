@@ -209,7 +209,7 @@ function UpdatesSkeleton() {
       <section className="space-y-4" aria-hidden="true">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <p className={heading}><Ph>Stats</Ph></p>
-          <div className="inline-flex max-w-full border">
+          <div className="inline-flex max-w-full overflow-hidden rounded-lg border">
             {["Month", "Year", "All", "Custom"].map((label) => (
               <span key={label} className="tap-target inline-flex h-7 items-center justify-center px-2.5 text-[0.8rem] max-sm:h-9 max-sm:px-2"><Ph>{label}</Ph></span>
             ))}
@@ -228,7 +228,7 @@ function UpdatesSkeleton() {
         <SkHead title="Awake and asleep" description="When the car was awake each day. Updates download only then." />
         <SkLine>Awake on 14 of the last 14 days</SkLine>
         <div className="space-y-3" aria-hidden="true">
-          <div className="space-y-3 bg-muted px-3 pt-4 pb-3 motion-safe:animate-pulse dark:bg-card">
+          <div className="space-y-3 rounded-lg bg-muted px-3 pt-4 pb-3 motion-safe:animate-pulse dark:bg-card">
             <ol className="space-y-1.5">
               {Array.from({ length: 14 }, (_, k) => (
                 <li key={k} className="flex items-center gap-3">
@@ -242,7 +242,7 @@ function UpdatesSkeleton() {
           <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
             {["Awake", "Asleep", "Out of reach", "No data"].map((label) => (
               <li key={label} className="inline-flex items-center gap-1.5">
-                <span className="size-2 bg-muted" />
+                <span className="size-2 rounded-full bg-muted" />
                 <Ph>{label}</Ph>
               </li>
             ))}

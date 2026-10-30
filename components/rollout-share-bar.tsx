@@ -38,7 +38,7 @@ export function ShareBar({ on, of }: { on: number; of: number }) {
       {open && (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute bottom-full left-0 z-10 mb-2 border bg-background px-2 py-1 text-left text-xs whitespace-nowrap tabular-nums shadow-sm"
+          className="pointer-events-none absolute bottom-full left-0 z-10 mb-2 rounded-md border bg-background px-2 py-1 text-left text-xs whitespace-nowrap tabular-nums shadow-sm"
         >
           <span className="block font-mono">{pct} of cars</span>
           <span className="block text-muted-foreground">

@@ -39,7 +39,7 @@ function Component({ item }: { item: ComponentStatus }) {
       <div className="flex items-baseline justify-between gap-4">
         <h2 className="text-lg font-medium tracking-heading">{componentLabel(item.name)}</h2>
         <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-          <span aria-hidden="true" className={`size-2 ${item.current ? DOT[item.current] : "bg-muted"}`} />
+          <span aria-hidden="true" className={`size-2 rounded-full ${item.current ? DOT[item.current] : "bg-muted"}`} />
           {item.current ? STATUS_WORD[item.current] : "Not checked yet"}
         </span>
       </div>
@@ -80,7 +80,7 @@ function PastIssues({ list }: { list: Incident[] }) {
           {list.map((i) => (
             <li key={`${i.component}:${i.from}`} className="space-y-1 py-3 text-sm">
               <p className="flex flex-wrap items-center gap-x-2">
-                <span aria-hidden="true" className={`size-2 ${DOT[i.status]}`} />
+                <span aria-hidden="true" className={`size-2 rounded-full ${DOT[i.status]}`} />
                 <span className="font-medium">{componentLabel(i.component)}</span>
                 <span className="text-muted-foreground">· {STATUS_WORD[i.status]}</span>
               </p>

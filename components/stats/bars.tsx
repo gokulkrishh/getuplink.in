@@ -107,7 +107,7 @@ const axisNumber = new Intl.NumberFormat("en-IN", { notation: "compact", maximum
 // isn't time ("km/h" under speed bands), in the gutter's bottom corner, level with the x-axis labels.
 export function ChartFrame({ max, prefix = "", unit, xUnit, children }: { max: number; prefix?: string; unit?: string; xUnit?: string; children: React.ReactNode }) {
   return (
-    <div className="chart-touch relative flex gap-2 bg-muted dark:bg-card pt-5 pr-4 pb-3 pl-2">
+    <div className="chart-touch relative flex gap-2 rounded-lg bg-muted dark:bg-card pt-5 pr-4 pb-3 pl-2">
       {unit && (
         <span className="absolute top-1 left-2 font-mono text-xs text-faint" aria-hidden="true">
           {unit}

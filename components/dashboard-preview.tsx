@@ -31,14 +31,14 @@ export function DashboardPreview() {
   return (
     <div ref={root} aria-hidden="true" className="relative w-full max-w-md text-left select-none">
       {/* The kind of moment Uplink is for: an update reaching the car. */}
-      <div className="mb-4 ml-auto flex w-fit max-w-xs items-start gap-3 border px-4 py-3 text-sm shadow-xs">
+      <div className="mb-4 ml-auto flex w-fit max-w-xs items-start gap-3 rounded-lg border px-4 py-3 text-sm shadow-xs">
         <Bell className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
         <p>
           <span className="font-medium">Update available</span>
           <span className="block text-muted-foreground">2026.38.5.1 is ready for your Model Y.</span>
         </p>
       </div>
-      <div className="border bg-background p-6 sm:p-8 shadow-xs">
+      <div className="rounded-lg border bg-background p-6 sm:p-8 shadow-xs">
         <div className="flex items-center justify-between text-xs text-faint">
           <span>Model Y · Diamond Black</span>
           <span className="flex items-center gap-1.5">

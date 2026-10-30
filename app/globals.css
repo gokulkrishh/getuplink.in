@@ -109,7 +109,7 @@
   --map-route: #1a5fd0; /* the route and place pins: brighter than the accent, so they clear the roads */
   --chart-better: #2f7d4f;
   --chart-worse: #8f6207;
-  --radius: 0rem;
+  --radius: 0.5rem;
 }
 
 /* Dark tokens: chosen explicitly, or following a dark device. */

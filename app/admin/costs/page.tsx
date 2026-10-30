@@ -310,7 +310,7 @@ export default async function Page() {
   await checkAdmin();
   return (
     <AdminPage description={<p>What running Uplink costs this month, in dollars.{DEMO && " Demo: sample figures, read-only."}</p>}>
-      <Suspense fallback={<div role="status" aria-busy="true" className="h-64 bg-muted motion-safe:animate-pulse"><span className="sr-only">Loading…</span></div>}>
+      <Suspense fallback={<div role="status" aria-busy="true" className="h-64 rounded-lg bg-muted motion-safe:animate-pulse"><span className="sr-only">Loading…</span></div>}>
         <Costs />
       </Suspense>
     </AdminPage>

@@ -56,7 +56,7 @@ export default function ChargeLevelPlot({ points, charging, from, to }: { points
   const tick = to - from <= 2 * DAY ? formatClock : formatShortDate;
 
   return (
-    <div ref={panel} className="relative bg-muted dark:bg-card px-3 pt-6 pb-2" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
+    <div ref={panel} className="relative rounded-lg bg-muted dark:bg-card px-3 pt-6 pb-2" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
       <span className="absolute top-1.5 left-3 font-mono text-xs text-faint" aria-hidden="true">
         %
       </span>
@@ -99,7 +99,7 @@ export default function ChargeLevelPlot({ points, charging, from, to }: { points
                   const point = active ? (payload?.[0]?.payload as LevelPoint | undefined) : undefined;
                   if (!point) return null;
                   return (
-                    <div className="border bg-background px-2 py-1 text-xs">
+                    <div className="rounded-md border bg-background px-2 py-1 text-xs">
                       <span className="font-mono tabular-nums">
                         <Measure text={formatPercent(point.level)} />
                       </span>

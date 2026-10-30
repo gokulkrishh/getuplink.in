@@ -99,7 +99,7 @@ export function WeekNotice() {
 export function CarNotices({ notices }: { notices: string[] }) {
   if (notices.length === 0) return null;
   return (
-    <div role="status" className="space-y-1 border px-4 py-3 text-sm">
+    <div role="status" className="space-y-1 rounded-lg border px-4 py-3 text-sm">
       {notices.map((n) => (
         <p key={n}>{n}</p>
       ))}

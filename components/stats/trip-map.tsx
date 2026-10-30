@@ -16,7 +16,7 @@ class MapBoundary extends Component<{ children: ReactNode }, { failed: boolean }
   }
   render() {
     return this.state.failed ? (
-      <p className="flex h-full items-center justify-center bg-muted dark:bg-card p-4 text-center text-sm text-muted-foreground">This browser can&apos;t show the map.</p>
+      <p className="flex h-full items-center justify-center rounded-lg bg-muted dark:bg-card p-4 text-center text-sm text-muted-foreground">This browser can&apos;t show the map.</p>
     ) : (
       this.props.children
     );
@@ -293,7 +293,7 @@ function PinTip({ tip, onEnter, onLeave, onClose }: { tip: Tip; onEnter: () => v
   }, [onEnter, onLeave]);
   return (
     <MapPopup longitude={tip.lng} latitude={tip.lat} closeOnClick={false} focusAfterOpen={false} offset={18} className="max-w-none rounded-none border-0 bg-transparent p-0 shadow-none">
-      <div ref={body} className="block max-w-64 border bg-background px-2.5 py-1.5 text-xs text-foreground shadow-md tabular-nums">
+      <div ref={body} className="block max-w-64 rounded-md border bg-background px-2.5 py-1.5 text-xs text-foreground shadow-md tabular-nums">
         <span className="block font-medium">{tip.lines[0]}</span>
         {tip.lines.slice(1).map((l, i) => (
           // Two pins at one spot can say the same thing, so the text alone isn't a key.
@@ -559,7 +559,7 @@ export function TripMap({
     <div className="space-y-3">
       <div>
         <div
-          className={cn("relative w-full overflow-hidden border", short ? "h-36 sm:h-48" : "h-72 sm:h-96")}
+          className={cn("relative w-full overflow-hidden rounded-lg border", short ? "h-36 sm:h-48" : "h-72 sm:h-96")}
           role="group"
           aria-label={label ?? (route.length ? `Route from ${formatClock(route[0].t)} to ${formatClock(route.at(-1)!.t)}, ${pins.length} pins` : `${pins.length} places`)}
         >
@@ -576,7 +576,7 @@ export function TripMap({
                   {...tipOn({ key: `leg-${n}`, lat: at.lat, lng: at.lng, lines: [`Leg ${n}, ${formatClock(leg.start)} to ${formatClock(leg.end)}`, leg.note], link: false })}
                 >
                   <MarkerContent>
-                    <span className="block border bg-background px-1.5 py-0.5 text-xs font-medium whitespace-nowrap text-muted-foreground shadow-sm">Leg {n}</span>
+                    <span className="block rounded-md border bg-background px-1.5 py-0.5 text-xs font-medium whitespace-nowrap text-muted-foreground shadow-sm">Leg {n}</span>
                   </MarkerContent>
                 </MapMarker>
               ))}
@@ -605,7 +605,7 @@ export function TripMap({
                       {name && side && (
                         <span
                           className={cn(
-                            "absolute top-1/2 block max-w-44 -translate-y-1/2 truncate border bg-background/90 px-1.5 py-0.5 text-xs leading-4 font-medium whitespace-nowrap text-foreground shadow-sm",
+                            "absolute top-1/2 block max-w-44 -translate-y-1/2 truncate rounded-md border bg-background/90 px-1.5 py-0.5 text-xs leading-4 font-medium whitespace-nowrap text-foreground shadow-sm",
                             side === "right" ? "left-full ml-1" : "right-full mr-1",
                           )}
                         >
@@ -622,7 +622,7 @@ export function TripMap({
                 <MapMarker longitude={hovered.lng} latitude={hovered.lat} className="pointer-events-none">
                   <MarkerContent className="pointer-events-none">
                     <span className="block size-3 rounded-full border-2 border-background bg-foreground shadow" />
-                    <span className="absolute bottom-full left-1/2 mb-2 -translate-x-1/2 border bg-background px-2.5 py-1.5 text-xs whitespace-nowrap text-foreground shadow-md tabular-nums">
+                    <span className="absolute bottom-full left-1/2 mb-2 -translate-x-1/2 rounded-md border bg-background px-2.5 py-1.5 text-xs whitespace-nowrap text-foreground shadow-md tabular-nums">
                       <span className="block font-medium">{multiDay ? `${formatShortDate(hovered.t)}, ${formatClock(hovered.t)}` : formatClock(hovered.t)}</span>
                       {hovered.speed !== null && <span className="block text-muted-foreground">{Math.round(hovered.speed)} km/h</span>}
                       {legOf(hovered.t) >= 0 && <span className="block text-muted-foreground">Leg {legOf(hovered.t) + 1}</span>}

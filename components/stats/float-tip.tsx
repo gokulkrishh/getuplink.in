@@ -28,7 +28,7 @@ export function FloatTip({ anchor, interactive = false, children }: { anchor: HT
       style={{ left: pos?.left ?? 0, top: pos?.top ?? 0, visibility: pos ? undefined : "hidden" }}
       aria-live="polite"
     >
-      <div className="border bg-background px-2 py-1 text-xs whitespace-nowrap tabular-nums shadow-sm">{children}</div>
+      <div className="rounded-md border bg-background px-2 py-1 text-xs whitespace-nowrap tabular-nums shadow-sm">{children}</div>
     </div>
   );
 }

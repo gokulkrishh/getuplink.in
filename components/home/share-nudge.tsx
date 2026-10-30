@@ -36,7 +36,7 @@ export function ShareNudgeCard({ show }: { show: boolean }) {
       <section
         role="status"
         aria-label="Sharing is on"
-        className={`flex items-start gap-3 border border-positive/40 sm:items-center bg-positive/5 px-4 py-3 transition-opacity duration-300 motion-reduce:transition-none ${fading ? "opacity-0" : "opacity-100"}`}
+        className={`flex items-start gap-3 rounded-lg border border-positive/40 sm:items-center bg-positive/5 px-4 py-3 transition-opacity duration-300 motion-reduce:transition-none ${fading ? "opacity-0" : "opacity-100"}`}
       >
         <CircleCheck className="mt-0.5 size-4 sm:mt-0 shrink-0 text-positive" aria-hidden="true" />
         <div className="flex min-w-0 flex-1 flex-col items-start gap-2.5 sm:flex-row sm:items-center sm:gap-4">
@@ -60,7 +60,7 @@ export function ShareNudgeCard({ show }: { show: boolean }) {
     });
   return (
     <section aria-label="Compare with other owners" className="space-y-2">
-      <div className="flex items-start gap-3 border px-4 py-3">
+      <div className="flex items-start gap-3 rounded-lg border px-4 py-3">
         <Users className="mt-0.5 size-4 shrink-0 text-faint" aria-hidden="true" />
         <div className="flex min-w-0 flex-1 flex-col items-start gap-2.5 sm:flex-row sm:items-center sm:gap-4">
           <div className="space-y-0.5 sm:flex-1">

@@ -45,7 +45,7 @@ export function Figures({
   // wrapper takes that width instead, so the ⓘ stays in the tile's corner rather than the page's.
   const lone = shown.length === 1 && "sm:w-1/2";
   const grid = (
-    <dl className={cn("grid grid-cols-2 gap-px border bg-border bg-clip-padding dark:border-transparent dark:bg-background", SM_COLUMNS[columns], !button && lone, className)}>
+    <dl className={cn("grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border bg-clip-padding dark:border-transparent dark:bg-background", SM_COLUMNS[columns], !button && lone, className)}>
       {shown.map((f, k) => (
         <div
           key={f.label}

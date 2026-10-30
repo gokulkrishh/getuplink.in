@@ -52,7 +52,7 @@ function Detail({ entry, ratio, title = true }: { entry: Entry; ratio?: number; 
     <div className="space-y-4">
       {img && (
         <div
-          className="relative overflow-hidden border bg-muted/40"
+          className="relative overflow-hidden rounded-lg border bg-muted/40"
           style={{
             aspectRatio: ratio
               ? `1 / ${ratio}`

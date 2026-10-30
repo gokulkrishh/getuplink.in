@@ -60,7 +60,7 @@ export function PlainPage({
       </div>
 
       {/* The close: the name back at a size, the Tesla line, and the other plain pages. */}
-      <footer className="space-y-3 bg-muted px-5 py-6 -mx-5 sm:mx-0 sm:px-6 dark:bg-card">
+      <footer className="space-y-3 bg-muted px-5 py-6 -mx-5 sm:mx-0 sm:rounded-lg sm:px-6 dark:bg-card">
         <p className="flex items-center gap-2 text-lg font-medium tracking-heading">
           <Logo className="size-5" />
           Uplink

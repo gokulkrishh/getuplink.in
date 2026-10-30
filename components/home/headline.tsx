@@ -100,7 +100,7 @@ function Cell({
 // parts stack, so the text has the card's whole width; from sm up they sit in a row.
 function QuietCard({ icon, title, action, children }: { icon: ReactNode; title: string; action?: ReactNode; children: ReactNode }) {
   return (
-    <div className="flex flex-col items-start gap-3 border px-5 py-6 sm:flex-row sm:items-center sm:gap-4 dark:border-transparent dark:bg-card">
+    <div className="flex flex-col items-start gap-3 rounded-lg border px-5 py-6 sm:flex-row sm:items-center sm:gap-4 dark:border-transparent dark:bg-card">
       <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">{icon}</span>
       <div className="min-w-0 flex-1 space-y-1">
         <p className="font-medium">{title}</p>
@@ -264,7 +264,7 @@ export function Headline({
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-px border bg-border bg-clip-padding dark:border-transparent dark:bg-background sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border bg-clip-padding dark:border-transparent dark:bg-background sm:grid-cols-4">
         <Cell
           view="driving"
           label="Driven"

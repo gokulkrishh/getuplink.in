@@ -104,7 +104,7 @@ export function Sparkline({ kind, values, current, tips, opens, tone = "accent" 
       {active !== null && tip && (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute bottom-full z-10 mb-1 border bg-background px-2 py-1 text-xs whitespace-nowrap"
+          className="pointer-events-none absolute bottom-full z-10 mb-1 rounded-md border bg-background px-2 py-1 text-xs whitespace-nowrap"
           style={{
             left: `${((active + 0.5) / values.length) * 100}%`,
             transform: `translateX(${active < values.length / 3 ? "-10%" : active > (values.length * 2) / 3 ? "-90%" : "-50%"})`,

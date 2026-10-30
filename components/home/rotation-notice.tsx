@@ -24,7 +24,7 @@ export function RotationNotice({ atKm, text }: { atKm: number; text: string }) {
     } catch {}
   };
   return (
-    <div role="status" className="flex items-start justify-between gap-3 border px-4 py-3 text-sm">
+    <div role="status" className="flex items-start justify-between gap-3 rounded-lg border px-4 py-3 text-sm">
       <p>{text}</p>
       <button
         type="button"

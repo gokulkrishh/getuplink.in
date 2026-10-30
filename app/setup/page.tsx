@@ -187,7 +187,7 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
       )}
       {/* Both done: said first, in the open, with the way on. */}
       {ready && (
-        <div role="status" className="mb-8 flex flex-wrap items-center gap-x-4 gap-y-3 border border-positive/40 bg-positive/5 p-4">
+        <div role="status" className="mb-8 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg border border-positive/40 bg-positive/5 p-4">
           <CircleCheck aria-hidden className="size-6 shrink-0 text-positive" />
           <div className="min-w-48 flex-1">
             <p className="font-medium">Your car is set up</p>
@@ -288,7 +288,7 @@ export default function SetupPage({ searchParams }: PageProps<"/setup">) {
       <Header setup={false} onSetup />
       <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">Set up your car</h1>
       <p className="mt-1 mb-8 text-sm text-muted-foreground">Two steps, and your car sends Uplink live data.</p>
-      <Suspense fallback={<div role="status" aria-busy="true" className="h-64 bg-muted motion-safe:animate-pulse"><span className="sr-only">Loading…</span></div>}>
+      <Suspense fallback={<div role="status" aria-busy="true" className="h-64 rounded-lg bg-muted motion-safe:animate-pulse"><span className="sr-only">Loading…</span></div>}>
         <SetupContent searchParams={searchParams} />
       </Suspense>
     </div>

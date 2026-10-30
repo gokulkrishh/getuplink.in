@@ -20,7 +20,7 @@ function Shot({ entry }: { entry: Entry }) {
       <TourBackdrop />
       {img && (
         <TourSlice>
-          <Image src={img.src} alt={img.alt} width={img.width} height={img.height} sizes="480px" className="h-auto w-full border bg-background shadow-xl" />
+          <Image src={img.src} alt={img.alt} width={img.width} height={img.height} sizes="480px" className="h-auto w-full rounded-lg border bg-background shadow-xl" />
         </TourSlice>
       )}
     </div>

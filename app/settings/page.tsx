@@ -189,7 +189,7 @@ async function Settings() {
 // error line, the button.
 async function AdminGuestSkeleton() {
   if (!(await isAdmin())) return null;
-  const block = (className: string) => <div className={`bg-muted motion-safe:animate-pulse ${className}`} aria-hidden="true" />;
+  const block = (className: string) => <div className={cn("rounded-md bg-muted motion-safe:animate-pulse", className)} aria-hidden="true" />;
   return (
     <Row title={<Ph>Guest access</Ph>} description={<p><Ph>Let someone you trust see your car data.</Ph></p>}>
       <div className="mt-4 space-y-3">
@@ -199,14 +199,14 @@ async function AdminGuestSkeleton() {
               <span>
                 <Ph>{label}</Ph>
               </span>
-              {block("h-9 max-sm:h-10")}
+              {block("h-9 rounded-lg max-sm:h-10")}
             </div>
           ))}
         </div>
         {block("h-11")}
         {block("h-11")}
         {block("h-5")}
-        <div className="flex justify-end">{block("h-9 max-sm:h-10 w-40")}</div>
+        <div className="flex justify-end">{block("h-9 w-40 rounded-lg max-sm:h-10")}</div>
       </div>
     </Row>
   );
@@ -215,7 +215,7 @@ async function AdminGuestSkeleton() {
 // Faint blocks in the shape of the groups and their rows, built from the same Group and Row. Advanced
 // renders closed, so only its heading is drawn.
 function SettingsSkeleton() {
-  const button = <div className="h-9 w-24 bg-muted motion-safe:animate-pulse max-sm:h-10" aria-hidden="true" />;
+  const button = <div className="h-9 w-24 rounded-lg bg-muted motion-safe:animate-pulse max-sm:h-10" aria-hidden="true" />;
   const text = (words: string) => <Ph>{words}</Ph>;
   const group = (title: string, ...rows: React.ReactNode[]) => <Group title={<Ph>{title}</Ph>}>{rows}</Group>;
   return (
@@ -227,7 +227,7 @@ function SettingsSkeleton() {
             title={<Ph>Theme</Ph>}
             description={text("Saved in this browser.")}
             control={
-              <div className="inline-flex bg-muted text-sm motion-safe:animate-pulse max-sm:h-[42px]" aria-hidden="true">
+              <div className="inline-flex rounded-lg bg-muted text-sm motion-safe:animate-pulse max-sm:h-[42px]" aria-hidden="true">
                 {["System", "Light", "Dark"].map((label) => (
                   <span key={label} className="invisible border-y px-3 py-1.5 first:border-l last:border-r max-sm:py-2">
                     {label}
