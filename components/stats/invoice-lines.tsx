@@ -1,4 +1,4 @@
-import { ScrollX } from "@/components/scroll-x";
+import { TableBox } from "@/components/scroll-x";
 import { Download } from "lucide-react";
 import { FoldToggle } from "@/components/fold-toggle";
 import { buttonVariants } from "@/components/ui/button";
@@ -43,7 +43,7 @@ export function InvoiceSection({ invoice, href, received }: { invoice: SessionIn
         {href && <DownloadInvoice href={href} />}
       </div>
       {rows.length > 0 && (
-        <ScrollX>
+        <TableBox>
           <table className="w-full text-sm tabular-nums">
             <thead>
               <tr className="border-b text-left text-xs text-faint">
@@ -90,7 +90,7 @@ export function InvoiceSection({ invoice, href, received }: { invoice: SessionIn
               </tr>
             </tfoot>
           </table>
-        </ScrollX>
+        </TableBox>
       )}
       {/* What the bill printed about the charge, after its lines: closed until wanted. */}
       {facts.length > 0 && (

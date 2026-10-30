@@ -1,11 +1,22 @@
 "use client";
 
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { TABLE_FRAME } from "@/lib/table-frame";
 import { cn } from "@/lib/utils";
 
 // A table or list wider than the screen scrolls sideways instead of cutting its text short. While there's
 // more to one side, that edge fades out, so it's clear the rows go on, and a thin scroll bar sits below the
 // last row with room of its own.
+// A data table in TABLE_FRAME. The border is on this outer box and the fade on the inner ScrollX, so the fade
+// never eats the border.
+export function TableBox({ className, children }: { className?: string; children: ReactNode }) {
+  return (
+    <div className={cn(TABLE_FRAME, className)}>
+      <ScrollX>{children}</ScrollX>
+    </div>
+  );
+}
+
 export function ScrollX({ className, children }: { className?: string; children: ReactNode }) {
   const box = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ left: false, right: false });

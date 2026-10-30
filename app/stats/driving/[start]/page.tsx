@@ -1,4 +1,4 @@
-import { ScrollX } from "@/components/scroll-x";
+import { TableBox } from "@/components/scroll-x";
 import { AiNotes } from "@/components/home/week-tips";
 import { DriveSkeleton } from "@/components/stats/skeletons";
 import { loadTipsBox } from "@/components/tips-box";
@@ -292,8 +292,8 @@ function Legs({ legs }: { legs: DriveDetail["trip"]["legs"] }) {
   return (
     <section className="space-y-4">
       <h2 className="text-lg font-medium tracking-heading">Legs</h2>
-      <ScrollX className="-mx-3">
-        <table className="w-full min-w-md text-sm tabular-nums [&_td:first-child]:pl-3 [&_td:last-child]:pr-3 [&_th:first-child]:pl-3 [&_th:last-child]:pr-3">
+      <TableBox>
+        <table className="w-full min-w-md text-sm tabular-nums">
           <thead>
             <tr className="border-b text-left text-xs text-faint">
               <th scope="col" className="w-10 py-2 pr-3 font-normal">#</th>
@@ -306,7 +306,7 @@ function Legs({ legs }: { legs: DriveDetail["trip"]["legs"] }) {
           </thead>
           <tbody className="divide-y">
             {legs.map((d, k) => (
-              <tr key={d.start} className="group/row relative cursor-pointer *:transition-colors *:duration-150 hover:*:bg-muted focus-within:*:bg-muted [&>td:first-child]:rounded-l-lg [&>td:last-child]:rounded-r-lg">
+              <tr key={d.start} className="group/row relative cursor-pointer *:transition-colors *:duration-150 hover:*:bg-muted focus-within:*:bg-muted">
                 <td className="py-3 pr-3 font-mono text-xs text-faint">{k + 1}</td>
                 <th scope="row" className="py-3 pr-4 text-left font-normal whitespace-nowrap">
                   <Link href={`/stats/driving/${d.start}?leg`} className={ROW_LINK}>
@@ -325,7 +325,7 @@ function Legs({ legs }: { legs: DriveDetail["trip"]["legs"] }) {
             ))}
           </tbody>
         </table>
-      </ScrollX>
+      </TableBox>
     </section>
   );
 }

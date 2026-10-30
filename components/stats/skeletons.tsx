@@ -1,5 +1,7 @@
 import { Loading, Ph, SkBigLabel, SkBlock, SkChart, SkChartCaptioned, SkFigures, SkHead, SkHeadline, SkLine, SkSection, SkShowMore, SkTable, SkTripRows } from "@/components/skeleton";
 import { CHARGING_PREVIEW } from "@/components/stats/charging-sections";
+import { TABLE_FRAME } from "@/lib/table-frame";
+import { cn } from "@/lib/utils";
 
 // What each Stats topic shows while its data loads: its sections in order, each built from the section's own
 // layout classes (see components/skeleton.tsx), at the size of the page's default period (Week). Rows and
@@ -433,7 +435,7 @@ function SkParkedList() {
           ))}
         </ul>
       </div>
-      <div className="max-sm:hidden">
+      <div className={cn(TABLE_FRAME, "max-sm:hidden")}>
         <table className="w-full table-fixed text-sm">
           <colgroup>
             {["w-10", "w-32", "w-28", "", "", "", "", "w-24"].map((w, k) => (

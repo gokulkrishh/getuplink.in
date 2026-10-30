@@ -1,6 +1,6 @@
 "use client";
 
-import { ScrollX } from "@/components/scroll-x";
+import { TableBox } from "@/components/scroll-x";
 import { usePaged } from "@/components/show-more";
 import type { LoadMore, Paged } from "@/lib/list";
 import type { StationRow } from "@/lib/top-stations";
@@ -21,7 +21,7 @@ export function TopStations({ list, load }: { list: Paged<StationRow>; load: Loa
       </div>
       {rows.length > 0 && (
         <>
-        <ScrollX>
+        <TableBox>
           <table className="w-full min-w-md text-sm tabular-nums">
             <thead>
               <tr className="border-b text-left text-xs text-faint">
@@ -62,7 +62,7 @@ export function TopStations({ list, load }: { list: Paged<StationRow>; load: Loa
               ))}
             </tbody>
           </table>
-        </ScrollX>
+        </TableBox>
         {button}
         </>
       )}

@@ -2,7 +2,7 @@
 
 import { GoogleMapsCredit } from "@/components/google-maps-credit";
 import { Measure } from "@/components/measure";
-import { ScrollX } from "@/components/scroll-x";
+import { TableBox } from "@/components/scroll-x";
 import { usePaged } from "@/components/show-more";
 import type { LoadMore, Paged } from "@/lib/list";
 
@@ -135,9 +135,9 @@ export function ParkedRows({ list, load }: { list: Paged<ParkedRow>; load: LoadM
       <div className="sm:hidden">
         <ParkedBlocks rows={rows} />
       </div>
-      <ScrollX className="hidden sm:block">
+      <TableBox className="hidden sm:block">
         <ParkedTable rows={rows} />
-      </ScrollX>
+      </TableBox>
       {button}
     </div>
   );

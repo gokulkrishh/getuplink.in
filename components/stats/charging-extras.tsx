@@ -7,6 +7,8 @@ import { formatKw, formatShortDate } from "@/lib/format";
 import type { Timeframe } from "@/lib/periods";
 import type { Curve } from "@/lib/server/charging-extra";
 import { Measure } from "@/components/measure";
+import { TABLE_FRAME } from "@/lib/table-frame";
+import { cn } from "@/lib/utils";
 
 const BAND = 5; // battery % per point of the typical curve
 
@@ -46,7 +48,7 @@ export function DcCurves({ curves, frame, note }: { curves: (Curve & { serial?: 
       </ChartCard>
       {curves.length > 0 && (
         <>
-          <div className="max-sm:hidden">
+          <div className={cn(TABLE_FRAME, "max-sm:hidden")}>
             <table className="w-full table-fixed text-sm tabular-nums">
               <colgroup>
                 <col className="w-8 sm:w-10" />
