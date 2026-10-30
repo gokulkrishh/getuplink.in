@@ -3,7 +3,7 @@
 import { Dialog } from "@base-ui/react/dialog";
 import { Bell, LogOut, MessageSquare, Settings, Sparkles, X } from "lucide-react";
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
-import { closeWelcome } from "@/app/whats-new/actions";
+import { closeWelcome } from "@/app/releases/actions";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { OFFLINE, orOffline } from "@/lib/offline";

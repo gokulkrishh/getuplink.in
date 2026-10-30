@@ -86,7 +86,7 @@ export function whatsNewAlerts(f: CardFacts): Alert[] {
     icon: "new",
     title: e.title,
     detail: e.text,
-    href: "/whats-new",
+    href: "/releases",
     since: `${e.date}T00:00:00+05:30`,
   }));
 }

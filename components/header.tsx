@@ -188,7 +188,7 @@ export function Header({ current, setup = true, onSetup = false }: { current?: S
               <Settings aria-hidden />
               Settings
             </DropdownMenuItem>
-            <DropdownMenuItem render={<Link href="/whats-new" prefetch={true} />}>
+            <DropdownMenuItem render={<Link href="/releases" prefetch={true} />}>
               <Sparkles aria-hidden />
               What&apos;s new
             </DropdownMenuItem>

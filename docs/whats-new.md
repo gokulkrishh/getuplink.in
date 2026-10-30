@@ -7,7 +7,7 @@ How Uplink tells owners about new things. Rules are in `lib/whats-new.ts` (teste
 - **Welcome tour** on Home, once, for an owner approved on or after `WELCOME_SINCE` (31 Oct 2026, India time): a dialog over the page with a blurred backdrop and 5 steps (Home, Stats, Updates, Compare, Settings). The left half draws a slice of the app with a pointer that glides to the part the step is about; the right half has the words. Skip, the cross, Esc, tapping outside and "Got it" all close it for good. Owners approved before that date never see it. Settings > General > "Welcome tour" replays it any time and writes nothing. The What's new page keeps its "Where things are" list.
 - **What's new card** on Home, for the newest "card" entry the owner hasn't seen. A link underneath counts the others ("2 more on What's new").
 - **A line in the bell**, under "Good to know", for every unseen entry.
-- **The What's new page** (account menu), listing every entry newest first, with a "Where things are" list.
+- **The What's new page** at `/releases` (account menu), listing every entry newest first, with a "Where things are" list.
 
 Home shows the welcome tour first. Under the greeting it shows one card at a time: news, then the share card.
 
