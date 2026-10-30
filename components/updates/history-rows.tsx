@@ -2,7 +2,7 @@
 
 import { ChevronRight } from "lucide-react";
 import { ReleaseNotesList } from "@/components/release-notes";
-import { ScrollX } from "@/components/scroll-x";
+import { TableBox } from "@/components/scroll-x";
 import { usePaged } from "@/components/show-more";
 import { Tip, TipTrigger } from "@/components/tip";
 import type { LoadMore, Paged } from "@/lib/list";
@@ -58,7 +58,7 @@ const Timeline = ({ text }: { text: string | null }) => (text ? <span className=
 function HistoryItem({ row }: { row: HistoryRow }) {
   if (!row.notes) {
     return (
-      <li className={cn("history-cols", "border-t py-2.5")}>
+      <li className={cn("history-cols", "border-t px-4 py-2.5")}>
         <span className="truncate pl-5 font-mono">{row.version}</span>
         <HistoryCells row={row} />
         <Timeline text={row.timeline} />
@@ -68,7 +68,7 @@ function HistoryItem({ row }: { row: HistoryRow }) {
   return (
     <li className="border-t">
       <details className="group/row">
-        <summary className={cn("history-cols", "cursor-pointer list-none py-2.5 hover:text-foreground [&::-webkit-details-marker]:hidden")}>
+        <summary className={cn("history-cols", "cursor-pointer list-none px-4 py-2.5 hover:text-foreground [&::-webkit-details-marker]:hidden")}>
           <span className="sr-only">Show release notes</span>
           <span className="flex min-w-0 items-center gap-1.5 font-mono">
             <ChevronRight className="size-3.5 shrink-0 self-center text-faint transition-transform group-open/row:rotate-90" aria-hidden="true" />
@@ -77,7 +77,7 @@ function HistoryItem({ row }: { row: HistoryRow }) {
           <HistoryCells row={row} />
           <Timeline text={row.timeline} />
         </summary>
-        <div className="pb-4 pl-5">
+        <div className="pr-4 pb-4 pl-9">
           <ReleaseNotesList notes={row.notes} />
         </div>
       </details>
@@ -91,9 +91,9 @@ export function HistoryRows({ list, load }: { list: Paged<HistoryRow>; load: Loa
   const { rows, button } = usePaged(list, load);
   return (
     <>
-      <ScrollX className="max-sm:-mx-1 max-sm:px-1">
+      <TableBox>
         <div className="max-sm:min-w-xl">
-          <div className={cn("history-cols", "pb-2 text-xs text-faint")}>
+          <div className={cn("history-cols", "px-4 pb-2 text-xs text-faint")}>
             <h3 className="pl-5">Versions</h3>
             <span className="text-right">Received</span>
             <span className="text-right">Installed</span>
@@ -105,7 +105,7 @@ export function HistoryRows({ list, load }: { list: Paged<HistoryRow>; load: Loa
             ))}
           </ol>
         </div>
-      </ScrollX>
+      </TableBox>
       {button}
     </>
   );
