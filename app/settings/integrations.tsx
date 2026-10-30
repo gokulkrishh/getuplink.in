@@ -34,11 +34,11 @@ function Copyable({ label, value }: { label: string; value: string }) {
 function ManualInstructions({ copy, children }: { copy?: string; children: ReactNode }) {
   return (
     <details className="group rounded-lg border">
-      <summary className="flex cursor-pointer list-none rounded-lg group-open:rounded-b-none items-center justify-between gap-3 px-3 py-2.5 text-sm transition-colors hover:bg-muted/50 [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none rounded-lg [details[open]>&]:rounded-b-none items-center justify-between gap-3 px-3 py-2.5 text-sm transition-colors hover:bg-muted/50 [&::-webkit-details-marker]:hidden">
         Manual instructions
         <span className="flex items-center gap-3">
           {copy && <CopyButton text={copy} />}
-          <FoldToggle />
+          <FoldToggle className="mr-0" />
         </span>
       </summary>
       <div className="space-y-2 border-t px-3 py-3">{children}</div>

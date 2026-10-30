@@ -125,7 +125,7 @@ export function PaidFor({ bills, frame }: { bills: Bill[]; frame: Timeframe }) {
   const { supercharger, invoice, unitemised, total } = breakdown;
   const both = supercharger.length > 0 && invoice.length > 0;
   const row = (label: string, amount: number, strong = false) => (
-    <div key={label} className={`flex items-baseline justify-between gap-4 py-2.5 ${strong ? "font-medium" : ""}`}>
+    <div key={label} className={`flex items-baseline justify-between gap-4 px-4 py-2.5 ${strong ? "font-medium" : ""}`}>
       <dt className={strong ? "" : "text-muted-foreground"}>{label}</dt>
       <dd className="font-mono tabular-nums">
         <Measure text={formatMoney(amount, "INR")} />
@@ -135,7 +135,7 @@ export function PaidFor({ bills, frame }: { bills: Bill[]; frame: Timeframe }) {
   const group = (title: string, lines: { label: string; amount: number }[]) =>
     lines.length > 0 && (
       <div key={title}>
-        {both && <p className="pt-3 pb-1 text-xs text-faint">{title}</p>}
+        {both && <p className="px-4 pt-3 pb-1 text-xs text-faint">{title}</p>}
         <dl>{lines.map((l) => row(l.label, l.amount))}</dl>
       </div>
     );
@@ -145,7 +145,7 @@ export function PaidFor({ bills, frame }: { bills: Bill[]; frame: Timeframe }) {
         <h2 className="text-lg font-medium tracking-heading">What you paid for</h2>
         <p className="text-sm text-muted-foreground">Your spend, line by line from the bills.</p>
       </div>
-      <div className="divide-y border-t border-b text-sm">
+      <div className="divide-y rounded-lg border text-sm">
         {group("Superchargers", supercharger)}
         {group("Other chargers", invoice)}
         {unitemised > 0 && <dl>{row("Not itemised", unitemised)}</dl>}

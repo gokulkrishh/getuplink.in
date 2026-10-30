@@ -81,8 +81,8 @@ export function DcCurves({ curves, frame, note }: { curves: (Curve & { serial?: 
           </div>
           {/* On a phone the columns don't fit: the charger's name gets its own line, so it never cuts, and the
               two powers get a column each. */}
-          <div className="sm:hidden">
-            <div className="grid grid-cols-[1.5rem_1fr_5rem_5rem] gap-x-3 border-b py-2 text-xs text-faint">
+          <div className="rounded-lg border py-2 sm:hidden">
+            <div className="grid grid-cols-[1.5rem_1fr_5rem_5rem] gap-x-3 border-b px-4 pb-2 text-xs text-faint">
               <span>#</span>
               <span>Date</span>
               <span className="text-right">Peak</span>
@@ -90,7 +90,7 @@ export function DcCurves({ curves, frame, note }: { curves: (Curve & { serial?: 
             </div>
             <ul className="divide-y text-sm tabular-nums">
               {curves.map((c) => (
-                <li key={c.id} className="py-3">
+                <li key={c.id} className="px-4 py-3">
                   <p className="grid grid-cols-[1.5rem_1fr_5rem_5rem] items-baseline gap-x-3">
                     <span className="font-mono text-xs text-faint">{c.serial ?? ""}</span>
                     <span className="whitespace-nowrap">{formatShortDate(c.date)}</span>

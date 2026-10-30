@@ -39,8 +39,8 @@ export function ChargeRange({ sessions, frame, serialOf }: { sessions: StreamCha
       }
       caption={latest.length === 1 ? "Latest charge" : `Latest ${latest.length} charges, newest first`}
     >
-      <div>
-        <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] border-b pb-2 text-xs text-faint" aria-hidden="true">
+      <div className="rounded-lg border py-2">
+        <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] border-b px-4 pb-2 text-xs text-faint" aria-hidden="true">
           <span>#</span>
           <span>Charge</span>
         </div>
@@ -48,7 +48,7 @@ export function ChargeRange({ sessions, frame, serialOf }: { sessions: StreamCha
           {latest.map((s) => {
             const [a, b] = [Math.round(s.start_level!), Math.round(s.end_level!)];
             return (
-              <li key={s.id} className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-baseline py-3">
+              <li key={s.id} className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-baseline px-4 py-3">
                 <span className="font-mono text-xs text-faint tabular-nums">{serialOf(s) ?? ""}</span>
                 <div className="space-y-1">
                   <p className="flex justify-between gap-3 text-sm tabular-nums">
