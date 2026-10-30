@@ -4,6 +4,7 @@ import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import { buildRollout, GLOBAL_RELEASES, type Rollout, type RolloutChange } from "@/lib/rollout";
 import { type Adoption, type AdoptionGrain, buildAdoption } from "@/lib/rollout-adoption";
 import { type Arriving, buildArriving, type OfferedCar, withOwnOffer, yourCar, type YourCar } from "@/lib/rollout-arriving";
+import { type RolloutGlance, rolloutGlance } from "@/lib/rollout-line";
 import { buildStateRollout, type VersionStates } from "@/lib/rollout-states";
 import { UPDATE_FIELDS } from "@/lib/telemetry";
 import { loadCarState, loadReleaseNotes, type Vehicle } from "./dashboard";
@@ -11,7 +12,7 @@ import { demoData, demoFleet } from "./demo";
 import { missingEnv } from "./env";
 import { carStates } from "./home-state";
 import { hides, type Owner, ownerDb } from "./data/owner";
-import { fleetOffers, fleetVersionChanges } from "./data/system";
+import { fleetCars, fleetOffers, fleetVersionChanges } from "./data/system";
 
 // This goes to the browser (the page's "use cache: private"), so it holds totals and the owner's own line only.
 export type RolloutPage =
@@ -107,5 +108,27 @@ async function readRollout(owner: Owner, now: number): Promise<RolloutPage> {
   } catch (err) {
     console.error(err);
     return { kind: "error", message: (err as Error).message };
+  }
+}
+
+// The few totals the Updates page shows under the Software card: how many cars run each version and what is
+// on offer. The same cars and offers as /rollout, without its states, history and notes. Null when they
+// can't be read, so the page still loads without the line.
+export async function loadRolloutGlance(): Promise<RolloutGlance | null> {
+  if (DEMO) {
+    const fleet = demoFleet();
+    const offers = fleet.vehicles.map((v) => {
+      const offer = fleet.offers.find((o) => o.vehicle_id === v.id);
+      return { car: v.id, version: v.current_version, status: offer?.update_status ?? null, offered: offer?.update_version ?? null };
+    });
+    return rolloutGlance(fleet.vehicles.map((v) => ({ car: v.id, version: v.current_version })), offers);
+  }
+  try {
+    if (missingEnv().length) return null;
+    const [cars, offers] = await Promise.all([fleetCars(), fleetOffers()]);
+    return rolloutGlance(cars.map((c) => ({ car: c.id, version: c.current_version })), offers);
+  } catch (err) {
+    console.error(err);
+    return null;
   }
 }
