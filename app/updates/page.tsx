@@ -84,11 +84,13 @@ function CarUpdates({ car, notes, glance, label, range, now }: { car: UpdatesCar
             Asleep at every check so far. Open the Tesla app to wake the car. This page updates by itself.
           </p>
         )}
-        {/* Where this version stands in India, each line a way to the full rollout. A plain link when nothing is known. */}
-        <ul className="text-sm">
+        {/* Where this version stands in India, each line a way to the full rollout. A plain link when nothing is known.
+            Room for two lines always, the most it shows, so the page below never moves when they arrive. The
+            negative margin lines the words up with Release notes above, on a phone too (measured). */}
+        <ul className="min-h-[42px] text-sm">
           {(rollout.length > 0 ? rollout : ["India rollout"]).map((line) => (
             <li key={line}>
-              <MoreLink href="/rollout" className="-mr-0 -ml-2.5 font-normal text-muted-foreground">{line}</MoreLink>
+              <MoreLink href="/rollout" className="-ml-2.5 font-normal text-muted-foreground">{line}</MoreLink>
             </li>
           ))}
         </ul>
@@ -169,6 +171,12 @@ async function Updates({ searchParams }: Pick<PageProps<"/updates">, "searchPara
           </div>
         </PeriodScope>
       )}
+      {/* No car card to carry the rollout line: the rollout is still a link away. */}
+      {(data.kind !== "ready" || cars.length === 0) && (
+        <p className="text-sm">
+          <MoreLink href="/rollout" className="-ml-2.5">India rollout</MoreLink>
+        </p>
+      )}
       {data.kind === "ready" && (
         <CheckedFooter syncedAt={newestTime(cars.flatMap((car) => [car.latest?.polled_at, car.streamAt]))} now={now} />
       )}
@@ -190,7 +198,10 @@ function UpdatesSkeleton() {
         <div className="pt-2">
           <p className="text-sm leading-[1.125rem]"><Ph>Release notes</Ph></p>
         </div>
-        <p className="text-sm leading-[21px]"><Ph>On 3 of 40 cars in India</Ph></p>
+        <div className="min-h-[42px] text-sm leading-[21px]">
+          <p><Ph>On 3 of 40 cars in India</Ph></p>
+          <p><Ph>2026.40.2 is reaching cars in India</Ph></p>
+        </div>
       </header>
       <section className="space-y-4" aria-hidden="true">
         <div className="space-y-1">
