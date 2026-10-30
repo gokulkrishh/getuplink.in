@@ -14,7 +14,7 @@ type Release = { version: string; entries: Entry[] };
 
 // The words and the screenshot. `ratio` holds the picture's box at the tallest one in the version, so the
 // pane (and, on a phone, the open row) keeps its size from one feature to the next; the picture sits inside
-// it, centred with a little room, on the soft background, so a shorter one reads as framed, not cut off.
+// it, centred on the soft background, so a shorter one reads as framed, not cut off.
 // `title` false on a phone, where the words open right under the row that already names the feature.
 function Detail({ entry, ratio, title = true }: { entry: Entry; ratio?: number; title?: boolean }) {
   const img = entry.image;
@@ -29,15 +29,13 @@ function Detail({ entry, ratio, title = true }: { entry: Entry; ratio?: number; 
               : `${img.width} / ${img.height}`,
           }}
         >
-          <div className="absolute inset-3">
-            <Image
-              src={img.src}
-              alt={img.alt}
-              fill
-              sizes="(min-width: 672px) 408px, 100vw"
-              className="object-contain"
-            />
-          </div>
+          <Image
+            src={img.src}
+            alt={img.alt}
+            fill
+            sizes="(min-width: 672px) 408px, 100vw"
+            className="object-contain"
+          />
         </div>
       )}
       <div className="space-y-1">

@@ -121,7 +121,8 @@ export function whatsNewAlerts(f: CardFacts): Alert[] {
     title: e.title,
     detail: e.text,
     href: "/release-notes",
-    since: `${e.date}T00:00:00+05:30`,
+    // An entry has a date, not a time: the bell would print midnight as if it were known.
+    since: null,
   }));
 }
 
