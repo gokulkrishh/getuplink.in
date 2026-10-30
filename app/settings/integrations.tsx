@@ -38,7 +38,7 @@ function ManualInstructions({ copy, children }: { copy?: string; children: React
         Manual instructions
         <span className="flex items-center gap-3">
           {copy && <CopyButton text={copy} />}
-          <FoldToggle className="mr-0" />
+          <FoldToggle />
         </span>
       </summary>
       <div className="space-y-2 border-t px-3 py-3">{children}</div>
