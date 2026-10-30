@@ -5,6 +5,7 @@ import { Check, Pencil, Search, X } from "lucide-react";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { placeSuggestions, removePlace, savePlace } from "@/app/places/actions";
 import { GoogleMapsCredit } from "@/components/google-maps-credit";
+import { Ph } from "@/components/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NO_AUTOFILL } from "@/lib/no-autofill";
@@ -180,6 +181,27 @@ export function NamePlace({ target, compact = false, className }: { target: Name
             ? "No places match."
             : "";
 
+  // Until the first answer is in, the list is drawn as grey bars in the shape of what arrives (two groups of
+  // two-line rows), so the footer below barely moves. Not while typing: a typed name is already a choice.
+  const waiting = open && loading && loaded === null && q === "";
+  const skeletonGroup = (label: string, names: string[]) => (
+    <div className="border-t pt-2">
+      <div className="px-2 pb-1 text-xs">
+        <Ph>{label}</Ph>
+      </div>
+      {names.map((name) => (
+        <div key={name} className="px-2 py-2">
+          <span className="block truncate">
+            <Ph>{name}</Ph>
+          </span>
+          <span className="block truncate text-xs">
+            <Ph>Kind of place</Ph>
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+
   const row = (o: Option, i: number) => (
     <div
       key={o.key}
@@ -305,7 +327,13 @@ export function NamePlace({ target, compact = false, className }: { target: Name
               )}
             </div>
 
-            <div id={listId} role="listbox" aria-label="Places" className={cn("space-y-3 empty:hidden", saving && "pointer-events-none opacity-60")}>
+            <div id={listId} role="listbox" aria-label="Places" aria-busy={waiting} className={cn("space-y-3 empty:hidden", saving && "pointer-events-none opacity-60")}>
+              {waiting && (
+                <div aria-hidden="true" className="space-y-3">
+                  {skeletonGroup("Stations and area", ["Station name here", "Area name here"])}
+                  {skeletonGroup("Places", ["Place name here", "Another place name", "A third place name"])}
+                </div>
+              )}
               {typed.length > 0 && <div className="border-t pt-2">{row(typed[0], 0)}</div>}
               {group(
                 "osm",
