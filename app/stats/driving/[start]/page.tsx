@@ -127,7 +127,9 @@ function Drive({ detail, view, words, tipsBox, now, locations }: { detail: Drive
                 speed={speed}
                 legs={trip.legs.map((d) => ({ start: d.start, end: d.end, note: [formatKm(d.km), batteryWords(d.startLevel, d.endLevel)].filter(Boolean).join(", ") }))}
                 below={
-                  <Suspense fallback={<MapFacts facts={mapFacts(null, null, tiles)} />}>
+                  // A key, though it's one node: TripMap draws it beside the map, and a server node that
+                  // arrives still streaming is checked as a list item there.
+                  <Suspense key="facts" fallback={<MapFacts facts={mapFacts(null, null, tiles)} />}>
                     <NamedFacts pins={pins} tiles={tiles} />
                   </Suspense>
                 }
@@ -249,7 +251,8 @@ function mapPins(pins: MapPin[], legs: DriveDetail["trip"]["legs"]): MapPin[] {
 function endFact(label: string, end: SpotName | null, canName: boolean): MapFact | null {
   if (!end) return null;
   const kind = canName ? nameAction(end) : null;
-  const action = kind ? <NamePlace target={end.target} compact={kind === "rename"} /> : undefined;
+  // Keyed for the same reason as the map's facts: MapFacts draws it beside the value.
+  const action = kind ? <NamePlace key="name" target={end.target} compact={kind === "rename"} /> : undefined;
   if (!end.name && !action) return null;
   return { label, value: end.name?.text ?? "Unknown", extra: action };
 }
