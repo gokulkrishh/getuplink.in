@@ -754,8 +754,8 @@ describe("Settings' list", () => {
   test("says whether each link was opened, and when, in plain words", () => {
     const now = Date.parse("2026-10-30T06:00:00Z");
     expect(openedLine({ lastViewedAt: null }, now)).toBe("Not opened yet");
-    expect(openedLine({ lastViewedAt: "2026-10-30T05:29:00Z" }, now)).toBe("Opened 10:59 AM");
-    expect(openedLine({ lastViewedAt: "2026-10-28T05:29:00Z" }, now)).toBe("Opened 28 Oct, 10:59 AM");
+    expect(openedLine({ lastViewedAt: "2026-10-30T05:29:00Z" }, now)).toBe("Your guest opened it at 10:59 AM");
+    expect(openedLine({ lastViewedAt: "2026-10-28T05:29:00Z" }, now)).toBe("Your guest opened it on 28 Oct, 10:59 AM");
   });
 
   test("Copy link shows only until the link is used", () => {
@@ -920,5 +920,89 @@ describe("a guest sees nothing addressed to the owner", () => {
     expect(bar).not.toContain("Stop viewing");
     expect(bar).toContain('href="/v/leave"');
     expect(readFileSync(join(ROOT, "components/header.tsx"), "utf8")).not.toMatch(/>\s*Leave\s*</);
+  });
+});
+
+describe("a link opened in two tabs, and the edges of /v", () => {
+  const visitAs = (path: string, cookie?: string) =>
+    proxy(new NextRequest(`https://app.getuplink.in${path}`, { headers: { host: "app.getuplink.in", ...(cookie ? { cookie } : {}) } }));
+  const jarCookie = () => [...jar].map(([n, v]) => `${n}=${v}`).join("; ");
+
+  test("two tabs of one browser: the tab whose claim loses still opens, since the browser holds the link", async () => {
+    const token = await make();
+    // Both tabs open the link: one pending cookie, shared by the browser.
+    keep(await open(token));
+    const pending = jar.get(VIEW_PENDING_COOKIE)!;
+    keep(await claim());
+    expect(jar.has(VIEW_COOKIE)).toBe(true);
+    // The other tab's post carries the same pending cookie and, by now, the viewer cookie the first tab won.
+    jar.set(VIEW_PENDING_COOKIE, pending);
+    const second = await claim();
+    expect(second.status).toBe(200);
+    expect(await opened(second)).toBe(true);
+    keep(second);
+    expect(jar.has(VIEW_COOKIE)).toBe(true);
+    expect((await currentReader())?.viewer?.id).toBe(1);
+  });
+
+  test("a viewer cookie for another link doesn't make a lost claim open", async () => {
+    const token = await make();
+    await visit(await make(OWNER, "Mum"));
+    keep(await open(token));
+    const pending = jar.get(VIEW_PENDING_COOKIE)!;
+    // Another browser claims it first.
+    await views.claimViewLink(1, Date.now());
+    jar.set(VIEW_PENDING_COOKIE, pending);
+    expect(await opened(await claim())).toBe(false);
+  });
+
+  test("the ended page keeps a viewer cookie whose link is still open, and drops one whose link has ended", async () => {
+    const token = await make();
+    await visit(token);
+    const live = await visitAs("/v/ended", `${jarCookie()}; ${GUEST_HINT_COOKIE}=1`);
+    expect(live.status).toBe(410);
+    const kept = live.headers.getSetCookie();
+    expect(kept.some((c) => c.startsWith(`${VIEW_COOKIE}=;`))).toBe(false);
+    expect(kept).toContainEqual(expect.stringMatching(/^tiu_view_new=; Path=\/v\/seen; Max-Age=0/));
+    expect(kept).toContainEqual(expect.stringMatching(/^tiu_guest=; Path=\/; Max-Age=0/));
+    await views.endViewLink(OWNER, 1, Date.now());
+    const gone = (await visitAs("/v/ended", jarCookie())).headers.getSetCookie();
+    expect(gone).toContainEqual(expect.stringMatching(/^tiu_view=; Path=\/; Max-Age=0/));
+  });
+
+  test("/v/seen answers 503, not the ended page, when the database fails", async () => {
+    await visit(await make());
+    fake.failing = ({ table }) => table === "car_view_links";
+    const res = await claim();
+    expect(res.status).toBe(503);
+    expect(res.headers.getSetCookie()).toEqual([]);
+  });
+
+  test("the confirm page goes to the ended page for an unknown, ended or used link", async () => {
+    const { default: confirm } = await import("@/app/v/[token]/confirm/page");
+    const where = async (token: string) => {
+      try {
+        await confirm({ params: Promise.resolve({ token }) });
+        return "rendered";
+      } catch (err) {
+        return String((err as { digest?: string }).digest).split(";")[2];
+      }
+    };
+    const token = await make();
+    expect(await where(token)).toBe("rendered");
+    expect(await where("notarealtoken")).toBe("/v/ended");
+    await visit(token);
+    expect(await where(token)).toBe("/v/ended");
+    jar.clear();
+    const ended = await make(OWNER, "Mum");
+    await views.endViewLink(OWNER, 2, Date.now());
+    expect(await where(ended)).toBe("/v/ended");
+  });
+
+  test("bare /v and /v/ go to the ended page on the browser's host", async () => {
+    for (const path of ["/v", "/v/"]) {
+      const res = await proxy(new NextRequest(`http://localhost:3000${path}`, { headers: { host: "app.getuplink.localhost:3000" } }));
+      expect(res.headers.get("location")).toBe("http://app.getuplink.localhost:3000/v/ended");
+    }
   });
 });

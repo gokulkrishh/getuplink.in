@@ -5,6 +5,7 @@ import { METADATA_PATHS } from "@/lib/site";
 import { expireGuestHintHeader, expirePendingHeader, expireViewCookieHeader, GUEST_HINT_COOKIE, guestHintHeader, VIEW_COOKIE, viewCookieClaims, VIEWER_HEADERS } from "@/lib/view-cookie";
 import { isMissingStatsDetail } from "@/lib/stats-paths";
 import { statsRedirect } from "@/lib/stats-redirect";
+import { liveViewLink } from "@/lib/server/view-links";
 
 // Exact paths reachable without a session. Anything not listed here needs one.
 const PUBLIC_PATHS = new Set([
@@ -63,6 +64,18 @@ function dropGuestHint(request: NextRequest, res: NextResponse): NextResponse {
   return res;
 }
 
+// Whether the request's viewer cookie names a link that is still open. Read only on the ended page, and
+// only for a signed cookie. A database hiccup counts as open: pages re-read the link anyway.
+async function viewerLinkOpen(request: NextRequest): Promise<boolean> {
+  const viewer = await viewCookieClaims(request.cookies.get(VIEW_COOKIE)?.value);
+  if (!viewer) return false;
+  try {
+    return Boolean(await liveViewLink(viewer.linkId, Date.now()));
+  } catch {
+    return true;
+  }
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   // The forwarded host first: Next renders a server action's redirect with an internal request to
@@ -102,14 +115,16 @@ export async function proxy(request: NextRequest) {
   // Invite links (/invite/<token>): opened by someone without an account yet. The page checks the token itself.
   if (pathname.startsWith("/invite/")) return NextResponse.next();
   // View links (/v/<token>, /v/status, /v/leave, /v/ended): opened by someone without an account. Each
-  // checks the link itself. The ended page also drops the viewer cookie.
+  // checks the link itself. Bare /v names no link: the ended page.
+  if (pathname === "/v" || pathname === "/v/") return NextResponse.redirect(browserUrl("/v/ended", request));
   if (pathname.startsWith("/v/")) {
-    // The ended page answers 410 Gone, and drops every guest cookie this browser holds.
+    // The ended page answers 410 Gone, and drops the guest cookies: the pending one and the hint always, the
+    // viewer cookie unless its link is still open (another tab of this browser may have just claimed it).
     const ended = pathname === "/v/ended";
     const res = ended ? NextResponse.rewrite(request.nextUrl, { status: 410 }) : NextResponse.next();
     for (const [name, value] of Object.entries(VIEWER_HEADERS)) res.headers.set(name, value);
     if (ended) {
-      res.headers.append("set-cookie", expireViewCookieHeader());
+      if (!(await viewerLinkOpen(request))) res.headers.append("set-cookie", expireViewCookieHeader());
       res.headers.append("set-cookie", expirePendingHeader());
       dropGuestHint(request, res);
     }

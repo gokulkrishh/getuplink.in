@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { AlertDialog, AlertDialogClose, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,7 @@ function ConfirmBody({
   run,
   word,
   initialFocus,
+  busy,
 }: {
   title: string;
   children: React.ReactNode;
@@ -49,8 +50,16 @@ function ConfirmBody({
   run: (state: string | null, form: FormData) => Promise<string | null>;
   word?: string;
   initialFocus?: React.RefObject<HTMLInputElement | null>;
+  // Set while the action runs, so the dialog above can refuse to close (Escape, a tap outside).
+  busy: React.RefObject<boolean>;
 }) {
-  const [error, action] = useActionState(guarded(run), null);
+  const [error, action, pending] = useActionState(guarded(run), null);
+  useEffect(() => {
+    busy.current = pending;
+    return () => {
+      busy.current = false;
+    };
+  }, [busy, pending]);
   // Controlled, so a failed action (a dropped connection) resets the form without clearing the typed word.
   const [typed, setTyped] = useState("");
   return (
@@ -61,7 +70,7 @@ function ConfirmBody({
         {word && (
           <label className="block space-y-1.5">
             <span className="block text-sm text-muted-foreground">Type {word} to confirm</span>
-            <Input ref={initialFocus} name="confirm" value={typed} onChange={(e) => setTyped(e.target.value)} {...NO_AUTOFILL} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder={word} className="h-9 max-sm:h-10 max-w-48" aria-invalid={error ? true : undefined} aria-describedby={error ? "confirm-error" : undefined} />
+            <Input ref={initialFocus} name="confirm" value={typed} onChange={(e) => setTyped(e.target.value)} {...NO_AUTOFILL} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder={word} className="h-9 max-sm:h-10 w-full" aria-invalid={error ? true : undefined} aria-describedby={error ? "confirm-error" : undefined} />
           </label>
         )}
         {error && (
@@ -81,6 +90,7 @@ function ConfirmBody({
 // Two steps: the button asks, the dialog repeats the consequence.
 export function DisconnectTesla({ description }: { description: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const busy = useRef(false);
   return (
     <Row
       title="Tesla account"
@@ -91,9 +101,9 @@ export function DisconnectTesla({ description }: { description: React.ReactNode 
         </Button>
       }
     >
-      <AlertDialog open={open} onOpenChange={setOpen}>
-        <ConfirmBody title="Disconnect your Tesla account?" submit="Disconnect Tesla" pendingLabel="Disconnecting" run={disconnect}>
-          Uplink stops reading your car, removes your AI connectors and signs you out everywhere. Your history stays. To reconnect, sign in with
+      <AlertDialog open={open} onOpenChange={(next) => !busy.current && setOpen(next)}>
+        <ConfirmBody busy={busy} title="Disconnect your Tesla account?" submit="Disconnect Tesla" pendingLabel="Disconnecting" run={disconnect}>
+          Uplink stops reading your car, removes your AI connectors and signs you out everywhere. Your guest links stop working. Your history stays. To reconnect, sign in with
           Tesla again. To remove Uplink&apos;s key, open Controls &gt; Locks in your car.
         </ConfirmBody>
       </AlertDialog>
@@ -125,6 +135,7 @@ function ConfirmDelete({
   deleteAction: DeleteAction;
 }) {
   const [open, setOpen] = useState(false);
+  const busy = useRef(false);
   const input = useRef<HTMLInputElement>(null);
   return (
     <Row
@@ -141,8 +152,8 @@ function ConfirmDelete({
         </Button>
       }
     >
-      <AlertDialog open={open} onOpenChange={setOpen}>
-        <ConfirmBody title={question} submit={submit} pendingLabel="Deleting" run={deleteAction} word={word} initialFocus={input}>
+      <AlertDialog open={open} onOpenChange={(next) => !busy.current && setOpen(next)}>
+        <ConfirmBody busy={busy} title={question} submit={submit} pendingLabel="Deleting" run={deleteAction} word={word} initialFocus={input}>
           {consequence}
         </ConfirmBody>
       </AlertDialog>
@@ -158,7 +169,7 @@ export function DeleteMyData() {
       consequence={
         <>
           Your cars, history, invoices, places and check logs are deleted, Tesla is disconnected and you are signed out
-          everywhere. This can&apos;t be undone. Your Uplink account stays, so you can sign in with Tesla again. Afterwards,
+          everywhere. Your guest links stop working. This can&apos;t be undone. Your Uplink account stays, so you can sign in with Tesla again. Afterwards,
           remove Uplink&apos;s key: open Controls &gt; Locks in your car.
         </>
       }
@@ -193,6 +204,7 @@ export function DeleteAccount() {
 // Two steps, like Disconnect Tesla: the button asks, the dialog says what happens. Its failure shows in the dialog.
 export function SignOutEverywhere() {
   const [open, setOpen] = useState(false);
+  const busy = useRef(false);
   return (
     <Row
       title="Sign out everywhere"
@@ -203,9 +215,9 @@ export function SignOutEverywhere() {
         </Button>
       }
     >
-      <AlertDialog open={open} onOpenChange={setOpen}>
-        <ConfirmBody title="Sign out everywhere?" submit="Sign out everywhere" pendingLabel="Signing out" run={signOutEverywhereWithError}>
-          Uplink signs you out on every device, including this one. You can sign in again with Tesla.
+      <AlertDialog open={open} onOpenChange={(next) => !busy.current && setOpen(next)}>
+        <ConfirmBody busy={busy} title="Sign out everywhere?" submit="Sign out everywhere" pendingLabel="Signing out" run={signOutEverywhereWithError}>
+          Uplink signs you out on every device, including this one. Your guest links stop working. You can sign in again with Tesla.
         </ConfirmBody>
       </AlertDialog>
     </Row>

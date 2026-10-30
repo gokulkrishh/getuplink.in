@@ -4,21 +4,31 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { OFFLINE } from "@/lib/offline";
 
+// Shown when Uplink answered but couldn't open the link (a database hiccup, say). OFFLINE is only for a
+// request that never got an answer.
+const FAILED = "Uplink couldn't open this link. Try again.";
+
 // Claims the link once (/v/seen), then loads Home, or the ended page, in full. Offline or a hiccup, it says so
 // and offers to try again: the pending cookie stays until a claim is answered.
 export function Claim() {
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
   const started = useRef(false);
 
   const claim = useCallback(async () => {
-    setFailed(false);
+    setFailed(null);
+    let res: Response;
     try {
-      const res = await fetch("/v/seen", { method: "POST", cache: "no-store", credentials: "same-origin" });
+      res = await fetch("/v/seen", { method: "POST", cache: "no-store", credentials: "same-origin" });
+    } catch {
+      setFailed(OFFLINE);
+      return;
+    }
+    try {
       if (!res.ok) throw new Error(String(res.status));
       const { opened } = (await res.json()) as { opened?: unknown };
       window.location.replace(opened === true ? "/" : "/v/ended");
     } catch {
-      setFailed(true);
+      setFailed(FAILED);
     }
   }, []);
 
@@ -33,7 +43,7 @@ export function Claim() {
   return (
     <div className="space-y-3">
       <p role="alert" className="text-sm text-destructive">
-        {OFFLINE}
+        {failed}
       </p>
       <Button type="button" variant="outline" size="lg" onClick={() => void claim()}>
         Try again

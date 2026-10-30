@@ -3,6 +3,7 @@
 import { ChevronDown, Loader2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { CopyButton } from "@/components/copy-button";
+import { InfoButton } from "@/components/info-button";
 import { PendingLabel } from "@/components/pending-label";
 import { AlertDialog, AlertDialogClose, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,8 @@ import { Row } from "./row";
 
 // As components/ui/native-select.tsx will do (PR #37): no browser arrow, room on the right, and its own
 // chevron 12px from the edge. Switch to NativeSelect once that lands.
+const HIDE_LOCATIONS_NOTE = "Your guest won't see maps, places or charger names.";
+
 const SELECT =
   "h-9 max-sm:h-10 w-full appearance-none rounded-lg border border-input bg-transparent pr-9 pl-2 text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30";
 
@@ -94,6 +97,7 @@ function HideLocationsSwitch({ link, onChange }: { link: ViewLink; onChange: (hi
     });
   return (
     <div className="space-y-1">
+      <div className="flex items-center gap-1">
       <button
         type="button"
         role="switch"
@@ -108,6 +112,8 @@ function HideLocationsSwitch({ link, onChange }: { link: ViewLink; onChange: (hi
         </span>
         Hide locations
       </button>
+      <InfoButton label="Hide locations">{HIDE_LOCATIONS_NOTE}</InfoButton>
+      </div>
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
@@ -153,7 +159,13 @@ function ViewLinkItem({ link: initial, now }: { link: ViewLink; now: number }) {
           {copyError}
         </p>
       )}
-      {shownUrl && !isUsedLink(link) && <LinkBox url={shownUrl} />}
+      {shownUrl && !isUsedLink(link) && (
+        <LinkBox url={shownUrl}>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setShownUrl(null)}>
+            Done
+          </Button>
+        </LinkBox>
+      )}
       <HideLocationsSwitch link={link} onChange={(hideLocations) => setLink({ ...link, hideLocations })} />
       <AlertDialog
         open={asking}
@@ -189,17 +201,18 @@ function MakeViewLink({ count, onMade }: { count: number; onMade: (made: { label
   const [length, setLength] = useState<string>(DEFAULT_VIEW_LINK_LENGTH);
   const [trusted, setTrusted] = useState(false);
   const [hides, setHides] = useState(SHARES_EVERYTHING);
-  const [error, setError] = useState<string | null>(null);
+  // `name`: the error is about the name field, so only then is the field marked.
+  const [error, setError] = useState<{ message: string; name: boolean } | null>(null);
   const [pending, start] = useTransition();
   // At the limit the form simply isn't there; it comes back when a link ends. The limit isn't shown.
   if (count >= VIEW_LINK_LIMIT) return null;
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!viewLinkLabel(label)) return setError(`Say who it's for, in up to ${VIEW_LINK_LABEL_MAX} characters.`);
-    if (!trusted) return setError("Tick the box to confirm you trust this person.");
+    if (!viewLinkLabel(label)) return setError({ message: `Say who it's for, in up to ${VIEW_LINK_LABEL_MAX} characters.`, name: true });
+    if (!trusted) return setError({ message: "Tick the box to confirm you trust this person.", name: false });
     start(async () => {
       const result = await orOffline(makeViewLinkAction(label, length, trusted, hides), { error: OFFLINE });
-      if ("error" in result) return setError(result.error);
+      if ("error" in result) return setError({ message: result.error, name: false });
       setError(null);
       setLabel("");
       setTrusted(false);
@@ -215,9 +228,12 @@ function MakeViewLink({ count, onMade }: { count: number; onMade: (made: { label
           Who is it for
           <Input
             value={label}
-            onChange={(e) => setLabel(e.target.value)}
+            onChange={(e) => {
+              setLabel(e.target.value);
+              setError(null);
+            }}
             {...NO_AUTOFILL}
-            aria-invalid={error ? true : undefined}
+            aria-invalid={error?.name ? true : undefined}
             aria-describedby={error ? "view-link-error" : undefined}
             placeholder="Dad"
             maxLength={VIEW_LINK_LABEL_MAX}
@@ -239,26 +255,32 @@ function MakeViewLink({ count, onMade }: { count: number; onMade: (made: { label
         </label>
       </div>
       {/* Can be changed later, while the link is open, from its row above. */}
-      <label className="flex items-start gap-2 text-sm">
+      <div className="flex items-center gap-1">
+        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
+          <input type="checkbox" checked={hides.hideLocations} onChange={(e) => setHides({ hideLocations: e.target.checked })} className="size-4 shrink-0 accent-foreground" />
+          Hide locations
+        </label>
+        <InfoButton label="Hide locations">{HIDE_LOCATIONS_NOTE}</InfoButton>
+      </div>
+      <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
         <input
           type="checkbox"
-          checked={hides.hideLocations}
-          onChange={(e) => setHides({ hideLocations: e.target.checked })}
-          className="mt-0.5 size-4 shrink-0 accent-foreground"
+          checked={trusted}
+          onChange={(e) => {
+            setTrusted(e.target.checked);
+            setError(null);
+          }}
+          required
+          className="size-4 shrink-0 accent-foreground"
         />
-        Hide locations
-      </label>
-      <label className="flex items-start gap-2 text-sm">
-        <input type="checkbox" checked={trusted} onChange={(e) => setTrusted(e.target.checked)} required className="mt-0.5 size-4 shrink-0 accent-foreground" />
         I trust this person with what I&apos;m sharing
       </label>
-      {error && (
-        <p id="view-link-error" role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      {/* The error's line is always there, so the button below never moves when it appears. */}
+      <p id="view-link-error" role="alert" className="min-h-5 text-sm text-destructive">
+        {error?.message}
+      </p>
       <div className="flex justify-end">
-        <Button type="submit" variant="outline" size="lg" className="relative" disabled={pending || !trusted} aria-busy={pending}>
+        <Button type="submit" size="lg" className="relative" disabled={pending || !trusted} aria-busy={pending}>
           <PendingLabel pending={pending} label="Create guest link" pendingLabel="Creating" />
         </Button>
       </div>
@@ -266,12 +288,12 @@ function MakeViewLink({ count, onMade }: { count: number; onMade: (made: { label
   );
 }
 
-// A link to copy by hand, with Copy: the new link, or an open one the clipboard refused.
+// A link to copy by hand, with Copy link: the new link, or an open one the clipboard refused.
 function LinkBox({ url, children }: { url: string; children?: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2 pt-2">
       <code className="min-w-0 flex-1 truncate border bg-muted px-2 py-1.5 font-mono text-sm select-all">{url}</code>
-      <CopyButton text={url} />
+      <CopyButton text={url} label="Copy link" />
       {children}
     </div>
   );

@@ -57,6 +57,10 @@ const SECTIONS: { title: string; body: ReactNode }[] = [
     body: "Uplink records trips, with where the car went, whoever is driving. Tell the people who drive your car.",
   },
   {
+    title: "Guest links",
+    body: "You choose who gets a guest link. Anyone who opens it sees your car's data until it ends. End it in Settings at any time.",
+  },
+  {
     title: "Read-only",
     body: "Uplink only reads data. It never sends commands or controls your car, even though the key you add to your car is needed for live data.",
   },
@@ -114,7 +118,7 @@ const SECTIONS: { title: string; body: ReactNode }[] = [
 
 export default function TermsPage() {
   return (
-    <PlainPage title="Terms" intro="The short terms for using Uplink." meta="Last updated 27 October 2026" current="terms">
+    <PlainPage title="Terms" intro="The short terms for using Uplink." meta="Last updated 30 October 2026" current="terms">
       {SECTIONS.map((section) => (
         <PlainSection key={section.title} title={section.title}>
           <p>{section.body}</p>

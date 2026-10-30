@@ -91,7 +91,10 @@ export const isUsedLink = (link: Pick<ViewLink, "lastViewedAt">) => link.lastVie
 
 // "Not opened yet", "Opened 10:59 AM", or "Opened 28 Oct, 10:59 AM" when that's not today.
 export function openedLine(link: Pick<ViewLink, "lastViewedAt">, now: number): string {
-  return link.lastViewedAt ? `Opened ${formatClockOn(link.lastViewedAt, now)}` : "Not opened yet";
+  if (!link.lastViewedAt) return "Not opened yet";
+  // "at 10:59 AM" today, "on 28 Oct, 10:59 AM" another day (formatClockOn adds the date then).
+  const when = formatClockOn(link.lastViewedAt, now);
+  return `Your guest opened it ${when.includes(",") ? "on" : "at"} ${when}`;
 }
 
 // A link's address: /v/<token> on the app's host.
