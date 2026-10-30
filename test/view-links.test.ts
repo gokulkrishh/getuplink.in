@@ -941,6 +941,21 @@ describe("a guest sees nothing addressed to the owner", () => {
   });
 });
 
+describe("/v/open while it claims", () => {
+  test("shows nothing while the link opens: its words only after a failed claim, or with scripts off", () => {
+    const page = readFileSync(join(ROOT, "app/v/open/page.tsx"), "utf8");
+    const claim = readFileSync(join(ROOT, "app/v/open/claim.tsx"), "utf8");
+    // The page renders the claim; its title is only in the <noscript> copy for a browser without scripts.
+    expect(page).toContain("<Claim />");
+    const outsideNoscript = page.replace(/<noscript>[\s\S]*?<\/noscript>/g, "");
+    expect(outsideNoscript).not.toMatch(/OPEN_TITLE\}|Opening guest view|<PlainPage/);
+    expect(page).toMatch(/<noscript>[\s\S]*title=\{OPEN_TITLE\}[\s\S]*<\/noscript>/);
+    expect(readFileSync(join(ROOT, "app/v/open/words.ts"), "utf8")).toContain('"Opening guest view"');
+    // The claim draws nothing until it fails, then the full page with the error and Try again.
+    expect(claim).toMatch(/if \(!failed\) return null;[\s\S]*<PlainPage[\s\S]*Try again/);
+  });
+});
+
 describe("a link opened in two tabs, and the edges of /v", () => {
   const visitAs = (path: string, cookie?: string) =>
     proxy(new NextRequest(`https://app.getuplink.in${path}`, { headers: { host: "app.getuplink.in", ...(cookie ? { cookie } : {}) } }));
