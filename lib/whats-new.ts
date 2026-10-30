@@ -11,10 +11,6 @@ export type Show = "dialog" | "bell";
 export const KINDS = ["New feature", "Improvement"] as const;
 export type Kind = (typeof KINDS)[number];
 
-// The icons an entry may use, by lucide name (components/releases-list.tsx draws them). A small set, so the
-// page stays one family.
-export const ENTRY_ICONS = ["Sparkles", "Zap", "BatteryCharging", "Gauge", "Car", "Users", "Link2", "BellRing", "Settings2", "ChartColumn", "MapPin", "Wrench"] as const;
-export type EntryIcon = (typeof ENTRY_ICONS)[number];
 
 // "draft": written, shown to nobody. "admin": the admin only, to try it first. "owners": every owner.
 export type Audience = "draft" | "admin" | "owners";
@@ -34,7 +30,6 @@ export type Entry = {
   // holds the space before it loads.
   image?: { src: string; alt: string; width: number; height: number };
   kind: Kind;
-  icon: EntryIcon;
   audience: Audience;
   show: Show;
 };
@@ -49,10 +44,7 @@ export const WHATS_NEW: Entry[] = [
     version: "0.2",
     image: { src: "/whats-new/guest-access.webp", alt: "Settings, Guest access: who it's for, how long it lasts, and Create guest link.", width: 1360, height: 574 },
     kind: "New feature",
-    icon: "Link2",
-    // The admin only while Guest access is the admin's alone (Settings and its action check isAdmin).
-    // "owners" announces it to everyone once it opens up.
-    audience: "admin",
+    audience: "owners",
     show: "dialog",
   },
 ];
@@ -129,7 +121,8 @@ export function whatsNewAlerts(f: CardFacts): Alert[] {
     title: e.title,
     detail: e.text,
     href: "/release-notes",
-    since: `${e.date}T00:00:00+05:30`,
+    // An entry has a date, not a time: the bell would print midnight as if it were known.
+    since: null,
   }));
 }
 

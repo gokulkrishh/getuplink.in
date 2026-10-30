@@ -11,7 +11,6 @@ import { createConnector, removeConnector } from "@/lib/server/connector-token";
 import { deleteAccount, deleteMyData, disconnectTesla, revokeAllSessions } from "@/lib/server/tesla";
 import { messageOf } from "@/lib/errors";
 import { clearSession, requestHost } from "@/lib/session";
-import { adminOwner } from "@/lib/server/admin";
 import { endViewLink, makeViewLink, setViewLinkHideLocations, viewLinkTokenAgain } from "@/lib/server/view-links";
 import { VIEW_LINK_LABEL_MAX, type ViewLinkHides } from "@/lib/view-links";
 
@@ -125,7 +124,7 @@ export async function deleteConnector(id: number): Promise<string | null> {
   }
 }
 
-// ---- View links (Settings → View links), the admin's alone for now ----
+// ---- View links (Settings → Guest access), every owner's own ----
 
 export type MakeViewLinkResult = { label: string; token: string } | { error: string };
 
@@ -139,15 +138,13 @@ const VIEW_LINK_REFUSED = {
   trust: "Tick the box to confirm you trust this person.",
 } as const;
 
-// A new view link and its token (Copy link rebuilds it later). Only for the admin while view links are tried out.
-// `hides`: whether the link hides locations, changeable later from its row.
+// A new view link and its token (Copy link rebuilds it later), for the signed-in owner. A guest has no session,
+// so it never gets here. `hides`: whether the link hides locations, changeable later from its row.
 export async function makeViewLinkAction(rawLabel: string, length: string, trusted: boolean, hides: ViewLinkHides): Promise<MakeViewLinkResult> {
-  await requireSession();
-  const admin = await adminOwner();
-  if (!admin) return { error: "Only the admin can make guest links for now." };
+  const owner = await requireSession();
   if (trusted !== true) return { error: VIEW_LINK_REFUSED.trust };
   try {
-    const result = await makeViewLink(admin, rawLabel, length, Date.now(), hides);
+    const result = await makeViewLink(owner, rawLabel, length, Date.now(), hides);
     if ("refused" in result) return { error: VIEW_LINK_REFUSED[result.refused] };
     updateTag(OWNER_DATA_TAG);
     return { label: result.link.label, token: result.token };

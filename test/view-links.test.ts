@@ -30,6 +30,9 @@ mock.module("next/navigation", () => ({
 }));
 const realServer = await import("next/server");
 mock.module("next/server", () => ({ ...realServer, connection: async () => {} }));
+// updateTag runs only inside a real Server Action; the actions here are called directly.
+const realCache = await import("next/cache");
+mock.module("next/cache", () => ({ ...realCache, updateTag: () => {} }));
 
 process.env.TOKEN_ENCRYPTION_KEY ??= "test-key-not-a-secret";
 for (const name of ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "CRON_SECRET", "TESLA_CLIENT_ID", "TESLA_CLIENT_SECRET", "TESLA_REDIRECT_URI"]) process.env[name] ??= "test";
@@ -163,6 +166,21 @@ describe("the link's token", () => {
     expect(await copyViewLinkAction(1)).toEqual({ error: expect.any(String) });
     jar.set(SESSION_COOKIE, await createSession(1));
     expect(await copyViewLinkAction(1)).toEqual({ token });
+  });
+
+  test("any signed-in owner makes guest links from Settings, not only the admin; a guest never can", async () => {
+    const { makeViewLinkAction } = await import("@/app/settings/actions");
+    // No session: sent to sign in.
+    expect(await makeViewLinkAction("Dad", "30m", true, ALL).catch((e: { digest?: string }) => e.digest)).toContain("/api/auth/signed-out");
+    // A guest, on another owner's link, has a viewer cookie and no session: sent to sign in too.
+    await visit(await make());
+    expect(await makeViewLinkAction("Dad", "30m", true, ALL).catch((e: { digest?: string }) => e.digest)).toContain("/api/auth/signed-out");
+    jar.clear();
+    // User 2 is an owner with role "user": the link is theirs.
+    jar.set(SESSION_COOKIE, await createSession(2));
+    expect(await makeViewLinkAction("Mum", "30m", false, ALL)).toEqual({ error: "Tick the box to confirm you trust this person." });
+    expect(await makeViewLinkAction("Mum", "30m", true, ALL)).toEqual({ label: "Mum", token: expect.any(String) });
+    expect(fake.rows("car_view_links").filter((r) => r.user_id === 2).map((r) => r.label)).toEqual(["Mum"]);
   });
 
   test("lasts 30 minutes, 1 hour or 1 day, and nothing else", async () => {
