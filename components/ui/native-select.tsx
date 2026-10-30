@@ -10,7 +10,7 @@ export function NativeSelect({ className, children, ...props }: ComponentProps<"
     <span className="relative block">
       <select
         className={cn(
-          "h-8 w-full appearance-none rounded-lg border border-input bg-transparent pr-9 pl-2 text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 max-sm:h-10 md:text-sm dark:bg-input/30",
+          "h-9 max-sm:h-10 w-full appearance-none rounded-lg border border-input bg-transparent pr-9 pl-2 text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 max-sm:h-10 md:text-sm dark:bg-input/30",
           className,
         )}
         {...props}

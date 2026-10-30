@@ -228,7 +228,6 @@ function MakeViewLink({ count, onMade }: { count: number; onMade: (made: { label
             aria-describedby={error ? "view-link-error" : undefined}
             placeholder="Dad"
             maxLength={VIEW_LINK_LABEL_MAX}
-            className="h-9 max-sm:h-10"
           />
         </label>
         <label className="flex flex-col gap-1 text-sm text-muted-foreground">

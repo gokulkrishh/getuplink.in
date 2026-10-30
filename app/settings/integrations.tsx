@@ -136,7 +136,7 @@ function AddConnector({ count, onAdded }: { count: number; onAdded: (added: { na
           aria-describedby={error ? "connector-name-error" : undefined}
           placeholder="Claude or Grok"
           maxLength={CONNECTOR_NAME_MAX}
-          className="h-9 min-w-0 flex-1 max-sm:h-10"
+          className="min-w-0 flex-1"
         />
         <Button type="submit" variant="outline" size="lg" className="relative" disabled={pending} aria-busy={pending}>
           <PendingLabel pending={pending} label="Add connector" pendingLabel="Adding" />
