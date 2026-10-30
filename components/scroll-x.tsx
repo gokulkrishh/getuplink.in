@@ -12,7 +12,8 @@ import { cn } from "@/lib/utils";
 export function TableBox({ className, children }: { className?: string; children: ReactNode }) {
   return (
     <div className={cn(TABLE_FRAME, className)}>
-      <ScrollX>{children}</ScrollX>
+      {/* No extra room under the last row for the scroll bar: the row's own padding and the box's 8px do it. */}
+      <ScrollX className="pb-0">{children}</ScrollX>
     </div>
   );
 }
