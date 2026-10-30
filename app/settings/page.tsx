@@ -123,6 +123,12 @@ async function Settings() {
           control={<LiveStatus lastReading={lastReading} now={now} />}
         />
         <HomeState home={home} />
+        {/* The welcome card's list, for when it's long closed (it shows once). */}
+        <Row
+          title="Where things are"
+          description="A short guide to each part of Uplink."
+          control={<Link href="/whats-new#where-things-are" prefetch={true} className={buttonVariants({ variant: "outline", size: "sm" })}>Show</Link>}
+        />
       </Group>
 
       <Group title="Account">
@@ -215,6 +221,7 @@ function SettingsSkeleton() {
               </p>
             }
           />,
+          <Row key="guide" title={<Ph>Where things are</Ph>} description={<p>{text("A short guide to each part of Uplink.")}</p>} control={button} />,
         )}
         {group(
           "Account",

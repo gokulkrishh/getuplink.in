@@ -27,8 +27,12 @@ import { newestTime } from "@/lib/last-synced";
 import { recentlyLines } from "@/lib/recently";
 import { rotationDueAt, rotationNotice, tyreRotation } from "@/lib/tyre-rotation";
 import { RotationNotice } from "@/components/home/rotation-notice";
+import { HomeCard } from "@/components/home/home-card";
 import { ShareNudgeCard } from "@/components/home/share-nudge";
 import { shareNudgeCheck } from "@/lib/server/share-nudge";
+import { homeCardCheck } from "@/lib/server/whats-new";
+import { isAdmin } from "@/lib/server/admin";
+import type { HomeCard as HomeCardKind } from "@/lib/whats-new";
 import type { DemoScenario } from "@/lib/demo";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -42,10 +46,10 @@ type Ready<T> = Extract<T, { kind: "ready" }>;
 // scenario is an argument, so each one gets its own entry; the period is not, since it switches in the
 // browser. The page has two such scopes, loaded side by side: the car strip's (quick) and the week's (the
 // 90-day read), so the strip shows without waiting for the week.
-// shareCard: whether the card asking the owner to share shows (lib/share-nudge.ts), decided with the strip
-// so it is known before the tiles render and nothing below it moves. Not now and Share refresh this cache
+// card: Home's one card, welcome, news or the share card (lib/whats-new.ts, lib/share-nudge.ts), decided with
+// the strip so it is known before the tiles render and nothing below it moves. Not now and Share refresh this cache
 // (updateTag).
-async function loadOwnCar(demo: DemoScenario): Promise<{ home: HomeNow; now: number; shareCard: boolean }> {
+async function loadOwnCar(demo: DemoScenario): Promise<{ home: HomeNow; now: number; card: HomeCardKind }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   // 60s is enough for a per-link prefetch (30s minimum); the App Shell would need 5 minutes.
@@ -54,9 +58,9 @@ async function loadOwnCar(demo: DemoScenario): Promise<{ home: HomeNow; now: num
   if (!owner) redirect(SIGNED_OUT_PATH);
   // The clock is read here, inside the cache, because reading it while rendering blocks prerendering.
   const now = Date.now();
-  const [home, shareCheck] = await Promise.all([loadHomeNow(owner, demo, now), shareNudgeCheck(owner)]);
-  const shareCard = home.kind === "ready" && shareCheck(home.figures.since, now);
-  return { home, now, shareCard };
+  const [home, shareCheck, cardCheck] = await Promise.all([loadHomeNow(owner, demo, now), shareNudgeCheck(owner), isAdmin().then((admin) => homeCardCheck(owner, admin))]);
+  const card = home.kind === "ready" ? cardCheck(shareCheck(home.figures.since, now), now) : null;
+  return { home, now, card };
 }
 
 // The week's part, in its own private scope, cached and refreshed exactly as the strip's. The page draws
@@ -79,7 +83,7 @@ function greeting(now: number): string {
 }
 
 // A glance at the last 7 days: the four headline numbers, the tips and the charge level. Each tile leads to its Stats tab.
-async function Totals({ home, now, shareCard }: { home: Ready<HomeNow> & Ready<HomeWeek>; now: number; shareCard: boolean }) {
+async function Totals({ home, now, card }: { home: Ready<HomeNow> & Ready<HomeWeek>; now: number; card: HomeCardKind }) {
   const { streamOnly } = matchSessions(home.sessions, home.streamSessions, now);
   const { window } = home;
   const figures = withDriveEfficiency(home.figures, window.driving.drives, now);
@@ -121,6 +125,7 @@ async function Totals({ home, now, shareCard }: { home: Ready<HomeNow> & Ready<H
             </p>
           )}
         </div>
+        <HomeCard card={card} />
         {eachFrame(
           frames,
           ({ key, frame, driving }) => (
@@ -130,7 +135,7 @@ async function Totals({ home, now, shareCard }: { home: Ready<HomeNow> & Ready<H
         )}
         {/* The card asking the owner to share, when it's due, right under the week's tiles. Always mounted, so
             its "You're sharing" note outlives the refresh that drops the card once sharing is on. */}
-        <ShareNudgeCard show={shareCard} />
+        <ShareNudgeCard show={card?.kind === "share"} />
         {/* The AI's tips on the week. A quiet week has none, so no box. */}
         {tipsBox}
       </section>
@@ -162,12 +167,12 @@ async function RecentFor({ vin, now, week }: { vin: string; now: number; week: W
 
 // The week's totals, tips and charge level. When the week can't be read (or the account changed between
 // the two reads) the strip stays, with a notice naming the week, not the car shown above it.
-async function WeekTotals({ home, now, shareCard, week }: { home: Ready<HomeNow>; now: number; shareCard: boolean; week: WeekLoad }) {
+async function WeekTotals({ home, now, card, week }: { home: Ready<HomeNow>; now: number; card: HomeCardKind; week: WeekLoad }) {
   const w = await week;
   if (w?.kind !== "ready") return <WeekNotice />;
   return (
     <PeriodScope>
-      <Totals home={{ ...home, ...w }} now={now} shareCard={shareCard} />
+      <Totals home={{ ...home, ...w }} now={now} card={card} />
     </PeriodScope>
   );
 }
@@ -188,7 +193,7 @@ async function HomeContent() {
   const week = loadOwnWeek(demo);
   // Its parts handle a failure; this only keeps a sign-out (both redirect) from going unhandled here.
   week.catch(() => {});
-  const { home, now, shareCard } = await loadOwnCar(demo);
+  const { home, now, card } = await loadOwnCar(demo);
   const failedRun = home.kind === "ready" && home.lastRun?.ok === false ? home.lastRun : null;
   const cars = home.kind === "ready" ? home.cars : [];
   // The primary car, as loadHomeNow picks it: the first with a VIN. The odometer is its.
@@ -220,8 +225,8 @@ async function HomeContent() {
               )}
             </div>
           ))}
-          <Suspense fallback={<TotalsSkeleton />}>
-            <WeekTotals home={home} now={now} shareCard={shareCard} week={week} />
+          <Suspense fallback={<TotalsSkeleton card={card} />}>
+            <WeekTotals home={home} now={now} card={card} week={week} />
           </Suspense>
           {cars.some((car) => car.latest?.error) && (
             <Suspense>
@@ -288,15 +293,18 @@ function StripSkeleton() {
 
 // The week: the greeting, the tiles and the tips, then the charge level. Shown alone under the strip
 // while the week streams in, in Totals' own outer box.
-function TotalsSkeleton() {
+// `card`: Home's welcome or news card, already decided with the strip, drawn in its place here so the tiles
+// don't move down when the week arrives. The whole-page skeleton draws none: the card isn't known yet.
+function TotalsSkeleton({ card = null }: { card?: HomeCardKind }) {
   return (
     <div role="status" aria-busy="true" className="space-y-12">
       <span className="sr-only">Loading…</span>
-      <div className="space-y-6" aria-hidden="true">
-        <div className="space-y-1">
+      <div className="space-y-6">
+        <div className="space-y-1" aria-hidden="true">
           <p className="text-xl"><span className={line}>Good afternoon</span></p>
           <p className="text-sm"><span className={line}>Here&apos;s your car&apos;s last 7 days, 21 Oct to 27 Oct.</span></p>
         </div>
+        <HomeCard card={card} />
         <div className="h-[391px] border bg-muted/40 motion-safe:animate-pulse sm:h-[174px]" />
       </div>
       {/* The charge level chart below, its heading and a block of its usual height. */}
