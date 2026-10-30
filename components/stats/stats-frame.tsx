@@ -83,7 +83,7 @@ function SkPeriodSwitch() {
       {/* One block the switch's size: the labels are there only to give it its width. */}
       <div className="inline-flex max-w-full rounded-lg bg-muted motion-safe:animate-pulse">
         {PERIODS_SHOWN.map((label) => (
-          <span key={label} className="tap-target invisible inline-flex h-7 items-center justify-center border-y px-2.5 text-[0.8rem] first:border-l last:border-r max-sm:h-9 max-sm:px-2">
+          <span key={label} className="tap-target invisible inline-flex h-[calc(2rem+2px)] items-center justify-center border-y px-2.5 text-[0.8rem] first:border-l last:border-r max-sm:h-[calc(2.5rem+2px)] max-sm:px-2">
             {label}
           </span>
         ))}
