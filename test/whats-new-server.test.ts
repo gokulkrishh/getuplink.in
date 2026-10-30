@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { FakeDb } from "./fake-db";
 
-// The release notes reads and writes (lib/server/whats-new.ts): closing the welcome card, the marker that only
+// The release notes reads and writes (lib/server/whats-new.ts): closing the welcome tour, the marker that only
 // moves forward, and no card or bell line before the migration.
 
 let fake: FakeDb;
@@ -21,7 +21,7 @@ beforeEach(() => {
   fake = new FakeDb({ users: [user()] });
 });
 
-describe("closing the welcome card", () => {
+describe("closing the welcome tour", () => {
   test("welcomes the owner and marks the newest entry seen, so older news never shows", async () => {
     await closeWelcome(owner, "2026-11-20-a", new Date(NOW).toISOString());
     expect(row().welcomed_at).toBe(new Date(NOW).toISOString());
@@ -36,6 +36,20 @@ describe("closing the welcome card", () => {
     fake = new FakeDb({ users: [user({ welcomed_at: "2026-11-06T00:00:00Z", whats_new_seen: "2026-11-25-z" })] });
     await closeWelcome(owner, "2026-11-20-a", new Date(NOW).toISOString());
     expect(row().welcomed_at).toBe("2026-11-06T00:00:00Z");
+    expect(row().whats_new_seen).toBe("2026-11-25-z");
+  });
+  test("a marker moved by another tap in between never drops the welcome", async () => {
+    // Between the read and the write, another tap moves the marker on.
+    let moved = false;
+    fake.failing = ({ op }) => {
+      if (op === "update" && !moved) {
+        row().whats_new_seen = "2026-11-25-z";
+        moved = true;
+      }
+      return false;
+    };
+    await closeWelcome(owner, "2026-11-20-a", new Date(NOW).toISOString());
+    expect(row().welcomed_at).toBe(new Date(NOW).toISOString());
     expect(row().whats_new_seen).toBe("2026-11-25-z");
   });
 });
@@ -63,7 +77,7 @@ describe("before the migration", () => {
     expect(check(true, NOW)).toEqual({ kind: "share" });
     expect(await whatsNewBell(owner, false)).toEqual([]);
   });
-  test("a ready database with a new owner gives the welcome card", async () => {
+  test("a ready database with a new owner gives the welcome tour", async () => {
     fake = new FakeDb({ users: [user({ approved_at: "2026-11-05T00:00:00+05:30" })] });
     expect((await homeCardCheck(owner, false))(true, NOW)).toEqual({ kind: "welcome" });
   });

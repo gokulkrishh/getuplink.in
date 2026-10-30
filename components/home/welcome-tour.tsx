@@ -65,14 +65,14 @@ const STEPS: Step[] = [
         <Term>Compare</Term> is under <Term>Car</Term>.
       </>
     ),
-    points: ["Your car next to other owners'", "Only combined figures are shown", "Never who you are or where you drive"],
+    points: ["How your car compares with others", "Only combined figures are shown", "Never who you are or where you drive"],
   },
   {
     name: "Settings",
     spot: "menu",
     title: "Settings and release notes",
-    lead: "Your photo opens the menu.",
-    points: ["Settings, for theme and sharing", "Release notes, when Uplink adds something", "Feedback, straight to the person who builds Uplink"],
+    lead: "The button at the top right opens the menu.",
+    points: ["Settings, for the app's look and sharing", "Release notes, for what's new in Uplink", "Sign out, when you're done"],
   },
 ];
 
@@ -83,9 +83,11 @@ const PHONE_HEIGHT = 340 * (TOUR_SHOT.height / TOUR_SHOT.width);
 // Room round the sharp part, inside the outline.
 const PAD = 4;
 
-// All five pictures stacked: the current one shows, the others are clear, so a change cross-fades.
-function Pictures({ spot }: { spot: TourSpot }) {
-  return SPOTS.map((s) => (
+// The pictures stacked: the current one shows, the others are clear, so a change cross-fades. Only the
+// current step's and its neighbours' are mounted (`near`), so a slow connection fetches two or three, not all
+// ten, and the one fading out is still there.
+function Pictures({ spot, near }: { spot: TourSpot; near: TourSpot[] }) {
+  return SPOTS.filter((s) => s === spot || near.includes(s)).map((s) => (
     <span key={s} className={cn("absolute inset-0 motion-safe:transition-opacity motion-safe:duration-300", s === spot ? "opacity-100" : "opacity-0")}>
       <Image src={`/whats-new/tour/${s}-light.webp`} alt="" fill sizes="480px" className="object-cover dark:hidden" />
       <Image src={`/whats-new/tour/${s}-dark.webp`} alt="" fill sizes="480px" className="hidden object-cover dark:block" />
@@ -95,24 +97,24 @@ function Pictures({ spot }: { spot: TourSpot }) {
 
 // The left half: the real page for the step, in the app's own theme, with an outline round the part the step
 // is about and a pointer that glides to it. Only that part is sharp; the rest is blurred and dimmed. Decorative: the words say all of it.
-function Preview({ spot }: { spot: TourSpot }) {
+function Preview({ spot, near }: { spot: TourSpot; near: TourSpot[] }) {
   const t = TOUR_TARGETS[spot];
-  // On a phone only the top 230px shows: lift the picture so the part the step is about is in view.
-  const lift = -Math.max(0, (t.at.y / 100) * PHONE_HEIGHT - 110);
+  // On a phone only the top of the picture shows: keep the pointer in view.
+  const focusY = (t.at.y / 100) * PHONE_HEIGHT;
   return (
     <div aria-hidden="true" className="relative h-full min-h-0 overflow-hidden">
       <TourBackdrop />
-      <TourSlice lift={lift}>
+      <TourSlice focusY={focusY}>
         <div className="relative border bg-background shadow-xl" style={{ aspectRatio: `${TOUR_SHOT.width} / ${TOUR_SHOT.height}` }}>
           {/* The whole page, blurred and dimmed, and the same page again on top, sharp, showing only the part the step is about. */}
           <div className="absolute inset-0 opacity-45 blur-[3px]">
-            <Pictures spot={spot} />
+            <Pictures spot={spot} near={near} />
           </div>
           <div
             className="absolute inset-0 motion-safe:transition-[clip-path] motion-safe:duration-[600ms] motion-safe:ease-[cubic-bezier(.2,.7,.2,1)]"
             style={{ clipPath: `inset(calc(${t.y}% - ${PAD}px) calc(${100 - t.x - t.w}% - ${PAD}px) calc(${100 - t.y - t.h}% - ${PAD}px) calc(${t.x}% - ${PAD}px))` }}
           >
-            <Pictures spot={spot} />
+            <Pictures spot={spot} near={near} />
           </div>
           <span
             className="absolute outline-2 outline-offset-2 outline-chart-accent motion-safe:transition-[left,top,width,height] motion-safe:duration-[600ms] motion-safe:ease-[cubic-bezier(.2,.7,.2,1)]"
@@ -132,13 +134,13 @@ function Preview({ spot }: { spot: TourSpot }) {
 }
 
 const toSteps = (steps: Step[]): TourStep[] =>
-  steps.map((s) => ({
+  steps.map((s, i) => ({
   key: s.name,
   label: s.name,
   title: s.title,
   description: s.lead,
   extra: (
-    <ul className="mt-5 space-y-2.5">
+    <ul className="mt-5 space-y-2.5 max-sm:[@media(max-height:640px)]:mt-3.5 max-sm:[@media(max-height:640px)]:space-y-1.5">
       {s.points.map((point) => (
         <li key={point} className="flex items-start gap-3 text-[15px] leading-snug text-foreground">
           <span aria-hidden="true" className="mt-[0.5em] size-1.5 shrink-0 bg-foreground/60" />
@@ -147,7 +149,7 @@ const toSteps = (steps: Step[]): TourStep[] =>
       ))}
     </ul>
   ),
-  preview: <Preview spot={s.spot} />,
+  preview: <Preview spot={s.spot} near={[steps[i - 1]?.spot, steps[i + 1]?.spot].filter((x) => x !== undefined)} />,
 }));
 
 const TOUR_STEPS = toSteps(STEPS);
@@ -159,13 +161,13 @@ const GUEST_STEPS = toSteps([
     spot: "home",
     title: "You're seeing a shared car",
     lead: "Someone shared their car with you.",
-    points: ["Look around, nothing can be changed", "No Tesla account needed", "Exit, at the bottom, leaves guest mode"],
+    points: ["You can look but not change anything", "No Tesla account needed", "Exit at the bottom of the page leaves guest mode"],
   },
   ...STEPS.slice(0, 4),
 ]);
 
-// `persist`: Home's own (closing writes "welcomed" to the account, fire and forget). Settings replays it with
-// persist off, so that closing writes nothing. Open on its own unless `open` is given.
+// `persist`: Home's own (closing writes "welcomed" to the account, fire and forget). The "Take the tour" button on
+// Release notes replays it with persist off, so that closing writes nothing. Open on its own unless `open` is given.
 export function WelcomeTour({ open, onOpenChange, persist }: { open?: boolean; onOpenChange?: (open: boolean) => void; persist: boolean }) {
   const [, start] = useTransition();
   return (
@@ -180,13 +182,14 @@ export function WelcomeTour({ open, onOpenChange, persist }: { open?: boolean; o
   );
 }
 
-// Settings > General: "Show" replays the tour right there. Writes nothing.
+// Release notes' "Take the tour" button: replays the tour right there. Writes nothing.
 export function WelcomeTourButton() {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-        Tour
+      {/* The same small size on a phone as on a desktop; its tap area is still 44px (tap-target). */}
+      <Button variant="outline" size="sm" className="max-sm:h-7 max-sm:px-2.5" onClick={() => setOpen(true)}>
+        Take the tour
       </Button>
       <WelcomeTour open={open} onOpenChange={setOpen} persist={false} />
     </>
@@ -199,5 +202,5 @@ export function GuestTour() {
   const [seen, setSeen] = useState<boolean | null>(null);
   useEffect(() => setSeen(guestTourSeen(document.cookie)), []);
   if (seen !== false) return null;
-  return <TourDialog steps={GUEST_STEPS} onOpenChange={(next) => !next && (document.cookie = guestTourSeenCookie())} />;
+  return <TourDialog steps={GUEST_STEPS} onOpenChange={(next) => !next && (document.cookie = guestTourSeenCookie(location.protocol === "https:"))} />;
 }

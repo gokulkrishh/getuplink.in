@@ -2,7 +2,7 @@
 
 import { Dialog } from "@base-ui/react/dialog";
 import { X } from "lucide-react";
-import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
+import { type CSSProperties, type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -48,13 +48,14 @@ export function TourBackdrop() {
 
 // Where a picture sits on the backdrop: inset from the top left, running off the right and bottom edges and
 // fading out at the bottom. Children are placed in a box of the picture's width.
-// `lift` (px, negative) moves the picture up on a phone, where only the top shows.
-export function TourSlice({ children, lift = 0 }: { children: ReactNode; lift?: number }) {
+// `focusY` (px down the phone picture): the part to keep in view on a phone, where only the top shows. The
+// picture moves up until that part sits a little under halfway down the row, whose height follows the screen.
+export function TourSlice({ children, focusY = 0 }: { children: ReactNode; focusY?: number }) {
   return (
     <div className="absolute inset-0 overflow-hidden [mask-image:linear-gradient(to_bottom,#000_72%,transparent_100%)]">
       <div
         className="absolute top-4 left-4 w-[340px] max-sm:translate-y-[var(--lift)] max-sm:motion-safe:transition-transform max-sm:motion-safe:duration-[600ms] sm:top-7 sm:left-7 sm:w-[480px]"
-        style={{ "--lift": `${lift}px` } as CSSProperties}
+        style={{ "--lift": `calc(-1 * max(0px, ${focusY}px - min(110px, 9dvh)))` } as CSSProperties}
       >
         {children}
       </div>
@@ -62,17 +63,18 @@ export function TourSlice({ children, lift = 0 }: { children: ReactNode; lift?: 
   );
 }
 
-function Dots({ steps, step, onPick }: { steps: TourStep[]; step: number; onPick: (n: number) => void }) {
+// Each dot is a 32 by 40 tap area round a small mark (px, so the phone's larger text doesn't widen them).
+function Dots({ steps, step, onPick, className }: { steps: TourStep[]; step: number; onPick: (n: number) => void; className?: string }) {
   return (
-    <div className="flex items-center">
+    <div className={cn("flex items-center gap-1", className)}>
       {steps.map((s, i) => (
         <button
           key={s.key}
           type="button"
-          aria-label={`Step ${i + 1} of ${steps.length}`}
+          aria-label={`Go to step ${i + 1} of ${steps.length}`}
           aria-current={i === step ? "step" : undefined}
           onClick={() => onPick(i)}
-          className="group flex h-8 cursor-pointer items-center px-1 outline-none"
+          className="group flex h-[40px] w-[32px] cursor-pointer items-center justify-center outline-none"
         >
           <span
             className={cn(
@@ -86,7 +88,40 @@ function Dots({ steps, step, onPick }: { steps: TourStep[]; step: number; onPick
   );
 }
 
+// A step's words. The title and description are the dialog's own only for the step showing (`real`).
+function Words({ step, real }: { step: TourStep; real: boolean }) {
+  const Title = real ? Dialog.Title : "h2";
+  const Description = real ? Dialog.Description : "p";
+  return (
+    <>
+      <Title className="max-w-[16ch] text-xl leading-tight font-semibold tracking-heading text-balance sm:max-w-[20ch] sm:text-[1.75rem]">{step.title}</Title>
+      <Description className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-[15px]">{step.description}</Description>
+      {step.extra}
+    </>
+  );
+}
+
+// Tab and Shift+Tab go round the dialog's own buttons. Base UI traps focus too, but a frame late, so a fast
+// Tab could reach the page behind.
+function wrapTab(e: KeyboardEvent<HTMLDivElement>) {
+  if (e.key !== "Tab") return;
+  const all = [...e.currentTarget.querySelectorAll<HTMLElement>("button, a[href], [tabindex]:not([tabindex='-1'])")].filter(
+    (el) => !el.hasAttribute("disabled") && !el.closest("[aria-hidden='true']") && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== "hidden",
+  );
+  if (all.length === 0) return;
+  const first = all[0];
+  const last = all[all.length - 1];
+  const at = document.activeElement;
+  if (e.shiftKey ? at === first || at === e.currentTarget : at === last) {
+    e.preventDefault();
+    (e.shiftKey ? last : first).focus();
+  }
+}
+
 // The step state lives here, inside the popup, so it starts again at step 1 each time the dialog opens.
+// On a phone the sheet is never taller than the screen: the picture row shrinks on a short screen, the
+// words hold the height of the longest step (so nothing moves between steps) and scroll if they must, and
+// the footer stays at the bottom.
 function Popup({ steps }: { steps: TourStep[] }) {
   const [n, setN] = useState(0);
   const popup = useRef<HTMLDivElement>(null);
@@ -100,51 +135,72 @@ function Popup({ steps }: { steps: TourStep[] }) {
       onKeyDown={(e) => {
         if (e.key === "ArrowRight") go(n + 1);
         else if (e.key === "ArrowLeft") go(n - 1);
+        else wrapTab(e);
       }}
-      className="fixed inset-x-0 bottom-0 z-50 grid max-h-dvh grid-rows-[230px_auto] overflow-y-auto border bg-background pb-[env(safe-area-inset-bottom)] text-foreground shadow-2xl outline-none motion-safe:transition-opacity motion-safe:duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:h-[min(690px,calc(100dvh-2rem))] sm:w-[min(980px,calc(100vw-2rem))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:grid-cols-2 sm:grid-rows-1 sm:overflow-hidden sm:pb-0"
+      className="fixed inset-x-0 bottom-0 z-50 flex max-h-dvh flex-col overflow-hidden border bg-background pb-[env(safe-area-inset-bottom)] text-foreground shadow-2xl outline-none motion-safe:transition-opacity motion-safe:duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:grid sm:h-[min(690px,calc(100dvh-2rem))] sm:w-[min(980px,calc(100vw-2rem))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:grid-cols-2 sm:grid-rows-1 sm:pb-0"
     >
-      <div className="relative min-h-0 border-b sm:border-r sm:border-b-0">
+      <div className="relative h-[min(230px,30dvh)] shrink-0 border-b [@media(max-height:640px)]:h-[26dvh] sm:h-auto sm:min-h-0 sm:border-r sm:border-b-0">
         <div className="relative h-full min-h-0 overflow-hidden">{step.preview}</div>
       </div>
-      <div className="relative flex min-h-0 min-w-0 flex-col p-5 sm:p-8">
-        <div className="flex items-center gap-2.5 pr-9 text-sm text-faint max-sm:pr-0">
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col p-5 max-sm:[@media(max-height:640px)]:py-4 sm:p-8">
+        {/* On a phone the dots sit at the right of this line, so the footer is one row and the sheet fits a small screen. */}
+        <div className="flex shrink-0 items-center gap-2.5 text-sm text-faint max-sm:-mt-2.5 max-sm:min-h-[40px] sm:pr-9">
           {step.chip}
-          {step.label}
+          <span className="min-w-0 flex-1 truncate">{step.label}</span>
+          <Dots steps={steps} step={n} onPick={go} className="-mr-[13px] sm:hidden" />
         </div>
-        <div className="min-h-[14rem] flex-1 pt-4 sm:flex sm:min-h-0 sm:flex-col sm:justify-center sm:pt-0">
-          <Dialog.Title className="max-w-[16ch] text-xl leading-tight font-semibold tracking-heading text-balance sm:max-w-[20ch] sm:text-[1.75rem]">{step.title}</Dialog.Title>
-          <Dialog.Description className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-[15px]">{step.description}</Dialog.Description>
-          {step.extra}
+        {/* On a phone every step's words sit in one cell, the others unseen, so the cell is as tall as the longest. */}
+        <div className="grid min-h-0 flex-1 overflow-y-auto pt-4 sm:flex sm:flex-col sm:justify-center sm:overflow-visible sm:pt-0">
+          <div className="col-start-1 row-start-1">
+            <Words step={step} real />
+          </div>
+          {steps.map((s, i) =>
+            i === n ? null : (
+              <div key={s.key} aria-hidden="true" className="invisible col-start-1 row-start-1 sm:hidden">
+                <Words step={s} real={false} />
+              </div>
+            ),
+          )}
         </div>
-        <div className="flex items-center justify-between gap-2 pt-4">
-          <Dots steps={steps} step={n} onPick={go} />
-          <div className="flex items-center gap-1.5">
-            {!last && (
-              <Dialog.Close render={<Button variant="ghost" />} nativeButton>
+        <div className="flex shrink-0 items-center justify-between gap-2 pt-4">
+          <Dots steps={steps} step={n} onPick={go} className="-ml-1.5 max-sm:hidden" />
+          <div className="flex flex-1 items-center justify-between gap-1.5 sm:flex-none sm:justify-end">
+            {/* On a phone Skip is quiet text at the left and the buttons are a size smaller, so all fit at 320px. */}
+            {!last ? (
+              <Dialog.Close render={<Button variant="ghost" className="max-sm:-ml-3 max-sm:h-9 max-sm:px-3 max-sm:text-muted-foreground" />} nativeButton>
                 Skip
               </Dialog.Close>
-            )}
-            {n > 0 && (
-              <Button variant="outline" onClick={() => go(n - 1)}>
-                Back
-              </Button>
-            )}
-            {last ? (
-              <Dialog.Close render={<Button />} nativeButton>
-                Got it
-              </Dialog.Close>
             ) : (
-              <Button onClick={() => go(n + 1)}>Next</Button>
+              <span aria-hidden="true" />
             )}
+            <div className="flex items-center gap-1.5">
+              {n > 0 && (
+                <Button variant="outline" className="max-sm:h-9 max-sm:px-3" onClick={() => go(n - 1)}>
+                  Back
+                </Button>
+              )}
+              {last ? (
+                <Dialog.Close render={<Button className="max-sm:h-9 max-sm:px-3" />} nativeButton>
+                  Got it
+                </Dialog.Close>
+              ) : (
+                <Button className="max-sm:h-9 max-sm:px-3" onClick={() => go(n + 1)}>
+                  Next
+                </Button>
+              )}
+            </div>
           </div>
         </div>
-        <Dialog.Close
-          aria-label="Close"
-          className="absolute top-3 right-3 z-20 inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring max-sm:bg-background/80 max-sm:backdrop-blur-sm sm:top-4 sm:right-4"
-        >
-          <X className="size-4" aria-hidden="true" />
-        </Dialog.Close>
       </div>
+      {/* A 44px tap area. On a phone it sits at the sheet's top right, over the picture, on its own disc. */}
+      <Dialog.Close
+        aria-label="Close"
+        className="group absolute top-1 right-1 z-20 inline-flex size-11 cursor-pointer items-center justify-center rounded-full text-muted-foreground outline-none hover:text-foreground sm:top-2.5 sm:right-2.5"
+      >
+        <span className="inline-flex size-8 items-center justify-center rounded-full transition-colors group-focus-visible:outline-2 group-focus-visible:outline-ring max-sm:bg-background/85 max-sm:text-foreground max-sm:shadow-sm max-sm:backdrop-blur-sm">
+          <X className="size-4" aria-hidden="true" />
+        </span>
+      </Dialog.Close>
     </Dialog.Popup>
   );
 }
@@ -153,22 +209,29 @@ function Popup({ steps }: { steps: TourStep[] }) {
 // dialog was closed.
 export function TourDialog({ steps, open, onOpenChange }: { steps: TourStep[]; open?: boolean; onOpenChange?: (open: boolean) => void }) {
   const [own, setOwn] = useState(false);
+  const controlled = open !== undefined;
   // Opens once the page under it has finished loading. Opening while the week is still streaming in makes
   // React see attributes the dialog set on the page's own elements, and warn of a hydration mismatch.
+  // A dialog the caller opens (`open` given) needs no wait.
   useEffect(() => {
+    if (controlled) return;
     let tries = 0;
+    let delay: ReturnType<typeof setTimeout> | undefined;
     const timer = setInterval(() => {
       tries += 1;
       if (document.readyState === "complete" && (!document.querySelector('[aria-busy="true"]') || tries > 40)) {
         clearInterval(timer);
-        setTimeout(() => setOwn(true), 300);
+        delay = setTimeout(() => setOwn(true), 300);
       }
     }, 150);
-    return () => clearInterval(timer);
-  }, []);
+    return () => {
+      clearInterval(timer);
+      clearTimeout(delay);
+    };
+  }, [controlled]);
   return (
     <Dialog.Root
-      open={open ?? own}
+      open={controlled ? open : own}
       // Tapping the backdrop does nothing: the cross, Skip, "Got it" and Esc close it.
       disablePointerDismissal
       onOpenChange={(next) => {

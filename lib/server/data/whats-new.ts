@@ -4,7 +4,7 @@ import type { Owner } from "./owner";
 import { MissingSchema } from "./usage";
 
 // What's new's columns on users (20261117120000_whats_new.sql). Before that migration each of these throws
-// MissingSchema, and the callers carry on with no card and no bell line (lib/server/whats-new.ts).
+// MissingSchema, and the callers carry on with no dialog and no bell line (lib/server/whats-new.ts).
 
 const MISSING = ["42P01", "PGRST205", "42703", "PGRST204"];
 
@@ -27,26 +27,30 @@ export async function whatsNewOf(owner: Owner): Promise<WhatsNewRow | null> {
 
 // The marker only moves forward: ids start with their date, so a larger id is a newer entry. Compared here,
 // not in SQL, because the database's text order may differ from this one. The update is guarded by the value
-// just read, so two taps at once can't move it back.
-async function advance(owner: Owner, seen: string | null, id: string | null, extra: Record<string, unknown>): Promise<void> {
-  const patch = { ...extra, ...(id !== null && (seen === null || id > seen) ? { whats_new_seen: id } : {}) };
-  if (Object.keys(patch).length === 0) return;
-  const query = db().from("users").update(patch).eq("id", owner.userId);
+// just read, so two taps at once can't move it back. A guard that no longer matches writes nothing.
+async function advance(owner: Owner, seen: string | null, id: string | null): Promise<void> {
+  if (id === null || (seen !== null && id <= seen)) return;
+  const query = db().from("users").update({ whats_new_seen: id }).eq("id", owner.userId);
   const { error } = await (seen === null ? query.is("whats_new_seen", null) : query.eq("whats_new_seen", seen));
   if (error) fail(error);
 }
 
-// The owner opened What's new or closed a news card.
+// The owner opened Release notes or closed the release dialog.
 export async function markSeen(owner: Owner, id: string | null): Promise<void> {
   const row = await whatsNewOf(owner);
   if (!row) return;
-  await advance(owner, row.seen, id, {});
+  await advance(owner, row.seen, id);
 }
 
-// The welcome card closed: welcomed now, and everything up to the newest entry counts as seen, so a new owner
-// is never shown older news.
+// The welcome tour closed: welcomed now, and everything up to the newest entry counts as seen, so a new owner
+// is never shown older news. Two writes: the welcome on its own, so a marker moved in between by another tap
+// can't drop it, then the marker.
 export async function closeWelcome(owner: Owner, newestId: string | null, at: string): Promise<void> {
   const row = await whatsNewOf(owner);
   if (!row) return;
-  await advance(owner, row.seen, newestId, row.welcomedAt === null ? { welcomed_at: at } : {});
+  if (row.welcomedAt === null) {
+    const { error } = await db().from("users").update({ welcomed_at: at }).eq("id", owner.userId).is("welcomed_at", null);
+    if (error) fail(error);
+  }
+  await advance(owner, row.seen, newestId);
 }

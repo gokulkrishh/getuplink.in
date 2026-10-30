@@ -6,5 +6,7 @@ export function guestTourSeen(cookies: string): boolean {
   return cookies.split(";").some((c) => c.trim() === `${GUEST_TOUR_COOKIE}=seen`);
 }
 
-// The cookie to set on closing: a year, for the whole site.
-export const guestTourSeenCookie = (): string => `${GUEST_TOUR_COOKIE}=seen; Path=/; SameSite=Lax; Max-Age=${60 * 60 * 24 * 365}`;
+// The cookie to set on closing: a year, for the whole site. `https`: the page's own protocol, so the cookie
+// is Secure on the live site and still sets on a plain http demo.
+export const guestTourSeenCookie = (https: boolean): string =>
+  `${GUEST_TOUR_COOKIE}=seen; Path=/; SameSite=Lax; Max-Age=${60 * 60 * 24 * 365}${https ? "; Secure" : ""}`;

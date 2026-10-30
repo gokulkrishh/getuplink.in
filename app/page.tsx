@@ -47,8 +47,8 @@ type Ready<T> = Extract<T, { kind: "ready" }>;
 // scenario is an argument, so each one gets its own entry; the period is not, since it switches in the
 // browser. The page has two such scopes, loaded side by side: the car strip's (quick) and the week's (the
 // 90-day read), so the strip shows without waiting for the week.
-// card: Home's one card, welcome, news or the share card (lib/whats-new.ts, lib/share-nudge.ts), decided with
-// the strip so it is known before the tiles render and nothing below it moves. Not now and Share refresh this cache
+// card: what Home shows, the welcome tour, the release dialog or the share card (lib/whats-new.ts,
+// lib/share-nudge.ts), decided with the strip so it is known before the tiles render and nothing below it moves. Not now and Share refresh this cache
 // (updateTag).
 async function loadOwnCar(demo: DemoScenario): Promise<{ home: HomeNow; now: number; card: HomeCardKind }> {
   "use cache: private";
@@ -301,8 +301,8 @@ function TotalsSkeleton() {
   return (
     <div role="status" aria-busy="true" className="space-y-12">
       <span className="sr-only">Loading…</span>
-      <div className="space-y-6">
-        <div className="space-y-1" aria-hidden="true">
+      <div className="space-y-6" aria-hidden="true">
+        <div className="space-y-1">
           <p className="text-xl"><span className={line}>Good afternoon</span></p>
           <p className="text-sm"><span className={line}>Here&apos;s your car&apos;s last 7 days, 21 Oct to 27 Oct.</span></p>
         </div>

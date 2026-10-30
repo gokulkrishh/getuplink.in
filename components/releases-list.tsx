@@ -43,7 +43,8 @@ const ICONS: Record<EntryIcon, LucideIcon> = {
 type Release = { version: string; entries: Entry[] };
 
 // The words and the screenshot. `ratio` holds the picture's box at the tallest one in the version, so the
-// pane keeps its size from one feature to the next; the picture sits inside it on the soft background.
+// pane (and, on a phone, the open row) keeps its size from one feature to the next; the picture sits inside
+// it on the soft background.
 function Detail({ entry, ratio }: { entry: Entry; ratio?: number }) {
   const img = entry.image;
   return (
@@ -183,7 +184,7 @@ export function ReleasesList({
                 </button>
                 {on && (
                   <div className="px-3 pt-1 pb-5 sm:hidden">
-                    <Detail entry={e} />
+                    <Detail entry={e} ratio={ratio} />
                   </div>
                 )}
               </li>

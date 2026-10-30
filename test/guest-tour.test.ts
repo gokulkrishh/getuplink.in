@@ -11,10 +11,14 @@ describe("guest tour cookie", () => {
     expect(guestTourSeen(`not-${GUEST_TOUR_COOKIE}=seen`)).toBe(false);
   });
   test("the cookie it sets is read back as seen, for a year, site-wide", () => {
-    const c = guestTourSeenCookie();
+    const c = guestTourSeenCookie(false);
     expect(guestTourSeen(c.split(";")[0])).toBe(true);
     expect(c).toContain("Path=/");
     expect(c).toContain("SameSite=Lax");
     expect(c).toContain("Max-Age=31536000");
+  });
+  test("Secure only over https, so it still sets on a plain http demo", () => {
+    expect(guestTourSeenCookie(true)).toContain("; Secure");
+    expect(guestTourSeenCookie(false)).not.toContain("Secure");
   });
 });

@@ -46,13 +46,15 @@ export default function WhatsNewPage() {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
       <Header setup={false} />
-      {/* The welcome tour, again: new owners see it once on Home; here anyone can replay it (it writes nothing). */}
-      <div className="mb-8 flex items-start justify-between gap-4">
+      {/* The welcome tour, again: new owners see it once on Home; here anyone can replay it (it writes nothing). Under the heading on a very narrow phone, so the heading stays on one line. */}
+      <div className="mb-8 flex flex-col items-start gap-3 min-[360px]:flex-row min-[360px]:justify-between min-[360px]:gap-4">
         <div>
           <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">Release notes</h1>
           <p className="mt-1 text-sm text-muted-foreground">New in Uplink, newest first.</p>
         </div>
-        <WelcomeTourButton />
+        <div className="shrink-0 sm:mt-0.5">
+          <WelcomeTourButton />
+        </div>
       </div>
       <Suspense>
         <Entries />

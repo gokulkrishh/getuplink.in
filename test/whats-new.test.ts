@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { DEMO_ENTRIES } from "@/lib/server/demo/whats-new";
 import { copyViolations } from "@/lib/copy-rules";
-import { ENTRY_ICONS, type Entry, KINDS, newEntryIds, newestVisibleId, pickHomeCard, unseenEntries, visibleEntries, WELCOME_SINCE, WHATS_NEW, whatsNewAlerts } from "@/lib/whats-new";
+import { ENTRY_ICONS, type Entry, KINDS, newEntryIds, newestVisibleId, pickHomeCard, seenUpTo, unseenEntries, visibleEntries, WELCOME_SINCE, WHATS_NEW, whatsNewAlerts } from "@/lib/whats-new";
 
 const entry = (id: string, audience: Entry["audience"] = "owners", show: Entry["show"] = "dialog"): Entry => ({
   id,
@@ -35,13 +35,13 @@ describe("pickHomeCard", () => {
   const b = entry("2026-11-20-b");
   const c = entry("2026-11-25-c");
 
-  test("a new owner gets the welcome card, not news", () => {
+  test("a new owner gets the welcome tour, not news", () => {
     expect(pickHomeCard({ ...base, approvedAt: NEW, entries: [c] })).toEqual({ kind: "welcome" });
   });
   test("a welcomed new owner gets news dated after they joined", () => {
     expect(pickHomeCard({ ...base, approvedAt: NEW, welcomedAt: NOW, entries: [c] })).toEqual({ kind: "release", entries: [c], total: 1 });
   });
-  test("existing owners never get the welcome card", () => {
+  test("existing owners never get the welcome tour", () => {
     expect(WELCOME_SINCE).toBe(Date.parse("2026-10-31T00:00:00+05:30"));
     expect(pickHomeCard({ ...base, approvedAt: WELCOME_SINCE - 1 })).toBeNull();
     expect(pickHomeCard({ ...base, approvedAt: WELCOME_SINCE })).toEqual({ kind: "welcome" });
@@ -206,5 +206,25 @@ describe.each([
       if (e.image) expect(e.image.alt.trim().length).toBeGreaterThan(0);
       expect(/[.!]$/.test(e.title)).toBe(false);
     }
+  });
+});
+
+describe("closing the release dialog", () => {
+  // A newer small entry (bell only) and an older big one (in the dialog). The dialog shows only the big one.
+  const bell = entry("2026-11-25-bell", "owners", "bell");
+  const big = entry("2026-11-20-big");
+  const entries = [bell, big, entry("2026-11-22-draft", "draft")];
+  test("marks seen only up to the newest entry the dialog showed, so the newer bell line stays", () => {
+    const seenId = seenUpTo(entries, false, big.id);
+    expect(seenId).toBe(big.id);
+    expect(whatsNewAlerts({ ...base, entries, seenId }).map((a) => a.key)).toEqual([`whats-new-${bell.id}`]);
+  });
+  test("an id that isn't a visible entry marks nothing", () => {
+    expect(seenUpTo(entries, false, "2026-11-22-draft")).toBeNull();
+    expect(seenUpTo(entries, false, "2099-01-01-made-up")).toBeNull();
+    expect(seenUpTo(entries, false, 42)).toBeNull();
+  });
+  test("with no id, the newest visible entry, as opening the page does", () => {
+    expect(seenUpTo(entries, false, undefined)).toBe(bell.id);
   });
 });

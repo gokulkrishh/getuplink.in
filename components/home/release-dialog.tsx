@@ -10,8 +10,9 @@ import { OFFLINE, orOffline } from "@/lib/offline";
 import type { Entry } from "@/lib/whats-new";
 
 // Home's dialog for what's new (lib/whats-new.ts decides who gets it): one step for each unseen big entry,
-// newest first, the same shell as the welcome tour. Closing any way marks the newest entry seen, so it shows
-// once. When there are more than fit, a quiet link goes to the page.
+// newest first, the same shell as the welcome tour. Closing any way marks seen up to the newest entry it
+// showed, so it shows once, and a newer bell-only entry keeps its bell line. When there are more than fit, a
+// quiet link goes to the page.
 function Shot({ entry }: { entry: Entry }) {
   const img = entry.image;
   return (
@@ -42,5 +43,5 @@ export function ReleaseDialog({ entries, total }: { entries: Entry[]; total: num
       ) : null,
     preview: <Shot entry={e} />,
   }));
-  return <TourDialog steps={steps} onOpenChange={(next) => !next && start(async () => void (await orOffline(markSeen(), OFFLINE)))} />;
+  return <TourDialog steps={steps} onOpenChange={(next) => !next && start(async () => void (await orOffline(markSeen(entries[0]?.id), OFFLINE)))} />;
 }

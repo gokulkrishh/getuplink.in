@@ -1,16 +1,17 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import type { Alert } from "@/lib/alerts";
 import { DEMO, demoScenario } from "@/lib/demo";
 import { messageOf } from "@/lib/errors";
-import { type CardFacts, type Entry, type HomeCard, newEntryIds, newestVisibleId, pickHomeCard, visibleEntries, WELCOME_SINCE, WHATS_NEW, whatsNewAlerts } from "@/lib/whats-new";
-import type { Owner } from "./data/owner";
+import { type CardFacts, type Entry, type HomeCard, newEntryIds, newestVisibleId, pickHomeCard, seenUpTo, visibleEntries, WELCOME_SINCE, WHATS_NEW, whatsNewAlerts } from "@/lib/whats-new";
+import { asOwner, type Owner } from "./data/owner";
 import { MissingSchema } from "./data/usage";
 import { closeWelcome, markSeen, whatsNewOf } from "./data/whats-new";
 import { DEMO_ENTRIES, DEMO_OLD_OWNER } from "./demo/whats-new";
 
 // Home's welcome and release dialogs, the bell's What's new lines and the page's list (lib/whats-new.ts has the
-// rules). Every failure here means no card and no line: a missing column, a read error.
+// rules). Every failure here means no dialog and no line: a missing column, a read error.
 //
 // Demo copies have no database. The scenarios "welcome" and "news" (UPLINK_DEMO_SCENARIO) show the dialogs;
 // closing one lasts for the browser session. Other scenarios show neither.
@@ -29,12 +30,16 @@ async function demoFacts(): Promise<Omit<CardFacts, "admin" | "shareDue">> {
   return { entries: [], approvedAt: null, welcomedAt: null, seenId: null, schemaReady: false };
 }
 
+// The owner's row, read once per render scope however many parts ask for it. By user, not by the owner
+// object, which React's cache would compare by reference. Only for showing: the writes read the row afresh.
+const rowFor = cache((userId: number, sub: string) => whatsNewOf(asOwner(userId, sub)));
+
 // The facts for this owner, or schemaReady false when they can't be read.
 async function factsOf(owner: Owner, admin: boolean): Promise<Omit<CardFacts, "shareDue">> {
   if (DEMO) return { ...(await demoFacts()), admin };
   const none = { entries: [], admin, approvedAt: null, welcomedAt: null, seenId: null, schemaReady: false };
   try {
-    const row = await whatsNewOf(owner);
+    const row = await rowFor(owner.userId, owner.sub);
     if (!row) return none;
     return { entries: WHATS_NEW, admin, approvedAt: row.approvedAt, welcomedAt: row.welcomedAt, seenId: row.seen, schemaReady: true };
   } catch (err) {
@@ -64,7 +69,7 @@ export async function whatsNewPage(owner: Owner, admin: boolean): Promise<{ entr
   return { entries, markId: newest !== null && (facts.seenId === null || newest > facts.seenId) ? newest : null, newIds: newEntryIds({ ...facts, shareDue: false }) };
 }
 
-// Closing the welcome card. Before the migration, nothing to store, and the card wasn't shown anyway.
+// Closing the welcome tour. Before the migration, nothing to store, and the tour wasn't shown anyway.
 export async function closeWelcomeCard(owner: Owner, admin: boolean, now: number): Promise<void> {
   if (DEMO) {
     (await cookies()).set(DEMO_WELCOMED_COOKIE, "1", { path: "/", httpOnly: true, sameSite: "lax" });
@@ -73,11 +78,14 @@ export async function closeWelcomeCard(owner: Owner, admin: boolean, now: number
   await closeWelcome(owner, newestVisibleId(WHATS_NEW, admin), new Date(now).toISOString());
 }
 
-// Closing the release dialog or opening the page: the newest visible entry is seen.
-export async function markWhatsNewSeen(owner: Owner, admin: boolean): Promise<void> {
-  const id = newestVisibleId(entriesFor(), admin);
+// Opening the page (no `upTo`): the newest visible entry is seen. Closing the release dialog: `upTo`, the
+// newest entry it showed, only if it is one this reader can see (seenUpTo). Forward only, in a demo too.
+export async function markWhatsNewSeen(owner: Owner, admin: boolean, upTo?: unknown): Promise<void> {
+  const id = seenUpTo(entriesFor(), admin, upTo);
   if (DEMO) {
-    if (id) (await cookies()).set(DEMO_SEEN_COOKIE, id, { path: "/", httpOnly: true, sameSite: "lax" });
+    const jar = await cookies();
+    const seen = jar.get(DEMO_SEEN_COOKIE)?.value;
+    if (id && (!seen || id > seen)) jar.set(DEMO_SEEN_COOKIE, id, { path: "/", httpOnly: true, sameSite: "lax" });
     return;
   }
   await markSeen(owner, id);

@@ -1,6 +1,6 @@
 import type { Alert } from "@/lib/alerts";
 
-// What's new: the entries, and the rules for Home's one card (welcome dialog, release dialog or the share card).
+// What's new: the entries, and the rules for what Home shows: the welcome tour, the release dialog or the share card.
 // Pure, so it's tested directly (test/whats-new.test.ts). The reads and writes are in lib/server/whats-new.ts.
 
 // "dialog": a big feature or visible change, opened over Home like the welcome tour, with a bell line and a place
@@ -55,7 +55,7 @@ export const WHATS_NEW: Entry[] = [
   },
 ];
 
-// Only owners approved at or after this get the welcome card. Everyone approved before it already knows
+// Only owners approved at or after this get the welcome tour. Everyone approved before it already knows
 // their way around, so they never see it.
 export const WELCOME_SINCE = Date.parse("2026-10-31T00:00:00+05:30");
 
@@ -68,9 +68,17 @@ export function visibleEntries(entries: Entry[], admin: boolean): Entry[] {
   return entries.filter((e) => e.audience === "owners" || (e.audience === "admin" && admin)).sort(byNewest);
 }
 
-// What closing the welcome card or opening Release notes stores as seen.
+// What closing the welcome tour or opening Release notes stores as seen.
 export function newestVisibleId(entries: Entry[], admin: boolean): string | null {
   return visibleEntries(entries, admin)[0]?.id ?? null;
+}
+
+// What to mark seen. No id (opening the page): the newest visible entry. An id (closing the release dialog,
+// the newest entry it showed): that id, but only when it is an entry this reader can see, so a newer entry
+// the dialog never showed keeps its bell line. Anything else marks nothing.
+export function seenUpTo(entries: Entry[], admin: boolean, id: unknown): string | null {
+  if (id === undefined) return newestVisibleId(entries, admin);
+  return typeof id === "string" && visibleEntries(entries, admin).some((e) => e.id === id) ? id : null;
 }
 
 // Entries grouped by version, in the order given (newest first), for the page.

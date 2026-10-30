@@ -9,7 +9,7 @@ import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { MissingSchema } from "@/lib/server/data/usage";
 import { closeWelcomeCard, markWhatsNewSeen } from "@/lib/server/whats-new";
 
-// The cards' and the page's writes. Server actions are reachable by POST from anywhere, so each re-checks the
+// The dialogs' and the page's writes. Server actions are reachable by POST from anywhere, so each re-checks the
 // session and acts only on that account. Before the migration they do nothing, quietly: nothing was shown.
 // Each returns the error to show, or null.
 async function run(what: string, act: (owner: NonNullable<Awaited<ReturnType<typeof currentOwner>>>, admin: boolean) => Promise<void>): Promise<string | null> {
@@ -20,7 +20,7 @@ async function run(what: string, act: (owner: NonNullable<Awaited<ReturnType<typ
   } catch (err) {
     if (!(err instanceof MissingSchema)) {
       console.error(`${what} failed:`, messageOf(err));
-      return "Couldn't hide this. Try again in a moment.";
+      return "Couldn't save that. Try again in a moment.";
     }
   }
   updateTag(OWNER_DATA_TAG);
@@ -28,9 +28,10 @@ async function run(what: string, act: (owner: NonNullable<Awaited<ReturnType<typ
 }
 
 export async function closeWelcome(): Promise<string | null> {
-  return run("Closing the welcome card", (owner, admin) => closeWelcomeCard(owner, admin, Date.now()));
+  return run("Closing the welcome tour", (owner, admin) => closeWelcomeCard(owner, admin, Date.now()));
 }
 
-export async function markSeen(): Promise<string | null> {
-  return run("Marking release notes seen", (owner, admin) => markWhatsNewSeen(owner, admin));
+// `upTo`: the newest entry the release dialog showed (checked on the server); none when the page opens.
+export async function markSeen(upTo?: string): Promise<string | null> {
+  return run("Marking release notes seen", (owner, admin) => markWhatsNewSeen(owner, admin, upTo));
 }
