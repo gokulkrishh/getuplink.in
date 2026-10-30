@@ -27,7 +27,7 @@ async function load() {
 }
 
 async function Entries() {
-  const { entries, markId } = await load();
+  const { entries, markId, newIds } = await load();
   return (
     <>
       {markId !== null && <WhatsNewMark />}
@@ -36,7 +36,7 @@ async function Entries() {
           New things in Uplink will show up here.
         </EmptyState>
       ) : (
-        <ReleasesList releases={byVersion(entries)} />
+        <ReleasesList releases={byVersion(entries)} newIds={newIds} />
       )}
     </>
   );

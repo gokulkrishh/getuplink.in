@@ -6,7 +6,8 @@ import { SyncStreamSessions, SyncStreamVersions } from "@/components/background-
 import { Header } from "@/components/header";
 import { SkBlock, SkHead, SkSection } from "@/components/skeleton";
 import { Headline } from "@/components/home/headline";
-import { WelcomeTour } from "@/components/home/welcome-tour";
+import { ReleaseDialog } from "@/components/home/release-dialog";
+import { GuestTour, WelcomeTour } from "@/components/home/welcome-tour";
 import { NowStrip } from "@/components/home/now-strip";
 import { Recently } from "@/components/home/recently";
 import { ChargeLevelChart } from "@/components/stats/charge-level";
@@ -28,13 +29,12 @@ import { newestTime } from "@/lib/last-synced";
 import { recentlyLines } from "@/lib/recently";
 import { rotationDueAt, rotationNotice, tyreRotation } from "@/lib/tyre-rotation";
 import { RotationNotice } from "@/components/home/rotation-notice";
-import { HomeCard } from "@/components/home/home-card";
 import { ShareNudgeCard } from "@/components/home/share-nudge";
 import { shareNudgeCheck } from "@/lib/server/share-nudge";
 import { homeCardCheck } from "@/lib/server/whats-new";
 import { isAdmin } from "@/lib/server/admin";
 import type { HomeCard as HomeCardKind } from "@/lib/whats-new";
-import type { DemoScenario } from "@/lib/demo";
+import { DEMO, type DemoScenario, demoScenario } from "@/lib/demo";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type HomeCar, type HomeNow, type HomeWeek, loadHomeNow, loadHomeWeek } from "@/lib/server/home";
@@ -126,7 +126,6 @@ async function Totals({ home, now, card }: { home: Ready<HomeNow> & Ready<HomeWe
             </p>
           )}
         </div>
-        <HomeCard card={card} />
         {eachFrame(
           frames,
           ({ key, frame, driving }) => (
@@ -202,8 +201,10 @@ async function HomeContent() {
 
   return (
     <>
-      {/* The welcome is a dialog over the page, mounted once here so it never restarts when the week loads. */}
+      {/* The welcome and the release dialog are dialogs over the page, mounted once here so they never restart when the week loads. */}
+      {DEMO && demoScenario() === "guest" ? <GuestTour /> : null}
       {card?.kind === "welcome" && <WelcomeTour persist />}
+      {card?.kind === "release" && <ReleaseDialog entries={card.entries} total={card.total} />}
       <OwnerNotices data={home} count={cars.length} failedRun={failedRun} />
       {home.kind === "ready" && cars.length > 0 && (
         <div className="space-y-12">
@@ -228,7 +229,7 @@ async function HomeContent() {
               )}
             </div>
           ))}
-          <Suspense fallback={<TotalsSkeleton card={card} />}>
+          <Suspense fallback={<TotalsSkeleton />}>
             <WeekTotals home={home} now={now} card={card} week={week} />
           </Suspense>
           {cars.some((car) => car.latest?.error) && (
@@ -296,9 +297,7 @@ function StripSkeleton() {
 
 // The week: the greeting, the tiles and the tips, then the charge level. Shown alone under the strip
 // while the week streams in, in Totals' own outer box.
-// `card`: Home's news card, already decided with the strip, drawn in its place here so the tiles
-// don't move down when the week arrives. The whole-page skeleton draws none: the card isn't known yet.
-function TotalsSkeleton({ card = null }: { card?: HomeCardKind }) {
+function TotalsSkeleton() {
   return (
     <div role="status" aria-busy="true" className="space-y-12">
       <span className="sr-only">Loading…</span>
@@ -307,7 +306,6 @@ function TotalsSkeleton({ card = null }: { card?: HomeCardKind }) {
           <p className="text-xl"><span className={line}>Good afternoon</span></p>
           <p className="text-sm"><span className={line}>Here&apos;s your car&apos;s last 7 days, 21 Oct to 27 Oct.</span></p>
         </div>
-        <HomeCard card={card} />
         <div className="h-[391px] border bg-muted/40 motion-safe:animate-pulse sm:h-[174px]" />
       </div>
       {/* The charge level chart below, its heading and a block of its usual height. */}

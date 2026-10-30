@@ -21,6 +21,8 @@ export const DEMO_SCENARIOS = {
   // The home cards that show once: a newly approved owner's welcome, and What's new with sample entries.
   welcome: "Welcome card",
   news: "What's new card",
+  // Home as a guest sees it on a shared car: the guest tour instead of the owner's.
+  guest: "Guest tour",
 } as const;
 
 export type DemoScenario = keyof typeof DEMO_SCENARIOS;

@@ -4,39 +4,49 @@ How Uplink tells owners about new things. Rules are in `lib/whats-new.ts` (teste
 
 ## What owners see
 
-- **Welcome tour** on Home, once, for an owner approved on or after `WELCOME_SINCE` (31 Oct 2026, India time): a dialog over the page with a blurred backdrop and 5 steps, each a headline, one lead line and three points (Home, Stats, Updates, Compare, Settings). The left half draws a slice of the app with a pointer that glides to the part the step is about; the right half has the words. Skip, the cross, Esc, tapping outside and "Got it" all close it for good. Owners approved before that date never see it. "Tour", at the top right of the What's new page, replays it any time and writes nothing.
-- **What's new card** on Home, for the newest "card" entry the owner hasn't seen: "New: {title}", the words, and one quiet link to the page ("See what's new", or "See all 3 on What's new" when there are others). No button.
-- **A line in the bell**, under "Good to know", for every unseen entry.
-- **The What's new page** at `/whats-new` (account menu), release notes grouped by version, newest first ("Version 0.2" with its date beside it). Each entry is its title, its words and a screenshot. No buttons, links, boxes or "where things are" list: the welcome tour covers that.
+- **Welcome tour** on Home, once, for an owner approved on or after `WELCOME_SINCE` (31 Oct 2026, India time): a dialog over a blurred page with 5 steps, each a headline, one lead line and three points (Home, Stats, Updates, Compare, Settings). The left half is a screenshot of the real page, in the app's own theme, with an outline round the part the step is about and a pointer that glides to it; the right half has the words, under the step's name in grey (no "Welcome" chip). Skip, the cross, Esc, tapping outside and "Got it" all close it for good. Owners approved before that date never see it. "Tour", at the top right of the What's new page, replays it any time and writes nothing.
+- **Release dialog** on Home, for the big (`dialog`) entries the owner hasn't seen: the same dialog as the tour, one step for each entry, newest first, at most 3. Left, the entry's screenshot; right, a tinted "New" chip with "Version 0.4" in grey, the title and the words. When there are more than 3, a quiet "See all on What's new" link sits under the words. Closing it any way marks the newest entry seen, so it shows once.
+- **A line in the bell**, under "Good to know", for every unseen entry, either level.
+- **The What's new page** at `/whats-new` (account menu), laid out like a Tesla's release notes. A version picker ("Version 0.4 · 24 Nov", latest first; the date is the newest entry in it) sits under the heading. On a desktop a list of that version's features (icon, title, kind) is on the left and the selected one on the right: its screenshot, then its title and words. Up and Down move the selection. On a phone it is the list alone, and a tapped row opens under itself, one at a time. The first feature is open at first, and changing the version goes back to its first. The screenshot's box is as tall as the tallest one in the version, so nothing moves between features. A small blue dot marks a feature that was new to the owner when they opened the page; it stays for that visit and is gone the next. No dot on the account menu: the bell already has one.
 
-Home shows the welcome tour first. Under the greeting it shows one card at a time: news, then the share card.
+Home shows the welcome tour first, then the release dialog. Under the greeting the share card shows only when neither dialog does.
 
-## Card, bell or nothing
+## Dialog, bell or nothing
 
 | Level | Use it for | Shows |
 | --- | --- | --- |
-| `card` | A new feature most owners should try, like Guest access | Home card, bell line, page |
+| `dialog` | A big feature or a visible change most owners should notice, like Guest access or a new page | Release dialog on Home, bell line, page |
 | `bell` | A smaller addition: a new chart, a new detail on the Car page, a new Settings option | Bell line, page |
-| no entry | Fixes, wording, speed, behind-the-scenes work | Nothing |
+| no entry | Bug fixes, wording, speed, behind-the-scenes work | Nothing |
+
+At most 3 `dialog` entries per version, and a `dialog` entry needs a screenshot (tests check both). Bug fixes never get an entry.
 
 ## Adding an entry
 
-Add it at the top of `WHATS_NEW`. Entries are release notes: `version` (Uplink's version, like "0.2"; it never goes down down the list), `date`, `title`, `text`, optional `more`, and an `image`. Write the words with the `uplink-copy` skill. The id is the date and a short name (`2026-11-20-guest-access`), so ids sort by date.
+Add it at the top of `WHATS_NEW`. Entries are release notes: `kind` (`"New feature"` or `"Improvement"`, shown under the title in the list), `icon` (a lucide name from `ENTRY_ICONS` in `lib/whats-new.ts`: Sparkles, Zap, BatteryCharging, Gauge, Car, Users, Link2, BellRing, Settings2, ChartColumn, MapPin, Wrench), `version` (Uplink's version, like "0.2"; it never goes down down the list), `date`, `title`, `text`, optional `more`, and an `image`. Write the words with the `uplink-copy` skill. The id is the date and a short name (`2026-11-20-guest-access`), so ids sort by date.
 
 The screenshot is a file in `public/whats-new/` (`/whats-new/name.webp`), about 1200px wide and under 120 KB, cropped to the part the entry is about. `image` holds its `src`, `alt` (plain words, same copy rules) and the file's real `width` and `height`, so the page keeps the space before it loads. A draft may have no image yet; an entry can't leave draft without one (`test/whats-new.test.ts` checks the file exists). Entries have no buttons or links.
 
-Entries start with `audience: "draft"`: shown to nobody. Once the feature is live on main, change it to `"admin"` (only the admin sees it, to check it) and then to `"owners"`.
+Entries start with `audience: "draft"`: shown to nobody, and only the owner flips the audience. Once the feature is live on main, change it to `"admin"` (only the admin sees it, to check it) and then to `"owners"`.
 
 An entry reaches only owners approved before its date (India time). An owner approved after it joined with the feature already there, so they aren't told about it.
 
 ## Seen
 
-One marker per owner: the id of the newest entry they have seen. Closing the card, tapping its button or opening the page moves it to the newest entry they can see, which clears the bell lines too. It only moves forward. Closing the welcome tour also sets it, so a new owner never gets older news.
+One marker per owner: the id of the newest entry they have seen. Closing the release dialog or opening the page moves it to the newest entry they can see, which clears the bell lines too. It only moves forward. Closing the welcome tour also sets it, so a new owner never gets older news.
 
 ## Storage
 
-Two columns on `users` (`supabase/migrations/20261117120000_whats_new.sql`): `welcomed_at` (when the welcome tour was closed) and `whats_new_seen` (the marker). Before the migration runs, Home shows neither card, the bell shows no lines, and the page still lists entries.
+Two columns on `users` (`supabase/migrations/20261117120000_whats_new.sql`): `welcomed_at` (when the welcome tour was closed) and `whats_new_seen` (the marker). Before the migration runs, Home shows neither dialog, the bell shows no lines, and the page still lists entries.
+
+## Guests
+
+Someone viewing a shared car (Guest access) sees only the guest tour: 5 steps (Guest mode, then Home, Stats, Updates and Compare, the same pictures as the owner tour), once per browser. Closing it any way sets the cookie `uplink-guest-tour=seen` (a year, whole site); while it is there the tour never opens. No server action, no database, and never the owner tour, the release dialog, bell lines or the What's new page for a guest. `GuestTour` (in `components/home/welcome-tour.tsx`) isn't mounted on main yet. To wire it in on the view-links branch: on Home, render `<GuestTour />` when `reader.viewer !== null`, and skip the owner tour and release dialog then. `UPLINK_DEMO_SCENARIO=guest` shows it on a demo copy.
+
+## The tour's screenshots
+
+The tour's pictures are real screenshots of a demo copy, not drawings: `public/whats-new/tour/<step>-light.webp` and `-dark.webp`, with the outlined part's place as percentages in `lib/tour-targets.ts` (both generated). After any visible change to Home, Stats, Updates, Compare or the account menu, rerun `bun --install=force scripts/tour-shots.mjs <port>` against a plain demo (`UPLINK_DEMO_SCENARIO= .claude/skills/verify/scripts/launch.sh 3223`). It writes nothing real.
 
 ## Demo
 
-`UPLINK_DEMO_SCENARIO=welcome` shows the welcome tour. `UPLINK_DEMO_SCENARIO=news` shows the What's new card with "2 more" and a line in the bell. The page lists sample entries in any demo copy. The samples live in `lib/server/demo/whats-new.ts`, never in `WHATS_NEW`. Their screenshots, in `public/whats-new/demo/`, are crops of the demo's own pages and are demo-only samples.
+`UPLINK_DEMO_SCENARIO=welcome` shows the welcome tour. `UPLINK_DEMO_SCENARIO=news` shows the release dialog (three big entries), a line in the bell and blue dots on the page. The page lists sample entries in any demo copy. The samples live in `lib/server/demo/whats-new.ts`, never in `WHATS_NEW`. Their screenshots, in `public/whats-new/demo/`, are crops of the demo's own pages and are demo-only samples.

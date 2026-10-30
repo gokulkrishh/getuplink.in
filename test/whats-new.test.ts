@@ -3,14 +3,16 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { DEMO_ENTRIES } from "@/lib/server/demo/whats-new";
 import { copyViolations } from "@/lib/copy-rules";
-import { type Entry, newestVisibleId, pickHomeCard, unseenEntries, visibleEntries, WELCOME_SINCE, WHATS_NEW, whatsNewAlerts } from "@/lib/whats-new";
+import { ENTRY_ICONS, type Entry, KINDS, newEntryIds, newestVisibleId, pickHomeCard, unseenEntries, visibleEntries, WELCOME_SINCE, WHATS_NEW, whatsNewAlerts } from "@/lib/whats-new";
 
-const entry = (id: string, audience: Entry["audience"] = "owners", show: Entry["show"] = "card"): Entry => ({
+const entry = (id: string, audience: Entry["audience"] = "owners", show: Entry["show"] = "dialog"): Entry => ({
   id,
   date: id.slice(0, 10),
   title: `T ${id}`,
   text: "Text",
   version: "0.1",
+  kind: "New feature",
+  icon: "Sparkles",
   audience,
   show,
 });
@@ -37,7 +39,7 @@ describe("pickHomeCard", () => {
     expect(pickHomeCard({ ...base, approvedAt: NEW, entries: [c] })).toEqual({ kind: "welcome" });
   });
   test("a welcomed new owner gets news dated after they joined", () => {
-    expect(pickHomeCard({ ...base, approvedAt: NEW, welcomedAt: NOW, entries: [c] })).toEqual({ kind: "news", entry: c, more: 0 });
+    expect(pickHomeCard({ ...base, approvedAt: NEW, welcomedAt: NOW, entries: [c] })).toEqual({ kind: "release", entries: [c], total: 1 });
   });
   test("existing owners never get the welcome card", () => {
     expect(WELCOME_SINCE).toBe(Date.parse("2026-10-31T00:00:00+05:30"));
@@ -45,18 +47,22 @@ describe("pickHomeCard", () => {
     expect(pickHomeCard({ ...base, approvedAt: WELCOME_SINCE })).toEqual({ kind: "welcome" });
   });
   test("an existing owner gets news dated after their approval", () => {
-    expect(pickHomeCard({ ...base, entries: [a] })).toEqual({ kind: "news", entry: a, more: 0 });
+    expect(pickHomeCard({ ...base, entries: [a] })).toEqual({ kind: "release", entries: [a], total: 1 });
   });
   test("an owner approved after the entry's date does not get it", () => {
     expect(pickHomeCard({ ...base, approvedAt: ist("2026-11-12"), welcomedAt: 1, entries: [a] })).toBeNull();
     expect(pickHomeCard({ ...base, approvedAt: ist("2026-11-10") + 3_600_000, welcomedAt: 1, entries: [a] })).toBeNull();
-    expect(pickHomeCard({ ...base, approvedAt: ist("2026-11-09") + 3_600_000, welcomedAt: 1, entries: [a] })?.kind).toBe("news");
+    expect(pickHomeCard({ ...base, approvedAt: ist("2026-11-09") + 3_600_000, welcomedAt: 1, entries: [a] })?.kind).toBe("release");
   });
-  test("several unseen: the newest, with a count of the rest", () => {
-    expect(pickHomeCard({ ...base, entries: [a, c, b] })).toEqual({ kind: "news", entry: c, more: 2 });
+  test("several unseen: all of them newest first, up to 3", () => {
+    expect(pickHomeCard({ ...base, entries: [a, c, b] })).toEqual({ kind: "release", entries: [c, b, a], total: 3 });
+  });
+  test("more than 3 unseen: the newest 3, with the full count", () => {
+    const e = entry("2026-11-27-e");
+    expect(pickHomeCard({ ...base, entries: [a, b, c, e] })).toEqual({ kind: "release", entries: [e, c, b], total: 4 });
   });
   test("entries at or below the seen id are skipped", () => {
-    expect(pickHomeCard({ ...base, entries: [a, b, c], seenId: b.id })).toEqual({ kind: "news", entry: c, more: 0 });
+    expect(pickHomeCard({ ...base, entries: [a, b, c], seenId: b.id })).toEqual({ kind: "release", entries: [c], total: 1 });
     expect(pickHomeCard({ ...base, entries: [a, b, c], seenId: c.id })).toBeNull();
   });
   test("draft entries are hidden for everyone", () => {
@@ -67,11 +73,11 @@ describe("pickHomeCard", () => {
   test("admin entries are for the admin only", () => {
     const d = entry("2026-11-30-d", "admin");
     expect(pickHomeCard({ ...base, entries: [d] })).toBeNull();
-    expect(pickHomeCard({ ...base, admin: true, entries: [d] })).toEqual({ kind: "news", entry: d, more: 0 });
+    expect(pickHomeCard({ ...base, admin: true, entries: [d] })).toEqual({ kind: "release", entries: [d], total: 1 });
   });
   test("welcome comes before news, news before share", () => {
     expect(pickHomeCard({ ...base, approvedAt: NEW, entries: [c], shareDue: true })).toEqual({ kind: "welcome" });
-    expect(pickHomeCard({ ...base, entries: [a], shareDue: true })?.kind).toBe("news");
+    expect(pickHomeCard({ ...base, entries: [a], shareDue: true })?.kind).toBe("release");
   });
   test("the share card shows only when neither does", () => {
     expect(pickHomeCard({ ...base, shareDue: true })).toEqual({ kind: "share" });
@@ -97,12 +103,12 @@ describe("visible list", () => {
 });
 
 describe("bell level", () => {
-  const card = entry("2026-11-20-b");
+  const card = entry("2026-11-20-b", "owners", "dialog");
   const bell = entry("2026-11-25-c", "owners", "bell");
   const facts = { ...base, entries: [card, bell] };
 
-  test("the Home card skips bell entries, and counts only card ones in more", () => {
-    expect(pickHomeCard({ ...facts })).toEqual({ kind: "news", entry: card, more: 0 });
+  test("the Home dialog skips bell entries, and counts only dialog ones", () => {
+    expect(pickHomeCard({ ...facts })).toEqual({ kind: "release", entries: [card], total: 1 });
     expect(pickHomeCard({ ...base, entries: [bell], shareDue: true })).toEqual({ kind: "share" });
   });
   test("the bell lists every unseen visible entry, newest first, as info lines", () => {
@@ -117,6 +123,29 @@ describe("bell level", () => {
     expect(whatsNewAlerts({ ...facts, schemaReady: false })).toEqual([]);
     expect(whatsNewAlerts({ ...facts, approvedAt: null })).toEqual([]);
     expect(unseenEntries({ ...facts, seenId: card.id }).map((e) => e.id)).toEqual([bell.id]);
+  });
+});
+
+describe("newEntryIds", () => {
+  const a = entry("2026-11-10-a");
+  const b = entry("2026-11-20-b", "owners", "bell");
+  const c = entry("2026-11-25-c");
+  const facts = { ...base, entries: [a, b, c] };
+  test("every entry the owner hadn't seen, either level, newest first", () => {
+    expect(newEntryIds(facts)).toEqual([c.id, b.id, a.id]);
+  });
+  test("only those past the seen marker", () => {
+    expect(newEntryIds({ ...facts, seenId: b.id })).toEqual([c.id]);
+    expect(newEntryIds({ ...facts, seenId: c.id })).toEqual([]);
+  });
+  test("a new owner who closed the welcome tour has seen the older ones; one approved after an entry never gets a dot for it", () => {
+    expect(newEntryIds({ ...facts, approvedAt: NEW, seenId: b.id })).toEqual([c.id]);
+    expect(newEntryIds({ ...facts, approvedAt: ist("2026-11-22") })).toEqual([c.id]);
+  });
+  test("no dots for drafts, other people's admin entries, without the schema or an approval date", () => {
+    expect(newEntryIds({ ...base, entries: [entry("2026-11-30-d", "draft"), entry("2026-11-30-e", "admin")] })).toEqual([]);
+    expect(newEntryIds({ ...facts, schemaReady: false })).toEqual([]);
+    expect(newEntryIds({ ...facts, approvedAt: null })).toEqual([]);
   });
 });
 
@@ -137,7 +166,9 @@ describe.each([
       expect(e.id.startsWith(`${e.date}-`)).toBe(true);
       expect(e.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(new Date(`${e.date}T00:00:00Z`).toISOString().slice(0, 10)).toBe(e.date);
-      expect(["card", "bell"]).toContain(e.show);
+      expect(["dialog", "bell"]).toContain(e.show);
+      expect(KINDS).toContain(e.kind);
+      expect(ENTRY_ICONS).toContain(e.icon);
       expect(["draft", "admin", "owners"]).toContain(e.audience);
       expect(e.version).toMatch(/^\d+\.\d+(\.\d+)?$/);
       expect("link" in e).toBe(false);
@@ -160,6 +191,14 @@ describe.each([
       expect(img.width).toBeGreaterThan(0);
       expect(img.height).toBeGreaterThan(0);
     }
+  });
+  test("a dialog entry that is not a draft has a screenshot", () => {
+    for (const e of list) if (e.show === "dialog" && e.audience !== "draft") expect({ id: e.id, image: !!e.image }).toEqual({ id: e.id, image: true });
+  });
+  test("a version has at most 3 dialog entries", () => {
+    const count = new Map<string, number>();
+    for (const e of list) if (e.show === "dialog") count.set(e.version, (count.get(e.version) ?? 0) + 1);
+    for (const [version, n] of count) expect({ version, ok: n <= 3 }).toEqual({ version, ok: true });
   });
   test("the words follow the copy rules", () => {
     for (const e of list) {
