@@ -18,7 +18,12 @@ export type Entry = {
   title: string;
   text: string;
   more?: string;
-  link: { label: string; href: string };
+  // Uplink's version this shipped in, like "0.2". The page groups entries under it.
+  version: string;
+  // A screenshot of the feature, a file in public/releases/. Every entry that is not a draft needs one
+  // (test/whats-new.test.ts checks the file exists). Width and height are the file's own, so the page
+  // holds the space before it loads.
+  image?: { src: string; alt: string; width: number; height: number };
   audience: Audience;
   show: Show;
 };
@@ -30,7 +35,8 @@ export const WHATS_NEW: Entry[] = [
     title: "Guest access",
     text: "Send someone a link to see your car for as long as you choose. You can hide places and end it any time.",
     more: "They don't need a Tesla account.",
-    link: { label: "Try it", href: "/settings#guest-access" },
+    version: "0.2",
+    // No image yet: it's a draft. Its screenshot comes when Guest access ships, before it leaves draft.
     audience: "draft",
     show: "card",
   },
@@ -52,6 +58,17 @@ export function visibleEntries(entries: Entry[], admin: boolean): Entry[] {
 // What closing the welcome card or opening What's new stores as seen.
 export function newestVisibleId(entries: Entry[], admin: boolean): string | null {
   return visibleEntries(entries, admin)[0]?.id ?? null;
+}
+
+// Entries grouped by version, in the order given (newest first), for the page.
+export function byVersion(entries: Entry[]): { version: string; entries: Entry[] }[] {
+  const groups: { version: string; entries: Entry[] }[] = [];
+  for (const e of entries) {
+    const last = groups[groups.length - 1];
+    if (last && last.version === e.version) last.entries.push(e);
+    else groups.push({ version: e.version, entries: [e] });
+  }
+  return groups;
 }
 
 const entryStart = (e: Entry) => Date.parse(`${e.date}T00:00:00+05:30`);

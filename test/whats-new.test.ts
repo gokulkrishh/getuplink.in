@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { DEMO_ENTRIES } from "@/lib/server/demo/whats-new";
 import { copyViolations } from "@/lib/copy-rules";
 import { type Entry, newestVisibleId, pickHomeCard, unseenEntries, visibleEntries, WELCOME_SINCE, WHATS_NEW, whatsNewAlerts } from "@/lib/whats-new";
 
@@ -7,7 +10,7 @@ const entry = (id: string, audience: Entry["audience"] = "owners", show: Entry["
   date: id.slice(0, 10),
   title: `T ${id}`,
   text: "Text",
-  link: { label: "Try it", href: "/x" },
+  version: "0.1",
   audience,
   show,
 });
@@ -117,28 +120,52 @@ describe("bell level", () => {
   });
 });
 
-describe("every WHATS_NEW entry", () => {
+const parts = (v: string) => v.split(".").map(Number);
+const cmp = (a: string, b: string) => {
+  const [x, y] = [parts(a), parts(b)];
+  for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) - (y[i] ?? 0);
+  return 0;
+};
+
+describe.each([
+  ["WHATS_NEW", WHATS_NEW],
+  ["the demo samples", DEMO_ENTRIES],
+] as const)("every entry in %s", (_name, list) => {
   test("is well formed", () => {
-    for (const e of WHATS_NEW) {
+    for (const e of list) {
       expect(e.id).toMatch(/^\d{4}-\d{2}-\d{2}-[a-z0-9]+(-[a-z0-9]+)*$/);
       expect(e.id.startsWith(`${e.date}-`)).toBe(true);
       expect(e.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(new Date(`${e.date}T00:00:00Z`).toISOString().slice(0, 10)).toBe(e.date);
       expect(["card", "bell"]).toContain(e.show);
       expect(["draft", "admin", "owners"]).toContain(e.audience);
-      expect(e.link.href.startsWith("/")).toBe(true);
-      expect(e.link.label.length).toBeGreaterThan(0);
+      expect(e.version).toMatch(/^\d+\.\d+(\.\d+)?$/);
+      expect("link" in e).toBe(false);
     }
   });
-  test("ids are unique and the list is newest first", () => {
-    const ids = WHATS_NEW.map((e) => e.id);
+  test("ids are unique, newest first, and the version never goes down in that order", () => {
+    const ids = list.map((e) => e.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toEqual([...ids].sort().reverse());
+    for (let i = 1; i < list.length; i++) expect(cmp(list[i - 1].version, list[i].version)).toBeGreaterThanOrEqual(0);
+  });
+  test("every entry that is not a draft has a screenshot that exists", () => {
+    for (const e of list) {
+      if (e.audience === "draft") continue;
+      expect({ id: e.id, image: e.image }).not.toEqual({ id: e.id, image: undefined });
+      const img = e.image;
+      if (!img) continue;
+      expect(img.src.startsWith("/releases/")).toBe(true);
+      expect({ src: img.src, exists: existsSync(join(process.cwd(), "public", img.src)) }).toEqual({ src: img.src, exists: true });
+      expect(img.width).toBeGreaterThan(0);
+      expect(img.height).toBeGreaterThan(0);
+    }
   });
   test("the words follow the copy rules", () => {
-    for (const e of WHATS_NEW) {
-      for (const text of [e.title, e.text, e.more ?? "", e.link.label]) expect({ id: e.id, text, broken: copyViolations(text) }).toEqual({ id: e.id, text, broken: [] });
-      expect(/[.!]$/.test(e.title) || /[.!]$/.test(e.link.label)).toBe(false);
+    for (const e of list) {
+      for (const text of [e.title, e.text, e.more ?? "", e.image?.alt ?? ""]) expect({ id: e.id, text, broken: copyViolations(text) }).toEqual({ id: e.id, text, broken: [] });
+      if (e.image) expect(e.image.alt.trim().length).toBeGreaterThan(0);
+      expect(/[.!]$/.test(e.title)).toBe(false);
     }
   });
 });

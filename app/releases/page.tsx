@@ -1,19 +1,18 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Image from "next/image";
 import { cacheLife, cacheTag } from "next/cache";
 import { Sparkles } from "lucide-react";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Header } from "@/components/header";
-import { buttonVariants } from "@/components/ui/button";
 import { WhatsNewMark } from "@/components/whats-new-mark";
-import { WhatsNewPlaces } from "@/components/whats-new-places";
 import { formatShortDate } from "@/lib/format";
 import { isAdmin } from "@/lib/server/admin";
 import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { whatsNewPage } from "@/lib/server/whats-new";
+import { byVersion } from "@/lib/whats-new";
 
 export const metadata: Metadata = { title: "What's new" };
 
@@ -29,6 +28,8 @@ async function load() {
 
 async function Entries() {
   const { entries, markId } = await load();
+  const releases = byVersion(entries);
+  const firstImageId = entries.find((e) => e.image)?.id;
   return (
     <>
       {markId !== null && <WhatsNewMark />}
@@ -37,20 +38,37 @@ async function Entries() {
           New things in Uplink will show up here.
         </EmptyState>
       ) : (
-        <ul className="divide-y border-y">
-          {entries.map((e) => (
-            <li key={e.id} className="flex flex-col items-start gap-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-              <div className="min-w-0 space-y-0.5">
-                <p className="font-mono text-xs text-faint">{formatShortDate(`${e.date}T00:00:00+05:30`)}</p>
-                <h2 className="text-sm font-medium">{e.title}</h2>
-                <p className="text-sm text-muted-foreground">{e.more ? `${e.text} ${e.more}` : e.text}</p>
-              </div>
-              <Link href={e.link.href} className={buttonVariants({ variant: "outline", size: "sm" })}>
-                {e.link.label}
-              </Link>
-            </li>
+        <div className="space-y-16">
+          {releases.map((r) => (
+            <section key={r.version} aria-labelledby={`v${r.version}`} className="space-y-8">
+              <h2 id={`v${r.version}`} className="flex items-baseline gap-3 text-lg font-medium tracking-heading">
+                Version {r.version}
+                <span className="text-sm font-normal text-muted-foreground">{formatShortDate(`${r.entries[0].date}T00:00:00+05:30`)}</span>
+              </h2>
+              <ul className="space-y-12">
+                {r.entries.map((e) => (
+                  <li key={e.id} className="space-y-3">
+                    <div className="space-y-0.5">
+                      <h3 className="text-sm font-medium">{e.title}</h3>
+                      <p className="text-sm text-muted-foreground">{e.more ? `${e.text} ${e.more}` : e.text}</p>
+                    </div>
+                    {e.image && (
+                      <Image
+                        src={e.image.src}
+                        alt={e.image.alt}
+                        width={e.image.width}
+                        height={e.image.height}
+                        sizes="(min-width: 672px) 632px, 100vw"
+                        priority={e.id === firstImageId}
+                        className="h-auto w-full border"
+                      />
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
           ))}
-        </ul>
+        </div>
       )}
     </>
   );
@@ -65,10 +83,6 @@ export default function WhatsNewPage() {
       <Suspense>
         <Entries />
       </Suspense>
-      <section id="where-things-are" className="mt-10 scroll-mt-6 space-y-3">
-        <h2 className="text-lg font-medium tracking-heading">Where things are</h2>
-        <WhatsNewPlaces />
-      </section>
     </div>
   );
 }

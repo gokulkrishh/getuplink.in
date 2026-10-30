@@ -27,7 +27,7 @@ Every word a user sees (labels, descriptions, ⓘ notes, captions, empty states,
 
 ## Telling owners what's new
 
-When a change adds or visibly changes something owners use, add an entry to `lib/whats-new.ts` as a draft. Pick "card" or "bell" as `docs/whats-new.md` says, and write it with the `uplink-copy` skill. Fixes and behind-the-scenes work get no entry.
+When a change adds or visibly changes something owners use, add an entry to `lib/whats-new.ts` as a draft. Pick "card" or "bell" as `docs/whats-new.md` says, give it the Uplink `version`, and write it with the `uplink-copy` skill. It needs a screenshot in `public/releases/` before it leaves draft; entries have no buttons or links. Fixes and behind-the-scenes work get no entry.
 
 ## Docs
 

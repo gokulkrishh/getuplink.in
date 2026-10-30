@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 type View = "home" | "stats" | "updates" | "compare" | "menu";
 type Spot = "tiles" | "stats" | "car" | "updates" | "compare" | "avatar";
 
-type Step = { name: string; view: View; spot: Spot; lit: Spot[]; title: string; text: ReactNode };
+type Step = { name: string; view: View; spot: Spot; lit: Spot[]; title: string; lead: ReactNode; points: [string, string, string] };
 
 // A feature's name inside a sentence: stands out, but isn't a link.
 function Term({ children }: { children: ReactNode }) {
@@ -31,11 +31,12 @@ const STEPS: Step[] = [
     spot: "tiles",
     lit: ["tiles"],
     title: "Your car at a glance",
-    text: (
+    lead: (
       <>
-        <Term>Home</Term> shows your car now and your week so far: distance, charging spend and the battery level.
+        <Term>Home</Term> shows your car now and your last 7 days.
       </>
     ),
+    points: ["Distance driven", "Charging spend", "Battery level"],
   },
   {
     name: "Stats",
@@ -43,11 +44,12 @@ const STEPS: Step[] = [
     spot: "stats",
     lit: ["stats"],
     title: "Every drive and charge",
-    text: (
+    lead: (
       <>
-        <Term>Stats</Term> has your drives, what charging cost and how the battery is holding up. It&apos;s in the top bar.
+        <Term>Stats</Term> is in the top bar.
       </>
     ),
+    points: ["Every drive you take", "What each charge cost", "How your battery is holding up"],
   },
   {
     name: "Updates",
@@ -55,11 +57,12 @@ const STEPS: Step[] = [
     spot: "updates",
     lit: ["car", "updates"],
     title: "Know when your update comes",
-    text: (
+    lead: (
       <>
-        <Term>Updates</Term>, under <Term>Car</Term>, lists every version your car got with Tesla&apos;s notes, and how each one is reaching cars in India.
+        <Term>Updates</Term> is under <Term>Car</Term>.
       </>
     ),
+    points: ["Every version your car got", "Tesla's notes for each one", "How each update is reaching cars in India"],
   },
   {
     name: "Compare",
@@ -67,11 +70,12 @@ const STEPS: Step[] = [
     spot: "compare",
     lit: ["car", "compare"],
     title: "See how you compare",
-    text: (
+    lead: (
       <>
-        <Term>Compare</Term> puts your car next to other owners&apos;. Only combined figures are shown, never who you are or where you drive.
+        <Term>Compare</Term> is under <Term>Car</Term>.
       </>
     ),
+    points: ["Your car next to other owners'", "Only combined figures are shown", "Never who you are or where you drive"],
   },
   {
     name: "Settings",
@@ -79,11 +83,8 @@ const STEPS: Step[] = [
     spot: "avatar",
     lit: ["avatar"],
     title: "Settings and what's new",
-    text: (
-      <>
-        Your photo opens <Term>Settings</Term> and <Term>What&apos;s new</Term>. When Uplink adds something, it shows up there.
-      </>
-    ),
+    lead: "Your photo opens the menu.",
+    points: ["Settings, for theme and sharing", "What's new, when Uplink adds something", "Feedback, straight to the person who builds Uplink"],
   },
 ];
 
@@ -348,9 +349,17 @@ function Popup() {
           <span className="bg-chart-accent/15 px-2 py-0.5 text-xs font-medium text-chart-accent">Welcome</span>
           {step.name}
         </div>
-        <div className="min-h-[11rem] flex-1 pt-4 sm:flex sm:min-h-0 sm:flex-col sm:justify-center sm:pt-0">
+        <div className="min-h-[14rem] flex-1 pt-4 sm:flex sm:min-h-0 sm:flex-col sm:justify-center sm:pt-0">
           <Dialog.Title className="max-w-[16ch] text-xl leading-tight font-semibold tracking-heading text-balance sm:max-w-[20ch] sm:text-[1.75rem]">{step.title}</Dialog.Title>
-          <Dialog.Description className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-[15px]">{step.text}</Dialog.Description>
+          <Dialog.Description className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-[15px]">{step.lead}</Dialog.Description>
+          <ul className="mt-5 space-y-2.5">
+            {step.points.map((point) => (
+              <li key={point} className="flex items-start gap-3 text-[15px] leading-snug text-foreground">
+                <span aria-hidden="true" className="mt-[0.5em] size-1.5 shrink-0 bg-foreground/60" />
+                {point}
+              </li>
+            ))}
+          </ul>
         </div>
         <div className="flex items-center justify-between gap-2 pt-4">
           <Dots step={n} onPick={go} />
