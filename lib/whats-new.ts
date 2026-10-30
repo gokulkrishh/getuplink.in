@@ -50,9 +50,7 @@ export const WHATS_NEW: Entry[] = [
     image: { src: "/whats-new/guest-access.webp", alt: "Settings, Guest access: who it's for, how long it lasts, and Create guest link.", width: 1360, height: 574 },
     kind: "New feature",
     icon: "Link2",
-    // The admin only while Guest access is the admin's alone (Settings and its action check isAdmin).
-    // "owners" announces it to everyone once it opens up.
-    audience: "admin",
+    audience: "owners",
     show: "dialog",
   },
 ];
