@@ -78,7 +78,7 @@ export function Segmented<T extends string | number>({
                 picked ? "font-medium text-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >
-              {picked && <Indicator name={indicator} className="inset-0 bg-secondary" />}
+              {picked && <Indicator name={indicator} className="inset-0 rounded-md bg-secondary" />}
               {option.icon}
               <Label label={option.label} phoneHidden={!phoneLabels} />
             </button>

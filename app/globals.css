@@ -239,6 +239,10 @@
     -webkit-appearance: none;
     margin: 0;
   }
+  /* Every focus ring is rounded. Base layer: an element with its own rounded-* class keeps it. */
+  :focus-visible {
+    border-radius: var(--radius-sm);
+  }
   /* Links, summaries and tabbable spans have no ring of their own; buttons draw theirs. */
   a:focus-visible,
   summary:focus-visible,

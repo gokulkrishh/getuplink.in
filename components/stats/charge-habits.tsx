@@ -60,7 +60,7 @@ export function ChargeHabits({ starts }: { starts: number[] }) {
                 onFocus={(e) => setActive({ key: [d, s], el: e.currentTarget })}
                 onClick={(e) => setActive({ key: [d, s], el: e.currentTarget })}
                 className={cn(
-                  "h-6 outline-offset-1 focus-visible:outline-2 focus-visible:outline-ring max-sm:h-7",
+                  "h-6 rounded-sm outline-offset-1 focus-visible:outline-2 focus-visible:outline-ring max-sm:h-7",
                   n === 0 ? "bg-background" : "bg-chart-accent",
                   isActive(d, s) && "ring-2 ring-foreground",
                 )}
