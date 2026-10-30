@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 
 // Home's tyre rotation notice, which the owner can dismiss once it's done. Dismissing hides this rotation
@@ -26,14 +27,9 @@ export function RotationNotice({ atKm, text }: { atKm: number; text: string }) {
   return (
     <div role="status" className="flex items-start justify-between gap-3 rounded-lg border px-4 py-3 text-sm">
       <p>{text}</p>
-      <button
-        type="button"
-        onClick={dismiss}
-        aria-label="Dismiss"
-        className="tap-target -my-0.5 -mr-1 inline-flex size-6 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
-      >
+      <Button type="button" variant="ghost" size="icon-sm" onClick={dismiss} aria-label="Dismiss" title="Dismiss" className="-my-1.5 -mr-1.5 shrink-0 text-muted-foreground">
         <X className="size-4" aria-hidden="true" />
-      </button>
+      </Button>
     </div>
   );
 }

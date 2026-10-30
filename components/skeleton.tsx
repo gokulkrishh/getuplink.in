@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 // block is as tall as what replaces it and nothing moves when the page arrives. Text is placeholder words
 // in a transparent colour on a muted fill: the line takes its real height and shows as a bar. Use words as
 // long as a typical real line, since a bar shows the line's length.
-const PH = "bg-muted text-transparent motion-safe:animate-pulse";
+const PH = "rounded-md bg-muted text-transparent motion-safe:animate-pulse";
 
 // Placeholder text, inline: for use inside a real text class (text-sm, text-lg font-medium, ...).
 export function Ph({ children, className }: { children: ReactNode; className?: string }) {
@@ -62,7 +62,7 @@ export function SkFigures({ tiles, className }: { tiles: { label: string; value:
   return (
     <div
       aria-hidden="true"
-      className="motion-safe:animate-pulse [&_*]:!text-transparent [&_dd]:self-start [&_dd]:rounded-sm [&_dd]:bg-muted [&_dt]:self-start [&_dt]:rounded-sm [&_dt]:bg-muted"
+      className="motion-safe:animate-pulse [&_*]:!text-transparent [&_dd]:self-start [&_dd]:rounded-md [&_dd]:bg-muted [&_dt]:self-start [&_dt]:rounded-md [&_dt]:bg-muted"
     >
       <Figures className={className} figures={tiles.map(({ bar, words, ...t }) => ({ ...t, value: words ? <Words>{t.value}</Words> : t.value, extra: bar ? <div className="h-1 bg-muted" /> : undefined }))} />
     </div>

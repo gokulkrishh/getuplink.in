@@ -125,7 +125,7 @@ async function Rollout() {
 }
 
 function RolloutSkeleton() {
-  const block = "bg-muted motion-safe:animate-pulse";
+  const block = "rounded-md bg-muted motion-safe:animate-pulse";
   return (
     <div role="status" aria-busy="true" className="space-y-12">
       <span className="sr-only">Loading…</span>

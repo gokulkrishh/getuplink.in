@@ -42,7 +42,7 @@ const faint = <span className="text-faint">—</span>;
 // its page, which lists the legs; the link covers the row, which highlights on hover or focus.
 function TripTableRow({ row }: { row: TripRow }) {
   return (
-    <tr className="group/row relative cursor-pointer transition-colors duration-150 hover:bg-muted focus-within:bg-muted">
+    <tr className="group/row relative cursor-pointer transition-colors duration-150 hover:bg-muted focus-within:bg-muted [&>td:first-child]:rounded-l-lg [&>td:last-child]:rounded-r-lg">
       <td className="py-3 pr-3 font-mono text-xs text-faint">{row.serial}</td>
       <td className="py-3 pr-3 whitespace-nowrap">
         <span className="block">{row.day}</span>
@@ -78,7 +78,7 @@ function TripTableRow({ row }: { row: TripRow }) {
 function TripListRow({ row }: { row: TripRow }) {
   const second = [row.day, row.route ? row.times : null, row.duration, row.stops, row.kwh, row.used && `${row.used} of battery`].filter(Boolean);
   return (
-    <li className="group/row relative flex items-center gap-3 py-3 text-sm tabular-nums transition-colors duration-150 hover:bg-muted focus-within:bg-muted active:bg-muted">
+    <li className="group/row relative flex items-center gap-3 rounded-lg py-3 text-sm tabular-nums transition-colors duration-150 hover:bg-muted focus-within:bg-muted active:bg-muted">
       <div className="min-w-0 flex-1">
         <p className="flex items-baseline justify-between gap-3">
           <span className="min-w-0 font-medium">

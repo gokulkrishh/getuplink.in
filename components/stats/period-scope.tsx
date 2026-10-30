@@ -161,7 +161,7 @@ function RangePicker({ range, today, pending, onPick }: { range: DateRange; toda
     if (rangeProblem(next, today) === null) onPick(next);
   };
   const field = (which: keyof DateRange, label: string, min: string, max: string) => (
-    <label className={cn("inline-flex h-7 items-center rounded-lg border text-[0.8rem] max-sm:h-9 focus-within:outline-2 focus-within:-outline-offset-2", problem && "border-destructive", pending && "bg-muted motion-safe:animate-pulse")}>
+    <label className={cn("inline-flex h-[calc(1.75rem+2px)] items-center rounded-lg border text-[0.8rem] max-sm:h-[calc(2.25rem+2px)] focus-within:outline-2 focus-within:-outline-offset-2", problem && "border-destructive", pending && "bg-muted motion-safe:animate-pulse")}>
       <span className="pl-2.5 text-muted-foreground max-sm:pl-3">{label}</span>
       <input
         type="date"

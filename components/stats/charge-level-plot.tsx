@@ -67,7 +67,7 @@ export default function ChargeLevelPlot({ points, charging, from, to }: { points
         aria-label={`Battery level from ${formatShortDate(from)} to ${formatShortDate(to)}: between ${formatLevels(low, high)}, ${charging.length} ${charging.length === 1 ? "charge" : "charges"}.`}
       >
         {width === 0 ? (
-          <div className="h-full w-full bg-background/60 motion-safe:animate-pulse" aria-busy="true" aria-label="Loading chart" />
+          <div className="h-full w-full rounded-md bg-background/60 motion-safe:animate-pulse" aria-busy="true" aria-label="Loading chart" />
         ) : (
           <ChartContainer config={config} className="aspect-auto h-40 w-full" initialDimension={{ width, height: 160 }}>
             <LineChart data={points} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
