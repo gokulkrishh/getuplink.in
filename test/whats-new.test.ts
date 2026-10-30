@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { DEMO_ENTRIES } from "@/lib/server/demo/whats-new";
 import { copyViolations } from "@/lib/copy-rules";
-import { ENTRY_ICONS, type Entry, KINDS, newEntryIds, newestVisibleId, pickHomeCard, seenUpTo, unseenEntries, visibleEntries, WHATS_NEW, whatsNewAlerts } from "@/lib/whats-new";
+import { type Entry, KINDS, newEntryIds, newestVisibleId, pickHomeCard, seenUpTo, unseenEntries, visibleEntries, WHATS_NEW, whatsNewAlerts } from "@/lib/whats-new";
 
 const entry = (id: string, audience: Entry["audience"] = "owners", show: Entry["show"] = "dialog"): Entry => ({
   id,
@@ -12,7 +12,6 @@ const entry = (id: string, audience: Entry["audience"] = "owners", show: Entry["
   text: "Text",
   version: "0.1",
   kind: "New feature",
-  icon: "Sparkles",
   audience,
   show,
 });
@@ -167,7 +166,6 @@ describe.each([
       expect(new Date(`${e.date}T00:00:00Z`).toISOString().slice(0, 10)).toBe(e.date);
       expect(["dialog", "bell"]).toContain(e.show);
       expect(KINDS).toContain(e.kind);
-      expect(ENTRY_ICONS).toContain(e.icon);
       expect(["draft", "admin", "owners"]).toContain(e.audience);
       expect(e.version).toMatch(/^\d+\.\d+(\.\d+)?$/);
       expect("link" in e).toBe(false);

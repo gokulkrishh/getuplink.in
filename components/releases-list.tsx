@@ -1,50 +1,20 @@
 "use client";
 
-import {
-  BatteryCharging,
-  BellRing,
-  Car,
-  ChartColumn,
-  Gauge,
-  Link2,
-  type LucideIcon,
-  MapPin,
-  Settings2,
-  Sparkles,
-  Users,
-  Wrench,
-  Zap,
-} from "lucide-react";
 import Image from "next/image";
 import { useRef, useState } from "react";
 import { NativeSelect } from "@/components/ui/native-select";
 import { formatShortDate } from "@/lib/format";
-import type { Entry, EntryIcon } from "@/lib/whats-new";
+import type { Entry } from "@/lib/whats-new";
 import { cn } from "@/lib/utils";
 
 // The Release notes page, laid out like the release notes in a Tesla: pick a version, then a feature from the
 // list. On a desktop the feature opens in a pane beside the list; on a phone it opens under its row, one at
 // a time. A blue dot marks what was new to the owner when they opened the page (`newIds`, kept for the visit).
-const ICONS: Record<EntryIcon, LucideIcon> = {
-  Sparkles,
-  Zap,
-  BatteryCharging,
-  Gauge,
-  Car,
-  Users,
-  Link2,
-  BellRing,
-  Settings2,
-  ChartColumn,
-  MapPin,
-  Wrench,
-};
-
 type Release = { version: string; entries: Entry[] };
 
 // The words and the screenshot. `ratio` holds the picture's box at the tallest one in the version, so the
 // pane (and, on a phone, the open row) keeps its size from one feature to the next; the picture sits inside
-// it on the soft background.
+// it, centred with a little room, on the soft background, so a shorter one reads as framed, not cut off.
 // `title` false on a phone, where the words open right under the row that already names the feature.
 function Detail({ entry, ratio, title = true }: { entry: Entry; ratio?: number; title?: boolean }) {
   const img = entry.image;
@@ -59,13 +29,15 @@ function Detail({ entry, ratio, title = true }: { entry: Entry; ratio?: number; 
               : `${img.width} / ${img.height}`,
           }}
         >
-          <Image
-            src={img.src}
-            alt={img.alt}
-            fill
-            sizes="(min-width: 672px) 408px, 100vw"
-            className="object-contain object-top"
-          />
+          <div className="absolute inset-3">
+            <Image
+              src={img.src}
+              alt={img.alt}
+              fill
+              sizes="(min-width: 672px) 408px, 100vw"
+              className="object-contain"
+            />
+          </div>
         </div>
       )}
       <div className="space-y-1">
@@ -159,7 +131,6 @@ export function ReleasesList({
           }}
         >
           {release.entries.map((e) => {
-            const Icon = ICONS[e.icon];
             const on = e.id === selected.id;
             return (
               <li key={e.id}>
@@ -176,10 +147,6 @@ export function ReleasesList({
                     on ? "bg-muted" : "hover:bg-muted/50",
                   )}
                 >
-                  <Icon
-                    className="size-4 shrink-0 text-muted-foreground"
-                    aria-hidden="true"
-                  />
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm text-foreground">
                       {e.title}
