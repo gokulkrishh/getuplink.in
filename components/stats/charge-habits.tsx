@@ -46,7 +46,7 @@ export function ChargeHabits({ starts }: { starts: number[] }) {
       }
       empty={max === 0 ? "No charges." : undefined}
     >
-      <div ref={grid} className="chart-touch relative space-y-1.5 bg-muted p-3 dark:bg-card" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
+      <div ref={grid} className="chart-touch relative space-y-1.5 rounded-lg bg-muted p-3 dark:bg-card" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
         {counts.map((row, d) => (
           <div key={WEEKDAYS[d]} className="grid grid-cols-[2.5rem_repeat(8,minmax(0,1fr))] items-center gap-1.5">
             <span className="text-xs text-faint">{WEEKDAYS[d]}</span>

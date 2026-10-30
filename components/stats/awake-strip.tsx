@@ -58,7 +58,7 @@ export function AwakeStrip({ start, runs, classes }: { start: number; runs: Run[
         <span
           ref={tip}
           aria-hidden="true"
-          className="pointer-events-none absolute bottom-full z-10 mb-1.5 w-max max-w-full border bg-background px-2 py-1 font-mono text-xs tabular-nums"
+          className="pointer-events-none absolute bottom-full z-10 mb-1.5 w-max max-w-full rounded-md border bg-background px-2 py-1 font-mono text-xs tabular-nums"
           style={{ left }}
         >
           <Measure text={runLabel(run)} />

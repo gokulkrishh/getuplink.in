@@ -66,7 +66,7 @@ export function RolloutAdoption({ adoption }: { adoption: Record<AdoptionGrain, 
             <DropdownMenu>
               <DropdownMenuTrigger
                 aria-labelledby="adoption-version"
-                className="flex h-8 cursor-pointer items-center gap-2 border bg-background px-3 font-mono text-sm tabular-nums hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none data-popup-open:bg-muted"
+                className="flex h-8 cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 font-mono text-sm tabular-nums hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none data-popup-open:bg-muted"
               >
                 {version}
                 <ChevronDown className="size-3.5 text-muted-foreground" aria-hidden />

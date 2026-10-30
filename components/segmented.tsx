@@ -61,7 +61,7 @@ export function Segmented<T extends string | number>({
   // has empty space after the last one.
   return (
     <ViewTransition update="tab-labels" default="none">
-      <div role={role === "radio" ? "radiogroup" : "group"} aria-label={label} className="inline-flex w-fit max-w-full overflow-x-auto border [scrollbar-width:none]">
+      <div role={role === "radio" ? "radiogroup" : "group"} aria-label={label} className="inline-flex w-fit max-w-full overflow-x-auto rounded-lg border [scrollbar-width:none]">
         {options.map((option) => {
           const picked = option.value === value;
           return (

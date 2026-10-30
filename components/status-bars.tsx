@@ -31,7 +31,7 @@ export function StatusBars({ bars, label }: { bars: StatusBar[]; label: string }
       {bar && (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute bottom-full z-10 mb-2 w-max max-w-[min(20rem,calc(100vw-2rem))] border bg-background px-3 py-2 text-xs shadow-sm"
+          className="pointer-events-none absolute bottom-full z-10 mb-2 w-max max-w-[min(20rem,calc(100vw-2rem))] rounded-md border bg-background px-3 py-2 text-xs shadow-sm"
           style={at < 1 / 3 ? { left: 0 } : at > 2 / 3 ? { right: 0 } : { left: `${at * 100}%`, transform: "translateX(-50%)" }}
         >
           <p className="font-medium">{bar.label}</p>

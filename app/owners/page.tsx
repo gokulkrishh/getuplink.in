@@ -349,14 +349,14 @@ const PROMISES: { icon: typeof Users; text: string }[] = [
 // What sharing means, and the way in. Owners who don't share see no figures.
 function NotSharing({ sharers }: { sharers: number }) {
   return (
-    <section className="space-y-8 border p-5 sm:p-8">
+    <section className="space-y-8 rounded-lg border p-5 sm:p-8">
       <div className="space-y-2">
         <h2 className={heading}>See how your Tesla compares</h2>
         <p className="text-sm text-muted-foreground">Share your car&apos;s figures and this page answers questions like these, with your car marked.</p>
       </div>
       <ul className="grid gap-2 sm:grid-cols-2">
         {ANSWERS.map((q) => (
-          <li key={q} className="bg-muted px-3 py-2.5 text-sm dark:bg-card">
+          <li key={q} className="rounded-md bg-muted px-3 py-2.5 text-sm dark:bg-card">
             {q}
           </li>
         ))}
@@ -396,7 +396,7 @@ function Waiting({ counted, guest = false }: { counted: number; guest?: boolean 
   const short = counted < MIN_CARS;
   return (
     <div className="space-y-10">
-      <section className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border px-4 py-3">
+      <section className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 rounded-lg border px-4 py-3">
         {guest ? <GuestSharingLine text="The owner shares this car's figures. It will be part of the totals." /> : <SharingOn text="You're sharing. Your car will be part of the totals." />}
       </section>
       <section className="space-y-4">
@@ -411,7 +411,7 @@ function Waiting({ counted, guest = false }: { counted: number; guest?: boolean 
         {short && (
           <div className="flex gap-1.5" role="img" aria-label={`${counted} of ${MIN_CARS} owners counted`}>
             {Array.from({ length: MIN_CARS }, (_, k) => (
-              <span key={k} className={cn("h-1.5 flex-1", k < counted ? "bg-chart-you" : "bg-muted dark:bg-card")} />
+              <span key={k} className={cn("h-1.5 flex-1 rounded-full", k < counted ? "bg-chart-you" : "bg-muted dark:bg-card")} />
             ))}
           </div>
         )}
@@ -420,7 +420,7 @@ function Waiting({ counted, guest = false }: { counted: number; guest?: boolean 
         <h2 className={heading}>What you&apos;ll see</h2>
         <ul className="grid gap-2 sm:grid-cols-2">
           {ANSWERS.map((q) => (
-            <li key={q} className="bg-muted px-3 py-2.5 text-sm dark:bg-card">
+            <li key={q} className="rounded-md bg-muted px-3 py-2.5 text-sm dark:bg-card">
               {q}
             </li>
           ))}
@@ -445,7 +445,7 @@ async function Owners() {
   return (
     <div className="space-y-10">
       {/* That the owner shares, in a box of its own so it isn't missed, with the way to stop in Settings. */}
-      <section className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border px-4 py-3">
+      <section className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 rounded-lg border px-4 py-3">
         {guest ? <GuestSharingLine text="The owner shares this car's figures. It's part of these totals." /> : <SharingOn text="You're sharing. Your car is part of these totals." />}
       </section>
       <div className="space-y-6">
@@ -462,7 +462,7 @@ async function Owners() {
             <h2 className={heading}>Picked for you</h2>
             <ul className="space-y-3">
               {picks.map((h) => (
-                <li key={h.key} className="space-y-4 border p-4">
+                <li key={h.key} className="space-y-4 rounded-lg border p-4">
                   <p className="text-sm">{h.line}</p>
                   <HighlightVisual h={h} />
                 </li>
@@ -528,7 +528,7 @@ function HighlightVisual({ h }: { h: Highlight }) {
 function OwnersSkeleton() {
   return (
     <Loading className="space-y-10">
-      <div className="flex h-[102px] flex-wrap items-center justify-between gap-x-4 gap-y-3 border px-4 py-3 sm:h-[58px]">
+      <div className="flex h-[102px] flex-wrap items-center justify-between gap-x-4 gap-y-3 rounded-lg border px-4 py-3 sm:h-[58px]">
         <p className="text-sm">
           <Ph>You&apos;re sharing. Your car is part of these totals. Stop any time in Settings.</Ph>
         </p>
@@ -546,7 +546,7 @@ function OwnersSkeleton() {
             <Ph>Picked for you</Ph>
           </p>
           {Array.from({ length: 4 }, (_, k) => (
-            <div key={k} className="h-[159px] space-y-4 border p-4 sm:h-[109px]">
+            <div key={k} className="h-[159px] space-y-4 rounded-lg border p-4 sm:h-[109px]">
               <p className="text-sm">
                 <Ph>You charge to 80%. Most owners with the same battery charge to 100%.</Ph>
               </p>

@@ -37,7 +37,7 @@ export default function ChargeCurvePlot({ points }: { points: CurvePoint[] }) {
   const levelText = levels.length ? `, battery ${formatLevels(levels[0], levels[levels.length - 1])}` : "";
 
   return (
-    <div className="relative bg-muted dark:bg-card px-3 pt-6 pb-2">
+    <div className="relative rounded-lg bg-muted dark:bg-card px-3 pt-6 pb-2">
       <span className="absolute top-1.5 left-3 font-mono text-xs text-faint" aria-hidden="true">
         kW
       </span>
@@ -82,7 +82,7 @@ export default function ChargeCurvePlot({ points }: { points: CurvePoint[] }) {
                   const point = active ? (payload?.[0]?.payload as CurvePoint | undefined) : undefined;
                   if (!point) return null;
                   return (
-                    <div className="border bg-background px-2 py-1 text-xs">
+                    <div className="rounded-md border bg-background px-2 py-1 text-xs">
                       {point.kw !== null && (
                         <span className="font-mono tabular-nums">
                           <Measure text={formatKw(point.kw)} />

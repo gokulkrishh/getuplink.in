@@ -97,7 +97,7 @@ export function BatteryGauge({
       {pending ? (
         // The skeleton's own line (app/page.tsx), so nothing moves while it loads.
         <p className={cn("text-sm", end && "sm:text-right")} aria-hidden="true">
-          <span className="bg-muted text-transparent motion-safe:animate-pulse">Parked since 3:30 PM</span>
+          <span className="rounded-sm bg-muted text-transparent motion-safe:animate-pulse">Parked since 3:30 PM</span>
         </p>
       ) : !state && !watching ? (
         holdRow && <p className="h-5" aria-hidden="true" />

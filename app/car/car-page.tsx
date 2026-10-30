@@ -124,7 +124,7 @@ function CarHeader({ car, odometer, version, syncedAt, at }: { car: CarDetails; 
   const subtitle = [model, car.generation, car.paint].filter(Boolean).join(" · ");
   const stale = isStaleSync(syncedAt, at);
   return (
-    <header className="space-y-5 border p-4 sm:p-6">
+    <header className="space-y-5 rounded-lg border p-4 sm:p-6">
       <div className="min-w-0 space-y-1">
         <h2 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem] text-balance break-words">{car.name}</h2>
         {subtitle && <p className="text-sm text-muted-foreground text-pretty">{subtitle}</p>}
@@ -471,7 +471,7 @@ function CarSkeleton() {
   return (
     <Loading className="flex flex-col gap-12">
       <div className="space-y-4" aria-hidden="true">
-        <div className="space-y-5 border p-4 sm:p-6">
+        <div className="space-y-5 rounded-lg border p-4 sm:p-6">
           <div className="min-w-0 space-y-1">
             <p className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">
               <Ph>Demo car</Ph>

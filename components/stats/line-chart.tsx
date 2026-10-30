@@ -135,7 +135,7 @@ export function LineChart({
 
   return (
     <div className="space-y-2">
-      <div className="chart-touch relative bg-muted pt-8 pr-4 pb-2 pl-2 dark:bg-card">
+      <div className="chart-touch relative rounded-lg bg-muted pt-8 pr-4 pb-2 pl-2 dark:bg-card">
         {unit && (
           <span className="absolute top-1.5 left-2 font-mono text-xs text-faint" aria-hidden="true">
             {unit}
@@ -194,7 +194,7 @@ export function LineChart({
                   </svg>
                 ))}
                 <div
-                  className="pointer-events-none absolute top-0 z-10 border bg-background px-2 py-1 text-xs whitespace-nowrap tabular-nums shadow-sm"
+                  className="pointer-events-none absolute top-0 z-10 rounded-md border bg-background px-2 py-1 text-xs whitespace-nowrap tabular-nums shadow-sm"
                   style={{ left: `${xPct(cursor)}%`, transform: `translateX(${xPct(cursor) > 50 ? "calc(-100% - 8px)" : "8px"})` }}
                   aria-hidden="true"
                 >

@@ -64,7 +64,7 @@ export function DrivingSkeleton() {
       <SkSection gap={6}>
         <SkHead title="Places" description="Where you went and parked." gap={2} />
         <div className="space-y-3" aria-hidden="true">
-          <div className="h-96 bg-muted motion-safe:animate-pulse" />
+          <div className="h-96 rounded-lg bg-muted motion-safe:animate-pulse" />
           <p className="text-xs">
             <Ph>A place it parked. Bigger pins had more visits.</Ph>
           </p>
@@ -166,7 +166,7 @@ export function ChargingSkeleton() {
       <SkSection>
         <SkHead title="When you charge" description="When charges started, India time." />
         <SkLine>Most often Tue, 3 PM to 6 PM, 1 charge.</SkLine>
-        <div className="space-y-1.5 bg-muted p-3 dark:bg-card" aria-hidden="true">
+        <div className="space-y-1.5 rounded-lg bg-muted p-3 dark:bg-card" aria-hidden="true">
           {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
             <div key={day} className="grid grid-cols-[2.5rem_repeat(8,minmax(0,1fr))] items-center gap-1.5">
               <span className="text-xs">
@@ -229,7 +229,7 @@ export function ChargingSkeleton() {
 function SkMap({ legend }: { legend: string }) {
   return (
     <div className="space-y-3" aria-hidden="true">
-      <div className="h-48 bg-muted motion-safe:animate-pulse max-sm:h-36" />
+      <div className="h-48 rounded-lg bg-muted motion-safe:animate-pulse max-sm:h-36" />
       <p className="text-xs">
         <Ph>{legend}</Ph>
       </p>
@@ -563,7 +563,7 @@ export function DriveSkeleton() {
             <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
               {["Start 8:18 AM", "End 8:52 AM", "Route, fainter at the start"].map((text) => (
                 <li key={text} className="flex items-center gap-1.5">
-                  <span className="size-4 bg-muted" />
+                  <span className="size-4 rounded-sm bg-muted" />
                   <Ph>{text}</Ph>
                 </li>
               ))}

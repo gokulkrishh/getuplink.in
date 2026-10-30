@@ -189,7 +189,7 @@ export function NamePlace({ target, compact = false, className }: { target: Name
       onMouseDown={(e) => e.preventDefault()}
       onMouseMove={() => i !== active && setActive(i)}
       onClick={() => choose(o)}
-      className={cn("flex cursor-pointer items-center gap-3 px-2 py-2", i === active && "bg-muted")}
+      className={cn("flex cursor-pointer items-center gap-3 rounded-md px-2 py-2", i === active && "bg-muted")}
     >
       <span className="min-w-0 flex-1">
         <span className="block truncate">{o.kind === "typed" ? `Use “${o.name}”` : o.name}</span>

@@ -9,7 +9,7 @@ export function GuestSharingLine({ text }: { text: string }) {
 // What a guest sees when the owner doesn't share: no comparisons, and nothing to do about it.
 export function GuestNotSharing() {
   return (
-    <section className="space-y-2 border p-5 sm:p-8">
+    <section className="space-y-2 rounded-lg border p-5 sm:p-8">
       <h2 className="text-lg font-medium tracking-heading">No comparisons to show</h2>
       <p className="text-sm text-muted-foreground">The owner doesn&apos;t share this car&apos;s figures with other owners.</p>
     </section>

@@ -38,7 +38,7 @@ export function OptionBar({ share, lines, strong = false, tick = null }: { share
         <span aria-hidden="true" className="absolute -inset-y-1 w-0.5 bg-chart-you" style={{ left: `calc(${Math.min(1, tick) * 100}% - 1px)` }} />
       )}
       {open && (
-        <span aria-hidden="true" className="pointer-events-none absolute bottom-full left-0 z-10 mb-2 border bg-background px-2 py-1 text-left text-xs whitespace-nowrap tabular-nums shadow-sm">
+        <span aria-hidden="true" className="pointer-events-none absolute bottom-full left-0 z-10 mb-2 rounded-md border bg-background px-2 py-1 text-left text-xs whitespace-nowrap tabular-nums shadow-sm">
           {lines.map((line, k) => (
             <span key={line} className={cn("block", k === 0 ? "font-mono" : "text-muted-foreground")}>
               {line}

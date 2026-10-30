@@ -130,7 +130,7 @@ function SetupNote({ icon, action, children }: { icon: React.ReactNode; action: 
   return (
     <div
       role="status"
-      className="-mt-12 mb-12 grid grid-cols-[auto_1fr] items-start gap-x-3 gap-y-3 border border-destructive/40 bg-destructive/5 p-3 text-sm text-foreground sm:grid-cols-[auto_1fr_auto] sm:items-center dark:bg-destructive/10"
+      className="-mt-12 mb-12 grid grid-cols-[auto_1fr] items-start gap-x-3 gap-y-3 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-foreground sm:grid-cols-[auto_1fr_auto] sm:items-center dark:bg-destructive/10"
     >
       <span className="flex h-5 items-center">{icon}</span>
       <p>{children}</p>

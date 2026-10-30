@@ -143,7 +143,7 @@ function RolloutSkeleton() {
       ].map(([title, height]) => (
         <SkSection key={title}>
           <SkHead title={title} />
-          <SkBlock className={`${height} border bg-muted/40`} />
+          <SkBlock className={`${height} rounded-lg border bg-muted/40`} />
         </SkSection>
       ))}
     </div>

@@ -20,7 +20,7 @@ const MONTHS = [
 export function CarGlanceMock() {
   const max = Math.max(...MONTHS.map((m) => m.km));
   return (
-    <div aria-hidden="true" className="border bg-background p-6 text-sm select-none">
+    <div aria-hidden="true" className="rounded-lg border bg-background p-6 text-sm select-none">
       <div className="flex items-baseline justify-between gap-4">
         <span className="min-w-0 truncate">
           <span className="font-medium">Ghost</span>
@@ -64,7 +64,7 @@ export function CarGlanceMock() {
         <span className="tracking-wide uppercase">Distance</span>
         <span className="font-mono tabular-nums">8,304 km</span>
       </div>
-      <ol className="mt-3 grid h-20 grid-cols-6 items-end gap-3 bg-muted px-4 pt-3 pb-2">
+      <ol className="mt-3 grid h-20 grid-cols-6 items-end gap-3 rounded-md bg-muted px-4 pt-3 pb-2">
         {MONTHS.map((m, i) => (
           <li key={m.label} className="flex h-full flex-col justify-end gap-1.5">
             <div

@@ -27,7 +27,7 @@ function Choices<T extends string>({ legend, options, value, onChange }: { legen
           <label
             key={o.value}
             className={cn(
-              "cursor-pointer border px-3 py-1.5 text-sm transition-colors hover:bg-muted has-focus-visible:outline-2 has-focus-visible:outline-ring",
+              "cursor-pointer rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-muted has-focus-visible:outline-2 has-focus-visible:outline-ring",
               value === o.value && "border-foreground bg-foreground text-background hover:bg-foreground",
             )}
           >
@@ -122,7 +122,7 @@ export function FeedbackButton() {
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40" />
-        <Dialog.Popup className="fixed inset-x-0 bottom-0 z-50 max-h-[90dvh] overflow-y-auto border bg-background p-5 text-sm text-foreground outline-none sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-96">
+        <Dialog.Popup className="fixed inset-x-0 bottom-0 z-50 max-h-[90dvh] overflow-y-auto rounded-t-xl border bg-background p-5 text-sm text-foreground outline-none sm:inset-x-auto sm:right-4 sm:bottom-4 sm:rounded-xl sm:w-96">
           <div className="mb-5 flex items-center justify-between gap-4">
             <Dialog.Title className="text-lg font-medium tracking-heading">{sent ? "Feedback sent" : "Send feedback"}</Dialog.Title>
             <Dialog.Close aria-label="Close" className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
@@ -141,10 +141,10 @@ export function FeedbackButton() {
                   <p className="text-muted-foreground">It goes straight to the person who builds Uplink, who reads every one.</p>
                 </div>
               </div>
-              <figure className="space-y-2 border bg-muted/40 p-3">
+              <figure className="space-y-2 rounded-lg border bg-muted/40 p-3">
                 <figcaption className="flex flex-wrap gap-1.5 text-xs">
-                  <span className="border px-2 py-0.5">{topic && topicLabel(topic)}</span>
-                  {problem && bother && <span className="border px-2 py-0.5">{botherLabel(bother)}</span>}
+                  <span className="rounded-md border px-2 py-0.5">{topic && topicLabel(topic)}</span>
+                  {problem && bother && <span className="rounded-md border px-2 py-0.5">{botherLabel(bother)}</span>}
                 </figcaption>
                 <blockquote className="line-clamp-4 whitespace-pre-wrap">{message.trim()}</blockquote>
                 <p className="text-xs text-faint">From {path}</p>
@@ -174,7 +174,7 @@ export function FeedbackButton() {
                   maxLength={MESSAGE_MAX}
                   rows={4}
                   placeholder={prompt.hint}
-                  className="block w-full resize-y border bg-background px-3 py-2 text-sm text-foreground placeholder:text-faint focus-visible:outline-2 focus-visible:outline-ring"
+                  className="block w-full resize-y rounded-lg border bg-background px-3 py-2 text-sm text-foreground placeholder:text-faint focus-visible:outline-2 focus-visible:outline-ring"
                 />
               </label>
               <p className="text-xs text-muted-foreground">Sent with the page you&apos;re on ({path}), your screen size and browser, so it&apos;s easy to find.</p>

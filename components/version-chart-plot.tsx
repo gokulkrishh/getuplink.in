@@ -39,7 +39,7 @@ export default function VersionChartPlot({
 
   return (
     // A soft panel behind the chart; the inner box is measured so the chart draws at its real width.
-    <div className="bg-muted dark:bg-card px-3 pt-4 pb-2">
+    <div className="rounded-lg bg-muted dark:bg-card px-3 pt-4 pb-2">
     <div ref={box} className="h-20 w-full">
       {width === 0 ? (
         <div className="h-full w-full bg-background/60 motion-safe:animate-pulse" aria-busy="true" aria-label="Loading chart" />
@@ -73,7 +73,7 @@ export default function VersionChartPlot({
             const point = active ? (payload?.[0]?.payload as Point | undefined) : undefined;
             if (!point) return null;
             return (
-              <div className="border bg-background px-2 py-1 text-xs whitespace-nowrap tabular-nums shadow-sm">
+              <div className="rounded-md border bg-background px-2 py-1 text-xs whitespace-nowrap tabular-nums shadow-sm">
                 <span className="block font-mono">{point.version}</span>
                 <span className="block text-muted-foreground">
                   {point.latest ? "Latest check" : "From"} {formatDate(point.at)}

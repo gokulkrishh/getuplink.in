@@ -30,7 +30,7 @@ export function AwakeTimeline({ days: all, now }: { days: DayStrip[]; now: numbe
   return (
     <ChartCard title="Awake and asleep" description="When the car was awake each day. Updates download only then." summary={<p className="text-sm tabular-nums">{sentence}</p>}>
       <div className="space-y-3">
-        <div className="space-y-3 bg-muted dark:bg-card px-3 pt-4 pb-3">
+        <div className="space-y-3 rounded-lg bg-muted dark:bg-card px-3 pt-4 pb-3">
           <ol className="space-y-1.5">
             {[...days].reverse().map((d) => (
               <li key={d.day} className="flex items-center gap-3">

@@ -190,7 +190,7 @@ export default function HomePage() {
         <p className="mt-5 max-w-2xl text-lg text-muted-foreground">
           Uplink uses Tesla&apos;s official data access, and only reads.
         </p>
-        <div className="mt-12 grid border sm:grid-cols-2">
+        <div className="mt-12 grid overflow-hidden rounded-lg border sm:grid-cols-2">
           <div className="p-6 sm:p-8">
             <h3 className="text-xs tracking-wide text-faint uppercase">Uplink can</h3>
             <ul className="mt-5 flex flex-col gap-4">

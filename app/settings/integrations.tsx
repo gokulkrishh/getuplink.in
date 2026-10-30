@@ -22,7 +22,7 @@ function Copyable({ label, value }: { label: string; value: string }) {
     <div className="space-y-1.5">
       <p className="text-sm text-muted-foreground">{label}</p>
       <div className="flex items-center gap-2">
-        <code className="min-w-0 flex-1 truncate border bg-muted px-2 py-1.5 font-mono text-sm select-all">{value}</code>
+        <code className="min-w-0 flex-1 truncate rounded-md border bg-muted px-2 py-1.5 font-mono text-sm select-all">{value}</code>
         <CopyButton text={value} />
       </div>
     </div>
@@ -33,7 +33,7 @@ function Copyable({ label, value }: { label: string; value: string }) {
 // the closed row, so the text can be copied without opening it (a button inside a summary doesn't toggle it).
 function ManualInstructions({ copy, children }: { copy?: string; children: ReactNode }) {
   return (
-    <details className="group border">
+    <details className="group overflow-hidden rounded-lg border">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-sm transition-colors hover:bg-muted/50 [&::-webkit-details-marker]:hidden">
         Manual instructions
         <span className="flex items-center gap-3">

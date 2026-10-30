@@ -53,7 +53,7 @@ export function UpdateBanner({
     <Link
       href="/updates"
       prefetch={true}
-      className="group flex items-center justify-between gap-4 border px-4 py-3 text-sm transition-colors duration-150 hover:border-muted-foreground/50"
+      className="group flex items-center justify-between gap-4 rounded-lg border px-4 py-3 text-sm transition-colors duration-150 hover:border-muted-foreground/50"
     >
       {/* Progress moves while it downloads or installs, so the page keeps itself fresh. */}
       {moving && <AutoRefresh />}

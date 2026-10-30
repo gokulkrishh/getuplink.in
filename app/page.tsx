@@ -312,12 +312,12 @@ function TotalsSkeleton() {
           <p className="text-xl"><span className={line}>Good afternoon</span></p>
           <p className="text-sm"><span className={line}>Here&apos;s your car&apos;s last 7 days, 21 Oct to 27 Oct.</span></p>
         </div>
-        <div className="h-[391px] border bg-muted/40 motion-safe:animate-pulse sm:h-[174px]" />
+        <div className="h-[391px] rounded-lg border bg-muted/40 motion-safe:animate-pulse sm:h-[174px]" />
       </div>
       {/* The charge level chart below, its heading and a block of its usual height. */}
       <SkSection>
         <SkHead title="Charge level" description="Battery level over time, with charging marked." />
-        <SkBlock className="h-[330px] border bg-muted/40 sm:h-[260px]" />
+        <SkBlock className="h-[330px] rounded-lg border bg-muted/40 sm:h-[260px]" />
       </SkSection>
     </div>
   );

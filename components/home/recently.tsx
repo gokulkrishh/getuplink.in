@@ -33,7 +33,7 @@ export function Recently({ items }: { items: RecentItem[] }) {
       <h2 id="recent-title" className="text-lg font-medium tracking-heading">
         Last 24 hours
       </h2>
-      <ul className={cn("grid gap-px border bg-border bg-clip-padding dark:border-transparent dark:bg-background", items.length > 1 ? "grid-cols-2" : "sm:w-1/2")}>
+      <ul className={cn("grid gap-px overflow-hidden rounded-lg border bg-border bg-clip-padding dark:border-transparent dark:bg-background", items.length > 1 ? "grid-cols-2" : "sm:w-1/2")}>
         {items.map((item) => {
           const Icon = ICONS[item.kind];
           return (
