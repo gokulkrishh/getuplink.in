@@ -4,7 +4,7 @@ import { cache } from "react";
 import type { Alert } from "@/lib/alerts";
 import { DEMO, demoScenario } from "@/lib/demo";
 import { messageOf } from "@/lib/errors";
-import { type CardFacts, type Entry, type HomeCard, newEntryIds, newestVisibleId, pickHomeCard, seenUpTo, visibleEntries, WELCOME_SINCE, WHATS_NEW, whatsNewAlerts } from "@/lib/whats-new";
+import { type CardFacts, type Entry, type HomeCard, newEntryIds, newestVisibleId, pickHomeCard, seenUpTo, visibleEntries, WHATS_NEW, whatsNewAlerts } from "@/lib/whats-new";
 import { asOwner, type Owner } from "./data/owner";
 import { MissingSchema } from "./data/usage";
 import { closeWelcome, markSeen, whatsNewOf } from "./data/whats-new";
@@ -24,8 +24,8 @@ async function demoFacts(): Promise<Omit<CardFacts, "admin" | "shareDue">> {
   const jar = await cookies();
   const scenario = demoScenario();
   const welcomed = jar.get(DEMO_WELCOMED_COOKIE) !== undefined;
-  // A newly approved owner: never before WELCOME_SINCE, or the demo would show nothing until that day.
-  if (scenario === "welcome") return { entries: [], approvedAt: Math.max(Date.now(), WELCOME_SINCE), welcomedAt: welcomed ? 1 : null, seenId: null, schemaReady: true };
+  // A newly approved owner: never before or the demo would show nothing until that day.
+  if (scenario === "welcome") return { entries: [], approvedAt: Date.now(), welcomedAt: welcomed ? 1 : null, seenId: null, schemaReady: true };
   if (scenario === "news") return { entries: DEMO_ENTRIES, approvedAt: DEMO_OLD_OWNER, welcomedAt: 1, seenId: jar.get(DEMO_SEEN_COOKIE)?.value ?? null, schemaReady: true };
   return { entries: [], approvedAt: null, welcomedAt: null, seenId: null, schemaReady: false };
 }

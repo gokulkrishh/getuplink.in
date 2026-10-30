@@ -55,10 +55,6 @@ export const WHATS_NEW: Entry[] = [
   },
 ];
 
-// Only owners approved at or after this get the welcome tour. Everyone approved before it already knows
-// their way around, so they never see it.
-export const WELCOME_SINCE = Date.parse("2026-10-31T00:00:00+05:30");
-
 export type HomeCard = { kind: "welcome" } | { kind: "release"; entries: Entry[]; total: number } | { kind: "share" } | null;
 
 const byNewest = (a: Entry, b: Entry) => (a.id < b.id ? 1 : a.id > b.id ? -1 : 0);
@@ -142,7 +138,7 @@ export const RELEASE_STEPS = 3;
 
 export function pickHomeCard(f: CardFacts & { now: number }): HomeCard {
   if (f.schemaReady && f.approvedAt !== null) {
-    if (f.approvedAt >= WELCOME_SINCE && f.welcomedAt === null) return { kind: "welcome" };
+    if (f.welcomedAt === null) return { kind: "welcome" };
     const fresh = unseenEntries(f).filter((e) => e.show === "dialog");
     if (fresh.length > 0) return { kind: "release", entries: fresh.slice(0, RELEASE_STEPS), total: fresh.length };
   }

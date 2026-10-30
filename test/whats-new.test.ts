@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { DEMO_ENTRIES } from "@/lib/server/demo/whats-new";
 import { copyViolations } from "@/lib/copy-rules";
-import { ENTRY_ICONS, type Entry, KINDS, newEntryIds, newestVisibleId, pickHomeCard, seenUpTo, unseenEntries, visibleEntries, WELCOME_SINCE, WHATS_NEW, whatsNewAlerts } from "@/lib/whats-new";
+import { ENTRY_ICONS, type Entry, KINDS, newEntryIds, newestVisibleId, pickHomeCard, seenUpTo, unseenEntries, visibleEntries, WHATS_NEW, whatsNewAlerts } from "@/lib/whats-new";
 
 const entry = (id: string, audience: Entry["audience"] = "owners", show: Entry["show"] = "dialog"): Entry => ({
   id,
@@ -18,9 +18,9 @@ const entry = (id: string, audience: Entry["audience"] = "owners", show: Entry["
 });
 const ist = (day: string) => Date.parse(`${day}T00:00:00+05:30`);
 const NOW = ist("2026-12-01");
-const OLD = ist("2026-09-01"); // joined before WELCOME_SINCE
-const NEW = ist("2026-11-05"); // joined after WELCOME_SINCE
-const base = { entries: [] as Entry[], now: NOW, admin: false, approvedAt: OLD as number | null, welcomedAt: null as number | null, seenId: null as string | null, shareDue: false, schemaReady: true };
+const OLD = ist("2026-09-01"); // an owner from before the tour existed
+const NEW = ist("2026-11-05"); // a newer owner
+const base = { entries: [] as Entry[], now: NOW, admin: false, approvedAt: OLD as number | null, welcomedAt: 1 as number | null, seenId: null as string | null, shareDue: false, schemaReady: true };
 
 describe("WHATS_NEW", () => {
   test("ships one draft entry, so nobody sees anything yet", () => {
@@ -36,15 +36,14 @@ describe("pickHomeCard", () => {
   const c = entry("2026-11-25-c");
 
   test("a new owner gets the welcome tour, not news", () => {
-    expect(pickHomeCard({ ...base, approvedAt: NEW, entries: [c] })).toEqual({ kind: "welcome" });
+    expect(pickHomeCard({ ...base, approvedAt: NEW, welcomedAt: null, entries: [c] })).toEqual({ kind: "welcome" });
   });
   test("a welcomed new owner gets news dated after they joined", () => {
     expect(pickHomeCard({ ...base, approvedAt: NEW, welcomedAt: NOW, entries: [c] })).toEqual({ kind: "release", entries: [c], total: 1 });
   });
-  test("existing owners never get the welcome tour", () => {
-    expect(WELCOME_SINCE).toBe(Date.parse("2026-10-31T00:00:00+05:30"));
-    expect(pickHomeCard({ ...base, approvedAt: WELCOME_SINCE - 1 })).toBeNull();
-    expect(pickHomeCard({ ...base, approvedAt: WELCOME_SINCE })).toEqual({ kind: "welcome" });
+  test("existing owners get the welcome tour once too, until they close it", () => {
+    expect(pickHomeCard({ ...base, approvedAt: OLD, welcomedAt: null })).toEqual({ kind: "welcome" });
+    expect(pickHomeCard({ ...base, approvedAt: OLD, welcomedAt: NOW })).toBeNull();
   });
   test("an existing owner gets news dated after their approval", () => {
     expect(pickHomeCard({ ...base, entries: [a] })).toEqual({ kind: "release", entries: [a], total: 1 });
@@ -76,7 +75,7 @@ describe("pickHomeCard", () => {
     expect(pickHomeCard({ ...base, admin: true, entries: [d] })).toEqual({ kind: "release", entries: [d], total: 1 });
   });
   test("welcome comes before news, news before share", () => {
-    expect(pickHomeCard({ ...base, approvedAt: NEW, entries: [c], shareDue: true })).toEqual({ kind: "welcome" });
+    expect(pickHomeCard({ ...base, approvedAt: NEW, welcomedAt: null, entries: [c], shareDue: true })).toEqual({ kind: "welcome" });
     expect(pickHomeCard({ ...base, entries: [a], shareDue: true })?.kind).toBe("release");
   });
   test("the share card shows only when neither does", () => {
