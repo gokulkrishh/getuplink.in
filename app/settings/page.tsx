@@ -189,7 +189,7 @@ async function Settings() {
 // error line, the button.
 async function AdminGuestSkeleton() {
   if (!(await isAdmin())) return null;
-  const block = (className: string) => <div className={`rounded-md bg-muted motion-safe:animate-pulse ${className}`} aria-hidden="true" />;
+  const block = (className: string) => <div className={cn("rounded-md bg-muted motion-safe:animate-pulse", className)} aria-hidden="true" />;
   return (
     <Row title={<Ph>Guest access</Ph>} description={<p><Ph>Let someone you trust see your car data.</Ph></p>}>
       <div className="mt-4 space-y-3">
@@ -199,14 +199,14 @@ async function AdminGuestSkeleton() {
               <span>
                 <Ph>{label}</Ph>
               </span>
-              {block("h-9 max-sm:h-10")}
+              {block("h-9 rounded-lg max-sm:h-10")}
             </div>
           ))}
         </div>
         {block("h-11")}
         {block("h-11")}
         {block("h-5")}
-        <div className="flex justify-end">{block("h-9 max-sm:h-10 w-40")}</div>
+        <div className="flex justify-end">{block("h-9 w-40 rounded-lg max-sm:h-10")}</div>
       </div>
     </Row>
   );

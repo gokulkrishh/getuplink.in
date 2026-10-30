@@ -33,8 +33,8 @@ function Copyable({ label, value }: { label: string; value: string }) {
 // the closed row, so the text can be copied without opening it (a button inside a summary doesn't toggle it).
 function ManualInstructions({ copy, children }: { copy?: string; children: ReactNode }) {
   return (
-    <details className="group overflow-hidden rounded-lg border">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-sm transition-colors hover:bg-muted/50 [&::-webkit-details-marker]:hidden">
+    <details className="group rounded-lg border">
+      <summary className="flex cursor-pointer list-none rounded-lg group-open:rounded-b-none items-center justify-between gap-3 px-3 py-2.5 text-sm transition-colors hover:bg-muted/50 [&::-webkit-details-marker]:hidden">
         Manual instructions
         <span className="flex items-center gap-3">
           {copy && <CopyButton text={copy} />}
