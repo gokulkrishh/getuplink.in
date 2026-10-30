@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 // block is as tall as what replaces it and nothing moves when the page arrives. Text is placeholder words
 // in a transparent colour on a muted fill: the line takes its real height and shows as a bar. Use words as
 // long as a typical real line, since a bar shows the line's length.
-const PH = "rounded-md bg-muted text-transparent motion-safe:animate-pulse";
+const PH = "box-decoration-clone rounded-md bg-muted text-transparent motion-safe:animate-pulse";
 
 // Placeholder text, inline: for use inside a real text class (text-sm, text-lg font-medium, ...).
 export function Ph({ children, className }: { children: ReactNode; className?: string }) {
