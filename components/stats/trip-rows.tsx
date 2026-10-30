@@ -42,7 +42,7 @@ const faint = <span className="text-faint">—</span>;
 // its page, which lists the legs; the link covers the row, which highlights on hover or focus.
 function TripTableRow({ row }: { row: TripRow }) {
   return (
-    <tr className="group/row relative cursor-pointer *:transition-colors *:duration-150 hover:*:bg-muted focus-within:*:bg-muted [&>td:first-child]:rounded-l-lg [&>td:last-child]:rounded-r-lg">
+    <tr className="group/row relative cursor-pointer *:transition-colors *:duration-150 hover:*:bg-muted focus-within:*:bg-muted">
       <td className="py-3 pr-3 font-mono text-xs text-faint">{row.serial}</td>
       <td className="py-3 pr-3 whitespace-nowrap">
         <span className="block">{row.day}</span>
@@ -112,8 +112,8 @@ export function TripRows({ list, load }: { list: Paged<TripRow>; load?: LoadMore
       </ul>
       {/* The table sits 0.75rem wider than the column on each side and pads its outer cells by the same, so a
           highlighted row has room around its text while the text still lines up with the page. */}
-      <TableBox className="px-1 max-sm:hidden">
-        <table className="w-full min-w-[44rem] table-fixed text-sm tabular-nums [&_td:first-child]:pl-3 [&_td:last-child]:pr-3 [&_th:first-child]:pl-3 [&_th:last-child]:pr-3">
+      <TableBox className="max-sm:hidden">
+        <table className="w-full min-w-[44rem] table-fixed text-sm tabular-nums">
           <colgroup>
             {COLUMNS.map((c) => (
               <col key={c.label} className={c.width} />

@@ -3,6 +3,7 @@ import { Words } from "@/components/stats/charge-supply";
 import { Figures } from "@/components/stats/figures";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { TABLE_FRAME } from "@/lib/table-frame";
 
 // Pieces for the loading screens (the Suspense fallbacks), built from the page's own layout classes so a
 // block is as tall as what replaces it and nothing moves when the page arrives. Text is placeholder words
@@ -136,7 +137,7 @@ export function SkHeadline({ value, line }: { value: string; line: string }) {
 export function SkTable({ head, rows, hide = [], cell = "py-3", name = "Placeholder", className }: { head: string[]; rows: number; hide?: number[]; cell?: string; name?: string; className?: string }) {
   const drop = (k: number) => hide.includes(k) && "max-sm:hidden";
   return (
-    <div className="overflow-hidden rounded-lg border px-4 py-2" aria-hidden="true">
+    <div className={cn(TABLE_FRAME, "overflow-hidden")} aria-hidden="true">
     <table className={cn("w-full min-w-md text-sm", className)}>
       <thead>
         <tr className="border-b text-left text-xs">
@@ -196,8 +197,8 @@ export function SkTripRows({ rows = 3 }: { rows?: number }) {
           </li>
         ))}
       </ul>
-      <div className="rounded-lg border px-1 py-2 max-sm:hidden" aria-hidden="true">
-        <table className="w-full table-fixed text-sm [&_td:first-child]:pl-3 [&_td:last-child]:pr-3 [&_th:first-child]:pl-3 [&_th:last-child]:pr-3">
+      <div className={cn(TABLE_FRAME, "max-sm:hidden")} aria-hidden="true">
+        <table className="w-full table-fixed text-sm">
           <colgroup>
             <col className="w-10" />
             <col className="w-44" />
