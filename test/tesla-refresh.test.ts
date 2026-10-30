@@ -55,24 +55,14 @@ const answerAfter = (ms: number, signal?: AbortSignal | null) =>
     });
   });
 
-// Moves fake time on in 10 ms steps, letting every query and request due in each step run.
 // Fake time in 100 ms steps, finer than the code's own timers (300 ms and up), letting pending work settle
-// after each. Ten-millisecond steps took over 5 s of real time for 41 s of fake time on CI's runner.
+// after each. Each step yields to promises only, never to the event loop: on Linux, Bun 1.3 with fake timers
+// on now and then never runs a setImmediate callback, and the test hung until its 5 s timeout.
 async function elapse(ms: number) {
   for (let t = 0; t < ms; t += 100) {
     jest.advanceTimersByTime(100);
-    for (let k = 0; k < 2; k++) await new Promise((resolve) => setImmediate(resolve));
+    for (let k = 0; k < 20; k++) await Promise.resolve();
   }
-}
-
-// Fake time keeps passing until `call` is answered (at most `cap`), then its answer. Awaiting a call right
-// after elapse() hung on CI: on a slower machine its last steps hadn't set their next timer by the time the
-// clock stopped, so nothing moved it again and the test timed out at 5 s.
-async function settle<T>(call: Promise<T>, cap = 60_000): Promise<T> {
-  let done = false;
-  void call.finally(() => (done = true));
-  for (let t = 0; !done && t < cap; t += 100) await elapse(100);
-  return call;
 }
 
 const fakeFetch = (async (input: string | URL | Request, init?: RequestInit) => {
@@ -237,8 +227,8 @@ describe("Tesla token refresh", () => {
     await elapse(31_000);
     const second = otherInstance.fleetGet<string>(OWNER, "/api/1/vehicles").catch((err: Error) => err);
     await elapse(10_000);
-    expect(await settle(first)).toBeInstanceOf(Error);
-    expect(await settle(second)).toBe("ok");
+    expect(await first).toBeInstanceOf(Error);
+    expect(await second).toBe("ok");
     expect(tesla.maxOpen).toBe(1);
     expect(row().refresh_token_enc).toBe("enc:r2");
     expect(tesla.valid).toEqual(new Set(["r2"]));
@@ -249,7 +239,7 @@ describe("Tesla token refresh", () => {
     tesla.dropAfterSpend = true;
     const first = fleetGet<string>(OWNER, "/api/1/vehicles").catch((err: Error) => err);
     await elapse(1_000);
-    expect(await settle(first)).toBeInstanceOf(Error);
+    expect(await first).toBeInstanceOf(Error);
     expect(Date.parse(row().refreshing_until as string)).toBeGreaterThan(Date.now());
     const second = otherInstance.fleetGet<string>(OWNER, "/api/1/vehicles").catch((err: Error) => err);
     await elapse(20_000);
@@ -258,7 +248,7 @@ describe("Tesla token refresh", () => {
     // Disconnecting ends the wait.
     Object.assign(row(), { access_token_enc: null, refresh_token_enc: null, expires_at: null, refreshing_until: null });
     await elapse(1_000);
-    expect(await settle(second)).toBeInstanceOf(otherInstance.NotConnectedError);
+    expect(await second).toBeInstanceOf(otherInstance.NotConnectedError);
   });
 
   test("a save that fails once is tried again, and the owner stays signed in", async () => {
