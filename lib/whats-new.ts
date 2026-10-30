@@ -41,16 +41,18 @@ export type Entry = {
 
 export const WHATS_NEW: Entry[] = [
   {
-    id: "2026-11-20-guest-access",
-    date: "2026-11-20",
+    id: "2026-10-30-guest-access",
+    date: "2026-10-30",
     title: "Guest access",
     text: "Send someone a link to see your car for as long as you choose. You can hide places and end it any time.",
     more: "They don't need a Tesla account.",
     version: "0.2",
-    // No image yet: it's a draft. Its screenshot comes when Guest access ships, before it leaves draft.
+    image: { src: "/whats-new/guest-access.webp", alt: "Settings, Guest access: who it's for, how long it lasts, and Create guest link.", width: 1360, height: 574 },
     kind: "New feature",
     icon: "Link2",
-    audience: "draft",
+    // The admin only while Guest access is the admin's alone (Settings and its action check isAdmin).
+    // "owners" announces it to everyone once it opens up.
+    audience: "admin",
     show: "dialog",
   },
 ];
