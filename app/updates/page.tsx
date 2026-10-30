@@ -20,10 +20,12 @@ import { isPending, UpdateStatus } from "@/components/updates/update-status";
 import { moreVersions } from "./actions";
 import type { DemoScenario } from "@/lib/demo";
 import { newestTime } from "@/lib/last-synced";
+import { type RolloutGlance, rolloutLines } from "@/lib/rollout-line";
 import { customRange, rangeTimeframe, type Timeframe } from "@/lib/periods";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import { requireReader } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
+import { loadRolloutGlance } from "@/lib/server/rollout";
 import { loadUpdatesPage, type UpdatesCar, type UpdatesPage } from "@/lib/server/updates-page";
 import { updateStats } from "@/lib/telemetry-derive";
 import { currentVersion } from "@/lib/versions";
@@ -34,26 +36,28 @@ const heading = "text-lg font-medium tracking-heading";
 
 // Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx). The
 // demo scenario is an argument, so each one gets its own entry; the period is not, since it switches in the browser.
-async function loadOwnUpdates(demo: DemoScenario): Promise<{ data: UpdatesPage; now: number; guest: boolean }> {
+async function loadOwnUpdates(demo: DemoScenario): Promise<{ data: UpdatesPage; glance: RolloutGlance | null; now: number; guest: boolean }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
   const { owner } = await requireReader();
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
   const now = Date.now();
-  return { data: await loadUpdatesPage(owner, demo, now), now, guest: owner.viewOnly === true };
+  const [data, glance] = await Promise.all([loadUpdatesPage(owner, demo, now), loadRolloutGlance()]);
+  return { data, glance, now, guest: owner.viewOnly === true };
 }
 
 // One car: the installed version and its status, the pending update, the history, how updates usually go,
 // and when the car was awake to receive one. `label` names the car when there are several; `range` is
 // the range picked by date, when the page drew one.
-function CarUpdates({ car, notes, label, range, now }: { car: UpdatesCar; notes: ReleaseNotesByVersion; label: string; range: Timeframe | null; now: number }) {
+function CarUpdates({ car, notes, glance, label, range, now }: { car: UpdatesCar; notes: ReleaseNotesByVersion; glance: RolloutGlance | null; label: string; range: Timeframe | null; now: number }) {
   const { vehicle, latest, lastOnline, history, streamAt, updates, awake } = car;
   // A car that streamed in the last few minutes is awake: keep the page fresh so new data shows up on its own.
   const isAwake = streamAt !== null && now - Date.parse(streamAt) < AWAKE_MS;
   const version = currentVersion(vehicle.current_version, lastOnline && { version: lastOnline.car_version, at: lastOnline.polled_at });
   const pending = isPending(lastOnline, version);
   const hasStats = updateStats(updates, now) !== null;
+  const rollout = rolloutLines(version, pending ? (lastOnline?.update_version ?? null) : null, glance);
   return (
     <section className="space-y-12">
       {isAwake && <AutoRefresh />}
@@ -80,6 +84,14 @@ function CarUpdates({ car, notes, label, range, now }: { car: UpdatesCar; notes:
             Asleep at every check so far. Open the Tesla app to wake the car. This page updates by itself.
           </p>
         )}
+        {/* Where this version stands in India, each line a way to the full rollout. A plain link when nothing is known. */}
+        <ul className="text-sm">
+          {(rollout.length > 0 ? rollout : ["India rollout"]).map((line) => (
+            <li key={line}>
+              <MoreLink href="/rollout" className="-mr-0 -ml-2.5 font-normal text-muted-foreground">{line}</MoreLink>
+            </li>
+          ))}
+        </ul>
       </header>
 
       {/* Only while an update is on its way; the version above already says what the car runs. */}
@@ -129,7 +141,7 @@ function CarUpdates({ car, notes, label, range, now }: { car: UpdatesCar; notes:
 async function Updates({ searchParams }: Pick<PageProps<"/updates">, "searchParams">) {
   const params = await searchParams;
   const demo: DemoScenario = "normal";
-  const { data, now, guest } = await loadOwnUpdates(demo);
+  const { data, glance, now, guest } = await loadOwnUpdates(demo);
   const failedRun = data.kind === "ready" && data.lastRun?.ok === false ? data.lastRun : null;
   const cars = data.kind === "ready" ? data.cars : [];
   // Only the update count follows a range picked by date, and it is counted from rows already here, so
@@ -148,6 +160,7 @@ async function Updates({ searchParams }: Pick<PageProps<"/updates">, "searchPara
                 key={car.vehicle.id}
                 car={car}
                 notes={data.releaseNotes}
+                glance={glance}
                 label={cars.length > 1 ? car.vehicle.display_name || "Tesla" : "Software"}
                 range={frame}
                 now={now}
@@ -177,6 +190,7 @@ function UpdatesSkeleton() {
         <div className="pt-2">
           <p className="text-sm leading-[1.125rem]"><Ph>Release notes</Ph></p>
         </div>
+        <p className="text-sm leading-[21px]"><Ph>On 3 of 40 cars in India</Ph></p>
       </header>
       <section className="space-y-4" aria-hidden="true">
         <div className="space-y-1">
@@ -258,10 +272,6 @@ export default function Page({ searchParams }: PageProps<"/updates">) {
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
       <Header current="car" />
       <CarTabs value="updates" />
-      {/* The India rollout lives under Updates: where an owner waiting for a version looks. */}
-      <p className="-mt-4 mb-8 text-right text-sm">
-        <MoreLink href="/rollout">India rollout</MoreLink>
-      </p>
       <Suspense fallback={<UpdatesSkeleton />}>
         <Updates searchParams={searchParams} />
       </Suspense>
