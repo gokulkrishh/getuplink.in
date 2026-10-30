@@ -150,7 +150,7 @@ function Popup({ steps }: { steps: TourStep[] }) {
           <Dots steps={steps} step={n} onPick={go} className="-mr-[13px] sm:hidden" />
         </div>
         {/* On a phone every step's words sit in one cell, the others unseen, so the cell is as tall as the longest. */}
-        <div className="grid min-h-0 flex-1 overflow-y-auto pt-4 sm:flex sm:flex-col sm:justify-center sm:overflow-visible sm:pt-0">
+        <div className="grid min-h-0 flex-1 overflow-y-auto overscroll-y-contain pt-4 sm:flex sm:flex-col sm:justify-center sm:overflow-visible sm:pt-0">
           <div className="col-start-1 row-start-1">
             <Words step={step} real />
           </div>

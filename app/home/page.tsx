@@ -114,7 +114,7 @@ function Steps() {
 export default function HomePage() {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 sm:px-8">
-      <header className="flex h-16 items-center justify-between gap-4 text-sm">
+      <header className="relative flex h-16 items-center justify-between gap-4 text-sm">
         <Link href="/" className="tap-target inline-flex items-center gap-2 font-medium">
           <Logo className="size-5" />
           Uplink
@@ -122,6 +122,8 @@ export default function HomePage() {
         <Suspense>
           <SessionCta size="sm" signInLink />
         </Suspense>
+        {/* Where "Skip to content" lands (components/skip-link.tsx). */}
+        <span id="content-start" tabIndex={-1} className="absolute top-full left-0 outline-none" />
       </header>
 
       {/* Hero: the job, the price and the risk, all above the fold. */}

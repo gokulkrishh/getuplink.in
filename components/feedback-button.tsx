@@ -118,13 +118,13 @@ export function FeedbackButton() {
       <Dialog.Trigger
         data-feedback-button
         aria-label="Send feedback"
-        className="fixed right-4 bottom-4 z-40 inline-flex max-sm:hidden size-11 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+        className="fixed right-[max(1rem,env(safe-area-inset-right))] bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 inline-flex max-sm:hidden size-11 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
       >
         <SmilePlus className="size-5" aria-hidden="true" />
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs" />
-        <Dialog.Popup className="fixed inset-x-0 bottom-0 z-50 max-h-[90dvh] overflow-y-auto rounded-t-xl border bg-background p-5 text-sm text-foreground outline-none sm:inset-x-auto sm:right-4 sm:bottom-4 sm:rounded-xl sm:w-96">
+        <Dialog.Popup className="fixed inset-x-0 bottom-0 z-50 max-h-[90dvh] overflow-y-auto overscroll-y-contain rounded-t-xl border bg-background p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-sm text-foreground outline-none sm:inset-x-auto sm:right-[max(1rem,env(safe-area-inset-right))] sm:bottom-[max(1rem,env(safe-area-inset-bottom))] sm:rounded-xl sm:w-96 sm:pb-5">
           <div className="mb-5 flex items-center justify-between gap-4">
             <Dialog.Title className="text-lg font-medium tracking-heading">{sent ? "Feedback sent" : "Send feedback"}</Dialog.Title>
             <Dialog.Close render={<Button variant="ghost" size="icon-sm" aria-label="Close" className="-mt-1 -mr-2 text-muted-foreground" />} nativeButton>
