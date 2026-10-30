@@ -45,7 +45,8 @@ type Release = { version: string; entries: Entry[] };
 // The words and the screenshot. `ratio` holds the picture's box at the tallest one in the version, so the
 // pane (and, on a phone, the open row) keeps its size from one feature to the next; the picture sits inside
 // it on the soft background.
-function Detail({ entry, ratio }: { entry: Entry; ratio?: number }) {
+// `title` false on a phone, where the words open right under the row that already names the feature.
+function Detail({ entry, ratio, title = true }: { entry: Entry; ratio?: number; title?: boolean }) {
   const img = entry.image;
   return (
     <div className="space-y-4">
@@ -68,7 +69,7 @@ function Detail({ entry, ratio }: { entry: Entry; ratio?: number }) {
         </div>
       )}
       <div className="space-y-1">
-        <h3 className="text-sm font-medium">{entry.title}</h3>
+        {title && <h3 className="text-sm font-medium">{entry.title}</h3>}
         <p className="text-sm text-muted-foreground">
           {entry.more ? `${entry.text} ${entry.more}` : entry.text}
         </p>
@@ -86,6 +87,9 @@ export function ReleasesList({
 }) {
   const [v, setV] = useState(0);
   const [sel, setSel] = useState(releases[0].entries[0].id);
+  // On a phone each feature opens under its own row and stays open until tapped again, so opening one never
+  // closes another above it and moves the row under the finger. The first starts open.
+  const [opened, setOpened] = useState<ReadonlySet<string>>(() => new Set([releases[0].entries[0].id]));
   // Kept from the first render: opening the page marks everything seen, which would drop the dots at once.
   const [fresh] = useState(() => new Set(newIds));
   const rows = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -102,6 +106,16 @@ export function ReleasesList({
     ) || undefined;
 
   const pick = (id: string) => setSel(id);
+  // A tap: the desktop pane shows it; on a phone it opens or closes under its row.
+  const tap = (id: string) => {
+    setSel(id);
+    setOpened((o) => {
+      const next = new Set(o);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
   const move = (by: number) => {
     const i = release.entries.findIndex((e) => e.id === selected.id);
     const next =
@@ -122,6 +136,7 @@ export function ReleasesList({
             const i = Number(e.target.value);
             setV(i);
             setSel(releases[i].entries[0].id);
+            setOpened(new Set([releases[i].entries[0].id]));
           }}
         >
           {releases.map((r, i) => (
@@ -154,7 +169,8 @@ export function ReleasesList({
                     rows.current[e.id] = el;
                   }}
                   aria-pressed={on}
-                  onClick={() => pick(e.id)}
+                  aria-expanded={opened.has(e.id)}
+                  onClick={() => tap(e.id)}
                   className={cn(
                     "flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset",
                     on ? "bg-muted" : "hover:bg-muted/50",
@@ -182,9 +198,9 @@ export function ReleasesList({
                     </>
                   )}
                 </button>
-                {on && (
+                {opened.has(e.id) && (
                   <div className="px-3 pt-1 pb-5 sm:hidden">
-                    <Detail entry={e} ratio={ratio} />
+                    <Detail entry={e} title={false} />
                   </div>
                 )}
               </li>

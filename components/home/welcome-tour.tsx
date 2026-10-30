@@ -71,8 +71,8 @@ const STEPS: Step[] = [
     name: "Settings",
     spot: "menu",
     title: "Settings and release notes",
-    lead: "The button at the top right opens the menu.",
-    points: ["Settings, for the app's look and sharing", "Release notes, for what's new in Uplink", "Sign out, when you're done"],
+    lead: "The coloured circle at the top right, beside the bell, opens the menu.",
+    points: ["Settings, for the app's look and sharing with other owners", "Release notes, for what's new in Uplink", "Sign out, when you're done"],
   },
 ];
 
