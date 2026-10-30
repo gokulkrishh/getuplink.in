@@ -28,7 +28,7 @@ export function SignOutForm() {
       {error && !cleared && (
         <div
           role="alert"
-          className="fixed inset-x-4 top-4 z-50 mx-auto flex max-w-sm items-start gap-3 rounded-md border bg-background py-3 pr-2 pl-4 text-sm whitespace-normal text-destructive shadow-md"
+          className="fixed inset-x-4 top-[max(1rem,env(safe-area-inset-top))] z-50 mx-auto flex max-w-sm items-start gap-3 rounded-md border bg-background py-3 pr-2 pl-4 text-sm whitespace-normal text-destructive shadow-md"
         >
           <p className="flex-1">{error}</p>
           <Button type="button" variant="ghost" size="icon-sm" onClick={() => setCleared(true)} aria-label="Close" className="-my-1 shrink-0 text-muted-foreground">

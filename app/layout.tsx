@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { OPEN_GRAPH, SITE_URL, TAGLINE, TWITTER } from "@/lib/site";
-import { THEME_SCRIPT } from "@/lib/theme";
+import { THEME_COLORS, THEME_SCRIPT } from "@/lib/theme";
 import { GUEST_SCRIPT } from "@/lib/view-links";
 import { Suspense } from "react";
 import { RowLinks } from "@/components/row-links";
@@ -34,10 +34,15 @@ export const metadata: Metadata = {
   twitter: { ...TWITTER, title: "Uplink", description: TAGLINE },
 };
 
+// cover: the page runs edge to edge under the notch and home bar, and fixed parts pad themselves back with
+// env(safe-area-inset-*), which is 0 without it. resizes-content: on Android the keyboard shrinks the page,
+// as on iOS, so a sheet's dvh height and its bottom buttons stay above the keyboard.
 export const viewport: Viewport = {
+  viewportFit: "cover",
+  interactiveWidget: "resizes-content",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#040404" },
+    { media: "(prefers-color-scheme: light)", color: THEME_COLORS.light },
+    { media: "(prefers-color-scheme: dark)", color: THEME_COLORS.dark },
   ],
 };
 

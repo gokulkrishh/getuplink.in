@@ -193,6 +193,15 @@
   html {
     @apply font-sans;
     color-scheme: light dark;
+    /* No grey iOS/Android flash over anything tapped, including rows that are links or have a click
+       handler: every control draws its own active, hover and focus states. */
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* The page runs under the notch (viewport-fit=cover in app/layout.tsx), so in landscape its content is
+     padded back out of the notch's side. Zero on screens without one. */
+  body {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
   }
   /* Phones get everything a size up: sizes are in rem, so text, spacing, buttons and tap targets all
      scale from this one value (19px, so a default button is 38px tall and the big one 52px). */
@@ -213,8 +222,7 @@
   summary {
     cursor: pointer;
   }
-  /* Taps act at once (no double-tap-zoom wait), and the grey iOS tap flash is off: every control has
-     its own active, hover and focus states. */
+  /* Taps act at once: no double-tap-zoom wait. */
   a,
   button,
   input,
@@ -225,7 +233,16 @@
   [role="button"],
   [tabindex] {
     touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
+  }
+  /* A long press on a control doesn't select its label or open the copy menu, as in a native app. Only
+     controls: text that is content (addresses, numbers, links in a sentence) stays selectable. */
+  button,
+  summary,
+  [role="button"],
+  [role="tab"] {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
   }
   button[aria-busy="true"] {
     cursor: progress;
@@ -274,8 +291,11 @@
   .maplibregl-ctrl-attrib a {
     @apply text-muted-foreground!;
   }
-  .maplibregl-ctrl-attrib a:hover {
-    @apply text-foreground!;
+  /* Only where something can hover: on a phone a tapped link would keep the colour. */
+  @media (hover: hover) and (pointer: fine) {
+    .maplibregl-ctrl-attrib a:hover {
+      @apply text-foreground!;
+    }
   }
   .maplibregl-ctrl-attrib-button {
     @apply bg-transparent! dark:invert;

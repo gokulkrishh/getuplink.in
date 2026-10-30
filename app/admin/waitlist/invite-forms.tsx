@@ -28,7 +28,7 @@ export function LinkPanel({ url }: { url: string }) {
   const share = () => navigator.share({ title: "Uplink invite", url }).catch(() => {});
   return (
     <div className="space-y-2 rounded-lg border bg-muted/40 p-3">
-      <input readOnly value={url} aria-label="Invite link" onFocus={(e) => e.currentTarget.select()} className={`${field} font-mono text-xs`} />
+      <input readOnly value={url} aria-label="Invite link" onFocus={(e) => e.currentTarget.select()} className={`${field} font-mono text-xs max-sm:text-base`} />
       <div className="flex flex-wrap gap-2">
         <Button type="button" size="sm" onClick={copy}>
           {copied ? <Check aria-hidden /> : <Copy aria-hidden />}

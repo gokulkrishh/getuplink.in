@@ -254,8 +254,8 @@ export function NamePlace({ target, compact = false, className }: { target: Name
       <Dialog.Portal>
         {/* Opaque: the page, and its map, are hidden while the sheet is open. */}
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-background" />
-        <Dialog.Popup initialFocus={input} className="fixed inset-0 z-50 overflow-y-auto bg-background text-sm text-foreground outline-none">
-          <div className="mx-auto w-full max-w-md space-y-4 px-4 pt-6 pb-12 sm:pt-16">
+        <Dialog.Popup initialFocus={input} className="fixed inset-0 z-50 overflow-y-auto overscroll-y-contain bg-background text-sm text-foreground outline-none">
+          <div className="mx-auto w-full max-w-md space-y-4 px-[max(1rem,env(safe-area-inset-left),env(safe-area-inset-right))] pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(3rem,env(safe-area-inset-bottom))] sm:pt-16">
             <div className="flex items-center justify-between gap-4">
               <Dialog.Title className="text-lg font-medium tracking-heading">{title}</Dialog.Title>
               <Dialog.Close render={<Button variant="ghost" size="icon-sm" aria-label="Close" className="-mt-1 -mr-2 text-muted-foreground" />} nativeButton>
