@@ -1,9 +1,10 @@
 "use client";
 
-import { type ReactNode, useRef, useState, useTransition } from "react";
+import { type ReactNode, useState, useTransition } from "react";
 import { CopyButton } from "@/components/copy-button";
 import { FoldToggle } from "@/components/fold-toggle";
 import { GrokBotIcon } from "@/components/icons/grok-bot";
+import { AlertDialog, AlertDialogClose, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BOT_INSTRUCTIONS, BOT_NAME, BOT_TEMPLATE_URL, CONNECTOR_INSTRUCTIONS, CONNECTOR_URL } from "@/lib/bot-template";
@@ -12,7 +13,6 @@ import { formatAgo, formatDate, formatShortDate } from "@/lib/format";
 import { NO_AUTOFILL } from "@/lib/no-autofill";
 import { OFFLINE, orOffline } from "@/lib/offline";
 import { addConnector, deleteConnector } from "./actions";
-import { useAskingFocus } from "./confirm-actions";
 import { Row } from "./row";
 import { PendingLabel } from "@/components/pending-label";
 
@@ -56,9 +56,6 @@ function ConnectorItem({ connector, now }: { connector: Connector; now: number }
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  const trigger = useRef<HTMLButtonElement>(null);
-  const first = useRef<HTMLButtonElement>(null);
-  useAskingFocus(asking, first, trigger);
   const used = connector.usedAt ? `Last used ${formatAgo(connector.usedAt, now)}` : "Not used yet";
   const remove = () =>
     start(async () => {
@@ -76,32 +73,34 @@ function ConnectorItem({ connector, now }: { connector: Connector; now: number }
             Created {createdOn(connector.createdAt, now)} · {used}
           </p>
         </div>
-        {!asking && (
-          <Button ref={trigger} type="button" variant="ghost" size="lg" onClick={() => setAsking(true)}>
-            Remove
-          </Button>
-        )}
+        <Button type="button" variant="ghost" size="lg" onClick={() => setAsking(true)}>
+          Remove
+        </Button>
       </div>
-      {asking && (
-        <div className="mt-3 space-y-3 border-l-2 border-destructive pl-4 text-sm">
-          <p className="font-medium">Remove {connector.name}?</p>
-          <p className="text-muted-foreground">Its token stops working at once. To connect this AI again, add a new connector.</p>
+      <AlertDialog
+        open={asking}
+        onOpenChange={(open) => {
+          if (pending) return;
+          setAsking(open);
+          if (!open) setError(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogTitle>Remove {connector.name}?</AlertDialogTitle>
+          <AlertDialogDescription>Its token stops working at once. To connect this AI again, add a new connector.</AlertDialogDescription>
           {error && (
             <p role="alert" className="text-destructive">
               {error}
             </p>
           )}
-          {/* Right-aligned with the action last; reversed so it stays first in tab order and gets focus on open. */}
-          <div className="flex flex-row-reverse gap-2 pt-1">
-            <Button ref={first} type="button" variant="destructive" size="lg" className="relative" disabled={pending} aria-busy={pending} onClick={remove}>
+          <AlertDialogFooter>
+            <AlertDialogClose render={<Button type="button" variant="ghost" size="lg" disabled={pending} />}>Cancel</AlertDialogClose>
+            <Button type="button" variant="destructive" size="lg" className="relative" disabled={pending} aria-busy={pending} onClick={remove}>
               <PendingLabel pending={pending} label="Remove" pendingLabel="Removing" />
             </Button>
-            <Button type="button" variant="ghost" size="lg" disabled={pending} onClick={() => setAsking(false)}>
-              Cancel
-            </Button>
-          </div>
-        </div>
-      )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </li>
   );
 }

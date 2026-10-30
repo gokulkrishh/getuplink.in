@@ -1,7 +1,7 @@
 import { LINK as link } from "@/lib/link-style";
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { type ReactNode, Suspense } from "react";
 import { AdminPage } from "@/components/admin/admin-page";
@@ -26,7 +26,7 @@ import {
 } from "@/lib/costs";
 import { formatDateTime, formatSeen } from "@/lib/format";
 import { isAdmin } from "@/lib/server/admin";
-import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { hasCurrentSession, ownerOnlyExit } from "@/lib/server/auth";
 import { COSTS_TAG, type CostsPage, type Editable, loadCosts } from "@/lib/server/costs";
 import { openRouterParts } from "@/lib/server/costs/openrouter";
 import { cn } from "@/lib/utils";
@@ -50,7 +50,7 @@ async function checkAdmin(): Promise<number> {
   // 5 minutes or more lets the page come along with a link's prefetch, so the tabs switch at once (Next's
   // instant-navigation guide); saves still refresh it at once (updateTag).
   cacheLife({ stale: 300 });
-  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
+  if (!(await hasCurrentSession())) await ownerOnlyExit();
   if (!(await isAdmin())) notFound();
   return Date.now();
 }

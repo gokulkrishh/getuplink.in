@@ -1216,7 +1216,8 @@ export function statFor(stats: OwnerStats, key: MetricKey, group: string | null)
 }
 
 // Who is looking: their own summary (null until their days are worked out), their model group and battery.
-export type Viewer = { you: CarSummary | null; group: string | null; lfp: boolean };
+// `you` never needs the account id or the VIN hash, so it never carries them.
+export type Viewer = { you: Omit<CarSummary, "owner" | "vinHash"> | null; group: string | null; lfp: boolean };
 
 // The group a metric compares the viewer with: their model group, their battery kind, or everyone ("all").
 export function viewerGroup(key: MetricKey, v: Viewer): string | null {

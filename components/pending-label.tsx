@@ -1,7 +1,8 @@
 import { Loader2 } from "lucide-react";
 
 // A button's text that doesn't change size while it works. The label stays in place, see-through (so the
-// button keeps its name), and a spinner that names the state sits over it, so the button and everything around it keep their size. The parent Button needs className="relative".
+// button keeps its name), and a spinner that names the state sits over it, so the button and everything around it keep their size. The parent Button needs className="relative", and this goes straight inside it: wrapped in a span, the
+// spinner would sit after the hidden label and spill past the button's edge.
 export function PendingLabel({ pending, label, pendingLabel }: { pending: boolean; label: string; pendingLabel: string }) {
   return (
     <>

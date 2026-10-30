@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { STATUS_URL } from "@/lib/site";
 import { cacheLife, cacheTag } from "next/cache";
-import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Header } from "@/components/header";
 import { buttonVariants } from "@/components/ui/button";
@@ -10,7 +9,7 @@ import { ThemePicker } from "@/components/theme-picker";
 import { STATES } from "@/lib/india-states";
 import { formatAgo, formatDate, formatSeen, formatShortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { currentOwner, ownerOnlyExit } from "@/lib/server/auth";
 import { lastCheckAt, OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { ownHomeState, type OwnHomeState } from "@/lib/server/home-state";
 import { lastReadingAt } from "@/lib/server/telemetry";
@@ -25,6 +24,10 @@ import { Loading, Ph } from "@/components/skeleton";
 import { Row } from "./row";
 import { FoldToggle } from "@/components/fold-toggle";
 import { ShareSwitch } from "@/components/owners/share-controls";
+import { isAdmin } from "@/lib/server/admin";
+import { loadViewLinks } from "@/lib/server/view-links";
+import type { ViewLink } from "@/lib/view-links";
+import { ViewLinks } from "./view-links";
 import { type Sharing } from "@/lib/server/data/owners";
 import { sharingState } from "@/lib/server/owners";
 
@@ -64,14 +67,21 @@ async function loadSettings(): Promise<{
   connectors: Connector[] | null;
   budget: BudgetState;
   sharing: Sharing | null;
+  viewLinks: ViewLink[] | null | undefined;
   now: number;
 }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
   const owner = await currentOwner();
-  if (!owner) redirect(SIGNED_OUT_PATH);
-  const [account, lastCheck, lastReading, home, connectors, budget, sharing] = await Promise.all([
+  if (!owner) return ownerOnlyExit();
+  // View links are the admin's alone for now: undefined hides the section, null says they aren't set up yet.
+  const viewLinksFor = async (): Promise<ViewLink[] | null | undefined> => {
+    if (!(await isAdmin())) return undefined;
+    const page = await loadViewLinks(owner, Date.now());
+    return page.available ? page.links : null;
+  };
+  const [account, lastCheck, lastReading, home, connectors, budget, sharing, viewLinks] = await Promise.all([
     accountInfo(owner),
     lastCheckAt(owner),
     lastReadingAt(owner),
@@ -92,13 +102,17 @@ async function loadSettings(): Promise<{
       console.warn("Sharing state unavailable:", (err as Error).message);
       return { on: false, since: null };
     }),
+    viewLinksFor().catch((err): null => {
+      console.warn("View links unavailable:", (err as Error).message);
+      return null;
+    }),
   ]);
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
-  return { account, lastCheck, lastReading, home, connectors, budget, sharing, now: Date.now() };
+  return { account, lastCheck, lastReading, home, connectors, budget, sharing, viewLinks, now: Date.now() };
 }
 
 async function Settings() {
-  const { account, lastCheck, lastReading, home, connectors, budget, sharing, now } = await loadSettings();
+  const { account, lastCheck, lastReading, home, connectors, budget, sharing, viewLinks, now } = await loadSettings();
   // Past the Tesla budget checks slow down, then pause until the month resets (lib/server/poll.ts).
   const cadence =
     budget.level === "stopped"
@@ -132,7 +146,7 @@ async function Settings() {
               <>
                 <p>{connectedDescription}</p>
                 <p className="text-faint">Disconnecting stops Uplink reading your car. Your history stays.</p>
-                <p className="text-faint">To remove Uplink&apos;s key, open Controls, then Locks in your car.</p>
+                <p className="text-faint">To remove Uplink&apos;s key, open Controls &gt; Locks in your car.</p>
               </>
             }
           />
@@ -157,6 +171,7 @@ async function Settings() {
           description="Adds your car to the totals on the Compare page. Turning it off deletes your figures, and your car leaves the totals at 3:30 AM."
           control={<ShareSwitch on={sharing?.on ?? false} />}
         />
+        {viewLinks !== undefined && <ViewLinks links={viewLinks} now={now} />}
         <DeleteMyData />
         <DeleteAccount />
       </Group>

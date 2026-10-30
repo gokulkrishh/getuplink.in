@@ -413,7 +413,16 @@ export async function sharingState(owner: Owner): Promise<Sharing | null> {
 export type OwnersPage =
   | { kind: "off"; sharers: number }
   | { kind: "waiting"; counted: number }
-  | { kind: "ready"; stats: OwnerStats; updatedAt: string; you: CarSummary | null; group: string | null; lfp: boolean };
+  | { kind: "ready"; stats: OwnerStats; updatedAt: string; you: OwnSummary | null; group: string | null; lfp: boolean };
+
+// The owner's own summary as the page gets it: never the account id or the car's VIN hash, which a page's
+// private cache could hand to the browser (a guest's included).
+export type OwnSummary = Omit<CarSummary, "owner" | "vinHash">;
+const asOwn = (s: CarSummary | null): OwnSummary | null => {
+  if (!s) return null;
+  const { owner: _owner, vinHash: _vinHash, ...rest } = s;
+  return rest;
+};
 
 // The owner's own 30 days, from their day rows: the car with the most of them.
 async function ownSummary(owner: Owner, now: number): Promise<CarSummary | null> {
@@ -445,7 +454,7 @@ export async function loadOwners(owner: Owner, now: number): Promise<OwnersPage>
   if (!latest || !stats || stats.v !== STATS_VERSION || stats.cars < MIN_CARS || stats.owners < MIN_CARS) return { kind: "waiting", counted: stats?.owners ?? 0 };
   const you = await ownSummary(owner, now);
   const { group, lfp } = you ? { group: you.segment, lfp: you.lfp } : await ownGroup(owner);
-  return { kind: "ready", stats, updatedAt: latest.computed_at, you, group, lfp };
+  return { kind: "ready", stats, updatedAt: latest.computed_at, you: asOwn(you), group, lfp };
 }
 
 // The demo: a made-up set of about 40 cars (lib/server/demo/owners.ts) and the demo car's own 30 days,
@@ -463,7 +472,7 @@ async function demoOwners(owner: Owner, now: number): Promise<OwnersPage> {
     demoYou = { at: now, summary: summarise(days, { vinHash: "demo", owner: 0 }) };
   }
   const you = demoYou.summary;
-  return { kind: "ready", stats: aggregate([...set, ...(you ? [you] : [])]), updatedAt: iso(istDayStart(istDay(now)) + 3.5 * HOUR), you, group: you?.segment ?? null, lfp: you?.lfp ?? false };
+  return { kind: "ready", stats: aggregate([...set, ...(you ? [you] : [])]), updatedAt: iso(istDayStart(istDay(now)) + 3.5 * HOUR), you: asOwn(you), group: you?.segment ?? null, lfp: you?.lfp ?? false };
 }
 
 // ---- For the owner's own AI ----

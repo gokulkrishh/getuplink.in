@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/server/supabase";
 import { asOwner, type Owner } from "./owner";
+import { revokeAllViewLinks } from "./view-links";
 import { type HealthNow, latestPerComponent } from "@/lib/alerts";
 import type { ArchivedDriveRow } from "@/lib/drive-archive";
 
@@ -64,9 +65,11 @@ export async function signOutSession(userId: number, issuedAt: number, keepAfter
   check(await db().from("users").update({ signed_out_sessions: [...kept, issuedAt] }).eq("id", userId));
 }
 
-// "Sign out everywhere" and disconnect: the user's sessions issued before `at` stop working.
+// "Sign out everywhere" and disconnect: the user's sessions issued before `at` stop working, and so does
+// every view link they made (currentReader also refuses a link made before sessions_valid_after).
 export async function revokeUserSessions(owner: Owner, at: string): Promise<void> {
   check(await db().from("users").update({ sessions_valid_after: at, updated_at: at }).eq("id", owner.userId));
+  await revokeAllViewLinks(owner, at);
 }
 
 // Delete account: the users row, which cascades to every per-user table. Streamed readings aren't one

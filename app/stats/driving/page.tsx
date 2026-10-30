@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { cacheLife, cacheTag, io } from "next/cache";
-import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { Suspense } from "react";
 import { eachFrame } from "@/components/home/frames";
@@ -33,7 +32,9 @@ import {
 } from "@/lib/periods";
 import { DrivingSkeleton } from "@/components/stats/skeletons";
 import { NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/components/stats/stats-frame";
-import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { requireReader } from "@/lib/server/auth";
+import { shownTo } from "@/lib/server/data/owner";
+import type { Shown } from "@/lib/view-links";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import type { DrivingFigures } from "@/lib/driving-figures";
 import { loadDrivingFigures, loadSeasonEfficiency, loadWindowStats, type WindowStats } from "@/lib/server/driving";
@@ -73,13 +74,14 @@ async function loadDriving(query: CustomQuery | null): Promise<{
   routes: Record<number, string>;
   // Spots the trips and places show with no area name kept yet (see Driving).
   unnamed: { trips: { lat: number; lng: number }[]; places: { lat: number; lng: number }[] };
+  shown: Shown;
+  guest: boolean;
   now: number;
 }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  const owner = await currentOwner();
-  if (!owner) redirect(SIGNED_OUT_PATH);
+  const { owner } = await requireReader();
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
   const now = Date.now();
   const vehicle = await loadPrimaryVehicle(owner);
@@ -107,9 +109,9 @@ async function loadDriving(query: CustomQuery | null): Promise<{
   const insights = frames.map((f) => insightSpan(f.frame, now));
   const presets = frames.length - (frame ? 1 : 0);
   const [periodExtras, rangeExtras, seasons, trips] = await Promise.all([
-    loadDrivingExtrasFor(owner, vin, window.driving.drives, insights.slice(0, presets)).then(withGooglePlaces),
+    loadDrivingExtrasFor(owner, vin, window.driving.drives, insights.slice(0, presets)).then(withGooglePlaces(owner)),
     // A range may lie outside the periods' days, so it is read on its own.
-    frame ? loadDrivingExtrasFor(owner, vin, window.driving.drives, insights.slice(presets)).then(withGooglePlaces) : [],
+    frame ? loadDrivingExtrasFor(owner, vin, window.driving.drives, insights.slice(presets)).then(withGooglePlaces(owner)) : [],
     loadSeasonEfficiency(owner, vin, window.driving.drives, now),
     loadTripPlaces(owner, vin, window.driving.drives),
   ]);
@@ -123,8 +125,9 @@ async function loadDriving(query: CustomQuery | null): Promise<{
     return stripsBetween(Math.max(first, keptFrom), last, layers, figures.since, now);
   };
   const byFrame = Object.fromEntries(frames.map((f, k) => [f.key, { extras: extras[k], insights: insights[k], days: days(f.frame) }]));
-  const unnamed = { trips: trips.unnamed, places: extras.flatMap((x) => x.unnamed) };
-  return { figures, window, custom: range && frame ? { range, frame, driving: rangeDriving } : null, byFrame, seasons, routes: trips.routes, unnamed, now };
+  // A viewer looks nothing up: they see the names already kept.
+  const unnamed = owner.viewOnly ? { trips: [], places: [] } : { trips: trips.unnamed, places: extras.flatMap((x) => x.unnamed) };
+  return { figures, window, custom: range && frame ? { range, frame, driving: rangeDriving } : null, byFrame, seasons, routes: trips.routes, unnamed, shown: shownTo(owner), guest: owner.viewOnly === true, now };
 }
 
 type Spot = { lat: number; lng: number };
@@ -140,7 +143,7 @@ async function LookUpPlaceNames({ trips, places }: { trips: Spot[]; places: Spot
 
 async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "searchParams">) {
   const query = customQuery(await searchParams);
-  const { figures, window, custom, byFrame, seasons, routes, unnamed, now } = await loadDriving(query);
+  const { figures, window, custom, byFrame, seasons, routes, unnamed, shown, guest, now } = await loadDriving(query);
   const lookUp = unnamed.trips.length > 0 || unnamed.places.length > 0;
   const { days, driving } = window;
   // Mirrors the sections' own "enough data" rules, so an empty page says so instead of showing nothing.
@@ -188,13 +191,14 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
             const inFrame = driving.drives.filter((d) => inSpan(d.start, frame.span));
             return (
               <div className="space-y-3">
-                {inFrame.length > 0 ? <DriveList drives={inFrame} now={now} routes={routes} more={moreTrips.bind(null, { period: key, query })} /> : <p className="text-sm text-muted-foreground">No trips.</p>}
+                {inFrame.length > 0 ? <DriveList drives={inFrame} now={now} routes={routes} more={moreTrips.bind(null, { period: key, query })} shown={shown} /> : <p className="text-sm text-muted-foreground">No trips.</p>}
                 {partial(frame.span, tripsFrom) && <p className="text-sm text-faint">Trips cover only the last {DRIVE_DAYS} days.</p>}
               </div>
             );
           })}
-          {eachFrame(frames, ({ key, frame }) => (
-            <Places places={byFrame[key]?.extras.places ?? []} visited={byFrame[key]?.extras.visited ?? []} note={insightsNote(key, frame.span)} more={morePlaces.bind(null, { period: key, query })} />
+          {/* Where the car parks and went: none for a view link that hides locations, not an empty table. */}
+          {shown.locations && eachFrame(frames, ({ key, frame }) => (
+            <Places places={byFrame[key]?.extras.places ?? []} visited={byFrame[key]?.extras.visited ?? []} note={insightsNote(key, frame.span)} more={morePlaces.bind(null, { period: key, query })} canName={!guest} />
           ))}
           {eachFrame(frames, (f) => (isLong(f) ? <SpeedBands bins={byFrame[f.key]?.extras.speed ?? []} note={insightsNote(f.key, f.frame.span)} /> : null))}
         </div>

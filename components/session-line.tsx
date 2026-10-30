@@ -18,6 +18,8 @@ export type SessionView = {
   clock: string;
   href: string | null;
   place: string;
+  // A guest's link hides locations: `place` is "Hidden", drawn muted with no underline.
+  placeHidden?: boolean;
   // The place is a Google Maps name: credited beside it.
   google?: boolean;
   // The station used most in this list: marked "Most used".
@@ -41,11 +43,11 @@ export function SessionLine({ view }: { view: SessionView }) {
         <p className="flex min-w-0 items-baseline gap-1.5 font-medium">
           <span className="min-w-0 truncate">
             {view.href ? (
-              <Link href={view.href} className={ROW_LINK}>
+              <Link href={view.href} className={cn(ROW_LINK, view.placeHidden && "font-normal text-muted-foreground group-hover/row:no-underline")}>
                 {view.place}
               </Link>
             ) : (
-              view.place
+              <span className={cn(view.placeHidden && "font-normal text-muted-foreground")}>{view.place}</span>
             )}
           </span>
           {view.google && <GoogleMapsCredit className="shrink-0" />}

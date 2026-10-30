@@ -2,7 +2,7 @@ import { LINK as link } from "@/lib/link-style";
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { AdminPage } from "@/components/admin/admin-page";
 import { Figures } from "@/components/stats/figures";
@@ -10,7 +10,7 @@ import { botherLabel, deviceName, topicLabel } from "@/lib/feedback";
 import { formatDateTime, formatShortDate } from "@/lib/format";
 import { BEFORE_DAYS, type JevSummary, type VoteRate } from "@/lib/jev-checks";
 import { isAdmin } from "@/lib/server/admin";
-import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { hasCurrentSession, ownerOnlyExit } from "@/lib/server/auth";
 import { FEEDBACK_TAG, type FeedbackView, loadFeedback, PAGE_SIZE } from "@/lib/server/feedback";
 import { cn } from "@/lib/utils";
 import type { TipScope } from "@/lib/ai-tips";
@@ -31,7 +31,7 @@ async function loadPage(page: number): Promise<FeedbackView> {
   cacheTag(FEEDBACK_TAG);
   // As the other admin tabs: long enough to come with a link's prefetch; a new message refreshes it at once.
   cacheLife({ stale: 300 });
-  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
+  if (!(await hasCurrentSession())) await ownerOnlyExit();
   if (!(await isAdmin())) notFound();
   return loadFeedback(page, Date.now());
 }
@@ -130,7 +130,7 @@ async function loadVotes(): Promise<KindSummary[] | null> {
   "use cache: private";
   cacheTag(FEEDBACK_TAG);
   cacheLife({ stale: 300 });
-  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
+  if (!(await hasCurrentSession())) await ownerOnlyExit();
   if (!(await isAdmin())) notFound();
   return loadVoteSummary(VOTES_READ);
 }
@@ -271,7 +271,7 @@ async function loadJev(): Promise<JevSummary | null> {
   "use cache: private";
   cacheTag(FEEDBACK_TAG);
   cacheLife({ stale: 300 });
-  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
+  if (!(await hasCurrentSession())) await ownerOnlyExit();
   if (!(await isAdmin())) notFound();
   return loadJevSummary();
 }

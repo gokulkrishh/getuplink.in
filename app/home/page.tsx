@@ -79,12 +79,12 @@ const CANNOT = [
 const FAQ = [
   {
     q: "Why add Uplink's key to my car?",
-    a: "It lets your car send live data. It can't unlock or drive, and you can remove it in the car's Controls, then Locks.",
+    a: "It lets your car send live data. It can't unlock or drive, and you can remove it in the car's Controls > Locks.",
   },
   { q: "Which cars work?", a: "Any Tesla that works with apps like Uplink, including the Indian Model Y." },
   {
     q: "How do I delete my data?",
-    a: "Use Delete my data in Settings, or Delete account to remove your account too. Then remove Uplink's key in your car's Controls, then Locks.",
+    a: "Use Delete my data in Settings, or Delete account to remove your account too. Then remove Uplink's key in your car's Controls > Locks.",
   },
 ];
 

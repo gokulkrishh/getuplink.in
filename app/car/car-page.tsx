@@ -3,7 +3,7 @@ import { CarTabs } from "@/components/car-tabs";
 import { SentryMark } from "@/components/sentry-mark";
 import Link from "next/link";
 import { cacheLife, cacheTag } from "next/cache";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { Loading, Ph, SkFigures, SkSection } from "@/components/skeleton";
 import { Header } from "@/components/header";
@@ -23,7 +23,7 @@ import { rotationLine, tyreRotation } from "@/lib/tyre-rotation";
 import { CAR_NOW_FIELDS, type CarNow, carNow, shutSummary, tyreSeen } from "@/lib/car-now";
 import { formatClock, formatKm, formatKw, formatKwh, formatLevels, formatPercent, formatRangeKm, formatShortDate } from "@/lib/format";
 import { isStaleSync, lastSyncedText, newestTime } from "@/lib/last-synced";
-import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { requireReader } from "@/lib/server/auth";
 import { type CarDetails, type LastCharge, loadCarDetails } from "@/lib/server/car";
 import { type CarState, loadCarState, OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadPrimaryVehicle, loadStream } from "@/lib/server/telemetry";
@@ -37,8 +37,7 @@ async function loadCar(id: string): Promise<CarDetails | null> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  const owner = await currentOwner();
-  if (!owner) redirect(SIGNED_OUT_PATH);
+  const { owner } = await requireReader();
   return loadCarDetails(owner, id);
 }
 
@@ -48,8 +47,7 @@ async function loadPrimary(): Promise<{ id: string; vin: string } | null> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  const owner = await currentOwner();
-  if (!owner) redirect(SIGNED_OUT_PATH);
+  const { owner } = await requireReader();
   return loadPrimaryVehicle(owner);
 }
 
@@ -68,8 +66,7 @@ async function loadLive(id: string, vin: string | null): Promise<Live> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  const owner = await currentOwner();
-  if (!owner) redirect(SIGNED_OUT_PATH);
+  const { owner } = await requireReader();
   const at = Date.now();
   // The flags come with the state's read of the last online check.
   const [{ flags, ...state }, stream, arrivals, window, lastCharges] = await Promise.all([

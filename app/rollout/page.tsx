@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
-import { redirect } from "next/navigation";
 import { Globe } from "lucide-react";
 import { Suspense } from "react";
 import { EmptyState } from "@/components/empty-state";
@@ -16,7 +15,7 @@ import { DEMO } from "@/lib/demo";
 import { paged } from "@/lib/list";
 import type { YourCar } from "@/lib/rollout-arriving";
 import { arrivingRows, cars, versionRows } from "@/lib/rollout-rows";
-import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { requireReader } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadRollout, type RolloutPage } from "@/lib/server/rollout";
 import { moreArriving, moreRolloutVersions } from "./actions";
@@ -30,8 +29,7 @@ async function loadOwnRollout(): Promise<RolloutPage> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  const owner = await currentOwner();
-  if (!owner) redirect(SIGNED_OUT_PATH);
+  const { owner } = await requireReader();
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
   return loadRollout(owner, Date.now());
 }

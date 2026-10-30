@@ -6,7 +6,7 @@ import { HARD_MS2 } from "@/lib/drive-verdict";
 import { DRIVE_DAYS } from "@/lib/drives";
 import { num, type Reading } from "@/lib/telemetry-derive";
 import { demoReadings } from "./demo";
-import { type Owner, ownerDb } from "./data/owner";
+import { type Owner, ownerDb, readableFields } from "./data/owner";
 import { MAX_PAGES, PAGE } from "./telemetry";
 
 // Several fields' readings in one window [from, to), by field, oldest first: one query instead of one
@@ -100,7 +100,8 @@ async function loadArchivedReadings(owner: Owner, vin: string, fields: string[],
     fields,
     ...rows.flatMap((row) => {
       const [kept, until] = [Date.parse(row.readings_from as string), Date.parse(row.readings_to as string)];
-      return windows.filter((w) => w.from < until && w.to > kept).map((w) => unpackReadings(row.readings as PackedReadings, fields, w.from, w.to));
+      // Archived drives keep their Location: a link that hides locations unpacks the other fields only.
+      return windows.filter((w) => w.from < until && w.to > kept).map((w) => unpackReadings(row.readings as PackedReadings, readableFields(owner, fields), w.from, w.to));
     }),
   );
 }

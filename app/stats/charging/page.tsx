@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
-import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { SyncChargingSessions } from "@/components/background-sync";
 import { loadTipsBox } from "@/components/tips-box";
@@ -23,7 +22,9 @@ import type { DrivingFigures } from "@/lib/driving-figures";
 import { type CustomFrame, fromSince, periodFrames } from "@/lib/frames";
 import { backTo, serials } from "@/lib/kept";
 import { customQuery, type CustomQuery, customRange, inSpan, rangeTimeframe, type Span } from "@/lib/periods";
-import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { requireReader } from "@/lib/server/auth";
+import { shownTo } from "@/lib/server/data/owner";
+import type { Shown } from "@/lib/view-links";
 import type { ChargingSession } from "@/lib/server/charging";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadDrivingFigures } from "@/lib/server/driving";
@@ -48,13 +49,13 @@ async function loadCharging(query: CustomQuery | null): Promise<{
   held: Held;
   custom: (CustomFrame & { extras: Extras; held: Held }) | null;
   vehicleId: string | null;
+  shown: Shown;
   now: number;
 }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  const owner = await currentOwner();
-  if (!owner) redirect(SIGNED_OUT_PATH);
+  const { owner } = await requireReader();
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
   const now = Date.now();
   const car = await loadPrimaryVehicle(owner);
@@ -70,12 +71,12 @@ async function loadCharging(query: CustomQuery | null): Promise<{
     range && frame && rangeExtras
       ? { range, frame, driving: rangeDriving, extras: rangeExtras, held: heldFrom(streamSessions.filter(startedIn(frame.span))) }
       : null;
-  return { sessions, streamSessions, invoices, figures, extras, held: heldFrom(streamSessions), custom, vehicleId: car?.id ?? null, now };
+  return { sessions, streamSessions, invoices, figures, extras, held: heldFrom(streamSessions), custom, vehicleId: car?.id ?? null, shown: shownTo(owner), now };
 }
 
 async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "searchParams">) {
   const query = customQuery(await searchParams);
-  const { sessions, streamSessions, invoices, figures, extras, held, custom, vehicleId, now } = await loadCharging(query);
+  const { sessions, streamSessions, invoices, figures, extras, held, custom, vehicleId, shown, now } = await loadCharging(query);
   const { listed, streamOnly } = listCharges({ sessions, streamSessions, invoices, extras }, now);
   // Real bills: Tesla's for Superchargers, attached invoices for the rest. A finished charge with
   // neither is counted as unbilled, never priced.
@@ -125,9 +126,9 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
           {streamSessions.length > 0 &&
             eachFrame(frames, (f) => <EnergyAdded sessions={sessions} streamOnly={streamOnly} frame={fromSince(f, chargingSince, now).frame} chargingSince={chargingSince} stops={stops} />)}
           {eachFrame(frames, ({ key, frame }) => {
-            const shown = listed.filter(startedIn(frame.span));
-            return shown.length > 0 ? (
-              <SessionList sessions={shown} more={moreCharges.bind(null, { period: key, query })} />
+            const inFrame = listed.filter(startedIn(frame.span));
+            return inFrame.length > 0 ? (
+              <SessionList sessions={inFrame} more={moreCharges.bind(null, { period: key, query })} shown={shown} />
             ) : (
               <section className="space-y-2">
                 <h2 className="text-lg font-medium tracking-heading">Charging sessions</h2>

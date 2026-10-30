@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
-import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Loading, Ph, SkHead, SkLine, SkSection, SkShowMore } from "@/components/skeleton";
 import { AutoRefresh } from "@/components/auto-refresh";
@@ -23,7 +22,7 @@ import type { DemoScenario } from "@/lib/demo";
 import { newestTime } from "@/lib/last-synced";
 import { customRange, rangeTimeframe, type Timeframe } from "@/lib/periods";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
-import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { requireReader } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadUpdatesPage, type UpdatesCar, type UpdatesPage } from "@/lib/server/updates-page";
 import { updateStats } from "@/lib/telemetry-derive";
@@ -35,15 +34,14 @@ const heading = "text-lg font-medium tracking-heading";
 
 // Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx). The
 // demo scenario is an argument, so each one gets its own entry; the period is not, since it switches in the browser.
-async function loadOwnUpdates(demo: DemoScenario): Promise<{ data: UpdatesPage; now: number }> {
+async function loadOwnUpdates(demo: DemoScenario): Promise<{ data: UpdatesPage; now: number; guest: boolean }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  const owner = await currentOwner();
-  if (!owner) redirect(SIGNED_OUT_PATH);
+  const { owner } = await requireReader();
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
   const now = Date.now();
-  return { data: await loadUpdatesPage(owner, demo, now), now };
+  return { data: await loadUpdatesPage(owner, demo, now), now, guest: owner.viewOnly === true };
 }
 
 // One car: the installed version and its status, the pending update, the history, how updates usually go,
@@ -131,7 +129,7 @@ function CarUpdates({ car, notes, label, range, now }: { car: UpdatesCar; notes:
 async function Updates({ searchParams }: Pick<PageProps<"/updates">, "searchParams">) {
   const params = await searchParams;
   const demo: DemoScenario = "normal";
-  const { data, now } = await loadOwnUpdates(demo);
+  const { data, now, guest } = await loadOwnUpdates(demo);
   const failedRun = data.kind === "ready" && data.lastRun?.ok === false ? data.lastRun : null;
   const cars = data.kind === "ready" ? data.cars : [];
   // Only the update count follows a range picked by date, and it is counted from rows already here, so
@@ -141,7 +139,7 @@ async function Updates({ searchParams }: Pick<PageProps<"/updates">, "searchPara
 
   return (
     <>
-      <OwnerNotices data={data} count={cars.length} failedRun={failedRun} />
+      <OwnerNotices data={data} count={cars.length} failedRun={failedRun} viewer={guest} />
       {data.kind === "ready" && cars.length > 0 && (
         <PeriodScope periods={PAGE_PERIODS.updates} custom={customScope(range, now)}>
           <div className="space-y-24">

@@ -3,6 +3,7 @@ import { cache } from "react";
 import type { GoogleSku } from "@/lib/costs";
 import type { SpotName } from "@/lib/charge-names";
 import { DEMO } from "@/lib/demo";
+import type { Owner } from "./data/owner";
 import { countGoogleCall } from "./data/system";
 
 // Names for the places the owner named by tapping a Google suggestion. user_places keeps only the place
@@ -61,7 +62,9 @@ export const googlePlaceName = cache(lookup);
 
 // The spots with their Google names filled in (`google`), for the spots tagged with a Google place. On
 // any failure `google` stays null and the row shows the safe name (the area, or whatever else names it).
-export async function withGoogleNames<T extends SpotName>(spots: readonly T[]): Promise<T[]> {
+// Never for a viewer (a view link): they see the safe name, and their visit costs no Google call.
+export async function withGoogleNames<T extends SpotName>(owner: Owner, spots: readonly T[]): Promise<T[]> {
+  if (owner.viewOnly) return [...spots];
   const ids = [...new Set(spots.flatMap((s) => (s.target.tag?.googlePlaceId ? [s.target.tag.googlePlaceId] : [])))].slice(0, MAX_LOOKUPS);
   if (ids.length === 0) return [...spots];
   const names = new Map(await Promise.all(ids.map(async (id) => [id, await googlePlaceName(id)] as const)));
@@ -73,8 +76,8 @@ export async function withGoogleNames<T extends SpotName>(spots: readonly T[]): 
 }
 
 // The same, for spots keyed by a session id or a stretch's start.
-export async function withGoogleNamesBy<K extends string | number, T extends SpotName>(spots: Readonly<Record<K, T>>): Promise<Record<K, T>> {
+export async function withGoogleNamesBy<K extends string | number, T extends SpotName>(owner: Owner, spots: Readonly<Record<K, T>>): Promise<Record<K, T>> {
   const entries = Object.entries(spots) as [K, T][];
-  const named = await withGoogleNames(entries.map(([, s]) => s));
+  const named = await withGoogleNames(owner, entries.map(([, s]) => s));
   return Object.fromEntries(entries.map(([k], i) => [k, named[i]])) as Record<K, T>;
 }

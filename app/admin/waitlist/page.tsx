@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { accessAnchor } from "@/lib/failed-checks";
 import { AdminPage } from "@/components/admin/admin-page";
@@ -9,7 +9,7 @@ import { InfoButton } from "@/components/info-button";
 import { type Decision, isFull, placesLine } from "@/lib/admin";
 import { formatDateTime } from "@/lib/format";
 import { isAdmin } from "@/lib/server/admin";
-import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { hasCurrentSession, ownerOnlyExit } from "@/lib/server/auth";
 import { type Account, loadWaitlist, WAITLIST_TAG, type WaitlistPage } from "@/lib/server/waitlist";
 import { type InviteItem, type InvitesPage, loadInvites } from "@/lib/server/invites";
 import { copyInviteLink, createInviteLink, decideAccount, renewInviteLink, revokeInviteLink } from "./actions";
@@ -31,7 +31,7 @@ async function loadPage(): Promise<{ data: WaitlistPage; invites: InvitesPage; n
   // 5 minutes or more lets the page come along with a link's prefetch, so the tabs switch at once (Next's
   // instant-navigation guide); saves still refresh it at once (updateTag).
   cacheLife({ stale: 300 });
-  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
+  if (!(await hasCurrentSession())) await ownerOnlyExit();
   if (!(await isAdmin())) notFound();
   const now = Date.now();
   const [data, invites] = await Promise.all([loadWaitlist(now), loadInvites(now)]);

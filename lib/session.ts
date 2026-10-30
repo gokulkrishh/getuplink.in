@@ -9,6 +9,14 @@ export function requestHost(headers: { get(name: string): string | null }): stri
   return headers.get("x-forwarded-host") ?? headers.get("host");
 }
 
+// Where a redirect sends the browser: `path` on the host it used (requestHost), never request.url's, which
+// in dev is the server's own http://localhost:3000 while the browser is on app.getuplink.localhost:3000.
+// Cookies are per host, so another host loses them (the sign-in state, the viewer cookie).
+export function browserUrl(path: string, request: Request): URL {
+  const url = new URL(request.url);
+  return new URL(path, `${url.protocol}//${requestHost(request.headers) ?? url.host}`);
+}
+
 // The session cookie is shared with the home page so it can show "Dashboard" to a signed-in owner; it
 // stays HttpOnly. getuplink.in in production, getuplink.localhost locally; host-only elsewhere (previews).
 export const SHARED_DOMAINS = ["getuplink.in", "getuplink.localhost"];

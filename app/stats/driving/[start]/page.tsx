@@ -6,7 +6,7 @@ import { DRIVE_TIPS, driveFindings, TRIP_TIPS } from "@/lib/drive-tips";
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { after } from "next/server";
 import { type ReactNode, Suspense } from "react";
 import { Header } from "@/components/header";
@@ -19,10 +19,10 @@ import { type Figure, Figures } from "@/components/stats/figures";
 import { type MapFact, MapFacts, type MapPin, TripMap } from "@/components/stats/trip-map";
 import { TripTimeline } from "@/components/stats/trip-timeline";
 import { formatCelsius, formatClock, formatDate, formatDuration, formatKm, formatKw, formatNumber, formatKwh, formatLevels, formatRangeKm, formatSpeed, withDayWord } from "@/lib/format";
-import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { requireReader } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type DriveDetail, loadDriveDetail } from "@/lib/server/drive-detail";
-import { placeKey, placeNames } from "@/lib/server/place-names";
+import { cachedPlaceNames, placeKey, placeNames } from "@/lib/server/place-names";
 import { loadUserPlaces } from "@/lib/server/user-places";
 import { NamePlace } from "@/components/name-place";
 import { ROW_LINK, RowChevron } from "@/components/row-chevron";
@@ -31,7 +31,7 @@ import { isFlat, MIN_USUAL_DRIVES } from "@/lib/drive-verdict";
 import { describeDrive, type DriveView, type WordingField } from "@/lib/drive-facts";
 import { pickWords, type ShownLine } from "@/lib/drive-wording";
 import { generateDriveWording, loadDriveWording } from "@/lib/server/drive-wording";
-import type { Owner } from "@/lib/server/data/owner";
+import { shownTo } from "@/lib/server/data/owner";
 import { AiLine } from "@/components/ai-line";
 import { stationAt } from "@/lib/stations";
 import type { UserPlace } from "@/lib/user-places";
@@ -52,23 +52,24 @@ const ACCEL_SIDES: { above: Side; below: Side } = { above: { tone: "cool", words
 const GRADE_SIDES: { above: Side; below: Side } = { above: { tone: "warm", words: "Uphill" }, below: { tone: "cool", words: "Downhill" } };
 
 // Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx).
-// The owner comes back too, for the wording written after the response (see DriveLoader).
-async function loadDetail(start: number, leg: boolean): Promise<{ owner: Owner; detail: DriveDetail | null; now: number }> {
+// Never the Owner itself: a private cache's result can reach the browser, and a guest must never get the
+// owner's user id or Tesla account id. DriveLoader reads the reader again for the wording.
+async function loadDetail(start: number, leg: boolean): Promise<{ detail: DriveDetail | null; now: number; locations: boolean }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  const owner = await currentOwner();
-  if (!owner) redirect(SIGNED_OUT_PATH);
+  const { owner } = await requireReader();
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
   const now = Date.now();
-  return { owner, detail: await loadDriveDetail(owner, start, now, leg), now };
+  return { detail: await loadDriveDetail(owner, start, now, leg), now, locations: shownTo(owner).locations };
 }
 
 // One trip on one page: a single drive, or drives with short stops between (see groupTrips). Its totals,
 // the route on a map with its start, stops and end, a timeline of legs and stops, then the battery and
 // speed across the whole trip.
 // `words` holds each line's text, the AI's or the code's (see lib/drive-facts.ts and lib/drive-wording.ts).
-function Drive({ detail, view, words, tipsBox, now }: { detail: DriveDetail; view: DriveView; words: Partial<Record<WordingField, ShownLine>>; tipsBox: ReactNode; now: number }) {
+// `locations`: false for a view link that hides them, which leaves the map out, with no note in its place.
+function Drive({ detail, view, words, tipsBox, now, locations }: { detail: DriveDetail; view: DriveView; words: Partial<Record<WordingField, ShownLine>>; tipsBox: ReactNode; now: number; locations: boolean }) {
   const { speed, rangeUsedKm, topKmh, outsideC, route, pins, accel, power, grade, climate } = detail;
   // The trip's totals are its legs' raw sums, each rounded on its own when shown.
   const { trip } = detail;
@@ -116,24 +117,26 @@ function Drive({ detail, view, words, tipsBox, now }: { detail: DriveDetail; vie
             {tipsBox}
           </section>
         )}
-        <section className="space-y-4">
-          <h2 className="text-lg font-medium tracking-heading">Map</h2>
-          {route.length >= 2 ? (
-            <TripMap
-              route={route}
-              pins={mapPins(pins, trip.legs)}
-              speed={speed}
-              legs={trip.legs.map((d) => ({ start: d.start, end: d.end, note: [formatKm(d.km), batteryWords(d.startLevel, d.endLevel)].filter(Boolean).join(", ") }))}
-              below={
-                <Suspense fallback={<MapFacts facts={mapFacts(null, null, tiles)} />}>
-                  <NamedFacts pins={pins} tiles={tiles} />
-                </Suspense>
-              }
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">The map shows once your car starts sending its location.</p>
-          )}
-        </section>
+        {locations && (
+          <section className="space-y-4">
+            <h2 className="text-lg font-medium tracking-heading">Map</h2>
+            {route.length >= 2 ? (
+              <TripMap
+                route={route}
+                pins={mapPins(pins, trip.legs)}
+                speed={speed}
+                legs={trip.legs.map((d) => ({ start: d.start, end: d.end, note: [formatKm(d.km), batteryWords(d.startLevel, d.endLevel)].filter(Boolean).join(", ") }))}
+                below={
+                  <Suspense fallback={<MapFacts facts={mapFacts(null, null, tiles)} />}>
+                    <NamedFacts pins={pins} tiles={tiles} />
+                  </Suspense>
+                }
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">The map shows once your car starts sending its location.</p>
+            )}
+          </section>
+        )}
         {/* Every number in one set of tiles: easier to take in than a long list. */}
         <section>
           <Figures
@@ -242,19 +245,20 @@ function mapPins(pins: MapPin[], legs: DriveDetail["trip"]["legs"]): MapPin[] {
 // The trip's facts under its map, from the tiles above, with where it began and ended when known. They sit
 // on the map's card, each end with its best name (see spotName), and "Name this place" or the pencil
 // beside it. Being part of the map, they never show a Google name: a Google-tagged end shows its area.
-function endFact(label: string, end: SpotName | null): MapFact | null {
+// `canName`: false for a guest, who never gets "Name this place".
+function endFact(label: string, end: SpotName | null, canName: boolean): MapFact | null {
   if (!end) return null;
-  const kind = nameAction(end);
+  const kind = canName ? nameAction(end) : null;
   const action = kind ? <NamePlace target={end.target} compact={kind === "rename"} /> : undefined;
   if (!end.name && !action) return null;
   return { label, value: end.name?.text ?? "Unknown", extra: action };
 }
 
-function mapFacts(from: SpotName | null, to: SpotName | null, tiles: { label: string; value: string }[]): MapFact[] {
+function mapFacts(from: SpotName | null, to: SpotName | null, tiles: { label: string; value: string }[], canName = false): MapFact[] {
   const tile = (label: string) => tiles.find((t) => t.label === label)?.value;
   const facts: (MapFact | null)[] = [
-    endFact("From", from),
-    endFact("To", to),
+    endFact("From", from, canName),
+    endFact("To", to, canName),
     { label: "Distance", value: tile("Distance") ?? "" },
     { label: "Took", value: tile("Took") ?? "" },
     tile("Battery") ? { label: "Battery", value: tile("Battery")! } : null,
@@ -262,14 +266,14 @@ function mapFacts(from: SpotName | null, to: SpotName | null, tiles: { label: st
   return facts.filter((f): f is MapFact => f !== null && f.value !== "");
 }
 
-// The owner's names for places, in the same private cache as the page's data.
-async function loadTags(): Promise<UserPlace[]> {
+// The owner's names for places, in the same private cache as the page's data, and whether an unnamed area
+// may be looked up and named (never for a guest, who sees only the names already kept).
+async function loadTags(): Promise<{ tags: UserPlace[]; lookUp: boolean }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  const owner = await currentOwner();
-  if (!owner) redirect(SIGNED_OUT_PATH);
-  return loadUserPlaces(owner);
+  const { owner } = await requireReader();
+  return { tags: await loadUserPlaces(owner), lookUp: !owner.viewOnly };
 }
 
 // Names for the start and end, best source first (see spotName): the owner's tag, a charging station, then
@@ -277,12 +281,10 @@ async function loadTags(): Promise<UserPlace[]> {
 // a slow lookup never holds the page.
 async function NamedFacts({ pins, tiles }: { pins: MapPin[]; tiles: { label: string; value: string }[] }) {
   const ends = [pins.find((p) => p.kind === "start"), pins.findLast((p) => p.kind === "end")];
-  const [names, tags] = await Promise.all([
-    placeNames(ends.filter((p): p is MapPin => p !== undefined)).catch(() => new Map<string, string>()),
-    loadTags(),
-  ]);
+  const { tags, lookUp } = await loadTags();
+  const names = await (lookUp ? placeNames : cachedPlaceNames)(ends.filter((p): p is MapPin => p !== undefined)).catch(() => new Map<string, string>());
   const name = (p: MapPin | undefined) => (p ? spotName(tags, p, { station: stationAt(p.lat, p.lng), place: names.get(placeKey(p)) }) : null);
-  return <MapFacts facts={mapFacts(name(ends[0]), name(ends[1]), tiles)} />;
+  return <MapFacts facts={mapFacts(name(ends[0]), name(ends[1]), tiles, lookUp)} />;
 }
 
 // Each leg of a trip as a row: when, how far, the energy and battery when known. Each opens its own page.
@@ -349,15 +351,18 @@ function highlights(power: { t: number; v: number }[], accel: { t: number; v: nu
 async function DriveLoader({ params, searchParams }: Pick<PageProps<"/stats/driving/[start]">, "params" | "searchParams">) {
   const [{ start }, query] = await Promise.all([params, searchParams]);
   if (!isDriveStart(start)) notFound();
-  const { owner, detail, now } = await loadDetail(Number(start), query.leg !== undefined);
+  const { detail, now, locations } = await loadDetail(Number(start), query.leg !== undefined);
   if (!detail) notFound();
+  // Server-side only, for the wording below: never handed to the page.
+  const { owner } = await requireReader();
   // The words: the AI's when stored for these exact facts, else the code sentences. Read on every view,
   // outside the cache above, so wording written after the last view shows now. With none stored, it is
   // written after this response (never making the page wait) and shows on the next view.
   const view = describeDrive(detail);
   const key = { vehicleId: detail.vehicleId, start: detail.trip.start, scope: detail.trip.legs.length > 1 ? "trip" : "drive" } as const;
   const stored = await loadDriveWording(owner, key, view.facts);
-  if (stored.generate) after(() => generateDriveWording(owner, key, view.facts));
+  // A viewer never sets the AI writing: the owner's own view does.
+  if (stored.generate && !owner.viewOnly) after(() => generateDriveWording(owner, key, view.facts));
   const { trip } = detail;
   const tipsBox = await loadTipsBox({
     surface: trip.legs.length > 1 ? TRIP_TIPS : DRIVE_TIPS,
@@ -378,7 +383,7 @@ async function DriveLoader({ params, searchParams }: Pick<PageProps<"/stats/driv
       climate: detail.climate ? summariseClimate(detail.climate) : null,
     }),
   });
-  return <Drive detail={detail} view={view} words={pickWords(view.code, stored.words)} tipsBox={tipsBox} now={now} />;
+  return <Drive detail={detail} view={view} words={pickWords(view.code, stored.words)} tipsBox={tipsBox} now={now} locations={locations} />;
 }
 
 export default function Page({ params, searchParams }: PageProps<"/stats/driving/[start]">) {

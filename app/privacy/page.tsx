@@ -47,7 +47,7 @@ export default function PrivacyPage() {
       <Section title="Your car and Uplink's key">
         <p>
           Uplink only reads. It never unlocks, drives or sends commands to your car, and it never wakes it. You can remove its key
-          any time in the car&apos;s Controls, then Locks.
+          any time in the car&apos;s Controls &gt; Locks.
         </p>
       </Section>
       <Section title="How we use your data">

@@ -2,7 +2,6 @@ import { ChevronDown, EyeOff, Trash2, Users } from "lucide-react";
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { CarTabs } from "@/components/car-tabs";
 import { ChartCard } from "@/components/chart-card";
@@ -56,22 +55,23 @@ import {
   youHoursLine,
   youLine,
 } from "@/lib/owners";
-import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { requireReader } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadOwners, type OwnersPage } from "@/lib/server/owners";
+import { GuestNotSharing, GuestSharingLine } from "@/components/owners/guest-lines";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Compare" };
 
 // Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx).
-async function loadOwnersPage(): Promise<OwnersPage> {
+// guest: someone the owner sent a guest link, who gets no Share button and no way to Settings.
+async function loadOwnersPage(): Promise<{ page: OwnersPage; guest: boolean }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  const owner = await currentOwner();
-  if (!owner) redirect(SIGNED_OUT_PATH);
+  const { owner } = await requireReader();
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
-  return loadOwners(owner, Date.now());
+  return { page: await loadOwners(owner, Date.now()), guest: owner.viewOnly === true };
 }
 
 type Ready = Extract<OwnersPage, { kind: "ready" }>;
@@ -392,12 +392,12 @@ function SharingOn({ text }: { text: string }) {
 
 // Sharing, but too few owners are in the totals yet: how far along it is, as one step per owner needed,
 // and what the page will answer once it fills in.
-function Waiting({ counted }: { counted: number }) {
+function Waiting({ counted, guest = false }: { counted: number; guest?: boolean }) {
   const short = counted < MIN_CARS;
   return (
     <div className="space-y-10">
       <section className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border px-4 py-3">
-        <SharingOn text="You're sharing. Your car will be part of the totals." />
+        {guest ? <GuestSharingLine text="The owner shares this car's figures. It will be part of the totals." /> : <SharingOn text="You're sharing. Your car will be part of the totals." />}
       </section>
       <section className="space-y-4">
         <div className="space-y-1">
@@ -431,9 +431,9 @@ function Waiting({ counted }: { counted: number }) {
 }
 
 async function Owners() {
-  const page = await loadOwnersPage();
-  if (page.kind === "off") return <NotSharing sharers={page.sharers} />;
-  if (page.kind === "waiting") return <Waiting counted={page.counted} />;
+  const { page, guest } = await loadOwnersPage();
+  if (page.kind === "off") return guest ? <GuestNotSharing /> : <NotSharing sharers={page.sharers} />;
+  if (page.kind === "waiting") return <Waiting counted={page.counted} guest={guest} />;
   const sections = SECTIONS.map((section) => ({
     ...section,
     cards: CARDS.filter((c) => c.section === section.key && !OFF_PAGE.has(c.key))
@@ -446,7 +446,7 @@ async function Owners() {
     <div className="space-y-10">
       {/* That the owner shares, in a box of its own so it isn't missed, with the way to stop in Settings. */}
       <section className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border px-4 py-3">
-        <SharingOn text="You're sharing. Your car is part of these totals." />
+        {guest ? <GuestSharingLine text="The owner shares this car's figures. It's part of these totals." /> : <SharingOn text="You're sharing. Your car is part of these totals." />}
       </section>
       <div className="space-y-6">
         {/* Who's in the figures and over what: the page's period, named once. */}

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
-import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { eachFrame } from "@/components/home/frames";
 import { CapacityByKm, CellBalance, Temperatures, TeslaPackByWeek } from "@/components/stats/battery-extras";
@@ -13,7 +12,9 @@ import { BatterySkeleton } from "@/components/stats/skeletons";
 import { NotYet, StatsFrame, StatsPage, StatsSkeleton } from "@/components/stats/stats-frame";
 import { timeframes } from "@/lib/frames";
 import { customQuery, type CustomQuery, customRange, type DayRange, rangeTimeframe, type Timeframe } from "@/lib/periods";
-import { currentOwner, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { requireReader } from "@/lib/server/auth";
+import { shownTo } from "@/lib/server/data/owner";
+import type { Shown } from "@/lib/view-links";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadWindowStats, type WindowStats } from "@/lib/server/driving";
 import { loadStreamSessions, type StreamChargeSession } from "@/lib/server/stream-charging";
@@ -49,13 +50,13 @@ async function loadBattery(query: CustomQuery | null): Promise<{
   priced: PricedCharge[];
   modes: ModeReadings | undefined;
   vehicleId: string | null;
+  shown: Shown;
   now: number;
 }> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 60 });
-  const owner = await currentOwner();
-  if (!owner) redirect(SIGNED_OUT_PATH);
+  const { owner } = await requireReader();
   // The clock is read inside the cache; reading it while rendering blocks prerendering.
   const now = Date.now();
   const car = await loadPrimaryVehicle(owner);
@@ -76,12 +77,12 @@ async function loadBattery(query: CustomQuery | null): Promise<{
     // Where each stretch was parked; never fails the page.
     loadStretchPlaces(owner, vin, window.driving),
   ]);
-  return { window, sessions, extras, places, custom: range && { range, frame: rangeTimeframe(range, now) }, presence, priced, modes: modes ?? undefined, vehicleId: car?.id ?? null, now };
+  return { window, sessions, extras, places, custom: range && { range, frame: rangeTimeframe(range, now) }, presence, priced, modes: modes ?? undefined, vehicleId: car?.id ?? null, shown: shownTo(owner), now };
 }
 
 async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "searchParams">) {
   const query = customQuery(await searchParams);
-  const { window, extras, places, custom, presence, priced, modes, vehicleId, now } = await loadBattery(query);
+  const { window, extras, places, custom, presence, priced, modes, vehicleId, shown, now } = await loadBattery(query);
   const { trend, range, level, driving } = window;
   const enough = trend.length >= 2 || range.length > 0 || (level?.points.length ?? 0) >= 2 || driving.parked.length > 0 || driving.parkedNow !== null;
   const frames = timeframes(custom?.frame ?? null, now);
@@ -101,7 +102,7 @@ async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "sear
           {eachFrame(frames, () => (
             <BatteryHealth trend={trend} range={range} drives={driving.drives} now={now} />
           ))}
-          {eachFrame(frames, ({ key, frame }) => <ParkedDrain parked={driving.parked} parkedNow={driving.parkedNow} frame={frame} places={places} more={moreParked.bind(null, { period: key, query })} />)}
+          {eachFrame(frames, ({ key, frame }) => <ParkedDrain parked={driving.parked} parkedNow={driving.parkedNow} frame={frame} places={places} more={moreParked.bind(null, { period: key, query })} shown={shown} />)}
           {eachFrame(frames, ({ frame }) => <ChargeLevelChart level={level} now={now} frame={frame} heading />)}
           {/* The id sits outside the periods' copies, so it is on the page once. */}
           <div id="battery">{eachFrame(frames, ({ frame }) => <BatteryPack trend={trend} frame={frame} />)}</div>

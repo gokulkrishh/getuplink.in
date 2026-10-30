@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { db } from "@/lib/server/supabase";
+import type { Shown } from "@/lib/view-links";
 
 // The data layer: the only code that talks to the database (test/data-layer-guard.test.ts fails on any
 // other import of the client). Per-user reads and writes go through ownerDb(owner) below; fleet-wide ones
@@ -11,9 +12,60 @@ declare const OWNER: unique symbol;
 // The signed-in account a read or write is for: its users row and its Tesla account id (id_token `sub`).
 // Plain data, since it crosses "use cache: private" scopes; the brand is type-only, so only
 // lib/server/auth.ts and ./system.ts make one (with asOwner).
-export type Owner = { readonly userId: number; readonly sub: string; readonly [OWNER]: true };
+// viewOnly: someone the owner sent a view link (lib/server/view-links.ts) reads this account, read-only.
+// Only currentReader() makes one (with asViewer): it reads like the owner, but every write refuses it (see
+// ownerTable), and loaders leave out what would ask Tesla, Google, OpenStreetMap or the AI.
+// hidden: what the viewer's link leaves out (Settings → View links). Never set on the owner's own Owner.
+export type Owner = { readonly userId: number; readonly sub: string; readonly viewOnly?: true; readonly hidden?: readonly Hidden[]; readonly [OWNER]: true };
+
+// What a view link can leave out: where the car goes, parks and charges. (Invoices are never a viewer's,
+// whatever the link says: see showsInvoices.)
+export type Hidden = "locations";
 
 export const asOwner = (userId: number, sub: string): Owner => ({ userId, sub }) as Owner;
+export const asViewer = (userId: number, sub: string, hidden: readonly Hidden[] = []): Owner =>
+  (hidden.length > 0 ? { userId, sub, viewOnly: true, hidden: [...hidden] } : { userId, sub, viewOnly: true }) as Owner;
+
+// Whether this reader's link leaves `what` out. The one check every loader uses: a hidden value is left out
+// where it is read, on the server, so it never reaches the page (nor the browser with it).
+export const hides = (owner: Owner, what: Hidden): boolean => owner.hidden?.includes(what) === true;
+
+// Whether this reader sees charging invoices and receipts (their number, lines, station and file): the owner
+// only. A view link never does, whatever it hides.
+export const showsInvoices = (owner: Owner): boolean => owner.viewOnly !== true;
+
+// The same, as the flags a page draws by: leave out a map rather than show it empty, and say "Hidden".
+export const shownTo = (owner: Owner): Shown => ({ locations: !hides(owner, "locations") });
+
+// The car's readings that say where it is or is going. Left out of every reading for a link that hides locations.
+export const LOCATION_FIELDS = [
+  "Location",
+  "LocatedAtHome",
+  "LocatedAtWork",
+  "LocatedAtFavorite",
+  "DestinationLocation",
+  "DestinationName",
+  "OriginLocation",
+  "RouteLine",
+  "RouteLastUpdated",
+  "GpsHeading",
+  "GpsState",
+  "GpsAccuracyMeters",
+];
+
+// The fields asked for, less the location ones when this reader's link hides them.
+export const readableFields = (owner: Owner, fields: string[]): string[] => (hides(owner, "locations") ? fields.filter((f) => !LOCATION_FIELDS.includes(f)) : fields);
+
+// Writes, and invoice files, are the owner's alone. A view-only reader reaching one is a bug: it throws
+// rather than writes or reads.
+export class ViewOnlyWrite extends Error {
+  constructor() {
+    super("A view link can't change anything or read an invoice");
+  }
+}
+function writable(owner: Owner): void {
+  if (owner.viewOnly) throw new ViewOnlyWrite();
+}
 
 // Demo mode signs everyone in as this account; db() refuses to run, so it never reaches the database.
 export const DEMO_OWNER = asOwner(0, "demo");
@@ -66,12 +118,12 @@ function ownerTable(table: OwnerTable, owner: Owner): OwnerQuery {
   const from = () => db().from(table);
   return {
     select: ((...args: Parameters<Builder["select"]>) => where(from().select(...args), keys)) as Builder["select"],
-    update: ((values: Record<string, unknown>, options?: Parameters<Builder["update"]>[1]) => where(from().update(values, options), keys)) as Builder["update"],
-    delete: ((...args: Parameters<Builder["delete"]>) => where(from().delete(...args), keys)) as Builder["delete"],
+    update: ((values: Record<string, unknown>, options?: Parameters<Builder["update"]>[1]) => (writable(owner), where(from().update(values, options), keys))) as Builder["update"],
+    delete: ((...args: Parameters<Builder["delete"]>) => (writable(owner), where(from().delete(...args), keys))) as Builder["delete"],
     insert: ((values: Record<string, unknown> | Record<string, unknown>[], options?: Parameters<Builder["insert"]>[1]) =>
-      from().insert(stamp(values, keys), options)) as Builder["insert"],
+      (writable(owner), from().insert(stamp(values, keys), options))) as Builder["insert"],
     upsert: ((values: Record<string, unknown> | Record<string, unknown>[], options?: Parameters<Builder["upsert"]>[1]) =>
-      from().upsert(stamp(values, keys), options)) as Builder["upsert"],
+      (writable(owner), from().upsert(stamp(values, keys), options))) as Builder["upsert"],
   };
 }
 
@@ -101,12 +153,24 @@ export function ownerDb(owner: Owner) {
   return {
     owner,
     from: (table: OwnerTable) => ownerTable(table, owner),
-    readings: ((...args: Parameters<Builder["select"]>) =>
-      where(db().from(READINGS_VIEW).select(...args), { user_id: owner.userId })) as Builder["select"],
+    // A link that hides locations never gets a location reading back, whatever the caller asked for.
+    readings: ((...args: Parameters<Builder["select"]>) => {
+      const q = where(db().from(READINGS_VIEW).select(...args), { user_id: owner.userId });
+      return hides(owner, "locations") ? q.not("field", "in", `(${LOCATION_FIELDS.map((f) => `"${f}"`).join(",")})`) : q;
+    }) as Builder["select"],
     archivedDrives: ((...args: Parameters<Builder["select"]>) =>
       where(db().from(DRIVE_ARCHIVE_VIEW).select(...args), { user_id: owner.userId })) as Builder["select"],
-    rpc: (fn: OwnerRpc, args: Record<string, unknown>) => db().rpc(fn, { ...args, p_user_id: owner.userId }),
-    invoices: () => db().storage.from(INVOICE_BUCKET),
+    rpc: (fn: OwnerRpc, args: Record<string, unknown>) =>
+      db().rpc(fn, { ...args, ...(Array.isArray(args.p_fields) ? { p_fields: readableFields(owner, args.p_fields as string[]) } : {}), p_user_id: owner.userId }),
+    // Invoices are the owner's alone: a guest (a view link) can't download one, get a signed URL to one,
+    // list them, upload or remove. Any call on the bucket throws for a guest, before reaching storage.
+    invoices: () => {
+      const bucket = db().storage.from(INVOICE_BUCKET);
+      if (!owner.viewOnly) return bucket;
+      return new Proxy(bucket, {
+        get: (_target, key) => (typeof key === "string" ? () => writable(owner) : undefined),
+      });
+    },
   };
 }
 

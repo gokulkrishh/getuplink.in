@@ -172,7 +172,7 @@ function RangePicker({ range, today, pending, onPick }: { range: DateRange; toda
         aria-invalid={problem !== null}
         aria-describedby={problem ? "range-problem" : undefined}
         onChange={(e) => change(which, e.target.value)}
-        className="h-full bg-transparent px-2 font-mono tabular-nums outline-none max-sm:px-3"
+        className="h-full bg-transparent px-2 font-mono tabular-nums text-foreground outline-none max-sm:px-3"
       />
     </label>
   );

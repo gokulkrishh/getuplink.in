@@ -1,10 +1,10 @@
 import { cacheLife, cacheTag } from "next/cache";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { AdminTabs } from "@/components/admin/admin-tabs";
 import { Header } from "@/components/header";
 import { isAdmin } from "@/lib/server/admin";
-import { hasCurrentSession, SIGNED_OUT_PATH } from "@/lib/server/auth";
+import { hasCurrentSession, ownerOnlyExit } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { FEEDBACK_TAG, unreadFeedback } from "@/lib/server/feedback";
 
@@ -16,7 +16,7 @@ async function checkAdmin(): Promise<void> {
   "use cache: private";
   cacheTag(OWNER_DATA_TAG);
   cacheLife({ stale: 300 });
-  if (!(await hasCurrentSession())) redirect(SIGNED_OUT_PATH);
+  if (!(await hasCurrentSession())) await ownerOnlyExit();
   if (!(await isAdmin())) notFound();
 }
 

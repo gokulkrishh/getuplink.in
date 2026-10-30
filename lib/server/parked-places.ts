@@ -31,7 +31,7 @@ export async function loadParkedPlaces(owner: Owner, vin: string | null, starts:
   const located = spots.filter((s) => s !== null);
   const places = await cachedPlaceNames(located.map((s) => s.spot)).catch(() => new Map<string, string>());
   // Shown only as the parked rows' place line, so a Google-tagged spot's live name is added (credited there).
-  return withGoogleNamesBy(Object.fromEntries(located.map(({ start, spot }) => [start, spotName(tags, spot, { station: stationAt(spot.lat, spot.lng), place: places.get(placeKey(spot)) })])));
+  return withGoogleNamesBy(owner, Object.fromEntries(located.map(({ start, spot }) => [start, spotName(tags, spot, { station: stationAt(spot.lat, spot.lng), place: places.get(placeKey(spot)) })])));
 }
 
 // The places of a driving window's stretches, the one going on now included. Never fails: a stretch
