@@ -94,19 +94,19 @@ export function InvoiceSection({ invoice, href, received }: { invoice: SessionIn
       )}
       {/* What the bill printed about the charge, after its lines: closed until wanted. */}
       {facts.length > 0 && (
-        <details className="group">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 border-y py-3 text-sm transition-colors hover:bg-muted/50 [&::-webkit-details-marker]:hidden">
+        <details className="group rounded-lg border">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm transition-colors hover:bg-muted/50 [details[open]>&]:rounded-b-none [&::-webkit-details-marker]:hidden">
             Invoice details
             <FoldToggle />
           </summary>
           <table className="w-full text-sm tabular-nums">
-            <tbody className="divide-y border-b">
+            <tbody className="divide-y border-t">
               {facts.map(([label, value]) => (
                 <tr key={label}>
-                  <th scope="row" className="py-3 pr-4 text-left font-normal text-muted-foreground">
+                  <th scope="row" className="py-3 pr-4 pl-4 text-left font-normal text-muted-foreground">
                     {label}
                   </th>
-                  <td className="py-3 text-right">{value}</td>
+                  <td className="py-3 pr-4 text-right">{value}</td>
                 </tr>
               ))}
             </tbody>
