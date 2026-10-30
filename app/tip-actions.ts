@@ -1,6 +1,6 @@
 "use server";
 
-import { updateTag } from "next/cache";
+import { revalidateTag } from "next/cache";
 import { DEMO } from "@/lib/demo";
 import { FEEDBACK_TAG } from "@/lib/server/feedback";
 import { currentOwner } from "@/lib/server/auth";
@@ -23,8 +23,9 @@ export async function voteTip(raw: unknown, swap?: unknown): Promise<Tip | null>
   const parsed = tipVoteInput.safeParse(raw);
   if (!parsed.success) return null;
   await saveTipVote(owner, parsed.data);
-  // Admin > Feedback lists the latest votes.
-  updateTag(FEEDBACK_TAG);
+  // Admin > Feedback lists the latest votes. Marked stale, not updateTag: updateTag makes the action render the
+  // owner's whole page again, which only Admin needs, and which reshuffled the Tips box (#58).
+  revalidateTag(FEEDBACK_TAG, "max");
   const where = swapInput.safeParse(swap);
   if (parsed.data.vote !== -1 || !where.success) return null;
   return replaceTip(owner, parsed.data.scope, where.data.vehicleId, where.data.at, parsed.data.kind);
