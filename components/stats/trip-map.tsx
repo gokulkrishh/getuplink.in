@@ -559,7 +559,7 @@ export function TripMap({
     <div className="space-y-3">
       <div>
         <div
-          className={cn("relative w-full overflow-hidden rounded-lg border", short ? "h-36 sm:h-48" : "h-72 sm:h-96")}
+          className={cn("relative w-full overflow-hidden rounded-lg border", below && "rounded-b-none", short ? "h-36 sm:h-48" : "h-72 sm:h-96")}
           role="group"
           aria-label={label ?? (route.length ? `Route from ${formatClock(route[0].t)} to ${formatClock(route.at(-1)!.t)}, ${pins.length} pins` : `${pins.length} places`)}
         >
@@ -633,6 +633,7 @@ export function TripMap({
             </Map>
           </MapBoundary>
         </div>
+        {/* One card with the map: the map keeps its top corners, what sits under it (MapFacts) the bottom ones. */}
         {below}
       </div>
       <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground tabular-nums">
@@ -691,7 +692,8 @@ export function TripMap({
 const FACT_COLUMNS = ["", "sm:grid-cols-1", "sm:grid-cols-2", "sm:grid-cols-3", "sm:grid-cols-4"];
 const FACT_SPAN = ["", "", "sm:col-span-2", "sm:col-span-3"];
 
-// A few facts right under a map, joined to its frame: where from and to, how far, how long, the battery.
+// A few facts right under a map, joined to its frame as one card (its rounded bottom corners are the card's):
+// where from and to, how far, how long, the battery.
 export function MapFacts({ facts }: { facts: MapFact[] }) {
   if (facts.length === 0) return null;
   const columns = facts.length <= 4 ? facts.length : 3;
@@ -699,7 +701,7 @@ export function MapFacts({ facts }: { facts: MapFact[] }) {
   return (
     // Two a row on a phone, up to four wider; the last cell of a short row stretches, so no row ends in
     // an empty cell. A long place name wraps.
-    <dl className={cn("grid grid-cols-2 gap-px border-x border-b bg-border dark:border-transparent dark:bg-background", FACT_COLUMNS[columns])}>
+    <dl className={cn("grid grid-cols-2 gap-px overflow-hidden rounded-b-lg border-x border-b bg-border dark:border-transparent dark:bg-background", FACT_COLUMNS[columns])}>
       {facts.map((f, k) => (
         <div
           key={f.label}

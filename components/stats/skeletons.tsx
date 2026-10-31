@@ -501,8 +501,8 @@ export function DriveSkeleton() {
           </p>
           <div className="space-y-3" aria-hidden="true">
             <div>
-              <SkBlock className="h-96 max-sm:h-[342px]" />
-              <dl className="grid grid-cols-2 gap-px border-x border-b bg-border sm:grid-cols-3 dark:border-transparent dark:bg-background">
+              <SkBlock className="h-96 rounded-lg rounded-b-none max-sm:h-[342px]" />
+              <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-b-lg border-x border-b bg-border sm:grid-cols-3 dark:border-transparent dark:bg-background">
                 {[
                   ["From", "Whitefield, Bengaluru", false],
                   ["To", "Koramangala, Bengaluru", true],
