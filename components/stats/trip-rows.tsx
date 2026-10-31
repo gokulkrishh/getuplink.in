@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Measure } from "@/components/measure";
 import { ROW_LINK, RowChevron } from "@/components/row-chevron";
 import { cn } from "@/lib/utils";
+import { TABLE_HEAD_ROW } from "@/lib/table-frame";
 
 // One trip as the table shows it, every text worked out on the server (see tripRow in drive-list.tsx): the
 // page sends these few strings per trip, and the browser draws both layouts from them.
@@ -120,9 +121,9 @@ export function TripRows({ list, load }: { list: Paged<TripRow>; load?: LoadMore
             ))}
           </colgroup>
           <thead>
-            <tr className="border-b text-left text-xs text-faint">
+            <tr className={`border-b text-left text-xs text-faint ${TABLE_HEAD_ROW}`}>
               {COLUMNS.map((c) => (
-                <th key={c.label} scope="col" className={`pb-2 pr-3 font-normal ${c.right ? "text-right" : ""}`}>
+                <th key={c.label} scope="col" className={`pr-3 font-normal ${c.right ? "text-right" : ""}`}>
                   {c.label}
                 </th>
               ))}

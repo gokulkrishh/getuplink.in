@@ -8,6 +8,7 @@ import { Tip, TipTrigger } from "@/components/tip";
 import type { LoadMore, Paged } from "@/lib/list";
 import type { ReleaseNote } from "@/lib/release-notes";
 import { cn } from "@/lib/utils";
+import { TABLE_HEAD } from "@/lib/table-frame";
 
 // One version in the history as the browser draws it, every text worked out on the server (see versionRows
 // in history.tsx). A row carries its own release notes, so a row not sent yet sends none.
@@ -93,7 +94,7 @@ export function HistoryRows({ list, load }: { list: Paged<HistoryRow>; load: Loa
     <>
       <TableBox>
         <div className="max-sm:min-w-xl">
-          <div className={cn("history-cols", "px-4 pb-2 text-xs text-faint")}>
+          <div className={cn("history-cols", "px-4 text-xs text-faint", TABLE_HEAD)}>
             <h3 className="pl-5">Versions</h3>
             <span className="text-right">Received</span>
             <span className="text-right">Installed</span>

@@ -6,6 +6,7 @@ import type { LoadMore, Paged } from "@/lib/list";
 import type { StationRow } from "@/lib/top-stations";
 import { Measure } from "@/components/measure";
 import { formatKwh, formatMoney } from "@/lib/format";
+import { TABLE_HEAD_ROW } from "@/lib/table-frame";
 
 // Where you charge most in the span, by energy, with how often and what the bills came to, ranked from 1.
 // The first rows come with the page; "Show N more" fetches the rest with `load`.
@@ -24,20 +25,20 @@ export function TopStations({ list, load }: { list: Paged<StationRow>; load: Loa
         <TableBox>
           <table className="w-full min-w-md text-sm tabular-nums">
             <thead>
-              <tr className="border-b text-left text-xs text-faint">
-                <th scope="col" className="w-10 py-2 pr-3 font-normal">
+              <tr className={`border-b text-left text-xs text-faint ${TABLE_HEAD_ROW}`}>
+                <th scope="col" className="w-10 pr-3 font-normal">
                   #
                 </th>
-                <th scope="col" className="py-2 pr-4 font-normal">
+                <th scope="col" className="pr-4 font-normal">
                   Station
                 </th>
-                <th scope="col" className="py-2 pr-4 text-right font-normal">
+                <th scope="col" className="pr-4 text-right font-normal">
                   Charges
                 </th>
-                <th scope="col" className="py-2 pr-4 text-right font-normal">
+                <th scope="col" className="pr-4 text-right font-normal">
                   Energy
                 </th>
-                <th scope="col" className="py-2 text-right font-normal">
+                <th scope="col" className="text-right font-normal">
                   Spent
                 </th>
               </tr>

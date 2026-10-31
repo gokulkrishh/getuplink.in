@@ -37,6 +37,7 @@ import { stationAt } from "@/lib/stations";
 import type { UserPlace } from "@/lib/user-places";
 import { isDriveStart } from "@/lib/stats-paths";
 import { Measure } from "@/components/measure";
+import { TABLE_HEAD_ROW } from "@/lib/table-frame";
 
 export const metadata: Metadata = { title: "Trip" };
 
@@ -298,13 +299,13 @@ function Legs({ legs }: { legs: DriveDetail["trip"]["legs"] }) {
       <TableBox>
         <table className="w-full min-w-md text-sm tabular-nums">
           <thead>
-            <tr className="border-b text-left text-xs text-faint">
-              <th scope="col" className="w-10 py-2 pr-3 font-normal">#</th>
-              <th scope="col" className="py-2 pr-4 font-normal">Leg</th>
-              <th scope="col" className="py-2 pr-4 text-right font-normal">Distance</th>
-              <th scope="col" className="py-2 pr-4 text-right font-normal">Energy</th>
-              <th scope="col" className="py-2 pr-3 text-right font-normal">Battery</th>
-              <th scope="col" className="w-8 py-2" />
+            <tr className={`border-b text-left text-xs text-faint ${TABLE_HEAD_ROW}`}>
+              <th scope="col" className="w-10 pr-3 font-normal">#</th>
+              <th scope="col" className="pr-4 font-normal">Leg</th>
+              <th scope="col" className="pr-4 text-right font-normal">Distance</th>
+              <th scope="col" className="pr-4 text-right font-normal">Energy</th>
+              <th scope="col" className="pr-3 text-right font-normal">Battery</th>
+              <th scope="col" className="w-8" />
             </tr>
           </thead>
           <tbody className="divide-y">

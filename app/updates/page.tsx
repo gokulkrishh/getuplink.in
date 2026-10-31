@@ -29,6 +29,7 @@ import { loadRolloutGlance } from "@/lib/server/rollout";
 import { loadUpdatesPage, type UpdatesCar, type UpdatesPage } from "@/lib/server/updates-page";
 import { updateStats } from "@/lib/telemetry-derive";
 import { currentVersion } from "@/lib/versions";
+import { TABLE_FRAME, TABLE_HEAD } from "@/lib/table-frame";
 
 export const metadata: Metadata = { title: "Updates" };
 
@@ -208,9 +209,9 @@ function UpdatesSkeleton() {
           <p className={heading}><Ph>History</Ph></p>
           <p className="text-sm"><Ph>9 versions</Ph></p>
         </div>
-        <div className="overflow-hidden max-sm:-mx-1 max-sm:px-1">
+        <div className={TABLE_FRAME}>
           <div className="max-sm:min-w-xl">
-          <div className="history-cols pb-2 text-xs">
+          <div className={`history-cols px-4 text-xs ${TABLE_HEAD}`}>
             <p className="pl-5"><Ph>Versions</Ph></p>
             {["Received", "Installed", "Odometer"].map((h) => (
               <span key={h} className="text-right"><Ph>{h}</Ph></span>
@@ -218,7 +219,7 @@ function UpdatesSkeleton() {
           </div>
           <ul className="text-sm">
             {[0, 1, 2].map((k) => (
-              <li key={k} className="history-cols border-t py-[11px] max-sm:py-[13.5px]">
+              <li key={k} className="history-cols border-t px-4 py-[11px] max-sm:py-[13.5px]">
                 <span className="pl-5 font-mono"><Ph>2026.38.5.1</Ph></span>
                 {["16 Oct", "18 Oct", "8,584.0 km"].map((v) => (
                   <span key={v} className="text-right whitespace-nowrap"><Ph>{v}</Ph></span>

@@ -2,6 +2,7 @@ import { TableBox } from "@/components/scroll-x";
 import { Measure } from "@/components/measure";
 import type { FeeLines } from "@/lib/charge-fees";
 import { formatMoney } from "@/lib/format";
+import { TABLE_HEAD_ROW } from "@/lib/table-frame";
 
 const quantity = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 });
 
@@ -15,17 +16,17 @@ export function ChargeFees({ fees, currency }: { fees: FeeLines | null; currency
       <TableBox>
         <table className="w-full text-sm tabular-nums">
           <thead>
-            <tr className="border-b text-left text-xs text-faint">
-              <th scope="col" className="w-10 py-2 pr-3 font-normal">
+            <tr className={`border-b text-left text-xs text-faint ${TABLE_HEAD_ROW}`}>
+              <th scope="col" className="w-10 pr-3 font-normal">
                 #
               </th>
-              <th scope="col" className="py-2 pr-4 font-normal">
+              <th scope="col" className="pr-4 font-normal">
                 Fee
               </th>
-              <th scope="col" className="py-2 pr-4 text-right font-normal">
+              <th scope="col" className="pr-4 text-right font-normal">
                 Quantity
               </th>
-              <th scope="col" className="py-2 text-right font-normal">
+              <th scope="col" className="text-right font-normal">
                 Amount
               </th>
             </tr>

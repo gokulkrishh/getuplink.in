@@ -3,7 +3,7 @@ import { Words } from "@/components/stats/charge-supply";
 import { Figures } from "@/components/stats/figures";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { TABLE_FRAME } from "@/lib/table-frame";
+import { TABLE_FRAME, TABLE_HEAD_ROW } from "@/lib/table-frame";
 
 // Pieces for the loading screens (the Suspense fallbacks), built from the page's own layout classes so a
 // block is as tall as what replaces it and nothing moves when the page arrives. Text is placeholder words
@@ -132,17 +132,17 @@ export function SkHeadline({ value, line }: { value: string; line: string }) {
   );
 }
 
-// A table: the header (text-xs, py-2, a rule) and `rows` rows of py-3 text-sm cells, one word per column.
+// A table: the header (text-xs, its band, a rule) and `rows` rows of py-3 text-sm cells, one word per column.
 // `hide` lists column numbers that a phone drops.
 export function SkTable({ head, rows, hide = [], cell = "py-3", name = "Placeholder", className }: { head: string[]; rows: number; hide?: number[]; cell?: string; name?: string; className?: string }) {
   const drop = (k: number) => hide.includes(k) && "max-sm:hidden";
   return (
-    <div className={cn(TABLE_FRAME, "overflow-hidden")} aria-hidden="true">
+    <div className={TABLE_FRAME} aria-hidden="true">
     <table className={cn("w-full min-w-md text-sm", className)}>
       <thead>
-        <tr className="border-b text-left text-xs">
+        <tr className={`border-b text-left text-xs ${TABLE_HEAD_ROW}`}>
           {head.map((h, k) => (
-            <th key={h + k} className={cn("py-2 pr-4 font-normal", k > 1 && "text-right", drop(k))}>
+            <th key={h + k} className={cn("pr-4 font-normal", k > 1 && "text-right", drop(k))}>
               <Ph>{h}</Ph>
             </th>
           ))}
@@ -208,13 +208,13 @@ export function SkTripRows({ rows = 3 }: { rows?: number }) {
             <col className="w-8" />
           </colgroup>
           <thead>
-            <tr className="border-b text-left text-xs">
+            <tr className={`border-b text-left text-xs ${TABLE_HEAD_ROW}`}>
               {head.map((h, k) => (
-                <th key={h} className={cn("pb-2 pr-3 font-normal", k > 2 && "text-right")}>
+                <th key={h} className={cn("pr-3 font-normal", k > 2 && "text-right")}>
                   <Ph>{h}</Ph>
                 </th>
               ))}
-              <th className="pb-2" />
+              <th />
             </tr>
           </thead>
           <tbody className="divide-y">

@@ -6,6 +6,7 @@ import { invoiceParts } from "@/lib/charging-figures";
 import { lineRows, printedKwh } from "@/lib/invoice-items";
 import { formatClock, formatMoney } from "@/lib/format";
 import type { SessionInvoice } from "@/lib/server/receipts";
+import { TABLE_HEAD_ROW } from "@/lib/table-frame";
 
 // An attached invoice, under the charge: what it printed about the charge (number, station, times, how it
 // was paid, IDs), then its lines when they were sent and add up (lib/invoice-items.ts storedLines), and the
@@ -46,21 +47,21 @@ export function InvoiceSection({ invoice, href, received }: { invoice: SessionIn
         <TableBox>
           <table className="w-full text-sm tabular-nums">
             <thead>
-              <tr className="border-b text-left text-xs text-faint">
-                <th scope="col" className="py-2 pr-4 font-normal">
+              <tr className={`border-b text-left text-xs text-faint ${TABLE_HEAD_ROW}`}>
+                <th scope="col" className="pr-4 font-normal">
                   Item
                 </th>
                 {hasKwh && (
-                  <th scope="col" className="py-2 pr-4 text-right font-normal max-sm:hidden">
+                  <th scope="col" className="pr-4 text-right font-normal max-sm:hidden">
                     Energy
                   </th>
                 )}
                 {hasRate && (
-                  <th scope="col" className="py-2 pr-4 text-right font-normal max-sm:hidden">
+                  <th scope="col" className="pr-4 text-right font-normal max-sm:hidden">
                     Rate
                   </th>
                 )}
-                <th scope="col" className="py-2 text-right font-normal">
+                <th scope="col" className="text-right font-normal">
                   Amount
                 </th>
               </tr>
