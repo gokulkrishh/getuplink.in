@@ -1,7 +1,6 @@
 import { Loading, Ph, SkBigLabel, SkBlock, SkChart, SkChartCaptioned, SkFigures, SkHead, SkHeadline, SkLine, SkSection, SkShowMore, SkTable, SkTripRows } from "@/components/skeleton";
 import { CHARGING_PREVIEW } from "@/components/stats/charging-sections";
 import { TABLE_FRAME, TABLE_HEAD, TABLE_HEAD_ROW } from "@/lib/table-frame";
-import { cn } from "@/lib/utils";
 
 // What each Stats topic shows while its data loads: its sections in order, each built from the section's own
 // layout classes (see components/skeleton.tsx), at the size of the page's default period (Week). Rows and
@@ -197,7 +196,46 @@ export function ChargingSkeleton() {
           <SkHead title="DC charging speed" description="Charging power by battery level, from 1 DC charge. It drops as the battery fills." />
           <SkBlock className={panel("h-[208px]", "max-sm:h-[247px]")} />
         </SkSection>
-        <SkTable head={["#", "Date", "Charger", "Peak", "Average"]} rows={1} className="min-w-lg" />
+        {/* The table DcCurves draws: its fixed columns, the charger's name left-aligned (it wraps on a phone). */}
+        <div className={TABLE_FRAME} aria-hidden="true">
+          <table className="w-full min-w-[32rem] table-fixed text-sm">
+            <colgroup>
+              <col className="w-10" />
+              <col className="w-24" />
+              <col />
+              <col className="w-20" />
+              <col className="w-20" />
+            </colgroup>
+            <thead>
+              <tr className={`border-b text-left text-xs ${TABLE_HEAD_ROW}`}>
+                {["#", "Date", "Charger", "Peak", "Average"].map((h, k) => (
+                  <th key={h} className={`font-normal ${k > 2 ? "text-right" : ""} ${k < 4 ? "pr-3" : ""}`}>
+                    <Ph>{h}</Ph>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="py-3 pr-3 text-xs">
+                  <Ph>4</Ph>
+                </td>
+                <td className="py-3 pr-3 whitespace-nowrap">
+                  <Ph>25 Oct</Ph>
+                </td>
+                <td className="py-3 pr-3">
+                  <Ph>Supercharger</Ph>
+                </td>
+                <td className="py-3 pr-3 text-right">
+                  <Ph>134.7 kW</Ph>
+                </td>
+                <td className="py-3 text-right">
+                  <Ph>108.3 kW</Ph>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </SkSection>
       <SkSection>
         <SkHead title="Charging map" description="Last 7 days. Bigger pins added more energy." gap={2} />
@@ -224,14 +262,12 @@ function SkMap({ legend }: { legend: string }) {
 function SkSessions() {
   return (
     <div aria-hidden="true">
-    <div className="overflow-hidden">
-      <div>
-        <div className="space-y-2">
-          <p className="text-sm font-medium">
-            <Ph>October 2026</Ph>
-          </p>
-          <div className="overflow-hidden rounded-lg border pb-2">
-            <div className="max-sm:min-w-xl">
+      <div className="space-y-2">
+        <p className="text-sm font-medium">
+          <Ph>October 2026</Ph>
+        </p>
+        <div className="overflow-hidden rounded-lg border pb-2">
+          <div className="max-sm:min-w-xl">
             <div className={`grid grid-cols-charge-serial-cost gap-x-4 px-4 text-xs ${TABLE_HEAD}`}>
               {["#", "Date", "Charge", "Energy", "Cost", ""].map((h, k) => (
                 <span key={k} className={k > 2 ? "text-right" : undefined}>
@@ -276,15 +312,13 @@ function SkSessions() {
                 </li>
               ))}
             </ul>
-            </div>
           </div>
-          <p className="pt-1 text-right text-xs">
-            <Ph>9 charges, ₹417.84 billed</Ph>
-          </p>
         </div>
+        <p className="pt-1 text-right text-xs">
+          <Ph>9 charges, ₹417.84 billed</Ph>
+        </p>
       </div>
-    </div>
-    <SkShowMore />
+      <SkShowMore />
     </div>
   );
 }

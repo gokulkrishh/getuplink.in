@@ -133,16 +133,14 @@ export function SkHeadline({ value, line }: { value: string; line: string }) {
 }
 
 // A table: the header (text-xs, its band, a rule) and `rows` rows of py-3 text-sm cells, one word per column.
-// `hide` lists column numbers that a phone drops.
-export function SkTable({ head, rows, hide = [], cell = "py-3", name = "Placeholder", className }: { head: string[]; rows: number; hide?: number[]; cell?: string; name?: string; className?: string }) {
-  const drop = (k: number) => hide.includes(k) && "max-sm:hidden";
+export function SkTable({ head, rows, cell = "py-3", name = "Placeholder", className }: { head: string[]; rows: number; cell?: string; name?: string; className?: string }) {
   return (
     <div className={TABLE_FRAME} aria-hidden="true">
     <table className={cn("w-full min-w-md text-sm", className)}>
       <thead>
         <tr className={`border-b text-left text-xs ${TABLE_HEAD_ROW}`}>
           {head.map((h, k) => (
-            <th key={h + k} className={cn("pr-4 font-normal", k > 1 && "text-right", drop(k))}>
+            <th key={h + k} className={cn("pr-4 font-normal", k > 1 && "text-right")}>
               <Ph>{h}</Ph>
             </th>
           ))}
@@ -152,7 +150,7 @@ export function SkTable({ head, rows, hide = [], cell = "py-3", name = "Placehol
         {Array.from({ length: rows }, (_, r) => (
           <tr key={r}>
             {head.map((h, k) => (
-              <td key={h + k} className={cn(cell, "pr-4", k > 1 && "text-right", drop(k))}>
+              <td key={h + k} className={cn(cell, "pr-4", k > 1 && "text-right")}>
                 <Ph>{k === 0 ? "00" : k === 1 ? name : "Placeholder"}</Ph>
               </td>
             ))}

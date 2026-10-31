@@ -39,9 +39,10 @@ export function SessionLine({ view }: { view: SessionView }) {
         <p className="text-xs text-faint tabular-nums">{view.clock}</p>
       </div>
       <div className="min-w-0 space-y-1">
-        {/* The name truncates; the credit beside a Google name never does. */}
-        <p className="flex min-w-0 items-baseline gap-1.5 font-medium">
-          <span className="min-w-0 truncate">
+        {/* The name truncates on a wider screen and wraps on a phone, where the table scrolls sideways and a
+            cut name would read as a different place. The credit beside a Google name never cuts. */}
+        <p className="flex min-w-0 items-baseline gap-x-1.5 font-medium max-sm:flex-wrap">
+          <span className="min-w-0 sm:truncate">
             {view.href ? (
               <Link href={view.href} className={cn(ROW_LINK, view.placeHidden && "font-normal text-muted-foreground group-hover/row:no-underline")}>
                 {view.place}

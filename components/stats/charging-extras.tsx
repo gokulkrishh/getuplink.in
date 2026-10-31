@@ -9,7 +9,6 @@ import type { Curve } from "@/lib/server/charging-extra";
 import { Measure } from "@/components/measure";
 import { TableBox } from "@/components/scroll-x";
 import { TABLE_HEAD_ROW } from "@/lib/table-frame";
-import { cn } from "@/lib/utils";
 
 const BAND = 5; // battery % per point of the typical curve
 
