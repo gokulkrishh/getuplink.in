@@ -6,7 +6,7 @@ import { Bars } from "@/components/stats/bars";
 import { Figures } from "@/components/stats/figures";
 import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
 import { chargeEfficiency } from "@/lib/charge-sessions";
-import { type Bill, billsBySlot, billsIn, energyIn, paidFor } from "@/lib/charging-figures";
+import { type Bill, billsBySlot, billsIn, energyIn, habitsLine, paidFor } from "@/lib/charging-figures";
 import { comparedWith, headline } from "@/lib/dashboard-summary";
 import { DECIMALS, formatDuration, formatKm, formatKwh, formatMoney, formatNumber, formatPercent, showsZero, sumKnown } from "@/lib/format";
 import { hasBars, Headline, knownBars } from "@/components/stats/driving-sections";
@@ -161,12 +161,12 @@ export function PaidFor({ bills, frame }: { bills: Bill[]; frame: Timeframe }) {
 
 // The fold's title and line, kept here so the page and its skeleton (ChargingSkeleton) say the same.
 export const HABITS_TITLE = "Your charging habits";
-export const HABITS_LINE = "Where you start and stop, when you plug in, and how fast DC charging was.";
+export const HABITS_LINE = habitsLine({ levels: true, dc: true });
 
 // Charge range, When you charge and DC charging speed, folded away under one heading, closed at first (as
 // Settings' Connect your AI). Closed, the sections stay in the page, hidden until found, so opening it
 // loads nothing and nothing above moves.
-export function HabitsFold({ children }: { children: ReactNode }) {
+export function HabitsFold({ line = HABITS_LINE, children }: { line?: string; children: ReactNode }) {
   return (
     // No `group` on the fold: the bar charts inside use group-hover, which any hovered .group above would set off.
     <Collapsible>
@@ -174,7 +174,7 @@ export function HabitsFold({ children }: { children: ReactNode }) {
       <CollapsibleTrigger nativeButton={false} render={<div />} className="flex w-full cursor-pointer items-center justify-between gap-4 text-left focus-visible:outline-2 focus-visible:outline-ring">
         <div className="min-w-0 space-y-1">
           <h2 className="text-lg font-medium tracking-heading">{HABITS_TITLE}</h2>
-          <p className="text-sm text-muted-foreground">{HABITS_LINE}</p>
+          <p className="text-sm text-muted-foreground">{line}</p>
         </div>
         <FoldToggle />
       </CollapsibleTrigger>
