@@ -85,7 +85,8 @@ async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "sear
   const query = customQuery(await searchParams);
   const { window, extras, places, custom, presence, priced, modes, vehicleId, shown, now } = await loadBattery(query);
   const { trend, range, level, driving } = window;
-  const enough = trend.length >= 2 || range.length > 0 || (level?.points.length ?? 0) >= 2 || driving.parked.length > 0 || driving.parkedNow !== null;
+  // Charge level is Home's chart now, so its readings alone don't make a Battery page.
+  const enough = trend.length >= 2 || range.length > 0 || driving.parked.length > 0 || driving.parkedNow !== null;
   const frames = timeframes(custom?.frame ?? null, now);
   // The tips (lib/battery-tips.ts), over what the page holds: the period switch doesn't change them.
   const tips = batteryFindings({ parked: driving.parked, presence, level: level?.points ?? [], avgPrice: averagePrice(priced), now, modes });

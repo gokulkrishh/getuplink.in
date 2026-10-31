@@ -10,7 +10,8 @@ const span = (name: string, points: TrendPoint[]) =>
   `${name}: ${formatKwh(points[0].kwh)} in the week of ${formatShortDate(points[0].weekStart)}, ${formatKwh(points.at(-1)!.kwh)} in the week of ${formatShortDate(points.at(-1)!.weekStart)}`;
 
 // Usable capacity per week (see weeklyUsable), and Tesla's own full-pack figure per week as a second line
-// when it has two weeks. With two lines LineChart adds a legend naming them, and its tooltip names each.
+// when it has two weeks. Whenever Tesla's line is drawn, even alone, the legend and tooltip name the lines,
+// so Tesla's figure is never read as usable capacity.
 // The axis hugs the data (2 kWh either side, rounded out to round ticks) instead of starting at 0, since
 // the pack moves by tenths of a kWh. Client-side, so the formatters never cross from the server.
 export default function BatteryTrendPlot({ usable, tesla }: { usable: TrendPoint[]; tesla: TrendPoint[] }) {
@@ -30,6 +31,7 @@ export default function BatteryTrendPlot({ usable, tesla }: { usable: TrendPoint
       unit="kWh"
       yFrom={Math.floor(Math.min(...values) - 2)}
       yTo={Math.ceil(Math.max(...values) + 2)}
+      named={drawn.some((s) => s.name === "Tesla's figure")}
       label={`Battery health by week. ${drawn.map((s) => span(s.name, s.points)).join(". ")}`}
     />
   );

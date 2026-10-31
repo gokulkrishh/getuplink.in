@@ -187,7 +187,7 @@ The same number always shows the same digits: on its bar, in the bar's tooltip, 
 | `components/stats/charging-extras.tsx` | Charging map | Where charges happened |
 | `components/stats/charge-habits.tsx` | When you charge | Heatmap of charge starts by weekday and hour |
 | `components/stats/charge-range.tsx` | Charge range | Bars across 0 to 100%: where charges start and stop |
-| `components/stats/charge-level.tsx` + `charge-level-plot.tsx` | Charge level | Recharts: battery % over the span, charging shaded (Battery page and home) |
+| `components/stats/charge-level.tsx` + `charge-level-plot.tsx` | Charge level | Recharts: battery % over the span, charging shaded (home; Battery dropped its copy) |
 | `components/stats/charge-curve.tsx` + `charge-curve-plot.tsx` | Charge curve (charge detail page) | Recharts: kW and battery % through one charge |
 | `components/stats/charge-supply.tsx` | Charger | Tiles: volts, amps, phases, cable (explain V and A) |
 | `components/stats/battery-pack.tsx` + `battery-trend-plot.tsx` | Battery health over time | `LineChart`: usable capacity by week, with Tesla's own full-pack figure as a second line ("Tesla's figure") when it has two weeks; the legend and tooltip name both |

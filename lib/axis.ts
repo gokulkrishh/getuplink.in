@@ -49,9 +49,12 @@ export function lineAxis(ys: number[], { yFrom, yTo, signed = false }: { yFrom?:
   }
   let low = yFrom ?? dmin;
   let high = yTo ?? dmax + (dmax - low) * 0.1;
-  // A flat line (the same value every week) gets 1 either side, so it sits in the middle.
-  if (high <= low) [low, high] = [low - 1, high + 1];
-  for (let step = niceStep((high - low) / 2); ; step = niceStep(step * 1.001)) {
+  // A flat line (the same value every week) gets 1 either side, so it sits in the middle. A spread that is
+  // only float noise (two equal cell gaps worked out from floats differ by 1e-12) is flat too: its step would
+  // round to 0 and the ticks to NaN, and the search below would never end.
+  if (!(high - low > Math.max(1, Math.abs(low), Math.abs(high)) * 1e-9)) [low, high] = [low - 1, high + 1];
+  // At most a few dozen widenings ever happen; the cap is a guard, not a limit the data reaches.
+  for (let step = niceStep((high - low) / 2), tries = 0; tries < 60; step = niceStep(step * 1.001), tries++) {
     // From yFrom when only it is given (0 stays 0); otherwise centred on the span, and never below 0 for
     // data that isn't.
     const from = yFrom !== undefined && yTo === undefined;
@@ -61,4 +64,5 @@ export function lineAxis(ys: number[], { yFrom, yTo, signed = false }: { yFrom?:
     const ticks = [lo + 2 * step, lo + step, lo].map(clean);
     if (ticks[0] >= dmax - 1e-9) return axis(ticks[2], ticks[0], ticks);
   }
+  return axis(low, high, [high, (low + high) / 2, low]);
 }

@@ -23,13 +23,13 @@ export function BatteryHealthChart({ trend, pack, frame }: { trend: WeeklyPack[]
     <ChartCard
       title="Battery health over time"
       description="How much a full charge holds, week by week."
-      info={`A falling line means the battery holds less.${both ? " Tesla's figure comes from the car, so it can differ from Uplink's." : ""}`}
-      caption={backTo(frame.span, Math.min(...firsts), "Weekly estimates")}
+      info={`A falling line means the battery holds less.${both ? " Tesla's figure is the car's own full-pack reading, while Uplink's is worked out from your battery levels." : ""}`}
+      caption={backTo(frame.span, Math.min(...firsts), "Weekly figures")}
       empty={
         usable.length < 2 &&
         reported.length < 2 &&
         (one
-          ? `Week of ${formatShortDate(one.weekStart)}: ${formatKwh(one.kwh)}${usable.length === 0 ? ", Tesla's figure" : ""}. The line appears after two weeks.`
+          ? `Week of ${formatShortDate(one.weekStart)}: ${usable.length === 0 ? "Tesla's figure " : ""}${formatKwh(one.kwh)}. The line appears after two weeks.`
           : "No weekly estimate.")
       }
     >

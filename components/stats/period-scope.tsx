@@ -24,9 +24,9 @@ type Scope = {
 const PeriodContext = createContext<Scope>({ period: defaultPeriod(PAGE_PERIODS.home), periods: PAGE_PERIODS.home, range: null, pending: false, select: () => {}, pick: () => {} });
 
 // The period picked here and, for Custom, its dates: what links to other pages carry (see statsHref).
-export const usePeriod = (): { period: HomePeriod; periods: PeriodSet; range: DateRange | null } => {
-  const { period, periods, range } = useContext(PeriodContext);
-  return { period, periods, range };
+export const usePeriod = (): { period: HomePeriod; range: DateRange | null } => {
+  const { period, range } = useContext(PeriodContext);
+  return { period, range };
 };
 
 // The range the page shows for Custom, and today as the server saw it (null outside a scope with Custom, and
