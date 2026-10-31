@@ -20,7 +20,8 @@ function theme(): "light" | "dark" {
   return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-// One pick from a few, as shadcn's ToggleGroup (one value at a time), looking as the chips always have. A tap
+// One pick from a few, as shadcn's ToggleGroup (one value at a time). The outline and hover are tints of
+// the text colour, so they show on the sheet's lighter grey as well as on the page. A tap
 // on the picked one keeps it: the question always has an answer once one is chosen.
 function Choices<T extends string>({ legend, options, value, onChange }: { legend: string; options: readonly { value: T; label: string }[]; value: T | null; onChange: (v: T) => void }) {
   const id = useId();
@@ -35,7 +36,7 @@ function Choices<T extends string>({ legend, options, value, onChange }: { legen
             key={o.value}
             ref={haptic}
             value={o.value}
-            className="h-auto rounded-md border px-3 py-1.5 text-sm font-normal hover:bg-muted data-pressed:border-foreground data-pressed:bg-foreground data-pressed:text-background data-pressed:hover:bg-foreground"
+            className="h-auto rounded-md border border-foreground/20 px-3 py-1.5 text-sm font-normal hover:bg-foreground/[0.06] data-pressed:border-foreground data-pressed:bg-foreground data-pressed:text-background data-pressed:hover:bg-foreground"
           >
             {o.label}
           </ToggleGroupItem>
