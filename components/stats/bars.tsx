@@ -85,7 +85,6 @@ export function Captioned({ caption, children }: { caption?: React.ReactNode; ch
   );
 }
 
-
 // In place of a chart with nothing in it: one short sentence ("No bills today."), not an empty panel. The
 // caption is left out; the sentence already says which period.
 export function EmptyChart({ children }: { children: React.ReactNode }) {
@@ -97,7 +96,6 @@ export function niceMax(value: number): number {
   const step = 10 ** Math.floor(Math.log10(value));
   return ([1, 2, 2.5, 5, 10].find((m) => value <= m * step) ?? 10) * step;
 }
-
 
 // The panel with a y axis (0, half and the top) on the left and matching gridlines behind the bars. The
 // axis lines up with the bars' h-20 area: below the value row (h-4 plus the gap, kept blank on a dense

@@ -31,8 +31,12 @@ export function LineChart({
   signed = false,
   gap,
   caption,
+  named: nameAlways = false,
 }: {
   series: Series[];
+  // Name the series in the legend and tooltip even when only one is drawn (two always are named): a lone
+  // line that isn't the obvious one, like Tesla's figure on its own.
+  named?: boolean;
   // The x and y of a reading in the tooltip ("26 Oct, 10:04 PM", "31 °C").
   formatX: (x: number) => string;
   formatY: (y: number) => string;
@@ -73,6 +77,7 @@ export function LineChart({
     return () => document.removeEventListener("pointerdown", away);
   }, [at]);
   const drawn = series.filter((s) => s.points.length >= 2);
+  const named = nameAlways || drawn.length > 1;
   if (drawn.length === 0) return null;
   const xs = drawn.flatMap((s) => s.points.map((p) => p.x));
   const ys = drawn.flatMap((s) => s.points.map((p) => p.y));
@@ -175,7 +180,7 @@ export function LineChart({
                 <span role="status" className="sr-only">
                   {hits.length === 0
                     ? `${formatX(cursor)}: no data here`
-                    : `${formatX(cursor)}: ${hits.map(({ s, p }) => (drawn.length > 1 ? `${s.name} ${formatY(p.y)}` : formatY(p.y))).join(", ")}`}
+                    : `${formatX(cursor)}: ${hits.map(({ s, p }) => (named ? `${s.name} ${formatY(p.y)}` : formatY(p.y))).join(", ")}`}
                 </span>
                 <div className="pointer-events-none absolute inset-y-0 w-px bg-muted-foreground" style={{ left: `${xPct(cursor)}%` }} aria-hidden="true" />
                 {hits.map(({ s, p }) => (
@@ -200,12 +205,12 @@ export function LineChart({
                   ) : (
                     hits.map(({ s, p }) => (
                       <span key={s.name} className="flex items-center gap-1.5 font-mono">
-                        {drawn.length > 1 && (
+                        {named && (
                           <svg viewBox="0 0 10 2" className="h-0.5 w-3" aria-hidden="true">
                             <line x1="0" y1="1" x2="10" y2="1" strokeWidth="2" className={s.className} />
                           </svg>
                         )}
-                        {drawn.length > 1 && <span className="font-sans text-muted-foreground">{s.name}</span>}
+                        {named && <span className="font-sans text-muted-foreground">{s.name}</span>}
                         <span>
                           <Measure text={formatY(p.y)} />
                         </span>
@@ -231,7 +236,7 @@ export function LineChart({
           </div>
         </div>
       </div>
-      {drawn.length > 1 && (
+      {named && (
         <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
           {drawn.map((s) => (
             <li key={s.name} className="inline-flex items-center gap-1.5">

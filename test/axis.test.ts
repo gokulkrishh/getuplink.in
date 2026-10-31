@@ -38,3 +38,13 @@ describe("y axis labels", () => {
     expect(axisLabels([1, 0.5, 0], { compact: false, decimals: 0 })).toEqual(["1", "0.5", "0"]);
   });
 });
+
+describe("lineAxis never hangs on float noise", () => {
+  test("a spread of a trillionth (two equal cell gaps worked out from floats) reads as flat", () => {
+    const axis = lineAxis([99.99999999999965, 100.00000000000053]);
+    expect(axis.ticks.every(Number.isFinite)).toBe(true);
+    expect(axis.lo).toBeLessThan(100);
+    expect(axis.hi).toBeGreaterThan(100);
+    expect(new Set(axis.labels).size).toBe(3);
+  });
+});
