@@ -38,6 +38,7 @@ import { DEMO, type DemoScenario, demoScenario } from "@/lib/demo";
 import { requireReader } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { type HomeCar, type HomeNow, type HomeWeek, loadHomeNow, loadHomeWeek } from "@/lib/server/home";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Ready<T> = Extract<T, { kind: "ready" }>;
 
@@ -290,7 +291,7 @@ function StripSkeleton() {
         </p>
         <div className="flex h-5 items-center gap-2">
           <div className="relative h-0.5 w-full max-w-60 min-w-0 flex-1 bg-border">
-            <div className="h-full w-2/3 bg-muted-foreground/30 motion-safe:animate-pulse" />
+            <Skeleton className="h-full w-2/3 rounded-none bg-muted-foreground/30" />
             <span className="absolute -top-1 h-2.5 w-px bg-muted-foreground/40" style={{ left: "80%" }} />
           </div>
           <span className="shrink-0 text-xs leading-none"><span className={line}>Limit 80%</span></span>
@@ -312,7 +313,7 @@ function TotalsSkeleton() {
           <p className="text-xl"><span className={line}>Good afternoon</span></p>
           <p className="text-sm"><span className={line}>Here&apos;s your car&apos;s last 7 days, 21 Oct to 27 Oct.</span></p>
         </div>
-        <div className="h-[391px] rounded-lg border bg-muted/40 motion-safe:animate-pulse sm:h-[174px]" />
+        <Skeleton className="h-[391px] rounded-lg border bg-muted/40 sm:h-[174px]" />
       </div>
       {/* The charge level chart below, its heading and a block of its usual height. */}
       <SkSection>

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { GoogleMapsCredit } from "@/components/google-maps-credit";
 import { Measure } from "@/components/measure";
 import { ROW_LINK, RowChevron } from "@/components/row-chevron";
-import { Tip } from "@/components/tip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -68,10 +68,15 @@ export function SessionLine({ view }: { view: SessionView }) {
           <div className="space-y-1 text-right">
             <p className="flex items-center justify-end gap-1 font-mono font-medium whitespace-nowrap tabular-nums">
               {view.cost.invoice && (
-                <a href={view.cost.invoice.href} aria-label={view.cost.invoice.label} className={buttonVariants({ variant: "ghost", size: "icon-xs", className: "group relative z-10 -my-0.5" })}>
-                  <Download className="size-3.5" aria-hidden="true" />
-                  <Tip>Download invoice</Tip>
-                </a>
+                // shadcn's Tooltip: a label for the mouse and keyboard; on a phone the tap downloads.
+                <Tooltip>
+                  <TooltipTrigger
+                    render={<a href={view.cost.invoice.href} aria-label={view.cost.invoice.label} className={buttonVariants({ variant: "ghost", size: "icon-xs", className: "relative z-10 -my-0.5" })} />}
+                  >
+                    <Download className="size-3.5" aria-hidden="true" />
+                  </TooltipTrigger>
+                  <TooltipContent>Download invoice</TooltipContent>
+                </Tooltip>
               )}
               {view.cost.money}
             </p>

@@ -1,18 +1,10 @@
 "use client";
 
-import { Popover } from "@base-ui/react/popover";
 import { Info } from "lucide-react";
-import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useCanHover } from "@/components/use-can-hover";
 import { cn } from "@/lib/utils";
-
-// Whether the pointer can hover (a mouse), so a phone's emulated hover never opens and then a tap shuts it.
-const HOVER = "(hover: hover) and (pointer: fine)";
-function subscribe(change: () => void) {
-  const query = window.matchMedia(HOVER);
-  query.addEventListener("change", change);
-  return () => query.removeEventListener("change", change);
-}
-const canHover = () => window.matchMedia(HOVER).matches;
 
 // The ⓘ beside a chart's or tile group's title (see docs/charts.md). It opens a small popover with the
 // note passed as children: one or two sentences the page itself doesn't say. Hover or keyboard focus
@@ -29,11 +21,11 @@ export function InfoButton({
 }) {
   const [open, setOpen] = useState(false);
   const popup = useRef<HTMLDivElement>(null);
-  const hover = useSyncExternalStore(subscribe, canHover, () => false);
+  const hover = useCanHover();
   if (!children) return null;
   return (
-    <Popover.Root open={open} onOpenChange={setOpen}>
-      <Popover.Trigger
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
         openOnHover={hover}
         delay={150}
         aria-label={`About ${label}`}
@@ -45,16 +37,21 @@ export function InfoButton({
         )}
       >
         <Info className="size-4" aria-hidden="true" />
-      </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Positioner side="bottom" align="start" sideOffset={6} collisionPadding={16} className="z-50">
-          {/* Only words inside, so focus stays on the ⓘ throughout: Tab moves on (closing it, see onBlur), and
-              closing never hands focus back, which would reopen it or trap Tab. */}
-          <Popover.Popup ref={popup} initialFocus={false} finalFocus={false} className="w-80 max-w-[calc(100vw-2rem)] space-y-2 rounded-lg border bg-popover p-3 text-sm leading-5 text-popover-foreground shadow-md outline-none origin-(--transform-origin) transition-[opacity,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] data-[starting-style]:opacity-0 motion-safe:data-[starting-style]:scale-95 data-[ending-style]:opacity-0 data-[ending-style]:duration-100">
-            {typeof children === "string" ? <p>{children}</p> : children}
-          </Popover.Popup>
-        </Popover.Positioner>
-      </Popover.Portal>
-    </Popover.Root>
+      </PopoverTrigger>
+      {/* shadcn's PopoverContent. Only words inside, so focus stays on the ⓘ throughout: Tab moves on (closing
+          it, see onBlur), and closing never hands focus back, which would reopen it or trap Tab. */}
+      <PopoverContent
+        ref={popup}
+        side="bottom"
+        align="start"
+        sideOffset={6}
+        collisionPadding={16}
+        initialFocus={false}
+        finalFocus={false}
+        className="w-80 max-w-[calc(100vw-2rem)] gap-2 rounded-lg border bg-popover p-3 text-sm leading-5 text-popover-foreground shadow-md ring-0"
+      >
+        {typeof children === "string" ? <p>{children}</p> : children}
+      </PopoverContent>
+    </Popover>
   );
 }

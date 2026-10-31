@@ -29,22 +29,25 @@ import type { ViewLink } from "@/lib/view-links";
 import { ViewLinks } from "./view-links";
 import { type Sharing } from "@/lib/server/data/owners";
 import { sharingState } from "@/lib/server/owners";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Settings" };
 
 // Settings few owners need (connecting their own AI, the bot), closed until opened, last on the page.
 function Advanced({ children }: { children: React.ReactNode }) {
   return (
-    <details className="group mt-10">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 pb-2 [&::-webkit-details-marker]:hidden">
+    <Collapsible className="group mt-10">
+      {/* A div (with the button role), since it holds a heading, which a <button> can't. */}
+      <CollapsibleTrigger nativeButton={false} render={<div />} className="flex w-full cursor-pointer items-center justify-between gap-4 pb-2 text-left focus-visible:outline-2 focus-visible:outline-ring">
         <div className="min-w-0">
           <h2 className="text-lg font-medium tracking-heading">Advanced</h2>
           <p className="text-sm text-muted-foreground">Connect Claude, ChatGPT or Grok to your car&apos;s data.</p>
         </div>
         <FoldToggle />
-      </summary>
-      <div className="divide-y border-t">{children}</div>
-    </details>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="divide-y border-t">{children}</CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -185,7 +188,7 @@ async function Settings() {
 // The Guest access block's placeholder. The blocks are as tall as the empty form: the name and length fields
 // (a label over a box), the two tick rows (32px, a little taller on a phone), the button.
 function GuestSkeleton() {
-  const block = (className: string) => <div className={cn("rounded-md bg-muted motion-safe:animate-pulse", className)} aria-hidden="true" />;
+  const block = (className: string) => <Skeleton className={className} aria-hidden="true" />;
   return (
     <Row title={<Ph>Guest access</Ph>} description={<p><Ph>Let someone you trust see your car data.</Ph></p>}>
       <div className="mt-4 space-y-3">
@@ -215,7 +218,7 @@ function GuestSkeleton() {
 // Faint blocks in the shape of the groups and their rows, built from the same Group and Row. Advanced
 // renders closed, so only its heading is drawn.
 function SettingsSkeleton() {
-  const button = <div className="h-9 w-24 rounded-lg bg-muted motion-safe:animate-pulse max-sm:h-10" aria-hidden="true" />;
+  const button = <Skeleton className="h-9 w-24 rounded-lg max-sm:h-10" aria-hidden="true" />;
   const text = (words: string) => <Ph>{words}</Ph>;
   const group = (title: string, ...rows: React.ReactNode[]) => <Group title={<Ph>{title}</Ph>}>{rows}</Group>;
   return (
@@ -227,13 +230,13 @@ function SettingsSkeleton() {
             title={<Ph>Theme</Ph>}
             description={text("Saved in this browser.")}
             control={
-              <div className="inline-flex rounded-lg bg-muted text-sm motion-safe:animate-pulse max-sm:h-[47px]" aria-hidden="true">
+              <Skeleton className="inline-flex rounded-lg text-sm max-sm:h-[47px]" aria-hidden="true">
                 {["System", "Light", "Dark"].map((label) => (
                   <span key={label} className="invisible border-y px-3 py-2 first:border-l last:border-r max-sm:py-3">
                     {label}
                   </span>
                 ))}
-              </div>
+              </Skeleton>
             }
           />,
           <Row
@@ -285,7 +288,7 @@ function SettingsSkeleton() {
             description={<p>{text("Adds your car to the totals on the Compare page. Turning it off deletes your figures, and your car leaves the totals at 3:30 AM.")}</p>}
             control={
               <div className="flex items-center max-sm:h-[52px]" aria-hidden="true">
-                <div className="h-6 w-11 rounded-full bg-muted motion-safe:animate-pulse" />
+                <Skeleton className="h-[18.4px] w-8 rounded-full" />
               </div>
             }
           />,

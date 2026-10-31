@@ -60,6 +60,7 @@ import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadOwners, type OwnersPage } from "@/lib/server/owners";
 import { GuestNotSharing, GuestSharingLine } from "@/components/owners/guest-lines";
 import { cn } from "@/lib/utils";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export const metadata: Metadata = { title: "Compare" };
 
@@ -473,13 +474,13 @@ async function Owners() {
         {facts && <p className="text-sm text-muted-foreground">{facts}</p>}
       </div>
       {/* Every comparison, closed until asked for: the highlights above are the page's answer. */}
-      <details className="group/all">
-        <summary className="tap-target flex cursor-pointer list-none items-center gap-1.5 text-sm font-medium [&::-webkit-details-marker]:hidden">
-          <span className="group-open/all:hidden">See all comparisons</span>
-          <span className="hidden group-open/all:inline">Hide all comparisons</span>
-          <ChevronDown className="size-4 text-muted-foreground transition-transform duration-150 group-open/all:rotate-180" aria-hidden="true" />
-        </summary>
-        <div className="space-y-14 pt-8">
+      <Collapsible className="group/all">
+        <CollapsibleTrigger className="tap-target flex cursor-pointer items-center gap-1.5 text-sm font-medium">
+          <span className="group-data-open/all:hidden">See all comparisons</span>
+          <span className="hidden group-data-open/all:inline">Hide all comparisons</span>
+          <ChevronDown className="size-4 text-muted-foreground transition-transform duration-150 group-data-open/all:rotate-180" aria-hidden="true" />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-14 pt-8">
           {sections.map((s) => (
             <section key={s.key} className="space-y-3">
               <div className="space-y-1">
@@ -494,8 +495,8 @@ async function Owners() {
               </div>
             </section>
           ))}
-        </div>
-      </details>
+        </CollapsibleContent>
+      </Collapsible>
       {DEMO && <p className="text-xs text-faint">Demo mode: a made-up set of 40 cars, with the demo car as yours.</p>}
     </div>
   );

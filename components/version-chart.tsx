@@ -1,13 +1,14 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Same box as the loaded chart (panel + h-20), so nothing shifts when recharts arrives after hydration.
 function Placeholder() {
   return (
     <div className="rounded-lg bg-muted dark:bg-card px-3 pt-4 pb-2">
       <div className="h-20 w-full">
-        <div className="h-full w-full rounded-md bg-background/60 motion-safe:animate-pulse" aria-busy="true" aria-label="Loading chart" />
+        <Skeleton className="h-full w-full bg-background/60" aria-busy="true" aria-label="Loading chart" />
       </div>
     </div>
   );

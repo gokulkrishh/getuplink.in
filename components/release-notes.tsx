@@ -3,6 +3,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Fragment } from "react";
 import type { ReleaseNote, ReleaseNotesByVersion } from "@/lib/release-notes";
 import { cn } from "@/lib/utils";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 // Tesla's notes for one version as a quiet changelog: category on the left, the change on the right.
 // `stacked` keeps the category above the change at every width, for narrow columns.
@@ -42,15 +43,17 @@ export function ReleaseNotesToggle({
 }) {
   if (!notes[version]) return null;
   return (
-    <details className="group/notes">
-      <summary
+    <Collapsible className="group/notes">
+      <CollapsibleTrigger
         aria-label={`Release notes for ${version}`}
-        className={buttonVariants({ variant: "ghost", size: "xs", className: "-ml-2 list-none group-open/notes:text-foreground [&::-webkit-details-marker]:hidden" })}
+        className={buttonVariants({ variant: "ghost", size: "xs", className: "-ml-2 group-data-open/notes:text-foreground" })}
       >
         Release notes
-        <ChevronRight className="transition-transform group-open/notes:rotate-90" aria-hidden="true" />
-      </summary>
-      <ReleaseNotesList notes={notes[version]} stacked={stacked} />
-    </details>
+        <ChevronRight className="transition-transform group-data-open/notes:rotate-90" aria-hidden="true" />
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <ReleaseNotesList notes={notes[version]} stacked={stacked} />
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

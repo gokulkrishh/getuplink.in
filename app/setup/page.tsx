@@ -18,6 +18,8 @@ import { CheckAgain } from "./check-again";
 import scan from "./guide/key-1-scan.jpg";
 import approve from "./guide/key-2-approve.jpg";
 import added from "./guide/key-3-done.jpg";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Setup" };
 
@@ -211,14 +213,14 @@ async function SetupContent({ searchParams }: Pick<PageProps<"/setup">, "searchP
           )}
           {/* Once the key is on, the photos are a tap away instead of in the way. */}
           {key === "done" ? (
-            <details>
-              <summary className="tap-target cursor-pointer text-sm text-muted-foreground underline decoration-muted-foreground/60 underline-offset-4 hover:text-foreground hover:decoration-foreground">
+            <Collapsible>
+              <CollapsibleTrigger className="tap-target cursor-pointer text-sm text-muted-foreground underline decoration-muted-foreground/60 underline-offset-4 hover:text-foreground hover:decoration-foreground">
                 See how
-              </summary>
-              <div className="pt-4">
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-4">
                 <KeyGuide />
-              </div>
-            </details>
+              </CollapsibleContent>
+            </Collapsible>
           ) : (
             <KeyGuide />
           )}
@@ -288,7 +290,7 @@ export default function SetupPage({ searchParams }: PageProps<"/setup">) {
       <Header setup={false} onSetup />
       <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">Set up your car</h1>
       <p className="mt-1 mb-8 text-sm text-muted-foreground">Two steps, and your car sends Uplink live data.</p>
-      <Suspense fallback={<div role="status" aria-busy="true" className="h-64 rounded-lg bg-muted motion-safe:animate-pulse"><span className="sr-only">Loading…</span></div>}>
+      <Suspense fallback={<Skeleton role="status" aria-busy="true" className="h-64 rounded-lg"><span className="sr-only">Loading…</span></Skeleton>}>
         <SetupContent searchParams={searchParams} />
       </Suspense>
     </div>

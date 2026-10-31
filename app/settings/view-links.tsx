@@ -27,6 +27,8 @@ import { copyViewLinkAction, endViewLinkAction, makeViewLinkAction, setViewLinkH
 import { cn } from "@/lib/utils";
 import { Row } from "./row";
 import { haptic } from "@/components/haptic";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 
 
 // Copy link on an open row: the link is rebuilt on the server (copyViewLinkAction) and put on the clipboard.
@@ -92,20 +94,11 @@ function HideLocationsSwitch({ link, onChange }: { link: ViewLink; onChange: (hi
     });
   return (
     <div className="space-y-1">
-      <button
-        type="button"
-        role="switch"
-        aria-checked={on}
-        disabled={pending}
-        onClick={change}
-        className="inline-flex min-h-11 cursor-pointer items-center gap-3 rounded-lg text-sm focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-wait disabled:opacity-60"
-      >
-        {/* The small switch: a 36×20 track, its tap target kept at 44px by the button. */}
-        <span className={cn("relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors duration-150", on ? "border-foreground bg-foreground" : "border-muted-foreground bg-muted")}>
-          <span className={cn("inline-block size-3.5 rounded-full shadow-sm transition-transform duration-150 motion-reduce:transition-none", on ? "translate-x-[17px] bg-background" : "translate-x-[3px] bg-muted-foreground")} />
-        </span>
+      {/* The label is the 44px tap area and the switch's name; the switch is shadcn's. */}
+      <label className={cn("inline-flex min-h-11 cursor-pointer items-center gap-3 text-sm", pending && "cursor-wait opacity-60")}>
+        <Switch checked={on} disabled={pending} onCheckedChange={change} />
         Hide locations
-      </button>
+      </label>
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
@@ -246,19 +239,17 @@ function MakeViewLink({ count, onMade }: { count: number; onMade: (made: { label
           changed later, while the link is open, from its row above. */}
       <div>
         <label className="flex min-h-8 w-fit cursor-pointer items-center gap-2 text-sm max-sm:min-h-9">
-          <input type="checkbox" checked={hides.hideLocations} onChange={(e) => setHides({ hideLocations: e.target.checked })} className="size-4 shrink-0 accent-foreground" />
+          <Checkbox checked={hides.hideLocations} onCheckedChange={(checked) => setHides({ hideLocations: checked })} />
           Hide locations
         </label>
         <label className="flex min-h-8 w-fit cursor-pointer items-center gap-2 text-sm max-sm:min-h-9">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={trusted}
-            onChange={(e) => {
-              setTrusted(e.target.checked);
+            onCheckedChange={(checked) => {
+              setTrusted(checked);
               setError(null);
             }}
             required
-            className="size-4 shrink-0 accent-foreground"
           />
           I trust this person with what I&apos;m sharing
         </label>

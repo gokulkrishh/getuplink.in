@@ -37,6 +37,9 @@ export function InviteSignIn({ action }: { action: (form: FormData) => Promise<v
       className="space-y-4"
     >
       <label className="flex items-start gap-3 text-sm">
+        {/* A native box, not shadcn's Checkbox: the form works before the page's script loads (see above),
+            and Base UI's box can't be ticked until then. Native, the browser also says why an unticked form
+            won't send. */}
         <input type="checkbox" name="agree" value="yes" required className="mt-0.5 size-4 shrink-0 accent-foreground" />
         <span>
           I&apos;m 18 or over, and I agree to the{" "}

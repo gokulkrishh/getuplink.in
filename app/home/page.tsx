@@ -13,6 +13,7 @@ import { Logo } from "@/components/logo";
 import { buttonVariants } from "@/components/ui/button";
 import { DEMO_URL } from "@/lib/demo";
 import { HOME_URL, OPEN_GRAPH, STATUS_URL, TAGLINE, TWITTER } from "@/lib/site";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const DESCRIPTION = "Software updates, Supercharger spend, battery and kilometres driven for your Tesla in India. Read-only.";
 
@@ -228,16 +229,18 @@ export default function HomePage() {
         <h2 className="text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl">FAQ</h2>
         <div className="mt-12 max-w-3xl divide-y border-y">
           {FAQ.map((item) => (
-            <details key={item.q} className="group">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-5 text-base font-medium [&::-webkit-details-marker]:hidden">
+            <Collapsible key={item.q} className="group">
+              <CollapsibleTrigger className="flex w-full cursor-pointer items-center justify-between gap-4 py-5 text-left text-base font-medium">
                 {item.q}
                 <ChevronDown
-                  className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-open:rotate-180"
+                  className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-data-open:rotate-180"
                   aria-hidden="true"
                 />
-              </summary>
-              <p className="max-w-2xl pb-5 text-base text-muted-foreground">{item.a}</p>
-            </details>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <p className="max-w-2xl pb-5 text-base text-muted-foreground">{item.a}</p>
+              </CollapsibleContent>
+            </Collapsible>
           ))}
         </div>
       </section>

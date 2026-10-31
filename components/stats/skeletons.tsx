@@ -1,6 +1,7 @@
 import { Loading, Ph, SkBigLabel, SkBlock, SkChart, SkChartCaptioned, SkFigures, SkHead, SkHeadline, SkLine, SkSection, SkShowMore, SkTable, SkTripRows } from "@/components/skeleton";
 import { CHARGING_PREVIEW } from "@/components/stats/charging-sections";
 import { TABLE_FRAME, TABLE_HEAD, TABLE_HEAD_ROW } from "@/lib/table-frame";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // What each Stats topic shows while its data loads: its sections in order, each built from the section's own
 // layout classes (see components/skeleton.tsx), at the size of the page's default period (Week). Rows and
@@ -46,7 +47,7 @@ export function DrivingSkeleton() {
                         <Ph>7 drives · 156.4 km</Ph>
                       </span>
                     </span>
-                    <span className="h-2 rounded-full bg-muted motion-safe:animate-pulse" />
+                    <Skeleton className="h-2 rounded-full" />
                     <span className="text-right font-mono">
                       <Ph>124 Wh/km</Ph>
                     </span>
@@ -65,7 +66,7 @@ export function DrivingSkeleton() {
       <SkSection gap={6}>
         <SkHead title="Places" description="Where you went and parked." gap={2} />
         <div className="space-y-3" aria-hidden="true">
-          <div className="h-96 rounded-lg bg-muted motion-safe:animate-pulse" />
+          <Skeleton className="h-96 rounded-lg" />
           <p className="text-xs">
             <Ph>A place it parked. Bigger pins had more visits.</Ph>
           </p>
@@ -155,7 +156,7 @@ export function ChargingSkeleton() {
                       <Ph>25 Oct · Home AC</Ph>
                       <Ph className="font-mono">60% to 80%</Ph>
                     </p>
-                    <div className="h-2 rounded-full bg-muted motion-safe:animate-pulse" />
+                    <Skeleton className="h-2 rounded-full" />
                   </div>
                 </li>
               ))}
@@ -249,7 +250,7 @@ export function ChargingSkeleton() {
 function SkMap({ legend }: { legend: string }) {
   return (
     <div className="space-y-3" aria-hidden="true">
-      <div className="h-48 rounded-lg bg-muted motion-safe:animate-pulse max-sm:h-36" />
+      <Skeleton className="h-48 rounded-lg max-sm:h-36" />
       <p className="text-xs">
         <Ph>{legend}</Ph>
       </p>

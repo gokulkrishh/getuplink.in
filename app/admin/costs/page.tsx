@@ -32,6 +32,8 @@ import { openRouterParts } from "@/lib/server/costs/openrouter";
 import { cn } from "@/lib/utils";
 import { removeEntry, saveBudget, saveEntry } from "./actions";
 import { EntryForm, NumberForm } from "./forms";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Costs · Admin" };
 
@@ -138,11 +140,12 @@ const CONNECT: Record<string, ReactNode> = {
 // What a usage-billed row is made of (teslaParts and googleParts in lib/costs.ts, openRouterParts), closed until opened.
 function Breakdown({ name, parts }: { name: string; parts: Part[] }) {
   return (
-    <details className="pt-1">
-      <summary className={cn("w-fit cursor-pointer list-none text-xs text-muted-foreground [&::-webkit-details-marker]:hidden", link)}>
+    <Collapsible className="pt-1">
+      <CollapsibleTrigger className={cn("w-fit cursor-pointer text-left text-xs text-muted-foreground", link)}>
         Breakdown
         <span className="sr-only"> of {name}</span>
-      </summary>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
       <dl className="mt-2 divide-y border-y text-sm">
         {parts.map((p) => (
           <div key={p.label} className="flex items-baseline justify-between gap-4 py-2">
@@ -151,7 +154,8 @@ function Breakdown({ name, parts }: { name: string; parts: Part[] }) {
           </div>
         ))}
       </dl>
-    </details>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -197,13 +201,15 @@ function Row({ line, edit, parts, now, ready, readOnly }: { line: CostLine; edit
       {line.state === "connect" && CONNECT[line.id] && <p className="pt-1 text-sm text-muted-foreground">{CONNECT[line.id]}</p>}
       {parts && parts.length > 0 && <Breakdown name={line.name} parts={parts} />}
       {edit && ready && (
-        <details className="group pt-1">
-          <summary className={cn("w-fit cursor-pointer list-none text-xs text-muted-foreground [&::-webkit-details-marker]:hidden", link)}>
+        <Collapsible className="group pt-1">
+          <CollapsibleTrigger className={cn("w-fit cursor-pointer text-left text-xs text-muted-foreground", link)}>
             Edit
             <span className="sr-only"> {line.name}</span>
-          </summary>
-          <EntryForm action={saveEntry.bind(null, edit.target)} remove={removeEntry.bind(null, edit.target)} values={edit.values} readOnly={readOnly} />
-        </details>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <EntryForm action={saveEntry.bind(null, edit.target)} remove={removeEntry.bind(null, edit.target)} values={edit.values} readOnly={readOnly} />
+          </CollapsibleContent>
+        </Collapsible>
       )}
     </li>
   );
@@ -276,10 +282,12 @@ async function Costs() {
             ))}
           </ul>
           {data.ready && (
-            <details className="pt-2">
-              <summary className={cn("w-fit cursor-pointer list-none text-sm [&::-webkit-details-marker]:hidden", link)}>Add a cost</summary>
-              <EntryForm action={saveEntry.bind(null, "new")} values={null} submitLabel="Add" readOnly={data.simulated} />
-            </details>
+            <Collapsible className="pt-2">
+              <CollapsibleTrigger className={cn("w-fit cursor-pointer text-left text-sm", link)}>Add a cost</CollapsibleTrigger>
+              <CollapsibleContent>
+                <EntryForm action={saveEntry.bind(null, "new")} values={null} submitLabel="Add" readOnly={data.simulated} />
+              </CollapsibleContent>
+            </Collapsible>
           )}
         </section>
 
@@ -310,7 +318,7 @@ export default async function Page() {
   await checkAdmin();
   return (
     <AdminPage description={<p>What running Uplink costs this month, in dollars.{DEMO && " Demo: sample figures, read-only."}</p>}>
-      <Suspense fallback={<div role="status" aria-busy="true" className="h-64 rounded-lg bg-muted motion-safe:animate-pulse"><span className="sr-only">Loading…</span></div>}>
+      <Suspense fallback={<Skeleton role="status" aria-busy="true" className="h-64 rounded-lg"><span className="sr-only">Loading…</span></Skeleton>}>
         <Costs />
       </Suspense>
     </AdminPage>

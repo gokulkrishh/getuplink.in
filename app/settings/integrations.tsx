@@ -16,6 +16,8 @@ import { addConnector, deleteConnector } from "./actions";
 import { Row } from "./row";
 import { PendingLabel } from "@/components/pending-label";
 import { haptic } from "@/components/haptic";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
 
 // A value to paste somewhere else: selectable text with a copy button beside it.
 function Copyable({ label, value }: { label: string; value: string }) {
@@ -31,19 +33,28 @@ function Copyable({ label, value }: { label: string; value: string }) {
 }
 
 // Steps or text for setting something up by hand, closed until opened. With `copy`, a Copy button sits in
-// the closed row, so the text can be copied without opening it (a button inside a summary doesn't toggle it).
+// the closed row, so the text can be copied without opening it: the trigger stretches over the row (its
+// ::after), and the Copy button sits above it, a button of its own rather than one inside the trigger.
 function ManualInstructions({ copy, children }: { copy?: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
   return (
-    <details className="group rounded-lg border">
-      <summary className="flex cursor-pointer list-none rounded-lg [details[open]>&]:rounded-b-none items-center justify-between gap-3 px-3 py-2.5 text-sm transition-colors hover:bg-muted/50 [&::-webkit-details-marker]:hidden">
-        Manual instructions
+    <Collapsible open={open} onOpenChange={setOpen} className="group rounded-lg border">
+      <div className={cn("group/row relative flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-muted/50", open && "rounded-b-none")}>
+        <CollapsibleTrigger className="cursor-pointer text-left after:absolute after:inset-0 after:rounded-[inherit] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-ring">
+          Manual instructions
+        </CollapsibleTrigger>
         <span className="flex items-center gap-3">
-          {copy && <CopyButton text={copy} />}
-          <FoldToggle />
+          {copy && (
+            <span className="relative z-10">
+              <CopyButton text={copy} />
+            </span>
+          )}
+          {/* Outside the trigger, so the row's hover lights it here. */}
+          <FoldToggle open={open} className="[@media(hover:hover)]:group-hover/row:bg-accent" />
         </span>
-      </summary>
-      <div className="space-y-2 border-t px-3 py-3">{children}</div>
-    </details>
+      </div>
+      <CollapsibleContent className="space-y-2 border-t px-3 py-3">{children}</CollapsibleContent>
+    </Collapsible>
   );
 }
 

@@ -1,4 +1,4 @@
-import { Tip, TipTrigger } from "@/components/tip";
+import { TipTrigger } from "@/components/tip";
 import { formatAgo, formatSeen } from "@/lib/format";
 import { newestTime } from "@/lib/last-synced";
 import { cn } from "@/lib/utils";
@@ -14,7 +14,6 @@ export function CarStatus({
   seenAt,
   checkedAt,
   now,
-  tipClassName,
 }: {
   state?: string | null;
   // The car streamed a reading in the last few minutes.
@@ -22,8 +21,6 @@ export function CarStatus({
   seenAt: string | null;
   checkedAt: string | null;
   now: number;
-  // Where the tip sits; it opens toward the right by default, since the status usually leads a line.
-  tipClassName?: string;
 }) {
   const last = newestTime([seenAt, checkedAt]);
   const label = last ? `Synced ${formatAgo(last, now)}` : "Not synced yet";
@@ -40,17 +37,19 @@ export function CarStatus({
     );
   }
   return (
-    <TipTrigger className="inline-flex items-center gap-1.5">
+    // The tip opens toward the right: the status usually leads a line.
+    <TipTrigger
+      align="start"
+      className="inline-flex items-center gap-1.5"
+      tip={lines.map((line) => (
+        <span key={line} className="block">
+          {line}
+        </span>
+      ))}
+    >
       {dot}
       {label}
       <span className="sr-only">. {lines.join(". ")}</span>
-      <Tip align="start" className={tipClassName}>
-        {lines.map((line) => (
-          <span key={line} className="block">
-            {line}
-          </span>
-        ))}
-      </Tip>
     </TipTrigger>
   );
 }

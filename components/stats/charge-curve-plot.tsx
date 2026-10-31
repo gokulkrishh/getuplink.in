@@ -6,6 +6,7 @@ import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/
 import type { CurvePoint } from "@/lib/charge-curve";
 import { formatClock, formatKw, formatLevels, formatPercent } from "@/lib/format";
 import { Measure } from "@/components/measure";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const config = {
   kw: { label: "Power", color: "var(--chart-accent)" },
@@ -51,7 +52,7 @@ export default function ChargeCurvePlot({ points }: { points: CurvePoint[] }) {
         aria-label={`Charging power from ${formatClock(first.t)} to ${formatClock(last.t)}, up to ${formatKw(peak)}${levelText}.`}
       >
         {width === 0 ? (
-          <div className="h-full w-full rounded-md bg-background/60 motion-safe:animate-pulse" aria-busy="true" aria-label="Loading chart" />
+          <Skeleton className="h-full w-full bg-background/60" aria-busy="true" aria-label="Loading chart" />
         ) : (
           <ChartContainer config={config} className="aspect-auto h-40 w-full" initialDimension={{ width, height: 160 }}>
             <LineChart data={points} margin={{ top: 8, right: 0, bottom: 0, left: 0 }}>

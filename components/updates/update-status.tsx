@@ -4,6 +4,7 @@ import type { Snapshot } from "@/lib/server/dashboard";
 import { Measure } from "@/components/measure";
 import { compareVersions } from "@/lib/rollout";
 import { normaliseVersion } from "@/lib/versions";
+import { Progress } from "@/components/ui/progress";
 
 const STATUS: Record<string, string> = {
   available: "Available",
@@ -50,19 +51,16 @@ export function UpdateStatus({ snapshot, now }: { snapshot: Snapshot | null; now
       </p>
       {progress != null && (
         <div className="flex items-center gap-3">
-          <div
-            role="progressbar"
-            aria-valuenow={progress}
-            aria-valuemin={0}
-            aria-valuemax={100}
+          {/* shadcn's Progress, square and thin as before. A light band sweeps across the filled part so an
+              in-progress update reads as alive. */}
+          <Progress
+            value={Math.min(100, Math.max(0, progress))}
             aria-label={`${STATUS[status]} ${progress}%`}
-            className="h-1 flex-1 overflow-hidden bg-border"
-          >
-            {/* A light band sweeps across the filled part so an in-progress update reads as alive. */}
-            <div className="relative h-full overflow-hidden bg-foreground" style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}>
-              <span className="absolute inset-y-0 -left-1/2 w-1/2 bg-linear-to-r from-transparent via-background/80 to-transparent motion-safe:animate-shimmer" />
-            </div>
-          </div>
+            className="flex-1"
+            trackClassName="rounded-none bg-border"
+            indicatorClassName="relative overflow-hidden bg-foreground"
+            indicator={<span className="absolute inset-y-0 -left-1/2 w-1/2 bg-linear-to-r from-transparent via-background/80 to-transparent motion-safe:animate-shimmer" />}
+          />
           <span className="w-10 text-left font-mono text-xs tabular-nums text-muted-foreground"><Measure text={`${progress}%`} /></span>
         </div>
       )}

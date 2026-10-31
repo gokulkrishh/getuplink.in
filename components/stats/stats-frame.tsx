@@ -7,6 +7,7 @@ import { DatesNote } from "./dates-note";
 import { PeriodPicker, PeriodScope } from "./period-scope";
 import { type CustomScope, PAGE_PERIODS, type View } from "./periods";
 import { ViewTabs, ViewTabsShell } from "./view-tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // What every Stats page shows around its sections, once its data is in: when the sections use one, the
 // period switch with Custom. The topic tabs are in the page's shell (StatsPage), so they don't reload. The period is the URL's (see PeriodScope); a page without
@@ -81,13 +82,13 @@ function SkPeriodSwitch() {
   return (
     <div aria-hidden="true" className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
       {/* One block the switch's size: the labels are there only to give it its width. */}
-      <div className="inline-flex max-w-full rounded-lg bg-muted motion-safe:animate-pulse">
+      <Skeleton className="inline-flex max-w-full rounded-lg">
         {PERIODS_SHOWN.map((label) => (
           <span key={label} className="tap-target invisible inline-flex h-[calc(2rem+2px)] items-center justify-center border-y px-2.5 text-[0.8rem] first:border-l last:border-r max-sm:h-[calc(2.5rem+2px)] max-sm:px-2">
             {label}
           </span>
         ))}
-      </div>
+      </Skeleton>
     </div>
   );
 }
