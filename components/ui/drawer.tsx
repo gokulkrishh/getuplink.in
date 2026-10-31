@@ -6,8 +6,9 @@ import { X } from "lucide-react"
 import { cn } from "cn"
 
 // Every dialog in Uplink is this: a sheet from the bottom on a phone, which a swipe down closes, and a
-// centred dialog from `sm` up. Styled like an iOS sheet: a card 8px in from the screen's edges, rounded
-// 16px, a shade lighter than the page in the dark theme, with a grab bar and no border. Buttons and fields
+// centred dialog from `sm` up. Styled like an iOS sheet: a card 8px in from the screen's edges, rounded 32px
+// on a phone (in px, so the phone's larger rem doesn't grow it), a shade lighter than the page in the dark theme,
+// with a 54 by 4px grab bar and no border. Buttons and fields
 // inside keep the app's own style. Base UI's Drawer (a Dialog with gestures), cut down from shadcn's
 // base-nova drawer to the one direction Uplink uses. A mouse drag inside Content selects text rather than swiping, so
 // on a desktop it behaves as a plain dialog.
@@ -35,7 +36,7 @@ const SURFACE = "bg-background dark:bg-[#1c1c1e]"
 // Phone: pinned to the bottom, following the finger (--y), sliding in and out. From sm: centred, fading and
 // scaling a little, the swipe ignored (its transform is fixed). --y keeps the two from fighting over transform.
 const POPUP = cn(
-  "relative flex max-h-[calc(100dvh-2.5rem)] w-full flex-col overflow-hidden rounded-2xl text-sm text-foreground shadow-2xl outline-none",
+  "relative flex max-h-[calc(100dvh-2.5rem)] w-full flex-col overflow-hidden rounded-[32px] text-sm text-foreground shadow-2xl outline-none",
   SURFACE,
   "[--y:var(--drawer-swipe-movement-y)] [transform:translate3d(0,var(--y),0)] data-starting-style:[--y:calc(100%+1rem)] data-ending-style:[--y:calc(100%+1rem)]",
   "transition-transform duration-450 ease-[cubic-bezier(0.32,0.72,0,1)] data-swiping:duration-0 data-swiping:select-none data-ending-style:duration-[calc(var(--drawer-swipe-strength)*400ms)] motion-reduce:transition-none",
@@ -54,11 +55,12 @@ function DrawerClose({ ...props }: DrawerPrimitive.Close.Props) {
   return <DrawerPrimitive.Close data-slot="drawer-close" {...props} />
 }
 
-// The grab bar at the top of the sheet, on a phone only: a short pill, as on iOS.
+// The grab bar at the top of the sheet, on a phone only: a thin 54 by 4px pill, as on iOS. In px, so the phone's
+// larger rem doesn't thicken it.
 function DrawerHandle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div data-slot="drawer-handle" aria-hidden="true" className={cn("flex shrink-0 cursor-grab justify-center pt-2 pb-1 active:cursor-grabbing sm:hidden", className)} {...props}>
-      <span className="h-1.5 w-12 rounded-full bg-foreground/20 dark:bg-white/25" />
+      <span className="h-[4px] w-[54px] rounded-full bg-foreground/20 dark:bg-white/25" />
     </div>
   )
 }
