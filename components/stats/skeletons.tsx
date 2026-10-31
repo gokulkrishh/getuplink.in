@@ -1,9 +1,9 @@
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Loading, Ph, SkBigLabel, SkBlock, SkChart, SkChartCaptioned, SkFigures, SkHead, SkHeadline, SkLine, SkSection, SkShowMore, SkTable, SkTripRows } from "@/components/skeleton";
 import { CHARGING_PREVIEW } from "@/components/stats/charging-sections";
 import { PARKED_COLUMNS, PARKED_TABLE, TABLE_FRAME, TABLE_HEAD, TABLE_HEAD_ROW } from "@/lib/table-frame";
 import { Skeleton } from "@/components/ui/skeleton";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 // What each Stats topic shows while its data loads: its sections in order, each built from the section's own
 // layout classes (see components/skeleton.tsx), at the size of the page's default period (Week). Rows and
