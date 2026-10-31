@@ -7,7 +7,7 @@ import { placeSuggestions, removePlace, savePlace } from "@/app/places/actions";
 import { GoogleMapsCredit } from "@/components/google-maps-credit";
 import { Ph } from "@/components/skeleton";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTrigger } from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { NO_AUTOFILL } from "@/lib/no-autofill";
 import { matches, NO_SUGGESTIONS, parseQuery, type Suggestion, type Suggestions } from "@/lib/place-suggestions";
@@ -256,13 +256,13 @@ export function NamePlace({ target, compact = false, className }: { target: Name
       {/* Opaque: the page, and its map, are hidden while the sheet is open, even mid-swipe. One height
           whatever the list holds, so the sheet doesn't jump as the choices change under the search. */}
       <DrawerContent
+        title={title}
         opaque
         keyboard
         initialFocus={input}
         className="h-[calc(100dvh-1.5rem)] sm:h-[min(44rem,calc(100dvh-4rem))] sm:w-md"
       >
-        <div className="space-y-4 px-[max(1rem,env(safe-area-inset-left),env(safe-area-inset-right))] pt-4 pb-6 sm:p-6">
-          <DrawerHeader>{title}</DrawerHeader>
+        <div className="space-y-4 px-[max(1rem,env(safe-area-inset-left),env(safe-area-inset-right))] pt-2 pb-6 sm:px-6">
 
           {current && (
             <p className="flex flex-wrap items-baseline gap-x-2">

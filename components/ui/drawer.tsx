@@ -57,32 +57,80 @@ function DrawerClose({ ...props }: DrawerPrimitive.Close.Props) {
   return <DrawerPrimitive.Close data-slot="drawer-close" {...props} />
 }
 
-// The grab bar at the top of the sheet, on a phone only.
+// The grab bar at the top of the sheet, on a phone only: a short pill, as on iOS.
 function DrawerHandle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div data-slot="drawer-handle" aria-hidden="true" className={cn("flex shrink-0 cursor-grab justify-center pt-2 pb-1 active:cursor-grabbing sm:hidden", className)} {...props}>
-      <span className="h-1 w-10 rounded-full bg-border" />
+      <span className="h-1.5 w-12 rounded-full bg-foreground/20 dark:bg-white/25" />
     </div>
   )
 }
 
-// The backdrop, the viewport that places the sheet, and the sheet (with a grab bar if `handle`). `className`
-// sizes the sheet (its width from sm up); `bodyClassName` pads and lays out what's inside. Buttons and fields inside follow SHEET_CONTROLS.
+// The round close button of a sheet's header, as on iOS.
+function DrawerCloseButton({ className }: { className?: string }) {
+  return (
+    <DrawerPrimitive.Close
+      aria-label="Close"
+      className={cn(
+        "inline-flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-foreground/[0.07] text-foreground transition-colors hover:bg-foreground/12 focus-visible:outline-2 focus-visible:outline-ring dark:bg-white/12 dark:hover:bg-white/18",
+        className,
+      )}
+    >
+      <X className="size-5" aria-hidden="true" />
+    </DrawerPrimitive.Close>
+  )
+}
+
+// The backdrop, the viewport that places the sheet, and the sheet. `className` sizes the sheet (its width from
+// sm up); `bodyClassName` pads and lays out what's inside; buttons and fields inside follow SHEET_CONTROLS.
+// With a `title`, the sheet has a header that stays put while the body scrolls under it, as on iOS: the grab
+// bar (on a phone), a round close button on the left (unless `close={false}`) and the title centred, on a
+// frosted bar that gains a line once the body has scrolled. Without one, only the grab bar (`handle`), for a
+// sheet that titles itself (a confirmation).
 function DrawerContent({
   className,
   bodyClassName,
+  title,
+  close = true,
   opaque = false,
-  handle = false,
+  handle = true,
   keyboard = false,
   children,
   ...props
-}: DrawerPrimitive.Popup.Props & { bodyClassName?: string; opaque?: boolean; handle?: boolean; keyboard?: boolean }) {
+}: DrawerPrimitive.Popup.Props & { bodyClassName?: string; title?: React.ReactNode; close?: boolean; opaque?: boolean; handle?: boolean; keyboard?: boolean }) {
+  const [scrolled, setScrolled] = React.useState(false)
   const sheet = (
     <DrawerPrimitive.Viewport data-slot="drawer-viewport" className={VIEWPORT}>
       <DrawerPrimitive.Popup data-slot="drawer-popup" className={cn(POPUP, className)} {...props}>
-        {handle && <DrawerHandle />}
-        <DrawerPrimitive.Content data-slot="drawer-content" className={cn("flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain", SHEET_CONTROLS, bodyClassName)}>
-          {children}
+        {handle && title === undefined && <DrawerHandle />}
+        <DrawerPrimitive.Content data-slot="drawer-content" className="relative flex min-h-0 flex-1 flex-col">
+          {title !== undefined && (
+            // 72px on a phone (the grab bar over the row), 68px from sm up. The body's spacer matches, and so
+            // does its scroll padding, so a field focused or scrolled to is never left under the header.
+            <div
+              data-slot="drawer-header"
+              data-scrolled={scrolled || undefined}
+              className={cn(
+                "absolute inset-x-0 top-0 z-10 border-b border-transparent px-4 pt-5 pb-3 transition-colors duration-150 sm:px-5 sm:pt-4",
+                "bg-background/80 backdrop-blur-xl data-scrolled:border-border dark:bg-[#1c1c1e]/80",
+              )}
+            >
+              {handle && <DrawerHandle className="absolute inset-x-0 top-0" />}
+              <div className="relative flex min-h-10 items-center justify-center px-12">
+                {close && <DrawerCloseButton className="absolute top-1/2 left-0 -translate-y-1/2" />}
+                <DrawerTitle className="truncate text-center text-base font-medium tracking-normal">{title}</DrawerTitle>
+              </div>
+            </div>
+          )}
+          <div
+            data-slot="drawer-body"
+            onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 0)}
+            className={cn("flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain", title !== undefined && "scroll-pt-[4.5rem] sm:scroll-pt-[4.25rem]", SHEET_CONTROLS, bodyClassName)}
+          >
+            {/* The header's room: an element, not padding, so a sheet's own padding can't take it away. */}
+            {title !== undefined && <div aria-hidden="true" className="h-[4.5rem] shrink-0 sm:h-[4.25rem]" />}
+            {children}
+          </div>
         </DrawerPrimitive.Content>
       </DrawerPrimitive.Popup>
     </DrawerPrimitive.Viewport>
@@ -97,24 +145,6 @@ function DrawerContent({
   return keyboard ? <DrawerPrimitive.VirtualKeyboardProvider>{portal}</DrawerPrimitive.VirtualKeyboardProvider> : portal
 }
 
-// A sheet's top row, as on iOS: a round close button on the left and the title centred. `close={false}` for a
-// sheet that closes only through its own buttons.
-function DrawerHeader({ children, close = true, className }: { children: React.ReactNode; close?: boolean; className?: string }) {
-  return (
-    <div data-slot="drawer-header" className={cn("relative flex min-h-10 items-center justify-center px-12", className)}>
-      {close && (
-        <DrawerPrimitive.Close
-          aria-label="Close"
-          className="absolute top-1/2 left-0 inline-flex size-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-foreground/[0.07] text-foreground transition-colors hover:bg-foreground/12 focus-visible:outline-2 focus-visible:outline-ring dark:bg-white/12 dark:hover:bg-white/18"
-        >
-          <X className="size-5" aria-hidden="true" />
-        </DrawerPrimitive.Close>
-      )}
-      <DrawerTitle className="text-center text-base font-medium tracking-normal">{children}</DrawerTitle>
-    </div>
-  )
-}
-
 function DrawerTitle({ className, ...props }: DrawerPrimitive.Title.Props) {
   return <DrawerPrimitive.Title data-slot="drawer-title" className={cn("text-lg font-medium tracking-heading", className)} {...props} />
 }
@@ -123,4 +153,4 @@ function DrawerDescription({ className, ...props }: DrawerPrimitive.Description.
   return <DrawerPrimitive.Description data-slot="drawer-description" className={cn("text-muted-foreground", className)} {...props} />
 }
 
-export { BACKDROP, POPUP, VIEWPORT, Drawer, DrawerTrigger, DrawerClose, DrawerHandle, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription }
+export { BACKDROP, POPUP, VIEWPORT, Drawer, DrawerTrigger, DrawerClose, DrawerHandle, DrawerCloseButton, DrawerContent, DrawerTitle, DrawerDescription }
