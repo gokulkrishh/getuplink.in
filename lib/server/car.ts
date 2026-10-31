@@ -5,7 +5,6 @@ import {
   colorName,
   driveLabel,
   factory,
-  generationLabel,
   hardwareLabel,
   interiorLabel,
   batteryChemistry,
@@ -31,7 +30,6 @@ export type CarDetails = {
   name: string;
   vin: string | null;
   model: string | null;
-  generation: string | null;
   year: number | null;
   factory: string | null;
   drive: string | null;
@@ -133,7 +131,6 @@ function details(
     name: name || model || "Tesla",
     vin,
     model,
-    generation: generationLabel(config.efficiency_package),
     year: modelYear(vin),
     factory: factory(vin),
     drive: driveLabel(config.trim_badging, config.performance_package),
