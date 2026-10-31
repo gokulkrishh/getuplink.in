@@ -1,6 +1,6 @@
 import { Loading, Ph, SkBigLabel, SkBlock, SkChart, SkChartCaptioned, SkFigures, SkHead, SkHeadline, SkLine, SkSection, SkShowMore, SkTable, SkTripRows } from "@/components/skeleton";
 import { CHARGING_PREVIEW } from "@/components/stats/charging-sections";
-import { TABLE_FRAME, TABLE_HEAD, TABLE_HEAD_ROW } from "@/lib/table-frame";
+import { PARKED_COLUMNS, PARKED_TABLE, TABLE_FRAME, TABLE_HEAD, TABLE_HEAD_ROW } from "@/lib/table-frame";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // What each Stats topic shows while its data loads: its sections in order, each built from the section's own
@@ -394,21 +394,20 @@ export function BatterySkeleton() {
 // The stretches parked as ParkedRows draws them: a table of three rows, as wide on a phone as the real one,
 // and the button for the rest.
 function SkParkedList() {
-  const head = ["#", "Parked", "For", "Lost", "Range", "Energy", "Average power", "Seen awake"];
   return (
     <div aria-hidden="true">
       <div className={TABLE_FRAME}>
-        <table className="w-full min-w-[48rem] table-fixed text-sm">
+        <table className={PARKED_TABLE}>
           <colgroup>
-            {["w-10", "w-32", "w-28", "", "", "", "", "w-24"].map((w, k) => (
-              <col key={k} className={w} />
+            {PARKED_COLUMNS.map((c) => (
+              <col key={c.label} className={c.width} />
             ))}
           </colgroup>
           <thead>
             <tr className={`border-b text-left text-xs ${TABLE_HEAD_ROW}`}>
-              {head.map((h, k) => (
-                <th key={h} className={`font-normal ${k > 2 ? "text-right" : ""} ${k < head.length - 1 ? "pr-3" : ""}`}>
-                  <Ph>{h}</Ph>
+              {PARKED_COLUMNS.map((c, k) => (
+                <th key={c.label} className={`font-normal ${c.right ? "text-right" : ""} ${k < PARKED_COLUMNS.length - 1 ? "pr-3" : ""}`}>
+                  <Ph>{c.label}</Ph>
                 </th>
               ))}
             </tr>

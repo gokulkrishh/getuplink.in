@@ -120,6 +120,19 @@ for (const phone of [false, true]) {
   await p.screenshot({ path: join(dir, `${tag}_settings_offline.png`) });
   await c.setOffline(false);
 
+  // Data tables fit the page column on desktop, no sideways scroll; on a phone they keep every column and
+  // scroll in their box (PR #69), with a trip's distance in view before scrolling (Distance sits after When).
+  const boxes = () => p.locator("main table").evaluateAll((ts) => ts.map((t) => { let s = t.parentElement; while (s && getComputedStyle(s).overflowX === "visible") s = s.parentElement; return { head: t.querySelector("thead")?.textContent ?? "", scrolls: !!s && s.scrollWidth > s.clientWidth + 1, box: s?.getBoundingClientRect().right ?? 0, cells: [...(t.querySelector("tbody tr")?.children ?? [])].map((c) => c.getBoundingClientRect().right) }; }));
+  for (const u of ["/stats/driving", "/stats/battery", "/stats/charging", "/updates"]) {
+    await go(u);
+    const tables = await boxes();
+    if (!phone) check(`desktop ${u} tables fit without sideways scroll`, tables.every((b) => !b.scrolls), tables.filter((b) => b.scrolls).map((b) => b.head.slice(0, 30)).join(" | "));
+    if (phone && u === "/stats/driving") {
+      const trips = tables.find((b) => b.head.startsWith("#WhenDistance"));
+      check(`phone /stats/driving trips scroll sideways, distance in view`, !!trips && trips.scrolls && trips.cells[2] <= trips.box + 1, trips ? `distance ends ${Math.round(trips.cells[2])}, box ${Math.round(trips.box)}` : "no trips table");
+    }
+  }
+
   // Header Sign out while offline stays on the page with the usual line (Launch QA 29 Oct 2026).
   await go("/stats/battery");
   // Where the car was parked wraps in the scrolling table on a phone, never cut.

@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Measure } from "@/components/measure";
 import { ROW_LINK } from "@/components/row-chevron";
 import { cn } from "@/lib/utils";
-import { TABLE_HEAD_ROW } from "@/lib/table-frame";
+import { TABLE_HEAD_ROW, TRIP_COLUMNS, TRIP_TABLE } from "@/lib/table-frame";
 
 // One trip as the table shows it, every text worked out on the server (see tripRow in drive-list.tsx): the
 // page sends these few strings per trip, and the browser draws the table from them.
@@ -28,15 +28,6 @@ export type TripRow = {
   levels: string | null;
 };
 
-// The trip table's columns. Fixed widths, so the rows fetched by Show more line up with the first.
-const COLUMNS = [
-  { label: "#", width: "w-10" },
-  { label: "When", width: "w-44" },
-  { label: "Trip", width: "" },
-  { label: "Distance · time", width: "w-36", right: true },
-  { label: "Energy · battery", width: "w-36", right: true },
-];
-
 const faint = <span className="text-faint">—</span>;
 
 // One trip (a single drive, or drives with short stops between; see groupTrips) as a row. The times link to
@@ -49,9 +40,16 @@ function TripTableRow({ row }: { row: TripRow }) {
         <span className="block">{row.day}</span>
         <span className="block text-xs text-muted-foreground tabular-nums">{row.times}</span>
       </td>
+      <td className={`py-3 pr-3 whitespace-nowrap ${TRIP_COLUMNS[2].cell}`}>
+        <span className="block font-mono"><Measure text={row.km} /></span>
+        <span className="block text-xs text-muted-foreground">
+          {row.duration}
+          {row.stops && ` · ${row.stops}`}
+        </span>
+      </td>
       {/* Where it went. With no arrow column (it would sit off screen while the table scrolls), the name
           underlines when the row is hovered, as the link it is. */}
-      <th scope="row" className="py-3 pr-3 text-left font-medium">
+      <th scope="row" className={`py-3 pr-3 text-left font-medium ${TRIP_COLUMNS[3].cell}`}>
         <Link
           href={`/stats/driving/${row.start}`}
           className={cn(ROW_LINK, (!row.route || row.placeHidden) && "font-normal text-muted-foreground", row.placeHidden && "group-hover/row:no-underline")}
@@ -59,14 +57,7 @@ function TripTableRow({ row }: { row: TripRow }) {
           {row.route ?? "Place not known"}
         </Link>
       </th>
-      <td className="py-3 pr-3 text-right whitespace-nowrap">
-        <span className="block font-mono"><Measure text={row.km} /></span>
-        <span className="block text-xs text-muted-foreground">
-          {row.duration}
-          {row.stops && ` · ${row.stops}`}
-        </span>
-      </td>
-      <td className="py-3 pr-3 text-right whitespace-nowrap" title={row.levels ?? undefined}>
+      <td className={`py-3 pr-3 whitespace-nowrap ${TRIP_COLUMNS[4].cell}`} title={row.levels ?? undefined}>
         <span className="block font-mono">{row.kwh === null ? faint : <Measure text={row.kwh} />}</span>
         {row.used && <span className="block text-xs text-muted-foreground">{row.used} of battery</span>}
       </td>
@@ -74,8 +65,8 @@ function TripTableRow({ row }: { row: TripRow }) {
   );
 }
 
-// Trips as a plain table: number, date, times, distance with the time it took, and energy with the battery
-// it used. On a phone it is the same table, scrolling sideways. The first rows come with the page; "Show N more"
+// Trips as a plain table: number, date, times, distance with the time it took, where it went, and energy with
+// the battery it used. On a phone it is the same table, scrolling sideways. The first rows come with the page; "Show N more"
 // fetches the rest with `load` and adds them to the same table, so it scrolls sideways as one.
 export function TripRows({ list, load }: { list: Paged<TripRow>; load?: LoadMore<TripRow> }) {
   const { rows, button } = usePaged(list, load ?? (async () => []));
@@ -84,16 +75,16 @@ export function TripRows({ list, load }: { list: Paged<TripRow>; load?: LoadMore
       {/* The table sits 0.75rem wider than the column on each side and pads its outer cells by the same, so a
           highlighted row has room around its text while the text still lines up with the page. */}
       <TableBox>
-        <table className="w-full min-w-[44rem] table-fixed text-sm tabular-nums">
+        <table className={`${TRIP_TABLE} tabular-nums`}>
           <colgroup>
-            {COLUMNS.map((c) => (
+            {TRIP_COLUMNS.map((c) => (
               <col key={c.label} className={c.width} />
             ))}
           </colgroup>
           <thead>
             <tr className={`border-b text-left text-xs text-faint ${TABLE_HEAD_ROW}`}>
-              {COLUMNS.map((c) => (
-                <th key={c.label} scope="col" className={`pr-3 font-normal ${c.right ? "text-right" : ""}`}>
+              {TRIP_COLUMNS.map((c) => (
+                <th key={c.label} scope="col" className={`pr-3 font-normal ${c.cell}`}>
                   {c.label}
                 </th>
               ))}
