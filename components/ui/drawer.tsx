@@ -2,10 +2,12 @@
 
 import * as React from "react"
 import { Drawer as DrawerPrimitive } from "@base-ui/react/drawer"
+import { X } from "lucide-react"
 import { cn } from "cn"
 
 // Every dialog in Uplink is this: a sheet from the bottom on a phone, which a swipe down closes, and a
-// centred dialog from `sm` up. Base UI's Drawer (a Dialog with gestures), cut down from shadcn's base-nova
+// centred dialog from `sm` up. Shaped like an iOS sheet: a card floating 8px in from the screen's edges,
+// rounded on all four corners, a shade lighter than the page in the dark theme, with no border or grab bar. Base UI's Drawer (a Dialog with gestures), cut down from shadcn's base-nova
 // drawer to the one direction Uplink uses. A mouse drag inside Content selects text rather than swiping, so
 // on a desktop it behaves as a plain dialog.
 
@@ -18,20 +20,30 @@ const BACKDROP = cn(
   COVER,
   "bg-black/50 opacity-[calc(1-var(--drawer-swipe-progress))] transition-opacity duration-450 ease-[cubic-bezier(0.32,0.72,0,1)] supports-backdrop-filter:backdrop-blur-xs data-starting-style:opacity-0 data-ending-style:opacity-0 data-ending-style:duration-[calc(var(--drawer-swipe-strength)*400ms)] data-swiping:duration-0 motion-reduce:transition-none sm:duration-150 sm:data-ending-style:duration-150",
 )
-const BACKDROP_OPAQUE = cn(COVER, "bg-background")
+// Solid, but not the sheet's own colour, so the sheet still reads as a card on top (iOS's grouped grey in
+// the light theme, the page's black in the dark one).
+const BACKDROP_OPAQUE = cn(COVER, "bg-[#f2f2f7] dark:bg-background")
 
-// Where the sheet sits: at the bottom on a phone, lifted above the keyboard while one is open (the inset is
-// set by Drawer.VirtualKeyboardProvider), and in the middle from sm up.
-const VIEWPORT = "fixed inset-0 z-50 flex items-end justify-center pb-[var(--drawer-keyboard-inset,0px)] sm:items-center sm:p-4"
+// Where the sheet sits: 8px off the bottom and sides of a phone, lifted above the keyboard while one is open
+// (the inset is set by Drawer.VirtualKeyboardProvider), and in the middle from sm up.
+const VIEWPORT = "fixed inset-0 z-50 flex items-end justify-center px-2 pb-[calc(0.5rem+var(--drawer-keyboard-inset,0px))] sm:items-center sm:p-4"
+
+// The sheet's surface: white on the light theme; iOS's raised grey on the dark one, so it stands off the page.
+const SURFACE = "bg-background dark:bg-[#1c1c1e]"
 
 // Phone: pinned to the bottom, following the finger (--y), sliding in and out. From sm: centred, fading and
 // scaling a little, the swipe ignored (its transform is fixed). --y keeps the two from fighting over transform.
 const POPUP = cn(
-  "relative flex max-h-[calc(100dvh-1.5rem)] w-full flex-col rounded-t-2xl border-t bg-background text-sm text-foreground shadow-2xl outline-none",
-  "[--y:var(--drawer-swipe-movement-y)] [transform:translate3d(0,var(--y),0)] data-starting-style:[--y:100%] data-ending-style:[--y:100%]",
+  "relative flex max-h-[calc(100dvh-2.5rem)] w-full flex-col overflow-hidden rounded-[2.25rem] text-sm text-foreground shadow-2xl outline-none",
+  SURFACE,
+  "[--y:var(--drawer-swipe-movement-y)] [transform:translate3d(0,var(--y),0)] data-starting-style:[--y:calc(100%+1rem)] data-ending-style:[--y:calc(100%+1rem)]",
   "transition-transform duration-450 ease-[cubic-bezier(0.32,0.72,0,1)] data-swiping:duration-0 data-swiping:select-none data-ending-style:duration-[calc(var(--drawer-swipe-strength)*400ms)] motion-reduce:transition-none",
-  "sm:max-h-[calc(100dvh-4rem)] sm:w-auto sm:rounded-xl sm:border sm:[transform:none] sm:transition-[opacity,scale] sm:duration-150 sm:data-ending-style:duration-150 sm:data-starting-style:scale-[0.97] sm:data-starting-style:opacity-0 sm:data-ending-style:scale-[0.97] sm:data-ending-style:opacity-0",
+  "sm:max-h-[calc(100dvh-4rem)] sm:w-auto sm:rounded-[1.75rem] sm:[transform:none] sm:transition-[opacity,scale] sm:duration-150 sm:data-ending-style:duration-150 sm:data-starting-style:scale-[0.97] sm:data-starting-style:opacity-0 sm:data-ending-style:scale-[0.97] sm:data-ending-style:opacity-0",
 )
+
+// Inside a sheet, as on iOS: buttons are pills and text fields are soft filled boxes, 44px tall, with no outline.
+const SHEET_CONTROLS =
+  "**:data-[slot=button]:rounded-full **:data-[slot=input]:h-11 **:data-[slot=input]:rounded-2xl **:data-[slot=input]:border-transparent **:data-[slot=input]:bg-foreground/[0.04] dark:**:data-[slot=input]:bg-white/[0.07]"
 
 function Drawer({ swipeDirection = "down", ...props }: DrawerPrimitive.Root.Props) {
   return <DrawerPrimitive.Root data-slot="drawer" swipeDirection={swipeDirection} {...props} />
@@ -54,14 +66,13 @@ function DrawerHandle({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-// The backdrop, the viewport that places the sheet, and the sheet with its handle. `className` sizes and pads
-// the sheet (its width from sm up); `bodyClassName` lays out what's inside. `handle={false}` for a sheet
-// that draws its own (the tour, whose picture runs to the top edge).
+// The backdrop, the viewport that places the sheet, and the sheet (with a grab bar if `handle`). `className`
+// sizes the sheet (its width from sm up); `bodyClassName` pads and lays out what's inside. Buttons and fields inside follow SHEET_CONTROLS.
 function DrawerContent({
   className,
   bodyClassName,
   opaque = false,
-  handle = true,
+  handle = false,
   keyboard = false,
   children,
   ...props
@@ -70,7 +81,7 @@ function DrawerContent({
     <DrawerPrimitive.Viewport data-slot="drawer-viewport" className={VIEWPORT}>
       <DrawerPrimitive.Popup data-slot="drawer-popup" className={cn(POPUP, className)} {...props}>
         {handle && <DrawerHandle />}
-        <DrawerPrimitive.Content data-slot="drawer-content" className={cn("flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain", bodyClassName)}>
+        <DrawerPrimitive.Content data-slot="drawer-content" className={cn("flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain", SHEET_CONTROLS, bodyClassName)}>
           {children}
         </DrawerPrimitive.Content>
       </DrawerPrimitive.Popup>
@@ -86,6 +97,24 @@ function DrawerContent({
   return keyboard ? <DrawerPrimitive.VirtualKeyboardProvider>{portal}</DrawerPrimitive.VirtualKeyboardProvider> : portal
 }
 
+// A sheet's top row, as on iOS: a round close button on the left and the title centred. `close={false}` for a
+// sheet that closes only through its own buttons.
+function DrawerHeader({ children, close = true, className }: { children: React.ReactNode; close?: boolean; className?: string }) {
+  return (
+    <div data-slot="drawer-header" className={cn("relative flex min-h-10 items-center justify-center px-12", className)}>
+      {close && (
+        <DrawerPrimitive.Close
+          aria-label="Close"
+          className="absolute top-1/2 left-0 inline-flex size-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-foreground/[0.07] text-foreground transition-colors hover:bg-foreground/12 focus-visible:outline-2 focus-visible:outline-ring dark:bg-white/12 dark:hover:bg-white/18"
+        >
+          <X className="size-5" aria-hidden="true" />
+        </DrawerPrimitive.Close>
+      )}
+      <DrawerTitle className="text-center text-base font-medium tracking-normal">{children}</DrawerTitle>
+    </div>
+  )
+}
+
 function DrawerTitle({ className, ...props }: DrawerPrimitive.Title.Props) {
   return <DrawerPrimitive.Title data-slot="drawer-title" className={cn("text-lg font-medium tracking-heading", className)} {...props} />
 }
@@ -94,4 +123,4 @@ function DrawerDescription({ className, ...props }: DrawerPrimitive.Description.
   return <DrawerPrimitive.Description data-slot="drawer-description" className={cn("text-muted-foreground", className)} {...props} />
 }
 
-export { BACKDROP, POPUP, VIEWPORT, Drawer, DrawerTrigger, DrawerClose, DrawerHandle, DrawerContent, DrawerTitle, DrawerDescription }
+export { BACKDROP, POPUP, VIEWPORT, Drawer, DrawerTrigger, DrawerClose, DrawerHandle, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription }

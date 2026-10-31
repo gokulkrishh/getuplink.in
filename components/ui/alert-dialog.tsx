@@ -22,7 +22,7 @@ function AlertDialogContent({ className, ...props }: React.ComponentProps<typeof
       data-slot="alert-dialog-content"
       role="alertdialog"
       className={cn("sm:w-105", className)}
-      bodyClassName="grid gap-3 px-5 pt-2 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-5"
+      bodyClassName="grid gap-3 px-6 pt-6 pb-5 sm:p-6"
       {...props}
     />
   )
@@ -37,12 +37,12 @@ function AlertDialogDescription({ className, ...props }: React.ComponentProps<ty
 }
 
 // Cancel first in the DOM (so it gets focus), the action last. Right-aligned on desktop; on a phone the
-// buttons stack full width with the action on top.
+// buttons stack full width and tall (44px or more, as on iOS), the action on top.
 function AlertDialogFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="alert-dialog-footer"
-      className={cn("mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end max-sm:[&>*]:w-full", className)}
+      className={cn("mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end max-sm:[&>*]:h-12 max-sm:[&>*]:w-full", className)}
       {...props}
     />
   )

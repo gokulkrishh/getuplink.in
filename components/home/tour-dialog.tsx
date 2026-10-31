@@ -4,7 +4,7 @@ import { Drawer } from "@base-ui/react/drawer";
 import { Pause, Play, RotateCcw, X } from "lucide-react";
 import { type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { BACKDROP, DrawerHandle, POPUP, VIEWPORT } from "@/components/ui/drawer";
+import { BACKDROP, POPUP, VIEWPORT } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 
 // The shell both Home dialogs share: the welcome tour and the release dialog. A blurred Home behind, two
@@ -218,7 +218,7 @@ function Popup({ steps }: { steps: TourStep[] }) {
         else if (e.key === "ArrowLeft") go(n - 1);
         else wrapTab(e);
       }}
-      className={cn(POPUP, "max-h-dvh overflow-hidden pb-[env(safe-area-inset-bottom)] text-base sm:h-[min(690px,calc(100dvh-2rem))] sm:w-[min(980px,calc(100vw-2rem))] sm:max-h-none sm:pb-0")}
+      className={cn(POPUP, "text-base sm:h-[min(690px,calc(100dvh-2rem))] sm:w-[min(980px,calc(100vw-2rem))] sm:max-h-none sm:pb-0")}
     >
       {/* Content lays out nothing (display: contents); it lets a mouse select the words without swiping. */}
       <Drawer.Content className="contents">
@@ -232,7 +232,6 @@ function Popup({ steps }: { steps: TourStep[] }) {
             onPointerCancel={() => (swipe.current = null)}
             className="relative h-[min(230px,30dvh)] shrink-0 touch-pan-y border-b [@media(max-height:640px)]:h-[26dvh] sm:h-auto sm:min-h-0 sm:border-r sm:border-b-0">
             <div className="relative h-full min-h-0 overflow-hidden">{step.preview}</div>
-            <DrawerHandle className="absolute inset-x-0 top-0 z-10" />
           </div>
           <div className="relative flex min-h-0 min-w-0 flex-1 flex-col p-5 max-sm:[@media(max-height:640px)]:py-4 sm:p-8">
             {/* On a phone the dots sit at the right of this line, so the footer is one row and the sheet fits a small screen. */}
