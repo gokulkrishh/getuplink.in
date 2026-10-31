@@ -4,6 +4,9 @@ Ideas and known small issues that are decided but not scheduled. Move an item in
 
 ## Features
 
+### Product analytics, once there are enough owners
+First-party, privacy-first counts: activation, weekly active owners, week-4 retention and what owners use. Not needed while the admin can ask each owner. The plan, rules and trigger are in docs/analytics.md.
+
 ### Support access (opt-in, read-only)
 For bug fixes, the operator sometimes needs to see what an owner sees. A silent "log in as anyone" is out: Uplink holds where cars have been, local and live share one database (so "localhost only" still shows live data), and the privacy page promises database access only "to run and fix Uplink". Instead:
 
