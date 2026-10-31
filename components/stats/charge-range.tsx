@@ -5,6 +5,7 @@ import type { Timeframe } from "@/lib/periods";
 import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { median } from "@/lib/telemetry-derive";
 import { Measure } from "@/components/measure";
+import { TABLE_HEAD } from "@/lib/table-frame";
 
 const LISTED = 10;
 
@@ -39,8 +40,8 @@ export function ChargeRange({ sessions, frame, serialOf }: { sessions: StreamCha
       }
       caption={latest.length === 1 ? "Latest charge" : `Latest ${latest.length} charges, newest first`}
     >
-      <div className="rounded-lg border py-2">
-        <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] border-b px-4 pb-2 text-xs text-faint" aria-hidden="true">
+      <div className="overflow-hidden rounded-lg border pb-2">
+        <div className={`grid grid-cols-[2.5rem_minmax(0,1fr)] border-b px-4 text-xs text-faint ${TABLE_HEAD}`} aria-hidden="true">
           <span>#</span>
           <span>Charge</span>
         </div>

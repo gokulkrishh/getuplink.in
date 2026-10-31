@@ -87,11 +87,15 @@ for (const phone of [false, true]) {
   t = await go(tripHref);
   check(`${tag} trip page no "regen"`, !/regen/i.test(t));
   t = await go("/stats/charging");
-  // Launch QA 29 Oct 2026: the DC sessions list reads in full on a phone (name on its own line, powers apart).
+  // Launch QA 29 Oct 2026: the DC sessions read in full on a phone. The table scrolls sideways there and the
+  // charger's name wraps in its cell rather than being cut.
   if (phone) {
     check(`phone /stats/charging no sideways scroll`, (await sw(p)) <= 375, `scrollWidth ${await sw(p)}`);
-    const names = p.locator("div.sm\\:hidden li p:last-child");
+    const names = p.locator("table:has(th:text-is('Charger')) tbody td:nth-child(3)");
     check(`phone /stats/charging charger names not cut`, (await names.count()) > 0 && (await names.evaluateAll((els) => els.every((e) => e.scrollWidth <= e.clientWidth + 1))));
+    // The charges' place names wrap in the scrolling table on a phone, never cut.
+    const places = p.locator(".overflow-x-auto li p.font-medium > span");
+    check(`phone /stats/charging charge place names not cut`, (await places.count()) > 0 && (await places.evaluateAll((els) => els.every((e) => e.scrollWidth <= e.clientWidth + 1))));
   }
   t = await go("/stats/driving?period=custom&from=2030-01-01&to=2030-02-01");
   check(`${tag} custom future dates name what's shown`, t.includes("Uplink couldn't use those dates, so it shows") && !t.includes("Pick dates up to today."));
@@ -118,6 +122,11 @@ for (const phone of [false, true]) {
 
   // Header Sign out while offline stays on the page with the usual line (Launch QA 29 Oct 2026).
   await go("/stats/battery");
+  // Where the car was parked wraps in the scrolling table on a phone, never cut.
+  if (phone) {
+    const spots = p.locator(".overflow-x-auto td span.min-w-0");
+    check(`phone /stats/battery parked place names not cut`, (await spots.count()) > 0 && (await spots.evaluateAll((els) => els.every((e) => e.scrollWidth <= e.clientWidth + 1))));
+  }
   await c.setOffline(true);
   await (phone ? p.getByRole("button", { name: "Account menu" }).tap() : p.getByRole("button", { name: "Account menu" }).click());
   await p.getByRole("menuitem", { name: "Sign out" }).click().catch(() => {});

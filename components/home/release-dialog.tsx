@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Dialog } from "@base-ui/react/dialog";
+import { Drawer } from "@base-ui/react/drawer";
 import { useTransition } from "react";
 import { markSeen } from "@/app/release-notes/actions";
 import { TourBackdrop, TourDialog, type TourStep, TourSlice } from "@/components/home/tour-dialog";
@@ -37,9 +37,9 @@ export function ReleaseDialog({ entries, total }: { entries: Entry[]; total: num
     description: e.more ? `${e.text} ${e.more}` : e.text,
     extra:
       total > entries.length ? (
-        <Dialog.Close render={<Link href="/release-notes" />} nativeButton={false} className="mt-5 inline-block text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
+        <Drawer.Close render={<Link href="/release-notes" />} nativeButton={false} className="mt-5 inline-block text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
           See all in Release notes
-        </Dialog.Close>
+        </Drawer.Close>
       ) : null,
     preview: <Shot entry={e} />,
   }));

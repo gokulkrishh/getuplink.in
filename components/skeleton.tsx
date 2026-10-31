@@ -3,7 +3,7 @@ import { Words } from "@/components/stats/charge-supply";
 import { Figures } from "@/components/stats/figures";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { TABLE_FRAME } from "@/lib/table-frame";
+import { TABLE_FRAME, TABLE_HEAD_ROW } from "@/lib/table-frame";
 
 // Pieces for the loading screens (the Suspense fallbacks), built from the page's own layout classes so a
 // block is as tall as what replaces it and nothing moves when the page arrives. Text is placeholder words
@@ -132,17 +132,15 @@ export function SkHeadline({ value, line }: { value: string; line: string }) {
   );
 }
 
-// A table: the header (text-xs, py-2, a rule) and `rows` rows of py-3 text-sm cells, one word per column.
-// `hide` lists column numbers that a phone drops.
-export function SkTable({ head, rows, hide = [], cell = "py-3", name = "Placeholder", className }: { head: string[]; rows: number; hide?: number[]; cell?: string; name?: string; className?: string }) {
-  const drop = (k: number) => hide.includes(k) && "max-sm:hidden";
+// A table: the header (text-xs, its band, a rule) and `rows` rows of py-3 text-sm cells, one word per column.
+export function SkTable({ head, rows, cell = "py-3", name = "Placeholder", className }: { head: string[]; rows: number; cell?: string; name?: string; className?: string }) {
   return (
-    <div className={cn(TABLE_FRAME, "overflow-hidden")} aria-hidden="true">
+    <div className={TABLE_FRAME} aria-hidden="true">
     <table className={cn("w-full min-w-md text-sm", className)}>
       <thead>
-        <tr className="border-b text-left text-xs">
+        <tr className={`border-b text-left text-xs ${TABLE_HEAD_ROW}`}>
           {head.map((h, k) => (
-            <th key={h + k} className={cn("py-2 pr-4 font-normal", k > 1 && "text-right", drop(k))}>
+            <th key={h + k} className={cn("pr-4 font-normal", k > 1 && "text-right")}>
               <Ph>{h}</Ph>
             </th>
           ))}
@@ -152,7 +150,7 @@ export function SkTable({ head, rows, hide = [], cell = "py-3", name = "Placehol
         {Array.from({ length: rows }, (_, r) => (
           <tr key={r}>
             {head.map((h, k) => (
-              <td key={h + k} className={cn(cell, "pr-4", k > 1 && "text-right", drop(k))}>
+              <td key={h + k} className={cn(cell, "pr-4", k > 1 && "text-right")}>
                 <Ph>{k === 0 ? "00" : k === 1 ? name : "Placeholder"}</Ph>
               </td>
             ))}
@@ -175,30 +173,13 @@ export function SkShowMore() {
   );
 }
 
-// The trips list as TripRows draws it: a table of two-line rows wider than a phone, a list of two-line rows
-// on a phone.
+// The trips list as TripRows draws it: a table of two-line rows, as wide on a phone as the real one.
 export function SkTripRows({ rows = 3 }: { rows?: number }) {
   const head = ["#", "When", "Trip", "Distance · time", "Energy · battery"];
   return (
     <>
-      <ul className="divide-y rounded-lg border sm:hidden" aria-hidden="true">
-        {Array.from({ length: rows }, (_, r) => (
-          <li key={r} className="flex items-center gap-3 px-4 py-3 text-sm">
-            <div className="min-w-0 flex-1">
-              <p className="flex items-baseline justify-between gap-3 font-medium">
-                <Ph>8:18 AM to 8:52 AM</Ph>
-                <Ph className="font-mono font-normal">14.8 km</Ph>
-              </p>
-              <p className="mt-1 text-xs">
-                <Ph>Today · 34 min · 1.8 kWh · 3% of battery</Ph>
-              </p>
-            </div>
-            <span className="size-3.5 shrink-0" />
-          </li>
-        ))}
-      </ul>
-      <div className={cn(TABLE_FRAME, "max-sm:hidden")} aria-hidden="true">
-        <table className="w-full table-fixed text-sm">
+      <div className={TABLE_FRAME} aria-hidden="true">
+        <table className="w-full min-w-[44rem] table-fixed text-sm">
           <colgroup>
             <col className="w-10" />
             <col className="w-44" />
@@ -208,13 +189,13 @@ export function SkTripRows({ rows = 3 }: { rows?: number }) {
             <col className="w-8" />
           </colgroup>
           <thead>
-            <tr className="border-b text-left text-xs">
+            <tr className={`border-b text-left text-xs ${TABLE_HEAD_ROW}`}>
               {head.map((h, k) => (
-                <th key={h} className={cn("pb-2 pr-3 font-normal", k > 2 && "text-right")}>
+                <th key={h} className={cn("pr-3 font-normal", k > 2 && "text-right")}>
                   <Ph>{h}</Ph>
                 </th>
               ))}
-              <th className="pb-2" />
+              <th />
             </tr>
           </thead>
           <tbody className="divide-y">

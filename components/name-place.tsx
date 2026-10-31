@@ -1,12 +1,13 @@
 "use client";
 
-import { Dialog } from "@base-ui/react/dialog";
+import type { Drawer as DrawerPrimitive } from "@base-ui/react/drawer";
 import { Check, Pencil, Search, X } from "lucide-react";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { placeSuggestions, removePlace, savePlace } from "@/app/places/actions";
 import { GoogleMapsCredit } from "@/components/google-maps-credit";
 import { Ph } from "@/components/skeleton";
 import { Button } from "@/components/ui/button";
+import { Drawer, DrawerClose, DrawerContent, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { NO_AUTOFILL } from "@/lib/no-autofill";
 import { matches, NO_SUGGESTIONS, parseQuery, type Suggestion, type Suggestions } from "@/lib/place-suggestions";
@@ -55,7 +56,7 @@ export function NamePlace({ target, compact = false, className }: { target: Name
     setError(null);
     token.current = newToken();
   };
-  const opened = (next: boolean, details: Dialog.Root.ChangeEventDetails) => {
+  const opened = (next: boolean, details: DrawerPrimitive.Root.ChangeEventDetails) => {
     // Escape clears the search first; a second Escape closes.
     if (!next && details.reason === "escape-key" && (query !== "" || active >= 0)) {
       setQuery("");
@@ -239,8 +240,9 @@ export function NamePlace({ target, compact = false, className }: { target: Name
     );
 
   return (
-    <Dialog.Root open={open} onOpenChange={opened}>
-      <Dialog.Trigger
+    // A tap outside doesn't close it, so a half-typed search isn't lost. The ×, Esc and a swipe down do.
+    <Drawer open={open} onOpenChange={opened} disablePointerDismissal>
+      <DrawerTrigger
         aria-label={compact ? title : undefined}
         className={cn(
           compact
@@ -250,116 +252,119 @@ export function NamePlace({ target, compact = false, className }: { target: Name
         )}
       >
         {compact ? <Pencil className="size-3.5" aria-hidden="true" /> : "Name this place"}
-      </Dialog.Trigger>
-      <Dialog.Portal>
-        {/* Opaque: the page, and its map, are hidden while the sheet is open. */}
-        <Dialog.Backdrop className="fixed inset-0 z-50 bg-background" />
-        <Dialog.Popup initialFocus={input} className="fixed inset-0 z-50 overflow-y-auto overscroll-y-contain bg-background text-sm text-foreground outline-none">
-          <div className="mx-auto w-full max-w-md space-y-4 px-[max(1rem,env(safe-area-inset-left),env(safe-area-inset-right))] pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(3rem,env(safe-area-inset-bottom))] sm:pt-16">
-            <div className="flex items-center justify-between gap-4">
-              <Dialog.Title className="text-lg font-medium tracking-heading">{title}</Dialog.Title>
-              <Dialog.Close render={<Button variant="ghost" size="icon-sm" aria-label="Close" className="-mt-1 -mr-2 text-muted-foreground" />} nativeButton>
-                <X className="size-4" aria-hidden="true" />
-              </Dialog.Close>
+      </DrawerTrigger>
+      {/* Opaque: the page, and its map, are hidden while the sheet is open, even mid-swipe. One height
+          whatever the list holds, so the sheet doesn't jump as the choices change under the search. */}
+      <DrawerContent
+        opaque
+        keyboard
+        initialFocus={input}
+        className="h-[calc(100dvh-1.5rem)] sm:h-[min(44rem,calc(100dvh-4rem))] sm:w-md"
+      >
+        <div className="space-y-4 px-[max(1rem,env(safe-area-inset-left),env(safe-area-inset-right))] pt-2 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-6">
+          <div className="flex items-center justify-between gap-4">
+            <DrawerTitle>{title}</DrawerTitle>
+            <DrawerClose render={<Button variant="ghost" size="icon-sm" aria-label="Close" className="-mt-1 -mr-2 text-muted-foreground" />} nativeButton>
+              <X className="size-4" aria-hidden="true" />
+            </DrawerClose>
+          </div>
+
+          {current && (
+            <p className="flex flex-wrap items-baseline gap-x-2">
+              <span className="text-muted-foreground">Now</span>
+              <span>{current}</span>
+              {!target.tag?.name && <GoogleMapsCredit />}
+            </p>
+          )}
+
+          <div className="space-y-1.5">
+            <div className="relative">
+              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-faint" aria-hidden="true" />
+              <Input
+                ref={input}
+                type="text"
+                role="combobox"
+                aria-label="Search or type a name"
+                aria-expanded={options.length > 0}
+                aria-controls={listId}
+                aria-autocomplete="list"
+                aria-activedescendant={active >= 0 ? optionId(active) : undefined}
+                aria-describedby={`${id}-hint`}
+                value={query}
+                maxLength={NAME_MAX}
+                placeholder="Search or type a name"
+                enterKeyHint="done"
+                spellCheck={false}
+                {...NO_AUTOFILL}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setActive(-1);
+                  setError(null);
+                }}
+                onKeyDown={onKeyDown}
+                readOnly={saving}
+                aria-busy={saving}
+                className="pr-9 pl-8"
+              />
+              {query !== "" && (
+                <button
+                  type="button"
+                  aria-label="Clear"
+                  onClick={() => {
+                    setQuery("");
+                    setActive(-1);
+                    input.current?.focus();
+                  }}
+                  className="absolute top-1/2 right-1 inline-flex size-8 -translate-y-1/2 items-center justify-center text-faint transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                >
+                  <X className="size-4" aria-hidden="true" />
+                </button>
+              )}
             </div>
 
-            {current && (
-              <p className="flex flex-wrap items-baseline gap-x-2">
-                <span className="text-muted-foreground">Now</span>
-                <span>{current}</span>
-                {!target.tag?.name && <GoogleMapsCredit />}
+            {error ? (
+              <p role="alert" className="text-sm text-destructive">
+                {error}
+              </p>
+            ) : (
+              <p role="status" className="min-h-4 text-sm text-muted-foreground">
+                {status}
               </p>
             )}
-
-            <div className="space-y-1.5">
-              <div className="relative">
-                <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-faint" aria-hidden="true" />
-                <Input
-                  ref={input}
-                  type="text"
-                  role="combobox"
-                  aria-label="Search or type a name"
-                  aria-expanded={options.length > 0}
-                  aria-controls={listId}
-                  aria-autocomplete="list"
-                  aria-activedescendant={active >= 0 ? optionId(active) : undefined}
-                  aria-describedby={`${id}-hint`}
-                  value={query}
-                  maxLength={NAME_MAX}
-                  placeholder="Search or type a name"
-                  enterKeyHint="done"
-                  spellCheck={false}
-                  {...NO_AUTOFILL}
-                  onChange={(e) => {
-                    setQuery(e.target.value);
-                    setActive(-1);
-                    setError(null);
-                  }}
-                  onKeyDown={onKeyDown}
-                  readOnly={saving}
-                  aria-busy={saving}
-                  className="pr-9 pl-8"
-                />
-                {query !== "" && (
-                  <button
-                    type="button"
-                    aria-label="Clear"
-                    onClick={() => {
-                      setQuery("");
-                      setActive(-1);
-                      input.current?.focus();
-                    }}
-                    className="absolute top-1/2 right-1 inline-flex size-8 -translate-y-1/2 items-center justify-center text-faint transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
-                  >
-                    <X className="size-4" aria-hidden="true" />
-                  </button>
-                )}
-              </div>
-  
-              {error ? (
-                <p role="alert" className="text-sm text-destructive">
-                  {error}
-                </p>
-              ) : (
-                <p role="status" className="min-h-4 text-sm text-muted-foreground">
-                  {status}
-                </p>
-              )}
-            </div>
-
-            <div id={listId} role="listbox" aria-label="Places" aria-busy={waiting} className={cn("space-y-3 empty:hidden", saving && "pointer-events-none opacity-60")}>
-              {waiting && (
-                <div aria-hidden="true" className="space-y-3">
-                  {skeletonGroup("Stations and area", ["Station name here", "Area name here"])}
-                  {skeletonGroup("Places", ["Place name here", "Another place name", "A third place name"])}
-                </div>
-              )}
-              {typed.length > 0 && <div className="border-t pt-2">{row(typed[0], 0)}</div>}
-              {group(
-                "osm",
-                "Stations and area",
-                <a href="https://www.openstreetmap.org/copyright" className="text-xs text-faint underline-offset-2 hover:text-foreground hover:underline">
-                  © OpenStreetMap contributors
-                </a>,
-                osm,
-                typed.length,
-              )}
-              {group("google", "Places", <GoogleMapsCredit />, google, typed.length + osm.length)}
-            </div>
-
-            <div className="flex items-center justify-between gap-2 border-t pt-3">
-              <p id={`${id}-hint`} className="text-sm text-faint">
-                Used for every visit within {TAG_RADIUS_M} m.
-              </p>
-              {target.tag && (
-                <Button type="button" variant="destructiveGhost" size="sm" disabled={saving} onClick={remove}>
-                  Remove
-                </Button>
-              )}
-            </div>
           </div>
-        </Dialog.Popup>
-      </Dialog.Portal>
-    </Dialog.Root>
+
+          <div id={listId} role="listbox" aria-label="Places" aria-busy={waiting} className={cn("space-y-3 empty:hidden", saving && "pointer-events-none opacity-60")}>
+            {waiting && (
+              <div aria-hidden="true" className="space-y-3">
+                {skeletonGroup("Stations and area", ["Station name here", "Area name here"])}
+                {skeletonGroup("Places", ["Place name here", "Another place name", "A third place name"])}
+              </div>
+            )}
+            {typed.length > 0 && <div className="border-t pt-2">{row(typed[0], 0)}</div>}
+            {group(
+              "osm",
+              "Stations and area",
+              <a href="https://www.openstreetmap.org/copyright" className="text-xs text-faint underline-offset-2 hover:text-foreground hover:underline">
+                © OpenStreetMap contributors
+              </a>,
+              osm,
+              typed.length,
+            )}
+            {group("google", "Places", <GoogleMapsCredit />, google, typed.length + osm.length)}
+          </div>
+
+          <div className="flex items-center justify-between gap-2 border-t pt-3">
+            <p id={`${id}-hint`} className="text-sm text-faint">
+              Used for every visit within {TAG_RADIUS_M} m.
+            </p>
+            {target.tag && (
+              <Button type="button" variant="destructiveGhost" size="sm" disabled={saving} onClick={remove}>
+                Remove
+              </Button>
+            )}
+          </div>
+        </div>
+      </DrawerContent>
+    </Drawer>
   );
 }

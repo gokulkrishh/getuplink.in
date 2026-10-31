@@ -1,51 +1,39 @@
 "use client"
 
 import * as React from "react"
-import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog"
+import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer"
 import { cn } from "cn"
 
-function AlertDialog({ ...props }: AlertDialogPrimitive.Root.Props) {
-  return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
+// A confirmation: a sheet from the bottom on a phone and a centred dialog from sm up, like every dialog in
+// Uplink (components/ui/drawer.tsx). A tap outside doesn't close it, so a choice is never made by accident;
+// Cancel, Esc and a swipe down do.
+function AlertDialog({ disablePointerDismissal = true, ...props }: React.ComponentProps<typeof Drawer>) {
+  return <Drawer data-slot="alert-dialog" disablePointerDismissal={disablePointerDismissal} {...props} />
 }
 
-function AlertDialogTrigger({ ...props }: AlertDialogPrimitive.Trigger.Props) {
-  return <AlertDialogPrimitive.Trigger data-slot="alert-dialog-trigger" {...props} />
+function AlertDialogTrigger({ ...props }: React.ComponentProps<typeof DrawerTrigger>) {
+  return <DrawerTrigger data-slot="alert-dialog-trigger" {...props} />
 }
 
-function AlertDialogPortal({ ...props }: AlertDialogPrimitive.Portal.Props) {
-  return <AlertDialogPrimitive.Portal data-slot="alert-dialog-portal" {...props} />
-}
-
-function AlertDialogBackdrop({ className, ...props }: AlertDialogPrimitive.Backdrop.Props) {
+// 420px at most from sm up; full width on a phone.
+function AlertDialogContent({ className, ...props }: React.ComponentProps<typeof DrawerContent>) {
   return (
-    <AlertDialogPrimitive.Backdrop
-      data-slot="alert-dialog-backdrop"
-      className={cn("fixed inset-0 z-50 bg-black/50 backdrop-blur-xs duration-150 motion-reduce:duration-0 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0", className)}
+    <DrawerContent
+      data-slot="alert-dialog-content"
+      role="alertdialog"
+      className={cn("sm:w-105", className)}
+      bodyClassName="grid gap-3 px-5 pt-2 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-5"
       {...props}
     />
   )
 }
 
-// Backdrop and centred popup in one portal. 16px margins on a phone, 420px at most.
-function AlertDialogContent({ className, ...props }: AlertDialogPrimitive.Popup.Props) {
-  return (
-    <AlertDialogPortal>
-      <AlertDialogBackdrop />
-      <AlertDialogPrimitive.Popup
-        data-slot="alert-dialog-content"
-        className={cn("fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-105 -translate-x-1/2 -translate-y-1/2 gap-3 overflow-y-auto overscroll-y-contain rounded-xl border bg-popover p-5 text-sm text-popover-foreground shadow-lg outline-none duration-150 motion-reduce:duration-0 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0", className)}
-        {...props}
-      />
-    </AlertDialogPortal>
-  )
+function AlertDialogTitle({ className, ...props }: React.ComponentProps<typeof DrawerTitle>) {
+  return <DrawerTitle data-slot="alert-dialog-title" className={cn("text-base font-medium tracking-normal", className)} {...props} />
 }
 
-function AlertDialogTitle({ className, ...props }: AlertDialogPrimitive.Title.Props) {
-  return <AlertDialogPrimitive.Title data-slot="alert-dialog-title" className={cn("text-base font-medium", className)} {...props} />
-}
-
-function AlertDialogDescription({ className, ...props }: AlertDialogPrimitive.Description.Props) {
-  return <AlertDialogPrimitive.Description data-slot="alert-dialog-description" className={cn("text-muted-foreground", className)} {...props} />
+function AlertDialogDescription({ className, ...props }: React.ComponentProps<typeof DrawerDescription>) {
+  return <DrawerDescription data-slot="alert-dialog-description" className={className} {...props} />
 }
 
 // Cancel first in the DOM (so it gets focus), the action last. Right-aligned on desktop; on a phone the
@@ -60,18 +48,8 @@ function AlertDialogFooter({ className, ...props }: React.ComponentProps<"div">)
   )
 }
 
-function AlertDialogClose({ ...props }: AlertDialogPrimitive.Close.Props) {
-  return <AlertDialogPrimitive.Close data-slot="alert-dialog-close" {...props} />
+function AlertDialogClose({ ...props }: React.ComponentProps<typeof DrawerClose>) {
+  return <DrawerClose data-slot="alert-dialog-close" {...props} />
 }
 
-export {
-  AlertDialog,
-  AlertDialogTrigger,
-  AlertDialogPortal,
-  AlertDialogBackdrop,
-  AlertDialogContent,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogClose,
-}
+export { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogClose }
