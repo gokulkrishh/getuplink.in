@@ -6,6 +6,7 @@ import { type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNo
 import { Button } from "@/components/ui/button";
 import { BACKDROP, POPUP, VIEWPORT } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
+import { haptic } from "@/components/haptic";
 
 // The shell both Home dialogs share: the welcome tour and the release dialog. A blurred Home behind, two
 // halves (a picture on the left, the words on the right), and a footer with the step dots, Skip, Back and Next.
@@ -272,16 +273,16 @@ function Popup({ steps }: { steps: TourStep[] }) {
                 )}
                 <div className="flex items-center gap-1.5">
                   {n > 0 && (
-                    <Button variant="outline" className="max-sm:h-9 max-sm:px-3" onClick={() => go(n - 1)}>
+                    <Button ref={haptic} variant="outline" className="max-sm:h-9 max-sm:px-3" onClick={() => go(n - 1)}>
                       Back
                     </Button>
                   )}
                   {last ? (
-                    <Drawer.Close render={<Button className="max-sm:h-9 max-sm:px-3" />} nativeButton>
+                    <Drawer.Close render={<Button ref={haptic} className="max-sm:h-9 max-sm:px-3" />} nativeButton>
                       Got it
                     </Drawer.Close>
                   ) : (
-                    <Button className="max-sm:h-9 max-sm:px-3" onClick={() => go(n + 1)}>
+                    <Button ref={haptic} className="max-sm:h-9 max-sm:px-3" onClick={() => go(n + 1)}>
                       Next
                     </Button>
                   )}
