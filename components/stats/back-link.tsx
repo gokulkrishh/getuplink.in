@@ -1,8 +1,7 @@
 "use client";
 
-import { ChevronLeft } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useState } from "react";
+import { BackLink as Back } from "@/components/back-link";
 import { LIST_KEY } from "./list-memory";
 
 // The way back from a trip or a charge to its list, in the period the list was last on (see PeriodScope);
@@ -14,10 +13,5 @@ export function BackLink({ list, label }: { list: "/stats/driving" | "/stats/cha
       setSearch(sessionStorage.getItem(LIST_KEY + list) ?? "");
     } catch {}
   }, [list]);
-  return (
-    <Link href={`${list}${search}`} className="-ml-1 mb-4 inline-flex min-h-9 items-center gap-1 pr-3 text-sm text-muted-foreground transition-colors hover:text-foreground">
-      <ChevronLeft className="size-4" aria-hidden="true" />
-      {label}
-    </Link>
-  );
+  return <Back href={`${list}${search}`} label={label} />;
 }

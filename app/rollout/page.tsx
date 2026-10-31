@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { Globe } from "lucide-react";
 import { Suspense } from "react";
+import { BackLink } from "@/components/back-link";
 import { EmptyState } from "@/components/empty-state";
 import { CarTabs } from "@/components/car-tabs";
 import { Header } from "@/components/header";
@@ -155,6 +156,7 @@ export default function Page() {
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
       <Header current="car" />
       <CarTabs value="updates" />
+      <BackLink href="/updates" label="Back to Updates" />
       <h2 className="mb-8 text-lg font-medium tracking-heading">India rollout</h2>
       <Suspense fallback={<RolloutSkeleton />}>
         <Rollout />
