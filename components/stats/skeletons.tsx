@@ -2,6 +2,8 @@ import { Loading, Ph, SkBigLabel, SkBlock, SkChart, SkChartCaptioned, SkFigures,
 import { CHARGING_PREVIEW } from "@/components/stats/charging-sections";
 import { PARKED_COLUMNS, PARKED_TABLE, TABLE_FRAME, TABLE_HEAD, TABLE_HEAD_ROW } from "@/lib/table-frame";
 import { Skeleton } from "@/components/ui/skeleton";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 // What each Stats topic shows while its data loads: its sections in order, each built from the section's own
 // layout classes (see components/skeleton.tsx), at the size of the page's default period (Week). Rows and
@@ -29,33 +31,15 @@ export function DrivingSkeleton() {
         <SkChartCaptioned caption="32.6 kWh used, 5.5 kWh won back while slowing, 117 Wh/km, the same as the 7 days before." />
       </SkSection>
       <SkSection>
-        <SkHead title="Efficiency" description="Energy used per kilometre, in Wh/km. Lower is better." />
-        <div className="space-y-6" aria-hidden="true">
-          {["Speed", "AC setting", "Outside"].map((group) => (
-            <div key={group} className="space-y-3">
-              <p className="text-sm font-medium">
-                <Ph>{group}</Ph>
-              </p>
-              <ul className="space-y-3 text-sm">
-                {[0, 1].map((k) => (
-                  <li key={k} className="grid grid-cols-[minmax(0,9rem)_1fr_auto] items-center gap-3">
-                    <span className="min-w-0">
-                      <span className="block">
-                        <Ph>25 to 30 °C</Ph>
-                      </span>
-                      <span className="block text-xs">
-                        <Ph>7 drives · 156.4 km</Ph>
-                      </span>
-                    </span>
-                    <Skeleton className="h-2 rounded-full" />
-                    <span className="text-right font-mono">
-                      <Ph>124 Wh/km</Ph>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+        {/* The sentence in the description's place, then the closed row the bars sit behind (ChartCard's `shut`). */}
+        <SkHead title="Efficiency" description="In the last 7 days, your car used 116 to 120 Wh/km, whatever the AC setting or outside temperature." />
+        <div className="flex items-center justify-between gap-4 border-y py-2 text-sm" aria-hidden="true">
+          <span className="min-w-0">
+            <Ph>By AC setting and outside temperature</Ph>
+          </span>
+          <span className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "pointer-events-none")}>
+            <Ph>Show</Ph>
+          </span>
         </div>
       </SkSection>
       <SkSection gap={6}>

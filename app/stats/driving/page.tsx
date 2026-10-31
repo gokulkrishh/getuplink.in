@@ -183,7 +183,7 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
             return <Distance frame={frame} driving={figures_} stops={driveStops(driving.drives, now)} />;
           })}
           {eachFrame(frames, ({ key, frame }) => (
-            <EfficiencyBands byTemp={byFrame[key]?.extras.byTemp ?? []} bySpeed={byFrame[key]?.extras.bySpeed ?? []} byAc={byFrame[key]?.extras.byAc ?? []} note={insightsNote(key, frame.span)} />
+            <EfficiencyBands byTemp={byFrame[key]?.extras.byTemp ?? []} bySpeed={byFrame[key]?.extras.bySpeed ?? []} byAc={byFrame[key]?.extras.byAc ?? []} frame={frame} note={insightsNote(key, frame.span)} />
           ))}
           {/* Seasons are compared across the year, so no single period changes them; they show on the long spans only (see isLong). */}
           {eachFrame(frames, (f) => (isLong(f) ? <SeasonEfficiency {...seasons} /> : null))}
