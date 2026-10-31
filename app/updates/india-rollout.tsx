@@ -46,8 +46,17 @@ function Heading() {
 // The India rollout, pooled across every car Uplink tracks, under the owner's own software: the newest
 // version Indian cars run, what's arriving now, where each version runs, adoption over time (closed at
 // first) and every version seen. Totals only, never a single car.
-export async function IndiaRollout() {
-  const data = await loadOwnRollout();
+// Started by the page before it waits for the owner's own updates, so the two reads run side by side. The
+// noop catch keeps an early failure from being reported as unhandled before IndiaRollout awaits it (which
+// still throws it to the nearest error boundary, as before).
+export function startIndiaRollout(): Promise<RolloutPage> {
+  const load = loadOwnRollout();
+  load.catch(() => {});
+  return load;
+}
+
+export async function IndiaRollout({ load }: { load: Promise<RolloutPage> }) {
+  const data = await load;
   if (data.kind === "error") {
     console.error("India rollout:", data.message);
     return (

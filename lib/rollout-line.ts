@@ -39,7 +39,9 @@ export function rolloutLines(version: string | null, pending: string | null, gla
     lines.push(newestWords(newest.version, newest.cars));
     return lines;
   }
-  const arriving = glance.arriving.find((v) => v !== waiting && compareVersions(v, own) > 0);
+  // Newer than the car's version and, when an update is already waiting on the car, newer than that too:
+  // naming an older one would read as if the car were behind it.
+  const arriving = glance.arriving.find((v) => compareVersions(v, own) > 0 && (!waiting || compareVersions(v, waiting) > 0));
   if (arriving) lines.push(`Arriving now: ${arriving}`);
   return lines;
 }

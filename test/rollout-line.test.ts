@@ -35,6 +35,14 @@ describe("rolloutLines", () => {
     expect(rolloutLines("2026.40.2", "2026.44.5", ahead)).toEqual(["On 1 of 40 cars in India"]);
   });
 
+  test("with an update already waiting, nothing older than it is named as arriving", () => {
+    // 2026.44.5 waits on this car and is also the newest in India; 2026.40.2 is still on offer elsewhere.
+    const fleet: RolloutCar[] = [...cars, { car: "d0", version: "2026.44.5" }];
+    const glanceAhead = rolloutGlance(fleet, [...offers, { car: "d0", version: "2026.44.5", status: null, offered: null }]);
+    expect(glanceAhead.arriving).toContain("2026.40.2");
+    expect(rolloutLines("2026.38.3.2", "2026.44.5", glanceAhead)).toEqual(["On 3 of 41 cars in India"]);
+  });
+
   test("behind, the newest installed version is named rather than what is arriving", () => {
     const ahead = rolloutGlance(cars, offers.map((o) => (o.car === "c0" ? { ...o, status: "available", offered: "2026.44.5" } : o)));
     expect(rolloutLines("2026.38.3.2", null, ahead)).toEqual(["On 3 of 40 cars in India", "Newest in India: 2026.40.2, on 1 car"]);

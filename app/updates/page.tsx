@@ -17,7 +17,7 @@ import { VersionHistory } from "@/components/updates/history";
 import { UpdateStats } from "@/components/updates/update-stats";
 import { isPending, UpdateStatus } from "@/components/updates/update-status";
 import { moreVersions } from "./actions";
-import { IndiaRollout, IndiaRolloutSkeleton } from "./india-rollout";
+import { IndiaRollout, IndiaRolloutSkeleton, startIndiaRollout } from "./india-rollout";
 import type { DemoScenario } from "@/lib/demo";
 import { newestTime } from "@/lib/last-synced";
 import { type RolloutGlance, rolloutLines } from "@/lib/rollout-line";
@@ -139,6 +139,8 @@ function CarUpdates({ car, notes, glance, label, range, now }: { car: UpdatesCar
 }
 
 async function Updates({ searchParams }: Pick<PageProps<"/updates">, "searchParams">) {
+  // The fleet's rollout doesn't depend on the owner's updates: start it first, so it loads alongside them.
+  const rollout = startIndiaRollout();
   const params = await searchParams;
   const demo: DemoScenario = "normal";
   const { data, glance, now, guest } = await loadOwnUpdates(demo);
@@ -169,10 +171,10 @@ async function Updates({ searchParams }: Pick<PageProps<"/updates">, "searchPara
           </div>
         </PeriodScope>
       )}
-      {/* Pooled across every car, so once, under every car's own software, loading on its own. */}
+      {/* Pooled across every car, so once, under every car's own software. Its read started with the page's. */}
       <div className={cars.length > 0 ? "mt-24" : "mt-12"}>
         <Suspense fallback={<IndiaRolloutSkeleton />}>
-          <IndiaRollout />
+          <IndiaRollout load={rollout} />
         </Suspense>
       </div>
       {data.kind === "ready" && (
