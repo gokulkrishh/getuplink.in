@@ -45,7 +45,7 @@ Read the doc for the area before changing it. Each records decisions the owner m
 Before a commit, all three pass:
 
 - `bunx tsc --noEmit -p .` (run `bunx next typegen` first if it reports missing `PageProps`)
-- `bun test` (one file: `bun test test/owners.test.ts`)
+- `bun run test`: each test file in its own process (`scripts/test-each.ts`), since one file's `mock.module` stubs leak into the files after it in a shared process. One file: `bun test test/owners.test.ts`
 - `bun run build`
 
 To see the app with a sample car and no Tesla account: `bun run demo:start` (a built demo copy on port 3210) and `bun run demo:stop`. The `verify` skill drives it for screenshots. Local and live share one Supabase database.
