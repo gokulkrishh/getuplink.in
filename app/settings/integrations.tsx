@@ -15,6 +15,7 @@ import { OFFLINE, orOffline } from "@/lib/offline";
 import { addConnector, deleteConnector } from "./actions";
 import { Row } from "./row";
 import { PendingLabel } from "@/components/pending-label";
+import { haptic } from "@/components/haptic";
 
 // A value to paste somewhere else: selectable text with a copy button beside it.
 function Copyable({ label, value }: { label: string; value: string }) {
@@ -95,7 +96,7 @@ function ConnectorItem({ connector, now }: { connector: Connector; now: number }
           )}
           <AlertDialogFooter>
             <AlertDialogClose render={<Button type="button" variant="ghost" size="lg" disabled={pending} />}>Cancel</AlertDialogClose>
-            <Button type="button" variant="destructive" size="lg" className="relative" disabled={pending} aria-busy={pending} onClick={remove}>
+            <Button ref={haptic} type="button" variant="destructive" size="lg" className="relative" disabled={pending} aria-busy={pending} onClick={remove}>
               <PendingLabel pending={pending} label="Remove" pendingLabel="Removing" />
             </Button>
           </AlertDialogFooter>
