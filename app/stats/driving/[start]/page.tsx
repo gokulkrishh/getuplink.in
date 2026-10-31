@@ -208,6 +208,8 @@ function Drive({ detail, view, words, tipsBox, now, locations }: { detail: Drive
                 as="h2"
                 title="Acceleration"
                 description={line("acceleration")}
+                // What a red dot is, in the owner's terms: the same line Tesla uses (see HARD_G).
+                info={"A red dot is a hard stop or start: about 11\u00a0km/h lost or gained in one second. Tesla's Safety Score uses the same line for hard braking."}
                 summary={<Figures figures={peaks.accel} />}
               >
                 <DriveTrace
