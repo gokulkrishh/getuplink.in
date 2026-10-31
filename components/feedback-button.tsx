@@ -10,6 +10,7 @@ import { BOTHER, type Bother, botherLabel, isProblem, MESSAGE_MAX, type Topic, T
 import { OFFLINE, orOffline } from "@/lib/offline";
 import { cn } from "@/lib/utils";
 import { PendingLabel } from "@/components/pending-label";
+import { haptic } from "@/components/haptic";
 
 // The theme the owner is looking at: their pick, else the system's.
 function theme(): "light" | "dark" {
@@ -27,9 +28,8 @@ function Choices<T extends string>({ legend, options, value, onChange }: { legen
           <label
             key={o.value}
             className={cn(
-              // Filled pills, as on iOS: a soft fill, solid when picked.
-              "cursor-pointer rounded-full bg-foreground/[0.06] px-3.5 py-2 text-sm transition-colors hover:bg-foreground/10 has-focus-visible:outline-2 has-focus-visible:outline-ring dark:bg-white/10 dark:hover:bg-white/15",
-              value === o.value && "bg-foreground text-background hover:bg-foreground dark:bg-foreground dark:hover:bg-foreground",
+              "cursor-pointer rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-muted has-focus-visible:outline-2 has-focus-visible:outline-ring",
+              value === o.value && "border-foreground bg-foreground text-background hover:bg-foreground",
             )}
           >
             <input type="radio" className="sr-only" checked={value === o.value} onChange={() => onChange(o.value)} />
@@ -151,8 +151,8 @@ export function FeedbackButton() {
               <p className="text-xs text-faint">From {path}</p>
             </figure>
             <div className="flex items-center gap-3">
-              <DrawerClose render={<Button className="flex-1 max-sm:h-12">Done</Button>} />
-              <Button variant="outline" className="flex-1 max-sm:h-12" onClick={reset}>
+              <DrawerClose render={<Button className="flex-1">Done</Button>} />
+              <Button variant="outline" className="flex-1" onClick={reset}>
                 Send more
               </Button>
             </div>
@@ -176,7 +176,7 @@ export function FeedbackButton() {
                 maxLength={MESSAGE_MAX}
                 rows={4}
                 placeholder={prompt.hint}
-                className="block w-full resize-y rounded-2xl bg-foreground/[0.04] px-3.5 py-2.5 text-sm text-foreground placeholder:text-faint focus-visible:outline-2 focus-visible:outline-ring dark:bg-white/[0.07]"
+                className="block w-full resize-y rounded-lg border bg-background px-3 py-2 text-sm text-foreground placeholder:text-faint focus-visible:outline-2 focus-visible:outline-ring"
               />
             </label>
             <p className="text-xs text-muted-foreground">Sent with the page you&apos;re on ({path}), your screen size and browser, so it&apos;s easy to find.</p>
@@ -186,7 +186,7 @@ export function FeedbackButton() {
                 {error}
               </p>
             )}
-            <Button type="submit" disabled={!ready || pending} className="relative w-full max-sm:h-12">
+            <Button ref={haptic} type="submit" disabled={!ready || pending} className="relative w-full">
               <PendingLabel pending={pending} label="Send feedback" pendingLabel="Sending" />
             </Button>
           </form>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { type ReactNode, startTransition, useId, useOptimistic, ViewTransition } from "react";
 import { cn } from "@/lib/utils";
+import { haptic } from "@/components/haptic";
 
 // `dot`: something new behind this tab, marked with a small dot after its label.
 type Option<T> = { value: T; label: string; icon?: ReactNode; dot?: boolean };
@@ -67,6 +68,7 @@ export function Segmented<T extends string | number>({
           return (
             <button
               key={option.value}
+              ref={haptic}
               type="button"
               role={role === "radio" ? "radio" : undefined}
               aria-checked={role === "radio" ? picked : undefined}

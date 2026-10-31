@@ -13,6 +13,7 @@ import { NO_AUTOFILL } from "@/lib/no-autofill";
 import { matches, NO_SUGGESTIONS, parseQuery, type Suggestion, type Suggestions } from "@/lib/place-suggestions";
 import { NAME_MAX, type NameTarget, TAG_RADIUS_M } from "@/lib/user-places";
 import { cn } from "@/lib/utils";
+import { haptic } from "@/components/haptic";
 
 // Wait for a pause in typing before asking Google: each request is billed.
 const DEBOUNCE_MS = 300;
@@ -208,6 +209,7 @@ export function NamePlace({ target, compact = false, className }: { target: Name
       key={o.key}
       id={optionId(i)}
       role="option"
+      ref={haptic}
       aria-selected={i === active}
       onMouseDown={(e) => e.preventDefault()}
       onMouseMove={() => i !== active && setActive(i)}
