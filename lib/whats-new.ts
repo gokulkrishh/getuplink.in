@@ -36,6 +36,16 @@ export type Entry = {
 
 export const WHATS_NEW: Entry[] = [
   {
+    id: "2026-10-31-trip-route-names",
+    date: "2026-10-31",
+    title: "Where each trip went",
+    text: "A trip's page now says where it went under its title. A place you picked from Google Maps shows by its own name there.",
+    version: "0.2",
+    kind: "Improvement",
+    audience: "draft",
+    show: "bell",
+  },
+  {
     id: "2026-10-31-swipe-to-close",
     date: "2026-10-31",
     title: "Swipe down to close",

@@ -1,5 +1,5 @@
 import "server-only";
-import { mapName, spotName } from "@/lib/charge-names";
+import { mapName, shortName, spotName } from "@/lib/charge-names";
 import { stationAt } from "@/lib/stations";
 import { groupTrips } from "@/lib/trips";
 import type { Drive } from "@/lib/drives";
@@ -25,9 +25,6 @@ function point(value: unknown): Point | null {
   const lng = typeof v?.longitude === "string" ? Number(v.longitude) : v?.longitude;
   return typeof lat === "number" && typeof lng === "number" && Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0) ? { lat, lng } : null;
 }
-
-// "Home", "Koramangala": a place's name without its city, short enough for a row.
-const short = (name: string | null) => name?.split(",")[0]?.trim() || null;
 
 // Where each trip went, by its start: "Home to IndianOil e-Charge". The start is the last place the car was
 // seen before it set off (up to 30 minutes before), the end the first after it parked (up to 10 minutes
@@ -56,7 +53,7 @@ export async function loadTripPlaces(owner: Owner, vin: string | null, drives: D
   });
   const spots = ends.flatMap((e) => [e.from, e.to]).filter((p): p is Point => p !== null);
   const areas = await cachedPlaceNames(spots).catch(() => new Map<string, string>());
-  const name = (p: Point | null) => (p ? short(mapName(spotName(tags, p, { station: stationAt(p.lat, p.lng), place: areas.get(placeKey(p)) }))) : null);
+  const name = (p: Point | null) => (p ? shortName(mapName(spotName(tags, p, { station: stationAt(p.lat, p.lng), place: areas.get(placeKey(p)) }))) : null);
   const routes: Record<number, string> = {};
   for (const e of ends) {
     const [from, to] = [name(e.from), name(e.to)];

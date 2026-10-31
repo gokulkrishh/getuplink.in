@@ -475,7 +475,12 @@ export function DriveSkeleton() {
       <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]" aria-hidden="true">
         <Ph>Drive</Ph>
       </h1>
-      <p className="mt-2 mb-12 text-sm" aria-hidden="true">
+      {/* The route line (RouteLine): two lines on a phone, one from sm up. */}
+      <p className="mt-2 flex h-12 flex-col text-base leading-6 sm:h-6 sm:flex-row sm:gap-x-1.5" aria-hidden="true">
+        <Ph>Koramangala</Ph>
+        <Ph>to Whitefield</Ph>
+      </p>
+      <p className="mt-1 mb-12 text-sm" aria-hidden="true">
         <Ph>Today, 27 Oct 2026 · 8:18 AM to 8:52 AM</Ph>
       </p>
       <div className="space-y-12">
