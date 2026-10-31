@@ -20,8 +20,9 @@ function Tooltip({ ...props }: TooltipPrimitive.Root.Props) {
   return <TooltipPrimitive.Root data-slot="tooltip" {...props} />
 }
 
-function TooltipTrigger({ ...props }: TooltipPrimitive.Trigger.Props) {
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
+// Opens after 150 ms, like the ⓘ, rather than Base UI's longer default (no TooltipProvider in the app).
+function TooltipTrigger({ delay = 150, ...props }: TooltipPrimitive.Trigger.Props) {
+  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" delay={delay} {...props} />
 }
 
 function TooltipContent({

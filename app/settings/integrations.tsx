@@ -39,7 +39,7 @@ function ManualInstructions({ copy, children }: { copy?: string; children: React
   const [open, setOpen] = useState(false);
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="group rounded-lg border">
-      <div className={cn("relative flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-muted/50", open && "rounded-b-none")}>
+      <div className={cn("group/row relative flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-muted/50", open && "rounded-b-none")}>
         <CollapsibleTrigger className="cursor-pointer text-left after:absolute after:inset-0 after:rounded-[inherit] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-ring">
           Manual instructions
         </CollapsibleTrigger>
@@ -49,7 +49,8 @@ function ManualInstructions({ copy, children }: { copy?: string; children: React
               <CopyButton text={copy} />
             </span>
           )}
-          <FoldToggle open={open} />
+          {/* Outside the trigger, so the row's hover lights it here. */}
+          <FoldToggle open={open} className="[@media(hover:hover)]:group-hover/row:bg-accent" />
         </span>
       </div>
       <CollapsibleContent className="space-y-2 border-t px-3 py-3">{children}</CollapsibleContent>

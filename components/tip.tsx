@@ -18,6 +18,10 @@ export function TipTrigger({ tip, label, align = "end", className, children }: {
         openOnHover={hover}
         delay={100}
         aria-label={label}
+        // Its own tap and key press stop here, so a tip inside a row that opens (a version's history row) never
+        // opens or closes that row too.
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
         className={cn("relative cursor-default text-left after:absolute after:-inset-y-1.5 after:inset-x-0 max-sm:after:-inset-y-2.5", className)}
       >
         {children}
