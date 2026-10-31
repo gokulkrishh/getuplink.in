@@ -13,6 +13,7 @@ import { moreCharges } from "./actions";
 import { CURVES, heldFrom, loadChargingExtras, PINNED } from "@/lib/server/charging-extra";
 import { type ChargingLists, listCharges, loadChargingLists, startedIn } from "@/lib/server/charging-lists";
 import { EnergyAdded, HabitsFold, PaidFor, SessionList, Summary } from "@/components/stats/charging-sections";
+import { habitsLine } from "@/lib/charging-figures";
 import { eachFrame } from "@/components/home/frames";
 import { customScope } from "@/components/stats/periods";
 import { ChargingSkeleton } from "@/components/stats/skeletons";
@@ -150,16 +151,18 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
               );
             })}
           {/* Closed until opened: the habits are for a look now and then, not every visit. */}
-          <HabitsFold>
+          <HabitsFold line={habitsLine({ levels: streamSessions.length > 0, dc: extras.curves.length > 0 || (custom?.extras.curves.length ?? 0) > 0 })}>
             {streamSessions.length > 0 &&
-              eachFrame(frames, ({ frame }) => (
-                <ChargeRange sessions={streamSessions.filter(startedIn(frame.span))} frame={frame} serialOf={(s) => streamSerial(frame.span).get(s.id)} />
-              ))}
+              eachFrame(frames, ({ frame }) => {
+                const serial = streamSerial(frame.span);
+                return <ChargeRange sessions={streamSessions.filter(startedIn(frame.span))} frame={frame} serialOf={(s) => serial.get(s.id)} />;
+              })}
             {eachFrame(frames, ({ frame }) => <ChargeHabits starts={starts(frame.span)} />)}
             {(extras.curves.length > 0 || (custom?.extras.curves.length ?? 0) > 0) &&
               eachFrame(frames, ({ key, frame }) => {
                 const { curves, held: from } = extrasFor(key);
-                const shown = curves.filter((c) => startedIn(frame.span)({ started_at: c.date })).map((c) => ({ ...c, serial: streamSerial(frame.span).get(c.id) }));
+                const serial = streamSerial(frame.span);
+                const shown = curves.filter((c) => startedIn(frame.span)({ started_at: c.date })).map((c) => ({ ...c, serial: serial.get(c.id) }));
                 return <DcCurves curves={shown} frame={frame} note={backTo(frame.span, from.curves, `Curves are kept for the latest ${CURVES} DC charges, which`)} />;
               })}
           </HabitsFold>
