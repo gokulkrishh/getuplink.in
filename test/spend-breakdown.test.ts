@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { type Bill, chargingBills, chargingTime, invoiceParts, paidFor, spendBreakdown } from "@/lib/charging-figures";
+import { type Bill, chargingBills, chargingTime, habitsLine, invoiceParts, paidFor, spendBreakdown } from "@/lib/charging-figures";
 
 // An instant given as IST wall-clock time.
 const ist = (local: string) => Date.parse(`${local}+05:30`);
@@ -145,5 +145,20 @@ describe("chargingTime", () => {
       { from: ist("2026-10-01T00:00:00"), to: ist("2026-11-01T00:00:00") },
     );
     expect(time).toEqual({ ac: 60 * 60_000, dc: 75 * 60_000 });
+  });
+});
+
+describe("habitsLine: the habits fold names only what it holds", () => {
+  test("all three when the car's sessions and a DC curve are there", () => {
+    expect(habitsLine({ levels: true, dc: true })).toBe("Your usual charge levels, when you plug in, and how fast DC charging was.");
+  });
+  test("no DC charges: no DC speed promised", () => {
+    expect(habitsLine({ levels: true, dc: false })).toBe("Your usual charge levels and when you plug in.");
+  });
+  test("no car sessions: no charge levels promised", () => {
+    expect(habitsLine({ levels: false, dc: true })).toBe("When you plug in and how fast DC charging was.");
+  });
+  test("only plug-in times", () => {
+    expect(habitsLine({ levels: false, dc: false })).toBe("When you plug in.");
   });
 });

@@ -212,3 +212,11 @@ export function chargeTotals(charges: { kwh: number | null; cost: number | null 
     unbilled: charges.filter((c) => c.cost === null).length,
   };
 }
+
+// The fold's line names only what it holds: charge levels need the car's own sessions, DC speed a DC curve,
+// and when you plug in always shows. With both, it is the full line the skeleton draws.
+export function habitsLine({ levels, dc }: { levels: boolean; dc: boolean }): string {
+  const parts = [levels && "your usual charge levels", "when you plug in", dc && "how fast DC charging was"].filter((p): p is string => Boolean(p));
+  const joined = parts.length === 1 ? parts[0] : parts.length === 2 ? `${parts[0]} and ${parts[1]}` : `${parts[0]}, ${parts[1]}, and ${parts[2]}`;
+  return `${joined.charAt(0).toUpperCase()}${joined.slice(1)}.`;
+}
