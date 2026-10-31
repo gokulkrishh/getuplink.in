@@ -25,6 +25,7 @@ jobs:
       # Next writes the route types tsc reads (PageProps, LayoutProps).
       - run: bunx next typegen
       - run: bunx tsc --noEmit -p .
-      - run: bun test
+      # One process per test file: mock.module stubs leak between files in one process (scripts/test-each.ts).
+      - run: bun run test
       # No secrets here: the build runs without them, as it does for a fresh checkout.
       - run: bun run build

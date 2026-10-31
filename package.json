@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "bun test",
+    "test": "bun scripts/test-each.ts",
     "eval": "bun --conditions=react-server --env-file=.env.local evals/run.ts",
     "demo": "UPLINK_DEMO=1 bun dev",
     "demo:start": "bash .claude/skills/verify/scripts/launch.sh && open -a Aside http://localhost:3210",
