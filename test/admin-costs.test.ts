@@ -46,7 +46,9 @@ mock.module("next/headers", () => ({
   cookies: async () => ({ get: (name: string) => (name === "tiu_session" && cookie ? { value: cookie } : undefined) }),
   headers: async () => new Headers(),
 }));
+const realCache = await import("next/cache");
 mock.module("next/cache", () => ({
+  ...realCache,
   updateTag: (tag: string) => tagsUpdated.push(tag),
   revalidatePath: () => {},
   cacheLife: () => {},
