@@ -240,7 +240,8 @@ export function NamePlace({ target, compact = false, className }: { target: Name
     );
 
   return (
-    <Drawer open={open} onOpenChange={opened}>
+    // A tap outside doesn't close it, so a half-typed search isn't lost. The ×, Esc and a swipe down do.
+    <Drawer open={open} onOpenChange={opened} disablePointerDismissal>
       <DrawerTrigger
         aria-label={compact ? title : undefined}
         className={cn(

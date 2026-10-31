@@ -4,7 +4,7 @@ import { Drawer } from "@base-ui/react/drawer";
 import { Pause, Play, RotateCcw, X } from "lucide-react";
 import { type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { BACKDROP, DrawerHandle, POPUP } from "@/components/ui/drawer";
+import { BACKDROP, DrawerHandle, POPUP, VIEWPORT } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 
 // The shell both Home dialogs share: the welcome tour and the release dialog. A blurred Home behind, two
@@ -290,9 +290,9 @@ function Popup({ steps }: { steps: TourStep[] }) {
               </div>
             </div>
           </div>
-          {/* A 44px tap area. On a phone it sits at the sheet's top right, over the picture, on its own disc. */}
         </div>
       </Drawer.Content>
+      {/* A 44px tap area. On a phone it sits at the sheet's top right, over the picture, on its own disc. */}
       <Drawer.Close
         aria-label="Close"
         className="group absolute top-1 right-1 z-20 inline-flex size-11 cursor-pointer items-center justify-center rounded-full text-muted-foreground outline-none hover:text-foreground sm:top-2.5 sm:right-2.5"
@@ -340,8 +340,9 @@ export function TourDialog({ steps, open, onOpenChange }: { steps: TourStep[]; o
       }}
     >
       <Drawer.Portal>
-        <Drawer.Backdrop className={BACKDROP} />
-        <Drawer.Viewport className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+        {/* Lighter than other dialogs: the tour's steps point at the page behind it. */}
+        <Drawer.Backdrop className={cn(BACKDROP, "bg-black/30")} />
+        <Drawer.Viewport className={VIEWPORT}>
           <Popup steps={steps} />
         </Drawer.Viewport>
       </Drawer.Portal>

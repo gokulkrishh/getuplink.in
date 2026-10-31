@@ -11,9 +11,18 @@ import { cn } from "cn"
 
 // The backdrop fades as the sheet is swiped away. `opaque` keeps it solid instead, for a sheet that must hide
 // the page behind it the whole time (the place-naming sheet hides the map while it lists Google's places).
-const BACKDROP =
-  "fixed inset-0 z-50 min-h-dvh bg-black/50 opacity-[calc(1-var(--drawer-swipe-progress))] transition-opacity duration-450 ease-[cubic-bezier(0.32,0.72,0,1)] supports-backdrop-filter:backdrop-blur-xs data-starting-style:opacity-0 data-ending-style:opacity-0 data-ending-style:duration-[calc(var(--drawer-swipe-strength)*400ms)] data-swiping:duration-0 motion-reduce:transition-none supports-[-webkit-touch-callout:none]:absolute sm:duration-150"
-const BACKDROP_OPAQUE = "fixed inset-0 z-50 min-h-dvh bg-background supports-[-webkit-touch-callout:none]:absolute"
+// Both are fixed and run 25vh past the top and bottom of the screen, so they cover it wherever the page is
+// scrolled and behind a browser bar that slides away (iOS), rather than sitting at the top of the page.
+const COVER = "fixed inset-x-0 -top-[25vh] -bottom-[25vh] z-50"
+const BACKDROP = cn(
+  COVER,
+  "bg-black/50 opacity-[calc(1-var(--drawer-swipe-progress))] transition-opacity duration-450 ease-[cubic-bezier(0.32,0.72,0,1)] supports-backdrop-filter:backdrop-blur-xs data-starting-style:opacity-0 data-ending-style:opacity-0 data-ending-style:duration-[calc(var(--drawer-swipe-strength)*400ms)] data-swiping:duration-0 motion-reduce:transition-none sm:duration-150 sm:data-ending-style:duration-150",
+)
+const BACKDROP_OPAQUE = cn(COVER, "bg-background")
+
+// Where the sheet sits: at the bottom on a phone, lifted above the keyboard while one is open (the inset is
+// set by Drawer.VirtualKeyboardProvider), and in the middle from sm up.
+const VIEWPORT = "fixed inset-0 z-50 flex items-end justify-center pb-[var(--drawer-keyboard-inset,0px)] sm:items-center sm:p-4"
 
 // Phone: pinned to the bottom, following the finger (--y), sliding in and out. From sm: centred, fading and
 // scaling a little, the swipe ignored (its transform is fixed). --y keeps the two from fighting over transform.
@@ -21,7 +30,7 @@ const POPUP = cn(
   "relative flex max-h-[calc(100dvh-1.5rem)] w-full flex-col rounded-t-2xl border-t bg-background text-sm text-foreground shadow-2xl outline-none",
   "[--y:var(--drawer-swipe-movement-y)] [transform:translate3d(0,var(--y),0)] data-starting-style:[--y:100%] data-ending-style:[--y:100%]",
   "transition-transform duration-450 ease-[cubic-bezier(0.32,0.72,0,1)] data-swiping:duration-0 data-swiping:select-none data-ending-style:duration-[calc(var(--drawer-swipe-strength)*400ms)] motion-reduce:transition-none",
-  "sm:max-h-[calc(100dvh-4rem)] sm:w-auto sm:rounded-xl sm:border sm:[transform:none] sm:transition-[opacity,scale] sm:duration-150 sm:data-starting-style:scale-[0.97] sm:data-starting-style:opacity-0 sm:data-ending-style:scale-[0.97] sm:data-ending-style:opacity-0",
+  "sm:max-h-[calc(100dvh-4rem)] sm:w-auto sm:rounded-xl sm:border sm:[transform:none] sm:transition-[opacity,scale] sm:duration-150 sm:data-ending-style:duration-150 sm:data-starting-style:scale-[0.97] sm:data-starting-style:opacity-0 sm:data-ending-style:scale-[0.97] sm:data-ending-style:opacity-0",
 )
 
 function Drawer({ swipeDirection = "down", ...props }: DrawerPrimitive.Root.Props) {
@@ -58,7 +67,7 @@ function DrawerContent({
   ...props
 }: DrawerPrimitive.Popup.Props & { bodyClassName?: string; opaque?: boolean; handle?: boolean; keyboard?: boolean }) {
   const sheet = (
-    <DrawerPrimitive.Viewport data-slot="drawer-viewport" className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+    <DrawerPrimitive.Viewport data-slot="drawer-viewport" className={VIEWPORT}>
       <DrawerPrimitive.Popup data-slot="drawer-popup" className={cn(POPUP, className)} {...props}>
         {handle && <DrawerHandle />}
         <DrawerPrimitive.Content data-slot="drawer-content" className={cn("flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain", bodyClassName)}>
@@ -85,4 +94,4 @@ function DrawerDescription({ className, ...props }: DrawerPrimitive.Description.
   return <DrawerPrimitive.Description data-slot="drawer-description" className={cn("text-muted-foreground", className)} {...props} />
 }
 
-export { BACKDROP, POPUP, Drawer, DrawerTrigger, DrawerClose, DrawerHandle, DrawerContent, DrawerTitle, DrawerDescription }
+export { BACKDROP, POPUP, VIEWPORT, Drawer, DrawerTrigger, DrawerClose, DrawerHandle, DrawerContent, DrawerTitle, DrawerDescription }
