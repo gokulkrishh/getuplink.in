@@ -51,9 +51,10 @@ export const WHATS_NEW: Entry[] = [
     title: "Save a chart as an image",
     text: "Charts now have a download button. It saves the chart as a picture you can keep or post.",
     version: "0.2",
+    image: { src: "/whats-new/chart-download.webp", alt: "The Distance chart with its download button at the top right.", width: 1360, height: 661 },
     kind: "New feature",
-    audience: "draft",
-    show: "bell",
+    audience: "owners",
+    show: "dialog",
   },
   {
     id: "2026-10-30-guest-access",
