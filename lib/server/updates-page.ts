@@ -1,6 +1,5 @@
 import "server-only";
 import type { Owner } from "./data/owner";
-import type { DayStrip } from "@/lib/awake";
 import { DEMO, type DemoScenario } from "@/lib/demo";
 import type { ReleaseNotesByVersion } from "@/lib/release-notes";
 import { LIST_PREVIEW } from "@/lib/list";
@@ -27,8 +26,6 @@ export type UpdatesCar = Omit<CarState, "flags"> & {
   history: VersionChange[];
   // Real updates only, oldest first, for the stats.
   updates: UpdateRow[];
-  // Online and asleep for the last 14 days.
-  awake: DayStrip[];
 };
 
 export type UpdatesPage = OwnerGate | { kind: "ready"; cars: UpdatesCar[]; lastRun: PollRun | null; releaseNotes: ReleaseNotesByVersion };
@@ -49,7 +46,8 @@ async function updatesCar(owner: Owner, vehicle: Vehicle, scenario: DemoScenario
     loadHistory(owner, vehicle).then(async (rows) => (vehicle.vin ? [...(await withTimelines(owner, vehicle.vin, rows.slice(0, LIST_PREVIEW))), ...rows.slice(LIST_PREVIEW)] : rows)),
     loadPresence(owner, vehicle.vin ? { id: vehicle.id, vin: vehicle.vin } : null, now),
   ]);
-  // The update fields rarely change; the presence fields stream every few minutes while the car is awake.
+  // The update fields rarely change; the presence fields stream every few minutes while the car is awake, so
+  // they say when the car was last seen.
   const latest = Math.max(state.streamAt ? Date.parse(state.streamAt) : 0, presence.newest ? Date.parse(presence.newest) : 0);
   return {
     vehicle,
@@ -60,7 +58,6 @@ async function updatesCar(owner: Owner, vehicle: Vehicle, scenario: DemoScenario
     streamAt: latest > 0 ? new Date(latest).toISOString() : null,
     history,
     updates: updateRows(history),
-    awake: presence.days,
   };
 }
 

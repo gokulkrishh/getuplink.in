@@ -3,8 +3,8 @@
 import { ChartCard } from "@/components/chart-card";
 import { Figures } from "@/components/stats/figures";
 import { LineChart } from "@/components/stats/line-chart";
-import { formatCelsius, formatClock, formatKm, formatKwh, formatNumber, formatShortDate } from "@/lib/format";
-import { backTo, weeksIn, within } from "@/lib/kept";
+import { formatCelsius, formatClock, formatNumber, formatShortDate } from "@/lib/format";
+import { backTo, within } from "@/lib/kept";
 import type { Timeframe } from "@/lib/periods";
 import type { BatteryExtras, Point } from "@/lib/server/battery-extra";
 
@@ -25,6 +25,7 @@ const timeTicks = (points: Point[]) => {
   return xs.length > 0 && Math.max(...xs) - Math.min(...xs) <= 2 * DAY ? formatClock : formatShortDate;
 };
 
+// Under "More detail" (MoreDetail), so its title is an h3.
 // Battery, cabin and outside temperature over the span, as far back as the readings go (the last week),
 // after TeslaMate's temperatures. The figures are the latest reading in the span.
 export function Temperatures({ temps, frame }: { temps: BatteryExtras["temps"]; frame: Timeframe }) {
@@ -40,6 +41,7 @@ export function Temperatures({ temps, frame }: { temps: BatteryExtras["temps"]; 
   const cut = backTo(frame.span, firstOf(all.map((s) => s.points)), "Readings");
   return (
     <ChartCard
+      as="h3"
       title="Temperatures"
       description="Battery, cabin and outside temperatures."
       summary={
@@ -85,6 +87,7 @@ export function CellBalance({ spread, frame }: { spread: BatteryExtras["cellSpre
   const cut = backTo(frame.span, spread[0].x, "Readings");
   return (
     <ChartCard
+      as="h3"
       title="Cell balance"
       description="Gap between the highest and lowest cell. Lower is better."
       info="A gap that keeps growing over months is worth a service check."
@@ -108,65 +111,6 @@ export function CellBalance({ spread, frame }: { spread: BatteryExtras["cellSpre
         gap={GAP}
         label={`Cell voltage gap over time, ${frame.title}, in millivolts`}
         yFrom={0}
-      />
-    </ChartCard>
-  );
-}
-
-// Each week's usable capacity against the odometer, after TeslaMate's capacity by mileage: the weeks
-// that overlap the span, as far back as the estimates go (12 weeks).
-export function CapacityByKm({ points, frame }: { points: BatteryExtras["capacityByKm"]; frame: Timeframe }) {
-  if (points.length < 2) return null;
-  const shown = weeksIn(points, frame.span);
-  return (
-    <ChartCard
-      title="Capacity by distance"
-      description="Usable capacity each week, against the odometer."
-      caption={backTo(frame.span, points[0].weekStart, "Weekly estimates")}
-      empty={
-        shown.length < 2 &&
-        (shown.length === 1
-          ? `Week of ${formatShortDate(shown[0].weekStart)}: ${formatKwh(shown[0].y)} at ${formatKm(shown[0].x)}. The line appears after two weeks.`
-          : "No weekly estimate.")
-      }
-    >
-      <LineChart
-        series={[{ name: "Capacity", className: "stroke-chart-accent", points: shown }]}
-        formatX={(x) => formatKm(x)}
-        formatY={(y) => formatKwh(y)}
-        unit="kWh"
-        label={`Usable capacity against the odometer, ${frame.title}`}
-      />
-    </ChartCard>
-  );
-}
-
-// Tesla's own full-pack figure by week (the middle value of the week's readings), in the weeks that overlap
-// the span, once it reported it in at least two weeks. It only comes when the figure changes, so a week
-// without a point had no new figure.
-export function TeslaPackByWeek({ pack, frame }: { pack: BatteryExtras["teslaPack"]; frame: Timeframe }) {
-  const weeks = pack?.weekly ?? [];
-  if (weeks.length < 2) return null;
-  const shown = weeksIn(weeks, frame.span);
-  return (
-    <ChartCard
-      title="Full pack by week, per Tesla"
-      description="Full-pack energy, as the car reports it."
-      caption={backTo(frame.span, weeks[0].weekStart, "Weekly reports")}
-      empty={
-        shown.length < 2 &&
-        (shown.length === 1
-          ? `Week of ${formatShortDate(shown[0].weekStart)}: ${formatKwh(shown[0].kwh)}. The line appears after two weeks.`
-          : "No new figure from Tesla.")
-      }
-    >
-      <LineChart
-        series={[{ name: "Full pack", className: "stroke-chart-accent", points: shown.map((w) => ({ x: w.weekStart, y: w.kwh })) }]}
-        formatX={(x) => `Week of ${formatShortDate(x)}`}
-        formatTickX={formatShortDate}
-        formatY={(y) => formatKwh(y)}
-        unit="kWh"
-        label={`Tesla's full-pack figure by week, ${frame.title}`}
       />
     </ChartCard>
   );

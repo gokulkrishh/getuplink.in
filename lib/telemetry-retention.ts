@@ -57,7 +57,7 @@ import { DRIVE_DAYS } from "@/lib/drives";
 //                                                       SoftwareUpdateDownloadPercentComplete
 //   loadLatestWeekPack (car.ts)                         EnergyRemaining, BatteryLevel                     this IST week and last
 //   loadBatteryExtras (battery-extra.ts)                ModuleTempMax, InsideTemp, OutsideTemp,           7 d (TEMP_DAYS)
-//                                                       BrickVoltageMax, BrickVoltageMin; Odometer,       12 weeks
+//                                                       BrickVoltageMax, BrickVoltageMin;                 12 weeks
 //                                                       NominalFullPackEnergyKwh (also its latest)
 //   syncChargingCars (station-check.ts)                 charging fields                                   45 min
 //   loadTyreArrivals (telemetry-window.ts)              TpmsLastSeenPressureTime*                         14 d (TYRE_ARRIVAL_DAYS)
@@ -92,7 +92,7 @@ export const READS: { by: string; fields: readonly string[]; window: Window }[] 
   { by: "loadTyreArrivals", fields: TYRE_SEEN_FIELDS, window: 14 },
   { by: "loadLatestWeekPack", fields: ["EnergyRemaining", "BatteryLevel"], window: 14 },
   { by: "loadBatteryExtras", fields: ["ModuleTempMax", "InsideTemp", "OutsideTemp", "BrickVoltageMax", "BrickVoltageMin"], window: 7 },
-  { by: "loadBatteryExtras", fields: ["Odometer", "NominalFullPackEnergyKwh"], window: 12 * 7 },
+  { by: "loadBatteryExtras", fields: ["NominalFullPackEnergyKwh"], window: 12 * 7 },
   { by: "syncStreamVersions", fields: ["SoftwareUpdateVersion"], window: 14 },
 ];
 

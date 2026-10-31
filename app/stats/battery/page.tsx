@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { Suspense } from "react";
 import { eachFrame } from "@/components/home/frames";
-import { CapacityByKm, CellBalance, Temperatures, TeslaPackByWeek } from "@/components/stats/battery-extras";
+import { AwakeTimeline } from "@/components/stats/awake-timeline";
+import { CellBalance, Temperatures } from "@/components/stats/battery-extras";
 import { BatteryHealth } from "@/components/stats/battery-health";
-import { BatteryPack } from "@/components/stats/battery-pack";
-import { ChargeLevelChart } from "@/components/stats/charge-level";
+import { BatteryHealthChart } from "@/components/stats/battery-pack";
+import { MoreDetail } from "@/components/stats/more-detail";
 import { ParkedDrain } from "@/components/stats/parked-drain";
 import { customScope } from "@/components/stats/periods";
 import { BatterySkeleton } from "@/components/stats/skeletons";
@@ -66,14 +67,14 @@ async function loadBattery(query: CustomQuery | null): Promise<{
   const [window, sessions, presence, priced, modes] = await Promise.all([
     loadWindowStats(owner, vin, now),
     loadStreamSessions(owner),
-    // For the tips: when the car woke while parked, and what the owner pays per kWh.
+    // When the car woke (Awake and asleep, and the tips), and what the owner pays per kWh.
     car ? loadPresence(owner, car, now).then((p) => p.days).catch(() => []) : [],
     loadPricedCharges(owner, now),
     // Which modes the car reported on while parked, so a tip names one only when it was on.
     vin ? loadReadingsByField(owner, vin, [...MODE_FIELDS], new Date(now - DRIVE_DAYS * 86_400_000).toISOString(), new Date(now).toISOString()).catch(() => null) : null,
   ]);
   const [extras, places] = await Promise.all([
-    loadBatteryExtras(owner, vin, window.trend, now),
+    loadBatteryExtras(owner, vin, now),
     // Where each stretch was parked; never fails the page.
     loadStretchPlaces(owner, vin, window.driving),
   ]);
@@ -95,21 +96,24 @@ async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "sear
   return (
     // One switch drives every section. Each period draws only what it has (a quiet one is a line, not a
     // box held to a chart's height), so the page may move on a switch.
-    <StatsFrame custom={customScope(custom?.range ?? null, now)} periodSwitch={enough}>
+    <StatsFrame view="battery" custom={customScope(custom?.range ?? null, now)} periodSwitch={enough}>
       {enough ? (
         <div className="space-y-12">
           {tipsBox}
           {eachFrame(frames, () => (
             <BatteryHealth trend={trend} range={range} drives={driving.drives} now={now} />
           ))}
-          {eachFrame(frames, ({ key, frame }) => <ParkedDrain parked={driving.parked} parkedNow={driving.parkedNow} frame={frame} places={places} more={moreParked.bind(null, { period: key, query })} shown={shown} />)}
-          {eachFrame(frames, ({ frame }) => <ChargeLevelChart level={level} now={now} frame={frame} heading />)}
           {/* The id sits outside the periods' copies, so it is on the page once. */}
-          <div id="battery">{eachFrame(frames, ({ frame }) => <BatteryPack trend={trend} frame={frame} />)}</div>
-          {eachFrame(frames, ({ frame }) => <TeslaPackByWeek pack={extras.teslaPack} frame={frame} />)}
-          {eachFrame(frames, ({ frame }) => <CapacityByKm points={extras.capacityByKm} frame={frame} />)}
-          {eachFrame(frames, ({ frame }) => <CellBalance spread={extras.cellSpreadMv} frame={frame} />)}
-          {eachFrame(frames, ({ frame }) => <Temperatures temps={extras.temps} frame={frame} />)}
+          <div id="battery">{eachFrame(frames, ({ frame }) => <BatteryHealthChart trend={trend} pack={extras.teslaPack} frame={frame} />)}</div>
+          {eachFrame(frames, ({ key, frame }) => <ParkedDrain parked={driving.parked} parkedNow={driving.parkedNow} frame={frame} places={places} more={moreParked.bind(null, { period: key, query })} shown={shown} />)}
+          {/* The last 14 days whatever the period, as its own line says, so drawn once. */}
+          <AwakeTimeline days={presence} now={now} />
+          {(extras.cellSpreadMv.length >= 2 || extras.temps.battery.length >= 2 || extras.temps.inside.length >= 2 || extras.temps.outside.length >= 2) && (
+            <MoreDetail>
+              {eachFrame(frames, ({ frame }) => <CellBalance spread={extras.cellSpreadMv} frame={frame} />)}
+              {eachFrame(frames, ({ frame }) => <Temperatures temps={extras.temps} frame={frame} />)}
+            </MoreDetail>
+          )}
         </div>
       ) : (
         <NotYet title="No battery trend yet">It shows up after about two weeks of data.</NotYet>

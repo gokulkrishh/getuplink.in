@@ -1,32 +1,39 @@
 import { ChartCard } from "@/components/chart-card";
-import { BatteryTrend } from "@/components/stats/battery-trend";
+import BatteryTrendPlot from "@/components/stats/battery-trend-plot";
 import { formatKwh, formatShortDate } from "@/lib/format";
 import { backTo, weeksIn } from "@/lib/kept";
 import type { Timeframe } from "@/lib/periods";
+import type { TeslaPack } from "@/lib/tesla-pack";
 import type { WeeklyPack } from "@/lib/telemetry-derive";
 
-// Usable capacity by week (see weeklyUsable), from the streamed energy remaining and battery level: the
-// weeks that overlap the span, as far back as the estimates go (12 weeks). The page keeps its id outside, since each
-// period draws its own copy.
-export function BatteryPack({ trend, frame }: { trend: WeeklyPack[]; frame: Timeframe }) {
-  if (trend.length < 2) return null;
-  const weeks = weeksIn(trend, frame.span);
-  const latest = trend[trend.length - 1];
-  const cut = backTo(frame.span, trend[0].weekStart, "Weekly estimates");
+// Battery health over time, one chart: usable capacity by week (see weeklyUsable, from the streamed energy
+// remaining and battery level) as the main line, and Tesla's own full-pack figure by week as a second line
+// when the car reported it in two weeks or more. The weeks that overlap the span, as far back as the
+// estimates go (12 weeks). Tesla's figure only comes when it changes, so its line has a point only in weeks
+// with a new figure. The page keeps its id outside, since each period draws its own copy.
+export function BatteryHealthChart({ trend, pack, frame }: { trend: WeeklyPack[]; pack: TeslaPack | null; frame: Timeframe }) {
+  const tesla = pack?.weekly ?? [];
+  if (trend.length < 2 && tesla.length < 2) return null;
+  const usable = weeksIn(trend, frame.span);
+  const reported = weeksIn(tesla, frame.span);
+  const firsts = [trend[0]?.weekStart, tesla[0]?.weekStart].filter((t): t is number => t !== undefined);
+  const both = reported.length >= 2 && usable.length >= 2;
+  const one = usable[0] ?? reported[0];
   return (
     <ChartCard
-      title="Usable capacity by week"
-      description={`Usable capacity week by week. Latest week ${formatKwh(latest.kwh)}.`}
-      info="The chart doesn't start at zero, so small changes are easier to see."
-      caption={cut}
+      title="Battery health over time"
+      description="How much a full charge holds, week by week."
+      info={`A falling line means the battery holds less.${both ? " Tesla's figure comes from the car, so it can differ from Uplink's." : ""}`}
+      caption={backTo(frame.span, Math.min(...firsts), "Weekly estimates")}
       empty={
-        weeks.length < 2 &&
-        (weeks.length === 1
-          ? `Week of ${formatShortDate(weeks[0].weekStart)}: ${formatKwh(weeks[0].kwh)}. The line appears after two weeks.`
+        usable.length < 2 &&
+        reported.length < 2 &&
+        (one
+          ? `Week of ${formatShortDate(one.weekStart)}: ${formatKwh(one.kwh)}${usable.length === 0 ? ", Tesla's figure" : ""}. The line appears after two weeks.`
           : "No weekly estimate.")
       }
     >
-      <BatteryTrend points={weeks} />
+      <BatteryTrendPlot usable={usable} tesla={reported} />
     </ChartCard>
   );
 }

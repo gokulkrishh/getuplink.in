@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Measure } from "@/components/measure";
+import { axisLabels, niceTop } from "@/lib/axis";
 import { formatKw, formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PLOT_FOCUS, plotKeys } from "@/components/stats/plot-keys";
@@ -9,12 +10,6 @@ import { PLOT_FOCUS, plotKeys } from "@/components/stats/plot-keys";
 export type CurveSeries = { name: string; stroke: string; swatch: string; points: { x: number; y: number }[] };
 
 const LABEL_PX = 44; // room one battery label ("100%") needs, with a gap
-const NICE = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
-function niceTop(value: number): number {
-  const step = 10 ** Math.floor(Math.log10(value));
-  return (NICE.find((m) => value <= m * step) ?? 10) * step;
-}
-const axisNumber = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 
 // Where the tooltip's left edge goes, in px from the plot's left: beside the cursor on the right, else on
 // its left, else as far over as keeps it inside the panel (the y-axis gutter is 40px, the right padding 16px).
@@ -107,9 +102,9 @@ export function DcCurvePlot({ series, band, label }: { series: CurveSeries[]; ba
         </span>
         <div className="flex gap-2">
           <div className="relative h-36 w-8 shrink-0 text-right font-mono text-xs whitespace-nowrap text-faint tabular-nums" aria-hidden="true">
-            {ticks.map((v) => (
-              <span key={v} className="absolute right-0 -translate-y-1/2" style={{ top: `${yPct(v)}%` }}>
-                {axisNumber.format(v)}
+            {axisLabels(ticks, { compact: false, decimals: 0 }).map((text, k) => (
+              <span key={ticks[k]} className="absolute right-0 -translate-y-1/2" style={{ top: `${yPct(ticks[k])}%` }}>
+                {text}
               </span>
             ))}
           </div>

@@ -2,6 +2,8 @@ import { Loading, Ph, SkBigLabel, SkBlock, SkChart, SkChartCaptioned, SkFigures,
 import { CHARGING_PREVIEW, HABITS_LINE, HABITS_TITLE } from "@/components/stats/charging-sections";
 import { PARKED_COLUMNS, PARKED_TABLE, TABLE_FRAME, TABLE_HEAD, TABLE_HEAD_ROW } from "@/lib/table-frame";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AWAKE_DESCRIPTION } from "@/components/stats/awake-timeline";
+import { MORE_DETAIL } from "@/components/stats/more-detail";
 
 // What each Stats topic shows while its data loads: its sections in order, each built from the section's own
 // layout classes (see components/skeleton.tsx), at the size of the period the page opens on (Week, Month on Charging). Rows and
@@ -221,6 +223,11 @@ export function BatterySkeleton() {
           ]}
         />
       </SkSection>
+      <SkSection>
+        <SkHead title="Battery health over time" description="How much a full charge holds, week by week." />
+        {/* The panel, its two lines' legend and the line on how far back the weeks go. */}
+        <SkBlock className="h-[228px] max-sm:h-[270px]" />
+      </SkSection>
       <SkSection gap={8}>
         <div className="space-y-2">
           <SkHead title="Parked drain" description="Battery lost while parked. Lower is better." />
@@ -228,50 +235,39 @@ export function BatterySkeleton() {
           <SkLine>0.4% a day · about 2 km a day</SkLine>
         </div>
         <SkParkedList />
+        {/* All, which the page opens on, starts before the first stretch kept. */}
+        <SkLine className="text-xs">Stretches go back to 1 Oct</SkLine>
       </SkSection>
       <SkSection>
-        <SkHead title="Charge level" description="Battery level over time, with charging marked." />
-        <SkBigLabel value="68" unit="%" label="seen 27 Oct, 4:38 PM" />
+        <SkHead title="Awake and asleep" description={AWAKE_DESCRIPTION} />
+        <SkLine>Awake on 14 of the last 14 days</SkLine>
         <div className="space-y-3" aria-hidden="true">
-          <SkBlock className="h-48 max-sm:h-[228px]" />
-          <p className="text-xs">
-            <Ph>Battery level Charging</Ph>
-          </p>
+          <Skeleton className="space-y-3 rounded-lg px-3 pt-4 pb-3 dark:bg-card">
+            <ol className="space-y-1.5">
+              {Array.from({ length: 14 }, (_, k) => (
+                <li key={k} className="flex items-center gap-3">
+                  <span className="w-16 shrink-0 text-xs"><Ph>Yesterday</Ph></span>
+                  <div className="h-4 flex-1 rounded-sm bg-background/60" />
+                </li>
+              ))}
+            </ol>
+            <div className="h-4" />
+          </Skeleton>
+          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+            {["Awake", "Asleep", "Out of reach", "No data"].map((label) => (
+              <li key={label} className="inline-flex items-center gap-1.5">
+                <span className="size-2 rounded-full bg-muted" />
+                <Ph>{label}</Ph>
+              </li>
+            ))}
+          </ul>
         </div>
       </SkSection>
-      <SkSection>
-        <SkHead title="Usable capacity by week" description="Usable capacity week by week. Latest week 64.1 kWh." />
-        <SkBlock className="h-44 max-sm:h-[209px]" />
-      </SkSection>
-      <SkSection>
-        <SkHead title="Full pack by week, per Tesla" description="Full-pack energy, as the car reports it." />
-        <SkLine>Week of 26 Oct: 62.1 kWh. The line appears after two weeks.</SkLine>
-      </SkSection>
-      <SkSection>
-        <SkHead title="Capacity by distance" description="Usable capacity each week, against the odometer." />
-        <SkBlock className="h-44 max-sm:h-[209px]" />
-      </SkSection>
-      <SkSection>
-        <SkHead title="Cell balance" description="Gap between the highest and lowest cell. Lower is better." />
-        <SkFigures
-          tiles={[
-            { label: "Gap now", value: "3 mV", note: "Latest, 27 Oct, 3:39 PM" },
-            { label: "Widest", value: "6 mV", note: "21 Oct, 12:39 PM" },
-          ]}
-        />
-        <SkBlock className="h-44 max-sm:h-[209px]" />
-      </SkSection>
-      <SkSection>
-        <SkHead title="Temperatures" description="Battery, cabin and outside temperatures." />
-        <div className="space-y-2" aria-hidden="true">
-          <SkFigures tiles={[{ label: "Battery", value: "33.7 °C" }, { label: "Inside", value: "35.7 °C" }, { label: "Outside", value: "32 °C" }]} />
-          <SkLine className="text-xs">Seen 27 Oct, 3:39 PM</SkLine>
-        </div>
-        <div className="space-y-2" aria-hidden="true">
-          <SkBlock className="h-44 max-sm:h-[209px]" />
-          <SkLine className="text-xs">Battery Inside Outside</SkLine>
-        </div>
-      </SkSection>
+      {/* More detail opens closed: its heading, its line and the Show button's place. */}
+      <div className="flex items-center justify-between gap-4" aria-hidden="true">
+        <SkHead title={MORE_DETAIL.title} description={MORE_DETAIL.description} />
+        <Skeleton className="h-8 w-[4.5rem] shrink-0 rounded-lg" />
+      </div>
     </>
   );
 }

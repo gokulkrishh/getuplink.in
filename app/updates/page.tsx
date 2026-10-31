@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { Suspense } from "react";
-import { Loading, Ph, SkHead, SkLine, SkSection, SkShowMore } from "@/components/skeleton";
+import { Loading, Ph, SkShowMore } from "@/components/skeleton";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { SyncStreamVersions } from "@/components/background-sync";
 import { AWAKE_MS, CarStatus } from "@/components/car-status";
@@ -10,7 +10,6 @@ import { Header } from "@/components/header";
 import { MoreLink } from "@/components/more-link";
 import { CheckedFooter, OwnerNotices } from "@/components/owner-notices";
 import { ReleaseNotesToggle } from "@/components/release-notes";
-import { AwakeTimeline } from "@/components/stats/awake-timeline";
 import { DatesNote } from "@/components/stats/dates-note";
 import { ByPeriod, PeriodPicker, PeriodScope } from "@/components/stats/period-scope";
 import { customScope, PAGE_PERIODS } from "@/components/stats/periods";
@@ -30,7 +29,6 @@ import { loadUpdatesPage, type UpdatesCar, type UpdatesPage } from "@/lib/server
 import { updateStats } from "@/lib/telemetry-derive";
 import { currentVersion } from "@/lib/versions";
 import { TABLE_FRAME, TABLE_HEAD } from "@/lib/table-frame";
-import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Updates" };
 
@@ -49,11 +47,10 @@ async function loadOwnUpdates(demo: DemoScenario): Promise<{ data: UpdatesPage; 
   return { data, glance, now, guest: owner.viewOnly === true };
 }
 
-// One car: the installed version and its status, the pending update, the history, how updates usually go,
-// and when the car was awake to receive one. `label` names the car when there are several; `range` is
+// One car: the installed version and its status, the pending update, the history and how updates usually go. `label` names the car when there are several; `range` is
 // the range picked by date, when the page drew one.
 function CarUpdates({ car, notes, glance, label, range, now }: { car: UpdatesCar; notes: ReleaseNotesByVersion; glance: RolloutGlance | null; label: string; range: Timeframe | null; now: number }) {
-  const { vehicle, latest, lastOnline, history, streamAt, updates, awake } = car;
+  const { vehicle, latest, lastOnline, history, streamAt, updates } = car;
   // A car that streamed in the last few minutes is awake: keep the page fresh so new data shows up on its own.
   const isAwake = streamAt !== null && now - Date.parse(streamAt) < AWAKE_MS;
   const version = currentVersion(vehicle.current_version, lastOnline && { version: lastOnline.car_version, at: lastOnline.polled_at });
@@ -136,8 +133,6 @@ function CarUpdates({ car, notes, glance, label, range, now }: { car: UpdatesCar
           <p className="text-sm text-muted-foreground">Update stats show up after your car&apos;s second update.</p>
         )}
       </section>
-
-      <AwakeTimeline days={awake} now={now} />
     </section>
   );
 }
@@ -251,31 +246,6 @@ function UpdatesSkeleton() {
           ))}
         </dl>
       </section>
-      <SkSection>
-        <SkHead title="Awake and asleep" description="When the car was awake each day. Updates download only then." />
-        <SkLine>Awake on 14 of the last 14 days</SkLine>
-        <div className="space-y-3" aria-hidden="true">
-          <Skeleton className="space-y-3 rounded-lg px-3 pt-4 pb-3 dark:bg-card">
-            <ol className="space-y-1.5">
-              {Array.from({ length: 14 }, (_, k) => (
-                <li key={k} className="flex items-center gap-3">
-                  <span className="w-16 shrink-0 text-xs"><Ph>Yesterday</Ph></span>
-                  <div className="h-4 flex-1 rounded-sm bg-background/60" />
-                </li>
-              ))}
-            </ol>
-            <div className="h-4" />
-          </Skeleton>
-          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-            {["Awake", "Asleep", "Out of reach", "No data"].map((label) => (
-              <li key={label} className="inline-flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-muted" />
-                <Ph>{label}</Ph>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </SkSection>
     </Loading>
   );
 }

@@ -4,10 +4,10 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { PLOT_FOCUS, plotKeys } from "@/components/stats/plot-keys";
 import { Measure } from "@/components/measure";
+import { lineAxis } from "@/lib/axis";
 
 export type Series = { name: string; className: string; points: { x: number; y: number }[] };
 
-const axisNumber = new Intl.NumberFormat("en-IN", { notation: "compact", maximumFractionDigits: 1 });
 const CHAR_PX = 7; // a 12px axis character, roughly, to fit the x labels without measuring each
 
 // One or more lines over a shared x axis (time, battery %, odometer), in the chart panel. The axes are HTML,
@@ -77,13 +77,8 @@ export function LineChart({
   const xs = drawn.flatMap((s) => s.points.map((p) => p.x));
   const ys = drawn.flatMap((s) => s.points.map((p) => p.y));
   const [x0, x1] = [Math.min(...xs), Math.max(...xs)];
-  const reach = Math.max(...ys.map(Math.abs)) * 1.1 || 1;
-  const low = signed ? -reach : (yFrom ?? Math.min(...ys));
-  const high = signed ? reach : (yTo ?? Math.max(...ys) + (Math.max(...ys) - low) * 0.1);
-  // A flat line (the same value every week) gets 1 either side, so it sits in the middle with three ticks.
-  const flat = high <= low;
-  const lo = flat ? low - 1 : low;
-  const hi = flat ? low + 1 : high;
+  // Three ticks a round step apart, none written the same (lib/axis.ts).
+  const { lo, hi, ticks, labels } = lineAxis(ys, { yFrom, yTo, signed });
   const xPct = (v: number) => ((v - x0) / (x1 - x0 || 1)) * 100;
   const yPct = (v: number) => ((hi - v) / (hi - lo || 1)) * 100;
   const nearest = (s: Series, v: number) => s.points.reduce((a, p) => (Math.abs(p.x - v) < Math.abs(a.x - v) ? p : a));
@@ -108,10 +103,11 @@ export function LineChart({
           return Math.abs(p.x - at) <= reachX ? [{ s, p }] : [];
         });
   const cursor = hits[0]?.p.x ?? at;
-  const ticks = signed ? [hi, 0, lo] : [hi, (lo + hi) / 2, lo];
-  const tick = (v: number) => (unit ? axisNumber.format(v) : formatY(v));
+  // Without a unit each tick is formatY's text, unless two would read the same; then bare numbers.
+  const worded = ticks.map(formatY);
+  const tickText = unit || new Set(worded).size < ticks.length ? labels : worded;
   // The widest tick sets the gutter, so a long one ("1,200 kWh") never runs into the plot.
-  const widest = ticks.map(tick).reduce((a, t) => (t.length > a.length ? t : a), "");
+  const widest = tickText.reduce((a, t) => (t.length > a.length ? t : a), "");
   const path = (s: Series) =>
     s.points
       .map((p, k) => `${k === 0 || (gap !== undefined && p.x - s.points[k - 1].x > gap) ? "M" : "L"}${(xPct(p.x) * 10).toFixed(1)},${yPct(p.y).toFixed(2)}`)
@@ -145,9 +141,9 @@ export function LineChart({
           <div className="relative h-28 shrink-0 text-right font-mono text-xs whitespace-nowrap text-faint tabular-nums" aria-hidden="true">
             {/* Invisible, it gives the gutter the widest tick's width. */}
             <span className="invisible block h-0 min-w-8">{widest}</span>
-            {ticks.map((v) => (
+            {ticks.map((v, k) => (
               <span key={v} className="absolute right-0 -translate-y-1/2" style={{ top: `${yPct(v)}%` }}>
-                {tick(v)}
+                {tickText[k]}
               </span>
             ))}
           </div>

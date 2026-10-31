@@ -106,8 +106,8 @@ for (const phone of [false, true]) {
   }
   t = await go("/stats/driving?period=custom&from=2030-01-01&to=2030-02-01");
   check(`${tag} custom future dates name what's shown`, t.includes("Uplink couldn't use those dates, so it shows") && !t.includes("Pick dates up to today."));
-  t = await go("/updates");
-  check(`${tag} /updates says Awake, not Online`, t.includes("Awake") && !/\bOnline\b/.test(t));
+  t = await go("/stats/battery");
+  check(`${tag} /stats/battery says Awake, not Online`, t.includes("Awake") && !/\bOnline\b/.test(t));
   t = await go("/owners");
   check(`${tag} /owners says Period, not Covers`, t.includes("Period") && !/\bCovers\b/.test(t));
 

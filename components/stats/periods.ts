@@ -29,6 +29,8 @@ export const PAGE_PERIODS = {
   stats: { options: ALL_PERIODS, opensOn: "week" },
   // Most owners charge a few times a week, so a week often holds one or two charges: a month says more.
   charging: { options: ALL_PERIODS, opensOn: "month" },
+  // Battery health moves by the week over months, so Battery opens on everything kept.
+  battery: { options: ALL_PERIODS, opensOn: "all" },
   // Updates come too seldom for a day or a week to say anything.
   updates: { options: ["month", "year", "all"], opensOn: "month" },
 } satisfies Record<string, PeriodSet>;
@@ -110,7 +112,7 @@ export function periodQuery(period: HomePeriod, range: DateRange | null, page: P
 }
 
 // A Stats page's URL with a period, and for Custom its dates; the period that page opens on stays out of it
-// (Week on Driving, Month on Charging). A link from Home carries Home's period over, so Week on Home arrives
+// (Week on Driving, Month on Charging, All on Battery). A link from Home carries Home's period over, so Week on Home arrives
 // on Charging as ?period=week.
 export function statsHref(view: View, period: HomePeriod, range: DateRange | null = null): string {
   return `/stats/${view}${periodQuery(period, range, viewPeriods(view))}`;

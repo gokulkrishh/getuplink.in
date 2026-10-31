@@ -61,6 +61,7 @@ Those sentences are the fallback. Once written, the same lines come from AI (`li
 
 Every axis and value carries its unit, unless it's a time axis (hours, days, months, clock times).
 
+- **Y axis ticks**: never two alike. `lib/axis.ts` holds the rule for every hand-drawn chart (`LineChart`, `ChartFrame` under `Bars`, `DriveTrace`, the DC curve, the charge curve's kW): `LineChart` puts its three ticks a round step apart (1, 2, 2.5 or 5 times a power of ten), and `axisLabels` writes them with one decimal, or more only when two would read the same. Rounding to one decimal once wrote "64.1, 64.1, 64" over 64.0 to 64.1 kWh (`test/axis.test.ts`).
 - **Y axis**: the unit sits once above it (`unit` on `Bars`, `ChartFrame`, `LineChart`, `DriveTrace`), or on every tick when the unit is a sign before the number ("₹500"). A second y axis titles its own side (the charge curve's "%").
 - **X axis that isn't time**: say what it is. Category bands are labelled on their boundaries under ticks, like a histogram ("0", "20" … "100+"), with the unit titled in the y gutter's bottom corner (`xUnit="km/h"` on `Bars`), so the first bar reads as 0 to 20. A numeric axis writes the unit on its ticks ("20%", "3,434.7 km").
 - **Values above bars**: they carry their unit ("25%", "46.2 km", "₹243.52", "6.1 kWh") when every column's fits. Where they don't (six columns of "17.0 km" on a phone), they fall back to bare numbers under the axis's unit, then to none. `useValueLabels` measures this in the browser. Charts with more than 6 columns show no values above their bars.
@@ -189,14 +190,12 @@ The same number always shows the same digits: on its bar, in the bar's tooltip, 
 | `components/stats/charge-level.tsx` + `charge-level-plot.tsx` | Charge level | Recharts: battery % over the span, charging shaded (Battery page and home) |
 | `components/stats/charge-curve.tsx` + `charge-curve-plot.tsx` | Charge curve (charge detail page) | Recharts: kW and battery % through one charge |
 | `components/stats/charge-supply.tsx` | Charger | Tiles: volts, amps, phases, cable (explain V and A) |
-| `components/stats/battery-pack.tsx` + `battery-trend*.tsx` | Usable capacity by week | Recharts: kWh a full pack holds, by week |
-| `components/stats/battery-extras.tsx` | Temperatures | `LineChart`: battery, inside and outside °C |
-| `components/stats/battery-extras.tsx` | Cell balance | `LineChart`: spread between cells |
-| `components/stats/battery-extras.tsx` | Capacity by distance | `LineChart`: full-pack kWh against odometer km |
-| `components/stats/battery-extras.tsx` | Full pack by week, per Tesla | `LineChart`: Tesla's full-pack kWh by week |
+| `components/stats/battery-pack.tsx` + `battery-trend-plot.tsx` | Battery health over time | `LineChart`: usable capacity by week, with Tesla's own full-pack figure as a second line ("Tesla's figure") when it has two weeks; the legend and tooltip name both |
+| `components/stats/battery-extras.tsx` | Temperatures (under More detail) | `LineChart`: battery, inside and outside °C |
+| `components/stats/battery-extras.tsx` | Cell balance (under More detail) | `LineChart`: spread between cells |
 | `components/stats/battery-health.tsx` | Battery health | Tiles: capacity, range at 100%, cycles, charging efficiency |
 | `components/stats/parked-drain.tsx` | Parked drain | Headline and rows: % a day and W lost while parked |
-| `components/stats/awake-timeline.tsx` + `awake-strip.tsx` | Online and asleep (Updates page) | Strips of awake and asleep runs per day |
+| `components/stats/awake-timeline.tsx` + `awake-strip.tsx` | Awake and asleep (Battery page, after Parked drain) | Strips of awake and asleep runs per day |
 | `components/home/sections.tsx` | Home sections | Bars: spend and distance per slot |
 | `components/home/sparkline.tsx` | Headline sparklines (home) | Small bars or line behind each headline number |
 | `components/version-chart.tsx` + `version-chart-plot.tsx` | Version history (Updates page, preview) | Recharts step line of software versions |
