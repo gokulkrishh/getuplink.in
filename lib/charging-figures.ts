@@ -170,6 +170,16 @@ export function spendBreakdown(bills: Bill[], span: Span): SpendBreakdown | null
   };
 }
 
+// The breakdown worth a section of its own: only when it has more than one line, such as an idle fee or
+// GST beside the charging. A single line ("Charging", or one invoice line) is the same amount as Spend's
+// total, so it would only repeat it. Null otherwise.
+export function paidFor(bills: Bill[], span: Span): SpendBreakdown | null {
+  const breakdown = spendBreakdown(bills, span);
+  if (!breakdown) return null;
+  const lines = breakdown.supercharger.length + breakdown.invoice.length + (breakdown.unitemised !== 0 ? 1 : 0);
+  return lines > 1 ? breakdown : null;
+}
+
 // Time on the charger by kind in a span, in ms, after TeslaMate's AC/DC duration: Superchargers from
 // Tesla's times, the rest from the car's own sessions. Pass only the streamed sessions Tesla didn't bill.
 export function chargingTime(

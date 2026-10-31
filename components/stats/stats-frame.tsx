@@ -5,16 +5,17 @@ import { Header } from "@/components/header";
 import { Loading } from "@/components/skeleton";
 import { DatesNote } from "./dates-note";
 import { PeriodPicker, PeriodScope } from "./period-scope";
-import { type CustomScope, PAGE_PERIODS, type View } from "./periods";
+import { type CustomScope, PAGE_PERIODS, type View, viewPeriods } from "./periods";
 import { ViewTabs, ViewTabsShell } from "./view-tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // What every Stats page shows around its sections, once its data is in: when the sections use one, the
 // period switch with Custom. The topic tabs are in the page's shell (StatsPage), so they don't reload. The period is the URL's (see PeriodScope); a page without
-// the switch still keeps a range picked by date in its links.
-export function StatsFrame({ custom, periodSwitch = true, children }: { custom: CustomScope; periodSwitch?: boolean; children: ReactNode }) {
+// the switch still keeps a range picked by date in its links. `view` names the page, for the period it opens
+// on (see viewPeriods); Stats' when not given.
+export function StatsFrame({ view, custom, periodSwitch = true, children }: { view?: View; custom: CustomScope; periodSwitch?: boolean; children: ReactNode }) {
   return (
-    <PeriodScope periods={PAGE_PERIODS.stats} custom={custom}>
+    <PeriodScope periods={view ? viewPeriods(view) : PAGE_PERIODS.stats} custom={custom}>
       {/* Fades in over the skeleton when the topic's data arrives (see StatsSkeleton); nothing else moves. */}
       <ViewTransition enter="stats-in" default="none">
         <div className="space-y-12">

@@ -40,6 +40,12 @@ describe("statsRedirect", () => {
     expect(target("view=driving&period=month")).toBe("/stats/driving?period=month");
     expect(target("view=driving&period=decade")).toBe("/stats/driving");
   });
+  test("Charging opens on Month: Month stays out of the URL, Week carries over", () => {
+    expect(target("view=charging")).toBe("/stats/charging");
+    expect(target("view=charging&period=month")).toBe("/stats/charging");
+    expect(target("view=charging&period=week")).toBe("/stats/charging?period=week");
+    expect(target("view=charging&period=decade")).toBe("/stats/charging");
+  });
   test("Custom carries its dates to the page", () => {
     expect(target("view=charging&period=custom&from=2026-09-01&to=2026-09-30")).toBe("/stats/charging?period=custom&from=2026-09-01&to=2026-09-30");
     expect(target("view=updates&period=custom&from=2026-01-01&to=2026-06-30")).toBe("/updates?period=custom&from=2026-01-01&to=2026-06-30");

@@ -6,7 +6,7 @@ import { Bars } from "@/components/stats/bars";
 import { Figures } from "@/components/stats/figures";
 import { StackedBars, type StackedBar } from "@/components/stats/stacked-bars";
 import { chargeEfficiency } from "@/lib/charge-sessions";
-import { type Bill, billsBySlot, billsIn, energyIn, spendBreakdown } from "@/lib/charging-figures";
+import { type Bill, billsBySlot, billsIn, energyIn, paidFor } from "@/lib/charging-figures";
 import { comparedWith, headline } from "@/lib/dashboard-summary";
 import { DECIMALS, formatDuration, formatKm, formatKwh, formatMoney, formatNumber, formatPercent, showsZero, sumKnown } from "@/lib/format";
 import { hasBars, Headline, knownBars } from "@/components/stats/driving-sections";
@@ -20,6 +20,9 @@ import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { barOpens } from "@/components/stats/bar-parts";
 import type { Stops } from "@/lib/bar-stops";
 import { Measure } from "@/components/measure";
+import { FoldToggle } from "@/components/fold-toggle";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import type { ReactNode } from "react";
 
 // The Charging page's sections: spend, energy added by charger kind, and every session by month.
 
@@ -117,10 +120,11 @@ export function Summary({
 
 // What the period's bills were for, as lines adding up to Spend's total: Tesla's fee lines for
 // Superchargers, the invoices' energy, fees and GST for other chargers, and any bill that doesn't split
-// its amount. Nothing when no bill in the period is itemised. Its own section, not under Spend's tiles,
-// so periods without it don't hold Spend open to its height.
+// its amount. Nothing when the bills have only one kind of line, as when every bill is just "Charging":
+// that line is Spend's total again (see paidFor). Its own section, not under Spend's tiles, so periods
+// without it don't hold Spend open to its height.
 export function PaidFor({ bills, frame }: { bills: Bill[]; frame: Timeframe }) {
-  const breakdown = spendBreakdown(bills, frame.span);
+  const breakdown = paidFor(bills, frame.span);
   if (!breakdown) return null;
   const { supercharger, invoice, unitemised, total } = breakdown;
   const both = supercharger.length > 0 && invoice.length > 0;
@@ -152,6 +156,30 @@ export function PaidFor({ bills, frame }: { bills: Bill[]; frame: Timeframe }) {
         <dl>{row("Total", total, true)}</dl>
       </div>
     </section>
+  );
+}
+
+// The fold's title and line, kept here so the page and its skeleton (ChargingSkeleton) say the same.
+export const HABITS_TITLE = "Your charging habits";
+export const HABITS_LINE = "Where you start and stop, when you plug in, and how fast DC charging was.";
+
+// Charge range, When you charge and DC charging speed, folded away under one heading, closed at first (as
+// Settings' Connect your AI). Closed, the sections stay in the page, hidden until found, so opening it
+// loads nothing and nothing above moves.
+export function HabitsFold({ children }: { children: ReactNode }) {
+  return (
+    // No `group` on the fold: the bar charts inside use group-hover, which any hovered .group above would set off.
+    <Collapsible>
+      {/* A div (with the button role), since it holds a heading, which a <button> can't. */}
+      <CollapsibleTrigger nativeButton={false} render={<div />} className="flex w-full cursor-pointer items-center justify-between gap-4 text-left focus-visible:outline-2 focus-visible:outline-ring">
+        <div className="min-w-0 space-y-1">
+          <h2 className="text-lg font-medium tracking-heading">{HABITS_TITLE}</h2>
+          <p className="text-sm text-muted-foreground">{HABITS_LINE}</p>
+        </div>
+        <FoldToggle />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-12 pt-8">{children}</CollapsibleContent>
+    </Collapsible>
   );
 }
 

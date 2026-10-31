@@ -12,7 +12,7 @@ import { ChargingMap, DcCurves } from "@/components/stats/charging-extras";
 import { moreCharges } from "./actions";
 import { CURVES, heldFrom, loadChargingExtras, PINNED } from "@/lib/server/charging-extra";
 import { type ChargingLists, listCharges, loadChargingLists, startedIn } from "@/lib/server/charging-lists";
-import { EnergyAdded, PaidFor, SessionList, Summary } from "@/components/stats/charging-sections";
+import { EnergyAdded, HabitsFold, PaidFor, SessionList, Summary } from "@/components/stats/charging-sections";
 import { eachFrame } from "@/components/home/frames";
 import { customScope } from "@/components/stats/periods";
 import { ChargingSkeleton } from "@/components/stats/skeletons";
@@ -112,7 +112,7 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
   const extrasFor = (key: string) => (key === "custom" && custom ? { ...custom.extras, held: custom.held } : { ...extras, held });
 
   return (
-    <StatsFrame custom={customScope(custom?.range ?? null, now)} periodSwitch={listed.length > 0}>
+    <StatsFrame view="charging" custom={customScope(custom?.range ?? null, now)} periodSwitch={listed.length > 0}>
       {listed.length === 0 ? (
         <NotYet title="No charges yet">Your charges will show up here, wherever you plug in.</NotYet>
       ) : (
@@ -123,6 +123,8 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
               const { frame, driving } = fromSince(f, chargingSince, now);
               return <Summary bills={bills} unbilled={unbilled} charged={chargingTime(sessions, streamOnly, frame.span)} km={driving?.current.km ?? null} frame={frame} chargingSince={chargingSince} stops={stops} />;
             })}
+          {/* Only when the bills have more than one kind of line; a lone "Charging" line would repeat Spend (see paidFor). */}
+          {bills.some((b) => b.parts) && eachFrame(frames, (f) => <PaidFor bills={bills} frame={fromSince(f, chargingSince, now).frame} />)}
           {streamSessions.length > 0 &&
             eachFrame(frames, (f) => <EnergyAdded sessions={sessions} streamOnly={streamOnly} frame={fromSince(f, chargingSince, now).frame} chargingSince={chargingSince} stops={stops} />)}
           {eachFrame(frames, ({ key, frame }) => {
@@ -136,18 +138,6 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
               </section>
             );
           })}
-          {bills.some((b) => b.parts) && eachFrame(frames, (f) => <PaidFor bills={bills} frame={fromSince(f, chargingSince, now).frame} />)}
-          {streamSessions.length > 0 &&
-            eachFrame(frames, ({ frame }) => (
-              <ChargeRange sessions={streamSessions.filter(startedIn(frame.span))} frame={frame} serialOf={(s) => streamSerial(frame.span).get(s.id)} />
-            ))}
-          {eachFrame(frames, ({ frame }) => <ChargeHabits starts={starts(frame.span)} />)}
-          {(extras.curves.length > 0 || (custom?.extras.curves.length ?? 0) > 0) &&
-            eachFrame(frames, ({ key, frame }) => {
-              const { curves, held: from } = extrasFor(key);
-              const shown = curves.filter((c) => startedIn(frame.span)({ started_at: c.date })).map((c) => ({ ...c, serial: streamSerial(frame.span).get(c.id) }));
-              return <DcCurves curves={shown} frame={frame} note={backTo(frame.span, from.curves, `Curves are kept for the latest ${CURVES} DC charges, which`)} />;
-            })}
           {(extras.pins.length > 0 || (custom?.extras.pins.length ?? 0) > 0) &&
             eachFrame(frames, ({ key, frame }) => {
               const { pins, held: from } = extrasFor(key);
@@ -159,6 +149,20 @@ async function Charging({ searchParams }: Pick<PageProps<"/stats/charging">, "se
                 />
               );
             })}
+          {/* Closed until opened: the habits are for a look now and then, not every visit. */}
+          <HabitsFold>
+            {streamSessions.length > 0 &&
+              eachFrame(frames, ({ frame }) => (
+                <ChargeRange sessions={streamSessions.filter(startedIn(frame.span))} frame={frame} serialOf={(s) => streamSerial(frame.span).get(s.id)} />
+              ))}
+            {eachFrame(frames, ({ frame }) => <ChargeHabits starts={starts(frame.span)} />)}
+            {(extras.curves.length > 0 || (custom?.extras.curves.length ?? 0) > 0) &&
+              eachFrame(frames, ({ key, frame }) => {
+                const { curves, held: from } = extrasFor(key);
+                const shown = curves.filter((c) => startedIn(frame.span)({ started_at: c.date })).map((c) => ({ ...c, serial: streamSerial(frame.span).get(c.id) }));
+                return <DcCurves curves={shown} frame={frame} note={backTo(frame.span, from.curves, `Curves are kept for the latest ${CURVES} DC charges, which`)} />;
+              })}
+          </HabitsFold>
         </div>
       )}
     </StatsFrame>

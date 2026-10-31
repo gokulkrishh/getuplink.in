@@ -1,11 +1,12 @@
 # Stats, Charging
 
-Charging for a period: Spend (with what you paid for), Energy added, When you charge, Charge range, DC charging speed, Where you charge, the Charging map, and Charging sessions. Each session opens `/stats/charging/<id>` with its bill details.
+Charging for a period, opening on Month: Spend, What you paid for (only when the bills have more than one kind of line, such as an idle fee or GST), Energy added, Charging sessions and the Charging map, then the closed fold "Your charging habits" holding Charge range, When you charge and DC charging speed. Each session opens `/stats/charging/<id>` with its bill details.
 
 ## Sub-features
 
-- Period switch, as on Driving.
-- Spend tiles (incl. time on AC and DC) and the "What you paid for" breakdown.
+- Period switch, as on Driving, but Month is the default (no `?period` in the URL); Week adds `?period=week`.
+- Spend tiles (incl. time on AC and DC) and the "What you paid for" breakdown (hidden when every bill is only "Charging").
+- "Your charging habits" fold: `getByRole("button", { name: /Your charging habits/ })`; closed, its sections are in the page but hidden, so open it before measuring or reading them.
 - Charge habits grid (buttons with an `aria-label` per cell, tap for a tip).
 - Session rows linking to session pages; session page shows Energy charge and Fees when itemised.
 
@@ -18,8 +19,8 @@ Home → Charging → "See all sessions", or Stats → "Charging". Direct: `/sta
 ```js
 await page.goto("/stats/charging", { waitUntil: "networkidle" });
 const sessions = page.locator("section", { has: page.getByRole("heading", { name: "Charging sessions" }) });
-await page.getByRole("button", { name: /^Month/ }).click();
-await page.waitForURL(/period=month/);
+await page.getByRole("button", { name: /^Year/ }).click();
+await page.waitForURL(/period=year/);
 await page.waitForLoadState("networkidle");
 const first = sessions.getByRole("link").first();
 await first.click();
