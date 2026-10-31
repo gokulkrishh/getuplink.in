@@ -63,17 +63,17 @@ function DrawerHandle({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-// The round close button of a sheet's header, as on iOS.
+// The round close button of a sheet's header, as on iOS: 32px everywhere (in px, so a phone's larger rem doesn't grow it), its tap area 44px on a phone.
 function DrawerCloseButton({ className }: { className?: string }) {
   return (
     <DrawerPrimitive.Close
       aria-label="Close"
       className={cn(
-        "inline-flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full sm:size-8 bg-foreground/[0.07] text-foreground transition-colors hover:bg-foreground/12 focus-visible:outline-2 focus-visible:outline-ring dark:bg-white/12 dark:hover:bg-white/18",
+        "tap-target inline-flex size-[32px] shrink-0 cursor-pointer items-center justify-center rounded-full bg-foreground/[0.07] text-foreground transition-colors hover:bg-foreground/12 focus-visible:outline-2 focus-visible:outline-ring dark:bg-white/12 dark:hover:bg-white/18",
         className,
       )}
     >
-      <X className="size-5 sm:size-4" aria-hidden="true" />
+      <X className="size-[16px]" aria-hidden="true" />
     </DrawerPrimitive.Close>
   )
 }
