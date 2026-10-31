@@ -9,7 +9,12 @@ import { median } from "@/lib/telemetry-derive";
 export type Point = { t: number; v: number };
 
 // A hard start or stop: the car's acceleration reached HARD_G either way. 0.3 g is a firm brake or a quick
-// launch, about 11 km/h gained or lost in one second. The one place the threshold lives.
+// launch, about 11 km/h gained or lost in one second. The one place the threshold lives. It is Tesla's own
+// line: its Safety Score counts hard braking as "backward acceleration, measured by your Tesla vehicle, in
+// excess of 0.3g" (tesla.com/support/safety-score, read 31 Oct 2026), so Uplink marks what Tesla would.
+// An owner asked on 31 Oct 2026 whether a stop they didn't feel as hard was regen: the readings showed the
+// brake pedal pressed at every mark, 0.30 g to 0.41 g, past what regen alone gives (about 0.2 g). Kept at
+// 0.3 g, with the Acceleration chart's ⓘ saying what a mark means.
 export const HARD_G = 0.3;
 export const HARD_MS2 = HARD_G * 9.81;
 // Readings come one a second, so one brake is one moment, not several: hard readings the same way within
