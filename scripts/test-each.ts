@@ -8,13 +8,26 @@
 // failed instead. Every one of them passed when its file ran alone. One process per file makes each file see
 // only its own stubs, whatever the order.
 //
-// Usage: bun run test (every file), or bun run test test/owners.test.ts (just those). For a single file,
-// plain `bun test <file>` is the same thing.
+// Usage: bun run test (every file), bun run test test/owners.test.ts (just those), bun run test -t "name"
+// (flags go to each file's run). For a single file, plain `bun test <file>` is the same thing.
 
 import { cpus } from "node:os";
 
-const args = process.argv.slice(2);
-const files = args.length ? args : [...new Bun.Glob("test/**/*.test.{ts,tsx}").scanSync(".")].sort();
+// Flags (--bail, -t name) go to every `bun test`; the rest are the files to run, else every test file.
+const argv = process.argv.slice(2);
+const flags: string[] = [];
+const paths: string[] = [];
+for (let i = 0; i < argv.length; i++) {
+  const arg = argv[i];
+  if (!arg.startsWith("-")) paths.push(arg);
+  else {
+    flags.push(arg);
+    // A flag's value ("-t name", "--timeout 9000") goes with it, unless written as --flag=value.
+    const next = argv[i + 1];
+    if (!arg.includes("=") && next !== undefined && !next.startsWith("-") && !/\.test\.tsx?$/.test(next)) flags.push(argv[++i]);
+  }
+}
+const files = paths.length ? paths : [...new Bun.Glob("test/**/*.test.{ts,tsx}").scanSync(".")].sort();
 if (files.length === 0) {
   console.error("No test files found.");
   process.exit(1);
@@ -27,7 +40,7 @@ async function run(file: string): Promise<Result> {
   // A path without ./ is a substring filter to bun test, so test/x.test.ts would also match test/x.test.tsx and
   // run both in one process. ./ makes it exactly this file.
   const exact = file.startsWith("./") || file.startsWith("/") ? file : `./${file}`;
-  const proc = Bun.spawn(["bun", "test", exact], { stdout: "pipe", stderr: "pipe", env: process.env });
+  const proc = Bun.spawn(["bun", "test", ...flags, exact], { stdout: "pipe", stderr: "pipe", env: process.env });
   const [stdout, stderr, code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
   const out = stdout + stderr;
   const count = (word: string) => Number(out.match(new RegExp(`^\\s*(\\d+) ${word}$`, "m"))?.[1] ?? 0);
