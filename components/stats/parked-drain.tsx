@@ -31,7 +31,6 @@ function cells(r: Row, place: ShownName | null): ParkedRow {
     placeGoogle: place?.google ?? false,
     period: `${r.atLeast ? "≥ " : ""}${formatDuration(r.hours * 3600)}`,
     lost,
-    lostWithRange: r.lostKm !== null ? `${lost} · ${range}` : lost,
     range,
     energy: r.kwh !== null ? formatKwh(r.kwh) : dash,
     power: r.watts !== null ? formatPower(r.watts) : dash,

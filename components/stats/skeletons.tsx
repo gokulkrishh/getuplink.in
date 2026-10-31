@@ -1,7 +1,6 @@
 import { Loading, Ph, SkBigLabel, SkBlock, SkChart, SkChartCaptioned, SkFigures, SkHead, SkHeadline, SkLine, SkSection, SkShowMore, SkTable, SkTripRows } from "@/components/skeleton";
 import { CHARGING_PREVIEW } from "@/components/stats/charging-sections";
 import { TABLE_FRAME, TABLE_HEAD, TABLE_HEAD_ROW } from "@/lib/table-frame";
-import { cn } from "@/lib/utils";
 
 // What each Stats topic shows while its data loads: its sections in order, each built from the section's own
 // layout classes (see components/skeleton.tsx), at the size of the page's default period (Week). Rows and
@@ -197,26 +196,45 @@ export function ChargingSkeleton() {
           <SkHead title="DC charging speed" description="Charging power by battery level, from 1 DC charge. It drops as the battery fills." />
           <SkBlock className={panel("h-[208px]", "max-sm:h-[247px]")} />
         </SkSection>
-        <SkTable head={["#", "Date", "Charger", "Peak", "Average"]} rows={1} className="max-sm:hidden" />
-        {/* The phone list DcCurves draws: the charger's name on its own line under the date and powers. */}
-        <div className="sm:hidden" aria-hidden="true">
-          <div className="grid grid-cols-[1.5rem_1fr_5rem_5rem] gap-x-3 border-b py-2 text-xs">
-            <Ph>#</Ph>
-            <Ph>Date</Ph>
-            <Ph className="justify-self-end">Peak</Ph>
-            <Ph className="justify-self-end">Average</Ph>
-          </div>
-          <div className="py-3 text-sm">
-            <p className="grid grid-cols-[1.5rem_1fr_5rem_5rem] items-baseline gap-x-3">
-              <Ph className="text-xs">00</Ph>
-              <Ph>28 Oct</Ph>
-              <Ph className="justify-self-end">00.0 kW</Ph>
-              <Ph className="justify-self-end">00.0 kW</Ph>
-            </p>
-            <p className="mt-1 pl-[calc(1.5rem+0.75rem)] text-xs">
-              <Ph>Supercharger, Placeholder</Ph>
-            </p>
-          </div>
+        {/* The table DcCurves draws: its fixed columns, the charger's name left-aligned (it wraps on a phone). */}
+        <div className={TABLE_FRAME} aria-hidden="true">
+          <table className="w-full min-w-[32rem] table-fixed text-sm">
+            <colgroup>
+              <col className="w-10" />
+              <col className="w-24" />
+              <col />
+              <col className="w-20" />
+              <col className="w-20" />
+            </colgroup>
+            <thead>
+              <tr className={`border-b text-left text-xs ${TABLE_HEAD_ROW}`}>
+                {["#", "Date", "Charger", "Peak", "Average"].map((h, k) => (
+                  <th key={h} className={`font-normal ${k > 2 ? "text-right" : ""} ${k < 4 ? "pr-3" : ""}`}>
+                    <Ph>{h}</Ph>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="py-3 pr-3 text-xs">
+                  <Ph>4</Ph>
+                </td>
+                <td className="py-3 pr-3 whitespace-nowrap">
+                  <Ph>25 Oct</Ph>
+                </td>
+                <td className="py-3 pr-3">
+                  <Ph>Supercharger</Ph>
+                </td>
+                <td className="py-3 pr-3 text-right">
+                  <Ph>134.7 kW</Ph>
+                </td>
+                <td className="py-3 text-right">
+                  <Ph>108.3 kW</Ph>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </SkSection>
       <SkSection>
@@ -239,42 +257,17 @@ function SkMap({ legend }: { legend: string }) {
   );
 }
 
-// The sessions, month by month: the columns' header, then rows of two lines (SessionRow's own grid classes).
+// The sessions, month by month: the columns' header, then rows of two lines (SessionRow's own grid classes),
+// as wide on a phone as the table there, which scrolls sideways.
 function SkSessions() {
   return (
     <div aria-hidden="true">
-    <div className="space-y-2 sm:hidden">
-      <p className="text-sm font-medium">
-        <Ph>October 2026</Ph>
-      </p>
-      <ul className="divide-y rounded-lg border">
-        {Array.from({ length: CHARGING_PREVIEW }, (_, k) => (
-          <li key={k} className="px-4 py-3 text-sm">
-            <p className="flex items-baseline justify-between gap-3">
-              <span className="font-medium">
-                <Ph>Home charger</Ph>
-              </span>
-              <span className="text-xs">
-                <Ph>27 Oct, 4:08 PM</Ph>
-              </span>
-            </p>
-            <p className="mt-1 text-xs">
-              <Ph>9.2 kWh · ₹120.00 · AC · 60% to 80% · 2 h</Ph>
-            </p>
-          </li>
-        ))}
-      </ul>
-      <p className="pt-1 text-right text-xs">
-        <Ph>9 charges, ₹417.84 billed</Ph>
-      </p>
-    </div>
-    <div className="overflow-hidden max-sm:hidden">
-      <div>
-        <div className="space-y-2">
-          <p className="text-sm font-medium">
-            <Ph>October 2026</Ph>
-          </p>
-          <div className="overflow-hidden rounded-lg border pb-2">
+      <div className="space-y-2">
+        <p className="text-sm font-medium">
+          <Ph>October 2026</Ph>
+        </p>
+        <div className="overflow-hidden rounded-lg border pb-2">
+          <div className="max-sm:min-w-xl">
             <div className={`grid grid-cols-charge-serial-cost gap-x-4 px-4 text-xs ${TABLE_HEAD}`}>
               {["#", "Date", "Charge", "Energy", "Cost", ""].map((h, k) => (
                 <span key={k} className={k > 2 ? "text-right" : undefined}>
@@ -320,13 +313,12 @@ function SkSessions() {
               ))}
             </ul>
           </div>
-          <p className="pt-1 text-right text-xs">
-            <Ph>9 charges, ₹417.84 billed</Ph>
-          </p>
         </div>
+        <p className="pt-1 text-right text-xs">
+          <Ph>9 charges, ₹417.84 billed</Ph>
+        </p>
       </div>
-    </div>
-    <SkShowMore />
+      <SkShowMore />
     </div>
   );
 }
@@ -398,45 +390,14 @@ export function BatterySkeleton() {
   );
 }
 
-// The stretches parked as ParkedRows draws them: a table of rows on a desktop, blocks of labelled figures on
-// a phone, three of each and the button for the rest.
+// The stretches parked as ParkedRows draws them: a table of three rows, as wide on a phone as the real one,
+// and the button for the rest.
 function SkParkedList() {
   const head = ["#", "Parked", "For", "Lost", "Range", "Energy", "Average power", "Seen awake"];
   return (
     <div aria-hidden="true">
-      <div className="sm:hidden">
-        <ul className="divide-y rounded-lg border">
-          {[0, 1, 2].map((k) => (
-            <li key={k} className="space-y-3 px-4 py-4 text-sm">
-              <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                <p>
-                  <Ph>#1 26 Oct, 8:06 PM</Ph>
-                  {k < 2 && (
-                    <span className="flex text-xs">
-                      <Ph>Orchard Lane Market</Ph>
-                    </span>
-                  )}
-                </p>
-                <Ph>12 h 12 min</Ph>
-              </div>
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
-                {["Lost", "Energy", "Average power", "Seen awake"].map((label) => (
-                  <div key={label}>
-                    <dt className="text-xs">
-                      <Ph>{label}</Ph>
-                    </dt>
-                    <dd>
-                      <Ph>0.2% · 1 km</Ph>
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div className={cn(TABLE_FRAME, "max-sm:hidden")}>
-        <table className="w-full table-fixed text-sm">
+      <div className={TABLE_FRAME}>
+        <table className="w-full min-w-[48rem] table-fixed text-sm">
           <colgroup>
             {["w-10", "w-32", "w-28", "", "", "", "", "w-24"].map((w, k) => (
               <col key={k} className={w} />
