@@ -7,7 +7,7 @@ import { formatKw, formatShortDate } from "@/lib/format";
 import type { Timeframe } from "@/lib/periods";
 import type { Curve } from "@/lib/server/charging-extra";
 import { Measure } from "@/components/measure";
-import { TABLE_FRAME } from "@/lib/table-frame";
+import { TABLE_FRAME, TABLE_HEAD_ROW, TABLE_HEAD } from "@/lib/table-frame";
 import { cn } from "@/lib/utils";
 
 const BAND = 5; // battery % per point of the typical curve
@@ -58,12 +58,12 @@ export function DcCurves({ curves, frame, note }: { curves: (Curve & { serial?: 
                 <col className="w-16 sm:w-20" />
               </colgroup>
               <thead>
-                <tr className="border-b text-left text-xs text-faint">
-                  <th scope="col" className="py-2 pr-3 font-normal">#</th>
-                  <th scope="col" className="py-2 pr-3 font-normal">Date</th>
-                  <th scope="col" className="py-2 pr-3 font-normal">Charger</th>
-                  <th scope="col" className="py-2 pr-3 text-right font-normal">Peak</th>
-                  <th scope="col" className="py-2 text-right font-normal">Average</th>
+                <tr className={`border-b text-left text-xs text-faint ${TABLE_HEAD_ROW}`}>
+                  <th scope="col" className="pr-3 font-normal">#</th>
+                  <th scope="col" className="pr-3 font-normal">Date</th>
+                  <th scope="col" className="pr-3 font-normal">Charger</th>
+                  <th scope="col" className="pr-3 text-right font-normal">Peak</th>
+                  <th scope="col" className="text-right font-normal">Average</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -81,8 +81,8 @@ export function DcCurves({ curves, frame, note }: { curves: (Curve & { serial?: 
           </div>
           {/* On a phone the columns don't fit: the charger's name gets its own line, so it never cuts, and the
               two powers get a column each. */}
-          <div className="rounded-lg border py-2 sm:hidden">
-            <div className="grid grid-cols-[1.5rem_1fr_5rem_5rem] gap-x-3 border-b px-4 pb-2 text-xs text-faint">
+          <div className="overflow-hidden rounded-lg border pb-2 sm:hidden">
+            <div className={`grid grid-cols-[1.5rem_1fr_5rem_5rem] gap-x-3 border-b px-4 text-xs text-faint ${TABLE_HEAD}`}>
               <span>#</span>
               <span>Date</span>
               <span className="text-right">Peak</span>

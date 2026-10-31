@@ -1,6 +1,6 @@
 import { Loading, Ph, SkBigLabel, SkBlock, SkChart, SkChartCaptioned, SkFigures, SkHead, SkHeadline, SkLine, SkSection, SkShowMore, SkTable, SkTripRows } from "@/components/skeleton";
 import { CHARGING_PREVIEW } from "@/components/stats/charging-sections";
-import { TABLE_FRAME } from "@/lib/table-frame";
+import { TABLE_FRAME, TABLE_HEAD, TABLE_HEAD_ROW } from "@/lib/table-frame";
 import { cn } from "@/lib/utils";
 
 // What each Stats topic shows while its data loads: its sections in order, each built from the section's own
@@ -274,8 +274,8 @@ function SkSessions() {
           <p className="text-sm font-medium">
             <Ph>October 2026</Ph>
           </p>
-          <div className="rounded-lg border py-2">
-            <div className="grid grid-cols-charge-serial-cost gap-x-4 px-4 pb-2 text-xs">
+          <div className="overflow-hidden rounded-lg border pb-2">
+            <div className={`grid grid-cols-charge-serial-cost gap-x-4 px-4 text-xs ${TABLE_HEAD}`}>
               {["#", "Date", "Charge", "Energy", "Cost", ""].map((h, k) => (
                 <span key={k} className={k > 2 ? "text-right" : undefined}>
                   <Ph>{h}</Ph>
@@ -443,9 +443,9 @@ function SkParkedList() {
             ))}
           </colgroup>
           <thead>
-            <tr className="border-b text-left text-xs">
+            <tr className={`border-b text-left text-xs ${TABLE_HEAD_ROW}`}>
               {head.map((h, k) => (
-                <th key={h} className={`py-2 font-normal ${k > 2 ? "text-right" : ""} ${k < head.length - 1 ? "pr-3" : ""}`}>
+                <th key={h} className={`font-normal ${k > 2 ? "text-right" : ""} ${k < head.length - 1 ? "pr-3" : ""}`}>
                   <Ph>{h}</Ph>
                 </th>
               ))}

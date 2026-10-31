@@ -7,6 +7,7 @@ import { TableBox } from "@/components/scroll-x";
 import { usePaged } from "@/components/show-more";
 import type { LoadMore, Paged } from "@/lib/list";
 import type { NameTarget } from "@/lib/user-places";
+import { TABLE_HEAD_ROW } from "@/lib/table-frame";
 
 // One place as the table shows it, every text worked out on the server (see placeRows in driving-extras.tsx).
 export type PlaceRow = {
@@ -32,20 +33,20 @@ export function PlaceRows({ list, load }: { list: Paged<PlaceRow>; load: LoadMor
       <TableBox>
         <table className="w-full min-w-md text-sm tabular-nums">
           <thead>
-            <tr className="border-b text-left text-xs text-faint">
-              <th scope="col" className="w-10 py-2 pr-3 font-normal">
+            <tr className={`border-b text-left text-xs text-faint ${TABLE_HEAD_ROW}`}>
+              <th scope="col" className="w-10 pr-3 font-normal">
                 #
               </th>
-              <th scope="col" className="py-2 pr-4 font-normal">
+              <th scope="col" className="pr-4 font-normal">
                 Place
               </th>
-              <th scope="col" className="py-2 pr-4 text-right font-normal">
+              <th scope="col" className="pr-4 text-right font-normal">
                 Visits
               </th>
-              <th scope="col" className="py-2 pr-4 text-right font-normal">
+              <th scope="col" className="pr-4 text-right font-normal">
                 Time parked
               </th>
-              <th scope="col" className="py-2 text-right font-normal">
+              <th scope="col" className="text-right font-normal">
                 Last visit
               </th>
             </tr>

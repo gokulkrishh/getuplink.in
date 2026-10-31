@@ -5,6 +5,7 @@ import { Measure } from "@/components/measure";
 import { TableBox } from "@/components/scroll-x";
 import { usePaged } from "@/components/show-more";
 import type { LoadMore, Paged } from "@/lib/list";
+import { TABLE_HEAD_ROW } from "@/lib/table-frame";
 
 // One stretch parked as the list shows it, every text worked out on the server (see cells in
 // parked-drain.tsx): the page sends these few strings per stretch, and the browser draws both layouts.
@@ -59,9 +60,9 @@ function ParkedTable({ rows }: { rows: ParkedRow[] }) {
         ))}
       </colgroup>
       <thead>
-        <tr className="border-b text-left text-xs text-faint">
+        <tr className={`border-b text-left text-xs text-faint ${TABLE_HEAD_ROW}`}>
           {COLUMNS.map((c, k) => (
-            <th key={c.label} scope="col" className={`py-2 font-normal ${c.right ? "text-right" : ""} ${k < COLUMNS.length - 1 ? "pr-3" : ""}`}>
+            <th key={c.label} scope="col" className={`font-normal ${c.right ? "text-right" : ""} ${k < COLUMNS.length - 1 ? "pr-3" : ""}`}>
               {c.label}
             </th>
           ))}
