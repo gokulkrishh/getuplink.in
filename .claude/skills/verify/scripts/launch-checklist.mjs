@@ -190,8 +190,7 @@ for (const phone of [false, true]) {
   await p.goto("/", { waitUntil: "networkidle" });
   const share = p.getByRole("region", { name: "Compare with other owners" });
   if (await share.count()) await steady(`${tag} / Share keeps its size`, p, share.getByRole("button", { name: "Share" }), share, () => tap(share.getByRole("button", { name: "Share" })));
-  // One prompt card at a time: the share card waits while the Tips box shows, as it does on the normal demo.
-  else console.log(`SKIP  ${tag} / Share card is not shown in this demo (it waits while Tips show)`);
+  else console.log(`SKIP  ${tag} / Share card is not shown in this demo`);
 
   await p.goto("/setup", { waitUntil: "networkidle" });
   const again = p.getByRole("button", { name: "Check again" });

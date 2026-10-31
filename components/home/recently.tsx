@@ -18,7 +18,12 @@ export function Recently({ items }: { items: RecentItem[] | "pending" }) {
   }
   return items.map((item) => (
     <p key={item.href} className="text-sm tabular-nums">
-      <Link href={item.href} prefetch={true} className="group inline-flex max-w-full items-baseline gap-1 rounded-sm text-muted-foreground transition-colors duration-150 hover:text-foreground">
+      <Link
+        href={item.href}
+        prefetch={true}
+        aria-label={[LABELS[item.kind], item.figure, item.when].filter(Boolean).join(", ")}
+        className="group inline-flex max-w-full items-baseline gap-1 rounded-sm text-muted-foreground transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
         <span className="min-w-0">
           {LABELS[item.kind]} <span className="text-foreground">{[item.figure, item.when].filter(Boolean).join(" · ")}</span>
         </span>
