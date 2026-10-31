@@ -26,6 +26,7 @@ import {
 import { copyViewLinkAction, endViewLinkAction, makeViewLinkAction, setViewLinkHideLocationsAction } from "./actions";
 import { cn } from "@/lib/utils";
 import { Row } from "./row";
+import { haptic } from "@/components/haptic";
 
 
 // Copy link on an open row: the link is rebuilt on the server (copyViewLinkAction) and put on the clipboard.
@@ -176,7 +177,7 @@ function ViewLinkItem({ link: initial, now }: { link: ViewLink; now: number }) {
           )}
           <AlertDialogFooter>
             <AlertDialogClose render={<Button type="button" variant="ghost" size="lg" disabled={pending} />}>Cancel</AlertDialogClose>
-            <Button type="button" variant="destructive" size="lg" className="relative" disabled={pending} aria-busy={pending} onClick={end}>
+            <Button ref={haptic} type="button" variant="destructive" size="lg" className="relative" disabled={pending} aria-busy={pending} onClick={end}>
               <PendingLabel pending={pending} label="End link" pendingLabel="Ending" />
             </Button>
           </AlertDialogFooter>

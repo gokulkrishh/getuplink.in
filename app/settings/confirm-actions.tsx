@@ -10,11 +10,12 @@ import { OFFLINE, orOffline } from "@/lib/offline";
 import { deleteEverything, deleteWholeAccount, disconnect, signOutEverywhereWithError } from "./actions";
 import { Row } from "./row";
 import { PendingLabel } from "@/components/pending-label";
+import { haptic } from "@/components/haptic";
 
 function Submit({ children, pendingLabel }: { children: string; pendingLabel: string }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant="destructive" disabled={pending} size="lg" className="relative">
+    <Button ref={haptic} type="submit" variant="destructive" disabled={pending} size="lg" className="relative">
       <PendingLabel pending={pending} label={children} pendingLabel={pendingLabel} />
     </Button>
   );
