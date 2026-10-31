@@ -1,14 +1,15 @@
 "use client";
 
-import { Dialog } from "@base-ui/react/dialog";
+import { Drawer } from "@base-ui/react/drawer";
 import { Pause, Play, RotateCcw, X } from "lucide-react";
 import { type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { BACKDROP, DrawerHandle, POPUP } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 
 // The shell both Home dialogs share: the welcome tour and the release dialog. A blurred Home behind, two
 // halves (a picture on the left, the words on the right), and a footer with the step dots, Skip, Back and Next.
-// On a phone it is a sheet from the bottom. Each dialog supplies its steps. Closing is never more than one tap.
+// On a phone it is a sheet from the bottom, which a swipe down closes (components/ui/drawer.tsx). Each dialog supplies its steps. Closing is never more than one tap.
 // It moves on by itself like a slider on apple.com (see Slider below) until the owner takes over.
 
 export type TourStep = {
@@ -125,8 +126,8 @@ function Slider({ steps, step, play, onPick, onPlay, onDone, className }: { step
 
 // A step's words. The title and description are the dialog's own only for the step showing (`real`).
 function Words({ step, real }: { step: TourStep; real: boolean }) {
-  const Title = real ? Dialog.Title : "h2";
-  const Description = real ? Dialog.Description : "p";
+  const Title = real ? Drawer.Title : "h2";
+  const Description = real ? Drawer.Description : "p";
   return (
     <>
       <Title className="max-w-[16ch] text-xl leading-tight font-semibold tracking-heading text-balance sm:max-w-[20ch] sm:text-[1.75rem]">{step.title}</Title>
@@ -203,7 +204,7 @@ function Popup({ steps }: { steps: TourStep[] }) {
     if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(e.clientY - from.y)) go(n + (dx < 0 ? 1 : -1));
   };
   return (
-    <Dialog.Popup
+    <Drawer.Popup
       ref={popup}
       initialFocus={popup}
       // Reaching Skip, Back or Next with the keyboard stops it: moving on to the last step would swap them
@@ -217,82 +218,90 @@ function Popup({ steps }: { steps: TourStep[] }) {
         else if (e.key === "ArrowLeft") go(n - 1);
         else wrapTab(e);
       }}
-      className="fixed inset-x-0 bottom-0 z-50 flex max-h-dvh flex-col overflow-hidden rounded-t-xl border bg-background pb-[env(safe-area-inset-bottom)] text-foreground shadow-2xl outline-none motion-safe:transition-opacity motion-safe:duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 sm:inset-auto sm:rounded-xl sm:top-1/2 sm:left-1/2 sm:grid sm:h-[min(690px,calc(100dvh-2rem))] sm:w-[min(980px,calc(100vw-2rem))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:grid-cols-2 sm:grid-rows-1 sm:pb-0"
+      className={cn(POPUP, "max-h-dvh overflow-hidden pb-[env(safe-area-inset-bottom)] text-base sm:h-[min(690px,calc(100dvh-2rem))] sm:w-[min(980px,calc(100vw-2rem))] sm:max-h-none sm:pb-0")}
     >
-      {/* A swipe surface: the browser keeps up-and-down scrolling, sideways is the tour's (touch-action: pan-y). */}
-      <div
-        onPointerDown={onSwipeStart}
-        onPointerUp={onSwipeEnd}
-        onPointerCancel={() => (swipe.current = null)}
-        className="relative h-[min(230px,30dvh)] shrink-0 touch-pan-y border-b [@media(max-height:640px)]:h-[26dvh] sm:h-auto sm:min-h-0 sm:border-r sm:border-b-0">
-        <div className="relative h-full min-h-0 overflow-hidden">{step.preview}</div>
-      </div>
-      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col p-5 max-sm:[@media(max-height:640px)]:py-4 sm:p-8">
-        {/* On a phone the dots sit at the right of this line, so the footer is one row and the sheet fits a small screen. */}
-        <div className="flex shrink-0 items-center gap-2.5 text-sm text-faint max-sm:-mt-2.5 max-sm:min-h-[40px] sm:pr-9">
-          {step.chip}
-          <span className="min-w-0 flex-1 truncate">{step.label}</span>
-          <Slider steps={steps} step={n} play={play} onPick={go} onPlay={onPlay} onDone={onDone} className="sm:hidden" />
-        </div>
-        {/* On a phone every step's words sit in one cell, the others unseen, so the cell is as tall as the longest. */}
-        <div className="grid min-h-0 flex-1 overflow-y-auto overscroll-y-contain pt-4 sm:flex sm:flex-col sm:justify-center sm:overflow-visible sm:pt-0">
+      {/* Content lays out nothing (display: contents); it lets a mouse select the words without swiping. */}
+      <Drawer.Content className="contents">
+        <div className="flex min-h-0 flex-1 flex-col sm:grid sm:grid-cols-2 sm:grid-rows-1">
+          {/* A swipe surface: the browser keeps up-and-down scrolling, sideways is the tour's (touch-action: pan-y). */}
           <div
-            key={step.key}
-            className={cn(
-              "col-start-1 row-start-1 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-300 motion-safe:ease-out",
-              dir === 1 ? "motion-safe:slide-in-from-right-3" : "motion-safe:slide-in-from-left-3",
-            )}
-          >
-            <Words step={step} real />
+            // Sideways drags here are the tour's; a drag down still closes the sheet.
+            data-base-ui-swipe-ignore="x"
+            onPointerDown={onSwipeStart}
+            onPointerUp={onSwipeEnd}
+            onPointerCancel={() => (swipe.current = null)}
+            className="relative h-[min(230px,30dvh)] shrink-0 touch-pan-y border-b [@media(max-height:640px)]:h-[26dvh] sm:h-auto sm:min-h-0 sm:border-r sm:border-b-0">
+            <div className="relative h-full min-h-0 overflow-hidden">{step.preview}</div>
+            <DrawerHandle className="absolute inset-x-0 top-0 z-10" />
           </div>
-          {steps.map((s, i) =>
-            i === n ? null : (
-              <div key={s.key} aria-hidden="true" className="invisible col-start-1 row-start-1 sm:hidden">
-                <Words step={s} real={false} />
+          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col p-5 max-sm:[@media(max-height:640px)]:py-4 sm:p-8">
+            {/* On a phone the dots sit at the right of this line, so the footer is one row and the sheet fits a small screen. */}
+            <div className="flex shrink-0 items-center gap-2.5 text-sm text-faint max-sm:-mt-2.5 max-sm:min-h-[40px] sm:pr-9">
+              {step.chip}
+              <span className="min-w-0 flex-1 truncate">{step.label}</span>
+              <Slider steps={steps} step={n} play={play} onPick={go} onPlay={onPlay} onDone={onDone} className="sm:hidden" />
+            </div>
+            {/* On a phone every step's words sit in one cell, the others unseen, so the cell is as tall as the longest. */}
+            <div className="grid min-h-0 flex-1 overflow-y-auto overscroll-y-contain pt-4 sm:flex sm:flex-col sm:justify-center sm:overflow-visible sm:pt-0">
+              <div
+                key={step.key}
+                className={cn(
+                  "col-start-1 row-start-1 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-300 motion-safe:ease-out",
+                  dir === 1 ? "motion-safe:slide-in-from-right-3" : "motion-safe:slide-in-from-left-3",
+                )}
+              >
+                <Words step={step} real />
               </div>
-            ),
-          )}
-        </div>
-        <div className="flex shrink-0 items-center justify-between gap-2 pt-4">
-          <Slider steps={steps} step={n} play={play} onPick={go} onPlay={onPlay} onDone={onDone} className="max-sm:hidden" />
-          <div className="flex flex-1 items-center justify-between gap-1.5 sm:flex-none sm:justify-end">
-            {/* On a phone Skip is quiet text at the left and the buttons are a size smaller, so all fit at 320px. */}
-            {!last ? (
-              <Dialog.Close render={<Button variant="ghost" className="max-sm:-ml-3 max-sm:h-9 max-sm:px-3 max-sm:text-muted-foreground" />} nativeButton>
-                Skip
-              </Dialog.Close>
-            ) : (
-              <span aria-hidden="true" />
-            )}
-            <div className="flex items-center gap-1.5">
-              {n > 0 && (
-                <Button variant="outline" className="max-sm:h-9 max-sm:px-3" onClick={() => go(n - 1)}>
-                  Back
-                </Button>
-              )}
-              {last ? (
-                <Dialog.Close render={<Button className="max-sm:h-9 max-sm:px-3" />} nativeButton>
-                  Got it
-                </Dialog.Close>
-              ) : (
-                <Button className="max-sm:h-9 max-sm:px-3" onClick={() => go(n + 1)}>
-                  Next
-                </Button>
+              {steps.map((s, i) =>
+                i === n ? null : (
+                  <div key={s.key} aria-hidden="true" className="invisible col-start-1 row-start-1 sm:hidden">
+                    <Words step={s} real={false} />
+                  </div>
+                ),
               )}
             </div>
+            <div className="flex shrink-0 items-center justify-between gap-2 pt-4">
+              <Slider steps={steps} step={n} play={play} onPick={go} onPlay={onPlay} onDone={onDone} className="max-sm:hidden" />
+              <div className="flex flex-1 items-center justify-between gap-1.5 sm:flex-none sm:justify-end">
+                {/* On a phone Skip is quiet text at the left and the buttons are a size smaller, so all fit at 320px. */}
+                {!last ? (
+                  <Drawer.Close render={<Button variant="ghost" className="max-sm:-ml-3 max-sm:h-9 max-sm:px-3 max-sm:text-muted-foreground" />} nativeButton>
+                    Skip
+                  </Drawer.Close>
+                ) : (
+                  <span aria-hidden="true" />
+                )}
+                <div className="flex items-center gap-1.5">
+                  {n > 0 && (
+                    <Button variant="outline" className="max-sm:h-9 max-sm:px-3" onClick={() => go(n - 1)}>
+                      Back
+                    </Button>
+                  )}
+                  {last ? (
+                    <Drawer.Close render={<Button className="max-sm:h-9 max-sm:px-3" />} nativeButton>
+                      Got it
+                    </Drawer.Close>
+                  ) : (
+                    <Button className="max-sm:h-9 max-sm:px-3" onClick={() => go(n + 1)}>
+                      Next
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
+          {/* A 44px tap area. On a phone it sits at the sheet's top right, over the picture, on its own disc. */}
         </div>
-      </div>
-      {/* A 44px tap area. On a phone it sits at the sheet's top right, over the picture, on its own disc. */}
-      <Dialog.Close
+      </Drawer.Content>
+      <Drawer.Close
         aria-label="Close"
         className="group absolute top-1 right-1 z-20 inline-flex size-11 cursor-pointer items-center justify-center rounded-full text-muted-foreground outline-none hover:text-foreground sm:top-2.5 sm:right-2.5"
       >
         <span className="inline-flex size-8 items-center justify-center rounded-full transition-colors sm:group-hover:bg-muted group-focus-visible:outline-2 group-focus-visible:outline-ring max-sm:bg-background/85 max-sm:text-foreground max-sm:shadow-sm max-sm:backdrop-blur-sm">
           <X className="size-4" aria-hidden="true" />
         </span>
-      </Dialog.Close>
-    </Dialog.Popup>
+      </Drawer.Close>
+    </Drawer.Popup>
   );
 }
 
@@ -321,7 +330,7 @@ export function TourDialog({ steps, open, onOpenChange }: { steps: TourStep[]; o
     };
   }, [controlled]);
   return (
-    <Dialog.Root
+    <Drawer.Root
       open={controlled ? open : own}
       // Tapping the backdrop does nothing: the cross, Skip, "Got it" and Esc close it.
       disablePointerDismissal
@@ -330,10 +339,12 @@ export function TourDialog({ steps, open, onOpenChange }: { steps: TourStep[]; o
         onOpenChange?.(next);
       }}
     >
-      <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/30 backdrop-blur-xs motion-safe:transition-opacity motion-safe:duration-200 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0" />
-        <Popup steps={steps} />
-      </Dialog.Portal>
-    </Dialog.Root>
+      <Drawer.Portal>
+        <Drawer.Backdrop className={BACKDROP} />
+        <Drawer.Viewport className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+          <Popup steps={steps} />
+        </Drawer.Viewport>
+      </Drawer.Portal>
+    </Drawer.Root>
   );
 }

@@ -1,10 +1,10 @@
 "use client";
 
-import { Dialog } from "@base-ui/react/dialog";
 import { Check, SmilePlus, X } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { sendFeedback } from "@/app/feedback/actions";
 import { Button } from "@/components/ui/button";
+import { Drawer, DrawerClose, DrawerContent, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { FEEDBACK_EVENT } from "@/components/feedback-open";
 import { BOTHER, type Bother, botherLabel, isProblem, MESSAGE_MAX, type Topic, TOPICS, topicLabel } from "@/lib/feedback";
 import { OFFLINE, orOffline } from "@/lib/offline";
@@ -105,7 +105,7 @@ export function FeedbackButton() {
     {/* Room under the page for the button (44px, 16px off the bottom), so the end of every page can be
         scrolled clear of it. Phones have no floating button (feedback is in the account menu), so only sm and up. Hoisted by React into the head; it matches only while the button is on the page. */}
     <style href="feedback-button-room" precedence="default">{"@media (min-width:40rem){body:has([data-feedback-button]){padding-bottom:3.75rem}}"}</style>
-    <Dialog.Root
+    <Drawer
       open={open}
       // A tap outside doesn't close it, so a half-written message isn't lost. The ×, Esc and Done do.
       disablePointerDismissal
@@ -115,86 +115,88 @@ export function FeedbackButton() {
         if (!next && sent) reset();
       }}
     >
-      <Dialog.Trigger
+      <DrawerTrigger
         data-feedback-button
         aria-label="Send feedback"
         className="fixed right-[max(1rem,env(safe-area-inset-right))] bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 inline-flex max-sm:hidden size-11 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
       >
         <SmilePlus className="size-5" aria-hidden="true" />
-      </Dialog.Trigger>
-      <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs" />
-        <Dialog.Popup className="fixed inset-x-0 bottom-0 z-50 max-h-[90dvh] overflow-y-auto overscroll-y-contain rounded-t-xl border bg-background p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-sm text-foreground outline-none sm:inset-x-auto sm:right-[max(1rem,env(safe-area-inset-right))] sm:bottom-[max(1rem,env(safe-area-inset-bottom))] sm:rounded-xl sm:w-96 sm:pb-5">
-          <div className="mb-5 flex items-center justify-between gap-4">
-            <Dialog.Title className="text-lg font-medium tracking-heading">{sent ? "Feedback sent" : "Send feedback"}</Dialog.Title>
-            <Dialog.Close render={<Button variant="ghost" size="icon-sm" aria-label="Close" className="-mt-1 -mr-2 text-muted-foreground" />} nativeButton>
-              <X className="size-4" aria-hidden="true" />
-            </Dialog.Close>
-          </div>
-          {sent ? (
-            // What was sent, read back, so the owner sees it landed and what it said.
-            <div className="space-y-5">
-              <div className="flex items-start gap-3">
-                <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-charge/15 text-charge">
-                  <Check className="size-5" aria-hidden="true" />
-                </span>
-                <div className="space-y-1">
-                  <p className="font-medium">Thanks for telling us.</p>
-                  <p className="text-muted-foreground">It goes straight to the person who builds Uplink, who reads every one.</p>
-                </div>
-              </div>
-              <figure className="space-y-2 rounded-lg border bg-muted/40 p-3">
-                <figcaption className="flex flex-wrap gap-1.5 text-xs">
-                  <span className="rounded-md border px-2 py-0.5">{topic && topicLabel(topic)}</span>
-                  {problem && bother && <span className="rounded-md border px-2 py-0.5">{botherLabel(bother)}</span>}
-                </figcaption>
-                <blockquote className="line-clamp-4 whitespace-pre-wrap">{message.trim()}</blockquote>
-                <p className="text-xs text-faint">From {path}</p>
-              </figure>
-              <div className="flex items-center gap-3">
-                <Dialog.Close render={<Button className="flex-1">Done</Button>} />
-                <Button variant="outline" className="flex-1" onClick={reset}>
-                  Send more
-                </Button>
+      </DrawerTrigger>
+      {/* From sm up it opens in the corner, by the button, rather than in the middle. */}
+      <DrawerContent
+        keyboard
+        className="sm:fixed sm:right-[max(1rem,env(safe-area-inset-right))] sm:bottom-[max(1rem,env(safe-area-inset-bottom))] sm:w-96"
+        bodyClassName="px-5 pt-2 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-5"
+      >
+        <div className="mb-5 flex items-center justify-between gap-4">
+          <DrawerTitle>{sent ? "Feedback sent" : "Send feedback"}</DrawerTitle>
+          <DrawerClose render={<Button variant="ghost" size="icon-sm" aria-label="Close" className="-mt-1 -mr-2 text-muted-foreground" />} nativeButton>
+            <X className="size-4" aria-hidden="true" />
+          </DrawerClose>
+        </div>
+        {sent ? (
+          // What was sent, read back, so the owner sees it landed and what it said.
+          <div className="space-y-5">
+            <div className="flex items-start gap-3">
+              <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-charge/15 text-charge">
+                <Check className="size-5" aria-hidden="true" />
+              </span>
+              <div className="space-y-1">
+                <p className="font-medium">Thanks for telling us.</p>
+                <p className="text-muted-foreground">It goes straight to the person who builds Uplink, who reads every one.</p>
               </div>
             </div>
-          ) : (
-            <form
-              className="space-y-5"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (ready) send();
-              }}
-            >
-              <Choices legend="What's it about?" options={TOPICS} value={topic} onChange={setTopic} />
-              {problem && <Choices legend="How much is it bothering you?" options={BOTHER} value={bother} onChange={setBother} />}
-              <div className="space-y-2">
-              <label className="block space-y-2">
-                <span className="block text-sm font-medium">{prompt.label}</span>
-                <textarea
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  maxLength={MESSAGE_MAX}
-                  rows={4}
-                  placeholder={prompt.hint}
-                  className="block w-full resize-y rounded-lg border bg-background px-3 py-2 text-sm text-foreground placeholder:text-faint focus-visible:outline-2 focus-visible:outline-ring"
-                />
-              </label>
-              <p className="text-xs text-muted-foreground">Sent with the page you&apos;re on ({path}), your screen size and browser, so it&apos;s easy to find.</p>
-              </div>
-              {error && (
-                <p role="alert" className="text-sm text-destructive">
-                  {error}
-                </p>
-              )}
-              <Button type="submit" disabled={!ready || pending} className="relative w-full">
-                <PendingLabel pending={pending} label="Send feedback" pendingLabel="Sending" />
+            <figure className="space-y-2 rounded-lg border bg-muted/40 p-3">
+              <figcaption className="flex flex-wrap gap-1.5 text-xs">
+                <span className="rounded-md border px-2 py-0.5">{topic && topicLabel(topic)}</span>
+                {problem && bother && <span className="rounded-md border px-2 py-0.5">{botherLabel(bother)}</span>}
+              </figcaption>
+              <blockquote className="line-clamp-4 whitespace-pre-wrap">{message.trim()}</blockquote>
+              <p className="text-xs text-faint">From {path}</p>
+            </figure>
+            <div className="flex items-center gap-3">
+              <DrawerClose render={<Button className="flex-1">Done</Button>} />
+              <Button variant="outline" className="flex-1" onClick={reset}>
+                Send more
               </Button>
-            </form>
-          )}
-        </Dialog.Popup>
-      </Dialog.Portal>
-    </Dialog.Root>
+            </div>
+          </div>
+        ) : (
+          <form
+            className="space-y-5"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (ready) send();
+            }}
+          >
+            <Choices legend="What's it about?" options={TOPICS} value={topic} onChange={setTopic} />
+            {problem && <Choices legend="How much is it bothering you?" options={BOTHER} value={bother} onChange={setBother} />}
+            <div className="space-y-2">
+            <label className="block space-y-2">
+              <span className="block text-sm font-medium">{prompt.label}</span>
+              <textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                maxLength={MESSAGE_MAX}
+                rows={4}
+                placeholder={prompt.hint}
+                className="block w-full resize-y rounded-lg border bg-background px-3 py-2 text-sm text-foreground placeholder:text-faint focus-visible:outline-2 focus-visible:outline-ring"
+              />
+            </label>
+            <p className="text-xs text-muted-foreground">Sent with the page you&apos;re on ({path}), your screen size and browser, so it&apos;s easy to find.</p>
+            </div>
+            {error && (
+              <p role="alert" className="text-sm text-destructive">
+                {error}
+              </p>
+            )}
+            <Button type="submit" disabled={!ready || pending} className="relative w-full">
+              <PendingLabel pending={pending} label="Send feedback" pendingLabel="Sending" />
+            </Button>
+          </form>
+        )}
+      </DrawerContent>
+    </Drawer>
     </>
   );
 }
