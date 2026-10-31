@@ -121,7 +121,7 @@ function CarHeader({ car, odometer, version, syncedAt, at }: { car: CarDetails; 
   const battery = car.battery;
   // "2025 Model Y Long Range", without repeating the model when the car is named after it.
   const model = [car.year, car.model !== car.name && car.model, car.pack].filter(Boolean).join(" ");
-  const subtitle = [model, car.generation, car.paint].filter(Boolean).join(" · ");
+  const subtitle = [model, car.paint].filter(Boolean).join(" · ");
   const stale = isStaleSync(syncedAt, at);
   return (
     <header className="space-y-5 rounded-lg border p-4 sm:p-6">
@@ -477,7 +477,7 @@ function CarSkeleton() {
               <Ph>Demo car</Ph>
             </p>
             <p className="text-sm">
-              <Ph>2026 Model Y Standard Range · 2025 refresh · Diamond Black</Ph>
+              <Ph>2026 Model Y Standard Range · Diamond Black</Ph>
             </p>
           </div>
           <dl className="flex flex-wrap gap-x-10 gap-y-3">

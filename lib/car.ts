@@ -75,12 +75,6 @@ export function interiorLabel(interior: string | null | undefined): string | nul
   return colorName(interior?.replace(/\d+$/, ""));
 }
 
-// "MYRefresh2025Row" marks the 2025 refresh of the Model Y.
-export function generationLabel(pkg: string | null | undefined): string | null {
-  const m = pkg?.match(/Refresh(\d{4})/);
-  return m ? `${m[1]} refresh` : null;
-}
-
 // trim_badging is the pack's badge: "50" is the Standard Range pack, "74"/"74d" the Long Range one.
 // Only the codes we're sure of; anything else hides the row.
 const TRIMS: Record<string, string> = { "50": "Standard Range", "74": "Long Range", "74d": "Long Range" };
