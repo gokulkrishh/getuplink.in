@@ -15,7 +15,8 @@ mock.module("next/headers", () => ({
   cookies: async () => ({ get: (name: string) => (name === "tiu_session" && cookie ? { value: cookie } : undefined) }),
   headers: async () => new Headers({ host: "app.example.test", "x-forwarded-proto": "https" }),
 }));
-mock.module("next/cache", () => ({ updateTag: () => {}, revalidatePath: () => {}, cacheLife: () => {}, cacheTag: () => {} }));
+const realCache = await import("next/cache");
+mock.module("next/cache", () => ({ ...realCache, updateTag: () => {}, revalidatePath: () => {}, cacheLife: () => {}, cacheTag: () => {} }));
 
 process.env.TESLA_CLIENT_ID = "client";
 process.env.TESLA_CLIENT_SECRET = "secret";

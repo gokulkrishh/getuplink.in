@@ -27,7 +27,7 @@ A full run is about ten subagents (five before, five after) plus fix agents, so 
 ## 4. Fix in one pass
 - Run fix agents in parallel, each owning a list of files. A shared brief requires loading `uplink-copy` before any string, fixing the same issue everywhere it appears, and listing hand-offs for files it doesn't own. Sonnet for copy and funnel, Opus for error handling and bugs.
 - Apply the hand-offs yourself. Review cross-cutting changes, such as a shared format helper or a time zone, against what the owner has decided before keeping them.
-- Run `bunx tsc --noEmit -p .`, `bun test` and `bun run build` in the worktree.
+- Run `bunx tsc --noEmit -p .`, `bun run test` and `bun run build` in the worktree.
 
 ## 5. After round
 - Launch a demo copy of the worktree on another port (`launch.sh` copies the checkout it runs from).
