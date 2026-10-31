@@ -7,7 +7,7 @@ import { placeSuggestions, removePlace, savePlace } from "@/app/places/actions";
 import { GoogleMapsCredit } from "@/components/google-maps-credit";
 import { Ph } from "@/components/skeleton";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerClose, DrawerContent, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTrigger } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { NO_AUTOFILL } from "@/lib/no-autofill";
 import { matches, NO_SUGGESTIONS, parseQuery, type Suggestion, type Suggestions } from "@/lib/place-suggestions";
@@ -261,13 +261,8 @@ export function NamePlace({ target, compact = false, className }: { target: Name
         initialFocus={input}
         className="h-[calc(100dvh-1.5rem)] sm:h-[min(44rem,calc(100dvh-4rem))] sm:w-md"
       >
-        <div className="space-y-4 px-[max(1rem,env(safe-area-inset-left),env(safe-area-inset-right))] pt-2 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-6">
-          <div className="flex items-center justify-between gap-4">
-            <DrawerTitle>{title}</DrawerTitle>
-            <DrawerClose render={<Button variant="ghost" size="icon-sm" aria-label="Close" className="-mt-1 -mr-2 text-muted-foreground" />} nativeButton>
-              <X className="size-4" aria-hidden="true" />
-            </DrawerClose>
-          </div>
+        <div className="space-y-4 px-[max(1rem,env(safe-area-inset-left),env(safe-area-inset-right))] pt-4 pb-6 sm:p-6">
+          <DrawerHeader>{title}</DrawerHeader>
 
           {current && (
             <p className="flex flex-wrap items-baseline gap-x-2">

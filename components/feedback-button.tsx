@@ -1,10 +1,10 @@
 "use client";
 
-import { Check, SmilePlus, X } from "lucide-react";
+import { Check, SmilePlus } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { sendFeedback } from "@/app/feedback/actions";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerClose, DrawerContent, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
+import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTrigger } from "@/components/ui/drawer";
 import { FEEDBACK_EVENT } from "@/components/feedback-open";
 import { BOTHER, type Bother, botherLabel, isProblem, MESSAGE_MAX, type Topic, TOPICS, topicLabel } from "@/lib/feedback";
 import { OFFLINE, orOffline } from "@/lib/offline";
@@ -27,8 +27,9 @@ function Choices<T extends string>({ legend, options, value, onChange }: { legen
           <label
             key={o.value}
             className={cn(
-              "cursor-pointer rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-muted has-focus-visible:outline-2 has-focus-visible:outline-ring",
-              value === o.value && "border-foreground bg-foreground text-background hover:bg-foreground",
+              // Filled pills, as on iOS: a soft fill, solid when picked.
+              "cursor-pointer rounded-full bg-foreground/[0.06] px-3.5 py-2 text-sm transition-colors hover:bg-foreground/10 has-focus-visible:outline-2 has-focus-visible:outline-ring dark:bg-white/10 dark:hover:bg-white/15",
+              value === o.value && "bg-foreground text-background hover:bg-foreground dark:bg-foreground dark:hover:bg-foreground",
             )}
           >
             <input type="radio" className="sr-only" checked={value === o.value} onChange={() => onChange(o.value)} />
@@ -126,14 +127,9 @@ export function FeedbackButton() {
       <DrawerContent
         keyboard
         className="sm:fixed sm:right-[max(1rem,env(safe-area-inset-right))] sm:bottom-[max(1rem,env(safe-area-inset-bottom))] sm:w-96"
-        bodyClassName="px-5 pt-2 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-5"
+        bodyClassName="px-5 pt-4 pb-5 sm:p-5"
       >
-        <div className="mb-5 flex items-center justify-between gap-4">
-          <DrawerTitle>{sent ? "Feedback sent" : "Send feedback"}</DrawerTitle>
-          <DrawerClose render={<Button variant="ghost" size="icon-sm" aria-label="Close" className="-mt-1 -mr-2 text-muted-foreground" />} nativeButton>
-            <X className="size-4" aria-hidden="true" />
-          </DrawerClose>
-        </div>
+        <DrawerHeader className="mb-5">{sent ? "Feedback sent" : "Send feedback"}</DrawerHeader>
         {sent ? (
           // What was sent, read back, so the owner sees it landed and what it said.
           <div className="space-y-5">
@@ -155,8 +151,8 @@ export function FeedbackButton() {
               <p className="text-xs text-faint">From {path}</p>
             </figure>
             <div className="flex items-center gap-3">
-              <DrawerClose render={<Button className="flex-1">Done</Button>} />
-              <Button variant="outline" className="flex-1" onClick={reset}>
+              <DrawerClose render={<Button className="flex-1 max-sm:h-12">Done</Button>} />
+              <Button variant="outline" className="flex-1 max-sm:h-12" onClick={reset}>
                 Send more
               </Button>
             </div>
@@ -180,7 +176,7 @@ export function FeedbackButton() {
                 maxLength={MESSAGE_MAX}
                 rows={4}
                 placeholder={prompt.hint}
-                className="block w-full resize-y rounded-lg border bg-background px-3 py-2 text-sm text-foreground placeholder:text-faint focus-visible:outline-2 focus-visible:outline-ring"
+                className="block w-full resize-y rounded-2xl bg-foreground/[0.04] px-3.5 py-2.5 text-sm text-foreground placeholder:text-faint focus-visible:outline-2 focus-visible:outline-ring dark:bg-white/[0.07]"
               />
             </label>
             <p className="text-xs text-muted-foreground">Sent with the page you&apos;re on ({path}), your screen size and browser, so it&apos;s easy to find.</p>
@@ -190,7 +186,7 @@ export function FeedbackButton() {
                 {error}
               </p>
             )}
-            <Button type="submit" disabled={!ready || pending} className="relative w-full">
+            <Button type="submit" disabled={!ready || pending} className="relative w-full max-sm:h-12">
               <PendingLabel pending={pending} label="Send feedback" pendingLabel="Sending" />
             </Button>
           </form>
