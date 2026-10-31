@@ -1,0 +1,3 @@
+[test]
+# Stubs every test process needs before the file's own imports run (see test/preload.ts).
+preload = ["./test/preload.ts"]
