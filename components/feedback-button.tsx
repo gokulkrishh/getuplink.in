@@ -4,7 +4,7 @@ import { Check, SmilePlus } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { sendFeedback } from "@/app/feedback/actions";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTrigger } from "@/components/ui/drawer";
+import { Drawer, DrawerClose, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { FEEDBACK_EVENT } from "@/components/feedback-open";
 import { BOTHER, type Bother, botherLabel, isProblem, MESSAGE_MAX, type Topic, TOPICS, topicLabel } from "@/lib/feedback";
 import { OFFLINE, orOffline } from "@/lib/offline";
@@ -125,11 +125,11 @@ export function FeedbackButton() {
       </DrawerTrigger>
       {/* From sm up it opens in the corner, by the button, rather than in the middle. */}
       <DrawerContent
+        title={sent ? "Feedback sent" : "Send feedback"}
         keyboard
         className="sm:fixed sm:right-[max(1rem,env(safe-area-inset-right))] sm:bottom-[max(1rem,env(safe-area-inset-bottom))] sm:w-96"
-        bodyClassName="px-5 pt-4 pb-5 sm:p-5"
+        bodyClassName="px-5 pt-3 pb-5"
       >
-        <DrawerHeader className="mb-5">{sent ? "Feedback sent" : "Send feedback"}</DrawerHeader>
         {sent ? (
           // What was sent, read back, so the owner sees it landed and what it said.
           <div className="space-y-5">

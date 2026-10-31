@@ -22,7 +22,7 @@ function AlertDialogContent({ className, ...props }: React.ComponentProps<typeof
       data-slot="alert-dialog-content"
       role="alertdialog"
       className={cn("sm:w-105", className)}
-      bodyClassName="grid gap-3 px-6 pt-6 pb-5 sm:p-6"
+      bodyClassName="grid gap-3 px-6 pt-3 pb-5 sm:p-6"
       {...props}
     />
   )
