@@ -8,7 +8,7 @@ import type { LoadMore, Paged } from "@/lib/list";
 import { TABLE_HEAD_ROW } from "@/lib/table-frame";
 
 // One stretch parked as the list shows it, every text worked out on the server (see cells in
-// parked-drain.tsx): the page sends these few strings per stretch, and the browser draws both layouts.
+// parked-drain.tsx): the page sends these few strings per stretch, and the browser draws the table.
 export type ParkedRow = {
   start: number;
   serial: number;
@@ -20,8 +20,6 @@ export type ParkedRow = {
   placeGoogle?: boolean;
   period: string;
   lost: string;
-  // Lost as a phone shows it: the share with the range when that is known.
-  lostWithRange: string;
   range: string;
   energy: string;
   power: string;
@@ -53,7 +51,7 @@ const Where = ({ row }: { row: ParkedRow }) =>
 
 function ParkedTable({ rows }: { rows: ParkedRow[] }) {
   return (
-    <table className="w-full table-fixed text-sm tabular-nums">
+    <table className="w-full min-w-[48rem] table-fixed text-sm tabular-nums">
       <colgroup>
         {COLUMNS.map((c) => (
           <col key={c.label} className={c.width} />
@@ -90,53 +88,13 @@ function ParkedTable({ rows }: { rows: ParkedRow[] }) {
   );
 }
 
-// Phones: one block per stretch, its figures labelled in two columns.
-function ParkedBlocks({ rows }: { rows: ParkedRow[] }) {
-  return (
-    <ul className="divide-y rounded-lg border">
-      {rows.map((r) => {
-        const figures = [
-          ["Lost", r.lostWithRange],
-          ["Energy", r.energy],
-          ["Average power", r.power],
-          ["Seen awake", r.awake],
-        ];
-        return (
-          <li key={r.start} className="space-y-3 px-4 py-4 text-sm">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-              <p className="tabular-nums">
-                <span className="mr-2 font-mono text-xs text-faint">#{r.serial}</span>
-                {r.when}
-                <Where row={r} />
-                <Now row={r} />
-              </p>
-              <span className="text-muted-foreground tabular-nums">{r.period}</span>
-            </div>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
-              {figures.map(([label, value]) => (
-                <div key={label}>
-                  <dt className="text-xs text-faint">{label}</dt>
-                  <dd className="tabular-nums">{value}</dd>
-                </div>
-              ))}
-            </dl>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-// The stretches as blocks on a phone and a table wider, from one set of rows. The first come with the page;
-// "Show N more" fetches the rest with `load` and adds them to the same list.
+// The stretches as a table, scrolling sideways on a phone. The first rows come with the page; "Show N more"
+// fetches the rest with `load` and adds them to the same table.
 export function ParkedRows({ list, load }: { list: Paged<ParkedRow>; load: LoadMore<ParkedRow> }) {
   const { rows, button } = usePaged(list, load);
   return (
     <div>
-      <div className="sm:hidden">
-        <ParkedBlocks rows={rows} />
-      </div>
-      <TableBox className="hidden sm:block">
+      <TableBox>
         <ParkedTable rows={rows} />
       </TableBox>
       {button}

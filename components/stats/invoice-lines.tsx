@@ -45,19 +45,19 @@ export function InvoiceSection({ invoice, href, received }: { invoice: SessionIn
       </div>
       {rows.length > 0 && (
         <TableBox>
-          <table className="w-full text-sm tabular-nums">
+          <table className="w-full min-w-md text-sm tabular-nums">
             <thead>
               <tr className={`border-b text-left text-xs text-faint ${TABLE_HEAD_ROW}`}>
                 <th scope="col" className="pr-4 font-normal">
                   Item
                 </th>
                 {hasKwh && (
-                  <th scope="col" className="pr-4 text-right font-normal max-sm:hidden">
+                  <th scope="col" className="pr-4 text-right font-normal">
                     Energy
                   </th>
                 )}
                 {hasRate && (
-                  <th scope="col" className="pr-4 text-right font-normal max-sm:hidden">
+                  <th scope="col" className="pr-4 text-right font-normal">
                     Rate
                   </th>
                 )}
@@ -71,11 +71,9 @@ export function InvoiceSection({ invoice, href, received }: { invoice: SessionIn
                 <tr key={k}>
                   <th scope="row" className="py-3 pr-4 text-left font-normal">
                     {row.label}
-                    {/* On a phone the kWh and rate sit under the item, where their columns would crowd it. */}
-                    {(row.kwh || row.rate) && <span className="mt-0.5 block text-xs text-muted-foreground sm:hidden">{[row.kwh, row.rate].filter(Boolean).join(" at ")}</span>}
                   </th>
-                  {hasKwh && <td className="py-3 pr-4 text-right font-mono text-muted-foreground max-sm:hidden">{row.kwh}</td>}
-                  {hasRate && <td className="py-3 pr-4 text-right font-mono text-muted-foreground max-sm:hidden">{row.rate}</td>}
+                  {hasKwh && <td className="py-3 pr-4 text-right font-mono text-muted-foreground whitespace-nowrap">{row.kwh}</td>}
+                  {hasRate && <td className="py-3 pr-4 text-right font-mono text-muted-foreground whitespace-nowrap">{row.rate}</td>}
                   <td className="py-3 text-right font-mono">{formatMoney(row.amount, "INR")}</td>
                 </tr>
               ))}
@@ -85,8 +83,8 @@ export function InvoiceSection({ invoice, href, received }: { invoice: SessionIn
                 <th scope="row" className="pt-4 pr-4 text-left">
                   Total
                 </th>
-                {hasKwh && <td className="max-sm:hidden" />}
-                {hasRate && <td className="max-sm:hidden" />}
+                {hasKwh && <td />}
+                {hasRate && <td />}
                 <td className="pt-4 text-right font-mono text-lg">{formatMoney(invoice.amountTotal, "INR")}</td>
               </tr>
             </tfoot>

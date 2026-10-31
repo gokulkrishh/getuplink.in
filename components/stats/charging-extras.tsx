@@ -7,7 +7,8 @@ import { formatKw, formatShortDate } from "@/lib/format";
 import type { Timeframe } from "@/lib/periods";
 import type { Curve } from "@/lib/server/charging-extra";
 import { Measure } from "@/components/measure";
-import { TABLE_FRAME, TABLE_HEAD_ROW, TABLE_HEAD } from "@/lib/table-frame";
+import { TableBox } from "@/components/scroll-x";
+import { TABLE_HEAD_ROW } from "@/lib/table-frame";
 import { cn } from "@/lib/utils";
 
 const BAND = 5; // battery % per point of the typical curve
@@ -48,14 +49,14 @@ export function DcCurves({ curves, frame, note }: { curves: (Curve & { serial?: 
       </ChartCard>
       {curves.length > 0 && (
         <>
-          <div className={cn(TABLE_FRAME, "max-sm:hidden")}>
-            <table className="w-full table-fixed text-sm tabular-nums">
+          <TableBox>
+            <table className="w-full min-w-[32rem] table-fixed text-sm tabular-nums">
               <colgroup>
-                <col className="w-8 sm:w-10" />
-                <col className="w-20 sm:w-24" />
+                <col className="w-10" />
+                <col className="w-24" />
                 <col />
-                <col className="w-16 sm:w-20" />
-                <col className="w-16 sm:w-20" />
+                <col className="w-20" />
+                <col className="w-20" />
               </colgroup>
               <thead>
                 <tr className={`border-b text-left text-xs text-faint ${TABLE_HEAD_ROW}`}>
@@ -71,37 +72,14 @@ export function DcCurves({ curves, frame, note }: { curves: (Curve & { serial?: 
                   <tr key={c.id}>
                     <td className="py-3 pr-3 font-mono text-xs text-faint">{c.serial ?? ""}</td>
                     <td className="py-3 pr-3 whitespace-nowrap">{formatShortDate(c.date)}</td>
-                    <td className="truncate py-3 pr-3">{c.name}</td>
+                    <td className="py-3 pr-3 sm:truncate">{c.name}</td>
                     <td className="py-3 pr-3 text-right font-mono">{c.peakKw !== null && <Measure text={formatKw(c.peakKw)} />}</td>
                     <td className="py-3 text-right font-mono">{c.avgKw !== null && <Measure text={formatKw(c.avgKw)} />}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-          {/* On a phone the columns don't fit: the charger's name gets its own line, so it never cuts, and the
-              two powers get a column each. */}
-          <div className="overflow-hidden rounded-lg border pb-2 sm:hidden">
-            <div className={`grid grid-cols-[1.5rem_1fr_5rem_5rem] gap-x-3 border-b px-4 text-xs text-faint ${TABLE_HEAD}`}>
-              <span>#</span>
-              <span>Date</span>
-              <span className="text-right">Peak</span>
-              <span className="text-right">Average</span>
-            </div>
-            <ul className="divide-y text-sm tabular-nums">
-              {curves.map((c) => (
-                <li key={c.id} className="px-4 py-3">
-                  <p className="grid grid-cols-[1.5rem_1fr_5rem_5rem] items-baseline gap-x-3">
-                    <span className="font-mono text-xs text-faint">{c.serial ?? ""}</span>
-                    <span className="whitespace-nowrap">{formatShortDate(c.date)}</span>
-                    <span className="text-right font-mono whitespace-nowrap">{c.peakKw !== null && <Measure text={formatKw(c.peakKw)} />}</span>
-                    <span className="text-right font-mono whitespace-nowrap">{c.avgKw !== null && <Measure text={formatKw(c.avgKw)} />}</span>
-                  </p>
-                  <p className="mt-1 pl-[calc(1.5rem+0.75rem)] text-xs text-muted-foreground">{c.name}</p>
-                </li>
-              ))}
-            </ul>
-          </div>
+          </TableBox>
         </>
       )}
       {note && <p className="text-sm text-faint">{note}</p>}

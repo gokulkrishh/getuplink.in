@@ -175,30 +175,13 @@ export function SkShowMore() {
   );
 }
 
-// The trips list as TripRows draws it: a table of two-line rows wider than a phone, a list of two-line rows
-// on a phone.
+// The trips list as TripRows draws it: a table of two-line rows, as wide on a phone as the real one.
 export function SkTripRows({ rows = 3 }: { rows?: number }) {
   const head = ["#", "When", "Trip", "Distance · time", "Energy · battery"];
   return (
     <>
-      <ul className="divide-y rounded-lg border sm:hidden" aria-hidden="true">
-        {Array.from({ length: rows }, (_, r) => (
-          <li key={r} className="flex items-center gap-3 px-4 py-3 text-sm">
-            <div className="min-w-0 flex-1">
-              <p className="flex items-baseline justify-between gap-3 font-medium">
-                <Ph>8:18 AM to 8:52 AM</Ph>
-                <Ph className="font-mono font-normal">14.8 km</Ph>
-              </p>
-              <p className="mt-1 text-xs">
-                <Ph>Today · 34 min · 1.8 kWh · 3% of battery</Ph>
-              </p>
-            </div>
-            <span className="size-3.5 shrink-0" />
-          </li>
-        ))}
-      </ul>
-      <div className={cn(TABLE_FRAME, "max-sm:hidden")} aria-hidden="true">
-        <table className="w-full table-fixed text-sm">
+      <div className={TABLE_FRAME} aria-hidden="true">
+        <table className="w-full min-w-[44rem] table-fixed text-sm">
           <colgroup>
             <col className="w-10" />
             <col className="w-44" />
