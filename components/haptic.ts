@@ -1,6 +1,9 @@
 "use client";
 
 // A light tap of the phone's haptics when a control is tapped. Pass as a ref: <button ref={haptic}>.
+// Always light: iOS's selection tick (the only one this trick gives) and 10 ms on Android. Used where a tap
+// picks or confirms something (a period, a name, a confirmation, Send feedback, the tour's buttons), never
+// on links (the label would stop them opening) or on every button (it would become noise).
 //
 // iPhone: Safari has no vibration API, but since Safari 17.4 a native switch (<input type="checkbox" switch>)
 // taps the haptics when it toggles. So the control gets a transparent label over it, tied to a hidden switch:
