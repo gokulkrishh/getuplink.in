@@ -1,8 +1,10 @@
 import { AutoRefresh } from "@/components/auto-refresh";
 import { BatteryGauge } from "@/components/battery-gauge";
 import { AWAKE_MS, CarStatus } from "@/components/car-status";
+import { Recently } from "@/components/home/recently";
 import { UpdateBanner } from "@/components/updates/update-banner";
 import type { ParkedNow } from "@/lib/drives";
+import type { RecentItem } from "@/lib/recently";
 import type { HomeCar } from "@/lib/server/home";
 import { currentVersion } from "@/lib/versions";
 
@@ -10,7 +12,23 @@ import { currentVersion } from "@/lib/versions";
 // car is doing under it, then its software (version, odometer, any update) in a card that opens /updates.
 // `odometerKm` and `parkedNow` are known for the primary car only; "pending" while parkedNow still loads.
 // `holdRow`: the parked line was pending, so its row stays once loaded (see BatteryGauge).
-export function NowStrip({ car, odometerKm, parkedNow, now, holdRow = false }: { car: HomeCar; odometerKm: number | null; parkedNow: ParkedNow | null | "pending"; now: number; holdRow?: boolean }) {
+// `recent`: the primary car's last drive and charge of the day, one line each under its facts (lib/recently.ts);
+// "pending" while the week's read still loads.
+export function NowStrip({
+  car,
+  odometerKm,
+  parkedNow,
+  now,
+  holdRow = false,
+  recent = [],
+}: {
+  car: HomeCar;
+  odometerKm: number | null;
+  parkedNow: ParkedNow | null | "pending";
+  now: number;
+  holdRow?: boolean;
+  recent?: RecentItem[] | "pending";
+}) {
   const { vehicle, latest, lastOnline, streamAt } = car;
   // A car that streamed in the last few minutes is awake: keep the page fresh so new data shows up on its own.
   const awake = streamAt !== null && now - Date.parse(streamAt) < AWAKE_MS;
@@ -41,6 +59,7 @@ export function NowStrip({ car, odometerKm, parkedNow, now, holdRow = false }: {
             now={now}
           />
         </p>
+        <Recently items={recent} />
         {!version && <p className="text-sm text-muted-foreground">Asleep at every check so far. Open the Tesla app to wake the car. This page updates by itself.</p>}
       </div>
       {battery && <BatteryGauge snapshot={battery} parked={parkedNow} now={now} align="end" sentry={car.sentry} holdRow={holdRow} />}

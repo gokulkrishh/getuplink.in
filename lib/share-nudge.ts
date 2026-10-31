@@ -60,6 +60,12 @@ export function showNudge(f: NudgeFacts, now: number): boolean {
   return f.dismissedAt === null || f.showFrom > f.dismissedAt;
 }
 
+// Home shows one prompt card at a time under the week's tiles: on a day the Tips box shows, a due share card
+// waits (it stays due, and shows on a day without tips). Only this is added on top of the rules above.
+export function shareCardShows(due: boolean, tipsShowing: boolean): boolean {
+  return due && !tipsShowing;
+}
+
 // Jev's probability to a window, or null for a no or no answer (fail closed).
 export function verdictWindow(p: number | null, now: number): { from: number; until: number } | null {
   return p !== null && p >= SHOW_FROM_P ? { from: now, until: now + SHOW_FOR_MS } : null;

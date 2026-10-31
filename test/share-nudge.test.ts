@@ -10,6 +10,7 @@ import {
   nudgeFigures,
   SHOW_FOR_MS,
   SHOW_FROM_P,
+  shareCardShows,
   showNudge,
   verdictWindow,
 } from "@/lib/share-nudge";
@@ -119,5 +120,17 @@ describe("the figures Jev sees", () => {
     expect(f.usualKmPerWeek).toBeNull();
     expect(f.usualWhPerKm).toBeNull();
     expect(f.kmThisWeek).toBe(30);
+  });
+});
+
+describe("one prompt card at a time", () => {
+  test("a due share card waits while the Tips box shows, and shows on a day without tips", () => {
+    expect(shareCardShows(true, true)).toBe(false);
+    expect(shareCardShows(true, false)).toBe(true);
+  });
+
+  test("tips never bring out a card that isn't due", () => {
+    expect(shareCardShows(false, false)).toBe(false);
+    expect(shareCardShows(false, true)).toBe(false);
   });
 });
