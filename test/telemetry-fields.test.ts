@@ -7,6 +7,9 @@ describe("telemetryFields", () => {
     const fields = telemetryFields();
     expect(fields.BatteryLevel.interval_seconds).toBe(60);
     expect(fields.RatedRange.interval_seconds).toBe(60);
+    // Only on a whole point's change, so drives and parked hours add few readings.
+    expect(fields.BatteryLevel.minimum_delta).toBe(1);
+    expect(fields.RatedRange.minimum_delta).toBe(1);
     // The charge's energy counters already come every minute.
     expect(fields.DCChargingEnergyIn.interval_seconds).toBe(60);
     expect(fields.ACChargingEnergyIn.interval_seconds).toBe(60);

@@ -13,6 +13,12 @@ function parkedAt(start: number, now: number): string {
   return day === "Today" ? formatClock(start) : `${day === "Yesterday" ? "yesterday" : day}, ${formatClock(start)}`;
 }
 
+// "5.9 kWh added": the energy the running charge has put in, for Home's gauge and the Car page's Charge tile.
+// Null under 0.05 kWh, which would read "0 kWh added": the charge's first minute, with nothing to say yet.
+export function energyAdded(kwh: number | null): string | null {
+  return kwh != null && kwh >= 0.05 ? `${formatKwh(kwh)} added` : null;
+}
+
 // What the car is doing, under the meter. Charging: the power and the limit, then how long is left and the
 // energy added so far ("Charging at 7.2 kW to 80% · Full in 1 h 18 min · 3.2 kWh added"); the gauge sets
 // the first part on one line and the rest on a second. Otherwise what was
@@ -27,10 +33,9 @@ export function batteryState(snapshot: Snapshot, parked: Parked | null, now: num
     const target = limit ?? 100;
     const power = snapshot.charge_power_kw != null && snapshot.charge_power_kw > 0 ? snapshot.charge_power_kw : null;
     const toFull = snapshot.time_to_full_h != null && snapshot.time_to_full_h > 0 ? snapshot.time_to_full_h : null;
-    // Under 0.05 kWh it would read "0 kWh added": the charge's first minute, with nothing to say yet.
-    const added = snapshot.charge_energy_kwh != null && snapshot.charge_energy_kwh >= 0.05 ? snapshot.charge_energy_kwh : null;
+    const added = energyAdded(snapshot.charge_energy_kwh);
     const line = power !== null ? `Charging at ${formatKw(power)}${level < target ? ` to ${target}%` : ""}` : `Charging to ${target}%`;
-    return [line, toFull !== null ? formatTimeToFull(toFull) : null, added !== null ? `${formatKwh(added)} added` : null].filter(Boolean).join(" · ");
+    return [line, toFull !== null ? formatTimeToFull(toFull) : null, added].filter(Boolean).join(" · ");
   }
   return parked && `Parked since ${parked.fromFirstReading ? "before " : ""}${parkedAt(parked.start, now)}`;
 }

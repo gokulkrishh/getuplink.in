@@ -100,13 +100,17 @@ export function applyStream(snapshot: Snapshot | null, stream: Stream): Snapshot
       .filter((p): p is { field: string; at: number; kw: number } => typeof p.kw === "number")
       .sort((a, b) => b.at - a.at)[0];
     if (power) next.charge_power_kw = power.kw;
-    // The car counts the energy in for each charge from 0, AC and DC apart, about once a minute. The counter
-    // on the charger in use; before the first power reading, whichever counted last in this charge.
+    // The car counts the energy in for each charge from 0, AC and DC apart, about once a minute. Only readings
+    // since the stream's own move into Charging count: a counter newer than the last online check can still be
+    // last night's (a streaming car is rarely checked), and would show as energy added now. The counter on the
+    // charger this charge's power came from; before that, whichever counted last in this charge.
+    const ours = thisCharge(stream);
     const counters = ["ACChargingEnergyIn", "DCChargingEnergyIn"]
-      .map((f) => ({ field: f, at: stream[f] ? Date.parse(stream[f].at) : 0, kwh: current(f) }))
+      .map((f) => ({ field: f, at: stream[f] ? Date.parse(stream[f].at) : 0, kwh: ours(f) }))
       .filter((c): c is { field: string; at: number; kwh: number } => typeof c.kwh === "number")
       .sort((a, b) => b.at - a.at);
-    const energy = power ? counters.find((c) => c.field === power.field.replace("Power", "EnergyIn")) : counters[0];
+    const charger = power && typeof ours(power.field) === "number" ? power.field.replace("Power", "EnergyIn") : null;
+    const energy = charger ? counters.find((c) => c.field === charger) : counters[0];
     if (energy) next.charge_energy_kwh = energy.kwh;
     // Hours, as in Tesla's vehicle_data time_to_full_charge. It is the car's own estimate, and on a
     // third-party DC charger it ran at about half the real time: 0.25 h (15 min) at 21:26 on 25 Oct 2026 for a
@@ -122,6 +126,17 @@ export function applyStream(snapshot: Snapshot | null, stream: Stream): Snapshot
 
 // A minute of slack: the first power reading can land just before the state says Charging (26 s on 25 Oct).
 const CHARGE_LEAD_MS = 60_000;
+
+// Reads a field's value only when it came since the stream's own move into Charging (a minute's slack), with no
+// fallback to the online check: for counters, which keep the last charge's total until the next one starts.
+function thisCharge(stream: Stream) {
+  const state = stream.DetailedChargeState;
+  const since = state && chargeStateName(state.value) === "Charging" ? Date.parse(state.at) - CHARGE_LEAD_MS : null;
+  return (field: string) => {
+    const reading = stream[field];
+    return since !== null && reading && Date.parse(reading.at) >= since ? reading.value : undefined;
+  };
+}
 
 // Reads a field's value when it belongs to the charge now running. Power is sent only when it changes (three
 // times in a 30-minute DC charge), so a reading from before a poll that came mid-charge is still current:

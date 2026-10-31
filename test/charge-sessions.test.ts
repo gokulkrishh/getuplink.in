@@ -265,6 +265,29 @@ describe("applyStream while charging", () => {
     expect(next?.charge_energy_kwh).toBeNull();
   });
 
+  // The car is rarely checked online while it streams, so last night's readings are newer than the check:
+  // only readings since this charge began may count.
+  const lastNight = (clock: string, value: unknown) => ({ at: `2026-10-24T${clock}+05:30`, value });
+  const checkedYesterday = () => ({ ...snapshot("00:00:00"), polled_at: "2026-10-24T20:00:00+05:30" });
+
+  test("last night's AC counter is not this DC charge's energy, before the DC counter has come", () => {
+    const next = applyStream(checkedYesterday(), {
+      ACChargingEnergyIn: lastNight("23:00:00", 12.4),
+      DetailedChargeState: v("14:03:45", STATE("Charging")),
+    });
+    expect(next?.charge_energy_kwh).toBeNull();
+  });
+
+  test("last night's 0 kW AC reading doesn't pick the AC counter over this charge's DC one", () => {
+    const next = applyStream(checkedYesterday(), {
+      ACChargingPower: lastNight("23:00:00", 0),
+      ACChargingEnergyIn: lastNight("23:00:00", 12.4),
+      DetailedChargeState: v("14:03:45", STATE("Charging")),
+      DCChargingEnergyIn: v("14:06:10", 2.1),
+    });
+    expect(next?.charge_energy_kwh).toBeCloseTo(2.1, 2);
+  });
+
   test("power from before this charge is not shown", () => {
     const next = applyStream(snapshot("21:40:00"), {
       DetailedChargeState: v("21:25:56", STATE("Charging")),
