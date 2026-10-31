@@ -71,14 +71,16 @@ export function SpeedBands({ bins, note }: { bins: DrivingExtras["speed"] } & Co
 // costs more. The bars sit closed under it; opening them shows "Lower is better" and the download button.
 // With too few drives to compare, the card says what it needs instead. Speed comes first: it is the one
 // the owner can change.
-export function EfficiencyBands({ byTemp, bySpeed, byAc = [], frame, note }: { byTemp: Band[]; bySpeed: Band[]; byAc?: Band[]; frame: Pick<Timeframe, "period" | "words"> } & Covers) {
+// `covered`: the days the bars cover when that is only the period's newest (the note names them too), so the
+// sentence leads with those days rather than the whole period.
+export function EfficiencyBands({ byTemp, bySpeed, byAc = [], frame, note, covered }: { byTemp: Band[]; bySpeed: Band[]; byAc?: Band[]; frame: Pick<Timeframe, "period" | "words">; covered?: string } & Covers) {
   if (byTemp.length === 0 && bySpeed.length === 0 && byAc.length === 0) return null;
   const views: EfficiencyView[] = [
     { key: "speed", label: "Speed", bands: bySpeed },
     { key: "ac", label: "AC setting", bands: byAc },
     { key: "outside", label: "Outside", bands: byTemp },
   ];
-  const summary = efficiencySummary(views, frame);
+  const summary = efficiencySummary(views, frame, covered);
   // The sentence stands in the description's place, as on a drive's page; a range or unit never breaks
   // from its number at a wrap.
   const keep = (text: string) => text.replace(/ (Wh\/km|°C|km\/h)/g, "\u00a0$1");

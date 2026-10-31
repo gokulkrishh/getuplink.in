@@ -72,6 +72,20 @@ const band = (label: string, whPerKm: number, drives = 4): Band => ({ label, dri
 const week = { period: "week" as const, words: "in the last 7 days" };
 
 describe("efficiencySummary", () => {
+  test("two groups each under the gap but far apart together give the range, with no 'whatever'", () => {
+    const views: EfficiencyView[] = [
+      { key: "speed", label: "Speed", bands: [band("40 to 60 km/h", 100), band("60 to 80 km/h", 109)] },
+      { key: "outside", label: "Outside", bands: [band("25 to 30 °C", 108), band("30 to 35 °C", 117)] },
+    ];
+    expect(efficiencySummary(views, week)).toBe("In the last 7 days, your car used 100 to 117 Wh/km.");
+  });
+
+  test("bars covering only the period's newest days lead with those days, not the period", () => {
+    const close: EfficiencyView[] = [{ key: "ac", label: "AC setting", bands: [band("AC off", 117), band("21 to 23 °C", 120)] }];
+    expect(efficiencySummary(close, { period: "year", words: "this year" }, "3 Aug to 31 Oct")).toBe("From 3 Aug to 31 Oct, your car used 117 to 120 Wh/km, whatever the AC setting.");
+    expect(efficiencySummary(close, { period: "all", words: "in total" }, "21 Oct")).toBe("On 21 Oct, your car used 117 to 120 Wh/km, whatever the AC setting.");
+  });
+
   // The demo car's week, as the card showed it: every bar within 116 to 120 Wh/km.
   const close: EfficiencyView[] = [
     { key: "speed", label: "Speed", bands: [] },

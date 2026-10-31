@@ -91,7 +91,11 @@ export const EFFICIENCY_CLEAR_GAP = 0.1;
 
 export const whPerKmOf = (b: Band) => (b.kmPerKwh ? 1000 / b.kmPerKwh : null);
 // Wh/km as the bars show it: the sentence compares and names these, so its figures always match a bar.
-const shownWh = (b: Band) => Number(formatNumber(whPerKmOf(b)!, DECIMALS.whPerKm).replace(/,/g, ""));
+// Rounded as formatNumber writes it, so a compared figure is always one a bar shows.
+const shownWh = (b: Band) => {
+  const scale = 10 ** DECIMALS.whPerKm;
+  return Math.round(whPerKmOf(b)! * scale) / scale;
+};
 
 // The groups the card draws: only bands from enough drives with a figure, and only groups with two of those
 // to compare.
@@ -123,8 +127,10 @@ function bandWords(key: EfficiencyKey, label: string, again: boolean): string {
 }
 
 // The period at the head of the sentence: "In the last 7 days", "This month", "So far" for All (whose words,
-// "in total", would read as a sum), "From 1 Sept to 30 Sept" for a picked range.
-function periodLead(frame: Pick<Timeframe, "period" | "words">): string {
+// "in total", would read as a sum), "From 1 Sept to 30 Sept" for a picked range. When the bars cover only the
+// period's newest days (`covered`, the days the caption names), it says those: "From 3 Aug to 31 Oct".
+function periodLead(frame: Pick<Timeframe, "period" | "words">, covered?: string): string {
+  if (covered) return covered.includes(" to ") ? `From ${covered}` : `On ${covered}`;
   const words = frame.period === "all" ? "so far" : frame.words;
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
@@ -136,10 +142,10 @@ function periodLead(frame: Pick<Timeframe, "period" | "words">): string {
 // 116 to 120 Wh/km, whatever the AC setting or outside temperature." It states what the bars hold and never
 // a cause: the groups split the same drives, so a slow trip in town is also its AC setting and its weather.
 // Null when no group has two bands to compare: nothing is guessed.
-export function efficiencySummary(views: EfficiencyView[], frame: Pick<Timeframe, "period" | "words">): string | null {
+export function efficiencySummary(views: EfficiencyView[], frame: Pick<Timeframe, "period" | "words">, covered?: string): string | null {
   const shown = shownEfficiency(views);
   if (shown.length === 0) return null;
-  const lead = periodLead(frame);
+  const lead = periodLead(frame, covered);
   const gaps = shown.map((view) => {
     const ranked = [...view.bands].sort((a, b) => shownWh(a) - shownWh(b));
     const low = ranked[0];
@@ -156,6 +162,9 @@ export function efficiencySummary(views: EfficiencyView[], frame: Pick<Timeframe
   const least = Math.min(...all);
   const most = Math.max(...all);
   const range = least === most ? `${wh(least)} Wh/km` : `${wh(least)} to ${wh(most)} Wh/km`;
+  // "Whatever the …" only when every bar is close, across groups too: two groups each under the gap can still
+  // span more than it together (100 to 109 and 108 to 117), and then the range is all the bars can say.
+  if ((most - least) / least >= EFFICIENCY_CLEAR_GAP - 1e-9) return `${lead}, your car used ${range}.`;
   return `${lead}, your car used ${range}, whatever the ${efficiencyGroups(shown, "or")}.`;
 }
 
