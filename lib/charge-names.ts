@@ -76,6 +76,14 @@ export function shownName(spot: Pick<SpotName, "name" | "google"> | null | undef
   return spot?.name ? { text: spot.name.text, google: false } : null;
 }
 
+// A trip page's route line ("Home to Eswaran Maligai Store"): each end as a row shows it, a picked Google
+// place by its Google name. Only when both ends are known, as the trips list does. It sits above the page,
+// apart from the map, whose From and To keep the safe name.
+export function tripRoute(from: Pick<SpotName, "name" | "google"> | null, to: Pick<SpotName, "name" | "google"> | null): [ShownName, ShownName] | null {
+  const ends = [shownName(from), shownName(to)];
+  return ends[0] && ends[1] ? [ends[0], ends[1]] : null;
+}
+
 // Whether to offer "Name this place": nothing names the spot, or only its area does.
 export const needsName = (name: ChargeName | null): boolean => !name || name.source === "place";
 

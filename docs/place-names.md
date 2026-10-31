@@ -21,7 +21,7 @@ The car's own Home, Work and Favourite flags aren't names. They sit beside the n
 - `name`: never Google's. A typed tag, or, for a Google tag, whatever comes next in the order above (usually the area). Map pins, their labels and tooltips, the trip map's facts card, charts, the MCP export and the curves' labels read only this, through `mapName`.
 - `google`: a picked Google place's name, fetched live (`withGoogleNames`), or null. Only rows, lists, titles and the sheet read it (`shownName`), each with "Google Maps" beside it.
 
-Where `google` shows: the Places table on Driving, the charging list on Charging, the parked stretches on Battery, the day page's charges and a charge's own title. Where it never shows: any MapLibre/CARTO map, its pins and tooltips, the facts card under a trip's map (it is part of the map), chart labels, the MCP export, and the home page's charging list (the home page refreshes every minute while the car is awake or charging, which would make a Place Details call each time). Those show the next name, usually the area.
+Where `google` shows: the Places table on Driving, the charging list on Charging, the parked stretches on Battery, the day page's charges, a charge's own title, and a trip's route line under its title ("Home to Eswaran Maligai Store", one line, a long name cut but never its credit, only when both ends are known, never for a guest). Where it never shows: any MapLibre/CARTO map, its pins and tooltips, the facts card under a trip's map (it is part of the map), chart labels, the MCP export, and the home page's charging list (the home page refreshes every minute while the car is awake or charging, which would make a Place Details call each time). Those show the next name, usually the area.
 
 ### The sheet's trigger
 

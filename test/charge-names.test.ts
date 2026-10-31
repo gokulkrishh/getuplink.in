@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { chargeName, chargeSpot, chargeType, googleMapsUrl, invoiceName, mapName, nameAction, needsName, shownName, spotName, withCarFlag } from "@/lib/charge-names";
+import { chargeName, chargeSpot, chargeType, googleMapsUrl, invoiceName, mapName, nameAction, needsName, shownName, spotName, tripRoute, withCarFlag } from "@/lib/charge-names";
 import type { UserPlace } from "@/lib/user-places";
 
 describe("chargeName", () => {
@@ -143,4 +143,26 @@ describe("chargeSpot", () => {
 
 test("googleMapsUrl", () => {
   expect(googleMapsUrl({ lat: 10.1234, lng: 76.5432 })).toBe("https://www.google.com/maps/search/?api=1&query=10.123400,76.543200");
+});
+
+// A trip page's route line, above the page and apart from the map: each end's shown name, a Google pick's
+// own name included, only when both ends are known.
+describe("tripRoute", () => {
+  const spot = (text: string | null, google: string | null = null) => ({ name: text ? { text, source: "place" as const } : null, google });
+  test("a Google-tagged end shows its Google name, credited, and the other end its own", () => {
+    expect(tripRoute(spot("Home"), spot("Anthiyur", "Eswaran Maligai Store"))).toEqual([
+      { text: "Home", google: false },
+      { text: "Eswaran Maligai Store", google: true },
+    ]);
+  });
+  test("without a Google name, both ends show their safe names", () => {
+    expect(tripRoute(spot("Home"), spot("Anthiyur"))).toEqual([
+      { text: "Home", google: false },
+      { text: "Anthiyur", google: false },
+    ]);
+  });
+  test("no route while either end is unknown", () => {
+    expect(tripRoute(spot("Home"), spot(null))).toBeNull();
+    expect(tripRoute(null, spot("Anthiyur"))).toBeNull();
+  });
 });
