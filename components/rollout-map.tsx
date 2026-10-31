@@ -69,6 +69,8 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
         </DropdownMenu>
         </div>
       )}
+      {/* The map and its key: the part a download saves (ChartDownload), without the picker or the list. */}
+      <div data-chart-plot="" className="space-y-4">
       <div ref={frame} className="relative mx-auto w-full max-w-md" onPointerLeave={() => setHover(null)}>
       <svg
         viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
@@ -133,6 +135,7 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
           </li>
         )}
       </ul>
+      </div>
       {groups.length > 0 && (
         <ul className="divide-y rounded-lg border text-sm">
           <li className="flex gap-4 px-4 py-2 text-xs text-faint">

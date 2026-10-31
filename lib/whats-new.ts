@@ -36,6 +36,16 @@ export type Entry = {
 
 export const WHATS_NEW: Entry[] = [
   {
+    id: "2026-10-31-chart-download",
+    date: "2026-10-31",
+    title: "Save a chart as an image",
+    text: "Every chart has a download button at its top right. It saves the chart as a picture you can keep or post.",
+    version: "0.2",
+    kind: "New feature",
+    audience: "draft",
+    show: "bell",
+  },
+  {
     id: "2026-10-30-guest-access",
     date: "2026-10-30",
     title: "Guest access",

@@ -22,8 +22,11 @@ const NEW = ist("2026-11-05"); // a newer owner
 const base = { entries: [] as Entry[], now: NOW, admin: false, approvedAt: OLD as number | null, welcomedAt: 1 as number | null, seenId: null as string | null, shareDue: false, schemaReady: true };
 
 describe("WHATS_NEW", () => {
-  test("Guest access is announced to every owner, the admin included", () => {
-    expect(WHATS_NEW.map((e) => [e.id, e.audience])).toEqual([["2026-10-30-guest-access", "owners"]]);
+  test("Guest access is announced to every owner, the admin included; chart download is still a draft", () => {
+    expect(WHATS_NEW.map((e) => [e.id, e.audience])).toEqual([
+      ["2026-10-31-chart-download", "draft"],
+      ["2026-10-30-guest-access", "owners"],
+    ]);
     expect(visibleEntries(WHATS_NEW, false).map((e) => e.id)).toEqual(["2026-10-30-guest-access"]);
     expect(visibleEntries(WHATS_NEW, true).map((e) => e.id)).toEqual(["2026-10-30-guest-access"]);
   });

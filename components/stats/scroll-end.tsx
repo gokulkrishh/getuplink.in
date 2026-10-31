@@ -25,6 +25,7 @@ export function ScrollEnd({ children, label, from = "end" }: { children: ReactNo
   return (
     <div
       ref={ref}
+      data-scroll-end=""
       className={cn("relative", scrolls && "scroll-thin overflow-x-auto overscroll-x-contain pb-3")}
       role={scrolls ? "region" : undefined}
       aria-label={scrolls ? label : undefined}

@@ -8,6 +8,7 @@ import { CarTabs } from "@/components/car-tabs";
 import { Header } from "@/components/header";
 import { InfoButton } from "@/components/info-button";
 import { ChartCard } from "@/components/chart-card";
+import { ChartDownload } from "@/components/chart-download";
 import { RolloutAdoption } from "@/components/rollout-adoption";
 import { RolloutMap } from "@/components/rollout-map";
 import { SkBlock, SkHead, SkSection } from "@/components/skeleton";
@@ -88,10 +89,13 @@ async function Rollout() {
       )}
 
       {states.length > 0 && (
-        <section className="space-y-3">
-          <div className="space-y-1">
-            <h2 className={heading}>Where it runs</h2>
-            <p className="text-sm text-muted-foreground">States each version runs in. Darker is more cars.</p>
+        <section data-chart-card="" className="space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <h2 className={heading}>Where it runs</h2>
+              <p className="text-sm text-muted-foreground">States each version runs in. Darker is more cars.</p>
+            </div>
+            <ChartDownload title="Where it runs" className="mt-0.5" />
           </div>
           <RolloutMap versions={states} />
         </section>
