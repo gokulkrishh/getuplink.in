@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { Globe } from "lucide-react";
 import { Suspense } from "react";
+import { BackLink } from "@/components/back-link";
 import { EmptyState } from "@/components/empty-state";
 import { CarTabs } from "@/components/car-tabs";
 import { Header } from "@/components/header";
 import { InfoButton } from "@/components/info-button";
 import { ChartCard } from "@/components/chart-card";
+import { ChartDownload } from "@/components/chart-download";
 import { RolloutAdoption } from "@/components/rollout-adoption";
 import { RolloutMap } from "@/components/rollout-map";
 import { SkBlock, SkHead, SkSection } from "@/components/skeleton";
@@ -87,10 +89,13 @@ async function Rollout() {
       )}
 
       {states.length > 0 && (
-        <section className="space-y-3">
-          <div className="space-y-1">
-            <h2 className={heading}>Where it runs</h2>
-            <p className="text-sm text-muted-foreground">States each version runs in. Darker is more cars.</p>
+        <section data-chart-card="" className="space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <h2 className={heading}>Where it runs</h2>
+              <p className="text-sm text-muted-foreground">States each version runs in. Darker is more cars.</p>
+            </div>
+            <ChartDownload title="Where it runs" className="mt-0.5" />
           </div>
           <RolloutMap versions={states} />
         </section>
@@ -155,6 +160,7 @@ export default function Page() {
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
       <Header current="car" />
       <CarTabs value="updates" />
+      <BackLink href="/updates" label="Back to Updates" />
       <h2 className="mb-8 text-lg font-medium tracking-heading">India rollout</h2>
       <Suspense fallback={<RolloutSkeleton />}>
         <Rollout />

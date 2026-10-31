@@ -69,6 +69,15 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
         </DropdownMenu>
         </div>
       )}
+      {/* The map and its key: the part a download saves (ChartDownload), without the picker or the list. */}
+      <div data-chart-plot="" className="relative space-y-4">
+      {/* Only in a saved image, where the picker above isn't: which version the map shows, on a line ChartDownload
+          adds above the map. */}
+      {current && (
+        <p data-capture-only="" className="absolute top-0 left-0 hidden text-sm text-muted-foreground">
+          Version <span className="font-mono text-foreground tabular-nums">{current.version}</span>
+        </p>
+      )}
       <div ref={frame} className="relative mx-auto w-full max-w-md" onPointerLeave={() => setHover(null)}>
       <svg
         viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
@@ -133,6 +142,7 @@ export function RolloutMap({ versions: given }: { versions: VersionStates[] }) {
           </li>
         )}
       </ul>
+      </div>
       {groups.length > 0 && (
         <ul className="divide-y rounded-lg border text-sm">
           <li className="flex gap-4 px-4 py-2 text-xs text-faint">

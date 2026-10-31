@@ -1,8 +1,19 @@
 import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
+import { ChartDownload } from "@/components/chart-download";
 import { InfoButton } from "@/components/info-button";
 import { Captioned, EmptyChart } from "@/components/stats/bars";
 import { cn } from "@/lib/utils";
+
+// The chart itself, the part a download saves. It keeps the spacing its parts had in the card (the
+// section's, or the caption's figure's).
+function plot(children: ReactNode, caption: ReactNode) {
+  return (
+    <div data-chart-plot="" className={caption ? "space-y-2" : "space-y-4"}>
+      {children}
+    </div>
+  );
+}
 
 // Every chart in the app, wrapped the same way (see docs/charts.md): a sentence-case title with an ⓘ beside
 // it, one short line on what the chart shows, optional tiles or a headline value, the chart itself, and at
@@ -11,6 +22,8 @@ import { cn } from "@/lib/utils";
 // The unit itself is drawn once, by the chart, above its y axis (as ChartFrame and DriveTrace do). With
 // `empty`, one sentence sits in the chart's place and the caption is left out; on a page where a chart has
 // no data, don't render the card at all.
+// A download button at the top right saves the chart itself as an image (ChartDownload), without the
+// title, figures or caption round it. A card showing `empty` has none, nor one with `download={false}`.
 // Server-safe: no hooks, so it wraps server sections and client plots alike (InfoButton is its own client
 // component).
 export function ChartCard({
@@ -22,6 +35,7 @@ export function ChartCard({
   empty,
   as: Heading = "h2",
   fold = false,
+  download = true,
   className,
   children,
 }: {
@@ -46,12 +60,14 @@ export function ChartCard({
   // draws the lines between rows, so the last has none under it and the first none above. The ⓘ's
   // note then sits in the opened part, since a button in the row would toggle it.
   fold?: boolean;
+  // False for a sample chart on the public home page, which has nothing of the owner's to save.
+  download?: boolean;
   className?: string;
   children?: ReactNode;
 }) {
   if (fold) {
     return (
-      <details className={cn("group/fold", className)}>
+      <details data-chart-card="" className={cn("group/fold", className)}>
         <summary className="flex cursor-pointer list-none items-start justify-between gap-4 py-4 [&::-webkit-details-marker]:hidden">
           <span className="min-w-0 space-y-1">
             {title && <Heading className="text-base font-medium tracking-heading">{title}</Heading>}
@@ -60,28 +76,36 @@ export function ChartCard({
           <ChevronDown className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-open/fold:rotate-180" aria-hidden="true" />
         </summary>
         <div className="space-y-4 pb-6">
-          {info && <p className="text-sm text-faint">{info}</p>}
+          {info || (download && !empty) ? (
+            <div className="flex items-start justify-between gap-3">
+              {info ? <p className="text-sm text-faint">{info}</p> : <span />}
+              {download && !empty && <ChartDownload title={title} />}
+            </div>
+          ) : null}
           {summary}
-          {empty ? <EmptyChart>{empty}</EmptyChart> : <Captioned caption={caption}>{children}</Captioned>}
+          {empty ? <EmptyChart>{empty}</EmptyChart> : <Captioned caption={caption}>{plot(children, caption)}</Captioned>}
         </div>
       </details>
     );
   }
   return (
-    <section className={cn("space-y-4", className)}>
-      <div className="space-y-1">
-        {title && (
-          <div className="flex items-center gap-1.5">
-            <Heading className={cn("font-medium tracking-heading", Heading === "h2" ? "text-lg" : "text-base")}>{title}</Heading>
-            <InfoButton label={title}>
-              {info}
-            </InfoButton>
-          </div>
-        )}
-        {description && <p className="text-sm text-muted-foreground">{description}</p>}
+    <section data-chart-card="" className={cn("space-y-4", className)}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          {title && (
+            <div className="flex items-center gap-1.5">
+              <Heading className={cn("font-medium tracking-heading", Heading === "h2" ? "text-lg" : "text-base")}>{title}</Heading>
+              <InfoButton label={title}>
+                {info}
+              </InfoButton>
+            </div>
+          )}
+          {description && <p className="text-sm text-muted-foreground">{description}</p>}
+        </div>
+        {download && !empty && <ChartDownload title={title} className={Heading === "h2" ? "mt-0.5" : undefined} />}
       </div>
       {summary}
-      {empty ? <EmptyChart>{empty}</EmptyChart> : <Captioned caption={caption}>{children}</Captioned>}
+      {empty ? <EmptyChart>{empty}</EmptyChart> : <Captioned caption={caption}>{plot(children, caption)}</Captioned>}
     </section>
   );
 }

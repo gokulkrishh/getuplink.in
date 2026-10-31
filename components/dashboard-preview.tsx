@@ -61,7 +61,7 @@ export function DashboardPreview() {
         </div>
         {/* The dashboard's own history chart, so hovering shows each version and date. */}
         <div className="mt-8">
-          <ChartCard as="h3" title="Software version" description="Each step up is a new version arriving.">
+          <ChartCard as="h3" download={false} title="Software version" description="Each step up is a new version arriving.">
             <VersionChart changes={PREVIEW_HISTORY} until="2026-10-21T04:00:00Z" />
           </ChartCard>
         </div>

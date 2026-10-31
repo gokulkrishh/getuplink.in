@@ -25,6 +25,7 @@ describe("WHATS_NEW", () => {
   test("Guest access is announced to every owner, the admin included; drafts to nobody", () => {
     expect(WHATS_NEW.map((e) => [e.id, e.audience])).toEqual([
       ["2026-10-31-swipe-to-close", "draft"],
+      ["2026-10-31-chart-download", "draft"],
       ["2026-10-30-guest-access", "owners"],
     ]);
     expect(visibleEntries(WHATS_NEW, false).map((e) => e.id)).toEqual(["2026-10-30-guest-access"]);
