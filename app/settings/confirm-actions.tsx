@@ -63,7 +63,7 @@ function ConfirmBody({
   // Controlled, so a failed action (a dropped connection) resets the form without clearing the typed word.
   const [typed, setTyped] = useState("");
   return (
-    <AlertDialogContent initialFocus={initialFocus}>
+    <AlertDialogContent initialFocus={initialFocus} keyboard={Boolean(word)}>
       <form action={action} className="grid gap-3">
         <AlertDialogTitle>{title}</AlertDialogTitle>
         <AlertDialogDescription>{children}</AlertDialogDescription>

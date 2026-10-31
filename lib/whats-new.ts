@@ -36,6 +36,16 @@ export type Entry = {
 
 export const WHATS_NEW: Entry[] = [
   {
+    id: "2026-10-31-swipe-to-close",
+    date: "2026-10-31",
+    title: "Swipe down to close",
+    text: "On a phone, you can now swipe down to close the tour, feedback and questions in Settings. Naming a place opens from the bottom of the screen too.",
+    version: "0.2",
+    kind: "Improvement",
+    audience: "draft",
+    show: "bell",
+  },
+  {
     id: "2026-10-30-guest-access",
     date: "2026-10-30",
     title: "Guest access",
