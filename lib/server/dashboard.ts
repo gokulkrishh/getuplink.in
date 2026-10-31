@@ -49,6 +49,8 @@ export type Snapshot = {
   charge_limit: number | null;
   // Live charging power in kW, from Fleet Telemetry only (null from polls).
   charge_power_kw: number | null;
+  // Energy put into the battery so far in the running charge, in kWh, from Fleet Telemetry only (null from polls).
+  charge_energy_kwh: number | null;
   // Hours until the charge limit, from Fleet Telemetry only (null from polls).
   time_to_full_h: number | null;
   error: string | null;

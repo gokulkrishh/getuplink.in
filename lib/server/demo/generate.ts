@@ -797,6 +797,7 @@ export function generateDemo(now: number): DemoData {
     charging_state: chargingNow ? "Charging" : "Disconnected",
     charge_limit: CHARGE_LIMIT,
     charge_power_kw: chargingNow ? AC_KW : null,
+    charge_energy_kwh: null,
     time_to_full_h: null,
     error: null,
   };

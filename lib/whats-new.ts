@@ -67,6 +67,16 @@ export const WHATS_NEW: Entry[] = [
     show: "dialog",
   },
   {
+    id: "2026-10-31-charge-energy-added",
+    date: "2026-10-31",
+    title: "Energy added while charging",
+    text: "While your car charges, Home and the Car page show how much energy it has taken in so far.",
+    version: "0.2",
+    kind: "Improvement",
+    audience: "draft",
+    show: "bell",
+  },
+  {
     id: "2026-10-30-guest-access",
     date: "2026-10-30",
     title: "Guest access",

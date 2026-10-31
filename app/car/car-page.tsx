@@ -31,6 +31,7 @@ import { loadTyreArrivals } from "@/lib/server/telemetry-window";
 import type { Stream } from "@/lib/telemetry";
 import { cn } from "@/lib/utils";
 import { currentVersion } from "@/lib/versions";
+import { energyAdded } from "@/components/battery-gauge";
 
 // Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx).
 async function loadCar(id: string): Promise<CarDetails | null> {
@@ -200,7 +201,21 @@ function nowFigures(state: Omit<CarState, "flags">, now: CarNow | null, shut: st
       : s.charge_limit != null
         ? `Limit ${s.charge_limit}%`
         : undefined;
-    figures.push({ label: "Charge", value: formatPercent(s.battery_level), note: charging ? <span className="text-charge">{note}</span> : note });
+    // The energy added so far, quiet, after the charging line rather than on a line of its own, so the tile
+    // keeps the loading skeleton's one-line note (it wraps only where the tile is too narrow).
+    const added = charging ? energyAdded(s.charge_energy_kwh) : null;
+    figures.push({
+      label: "Charge",
+      value: formatPercent(s.battery_level),
+      note: charging ? (
+        <>
+          <span className="text-charge">{note}</span>
+          {added && <span> · {added}</span>}
+        </>
+      ) : (
+        note
+      ),
+    });
   }
   // Tesla's figure is an estimate on a test cycle; the owner's own driving gives another, kept to one line.
   if (s?.battery_range_km != null)

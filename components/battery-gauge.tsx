@@ -1,7 +1,7 @@
 import { Zap } from "lucide-react";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { SentryMark } from "@/components/sentry-mark";
-import { formatClock, formatDayLabel, formatKw, formatRangeKm, formatTimeToFull } from "@/lib/format";
+import { formatClock, formatDayLabel, formatKw, formatKwh, formatRangeKm, formatTimeToFull } from "@/lib/format";
 import type { Snapshot } from "@/lib/server/dashboard";
 import { cn } from "@/lib/utils";
 
@@ -13,8 +13,15 @@ function parkedAt(start: number, now: number): string {
   return day === "Today" ? formatClock(start) : `${day === "Yesterday" ? "yesterday" : day}, ${formatClock(start)}`;
 }
 
-// What the car is doing, under the meter. Charging: the power and the limit, then how long is left, in two
-// parts the gauge sets on two lines ("Charging at 7.2 kW to 80% · Full in 1 h 18 min"). Otherwise what was
+// "5.9 kWh added": the energy the running charge has put in, for Home's gauge and the Car page's Charge tile.
+// Null under 0.05 kWh, which would read "0 kWh added": the charge's first minute, with nothing to say yet.
+export function energyAdded(kwh: number | null): string | null {
+  return kwh != null && kwh >= 0.05 ? `${formatKwh(kwh)} added` : null;
+}
+
+// What the car is doing, under the meter. Charging: the power and the limit, then how long is left and the
+// energy added so far ("Charging at 7.2 kW to 80% · Full in 1 h 18 min · 3.2 kWh added"); the gauge sets
+// the first part on one line and the rest on a second. Otherwise what was
 // seen: when it parked (`parked`, from the readings; "since before" when it was parked before the first
 // one). The limit otherwise stands at the meter's end. Nothing is guessed: a car that isn't charging isn't
 // called parked unless the readings say so.
@@ -26,8 +33,9 @@ export function batteryState(snapshot: Snapshot, parked: Parked | null, now: num
     const target = limit ?? 100;
     const power = snapshot.charge_power_kw != null && snapshot.charge_power_kw > 0 ? snapshot.charge_power_kw : null;
     const toFull = snapshot.time_to_full_h != null && snapshot.time_to_full_h > 0 ? snapshot.time_to_full_h : null;
+    const added = energyAdded(snapshot.charge_energy_kwh);
     const line = power !== null ? `Charging at ${formatKw(power)}${level < target ? ` to ${target}%` : ""}` : `Charging to ${target}%`;
-    return toFull !== null ? `${line} · ${formatTimeToFull(toFull)}` : line;
+    return [line, toFull !== null ? formatTimeToFull(toFull) : null, added].filter(Boolean).join(" · ");
   }
   return parked && `Parked since ${parked.fromFirstReading ? "before " : ""}${parkedAt(parked.start, now)}`;
 }
@@ -106,22 +114,29 @@ export function BatteryGauge({
         // left and the words on the right. Filled, the bolt stays one shape at this size.
         <p className={cn("text-sm tabular-nums", charging ? "text-charge" : "text-faint", end && "sm:text-right")}>
           {charging && <Zap className="mr-1.5 inline-block size-3.5 fill-current align-[-0.15em]" aria-hidden="true" />}
-          {/* Each part on its own line: what the car is doing first (green while charging), then the time
-              left, quiet. Sentry Mode's mark leads the first, centred on it. */}
+          {/* Two lines: what the car is doing first (green while charging), then the time left and the
+              energy added, quiet. Sentry Mode's mark leads the first, centred on it. */}
           {watching ? (
             <span className="inline-flex items-center gap-1.5">
               <SentryMark align={end ? "end" : "start"} />
               {state ?? "Sentry Mode on"}
             </span>
           ) : (
-            state?.split(" · ").map((part, k) => (
-              <span key={part} className={cn(k > 0 && "block text-faint")}>
-                {part}
-              </span>
-            ))
+            state && <StateLines state={state} />
           )}
         </p>
       )}
     </div>
+  );
+}
+
+// The state's first part, then the rest on a second, quiet line.
+function StateLines({ state }: { state: string }) {
+  const [first, ...rest] = state.split(" · ");
+  return (
+    <>
+      <span>{first}</span>
+      {rest.length > 0 && <span className="block text-faint">{rest.join(" · ")}</span>}
+    </>
   );
 }

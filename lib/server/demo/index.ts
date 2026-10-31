@@ -30,7 +30,7 @@ export function demoData(): DemoData {
 // (the version and battery from it), and the car has sent no live data yet, so there are no readings, no
 // drives, no charges and no earlier updates.
 function blankSlate(data: DemoData): DemoData {
-  const first = { ...data.snapshot, charging_state: "Disconnected", charge_power_kw: null, time_to_full_h: null };
+  const first = { ...data.snapshot, charging_state: "Disconnected", charge_power_kw: null, charge_energy_kwh: null, time_to_full_h: null };
   return {
     ...data,
     snapshot: first,

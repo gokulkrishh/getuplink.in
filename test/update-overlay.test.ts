@@ -57,6 +57,7 @@ const CHECK: Snapshot = {
   charging_state: "Stopped",
   charge_limit: 90,
   charge_power_kw: null,
+  charge_energy_kwh: null,
   time_to_full_h: null,
   error: null,
 };

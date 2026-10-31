@@ -27,6 +27,7 @@ describe("WHATS_NEW", () => {
       ["2026-10-31-trip-route-names", "draft"],
       ["2026-10-31-swipe-to-close", "draft"],
       ["2026-10-31-chart-download", "owners"],
+      ["2026-10-31-charge-energy-added", "draft"],
       ["2026-10-30-guest-access", "owners"],
     ]);
     expect(visibleEntries(WHATS_NEW, false).map((e) => e.id)).toEqual(["2026-10-31-chart-download", "2026-10-30-guest-access"]);
