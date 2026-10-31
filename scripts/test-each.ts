@@ -24,7 +24,10 @@ const workers = Math.max(2, Math.min(8, cpus().length));
 type Result = { file: string; code: number; out: string; pass: number; fail: number };
 
 async function run(file: string): Promise<Result> {
-  const proc = Bun.spawn(["bun", "test", file], { stdout: "pipe", stderr: "pipe", env: process.env });
+  // A path without ./ is a substring filter to bun test, so test/x.test.ts would also match test/x.test.tsx and
+  // run both in one process. ./ makes it exactly this file.
+  const exact = file.startsWith("./") || file.startsWith("/") ? file : `./${file}`;
+  const proc = Bun.spawn(["bun", "test", exact], { stdout: "pipe", stderr: "pipe", env: process.env });
   const [stdout, stderr, code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
   const out = stdout + stderr;
   const count = (word: string) => Number(out.match(new RegExp(`^\\s*(\\d+) ${word}$`, "m"))?.[1] ?? 0);
