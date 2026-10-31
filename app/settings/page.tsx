@@ -288,7 +288,7 @@ function SettingsSkeleton() {
             description={<p>{text("Adds your car to the totals on the Compare page. Turning it off deletes your figures, and your car leaves the totals at 3:30 AM.")}</p>}
             control={
               <div className="flex items-center max-sm:h-[52px]" aria-hidden="true">
-                <Skeleton className="h-[18.4px] w-8 rounded-full" />
+                <Skeleton className="h-[1.15rem] w-8 rounded-full" />
               </div>
             }
           />,
