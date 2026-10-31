@@ -69,11 +69,11 @@ function DrawerCloseButton({ className }: { className?: string }) {
     <DrawerPrimitive.Close
       aria-label="Close"
       className={cn(
-        "inline-flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-foreground/[0.07] text-foreground transition-colors hover:bg-foreground/12 focus-visible:outline-2 focus-visible:outline-ring dark:bg-white/12 dark:hover:bg-white/18",
+        "inline-flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full sm:size-8 bg-foreground/[0.07] text-foreground transition-colors hover:bg-foreground/12 focus-visible:outline-2 focus-visible:outline-ring dark:bg-white/12 dark:hover:bg-white/18",
         className,
       )}
     >
-      <X className="size-5" aria-hidden="true" />
+      <X className="size-5 sm:size-4" aria-hidden="true" />
     </DrawerPrimitive.Close>
   )
 }
@@ -81,7 +81,7 @@ function DrawerCloseButton({ className }: { className?: string }) {
 // The backdrop, the viewport that places the sheet, and the sheet. `className` sizes the sheet (its width from
 // sm up); `bodyClassName` pads and lays out what's inside.
 // With a `title`, the sheet has a header that stays put while the body scrolls under it, as on iOS: the grab
-// bar (on a phone), a round close button on the left (unless `close={false}`) and the title centred, on a
+// bar (on a phone), a round close button on the right (unless `close={false}`) and the title centred, on a
 // frosted bar that gains a line once the body has scrolled. Without one, only the grab bar (`handle`), for a
 // sheet that titles itself (a confirmation).
 function DrawerContent({
@@ -114,7 +114,7 @@ function DrawerContent({
             >
               {handle && <DrawerHandle className="absolute inset-x-0 top-0" />}
               <div className="relative flex min-h-10 items-center justify-center px-12">
-                {close && <DrawerCloseButton className="absolute top-1/2 left-0 -translate-y-1/2" />}
+                {close && <DrawerCloseButton className="absolute top-1/2 right-0 -translate-y-1/2" />}
                 <DrawerTitle className="truncate text-center text-base font-medium tracking-normal">{title}</DrawerTitle>
               </div>
             </div>
