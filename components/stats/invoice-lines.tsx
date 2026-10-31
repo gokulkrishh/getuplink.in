@@ -7,6 +7,7 @@ import { lineRows, printedKwh } from "@/lib/invoice-items";
 import { formatClock, formatMoney } from "@/lib/format";
 import type { SessionInvoice } from "@/lib/server/receipts";
 import { TABLE_HEAD_ROW } from "@/lib/table-frame";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 // An attached invoice, under the charge: what it printed about the charge (number, station, times, how it
 // was paid, IDs), then its lines when they were sent and add up (lib/invoice-items.ts storedLines), and the
@@ -93,11 +94,12 @@ export function InvoiceSection({ invoice, href, received }: { invoice: SessionIn
       )}
       {/* What the bill printed about the charge, after its lines: closed until wanted. */}
       {facts.length > 0 && (
-        <details className="group rounded-lg border">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm transition-colors hover:bg-muted/50 [details[open]>&]:rounded-b-none [&::-webkit-details-marker]:hidden">
+        <Collapsible className="group rounded-lg border">
+          <CollapsibleTrigger className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-lg px-4 py-3 text-left text-sm transition-colors hover:bg-muted/50 data-panel-open:rounded-b-none">
             Invoice details
             <FoldToggle />
-          </summary>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
           <table className="w-full text-sm tabular-nums">
             <tbody className="divide-y border-t">
               {facts.map(([label, value]) => (
@@ -110,7 +112,8 @@ export function InvoiceSection({ invoice, href, received }: { invoice: SessionIn
               ))}
             </tbody>
           </table>
-        </details>
+          </CollapsibleContent>
+        </Collapsible>
       )}
     </section>
   );

@@ -17,6 +17,7 @@ import type { TipScope } from "@/lib/ai-tips";
 import { JEV_DAYS, loadJevSummary, loadVoteSummary } from "@/lib/server/tip-votes";
 import { type KindSummary, kindLabel, SCOPE_LABELS } from "@/lib/tip-votes";
 import { MarkButtons } from "./mark-buttons";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export const metadata: Metadata = { title: "Feedback · Admin" };
 
@@ -243,10 +244,11 @@ async function TipVotes() {
                       <span className="h-full bg-chart-better" style={{ width: `${(k.useful / n) * 100}%` }} />
                       <span className="h-full bg-chart-worse" style={{ width: `${(k.notUseful / n) * 100}%` }} />
                     </div>
-                    <details className="group text-xs text-muted-foreground">
-                      <summary className="cursor-pointer list-none tabular-nums hover:text-foreground [&::-webkit-details-marker]:hidden">
+                    <Collapsible className="group text-xs text-muted-foreground">
+                      <CollapsibleTrigger className="cursor-pointer text-left tabular-nums hover:text-foreground">
                         {number.format(k.useful)} useful · {number.format(k.notUseful)} not useful · <span className="underline decoration-dotted underline-offset-4">tips voted on</span>
-                      </summary>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
                       <ul className="mt-2 space-y-1 text-sm text-foreground">
                         {k.examples.map((e, m) => (
                           <li key={m} className="break-words">
@@ -254,7 +256,8 @@ async function TipVotes() {
                           </li>
                         ))}
                       </ul>
-                    </details>
+                      </CollapsibleContent>
+                    </Collapsible>
                   </li>
                 );
               })}

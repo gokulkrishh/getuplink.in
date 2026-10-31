@@ -1,43 +1,39 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useCanHover } from "@/components/use-can-hover";
 import { cn } from "@/lib/utils";
 
-// A small label above an icon button, shown on hover or keyboard focus, or when its TipTrigger is tapped.
-// The parent needs `group relative` (TipTrigger has both). It sits out of flow, so showing it never moves
-// anything; the trigger still needs its own accessible text, since this is hidden from screen readers.
-// It grows away from the trigger's `end` edge by default; pass `start` for triggers near the left of the
-// page, or `className` for alignment that changes by breakpoint. It wraps rather than leave a phone screen.
-export function Tip({ align = "end", className, children }: { align?: "start" | "end"; className?: string; children: ReactNode }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={cn(
-        "pointer-events-none absolute bottom-full z-10 mb-1.5 w-max max-w-[calc(100vw-2rem)] rounded-md bg-foreground px-2 py-1 text-xs font-normal text-background opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 group-data-[open=true]:opacity-100",
-        align === "start" ? "left-0" : "right-0",
-        className,
-      )}
-    >
-      {children}
-    </span>
-  );
-}
-
-// A focusable text label whose tip also opens on tap (touch has no hover) and closes when focus leaves.
+// A text label with a small tip above it ("Already installed when Uplink first saw your car on …"): shadcn's
+// Popover, opened on hover with a mouse and by a tap on a phone. Not shadcn's Tooltip: Base UI's tooltips
+// never open on touch, and these say something a phone owner needs too. It looks like a tooltip. The trigger
+// still needs its own accessible text (an sr-only copy of the tip, or `label` when it shows only an icon).
 // The hit area grows to 32px tall without moving the text.
-export function TipTrigger({ className, label, children }: { className?: string; label?: string; children: ReactNode }) {
-  const [open, setOpen] = useState(false);
+export function TipTrigger({ tip, label, align = "end", className, children }: { tip: ReactNode; label?: string; align?: "start" | "end"; className?: string; children: ReactNode }) {
+  const hover = useCanHover();
   return (
-    <button
-      type="button"
-      aria-label={label}
-      data-open={open}
-      onClick={() => setOpen((v) => !v)}
-      onBlur={() => setOpen(false)}
-      onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
-      className={cn("group relative text-left after:absolute after:-inset-y-1.5 after:inset-x-0 max-sm:after:-inset-y-2.5", className)}
-    >
-      {children}
-    </button>
+    <Popover>
+      <PopoverTrigger
+        openOnHover={hover}
+        delay={100}
+        aria-label={label}
+        className={cn("relative cursor-default text-left after:absolute after:-inset-y-1.5 after:inset-x-0 max-sm:after:-inset-y-2.5", className)}
+      >
+        {children}
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        align={align}
+        sideOffset={6}
+        collisionPadding={16}
+        initialFocus={false}
+        finalFocus={false}
+        aria-hidden="true"
+        className="w-max max-w-[calc(100vw-2rem)] gap-0 rounded-md bg-foreground px-3 py-1.5 text-xs text-background shadow-none ring-0"
+      >
+        {tip}
+      </PopoverContent>
+    </Popover>
   );
 }

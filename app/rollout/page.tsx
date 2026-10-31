@@ -21,6 +21,7 @@ import { requireReader } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadRollout, type RolloutPage } from "@/lib/server/rollout";
 import { moreArriving, moreRolloutVersions } from "./actions";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "India rollout" };
 
@@ -130,14 +131,13 @@ async function Rollout() {
 }
 
 function RolloutSkeleton() {
-  const block = "rounded-md bg-muted motion-safe:animate-pulse";
   return (
     <div role="status" aria-busy="true" className="space-y-12">
       <span className="sr-only">Loading…</span>
       <div className="space-y-3">
-        <div className={`h-4 w-24 ${block}`} />
-        <div className={`h-10 w-56 ${block}`} />
-        <div className={`h-4 w-32 ${block}`} />
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-10 w-56" />
+        <Skeleton className="h-4 w-32" />
       </div>
       {/* Each section: its heading and a block of its usual height, so the loading page is as long as the page. */}
       {[

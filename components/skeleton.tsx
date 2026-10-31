@@ -4,6 +4,7 @@ import { Figures } from "@/components/stats/figures";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { TABLE_FRAME, TABLE_HEAD_ROW } from "@/lib/table-frame";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Pieces for the loading screens (the Suspense fallbacks), built from the page's own layout classes so a
 // block is as tall as what replaces it and nothing moves when the page arrives. Text is placeholder words
@@ -72,12 +73,12 @@ export function SkFigures({ tiles, className }: { tiles: { label: string; value:
 
 // A chart's panel: Bars' and the line charts' ChartFrame, 160px (h-40) tall.
 export function SkChart({ className }: { className?: string }) {
-  return <div className={cn("h-40 rounded-lg bg-muted motion-safe:animate-pulse dark:bg-card", className)} />;
+  return <Skeleton className={cn("h-40 rounded-lg dark:bg-card", className)} />;
 }
 
 // Any other filled box (a map, a plot, a heatmap): give it the real one's height.
 export function SkBlock({ className }: { className?: string }) {
-  return <div aria-hidden="true" className={cn("rounded-md bg-muted motion-safe:animate-pulse", className)} />;
+  return <Skeleton aria-hidden="true" className={className} />;
 }
 
 // A chart's panel with the line under it (Captioned: space-y-2, a text-sm caption).

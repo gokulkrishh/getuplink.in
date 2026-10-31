@@ -1,16 +1,17 @@
 "use client";
 
 import { Check, SmilePlus } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useId, useState, useTransition } from "react";
 import { sendFeedback } from "@/app/feedback/actions";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerClose, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { FEEDBACK_EVENT } from "@/components/feedback-open";
 import { BOTHER, type Bother, botherLabel, isProblem, MESSAGE_MAX, type Topic, TOPICS, topicLabel } from "@/lib/feedback";
 import { OFFLINE, orOffline } from "@/lib/offline";
-import { cn } from "@/lib/utils";
 import { PendingLabel } from "@/components/pending-label";
 import { haptic } from "@/components/haptic";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Textarea } from "@/components/ui/textarea";
 
 // The theme the owner is looking at: their pick, else the system's.
 function theme(): "light" | "dark" {
@@ -19,25 +20,28 @@ function theme(): "light" | "dark" {
   return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
+// One pick from a few, as shadcn's ToggleGroup (one value at a time), looking as the chips always have. A tap
+// on the picked one keeps it: the question always has an answer once one is chosen.
 function Choices<T extends string>({ legend, options, value, onChange }: { legend: string; options: readonly { value: T; label: string }[]; value: T | null; onChange: (v: T) => void }) {
+  const id = useId();
   return (
-    <fieldset className="space-y-2">
-      <legend className="text-sm font-medium">{legend}</legend>
-      <div className="flex flex-wrap gap-2">
+    <div className="space-y-2">
+      <p id={id} className="text-sm font-medium">
+        {legend}
+      </p>
+      <ToggleGroup aria-labelledby={id} value={value ? [value] : []} onValueChange={(next) => next[0] && onChange(next[0] as T)} spacing={2} className="flex-wrap">
         {options.map((o) => (
-          <label
+          <ToggleGroupItem
             key={o.value}
-            className={cn(
-              "cursor-pointer rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-muted has-focus-visible:outline-2 has-focus-visible:outline-ring",
-              value === o.value && "border-foreground bg-foreground text-background hover:bg-foreground",
-            )}
+            ref={haptic}
+            value={o.value}
+            className="h-auto rounded-md border px-3 py-1.5 text-sm font-normal hover:bg-muted data-pressed:border-foreground data-pressed:bg-foreground data-pressed:text-background data-pressed:hover:bg-foreground"
           >
-            <input type="radio" className="sr-only" checked={value === o.value} onChange={() => onChange(o.value)} />
             {o.label}
-          </label>
+          </ToggleGroupItem>
         ))}
-      </div>
-    </fieldset>
+      </ToggleGroup>
+    </div>
   );
 }
 
@@ -170,13 +174,13 @@ export function FeedbackButton() {
             <div className="space-y-2">
             <label className="block space-y-2">
               <span className="block text-sm font-medium">{prompt.label}</span>
-              <textarea
+              <Textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 maxLength={MESSAGE_MAX}
                 rows={4}
                 placeholder={prompt.hint}
-                className="block w-full resize-y rounded-lg border bg-background px-3 py-2 text-sm text-foreground placeholder:text-faint focus-visible:outline-2 focus-visible:outline-ring"
+                className="block field-sizing-fixed resize-y bg-background px-3 py-2 text-foreground placeholder:text-faint"
               />
             </label>
             <p className="text-xs text-muted-foreground">Sent with the page you&apos;re on ({path}), your screen size and browser, so it&apos;s easy to find.</p>

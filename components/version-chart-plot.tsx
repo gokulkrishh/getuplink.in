@@ -4,6 +4,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Line, LineChart, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import { formatDate, formatShortDate } from "@/lib/format";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const config = { step: { label: "Version", color: "var(--chart-accent)" } } satisfies ChartConfig;
 
@@ -42,7 +43,7 @@ export default function VersionChartPlot({
     <div className="rounded-lg bg-muted dark:bg-card px-3 pt-4 pb-2">
     <div ref={box} className="h-20 w-full">
       {width === 0 ? (
-        <div className="h-full w-full rounded-md bg-background/60 motion-safe:animate-pulse" aria-busy="true" aria-label="Loading chart" />
+        <Skeleton className="h-full w-full bg-background/60" aria-busy="true" aria-label="Loading chart" />
       ) : (
     <ChartContainer config={config} className="aspect-auto h-20 w-full" initialDimension={{ width, height: 80 }}>
       <LineChart data={data} margin={{ top: 6, right: 4, bottom: 0, left: 4 }}>

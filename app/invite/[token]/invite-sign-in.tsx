@@ -7,6 +7,7 @@ import { startTransition, useActionState } from "react";
 import { DashRing } from "@/components/loading-ui/dash-ring";
 import { Button } from "@/components/ui/button";
 import { guardForm } from "@/lib/offline";
+import { Checkbox } from "@/components/ui/checkbox";
 
 
 function Submit({ pending }: { pending: boolean }) {
@@ -37,7 +38,7 @@ export function InviteSignIn({ action }: { action: (form: FormData) => Promise<v
       className="space-y-4"
     >
       <label className="flex items-start gap-3 text-sm">
-        <input type="checkbox" name="agree" value="yes" required className="mt-0.5 size-4 shrink-0 accent-foreground" />
+        <Checkbox name="agree" value="yes" required className="mt-0.5" />
         <span>
           I&apos;m 18 or over, and I agree to the{" "}
           <Link href="/terms" className={LINK} target="_blank">
