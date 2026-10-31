@@ -232,6 +232,7 @@ describe("applyStream while charging", () => {
     charging_state: "Charging",
     charge_limit: 70,
     charge_power_kw: null,
+    charge_energy_kwh: null,
     time_to_full_h: null,
     error: null,
   });
@@ -243,6 +244,25 @@ describe("applyStream while charging", () => {
       DCChargingPower: v("21:30:42", 29.16959934800863),
     });
     expect(next?.charge_power_kw).toBeCloseTo(29.17, 2);
+  });
+
+  test("the energy added is the running charge's counter, on the charger it is using", () => {
+    // 31 Oct 2026, a 60 kW CCS charger: the counter read 0 a minute before the charge began, then counted up.
+    const next = applyStream(snapshot("14:00:00"), {
+      DetailedChargeState: v("14:03:45", STATE("Charging")),
+      DCChargingPower: v("14:08:51", 59.60206116779009),
+      DCChargingEnergyIn: v("14:11:54", 5.879999868571758),
+      ACChargingEnergyIn: v("09:00:00", 12.4),
+    });
+    expect(next?.charge_energy_kwh).toBeCloseTo(5.88, 2);
+  });
+
+  test("energy from an earlier charge is not shown", () => {
+    const next = applyStream(snapshot("21:40:00"), {
+      DetailedChargeState: v("21:25:56", STATE("Charging")),
+      ACChargingEnergyIn: v("09:00:00", 12.4),
+    });
+    expect(next?.charge_energy_kwh).toBeNull();
   });
 
   test("power from before this charge is not shown", () => {

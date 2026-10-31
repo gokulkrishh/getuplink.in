@@ -23,6 +23,7 @@ const snapshot = (over: Partial<Snapshot>): Snapshot => ({
   charging_state: "Disconnected",
   charge_limit: 80,
   charge_power_kw: null,
+  charge_energy_kwh: null,
   time_to_full_h: null,
   error: null,
   ...over,
@@ -64,6 +65,15 @@ describe("batteryState", () => {
   });
   test("charging without streamed power says only the limit", () => {
     expect(batteryState(snapshot({ charging_state: "Charging" }), null, NOW)).toBe("Charging to 80%");
+  });
+  test("charging says the energy added so far, after the time left", () => {
+    // 31 Oct 2026, 2:12 PM, a 60 kW CCS charger: 5.88 kWh in, the same as the charger's own app (5.79).
+    const dc = snapshot({ charging_state: "Charging", charge_limit: 70, charge_power_kw: 59.6, charge_energy_kwh: 5.88 });
+    expect(batteryState(dc, null, NOW)).toBe("Charging at 59.6 kW to 70% · 5.9 kWh added");
+    const ac = snapshot({ charging_state: "Charging", charge_power_kw: 7.2, time_to_full_h: 1.3, charge_energy_kwh: 3.21 });
+    expect(batteryState(ac, null, NOW)).toBe("Charging at 7.2 kW to 80% · Full in 1 h 18 min · 3.2 kWh added");
+    // The first minute: nothing worth saying yet.
+    expect(batteryState(snapshot({ charging_state: "Charging", charge_power_kw: 7.2, charge_energy_kwh: 0.02 }), null, NOW)).toBe("Charging at 7.2 kW to 80%");
   });
   test("not charging says when it parked, only when the readings say so", () => {
     // NOW is 28 Oct 2026, 5:30 PM IST.

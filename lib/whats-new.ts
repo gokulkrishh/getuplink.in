@@ -36,6 +36,16 @@ export type Entry = {
 
 export const WHATS_NEW: Entry[] = [
   {
+    id: "2026-10-31-charge-energy-added",
+    date: "2026-10-31",
+    title: "Energy added while charging",
+    text: "While your car charges, Home and the Car page show how much energy it has taken in so far. The battery level now keeps up with the car's own app.",
+    version: "0.2",
+    kind: "Improvement",
+    audience: "draft",
+    show: "bell",
+  },
+  {
     id: "2026-10-31-trip-route-names",
     date: "2026-10-31",
     title: "Where each trip went",

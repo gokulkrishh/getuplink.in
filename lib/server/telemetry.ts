@@ -22,6 +22,9 @@ export const STREAM_FIELDS = [
   "ACChargingPower",
   "DCChargingPower",
   "TimeToFullCharge",
+  // The energy added so far in the running charge, on the charging line.
+  "ACChargingEnergyIn",
+  "DCChargingEnergyIn",
   // Which charger the car is on, so a third-party DC charge leaves out the car's time-to-full estimate.
   "FastChargerType",
   // Home's Sentry Mode mark (sentryOn).

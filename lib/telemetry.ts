@@ -41,7 +41,7 @@ export function applyStream(snapshot: Snapshot | null, stream: Stream): Snapshot
     const reading = stream[field];
     return reading && Date.parse(reading.at) > polledAt ? reading.value : undefined;
   };
-  const next: Snapshot = { ...snapshot, charge_power_kw: null, time_to_full_h: null };
+  const next: Snapshot = { ...snapshot, charge_power_kw: null, charge_energy_kwh: null, time_to_full_h: null };
 
   const updateAt = Math.max(0, ...UPDATE_FIELDS.map((f) => (stream[f] ? Date.parse(stream[f].at) : 0)));
   if (updateAt > polledAt) {
@@ -100,6 +100,14 @@ export function applyStream(snapshot: Snapshot | null, stream: Stream): Snapshot
       .filter((p): p is { field: string; at: number; kw: number } => typeof p.kw === "number")
       .sort((a, b) => b.at - a.at)[0];
     if (power) next.charge_power_kw = power.kw;
+    // The car counts the energy in for each charge from 0, AC and DC apart, about once a minute. The counter
+    // on the charger in use; before the first power reading, whichever counted last in this charge.
+    const counters = ["ACChargingEnergyIn", "DCChargingEnergyIn"]
+      .map((f) => ({ field: f, at: stream[f] ? Date.parse(stream[f].at) : 0, kwh: current(f) }))
+      .filter((c): c is { field: string; at: number; kwh: number } => typeof c.kwh === "number")
+      .sort((a, b) => b.at - a.at);
+    const energy = power ? counters.find((c) => c.field === power.field.replace("Power", "EnergyIn")) : counters[0];
+    if (energy) next.charge_energy_kwh = energy.kwh;
     // Hours, as in Tesla's vehicle_data time_to_full_charge. It is the car's own estimate, and on a
     // third-party DC charger it ran at about half the real time: 0.25 h (15 min) at 21:26 on 25 Oct 2026 for a
     // charge that took until 21:55, half the real time all the way through. So it shows only where the car

@@ -200,7 +200,21 @@ function nowFigures(state: Omit<CarState, "flags">, now: CarNow | null, shut: st
       : s.charge_limit != null
         ? `Limit ${s.charge_limit}%`
         : undefined;
-    figures.push({ label: "Charge", value: formatPercent(s.battery_level), note: charging ? <span className="text-charge">{note}</span> : note });
+    // The energy added so far on a quiet line of its own, as on Home's gauge (see batteryState); not in the
+    // charge's first minute.
+    const added = charging && s.charge_energy_kwh != null && s.charge_energy_kwh >= 0.05 ? `${formatKwh(s.charge_energy_kwh)} added` : null;
+    figures.push({
+      label: "Charge",
+      value: formatPercent(s.battery_level),
+      note: charging ? (
+        <>
+          <span className="block text-charge">{note}</span>
+          {added && <span className="block">{added}</span>}
+        </>
+      ) : (
+        note
+      ),
+    });
   }
   // Tesla's figure is an estimate on a test cycle; the owner's own driving gives another, kept to one line.
   if (s?.battery_range_km != null)
