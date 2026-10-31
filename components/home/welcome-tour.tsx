@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 // words. Skip, the cross, Esc and "Got it" all close it, and any of them counts as seen.
 // Closing is never more than one tap, and nothing is trapped behind a step.
 
-// `page`: the step is about a whole page (Stats, Updates, Compare), so the picture stays sharp everywhere and
+// `page`: the step is about a whole page (Stats, Software, Compare), so the picture stays sharp everywhere and
 // only the outline and pointer show where it is. Otherwise only the outlined part is sharp.
 type Step = { name: string; spot: TourSpot; page?: boolean; title: string; lead: ReactNode; points: [string, string, string] };
 
@@ -49,13 +49,13 @@ const STEPS: Step[] = [
     points: ["Every drive you take", "What each charge cost", "How your battery is holding up"],
   },
   {
-    name: "Updates",
+    name: "Software",
     spot: "updates",
     page: true,
     title: "Know when your update comes",
     lead: (
       <>
-        <Term>Updates</Term> is under <Term>Car</Term>.
+        <Term>Software</Term> is under <Term>Car</Term>.
       </>
     ),
     points: ["Every version your car got", "Tesla's notes for each one", "How each update is reaching cars in India"],
@@ -160,7 +160,7 @@ const toSteps = (steps: Step[]): TourStep[] =>
 
 const TOUR_STEPS = toSteps(STEPS);
 
-// Someone viewing a shared car: their own first step, then the owner tour's Home, Stats, Updates and Compare.
+// Someone viewing a shared car: their own first step, then the owner tour's Home, Stats, Software and Compare.
 const GUEST_STEPS = toSteps([
   {
     name: "Guest mode",

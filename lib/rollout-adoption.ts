@@ -1,4 +1,4 @@
-// Adoption over time on /rollout: at the end of each day or week, how many of the cars Uplink knew then ran
+// Adoption over time in the India rollout (/updates): at the end of each day or week, how many of the cars Uplink knew then ran
 // each version. Pure like lib/rollout.ts, fed the same cars and version_history rows.
 import { formatShortDate } from "@/lib/format";
 import { compareVersions, type RolloutCar, type RolloutChange } from "@/lib/rollout";

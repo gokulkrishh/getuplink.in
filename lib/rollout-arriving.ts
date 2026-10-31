@@ -1,4 +1,4 @@
-// What Tesla is offering Indian cars right now, and where the owner's car stands, for /rollout. Pure like
+// What Tesla is offering Indian cars right now, and where the owner's car stands, for the India rollout on /updates. Pure like
 // lib/rollout.ts: the loader hands in one row per car and gets totals back, so no car leaves the server.
 import { compareVersions, type Rollout } from "@/lib/rollout";
 import { normaliseVersion } from "@/lib/versions";
@@ -60,4 +60,12 @@ export function yourCar(own: Omit<OfferedCar, "car">, rollout: Rollout): YourCar
   const newer = rollout.versions.filter((v) => v.carsNow > 0 && compareVersions(v.version, version) > 0);
   if (newer.length === 0) return { kind: "newest" };
   return { kind: "behind", versions: newer.length, newest: newer[0].version, cars: newer[0].carsNow };
+}
+
+// The owner's car against India, in one line, in the terms Updates uses: "Newest in India" is the newest
+// version cars run.
+export function yourCarWords(car: YourCar): string {
+  if (car.kind === "waiting") return `${car.version} is waiting to install on your car`;
+  if (car.kind === "newest") return "You're on the newest in India";
+  return `You're ${car.versions} ${car.versions === 1 ? "version" : "versions"} behind the newest in India`;
 }

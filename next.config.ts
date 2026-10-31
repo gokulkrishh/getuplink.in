@@ -19,8 +19,12 @@ const nextConfig: NextConfig = {
   // /admin and /api anywhere. Pages also carry noindex metadata and robots.txt turns crawlers away; this
   // header covers crawlers that skip both.
   // The day page is gone: a day opens on Stats > Driving as a one-day Custom range. Old links land there.
+  // The India rollout is a section of Car > Software now, under the owner's own: old /rollout links land on it.
   async redirects() {
-    return [{ source: "/stats/day/:date(\\d{4}-\\d{2}-\\d{2})", destination: "/stats/driving?period=custom&from=:date&to=:date", permanent: true }];
+    return [
+      { source: "/stats/day/:date(\\d{4}-\\d{2}-\\d{2})", destination: "/stats/driving?period=custom&from=:date&to=:date", permanent: true },
+      { source: "/rollout", destination: "/updates#rollout", permanent: true },
+    ];
   },
   async headers() {
     const noindex = [{ key: "X-Robots-Tag", value: "noindex, nofollow, noarchive, nosnippet, noimageindex" }];

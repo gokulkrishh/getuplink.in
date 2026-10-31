@@ -180,7 +180,7 @@ async function ViewerBanner() {
 }
 
 // The same header on every signed-in page; `current` marks the page's own link (Stats for every /stats page).
-// The logo is the way home. Updates and the India rollout sit under Car.
+// The logo is the way home. Software, with the India rollout on it, sits under Car.
 // `setup={false}` leaves out the setup gate: Settings (sign out, disconnect, delete), the admin pages and /setup itself.
 // `onSetup`: the page is /setup, which an owner has to finish before anything else works, so the header
 // keeps only the logo and the account menu (Settings, Sign out): no page links, no bell.

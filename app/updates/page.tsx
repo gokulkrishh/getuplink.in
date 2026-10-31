@@ -17,6 +17,7 @@ import { VersionHistory } from "@/components/updates/history";
 import { UpdateStats } from "@/components/updates/update-stats";
 import { isPending, UpdateStatus } from "@/components/updates/update-status";
 import { moreVersions } from "./actions";
+import { IndiaRollout, IndiaRolloutSkeleton } from "./india-rollout";
 import type { DemoScenario } from "@/lib/demo";
 import { newestTime } from "@/lib/last-synced";
 import { type RolloutGlance, rolloutLines } from "@/lib/rollout-line";
@@ -30,7 +31,7 @@ import { updateStats } from "@/lib/telemetry-derive";
 import { currentVersion } from "@/lib/versions";
 import { TABLE_FRAME, TABLE_HEAD } from "@/lib/table-frame";
 
-export const metadata: Metadata = { title: "Updates" };
+export const metadata: Metadata = { title: "Software" };
 
 const heading = "text-lg font-medium tracking-heading";
 
@@ -83,13 +84,13 @@ function CarUpdates({ car, notes, glance, label, range, now }: { car: UpdatesCar
             Asleep at every check so far. Open the Tesla app to wake the car. This page updates by itself.
           </p>
         )}
-        {/* Where this version stands in India, each line a way to the full rollout. A plain link when nothing is known.
-            Room for two lines always, the most it shows, so the page below never moves when they arrive. The
-            negative margin lines the words up with Release notes above, on a phone too (measured). */}
-        <ul className="min-h-[42px] text-sm">
+        {/* Where this version stands in India, each line a way down to the India rollout. A plain link when nothing
+            is known. Room for two lines always (taller on a phone, where each is a bigger tap target), the most it shows, so the page below never moves when they arrive.
+            The negative margin lines the words up with Release notes above, on a phone too (measured). */}
+        <ul className="min-h-[42px] text-sm max-sm:min-h-[67px]">
           {(rollout.length > 0 ? rollout : ["India rollout"]).map((line) => (
             <li key={line}>
-              <MoreLink href="/rollout" className="-ml-2.5 font-normal text-muted-foreground">{line}</MoreLink>
+              <MoreLink href="#rollout" className="-ml-2.5 font-normal text-muted-foreground">{line}</MoreLink>
             </li>
           ))}
         </ul>
@@ -168,12 +169,12 @@ async function Updates({ searchParams }: Pick<PageProps<"/updates">, "searchPara
           </div>
         </PeriodScope>
       )}
-      {/* No car card to carry the rollout line: the rollout is still a link away. */}
-      {(data.kind !== "ready" || cars.length === 0) && (
-        <p className="text-sm">
-          <MoreLink href="/rollout" className="-ml-2.5">India rollout</MoreLink>
-        </p>
-      )}
+      {/* Pooled across every car, so once, under every car's own software, loading on its own. */}
+      <div className={cars.length > 0 ? "mt-24" : "mt-12"}>
+        <Suspense fallback={<IndiaRolloutSkeleton />}>
+          <IndiaRollout />
+        </Suspense>
+      </div>
       {data.kind === "ready" && (
         <CheckedFooter syncedAt={newestTime(cars.flatMap((car) => [car.latest?.polled_at, car.streamAt]))} now={now} />
       )}
@@ -181,23 +182,25 @@ async function Updates({ searchParams }: Pick<PageProps<"/updates">, "searchPara
   );
 }
 
-// Faint blocks in the shape of one car's page, section by section, in the sections' own layout classes. Sized
-// for the usual state: no update on its way (the pending-update block sits between the version and History).
+// Faint blocks in the shape of one car's page, section by section, in the sections' own layout classes, then
+// the India rollout's. Sized for the usual state: no update on its way (the pending-update block sits between
+// the version and History).
 function UpdatesSkeleton() {
   return (
-    <Loading className="space-y-12">
+    <Loading>
+      <div className="space-y-12">
       <header className="space-y-1" aria-hidden="true">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <p className="text-sm"><Ph>Software</Ph></p>
-          <p className="text-sm"><Ph>Synced 2 minutes ago</Ph></p>
+          <p className="min-h-[22px] text-sm max-sm:min-h-[25.3px]"><Ph>Synced 2 minutes ago</Ph></p>
         </div>
         <p className="font-mono text-4xl font-medium tracking-tight"><Ph>2026.38.5.1</Ph></p>
         <div className="pt-2">
-          <p className="text-sm leading-[1.125rem]"><Ph>Release notes</Ph></p>
+          <p className="flex h-[25px] items-center text-sm leading-[1.125rem] max-sm:h-[38px]"><Ph>Release notes</Ph></p>
         </div>
-        <div className="min-h-[42px] text-sm leading-[21px]">
-          <p><Ph>On 3 of 40 cars in India</Ph></p>
-          <p><Ph>2026.40.2 is reaching cars in India</Ph></p>
+        <div className="min-h-[42px] text-sm leading-[21px] max-sm:min-h-[67px]">
+          <p><Ph>On 20 of 40 cars in India</Ph></p>
+          <p><Ph>Newest in India: 2026.40.2, on 3 cars</Ph></p>
         </div>
       </header>
       <section className="space-y-4" aria-hidden="true">
@@ -246,6 +249,10 @@ function UpdatesSkeleton() {
           ))}
         </dl>
       </section>
+      </div>
+      <div className="mt-24">
+        <IndiaRolloutSkeleton />
+      </div>
     </Loading>
   );
 }
@@ -258,6 +265,7 @@ export default function Page({ searchParams }: PageProps<"/updates">) {
       <Suspense fallback={<UpdatesSkeleton />}>
         <Updates searchParams={searchParams} />
       </Suspense>
+
       <Suspense>
         <SyncStreamVersions />
       </Suspense>

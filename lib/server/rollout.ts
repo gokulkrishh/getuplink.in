@@ -78,7 +78,7 @@ async function ownCar(owner: Owner): Promise<OwnCar> {
   return { car: vehicle.id, version: vehicle.current_version, status: lastOnline?.update_status ?? null, offered: lastOnline?.update_version ?? null };
 }
 
-// /rollout's totals, pooled across every car in the database. Only the totals leave this function: vehicle
+// The India rollout's totals, pooled across every car in the database. Only the totals leave this function: vehicle
 // ids are opaque keys inside buildRollout and buildArriving, VINs only join tables inside carStates (and read
 // the owner's own stream), and only versions, counts and the owner's own line leave the server.
 // A view link that hides locations gets no state map: with few cars in Uplink, the states could show where
@@ -112,7 +112,7 @@ async function readRollout(owner: Owner, now: number): Promise<RolloutPage> {
 }
 
 // The few totals the Updates page shows under the Software card: how many cars run each version and what is
-// on offer. The same cars and offers as /rollout, without its states, history and notes. Null when they
+// on offer. The same cars and offers as the India rollout, without its states, history and notes. Null when they
 // can't be read, so the page still loads without the line.
 export async function loadRolloutGlance(): Promise<RolloutGlance | null> {
   if (DEMO) {

@@ -62,7 +62,6 @@ export type CarDetails = {
   checkedAt: string | null;
   // The latest week's usable capacity, as the battery trend on /stats/battery has it.
   battery: WeeklyPack | null;
-  lastCharge: LastCharge | null;
 };
 
 // From the most recent finished session the car streamed, AC or DC: its id (for /stats/charging/[id]), when
@@ -162,7 +161,6 @@ function details(
     ].filter((s): s is string => typeof s === "string"),
     checkedAt: check?.polledAt ?? null,
     battery: null,
-    lastCharge: null,
   };
 }
 
@@ -250,8 +248,7 @@ export async function loadCarDetails(owner: Owner, id: string): Promise<CarDetai
       state: vehicleState,
       supercharging: superchargingEnabled,
     });
-    const [battery, lastCharge] = await Promise.all([loadLatestWeekPack(owner, vehicle.vin, Date.now()), loadLastCharge(owner, vehicle.vin)]);
-    return { ...car, battery, lastCharge };
+    return { ...car, battery: await loadLatestWeekPack(owner, vehicle.vin, Date.now()) };
   }
   const [vehicle, snapshot] = await Promise.all([
     ownerDb(owner).from("vehicles").select("id:id::text, vin, display_name, current_version").eq("id", id).maybeSingle(),
@@ -311,6 +308,5 @@ export async function loadCarDetails(owner: Owner, id: string): Promise<CarDetai
     },
   );
   if (!v.vin) return car;
-  const [battery, lastCharge] = await Promise.all([loadLatestWeekPack(owner, v.vin, Date.now()), loadLastCharge(owner, v.vin)]);
-  return { ...car, battery, lastCharge };
+  return { ...car, battery: await loadLatestWeekPack(owner, v.vin, Date.now()) };
 }

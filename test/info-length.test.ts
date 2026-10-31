@@ -24,8 +24,10 @@ const notes = [...files("app"), ...files("components")]
     return found.map((text) => ({ file: f, text: text.replace(/\$\{[^}]+\}/g, "X").trim() }));
   });
 
+// A guard that the patterns above still find notes at all, not a count to keep up. The rollout's adoption
+// note moved into its fold's opened part (31 Oct 2026), as a line rather than an ⓘ.
 test("the ⓘ notes are found", () => {
-  expect(notes.length).toBeGreaterThan(3);
+  expect(notes.length).toBeGreaterThan(2);
 });
 
 test("every ⓘ note is one or two short sentences", () => {

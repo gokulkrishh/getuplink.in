@@ -198,8 +198,8 @@ The same number always shows the same digits: on its bar, in the bar's tooltip, 
 | `components/stats/awake-timeline.tsx` + `awake-strip.tsx` | Awake and asleep (Battery page, after Parked drain) | Strips of awake and asleep runs per day |
 | `components/home/sections.tsx` | Home sections | Bars: spend and distance per slot |
 | `components/home/sparkline.tsx` | Headline sparklines (home) | Small bars or line behind each headline number |
-| `components/version-chart.tsx` + `version-chart-plot.tsx` | Version history (Updates page, preview) | Recharts step line of software versions |
-| `components/rollout-adoption.tsx` | Rollout adoption | Bars: cars on each version |
-| `components/rollout-map.tsx` | Rollout map | India's states shaded by cars on a version |
+| `components/version-chart.tsx` + `version-chart-plot.tsx` | Version history (Software page, preview) | Recharts step line of software versions |
+| `components/rollout-adoption.tsx` | Rollout adoption (Software page, India rollout) | Bars: cars on each version. Closed at first, a fold like Settings' Connect your AI; the ⓘ note sits in the opened part |
+| `components/rollout-map.tsx` | Rollout map (Software page, India rollout) | India's states shaded by cars on a version |
 
 Maps, timelines and tile-only sections still take the same short title and description.
