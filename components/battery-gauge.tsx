@@ -1,7 +1,7 @@
 import { Zap } from "lucide-react";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { SentryMark } from "@/components/sentry-mark";
-import { formatClock, formatDayLabel, formatKw, formatKwh, formatRangeKm, formatTimeToFull } from "@/lib/format";
+import { energyAdded, formatClock, formatDayLabel, formatKw, formatRangeKm, formatTimeToFull } from "@/lib/format";
 import type { Snapshot } from "@/lib/server/dashboard";
 import { cn } from "@/lib/utils";
 
@@ -11,12 +11,6 @@ type Parked = { start: number; fromFirstReading: boolean };
 function parkedAt(start: number, now: number): string {
   const day = formatDayLabel(start, now);
   return day === "Today" ? formatClock(start) : `${day === "Yesterday" ? "yesterday" : day}, ${formatClock(start)}`;
-}
-
-// "5.9 kWh added": the energy the running charge has put in, for Home's gauge and the Car page's Charge tile.
-// Null under 0.05 kWh, which would read "0 kWh added": the charge's first minute, with nothing to say yet.
-export function energyAdded(kwh: number | null): string | null {
-  return kwh != null && kwh >= 0.05 ? `${formatKwh(kwh)} added` : null;
 }
 
 // What the car is doing, under the meter. Charging: the power and the limit, then how long is left and the

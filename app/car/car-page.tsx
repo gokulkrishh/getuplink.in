@@ -21,7 +21,7 @@ import { loadWindowStats } from "@/lib/server/driving";
 import { loadStreamSessions } from "@/lib/server/stream-charging";
 import { rotationLine, tyreRotation } from "@/lib/tyre-rotation";
 import { CAR_NOW_FIELDS, type CarNow, carNow, shutSummary, tyreSeen } from "@/lib/car-now";
-import { formatClock, formatKm, formatKw, formatKwh, formatLevels, formatPercent, formatRangeKm, formatShortDate } from "@/lib/format";
+import { energyAdded, formatClock, formatKm, formatKw, formatKwh, formatLevels, formatPercent, formatRangeKm, formatShortDate } from "@/lib/format";
 import { isStaleSync, lastSyncedText, newestTime } from "@/lib/last-synced";
 import { requireReader } from "@/lib/server/auth";
 import { type CarDetails, type LastCharge, loadCarDetails } from "@/lib/server/car";
@@ -31,7 +31,6 @@ import { loadTyreArrivals } from "@/lib/server/telemetry-window";
 import type { Stream } from "@/lib/telemetry";
 import { cn } from "@/lib/utils";
 import { currentVersion } from "@/lib/versions";
-import { energyAdded } from "@/components/battery-gauge";
 
 // Session check plus data in one browser-only private cache, like the other pages (see app/page.tsx).
 async function loadCar(id: string): Promise<CarDetails | null> {

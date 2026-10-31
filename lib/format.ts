@@ -227,6 +227,12 @@ export function formatKwh(value: number): string {
   return `${formatNumber(value, DECIMALS.kWh)} kWh`;
 }
 
+// "5.9 kWh added": the energy the running charge has put in, for Home's gauge and the Car page's Charge tile.
+// Null under 0.05 kWh, which would read "0 kWh added": the charge's first minute, with nothing to say yet.
+export function energyAdded(kwh: number | null): string | null {
+  return kwh != null && kwh >= 0.05 ? `${formatKwh(kwh)} added` : null;
+}
+
 // "₹874.50" for INR (en-IN grouping): a bill, or a sum of bills, to the paisa.
 export function formatMoney(value: number, currency: string): string {
   let fmt = moneyFormats.get(currency);

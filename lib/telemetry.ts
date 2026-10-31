@@ -142,11 +142,6 @@ function thisCharge(stream: Stream) {
 // times in a 30-minute DC charge), so a reading from before a poll that came mid-charge is still current:
 // anything since the stream's own move into Charging counts, as well as anything newer than the poll.
 function currentCharge(stream: Stream, fresh: (field: string) => unknown) {
-  const state = stream.DetailedChargeState;
-  const since = state && chargeStateName(state.value) === "Charging" ? Date.parse(state.at) - CHARGE_LEAD_MS : null;
-  return (field: string) => {
-    const reading = stream[field];
-    if (since !== null && reading && Date.parse(reading.at) >= since) return reading.value;
-    return fresh(field);
-  };
+  const ours = thisCharge(stream);
+  return (field: string) => ours(field) ?? fresh(field);
 }

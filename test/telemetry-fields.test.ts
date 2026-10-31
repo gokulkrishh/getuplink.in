@@ -7,9 +7,11 @@ describe("telemetryFields", () => {
     const fields = telemetryFields();
     expect(fields.BatteryLevel.interval_seconds).toBe(60);
     expect(fields.RatedRange.interval_seconds).toBe(60);
-    // Only on a whole point's change, so drives and parked hours add few readings.
-    expect(fields.BatteryLevel.minimum_delta).toBe(1);
-    expect(fields.RatedRange.minimum_delta).toBe(1);
+    // A tenth of a point, not a whole one: a whole point left a charge's end level, a short drive's use and
+    // the level-to-range pairing up to 1 point out. Parked, the level moves about 0.03 a minute at most
+    // (31 Oct 2026), so a parked car still adds few readings.
+    expect(fields.BatteryLevel.minimum_delta).toBe(0.1);
+    expect(fields.RatedRange.minimum_delta).toBe(0.1);
     // The charge's energy counters already come every minute.
     expect(fields.DCChargingEnergyIn.interval_seconds).toBe(60);
     expect(fields.ACChargingEnergyIn.interval_seconds).toBe(60);
