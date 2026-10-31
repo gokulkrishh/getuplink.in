@@ -184,7 +184,7 @@ for (const phone of [false, true]) {
   await steady(`${tag} /setup Check again keeps its size`, p, again, again.locator("xpath=ancestor::*[self::section or self::div][1]"), () => tap(again));
 
   await p.goto("/settings", { waitUntil: "networkidle" });
-  await p.locator("[data-slot=collapsible-trigger]", { hasText: "Advanced" }).click();
+  await p.locator("[data-slot=collapsible-trigger]", { hasText: "Connect your AI" }).click();
   const add = p.locator("button:visible", { hasText: "Add connector" }).first();
   await p.locator('input[aria-label="Connector name"]:visible').first().fill("Layout test");
   await steady(`${tag} /settings Add connector keeps its size`, p, add, add.locator("xpath=ancestor::form[1]"), () => tap(add));

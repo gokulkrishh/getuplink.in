@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { CopyButton } from "@/components/copy-button";
 import { PendingLabel } from "@/components/pending-label";
 import { AlertDialog, AlertDialogClose, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -29,6 +29,7 @@ import { Row } from "./row";
 import { haptic } from "@/components/haptic";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Drawer, DrawerClose, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 
 
 // Copy link on an open row: the link is rebuilt on the server (copyViewLinkAction) and put on the clipboard.
@@ -180,8 +181,9 @@ function ViewLinkItem({ link: initial, now }: { link: ViewLink; now: number }) {
   );
 }
 
-// Who it's for, how long it lasts, Hide locations and the tick box. At the limit it says so in place of the form.
-function MakeViewLink({ count, onMade }: { count: number; onMade: (made: { label: string; token: string }) => void }) {
+// The form in the Create guest link sheet: who it's for, how long it lasts, Hide locations and the tick box.
+// The sheet mounts a fresh one each time it opens, so it always starts empty.
+function MakeViewLink({ onMade }: { onMade: (made: { label: string; token: string }) => void }) {
   const [label, setLabel] = useState("");
   const [length, setLength] = useState<string>(DEFAULT_VIEW_LINK_LENGTH);
   const [trusted, setTrusted] = useState(false);
@@ -189,8 +191,6 @@ function MakeViewLink({ count, onMade }: { count: number; onMade: (made: { label
   // `name`: the error is about the name field, so only then is the field marked.
   const [error, setError] = useState<{ message: string; name: boolean } | null>(null);
   const [pending, start] = useTransition();
-  // At the limit the form simply isn't there; it comes back when a link ends. The limit isn't shown.
-  if (count >= VIEW_LINK_LIMIT) return null;
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!viewLinkLabel(label)) return setError({ message: `Say who it's for, in up to ${VIEW_LINK_LABEL_MAX} characters.`, name: true });
@@ -199,10 +199,6 @@ function MakeViewLink({ count, onMade }: { count: number; onMade: (made: { label
       const result = await orOffline(makeViewLinkAction(label, length, trusted, hides), { error: OFFLINE });
       if ("error" in result) return setError({ message: result.error, name: false });
       setError(null);
-      setLabel("");
-      setTrusted(false);
-      setLength(DEFAULT_VIEW_LINK_LENGTH);
-      setHides(SHARES_EVERYTHING);
       onMade(result);
     });
   };
@@ -236,7 +232,7 @@ function MakeViewLink({ count, onMade }: { count: number; onMade: (made: { label
         </label>
       </div>
       {/* The two tick boxes sit together: 32px rows, a little taller on a phone for the thumb. Hide locations can be
-          changed later, while the link is open, from its row above. */}
+          changed later, while the link is open, from its row under Guest access. */}
       <div>
         <label className="flex min-h-8 w-fit cursor-pointer items-center gap-2 text-sm max-sm:min-h-9">
           <Checkbox checked={hides.hideLocations} onCheckedChange={(checked) => setHides({ hideLocations: checked })} />
@@ -259,7 +255,7 @@ function MakeViewLink({ count, onMade }: { count: number; onMade: (made: { label
         <p id="view-link-error" role="alert" className="text-sm text-destructive">
           {error?.message}
         </p>
-        <Button type="submit" size="lg" className="relative" disabled={pending || !trusted} aria-busy={pending}>
+        <Button ref={haptic} type="submit" size="lg" className="relative" disabled={pending || !trusted} aria-busy={pending}>
           <PendingLabel pending={pending} label="Create guest link" pendingLabel="Creating" />
         </Button>
       </div>
@@ -278,42 +274,71 @@ function LinkBox({ url, children }: { url: string; children?: React.ReactNode })
   );
 }
 
-// Settings → Guest access: open links with Copy link and End link on each, and the form, which shows the new
-// link once it's made. The new link's state lives here, not in the list, so the list refreshing after the
-// make doesn't hide it. `links` is null before the table exists.
+// Settings → Guest access: a row like the others, with Create guest link on the right (not offered at the
+// limit, until a link ends), and the open links under it with Copy link and End link on each. The button
+// opens a sheet with the form, which shows the new link once it's made. The new link's state lives here, not
+// in the form, so the list refreshing after the make doesn't hide it. `links` is null before the table exists.
 export function ViewLinks({ links, now }: { links: ViewLink[] | null; now: number }) {
-  // The new link, shown in the form's place. Done brings the form back.
+  const [open, setOpen] = useState(false);
+  // The new link, shown in the form's place until the sheet closes.
   const [made, setMade] = useState<{ label: string; url: string } | null>(null);
+  // Read when a make finishes: one finishing after the sheet was closed doesn't fill the next opening.
+  const openRef = useRef(false);
+  const offered = links !== null && links.length < VIEW_LINK_LIMIT;
 
   return (
-    <Row title="Guest access" description="Let someone you trust see your car data.">
-      <div className="mt-4 space-y-4">
+    // The sheet's root renders nothing of its own, so it wraps the whole row: the sheet stays open when the
+    // last allowed link is made and the button goes.
+    <Drawer
+      open={open}
+      // A tap outside doesn't close it, so a half-filled form isn't lost. The ×, Esc, a swipe down and Done do.
+      disablePointerDismissal
+      onOpenChange={(next) => {
+        openRef.current = next;
+        setOpen(next);
+      }}
+      // Once it has slid away, so the form doesn't flash back while the sheet closes.
+      onOpenChangeComplete={(next) => {
+        if (!next) setMade(null);
+      }}
+    >
+      <Row
+        title="Guest access"
+        description="Let someone you trust see your car data."
+        control={
+          offered && (
+            <DrawerTrigger render={<Button type="button" variant="outline" size="lg" />}>Create guest link</DrawerTrigger>
+          )
+        }
+      >
         {links === null ? (
-          <p className="text-sm text-muted-foreground">Guest access isn&apos;t set up yet.</p>
+          <p className="mt-4 text-sm text-muted-foreground">Guest access isn&apos;t set up yet.</p>
         ) : (
-          <>
-            {links.length > 0 && (
-              <ul className="divide-y border-y">
-                {links.map((l) => (
-                  <ViewLinkItem key={l.id} link={l} now={now} />
-                ))}
-              </ul>
-            )}
-            {made ? (
-              <div>
-                <p className="text-sm font-medium">Guest link for {made.label}</p>
-                <LinkBox url={made.url}>
-                  <Button type="button" variant="ghost" size="lg" onClick={() => setMade(null)}>
-                    Done
-                  </Button>
-                </LinkBox>
-              </div>
-            ) : (
-              <MakeViewLink count={links.length} onMade={({ label, token }) => setMade({ label, url: viewLinkUrl(window.location.origin, token) })} />
-            )}
-          </>
+          links.length > 0 && (
+            <ul className="mt-4 divide-y border-y">
+              {links.map((l) => (
+                <ViewLinkItem key={l.id} link={l} now={now} />
+              ))}
+            </ul>
+          )
         )}
-      </div>
-    </Row>
+      </Row>
+      <DrawerContent title={made ? `Guest link for ${made.label}` : "Create guest link"} keyboard className="sm:w-md" bodyClassName="px-5 pt-3 pb-5">
+        {made ? (
+          <div className="space-y-4">
+            <LinkBox url={made.url} />
+            <div className="flex justify-end">
+              <DrawerClose render={<Button type="button" size="lg" />}>Done</DrawerClose>
+            </div>
+          </div>
+        ) : (
+          <MakeViewLink
+            onMade={({ label, token }) => {
+              if (openRef.current) setMade({ label, url: viewLinkUrl(window.location.origin, token) });
+            }}
+          />
+        )}
+      </DrawerContent>
+    </Drawer>
   );
 }
