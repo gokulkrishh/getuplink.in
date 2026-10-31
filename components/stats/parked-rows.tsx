@@ -5,7 +5,7 @@ import { Measure } from "@/components/measure";
 import { TableBox } from "@/components/scroll-x";
 import { usePaged } from "@/components/show-more";
 import type { LoadMore, Paged } from "@/lib/list";
-import { TABLE_HEAD_ROW } from "@/lib/table-frame";
+import { PARKED_COLUMNS, PARKED_TABLE, TABLE_HEAD_ROW } from "@/lib/table-frame";
 
 // One stretch parked as the list shows it, every text worked out on the server (see cells in
 // parked-drain.tsx): the page sends these few strings per stretch, and the browser draws the table.
@@ -26,18 +26,6 @@ export type ParkedRow = {
   awake: string;
 };
 
-// The table's columns. Fixed widths, so the rows fetched by Show more line up with the first.
-const COLUMNS = [
-  { label: "#", width: "w-10" },
-  { label: "Parked", width: "w-32" },
-  { label: "For", width: "w-28" },
-  { label: "Lost", width: "", right: true },
-  { label: "Range", width: "", right: true },
-  { label: "Energy", width: "", right: true },
-  { label: "Average power", width: "", right: true },
-  { label: "Seen awake", width: "w-24", right: true },
-];
-
 // The stretch going on now says so under when it began, rather than in its length.
 const Now = ({ row }: { row: ParkedRow }) => (row.ongoing ? <span className="block text-xs text-muted-foreground">Still parked</span> : null);
 // The name truncates on a wider screen and wraps on a phone, so it reads in full in the scrolling table. The
@@ -52,16 +40,16 @@ const Where = ({ row }: { row: ParkedRow }) =>
 
 function ParkedTable({ rows }: { rows: ParkedRow[] }) {
   return (
-    <table className="w-full min-w-[48rem] table-fixed text-sm tabular-nums">
+    <table className={`${PARKED_TABLE} tabular-nums`}>
       <colgroup>
-        {COLUMNS.map((c) => (
+        {PARKED_COLUMNS.map((c) => (
           <col key={c.label} className={c.width} />
         ))}
       </colgroup>
       <thead>
         <tr className={`border-b text-left text-xs text-faint ${TABLE_HEAD_ROW}`}>
-          {COLUMNS.map((c, k) => (
-            <th key={c.label} scope="col" className={`font-normal ${c.right ? "text-right" : ""} ${k < COLUMNS.length - 1 ? "pr-3" : ""}`}>
+          {PARKED_COLUMNS.map((c, k) => (
+            <th key={c.label} scope="col" className={`font-normal ${c.right ? "text-right" : ""} ${k < PARKED_COLUMNS.length - 1 ? "pr-3" : ""}`}>
               {c.label}
             </th>
           ))}

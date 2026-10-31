@@ -3,7 +3,7 @@ import { Words } from "@/components/stats/charge-supply";
 import { Figures } from "@/components/stats/figures";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { TABLE_FRAME, TABLE_HEAD_ROW } from "@/lib/table-frame";
+import { TABLE_FRAME, TABLE_HEAD_ROW, TRIP_COLUMNS, TRIP_TABLE } from "@/lib/table-frame";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Pieces for the loading screens (the Suspense fallbacks), built from the page's own layout classes so a
@@ -176,27 +176,22 @@ export function SkShowMore() {
 
 // The trips list as TripRows draws it: a table of two-line rows, as wide on a phone as the real one.
 export function SkTripRows({ rows = 3 }: { rows?: number }) {
-  const head = ["#", "When", "Trip", "Distance · time", "Energy · battery"];
   return (
     <>
       <div className={TABLE_FRAME} aria-hidden="true">
-        <table className="w-full min-w-[44rem] table-fixed text-sm">
+        <table className={TRIP_TABLE}>
           <colgroup>
-            <col className="w-10" />
-            <col className="w-44" />
-            <col />
-            <col className="w-36" />
-            <col className="w-36" />
-            <col className="w-8" />
+            {TRIP_COLUMNS.map((c) => (
+              <col key={c.label} className={c.width} />
+            ))}
           </colgroup>
           <thead>
             <tr className={`border-b text-left text-xs ${TABLE_HEAD_ROW}`}>
-              {head.map((h, k) => (
-                <th key={h} className={cn("pr-3 font-normal", k > 2 && "text-right")}>
-                  <Ph>{h}</Ph>
+              {TRIP_COLUMNS.map((c) => (
+                <th key={c.label} className={cn("pr-3 font-normal", c.cell)}>
+                  <Ph>{c.label}</Ph>
                 </th>
               ))}
-              <th />
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -205,7 +200,7 @@ export function SkTripRows({ rows = 3 }: { rows?: number }) {
                 <td className="py-3 pr-3 text-xs">
                   <Ph>1</Ph>
                 </td>
-                <td className="py-3 pr-3">
+                <td className="py-3 pr-3 whitespace-nowrap">
                   <span className="block">
                     <Ph>Yesterday</Ph>
                   </span>
@@ -213,10 +208,7 @@ export function SkTripRows({ rows = 3 }: { rows?: number }) {
                     <Ph>8:18 AM to 8:52 AM</Ph>
                   </span>
                 </td>
-                <td className="py-3 pr-3 font-medium">
-                  <Ph>Home to Work</Ph>
-                </td>
-                <td className="py-3 pr-3 text-right">
+                <td className={cn("py-3 pr-3 whitespace-nowrap", TRIP_COLUMNS[2].cell)}>
                   <span className="block font-mono">
                     <Ph>14.8 km</Ph>
                   </span>
@@ -224,7 +216,10 @@ export function SkTripRows({ rows = 3 }: { rows?: number }) {
                     <Ph>34 min</Ph>
                   </span>
                 </td>
-                <td className="py-3 pr-3 text-right">
+                <td className={cn("py-3 pr-3 font-medium", TRIP_COLUMNS[3].cell)}>
+                  <Ph>Home to Work</Ph>
+                </td>
+                <td className={cn("py-3 pr-3 whitespace-nowrap", TRIP_COLUMNS[4].cell)}>
                   <span className="block font-mono">
                     <Ph>1.8 kWh</Ph>
                   </span>
@@ -232,7 +227,6 @@ export function SkTripRows({ rows = 3 }: { rows?: number }) {
                     <Ph>3% of battery</Ph>
                   </span>
                 </td>
-                <td className="py-3" />
               </tr>
             ))}
           </tbody>
