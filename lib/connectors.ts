@@ -1,4 +1,4 @@
-// Named MCP connectors (Settings → Advanced): one per AI app, each with its own token. Shared by the
+// Named MCP connectors (Settings → Connect your AI): one per AI app, each with its own token. Shared by the
 // Settings form and the server, so both hold a name to the same rule.
 
 export const CONNECTOR_LIMIT = 5;

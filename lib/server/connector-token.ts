@@ -6,7 +6,7 @@ import { safeEqual } from "@/lib/session";
 import { type Owner, ownerDb } from "./data/owner";
 import { connectorTokenAccount } from "./data/system";
 
-// The MCP connectors (Settings → Advanced): up to 5 per account, one per AI app (a Grok bot, Claude,
+// The MCP connectors (Settings → Connect your AI): up to 5 per account, one per AI app (a Grok bot, Claude,
 // ChatGPT), each named and removed on its own. A token is shown once when created; only its hash is
 // stored, so a database leak can't be replayed against /api/mcp.
 

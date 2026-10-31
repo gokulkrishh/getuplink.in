@@ -56,6 +56,16 @@ export const WHATS_NEW: Entry[] = [
     show: "bell",
   },
   {
+    id: "2026-10-31-guest-link-sheet",
+    date: "2026-10-31",
+    title: "Guest links, tidier",
+    text: "In Settings, Create guest link opens a sheet with the form. Your open links still show under Guest access.",
+    version: "0.2",
+    kind: "Improvement",
+    audience: "draft",
+    show: "bell",
+  },
+  {
     id: "2026-10-31-chart-download",
     date: "2026-10-31",
     title: "Save a chart as an image",

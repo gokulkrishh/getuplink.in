@@ -26,6 +26,7 @@ describe("WHATS_NEW", () => {
     expect(WHATS_NEW.map((e) => [e.id, e.audience])).toEqual([
       ["2026-10-31-trip-route-names", "draft"],
       ["2026-10-31-swipe-to-close", "draft"],
+      ["2026-10-31-guest-link-sheet", "draft"],
       ["2026-10-31-chart-download", "owners"],
       ["2026-10-31-charge-energy-added", "draft"],
       ["2026-10-30-guest-access", "owners"],

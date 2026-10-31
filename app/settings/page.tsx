@@ -34,15 +34,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Settings" };
 
-// Settings few owners need (connecting their own AI, the bot), closed until opened, last on the page.
-function Advanced({ children }: { children: React.ReactNode }) {
+// Connect your AI: settings few owners need (their own AI, the bot), closed until opened, last on the page.
+function ConnectYourAi({ children }: { children: React.ReactNode }) {
   return (
     <Collapsible className="group mt-10">
       {/* A div (with the button role), since it holds a heading, which a <button> can't. */}
       <CollapsibleTrigger nativeButton={false} render={<div />} className="flex w-full cursor-pointer items-center justify-between gap-4 pb-2 text-left focus-visible:outline-2 focus-visible:outline-ring">
         <div className="min-w-0">
-          <h2 className="text-lg font-medium tracking-heading">Advanced</h2>
-          <p className="text-sm text-muted-foreground">Connect Claude, ChatGPT or Grok to your car&apos;s data.</p>
+          <h2 className="text-lg font-medium tracking-heading">Connect your AI</h2>
+          <p className="text-sm text-muted-foreground">Ask Claude, ChatGPT or Grok about your car.</p>
         </div>
         <FoldToggle />
       </CollapsibleTrigger>
@@ -177,45 +177,27 @@ async function Settings() {
         <DeleteAccount />
       </Group>
 
-      <Advanced>
+      <ConnectYourAi>
         <McpConnector connectors={connectors} now={now} />
         <BotTemplate />
-      </Advanced>
+      </ConnectYourAi>
     </>
   );
 }
 
-// The Guest access block's placeholder. The blocks are as tall as the empty form: the name and length fields
-// (a label over a box), the two tick rows (32px, a little taller on a phone), the button.
+// The Guest access row's placeholder: its title and line, with a block as big as Create guest link (an outline
+// lg button, 36px, 40px on a phone) as the control. Open links aren't drawn: most owners have none.
 function GuestSkeleton() {
-  const block = (className: string) => <Skeleton className={className} aria-hidden="true" />;
   return (
-    <Row title={<Ph>Guest access</Ph>} description={<p><Ph>Let someone you trust see your car data.</Ph></p>}>
-      <div className="mt-4 space-y-3">
-        <div className="grid gap-3 sm:grid-cols-2">
-          {["Who is it for", "Lasts"].map((label) => (
-            <div key={label} className="flex flex-col gap-1 text-sm">
-              <span>
-                <Ph>{label}</Ph>
-              </span>
-              {block("h-9 rounded-lg max-sm:h-10")}
-            </div>
-          ))}
-        </div>
-        <div>
-          {["w-32", "w-72"].map((width) => (
-            <div key={width} className="flex h-8 items-center max-sm:h-9">
-              {block(`h-4 ${width} max-w-full`)}
-            </div>
-          ))}
-        </div>
-        <div className="flex justify-end">{block("h-9 w-40 rounded-lg max-sm:h-10")}</div>
-      </div>
-    </Row>
+    <Row
+      title={<Ph>Guest access</Ph>}
+      description={<p><Ph>Let someone you trust see your car data.</Ph></p>}
+      control={<Skeleton className="h-9 w-[9.125rem] rounded-lg max-sm:h-10" aria-hidden="true" />}
+    />
   );
 }
 
-// Faint blocks in the shape of the groups and their rows, built from the same Group and Row. Advanced
+// Faint blocks in the shape of the groups and their rows, built from the same Group and Row. Connect your AI
 // renders closed, so only its heading is drawn.
 function SettingsSkeleton() {
   const button = <Skeleton className="h-9 w-24 rounded-lg max-sm:h-10" aria-hidden="true" />;
@@ -298,8 +280,8 @@ function SettingsSkeleton() {
         )}
         <div className="mt-10 flex items-center justify-between gap-4 pb-2">
           <div>
-            <p className="text-lg"><Ph>Advanced</Ph></p>
-            <p className="text-sm"><Ph>Connect Claude, ChatGPT or Grok to your car&apos;s data.</Ph></p>
+            <p className="text-lg"><Ph>Connect your AI</Ph></p>
+            <p className="text-sm"><Ph>Ask Claude, ChatGPT or Grok about your car.</Ph></p>
           </div>
           <p className="text-sm"><Ph>Show</Ph></p>
         </div>
