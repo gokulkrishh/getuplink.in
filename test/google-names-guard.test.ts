@@ -20,7 +20,9 @@ describe("Google place names stay off the map and out of exports", () => {
     const facts = page.slice(page.indexOf("function endFact("), page.indexOf("// The owner's names for places"));
     expect(facts).toContain("end.name?.text");
     expect(facts).not.toMatch(GOOGLE_NAME);
-    const named = page.slice(page.indexOf("async function NamedFacts("), page.indexOf("\n}\n", page.indexOf("async function NamedFacts(")));
+    // The ends' names (loadEnds) and the facts built from them, up to the route line, which alone fills in Google.
+    const named = page.slice(page.indexOf("const loadEnds = cache("), page.indexOf("function RouteLine("));
+    expect(named).toContain("async function NamedFacts(");
     expect(named).not.toMatch(GOOGLE_NAME);
   });
 

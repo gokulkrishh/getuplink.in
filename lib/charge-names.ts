@@ -76,12 +76,23 @@ export function shownName(spot: Pick<SpotName, "name" | "google"> | null | undef
   return spot?.name ? { text: spot.name.text, google: false } : null;
 }
 
-// A trip page's route line ("Home to Eswaran Maligai Store"): each end as a row shows it, a picked Google
-// place by its Google name. Only when both ends are known, as the trips list does. It sits above the page,
-// apart from the map, whose From and To keep the safe name.
-export function tripRoute(from: Pick<SpotName, "name" | "google"> | null, to: Pick<SpotName, "name" | "google"> | null): [ShownName, ShownName] | null {
-  const ends = [shownName(from), shownName(to)];
-  return ends[0] && ends[1] ? [ends[0], ends[1]] : null;
+// "Home", "Koramangala": a place's name without its city, short enough for a row or a route.
+export const shortName = (name: string | null | undefined): string | null => name?.split(",")[0]?.trim() || null;
+
+// A trip page's route line, by the trips list's rules (lib/server/trip-places.ts): short names, "Around Home"
+// when it ended where it began, and only when both ends are known. Unlike the list (whose rows can't credit
+// it), a picked Google place shows by its Google name, kept whole. The line sits above the page, apart from
+// the map, whose From and To keep the safe name.
+export type RouteNames = { around: ShownName } | { from: ShownName; to: ShownName };
+export function routeNames(from: Pick<SpotName, "name" | "google"> | null, to: Pick<SpotName, "name" | "google"> | null): RouteNames | null {
+  const shown = (spot: Pick<SpotName, "name" | "google"> | null): ShownName | null => {
+    const s = shownName(spot);
+    const text = s && (s.google ? s.text : shortName(s.text));
+    return s && text ? { text, google: s.google } : null;
+  };
+  const [a, b] = [shown(from), shown(to)];
+  if (!a || !b) return null;
+  return a.text === b.text && a.google === b.google ? { around: a } : { from: a, to: b };
 }
 
 // Whether to offer "Name this place": nothing names the spot, or only its area does.

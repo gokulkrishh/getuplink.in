@@ -8,7 +8,8 @@ import { cacheLife, cacheTag } from "next/cache";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { after } from "next/server";
-import { type ReactNode, Suspense } from "react";
+import { cache, type ReactNode, Suspense } from "react";
+import { cn } from "@/lib/utils";
 import { Header } from "@/components/header";
 import { BackLink } from "@/components/stats/back-link";
 import { ChartCard } from "@/components/chart-card";
@@ -26,7 +27,7 @@ import { cachedPlaceNames, placeKey, placeNames } from "@/lib/server/place-names
 import { loadUserPlaces } from "@/lib/server/user-places";
 import { NamePlace } from "@/components/name-place";
 import { ROW_LINK, RowChevron } from "@/components/row-chevron";
-import { nameAction, type ShownName, type SpotName, spotName, tripRoute } from "@/lib/charge-names";
+import { nameAction, type RouteNames, type ShownName, type SpotName, spotName, routeNames } from "@/lib/charge-names";
 import { GoogleMapsCredit } from "@/components/google-maps-credit";
 import { withGoogleNames } from "@/lib/server/google-place-names";
 import { isFlat, MIN_USUAL_DRIVES } from "@/lib/drive-verdict";
@@ -103,16 +104,18 @@ function Drive({ detail, view, words, tipsBox, now, locations }: { detail: Drive
   const line = (field: WordingField) => (words[field] ? <AiLine line={words[field]} /> : null);
   const what = trip.stops ? "trip" : "drive";
   const wentTiles = howItWent(view.facts);
+  // The route line under the title, when the trip has a start and an end to name.
+  const routed = locations && pins.some((p) => p.kind === "start") && pins.some((p) => p.kind === "end");
   return (
     <>
       <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">{trip.stops ? "Trip" : "Drive"}</h1>
-      {locations && (
+      {routed && (
         // Streams in after the page; the empty line holds its place, so nothing moves when it lands.
-        <Suspense fallback={<RouteLine route={null} />}>
+        <Suspense fallback={<RouteLine route={null} pending />}>
           <NamedRoute pins={pins} />
         </Suspense>
       )}
-      <p className="mt-1 mb-12 text-sm text-muted-foreground tabular-nums">
+      <p className={cn("mb-12 text-sm text-muted-foreground tabular-nums", routed ? "mt-1" : "mt-2")}>
         {withDayWord(formatDate(trip.start), trip.start, now)} · {formatClock(trip.start)} to {formatClock(trip.end)}
       </p>
       <div className="space-y-12">
@@ -289,21 +292,28 @@ async function loadTags(): Promise<{ tags: UserPlace[]; lookUp: boolean }> {
 }
 
 // Names for the start and end, best source first (see spotName): the owner's tag, a charging station, then
-// the area name Uplink keeps (looked up once each, see lib/server/place-names). Streams in after the map, so
-// a slow lookup never holds the page.
-async function NamedFacts({ pins, tiles }: { pins: MapPin[]; tiles: { label: string; value: string }[] }) {
+// the area name Uplink keeps (looked up once each, see lib/server/place-names). One lookup per render (React
+// cache, keyed by the page's own pins), shared by the route line and the map's facts. Never a Google name.
+const loadEnds = cache(async (pins: MapPin[]): Promise<{ from: SpotName | null; to: SpotName | null; lookUp: boolean }> => {
   const ends = [pins.find((p) => p.kind === "start"), pins.findLast((p) => p.kind === "end")];
   const { tags, lookUp } = await loadTags();
   const names = await (lookUp ? placeNames : cachedPlaceNames)(ends.filter((p): p is MapPin => p !== undefined)).catch(() => new Map<string, string>());
   const name = (p: MapPin | undefined) => (p ? spotName(tags, p, { station: stationAt(p.lat, p.lng), place: names.get(placeKey(p)) }) : null);
-  return <MapFacts facts={mapFacts(name(ends[0]), name(ends[1]), tiles, lookUp)} />;
+  return { from: name(ends[0]), to: name(ends[1]), lookUp };
+});
+
+// The facts under the map, streamed in after it, so a slow lookup never holds the page.
+async function NamedFacts({ pins, tiles }: { pins: MapPin[]; tiles: { label: string; value: string }[] }) {
+  const { from, to, lookUp } = await loadEnds(pins);
+  return <MapFacts facts={mapFacts(from, to, tiles, lookUp)} />;
 }
 
 // Where the trip went, by the names a row shows: a picked Google place by its Google name, with "Google Maps"
 // beside it (Google's terms allow its names apart from a map; this line is above the page, not on the map's
 // card). One line from sm up, two on a phone (each end on its own, "to" before the second); a long name is
-// cut, its credit never. The same height, empty, while either end is unknown, so nothing moves.
-function RouteLine({ route }: { route: [ShownName, ShownName] | null }) {
+// cut, its credit never. "Place not known" when either end has no name, as in the trips list. The same
+// height while it streams in (`pending`, empty), so nothing moves.
+function RouteLine({ route, pending = false }: { route: RouteNames | null; pending?: boolean }) {
   const end = (n: ShownName) => (
     <>
       <span className="min-w-0 truncate">{n.text}</span>
@@ -313,12 +323,19 @@ function RouteLine({ route }: { route: [ShownName, ShownName] | null }) {
   const part = "flex min-w-0 items-baseline gap-x-1.5";
   return (
     <p className="mt-2 flex h-12 min-w-0 flex-col text-base leading-6 whitespace-nowrap sm:h-6 sm:flex-row sm:items-baseline sm:gap-x-1.5">
-      {route && (
+      {pending ? null : !route ? (
+        <span className="text-muted-foreground">Place not known</span>
+      ) : "around" in route ? (
+        <span className={part}>
+          <span className="shrink-0 text-muted-foreground">Around</span>
+          {end(route.around)}
+        </span>
+      ) : (
         <>
-          <span className={part}>{end(route[0])}</span>
+          <span className={part}>{end(route.from)}</span>
           <span className={part}>
             <span className="shrink-0 text-muted-foreground">to</span>
-            {end(route[1])}
+            {end(route.to)}
           </span>
         </>
       )}
@@ -326,17 +343,12 @@ function RouteLine({ route }: { route: [ShownName, ShownName] | null }) {
   );
 }
 
-// The route's names: the same ends and sources as the map's facts, then each Google pick's live name (never a
-// guest's, see withGoogleNames). Outside any shared cache: the lookup is no-store.
+// The route's names: the map's ends (loadEnds), then each Google pick's live name, in order (never a guest's,
+// see withGoogleNames). Outside any shared cache: the lookup is no-store.
 async function NamedRoute({ pins }: { pins: MapPin[] }) {
-  const ends = [pins.find((p) => p.kind === "start"), pins.findLast((p) => p.kind === "end")];
-  const [{ tags, lookUp }, { owner }] = await Promise.all([loadTags(), requireReader()]);
-  const names = await (lookUp ? placeNames : cachedPlaceNames)(ends.filter((p): p is MapPin => p !== undefined)).catch(() => new Map<string, string>());
-  const spots = ends.map((p) => (p ? spotName(tags, p, { station: stationAt(p.lat, p.lng), place: names.get(placeKey(p)) }) : null));
-  const known = spots.filter((s): s is SpotName => s !== null);
-  const named = await withGoogleNames(owner, known).catch(() => known);
-  const [from, to] = spots.map((s) => (s ? named[known.indexOf(s)] : null));
-  return <RouteLine route={tripRoute(from, to)} />;
+  const [{ from, to }, { owner }] = await Promise.all([loadEnds(pins), requireReader()]);
+  const [named0, named1] = from && to ? await withGoogleNames(owner, [from, to]).catch(() => [from, to]) : [from, to];
+  return <RouteLine route={routeNames(named0, named1)} />;
 }
 
 // Each leg of a trip as a row: when, how far, the energy and battery when known. Each opens its own page.

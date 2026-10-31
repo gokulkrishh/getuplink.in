@@ -24,6 +24,7 @@ const base = { entries: [] as Entry[], now: NOW, admin: false, approvedAt: OLD a
 describe("WHATS_NEW", () => {
   test("Guest access and chart download are announced to every owner, the admin included; drafts to nobody", () => {
     expect(WHATS_NEW.map((e) => [e.id, e.audience])).toEqual([
+      ["2026-10-31-trip-route-names", "draft"],
       ["2026-10-31-swipe-to-close", "draft"],
       ["2026-10-31-chart-download", "owners"],
       ["2026-10-30-guest-access", "owners"],
