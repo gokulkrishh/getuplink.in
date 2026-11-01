@@ -3,6 +3,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Measure } from "@/components/measure";
 import { withUnit } from "@/components/stats/bar-parts";
+import { axisLabels, niceTop } from "@/lib/axis";
 import { formatClock, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { evenStops, PLOT_FOCUS, plotKeys } from "@/components/stats/plot-keys";
@@ -13,13 +14,7 @@ const MIN = 60_000;
 const IST = 330 * MIN; // clock ticks fall on round IST minutes, like formatClock
 const STEPS = [1, 2, 5, 10, 15, 20, 30, 60, 120, 180, 360].map((m) => m * MIN);
 const LABEL_PX = 64; // room one clock label ("10:04 PM") needs, with a gap
-// The y-axis end: the data's reach rounded up to a step finer than the bar charts' niceMax, so a 54 kW
-// peak tops out at 60, not 100.
-const NICE = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
-function niceTop(value: number): number {
-  const step = 10 ** Math.floor(Math.log10(value));
-  return (NICE.find((m) => value <= m * step) ?? 10) * step;
-}
+// The y-axis end is the data's reach rounded up by niceTop (lib/axis.ts), so a 54 kW peak tops out at 60, not 100.
 const axisNumber = new Intl.NumberFormat("en-IN", { notation: "compact", maximumFractionDigits: 1 });
 
 // The colours a split trace can take, by meaning (see "Colour by meaning" in docs/charts.md), written out
@@ -186,9 +181,9 @@ export function DriveTrace({
         </span>
         <div className="flex gap-2">
           <div className="relative h-28 w-8 shrink-0 text-right font-mono text-xs whitespace-nowrap text-faint tabular-nums" aria-hidden="true">
-            {ticks.map((v) => (
-              <span key={v} className="absolute right-0 -translate-y-1/2" style={{ top: `${yPct(v)}%` }}>
-                {axisNumber.format(v)}
+            {axisLabels(ticks).map((text, k) => (
+              <span key={ticks[k]} className="absolute right-0 -translate-y-1/2" style={{ top: `${yPct(ticks[k])}%` }}>
+                {text}
               </span>
             ))}
           </div>

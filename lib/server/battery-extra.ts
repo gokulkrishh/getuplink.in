@@ -1,7 +1,6 @@
 import "server-only";
 import type { Owner } from "./data/owner";
-import { MILES_TO_KM } from "@/lib/car";
-import { num, type Reading, type WeeklyPack } from "@/lib/telemetry-derive";
+import { num, type Reading } from "@/lib/telemetry-derive";
 import { type TeslaPack, teslaPack } from "@/lib/tesla-pack";
 import { trendWindow } from "./battery";
 import { loadStream } from "./telemetry";
@@ -14,20 +13,19 @@ export const TEMP_DAYS = 7;
 
 export type Point = { x: number; y: number };
 
-// What the battery page adds from the stream: temperatures and cell balance for the last week, and each
-// week's capacity against the odometer. Each part is empty until the car streams its fields.
+// What the battery page adds from the stream: temperatures and cell balance for the last week, and Tesla's
+// own full-pack figure. Each part is empty until the car streams its fields.
 export type BatteryExtras = {
   temps: { battery: Point[]; inside: Point[]; outside: Point[] };
   cellSpreadMv: Point[]; // highest minus lowest cell voltage, in mV
-  capacityByKm: (Point & { weekStart: number })[]; // x: odometer km, y: usable capacity kWh, for the week starting weekStart
   // Tesla's own full-pack figure, as last reported, with its weekly median over the trend's weeks.
   teslaPack: TeslaPack | null;
 };
 
-const series = (readings: Reading[] | undefined, scale = 1): Point[] =>
+const series = (readings: Reading[] | undefined): Point[] =>
   (readings ?? []).flatMap((r) => {
     const y = num(r.value);
-    return y === null ? [] : [{ x: Date.parse(r.at), y: y * scale }];
+    return y === null ? [] : [{ x: Date.parse(r.at), y }];
   });
 
 // Pairs two series by time: each reading of `a` with the latest of `b` within 10 minutes before it.
@@ -38,32 +36,24 @@ function pair(a: Point[], b: Point[], f: (x: number, y: number) => number): Poin
   });
 }
 
-export async function loadBatteryExtras(owner: Owner, vin: string | null, trend: WeeklyPack[], now: number): Promise<BatteryExtras> {
-  const empty: BatteryExtras = { temps: { battery: [], inside: [], outside: [] }, cellSpreadMv: [], capacityByKm: [], teslaPack: null };
+export async function loadBatteryExtras(owner: Owner, vin: string | null, now: number): Promise<BatteryExtras> {
+  const empty: BatteryExtras = { temps: { battery: [], inside: [], outside: [] }, cellSpreadMv: [], teslaPack: null };
   if (!vin) return empty;
   const from = new Date(now - TEMP_DAYS * DAY).toISOString();
   const to = new Date(now).toISOString();
   // The trend's 12 weeks, whether or not each has a usable-capacity figure: Tesla's own figure has its own weeks.
   const trendFrom = new Date(trendWindow(now).from).toISOString();
   // Tesla only sends its figure when it changes, so the latest is read on its own, of any age.
-  const [recent, odo, nominal, latest] = await Promise.all([
+  const [recent, nominal, latest] = await Promise.all([
     loadReadingsByField(owner, vin, ["ModuleTempMax", "InsideTemp", "OutsideTemp", "BrickVoltageMax", "BrickVoltageMin"], from, to),
-    trend.length >= 2 ? loadReadingsByField(owner, vin, ["Odometer"], trendFrom, to) : Promise.resolve(null),
     loadReadingsByField(owner, vin, [NOMINAL], trendFrom, to),
     loadStream(owner, vin, [NOMINAL]),
   ]);
   const pack = teslaPack(latest[NOMINAL], nominal?.[NOMINAL] ?? []);
   if (!recent) return { ...empty, teslaPack: pack };
-  const odometer = series(odo?.Odometer, MILES_TO_KM);
   return {
     teslaPack: pack,
     temps: { battery: series(recent.ModuleTempMax), inside: series(recent.InsideTemp), outside: series(recent.OutsideTemp) },
     cellSpreadMv: pair(series(recent.BrickVoltageMax), series(recent.BrickVoltageMin), (hi, lo) => (hi - lo) * 1000),
-    // Each week's estimate at the odometer reading nearest the middle of that week.
-    capacityByKm: trend.flatMap((w) => {
-      const mid = w.weekStart + 3.5 * DAY;
-      const near = odometer.reduce<Point | null>((a, p) => (!a || Math.abs(p.x - mid) < Math.abs(a.x - mid) ? p : a), null);
-      return near && Math.abs(near.x - mid) < 7 * DAY ? [{ x: near.y, y: w.kwh, weekStart: w.weekStart }] : [];
-    }),
   };
 }

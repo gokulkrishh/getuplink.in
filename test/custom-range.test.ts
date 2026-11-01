@@ -83,6 +83,14 @@ describe("period links", () => {
     expect(periodQuery("month", null, PAGE_PERIODS.updates)).toBe("");
     expect(periodQuery("year", null, PAGE_PERIODS.updates)).toBe("?period=year");
   });
+  test("Battery opens on All: old ?period= links still open the period they name", () => {
+    expect(viewPeriods("battery").opensOn).toBe("all");
+    expect(parsePeriod(undefined, viewPeriods("battery"))).toBe("all");
+    expect(parsePeriod("week", viewPeriods("battery"))).toBe("week");
+    expect(statsHref("battery", "all")).toBe("/stats/battery");
+    expect(statsHref("battery", "week")).toBe("/stats/battery?period=week");
+    expect(statsHref("driving", "all")).toBe("/stats/driving?period=all");
+  });
   test("a page opens on its own period when the URL names none, or one it doesn't offer", () => {
     expect(parsePeriod(undefined, PAGE_PERIODS.stats)).toBe("week");
     expect(parsePeriod("day", PAGE_PERIODS.stats)).toBe("day");

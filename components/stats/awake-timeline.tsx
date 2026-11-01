@@ -11,10 +11,12 @@ const STATES: { state: Presence; label: string; className: string }[] = [
   // Hollow with a hairline, like its legend square, so a day with no data can't pass for asleep.
   { state: "unknown", label: "No data", className: "border border-muted-foreground/25" },
 ];
+// On the Battery page, after Parked drain: the time awake is where most of that drain goes.
+export const AWAKE_DESCRIPTION = "When the car was awake each day.";
 const classes = Object.fromEntries(STATES.map((s) => [s.state, s.className])) as Record<Presence, string>;
 
 // A thin strip per IST day for the last 14 days, newest on top: when the car was online, asleep or
-// offline. Updates only download while it's awake, so this answers "why hasn't it arrived yet?". The
+// offline. Awake, the car draws more power, so this shows where parked drain comes from. The
 // strips start at the first day with any data, so days before tracking began aren't drawn as "No data".
 export function AwakeTimeline({ days: all, now }: { days: DayStrip[]; now: number }) {
   if (!hasPresence(all)) return null;
@@ -25,10 +27,10 @@ export function AwakeTimeline({ days: all, now }: { days: DayStrip[]; now: numbe
   const sentence = awakeSentence(onlineDays, days.length, first > 0 ? formatShortDate(days[0].start + 43_200_000) : null);
   // One day is a sentence, not a chart of one bar.
   if (days.length === 1) {
-    return <ChartCard title="Awake and asleep" description="When the car was awake each day. Updates download only then." empty={sentence} />;
+    return <ChartCard title="Awake and asleep" description={AWAKE_DESCRIPTION} info="Your car uses more battery awake than asleep, so long awake stretches add to parked drain." empty={sentence} />;
   }
   return (
-    <ChartCard title="Awake and asleep" description="When the car was awake each day. Updates download only then." summary={<p className="text-sm tabular-nums">{sentence}</p>}>
+    <ChartCard title="Awake and asleep" description={AWAKE_DESCRIPTION} info="Your car uses more battery awake than asleep, so long awake stretches add to parked drain." summary={<p className="text-sm tabular-nums">{sentence}</p>}>
       <div className="space-y-3">
         <div className="space-y-3 rounded-lg bg-muted dark:bg-card px-3 pt-4 pb-3">
           <ol className="space-y-1.5">

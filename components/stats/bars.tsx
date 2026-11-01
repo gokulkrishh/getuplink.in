@@ -1,6 +1,7 @@
 import { BarColumns } from "@/components/stats/bar-columns";
 import { type Bar, barOpens } from "@/components/stats/bar-parts";
 import type { View } from "@/components/stats/periods";
+import { axisLabels } from "@/lib/axis";
 import type { Stops } from "@/lib/bar-stops";
 import { showsZero } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -84,7 +85,6 @@ export function Captioned({ caption, children }: { caption?: React.ReactNode; ch
   );
 }
 
-
 // In place of a chart with nothing in it: one short sentence ("No bills today."), not an empty panel. The
 // caption is left out; the sentence already says which period.
 export function EmptyChart({ children }: { children: React.ReactNode }) {
@@ -96,8 +96,6 @@ export function niceMax(value: number): number {
   const step = 10 ** Math.floor(Math.log10(value));
   return ([1, 2, 2.5, 5, 10].find((m) => value <= m * step) ?? 10) * step;
 }
-
-const axisNumber = new Intl.NumberFormat("en-IN", { notation: "compact", maximumFractionDigits: 1 });
 
 // The panel with a y axis (0, half and the top) on the left and matching gridlines behind the bars. The
 // axis lines up with the bars' h-20 area: below the value row (h-4 plus the gap, kept blank on a dense
@@ -126,10 +124,10 @@ export function ChartFrame({ max, prefix = "", unit, xUnit, children }: { max: n
       )}
       <div className="relative my-6 w-8 shrink-0" aria-hidden="true">
         <div className="relative h-20 text-right font-mono text-xs whitespace-nowrap text-faint tabular-nums">
-          {[max, max / 2, 0].map((v, i) => (
+          {axisLabels([max, max / 2, 0]).map((text, i) => (
             <span key={i} className={cn("absolute right-0", i === 0 ? "top-0 -translate-y-1/2" : i === 1 ? "top-1/2 -translate-y-1/2" : "bottom-0 translate-y-1/2")}>
               {prefix}
-              {axisNumber.format(v)}
+              {text}
             </span>
           ))}
         </div>

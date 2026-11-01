@@ -1,13 +1,12 @@
 # Software updates
 
-The car's software: the current version and any download in progress (Software), the version History, Stats on update timing, and Online and asleep.
+The car's software: the current version and any download in progress (Software), the version History, and Stats on update timing. (Awake and asleep moved to `/stats/battery`.)
 
 ## Sub-features
 
 - Software card: current version, download or install progress.
 - History table of versions (received, installed, odometer); sideways scroll on phones.
 - Stats with its own period switch: Month, Year, All, Custom (no Day or Week; opens on Month).
-- Online and asleep timeline.
 
 ## How to get to it (user POV)
 

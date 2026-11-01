@@ -6,7 +6,7 @@ import { statsHref, urlRange, type View, viewPeriods, VIEWS } from "./periods";
 
 // One page per topic, with the period carried over (Custom with its dates): the one picked on this page,
 // read from the URL the period switch keeps. With none in the URL (or one it can't read) nothing was picked, so each topic opens on
-// its own (Week on Driving, Month on Charging). Drawn in the page's shell, outside the data's Suspense, so the
+// its own (Week on Driving, Month on Charging, All on Battery). Drawn in the page's shell, outside the data's Suspense, so the
 // tabs stay put while a topic's data loads; `ViewTabsShell` is the same tabs before the URL is read.
 export function ViewTabs({ view }: { view: View }) {
   const params = useSearchParams();

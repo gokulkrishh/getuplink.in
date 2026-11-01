@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { Line, LineChart, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import type { CurvePoint } from "@/lib/charge-curve";
+import { axisLabels, niceTop } from "@/lib/axis";
 import { formatClock, formatKw, formatLevels, formatPercent } from "@/lib/format";
 import { Measure } from "@/components/measure";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,7 +14,6 @@ const config = {
   level: { label: "Battery", color: "var(--muted-foreground)" },
 } satisfies ChartConfig;
 
-const kwFormat = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 const tick = { fontSize: 12, fill: "var(--faint)" };
 
 // Power in kW on the left axis and battery % on the right, against the time of day. Ticks are bare
@@ -32,6 +32,10 @@ export default function ChargeCurvePlot({ points }: { points: CurvePoint[] }) {
   }, []);
 
   const peak = Math.max(...points.map((p) => p.kw ?? 0));
+  // 0, half and a round top over the peak, like the other charts, each written apart (lib/axis.ts).
+  const top = niceTop(Math.max(peak, 0.1));
+  const kwTicks = [0, top / 2, top];
+  const kwLabels = axisLabels(kwTicks, { compact: false });
   const levels = points.flatMap((p) => (p.level === null ? [] : [p.level]));
   const first = points[0];
   const last = points[points.length - 1];
@@ -69,10 +73,10 @@ export default function ChargeCurvePlot({ points }: { points: CurvePoint[] }) {
               />
               <YAxis
                 yAxisId="kw"
-                domain={[0, "auto"]}
+                domain={[0, top]}
                 width={32}
-                tickCount={3}
-                tickFormatter={(v: number) => kwFormat.format(v)}
+                ticks={kwTicks}
+                tickFormatter={(v: number) => kwLabels[kwTicks.indexOf(v)] ?? ""}
                 tickLine={false} axisLine={{ stroke: "var(--border)" }}
                 tick={tick}
               />

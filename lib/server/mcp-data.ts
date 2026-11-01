@@ -105,7 +105,7 @@ export async function batteryStatus(owner: Owner) {
   const now = Date.now();
   const { vin } = await car(owner);
   const [window, sessions] = await Promise.all([loadWindowStats(owner, vin, now), loadStreamSessions(owner)]);
-  const extras = await loadBatteryExtras(owner, vin, window.trend, now);
+  const extras = await loadBatteryExtras(owner, vin, now);
   const best = (xs: number[]) => (xs.length ? Math.max(...xs) : null);
   const latest = <T,>(xs: T[]) => xs.at(-1) ?? null;
   const finished = sessions.filter((s) => s.ended_at !== null);
