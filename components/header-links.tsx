@@ -3,7 +3,7 @@
 import { BatteryMedium, Car, type LucideIcon, Route, Zap } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useOptimistic, useRef, useState } from "react";
 import { type HomePeriod, statsHref, urlRange, type View, viewPeriods, VIEWS, type DateRange } from "@/components/stats/periods";
 import { BAR_START, nextBar } from "@/lib/tab-bar";
 import { cn } from "@/lib/utils";
@@ -50,14 +50,22 @@ export function HeaderLinksShell({ current }: { current?: Section }) {
   return <Links current={current} href={SHELL_HREF} />;
 }
 
+// The tapped link is marked at once (optimistic), so a page that is slow to load still shows which one was
+// picked; the mark settles on the page that actually commits, as TabLinks does.
+// prefetch={true}: with Partial Prefetching on (next.config.ts) that is the App Shell plus the page's cached
+// data for this link's URL (its period), which the shared App Shell can't hold: the pages' private data
+// lives 60s, under the App Shell's 5 minutes. Only links in view prefetch, so the hidden set (the header's
+// on a phone, the tab bar's from sm up) costs nothing.
 function Links({ current, href }: { current?: Section; href: Href }) {
+  const [shown, setShown] = useOptimistic(current);
   return PAGES.map(({ key, label }) => (
     <Link
       key={key}
       href={href(key)}
       prefetch={true}
-      aria-current={current === key ? "page" : undefined}
-      className={cn("tap-target hover:text-foreground", current === key && "text-foreground")}
+      aria-current={shown === key ? "page" : undefined}
+      onNavigate={() => startTransition(() => setShown(key))}
+      className={cn("tap-target hover:text-foreground", shown === key && "text-foreground")}
     >
       {label}
     </Link>

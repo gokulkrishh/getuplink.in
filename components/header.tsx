@@ -252,7 +252,7 @@ export function Header({ current, setup = true, onSetup = false }: { current?: S
         <Logo className="size-5" />
         Uplink
       </Link>
-      <div className="flex items-center gap-4 whitespace-nowrap text-muted-foreground max-[359px]:gap-2">
+      <div className="flex items-center gap-4 whitespace-nowrap text-muted-foreground max-[360px]:gap-2">
         {/* The page links, from sm up. On a phone they are the tab bar at the bottom instead (TabBar), so
             there is only ever one "Main" nav. */}
         {!onSetup && (
