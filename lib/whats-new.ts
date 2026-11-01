@@ -127,7 +127,7 @@ export const WHATS_NEW: Entry[] = [
     id: "2026-10-31-charge-energy-added",
     date: "2026-10-31",
     title: "Energy added while charging",
-    text: "While your car charges, Home and the Car page show how much energy it has taken in so far.",
+    text: "While your car charges, Home shows how much energy it has taken in so far.",
     version: "0.2",
     image: { src: "/whats-new/charge-energy-added.webp", alt: "The car card on Home while charging, with the energy added so far beside the time to full.", width: 1360, height: 300 },
     kind: "Improvement",
