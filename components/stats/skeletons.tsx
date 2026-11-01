@@ -8,7 +8,7 @@ import { AWAKE_DESCRIPTION } from "@/components/stats/awake-timeline";
 import { MORE_DETAIL } from "@/components/stats/more-detail";
 
 // What each Stats topic shows while its data loads: its sections in order, each built from the section's own
-// layout classes (see components/skeleton.tsx), at the size of the period the page opens on (Week, Month on Charging). Rows and
+// layout classes (see components/skeleton.tsx), at the size of the period every Stats page opens on (Week). Rows and
 // tiles are the usual count; a section that only some data shows (a long span's, a quiet week's) is left out.
 
 export function DrivingSkeleton() {
@@ -219,7 +219,7 @@ export function BatterySkeleton() {
           <SkLine>0.4% a day · about 2 km a day</SkLine>
         </div>
         <SkParkedList />
-        {/* All, which the page opens on, starts before the first stretch kept. */}
+        {/* A period that starts before the first stretch kept (Week when tracking is new, or All). */}
         <SkLine className="text-xs">Stretches go back to 1 Oct</SkLine>
       </SkSection>
       <SkSection>

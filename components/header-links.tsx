@@ -3,7 +3,7 @@
 import { BatteryMedium, Car, type LucideIcon, Route, Zap } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { startTransition, useEffect, useOptimistic, useRef, useState } from "react";
+import { startTransition, useEffect, useOptimistic, useRef, useState, ViewTransition } from "react";
 import { type HomePeriod, statsHref, urlRange, type View, viewPeriods, VIEWS, type DateRange } from "@/components/stats/periods";
 import { BAR_START, nextBar } from "@/lib/tab-bar";
 import { cn } from "@/lib/utils";
@@ -21,8 +21,7 @@ const PAGES: Page[] = [...VIEWS.map(({ value, label }) => ({ key: value, label, 
 type Href = (page: View | "car") => string;
 
 // Between Stats pages the period picked carries over (Custom with its dates), read from the URL the period
-// switch keeps. With none picked, or from any other page, each opens on its own: Week on Driving, Month on
-// Charging, All on Battery.
+// switch keeps. With none picked, or from any other page, each opens on Week, as every Stats page does.
 function useHref(): Href {
   const pathname = usePathname();
   const params = useSearchParams();
@@ -76,7 +75,7 @@ function Links({ current, href }: { current?: Section; href: Href }) {
 
 // Four icons in a glass pill floating above the bottom edge, clear of the iPhone's home bar: Driving,
 // Charging, Battery and Car, each named for screen readers. The current page's icon sits on a light chip,
-// which slides to the tapped icon at once (instant under reduced motion).
+// which slides across to the next page's icon as the page changes (a shared view transition).
 // It slides away while the page scrolls down and comes back on the way up (lib/tab-bar.ts); it is always
 // there at the top, at the very bottom, while one of its links has the keyboard, and on each new page. It
 // steps aside while a text field has focus, so a phone keyboard never pushes it over what's being typed.
@@ -106,10 +105,6 @@ export function PhoneNavShell({ current }: { current?: Section }) {
   return <Pill current={current} href={SHELL_HREF} hidden={false} />;
 }
 
-// Where the chip last sat, kept across pages: each page draws its own pill, so the new page's chip starts
-// where the old one was and slides on from there, instead of the slide being cut off by the page change.
-let lastAt: number | undefined;
-
 function Pill({
   current,
   href,
@@ -125,16 +120,6 @@ function Pill({
 }) {
   const [shown, setShown] = useOptimistic(current);
   const index = PAGES.findIndex((p) => p.key === shown);
-  // The chip is one element that slides between the four cells. A tap moves it at once (optimistic), and a
-  // new page picks it up from where it was (lastAt). Settings and other pages outside the four fade it out.
-  const [at, setAt] = useState(() => lastAt ?? index);
-  useEffect(() => {
-    // A frame later, so the chip is painted where it was before it moves.
-    const frame = requestAnimationFrame(() => setAt(index));
-    if (index >= 0) lastAt = index;
-    return () => cancelAnimationFrame(frame);
-  }, [index]);
-  const place = at >= 0 ? at : (lastAt ?? 0);
   return (
     <nav
       aria-label="Main"
@@ -142,37 +127,44 @@ function Pill({
       data-hidden={hidden || undefined}
       onFocus={onFocus}
       onBlur={onBlur}
-      className="phone-nav fixed right-[max(16px,env(safe-area-inset-right))] bottom-[calc(22px+env(safe-area-inset-bottom))] left-[max(16px,env(safe-area-inset-left))] z-30 grid h-[64px] grid-cols-4 rounded-[32px] border p-[6px] transition-transform duration-200 ease-out data-hidden:translate-y-[calc(100%+22px+env(safe-area-inset-bottom))] motion-reduce:transition-none sm:hidden"
+      className="phone-nav fixed right-[max(16px,env(safe-area-inset-right))] bottom-[calc(22px+env(safe-area-inset-bottom))] left-[max(16px,env(safe-area-inset-left))] z-30 h-[56px] rounded-[28px] border p-[5px] transition-transform duration-200 ease-out data-hidden:translate-y-[calc(100%+22px+env(safe-area-inset-bottom))] motion-reduce:transition-none sm:hidden"
     >
-      <span
-        aria-hidden
-        data-pill-chip
-        className={cn(
-          "pointer-events-none absolute top-[6px] bottom-[6px] left-[6px] w-[calc((100%-12px)/4)] rounded-full bg-black/6 transition-[translate,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none dark:bg-white/12",
-          at < 0 && "opacity-0",
-        )}
-        style={{ translate: `${place * 100}% 0` }}
-      />
-      {PAGES.map(({ key, label, icon: Icon }) => (
-        <Link
-          key={key}
-          href={href(key)}
-          prefetch={true}
-          aria-label={label}
-          aria-current={shown === key ? "page" : undefined}
-          onNavigate={() => startTransition(() => setShown(key))}
-          className={cn(
-            "relative flex items-center justify-center rounded-full transition-colors duration-200 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none",
-            shown === key ? "text-foreground" : "text-muted-foreground",
-          )}
-        >
-          <Icon
-            className="size-[24px] transition-transform duration-150 ease-out active:scale-90 motion-reduce:transition-none"
-            strokeWidth={shown === key ? 2.25 : 2}
-            aria-hidden
-          />
-        </Link>
-      ))}
+      {/* The chip slides to a tapped icon at once (optimistic, a CSS slide), and it is also one shared element
+          ("phone-nav-chip", as the Car tabs' underline): each page draws its own pill, so when the next page
+          commits React pairs the old page's chip, wherever it is mid-slide, with the new one and the browser
+          carries it on to its place (.tab-indicator in globals.css) instead of it jumping. The icons are
+          lifted above it meanwhile. Instant under reduced motion. */}
+      <ViewTransition update="tab-labels" default="none">
+        <div className="relative grid h-full grid-cols-4">
+          <ViewTransition name="phone-nav-chip" share="tab-indicator" default="none">
+            <span
+              aria-hidden="true"
+              data-pill-chip
+              className={cn(
+                "pointer-events-none absolute inset-y-0 left-0 w-1/4 rounded-full bg-black/6 transition-[translate,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none dark:bg-white/12",
+                index < 0 && "opacity-0",
+              )}
+              style={{ translate: `${Math.max(index, 0) * 100}% 0` }}
+            />
+          </ViewTransition>
+          {PAGES.map(({ key, label, icon: Icon }) => (
+            <Link
+              key={key}
+              href={href(key)}
+              prefetch={true}
+              aria-label={label}
+              aria-current={shown === key ? "page" : undefined}
+              onNavigate={() => startTransition(() => setShown(key))}
+              className={cn(
+                "relative flex items-center justify-center rounded-full transition-colors duration-200 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none",
+                shown === key ? "text-foreground" : "text-muted-foreground",
+              )}
+            >
+              <Icon className="size-[24px] transition-transform duration-150 ease-out active:scale-90 motion-reduce:transition-none" strokeWidth={shown === key ? 2.25 : 2} aria-hidden />
+            </Link>
+          ))}
+        </div>
+      </ViewTransition>
     </nav>
   );
 }

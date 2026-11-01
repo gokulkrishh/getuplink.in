@@ -1,6 +1,6 @@
 # Stats, Charging
 
-Charging for a period, opening on Month: Spend, What you paid for (only when the bills have more than one kind of line, such as an idle fee or GST), Energy added, Charging sessions and the Charging map, then the closed fold "Your charging habits" holding Charge range, When you charge and DC charging speed. Each session opens `/stats/charging/<id>` with its bill details.
+Charging for a period, opening on Week: Spend, What you paid for (only when the bills have more than one kind of line, such as an idle fee or GST), Energy added, Charging sessions and the Charging map, then the closed fold "Your charging habits" holding Charge range, When you charge and DC charging speed. Each session opens `/stats/charging/<id>` with its bill details.
 
 ## Sub-features
 

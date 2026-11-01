@@ -83,12 +83,12 @@ describe("period links", () => {
     expect(periodQuery("month", null, PAGE_PERIODS.updates)).toBe("");
     expect(periodQuery("year", null, PAGE_PERIODS.updates)).toBe("?period=year");
   });
-  test("Battery opens on All: old ?period= links still open the period they name", () => {
-    expect(viewPeriods("battery").opensOn).toBe("all");
-    expect(parsePeriod(undefined, viewPeriods("battery"))).toBe("all");
-    expect(parsePeriod("week", viewPeriods("battery"))).toBe("week");
-    expect(statsHref("battery", "all")).toBe("/stats/battery");
-    expect(statsHref("battery", "week")).toBe("/stats/battery?period=week");
+  test("Battery opens on Week, like every Stats page: old ?period= links still open the period they name", () => {
+    expect(viewPeriods("battery").opensOn).toBe("week");
+    expect(parsePeriod(undefined, viewPeriods("battery"))).toBe("week");
+    expect(parsePeriod("all", viewPeriods("battery"))).toBe("all");
+    expect(statsHref("battery", "week")).toBe("/stats/battery");
+    expect(statsHref("battery", "all")).toBe("/stats/battery?period=all");
     expect(statsHref("driving", "all")).toBe("/stats/driving?period=all");
   });
   test("a page opens on its own period when the URL names none, or one it doesn't offer", () => {
@@ -98,16 +98,17 @@ describe("period links", () => {
     expect(parsePeriod("week", PAGE_PERIODS.updates)).toBe("month");
     expect(parsePeriod("decade", PAGE_PERIODS.home)).toBe("week");
   });
-  test("Charging opens on Month, so Month stays out of its URL and Week goes in it", () => {
-    expect(viewPeriods("charging").opensOn).toBe("month");
+  test("Charging opens on Week, like every Stats page, so Week stays out of its URL and Month goes in it", () => {
+    expect(viewPeriods("charging").opensOn).toBe("week");
+    expect(viewPeriods("charging")).toBe(PAGE_PERIODS.stats);
+    expect(viewPeriods("battery")).toBe(PAGE_PERIODS.stats);
     expect(viewPeriods("driving")).toBe(PAGE_PERIODS.stats);
-    expect(statsHref("charging", "month")).toBe("/stats/charging");
-    expect(statsHref("charging", "week")).toBe("/stats/charging?period=week");
-    expect(statsHref("charging", "day")).toBe("/stats/charging?period=day");
-    // An old link that names Week still opens on Week.
-    expect(parsePeriod("week", viewPeriods("charging"))).toBe("week");
-    expect(parsePeriod(undefined, viewPeriods("charging"))).toBe("month");
-    expect(parsePeriod("decade", viewPeriods("charging"))).toBe("month");
+    expect(statsHref("charging", "week")).toBe("/stats/charging");
+    expect(statsHref("charging", "month")).toBe("/stats/charging?period=month");
+    // An old link that names Month still opens on Month.
+    expect(parsePeriod("month", viewPeriods("charging"))).toBe("month");
+    expect(parsePeriod(undefined, viewPeriods("charging"))).toBe("week");
+    expect(parsePeriod("decade", viewPeriods("charging"))).toBe("week");
   });
   test("urlRange needs two dates", () => {
     expect(urlRange("2026-09-01", "2026-09-30")).toEqual({ from: "2026-09-01", to: "2026-09-30" });
