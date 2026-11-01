@@ -72,7 +72,7 @@ export function ChartCard({
 }) {
   if (fold) {
     return (
-      <Fold data-chart-card="" className={cn("group/fold", className)} rowClassName="py-4" as={Heading} titleClassName="text-base" toggle="chevron" title={title} description={description} contentClassName="space-y-4 pb-6">
+      <Fold data-chart-card="" className={className} rowClassName="py-4" as={Heading} toggle="chevron" title={title} description={description} contentClassName="space-y-4 pb-6">
           {info || (download && !empty) ? (
             <div className="flex items-start justify-between gap-3">
               {info ? <p className="text-sm text-faint">{info}</p> : <span />}

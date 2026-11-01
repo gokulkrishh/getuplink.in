@@ -478,7 +478,7 @@ async function Owners() {
         <CollapsibleTrigger className="tap-target flex cursor-pointer items-center gap-1.5 text-sm font-medium">
           <span className="group-data-open/all:hidden">See all comparisons</span>
           <span className="hidden group-data-open/all:inline">Hide all comparisons</span>
-          <ChevronDown className="size-4 text-muted-foreground transition-transform duration-150 group-data-open/all:rotate-180" aria-hidden="true" />
+          <ChevronDown className="size-4 text-muted-foreground transition-transform motion-reduce:transition-none duration-150 group-data-open/all:rotate-180" aria-hidden="true" />
         </CollapsibleTrigger>
         <CollapsibleContent className="space-y-14 pt-8">
           {sections.map((s) => (
