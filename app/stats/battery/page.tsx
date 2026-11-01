@@ -95,7 +95,7 @@ async function Battery({ searchParams }: Pick<PageProps<"/stats/battery">, "sear
   return (
     // One switch drives every section. Each period draws only what it has (a quiet one is a line, not a
     // box held to a chart's height), so the page may move on a switch.
-    <StatsFrame custom={customScope(custom?.range ?? null, now)} periodSwitch={enough}>
+    <StatsFrame view="battery" custom={customScope(custom?.range ?? null, now)} periodSwitch={enough}>
       {enough ? (
         <div className="space-y-12">
           {tipsBox}

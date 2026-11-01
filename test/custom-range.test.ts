@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { customScope, datesNote, PAGE_PERIODS, parsePeriod, periodQuery, pickerLine, statsHref, unreadableDates, urlRange } from "@/components/stats/periods";
+import { customScope, datesNote, PAGE_PERIODS, parsePeriod, periodQuery, pickerLine, statsHref, unreadableDates, urlRange, viewPeriods } from "@/components/stats/periods";
 import { periodFrames } from "@/lib/frames";
 import type { DrivingFigures, DrivingPeriod } from "@/lib/driving-figures";
 import { clipSpan, customQuery, customRange, isoDay, reachesBefore, rangeTimeframe, recentSpan } from "@/lib/periods";
@@ -89,6 +89,17 @@ describe("period links", () => {
     expect(parsePeriod(undefined, PAGE_PERIODS.home)).toBe("week");
     expect(parsePeriod("week", PAGE_PERIODS.updates)).toBe("month");
     expect(parsePeriod("decade", PAGE_PERIODS.home)).toBe("week");
+  });
+  test("Charging opens on Month, so Month stays out of its URL and Week goes in it", () => {
+    expect(viewPeriods("charging").opensOn).toBe("month");
+    expect(viewPeriods("driving")).toBe(PAGE_PERIODS.stats);
+    expect(statsHref("charging", "month")).toBe("/stats/charging");
+    expect(statsHref("charging", "week")).toBe("/stats/charging?period=week");
+    expect(statsHref("charging", "day")).toBe("/stats/charging?period=day");
+    // An old link that names Week still opens on Week.
+    expect(parsePeriod("week", viewPeriods("charging"))).toBe("week");
+    expect(parsePeriod(undefined, viewPeriods("charging"))).toBe("month");
+    expect(parsePeriod("decade", viewPeriods("charging"))).toBe("month");
   });
   test("urlRange needs two dates", () => {
     expect(urlRange("2026-09-01", "2026-09-30")).toEqual({ from: "2026-09-01", to: "2026-09-30" });

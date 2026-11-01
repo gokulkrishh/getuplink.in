@@ -21,6 +21,11 @@ const sw = (p) => p.evaluate(() => document.documentElement.scrollWidth);
 for (const phone of [false, true]) {
   const tag = phone ? "phone" : "desktop";
   const { c, p, errors } = await ctx(phone);
+  const openHabits = async () => {
+    const fold = p.locator("[data-slot=collapsible-trigger]", { hasText: "Your charging habits" });
+    if ((await fold.getAttribute("aria-expanded")) !== "true") await (phone ? fold.tap() : fold.click());
+    await p.locator("table:has(th:text-is('Charger'))").waitFor({ state: "visible" });
+  };
   const go = async (u) => { await p.goto(u, { waitUntil: "networkidle" }); await p.screenshot({ path: join(dir, `${tag}${u.replace(/[^a-z0-9]+/gi, "_")}.png`), fullPage: true }); return text(p); };
 
   let t = await go("/home");
@@ -88,8 +93,10 @@ for (const phone of [false, true]) {
   check(`${tag} trip page no "regen"`, !/regen/i.test(t));
   t = await go("/stats/charging");
   // Launch QA 29 Oct 2026: the DC sessions read in full on a phone. The table scrolls sideways there and the
-  // charger's name wraps in its cell rather than being cut.
+  // charger's name wraps in its cell rather than being cut. The DC table sits in the closed "Your charging
+  // habits" fold, where nothing has a size: open it first.
   if (phone) {
+    await openHabits();
     check(`phone /stats/charging no sideways scroll`, (await sw(p)) <= 375, `scrollWidth ${await sw(p)}`);
     const names = p.locator("table:has(th:text-is('Charger')) tbody td:nth-child(3)");
     check(`phone /stats/charging charger names not cut`, (await names.count()) > 0 && (await names.evaluateAll((els) => els.every((e) => e.scrollWidth <= e.clientWidth + 1))));
@@ -125,6 +132,7 @@ for (const phone of [false, true]) {
   const boxes = () => p.locator("main table").evaluateAll((ts) => ts.map((t) => { let s = t.parentElement; while (s && getComputedStyle(s).overflowX === "visible") s = s.parentElement; return { head: t.querySelector("thead")?.textContent ?? "", scrolls: !!s && s.scrollWidth > s.clientWidth + 1, box: s?.getBoundingClientRect().right ?? 0, cells: [...(t.querySelector("tbody tr")?.children ?? [])].map((c) => c.getBoundingClientRect().right) }; }));
   for (const u of ["/stats/driving", "/stats/battery", "/stats/charging", "/updates"]) {
     await go(u);
+    if (u === "/stats/charging") await openHabits();
     const tables = await boxes();
     if (!phone) check(`desktop ${u} tables fit without sideways scroll`, tables.every((b) => !b.scrolls), tables.filter((b) => b.scrolls).map((b) => b.head.slice(0, 30)).join(" | "));
     if (phone && u === "/stats/driving") {

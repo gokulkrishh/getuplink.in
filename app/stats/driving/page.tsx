@@ -159,7 +159,7 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
   };
 
   return (
-    <StatsFrame custom={customScope(custom?.range ?? null, now)} periodSwitch={hasDriving}>
+    <StatsFrame view="driving" custom={customScope(custom?.range ?? null, now)} periodSwitch={hasDriving}>
       {lookUp && (
         <Suspense>
           <LookUpPlaceNames trips={unnamed.trips} places={unnamed.places} />

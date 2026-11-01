@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { type Bill, chargingBills, chargingTime, invoiceParts, spendBreakdown } from "@/lib/charging-figures";
+import { type Bill, chargingBills, chargingTime, habitsLine, invoiceParts, paidFor, spendBreakdown } from "@/lib/charging-figures";
 
 // An instant given as IST wall-clock time.
 const ist = (local: string) => Date.parse(`${local}+05:30`);
@@ -89,6 +89,44 @@ describe("spendBreakdown", () => {
   });
 });
 
+describe("paidFor", () => {
+  const bill = (local: string, cost: number, parts: Bill["parts"]): Bill => ({ started_at: iso(local), cost, kwh: 20, kind: "dc", parts });
+  const charging = (local: string, amount: number) => bill(local, amount, [{ from: "supercharger", label: "Charging", amount }]);
+
+  test("hidden when every bill is only Charging: it would repeat Spend", () => {
+    expect(paidFor([charging("2026-10-01T10:00:00", 264.72), charging("2026-10-05T10:00:00", 300)], ALL)).toBe(null);
+  });
+
+  test("hidden for one invoice line on its own", () => {
+    expect(paidFor([bill("2026-10-01T10:00:00", 200, [{ from: "invoice", label: "Energy", amount: 200 }])], ALL)).toBe(null);
+  });
+
+  test("shown with an idle or congestion fee beside the charging", () => {
+    const b = paidFor([bill("2026-10-01T10:00:00", 500, [{ from: "supercharger", label: "Charging", amount: 480 }, { from: "supercharger", label: "Idle fee", amount: 20 }])], ALL);
+    expect(b?.supercharger.map((l) => l.label)).toEqual(["Charging", "Idle fee"]);
+    const c = paidFor([charging("2026-10-01T10:00:00", 400), bill("2026-10-02T10:00:00", 100, [{ from: "supercharger", label: "Congestion fee", amount: 100 }])], ALL);
+    expect(c?.total).toBe(500);
+  });
+
+  test("shown when an invoice splits out the GST", () => {
+    expect(paidFor([bill("2026-10-01T10:00:00", 118, invoiceParts({ amount: 118, gst: 18 }))], ALL)?.invoice.length).toBe(2);
+  });
+
+  test("a bill that isn't itemised counts as a line of its own", () => {
+    expect(paidFor([charging("2026-10-01T10:00:00", 400), bill("2026-10-02T10:00:00", 150, null)], ALL)?.unitemised).toBe(150);
+  });
+
+  test("only the period's bills count", () => {
+    const bills = [charging("2026-10-01T10:00:00", 400), bill("2026-09-02T10:00:00", 120, [{ from: "supercharger", label: "Charging", amount: 100 }, { from: "supercharger", label: "Idle fee", amount: 20 }])];
+    expect(paidFor(bills, { from: ist("2026-10-01T00:00:00"), to: ist("2026-11-01T00:00:00") })).toBe(null);
+    expect(paidFor(bills, ALL)).not.toBe(null);
+  });
+
+  test("null when nothing is itemised", () => {
+    expect(paidFor([bill("2026-10-01T10:00:00", 500, null)], ALL)).toBe(null);
+  });
+});
+
 describe("chargingTime", () => {
   test("Superchargers count as DC, the rest by their own kind, only in the span", () => {
     const at = (local: string, minutes: number) => ({ started_at: iso(local), end: new Date(ist(local) + minutes * 60_000).toISOString() });
@@ -107,5 +145,20 @@ describe("chargingTime", () => {
       { from: ist("2026-10-01T00:00:00"), to: ist("2026-11-01T00:00:00") },
     );
     expect(time).toEqual({ ac: 60 * 60_000, dc: 75 * 60_000 });
+  });
+});
+
+describe("habitsLine: the habits fold names only what it holds", () => {
+  test("all three when the car's sessions and a DC curve are there", () => {
+    expect(habitsLine({ levels: true, dc: true })).toBe("Your usual charge levels, when you plug in, and how fast DC charging was.");
+  });
+  test("no DC charges: no DC speed promised", () => {
+    expect(habitsLine({ levels: true, dc: false })).toBe("Your usual charge levels and when you plug in.");
+  });
+  test("no car sessions: no charge levels promised", () => {
+    expect(habitsLine({ levels: false, dc: true })).toBe("When you plug in and how fast DC charging was.");
+  });
+  test("only plug-in times", () => {
+    expect(habitsLine({ levels: false, dc: false })).toBe("When you plug in.");
   });
 });

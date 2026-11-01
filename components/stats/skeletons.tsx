@@ -1,10 +1,10 @@
 import { Loading, Ph, SkBigLabel, SkBlock, SkChart, SkChartCaptioned, SkFigures, SkHead, SkHeadline, SkLine, SkSection, SkShowMore, SkTable, SkTripRows } from "@/components/skeleton";
-import { CHARGING_PREVIEW } from "@/components/stats/charging-sections";
+import { CHARGING_PREVIEW, HABITS_LINE, HABITS_TITLE } from "@/components/stats/charging-sections";
 import { PARKED_COLUMNS, PARKED_TABLE, TABLE_FRAME, TABLE_HEAD, TABLE_HEAD_ROW } from "@/lib/table-frame";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // What each Stats topic shows while its data loads: its sections in order, each built from the section's own
-// layout classes (see components/skeleton.tsx), at the size of the page's default period (Week). Rows and
+// layout classes (see components/skeleton.tsx), at the size of the period the page opens on (Week, Month on Charging). Rows and
 // tiles are the usual count; a section that only some data shows (a long span's, a quiet week's) is left out.
 
 export function DrivingSkeleton() {
@@ -83,16 +83,13 @@ export function DrivingSkeleton() {
   );
 }
 
-
-const panel = (h: string, phone: string) => `${h} ${phone}`;
-
 export function ChargingSkeleton() {
   return (
     <>
       <SkSection gap={8}>
         <SkSection>
           <SkHead title="Spend" />
-          <SkHeadline value="₹417.84" line="Spent on charging, ₹281.28 more than the 7 days before." />
+          <SkHeadline value="₹417.84" line="Spent on charging, ₹128.00 more than 1 to 30 Sept." />
           <SkChart />
         </SkSection>
         <SkFigures
@@ -109,139 +106,27 @@ export function ChargingSkeleton() {
       <SkSection gap={8}>
         <SkSection>
           <SkHead title="Energy added" description="Energy into the battery, by charger type." />
-          <SkHeadline value="39.8 kWh" line="Added, 16.0 kWh more than the 7 days before." />
+          <SkHeadline value="39.8 kWh" line="Added, 24.2 kWh more than 1 to 30 Sept." />
           <SkChartCaptioned caption="Wed to Tue" />
         </SkSection>
         <SkLine>AC charging efficiency 92%</SkLine>
       </SkSection>
       <SkSection gap={6}>
-        <SkHead title="Charging sessions" description="9 sessions · 39.8 kWh" note="Open a charge to see where, how much and what it cost." />
+        <SkHead title="Charging sessions" description="12 sessions · 143.0 kWh" note="Open a charge to see where, how much and what it cost." />
         <SkSessions />
-      </SkSection>
-      <SkSection gap={3}>
-        <SkHead title="What you paid for" description="Your spend, line by line from the bills." />
-        <div className="divide-y rounded-lg border text-sm" aria-hidden="true">
-          {["Charging", "Total"].map((label) => (
-            <div key={label} className="flex items-baseline justify-between gap-4 px-4 py-2.5">
-              <Ph>{label}</Ph>
-              <Ph className="font-mono">₹417.84</Ph>
-            </div>
-          ))}
-        </div>
+        <SkShowMore />
       </SkSection>
       <SkSection>
-        <SkHead title="Charge range" description="Where charges started and stopped." />
-        <div className="space-y-2" aria-hidden="true">
-          <p className="font-mono text-4xl font-medium tracking-tight">
-            <Ph>60% to 80%</Ph>
-          </p>
-          <p className="text-sm">
-            <Ph>Typical start and end, from 3 charges</Ph>
-          </p>
-        </div>
-        <div className="space-y-2" aria-hidden="true">
-          <div>
-            <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] border-b pb-2 text-xs">
-              <Ph>#</Ph>
-              <Ph>Charge</Ph>
-            </div>
-            <ul className="divide-y">
-              {[0, 1, 2].map((k) => (
-                <li key={k} className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-baseline py-3">
-                  <span className="text-xs">
-                    <Ph>1</Ph>
-                  </span>
-                  <div className="space-y-1">
-                    <p className="flex justify-between gap-3 text-sm">
-                      <Ph>25 Oct · Home AC</Ph>
-                      <Ph className="font-mono">60% to 80%</Ph>
-                    </p>
-                    <Skeleton className="h-2 rounded-full" />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <SkLine>Latest 3 charges, newest first</SkLine>
-        </div>
-      </SkSection>
-      <SkSection>
-        <SkHead title="When you charge" description="When charges started, India time." />
-        <SkLine>Most often Tue, 3 PM to 6 PM, 1 charge.</SkLine>
-        <div className="space-y-1.5 rounded-lg bg-muted p-3 dark:bg-card" aria-hidden="true">
-          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-            <div key={day} className="grid grid-cols-[2.5rem_repeat(8,minmax(0,1fr))] items-center gap-1.5">
-              <span className="text-xs">
-                <Ph>{day}</Ph>
-              </span>
-              {Array.from({ length: 8 }, (_, k) => (
-                <span key={k} className="h-6 rounded-sm bg-background max-sm:h-7" />
-              ))}
-            </div>
-          ))}
-          <div className="grid grid-cols-[2.5rem_repeat(8,minmax(0,1fr))] gap-1.5 text-xs">
-            <span />
-            {["12 AM", "3 AM", "6 AM", "9 AM", "12 PM", "3 PM", "6 PM", "9 PM"].map((label, k) => (
-              <span key={label} className={k % 2 === 1 ? "whitespace-nowrap max-sm:invisible" : "whitespace-nowrap"}>
-                <Ph>{label}</Ph>
-              </span>
-            ))}
-          </div>
-          <div className="flex items-center gap-x-3 pt-1 text-xs">
-            <Ph>None 1 charge</Ph>
-          </div>
-        </div>
-      </SkSection>
-      <SkSection gap={6}>
-        <SkSection>
-          <SkHead title="DC charging speed" description="Charging power by battery level, from 1 DC charge. It drops as the battery fills." />
-          <SkBlock className={panel("h-[208px]", "max-sm:h-[247px]")} />
-        </SkSection>
-        {/* The table DcCurves draws: its fixed columns, the charger's name left-aligned (it wraps on a phone). */}
-        <div className={TABLE_FRAME} aria-hidden="true">
-          <table className="w-full min-w-[32rem] table-fixed text-sm">
-            <colgroup>
-              <col className="w-10" />
-              <col className="w-24" />
-              <col />
-              <col className="w-20" />
-              <col className="w-20" />
-            </colgroup>
-            <thead>
-              <tr className={`border-b text-left text-xs ${TABLE_HEAD_ROW}`}>
-                {["#", "Date", "Charger", "Peak", "Average"].map((h, k) => (
-                  <th key={h} className={`font-normal ${k > 2 ? "text-right" : ""} ${k < 4 ? "pr-3" : ""}`}>
-                    <Ph>{h}</Ph>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="py-3 pr-3 text-xs">
-                  <Ph>4</Ph>
-                </td>
-                <td className="py-3 pr-3 whitespace-nowrap">
-                  <Ph>25 Oct</Ph>
-                </td>
-                <td className="py-3 pr-3">
-                  <Ph>Supercharger</Ph>
-                </td>
-                <td className="py-3 pr-3 text-right">
-                  <Ph>134.7 kW</Ph>
-                </td>
-                <td className="py-3 text-right">
-                  <Ph>108.3 kW</Ph>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </SkSection>
-      <SkSection>
-        <SkHead title="Charging map" description="Last 7 days. Bigger pins added more energy." gap={2} />
+        <SkHead title="Charging map" description="Where you charged. Bigger pins added more energy." gap={2} />
         <SkMap legend="A charge. Bigger pins added more energy." />
       </SkSection>
+      {/* Your charging habits opens closed, so only its heading is drawn: the title and line, and Show. */}
+      <div className="flex items-center justify-between gap-4" aria-hidden="true">
+        <SkHead title={HABITS_TITLE} description={HABITS_LINE} />
+        <p className="text-sm">
+          <Ph>Show</Ph>
+        </p>
+      </div>
     </>
   );
 }

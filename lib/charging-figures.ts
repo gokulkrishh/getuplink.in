@@ -170,6 +170,16 @@ export function spendBreakdown(bills: Bill[], span: Span): SpendBreakdown | null
   };
 }
 
+// The breakdown worth a section of its own: only when it has more than one line, such as an idle fee or
+// GST beside the charging. A single line ("Charging", or one invoice line) is the same amount as Spend's
+// total, so it would only repeat it. Null otherwise.
+export function paidFor(bills: Bill[], span: Span): SpendBreakdown | null {
+  const breakdown = spendBreakdown(bills, span);
+  if (!breakdown) return null;
+  const lines = breakdown.supercharger.length + breakdown.invoice.length + (breakdown.unitemised !== 0 ? 1 : 0);
+  return lines > 1 ? breakdown : null;
+}
+
 // Time on the charger by kind in a span, in ms, after TeslaMate's AC/DC duration: Superchargers from
 // Tesla's times, the rest from the car's own sessions. Pass only the streamed sessions Tesla didn't bill.
 export function chargingTime(
@@ -201,4 +211,12 @@ export function chargeTotals(charges: { kwh: number | null; cost: number | null 
     cost: charges.reduce((sum, c) => sum + (c.cost ?? 0), 0),
     unbilled: charges.filter((c) => c.cost === null).length,
   };
+}
+
+// The fold's line names only what it holds: charge levels need the car's own sessions, DC speed a DC curve,
+// and when you plug in always shows. With both, it is the full line the skeleton draws.
+export function habitsLine({ levels, dc }: { levels: boolean; dc: boolean }): string {
+  const parts = [levels && "your usual charge levels", "when you plug in", dc && "how fast DC charging was"].filter((p): p is string => Boolean(p));
+  const joined = parts.length === 1 ? parts[0] : parts.length === 2 ? `${parts[0]} and ${parts[1]}` : `${parts[0]}, ${parts[1]}, and ${parts[2]}`;
+  return `${joined.charAt(0).toUpperCase()}${joined.slice(1)}.`;
 }

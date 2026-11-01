@@ -27,6 +27,8 @@ export const PAGE_PERIODS = {
   // the week too: a week of bars says more than today's hours.
   home: { options: ["week"], opensOn: "week" },
   stats: { options: ALL_PERIODS, opensOn: "week" },
+  // Most owners charge a few times a week, so a week often holds one or two charges: a month says more.
+  charging: { options: ALL_PERIODS, opensOn: "month" },
   // Updates come too seldom for a day or a week to say anything.
   updates: { options: ["month", "year", "all"], opensOn: "month" },
 } satisfies Record<string, PeriodSet>;
@@ -40,6 +42,11 @@ export function parsePeriod(value: string | string[] | undefined, page: PeriodSe
 }
 
 export type View = "charging" | "driving" | "battery";
+
+// A Stats page's set: its own entry in PAGE_PERIODS where it has one, otherwise Stats'.
+export function viewPeriods(view: View): PeriodSet {
+  return (PAGE_PERIODS as Record<string, PeriodSet>)[view] ?? PAGE_PERIODS.stats;
+}
 
 export const VIEWS: { value: View; label: string }[] = [
   { value: "driving", label: "Driving" },
@@ -102,8 +109,9 @@ export function periodQuery(period: HomePeriod, range: DateRange | null, page: P
   return period === defaultPeriod(page) ? "" : `?period=${period}`;
 }
 
-// A Stats page's URL with a period, and for Custom its dates; Week, which Stats opens on, stays out of it.
-// A link from Home carries Home's period over, so Day on Home arrives as ?period=day.
+// A Stats page's URL with a period, and for Custom its dates; the period that page opens on stays out of it
+// (Week on Driving, Month on Charging). A link from Home carries Home's period over, so Week on Home arrives
+// on Charging as ?period=week.
 export function statsHref(view: View, period: HomePeriod, range: DateRange | null = null): string {
-  return `/stats/${view}${periodQuery(period, range, PAGE_PERIODS.stats)}`;
+  return `/stats/${view}${periodQuery(period, range, viewPeriods(view))}`;
 }
