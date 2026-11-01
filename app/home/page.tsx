@@ -154,7 +154,7 @@ export default function HomePage() {
             <LoginError className="mt-4" />
           </Suspense>
         </div>
-        <div className="flex justify-center lg:justify-end">
+        <div className="flex min-w-0 justify-center lg:justify-end">
           <DashboardPreview />
         </div>
       </section>
