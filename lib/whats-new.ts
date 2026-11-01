@@ -127,7 +127,7 @@ export const WHATS_NEW: Entry[] = [
     id: "2026-10-31-charging-habits",
     date: "2026-10-31",
     title: "Charging, tidier",
-    text: "Charging opens on the month. Where you start and stop, and when you plug in, now sit under Your charging habits.",
+    text: "Where you start and stop, and when you plug in, now sit under Your charging habits.",
     version: "0.2",
     image: { src: "/whats-new/charging-habits.webp", alt: "Your charging habits opened on Charging, starting with where charges started and stopped.", width: 1360, height: 985 },
     kind: "Improvement",

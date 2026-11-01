@@ -27,9 +27,9 @@ describe("statsRedirect", () => {
   test("Battery keeps the period, Custom with its dates", () => {
     expect(target("view=battery&period=month")).toBe("/stats/battery?period=month");
     expect(target("view=battery&period=day")).toBe("/stats/battery?period=day");
-    // Battery opens on All, so an old link's Week now has to say so; one with no period opens on All.
-    expect(target("view=battery&period=week")).toBe("/stats/battery?period=week");
-    expect(target("view=battery&period=all")).toBe("/stats/battery");
+    // Battery opens on Week like every Stats page, so Week stays out of the URL and All has to say so.
+    expect(target("view=battery&period=week")).toBe("/stats/battery");
+    expect(target("view=battery&period=all")).toBe("/stats/battery?period=all");
     expect(target("view=battery&period=custom&from=2026-09-01&to=2026-09-30")).toBe("/stats/battery?period=custom&from=2026-09-01&to=2026-09-30");
   });
   test("no view, or one that doesn't exist, opens Driving", () => {
@@ -42,10 +42,10 @@ describe("statsRedirect", () => {
     expect(target("view=driving&period=month")).toBe("/stats/driving?period=month");
     expect(target("view=driving&period=decade")).toBe("/stats/driving");
   });
-  test("Charging opens on Month: Month stays out of the URL, Week carries over", () => {
+  test("Charging opens on Week: Week stays out of the URL, Month carries over", () => {
     expect(target("view=charging")).toBe("/stats/charging");
-    expect(target("view=charging&period=month")).toBe("/stats/charging");
-    expect(target("view=charging&period=week")).toBe("/stats/charging?period=week");
+    expect(target("view=charging&period=week")).toBe("/stats/charging");
+    expect(target("view=charging&period=month")).toBe("/stats/charging?period=month");
     expect(target("view=charging&period=decade")).toBe("/stats/charging");
   });
   test("Custom carries its dates to the page", () => {
