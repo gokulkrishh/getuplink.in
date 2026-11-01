@@ -7,7 +7,7 @@ import { loadTipsBox } from "@/components/tips-box";
 import { CHARGE_TIPS, chargeFindings, type PricedCharge } from "@/lib/charge-tips";
 import { loadPricedCharges } from "@/lib/server/charge-tips";
 import { loadPrimaryVehicle } from "@/lib/server/telemetry";
-import { Header } from "@/components/header";
+import { Header, PhoneNav } from "@/components/header";
 import { BackLink } from "@/components/stats/back-link";
 import { rate, streamName } from "@/components/session-row";
 import { chargeType, googleMapsUrl, nameAction } from "@/lib/charge-names";
@@ -195,6 +195,7 @@ export default function Page({ params }: PageProps<"/stats/charging/[id]">) {
       <Suspense fallback={<ChargeSkeleton />}>
         <ChargeLoader params={params} />
       </Suspense>
+      <PhoneNav current="charging" />
     </div>
   );
 }

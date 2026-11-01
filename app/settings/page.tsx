@@ -3,7 +3,7 @@ import Link from "next/link";
 import { STATUS_URL } from "@/lib/site";
 import { cacheLife, cacheTag } from "next/cache";
 import { Suspense } from "react";
-import { Header } from "@/components/header";
+import { Header, PhoneNav } from "@/components/header";
 import { buttonVariants } from "@/components/ui/button";
 import { ThemePicker } from "@/components/theme-picker";
 import { STATES } from "@/lib/india-states";
@@ -299,6 +299,7 @@ export default function SettingsPage() {
           Status
         </Link>
       </footer>
+      <PhoneNav current="settings" />
     </div>
   );
 }

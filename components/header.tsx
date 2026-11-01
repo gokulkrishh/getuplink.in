@@ -8,7 +8,7 @@ import { Suspense } from "react";
 import { AvatarBlob } from "@/components/avatar-blob";
 import { FeedbackButton } from "@/components/feedback-button";
 import { FeedbackMenuItem } from "@/components/feedback-menu-item";
-import { HeaderLinks, HeaderLinksShell, type Section, TabBar, TabBarShell } from "@/components/header-links";
+import { HeaderLinks, HeaderLinksShell, PhoneNavLinks, PhoneNavShell, type Section } from "@/components/header-links";
 import { Logo } from "@/components/logo";
 import { SignOutForm } from "@/components/sign-out-form";
 import { buttonVariants } from "@/components/ui/button";
@@ -137,6 +137,18 @@ function SetupNote({ icon, action, children }: { icon: React.ReactNode; action: 
   );
 }
 
+// The phone's page links, a pill floating at the bottom (components/header-links.tsx). Every page with the
+// header renders it last, after its content, so after "Skip to content" the next Tab is the page's own first
+// control and a screen reader reads the page before it (test/header-menu.test.ts checks every page has it).
+// Never on /setup, which has no page links. Hidden from sm up.
+export function PhoneNav({ current }: { current?: Section }) {
+  return (
+    <Suspense fallback={<PhoneNavShell current={current} />}>
+      <PhoneNavLinks current={current} />
+    </Suspense>
+  );
+}
+
 // ---- Someone the owner sent a view link ----
 
 type ViewerHeader = { expiresAt: string };
@@ -253,7 +265,7 @@ export function Header({ current, setup = true, onSetup = false }: { current?: S
         Uplink
       </Link>
       <div className="flex items-center gap-4 whitespace-nowrap text-muted-foreground max-[360px]:gap-2">
-        {/* The page links, from sm up. On a phone they are the tab bar at the bottom instead (TabBar), so
+        {/* The page links, from sm up. On a phone they float at the bottom instead (PhoneNav), so
             there is only ever one "Main" nav. */}
         {!onSetup && (
           <nav aria-label="Main" className="flex items-center gap-4 max-sm:hidden">
@@ -270,11 +282,6 @@ export function Header({ current, setup = true, onSetup = false }: { current?: S
           page's first control (components/skip-link.tsx). */}
       <span id="content-start" tabIndex={-1} className="absolute top-full left-0 outline-none" />
     </header>
-    {!onSetup && (
-      <Suspense fallback={<TabBarShell current={current} />}>
-        <TabBar current={current} />
-      </Suspense>
-    )}
     {setup && (
       <Suspense>
         <SetupGate />

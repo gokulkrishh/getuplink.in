@@ -6,7 +6,7 @@ import { AutoRefresh } from "@/components/auto-refresh";
 import { SyncStreamVersions } from "@/components/background-sync";
 import { AWAKE_MS, CarStatus } from "@/components/car-status";
 import { CarTabs } from "@/components/car-tabs";
-import { Header } from "@/components/header";
+import { Header, PhoneNav } from "@/components/header";
 import { MoreLink } from "@/components/more-link";
 import { CheckedFooter, OwnerNotices } from "@/components/owner-notices";
 import { ReleaseNotesToggle } from "@/components/release-notes";
@@ -271,6 +271,7 @@ export default function Page({ searchParams }: PageProps<"/updates">) {
       <Suspense>
         <SyncStreamVersions />
       </Suspense>
+      <PhoneNav current="car" />
     </div>
   );
 }

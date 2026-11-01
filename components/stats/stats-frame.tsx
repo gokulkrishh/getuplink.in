@@ -1,7 +1,7 @@
 import { Zap } from "lucide-react";
 import { type ReactNode, ViewTransition } from "react";
 import { EmptyState } from "@/components/empty-state";
-import { Header } from "@/components/header";
+import { Header, PhoneNav } from "@/components/header";
 import { Loading } from "@/components/skeleton";
 import { DatesNote } from "./dates-note";
 import { PeriodPicker, PeriodScope } from "./period-scope";
@@ -43,6 +43,7 @@ export function StatsPage({ view, description, children }: { view: View; descrip
         <p className="mt-2 text-sm text-muted-foreground group-has-[[data-not-yet]]/stats:hidden">{description}</p>
       </div>
       {children}
+      <PhoneNav current={view} />
     </div>
   );
 }

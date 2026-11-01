@@ -9,7 +9,7 @@ import { BAR_START, nextBar } from "@/lib/tab-bar";
 import { cn } from "@/lib/utils";
 
 // The page links: Driving, Charging and Battery (the Stats pages), then Car. From sm up they sit in the
-// header (HeaderLinks); on a phone they are a tab bar fixed to the bottom (TabBar). `current` marks the
+// header (HeaderLinks); on a phone they are a pill floating at the bottom (PhoneNavLinks). `current` marks the
 // page's own link.
 export type Section = View | "car" | "settings";
 
@@ -72,36 +72,40 @@ function Links({ current, href }: { current?: Section; href: Href }) {
   ));
 }
 
-// ---- On a phone: the tab bar ----
+// ---- On a phone: a floating pill at the bottom ----
 
-// Four equal tabs, an icon over each name, fixed to the bottom and clear of the iPhone's home bar. It slides
-// away while the page scrolls down and comes back on the way up (lib/tab-bar.ts), and is always there at the
-// top, at the very bottom, while one of its tabs has the keyboard, and on each new page. Only by transform,
-// so nothing on the page moves; the page keeps room for it below its end either way (--tab-bar in
-// globals.css). Hidden from sm up, where the header has the links, so there is only one "Main" nav.
-export function TabBar({ current }: { current?: Section }) {
+// Four icons in a glass pill floating above the bottom edge, clear of the iPhone's home bar: Driving,
+// Charging, Battery and Car, each named for screen readers. The current page's icon sits on a light chip.
+// It slides away while the page scrolls down and comes back on the way up (lib/tab-bar.ts); it is always
+// there at the top, at the very bottom, while one of its links has the keyboard, and on each new page. It
+// steps aside while a text field has focus, so a phone keyboard never pushes it over what's being typed.
+// Only by transform, so nothing on the page moves; the page keeps room for it below its end either way
+// (--phone-nav in globals.css). Hidden from sm up, where the header has the links, so there is only one
+// "Main" nav. Each page renders it after its content (PhoneNav in components/header.tsx), so the keyboard and
+// screen readers reach it after the page, not between the header and the page.
+export function PhoneNavLinks({ current }: { current?: Section }) {
   const href = useHref();
   const pathname = usePathname();
-  const shown = useShownOnScroll(pathname);
-  const [focused, setFocused] = useState(false);
+  const { shown, typing } = useShownOnScroll(pathname);
+  const [keyboard, setKeyboard] = useState(false);
   return (
-    <Bar
+    <Pill
       current={current}
       href={href}
-      hidden={!shown && !focused}
-      onFocus={() => setFocused(true)}
+      hidden={typing || (!shown && !keyboard)}
+      onFocus={(e) => setKeyboard((e.target as Element).matches(":focus-visible"))}
       onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false);
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setKeyboard(false);
       }}
     />
   );
 }
 
-export function TabBarShell({ current }: { current?: Section }) {
-  return <Bar current={current} href={SHELL_HREF} hidden={false} />;
+export function PhoneNavShell({ current }: { current?: Section }) {
+  return <Pill current={current} href={SHELL_HREF} hidden={false} />;
 }
 
-function Bar({
+function Pill({
   current,
   href,
   hidden,
@@ -111,63 +115,109 @@ function Bar({
   current?: Section;
   href: Href;
   hidden: boolean;
-  onFocus?: () => void;
+  onFocus?: (e: React.FocusEvent<HTMLElement>) => void;
   onBlur?: (e: React.FocusEvent<HTMLElement>) => void;
 }) {
+  const [shown, setShown] = useOptimistic(current);
   return (
     <nav
       aria-label="Main"
-      data-tab-bar
+      data-phone-nav
       data-hidden={hidden || undefined}
       onFocus={onFocus}
       onBlur={onBlur}
-      className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t bg-background pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] transition-transform duration-200 ease-out data-hidden:translate-y-full motion-reduce:transition-none sm:hidden"
+      className="phone-nav fixed right-[max(16px,env(safe-area-inset-right))] bottom-[calc(22px+env(safe-area-inset-bottom))] left-[max(16px,env(safe-area-inset-left))] z-30 grid h-[64px] grid-cols-4 rounded-[32px] border p-[6px] transition-transform duration-200 ease-out data-hidden:translate-y-[calc(100%+22px+env(safe-area-inset-bottom))] motion-reduce:transition-none sm:hidden"
     >
       {PAGES.map(({ key, label, icon: Icon }) => (
         <Link
           key={key}
           href={href(key)}
           prefetch={true}
-          aria-current={current === key ? "page" : undefined}
+          aria-label={label}
+          aria-current={shown === key ? "page" : undefined}
+          onNavigate={() => startTransition(() => setShown(key))}
           className={cn(
-            "flex h-11 flex-col items-center justify-center gap-0.5 text-[0.6875rem] leading-none",
-            current === key ? "text-foreground" : "text-muted-foreground",
+            "flex items-center justify-center rounded-full focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
+            shown === key ? "bg-black/6 text-foreground dark:bg-white/12" : "text-muted-foreground",
           )}
         >
-          <Icon className="size-5" strokeWidth={current === key ? 2.25 : 1.75} aria-hidden />
-          {label}
+          <Icon className="size-[24px]" strokeWidth={shown === key ? 2.25 : 2} aria-hidden />
         </Link>
       ))}
     </nav>
   );
 }
 
-// Whether the bar is in view as the page scrolls. One passive listener, read once a frame, and a render only
-// when the answer changes. Back in view on a new page.
-function useShownOnScroll(pathname: string): boolean {
+const PHONE = "(width < 40rem)";
+
+// A field the phone's keyboard opens for.
+function typesText(el: EventTarget | null): boolean {
+  if (!(el instanceof HTMLElement)) return false;
+  if (el.isContentEditable || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) return true;
+  return el instanceof HTMLInputElement && !["checkbox", "radio", "button", "submit", "reset", "range", "color", "file", "image", "hidden"].includes(el.type);
+}
+
+// Whether the pill is in view as the page scrolls, and whether a text field has focus. Only on a phone
+// (it is hidden from sm up), with one passive listener read once a frame and a render only when the answer
+// changes. On a new page it shows, and counts from the first scroll there, so the browser putting the page
+// back where it was (Back) doesn't hide it.
+function useShownOnScroll(pathname: string): { shown: boolean; typing: boolean } {
   const [shown, setShown] = useState(true);
+  const [typing, setTyping] = useState(false);
   const bar = useRef(BAR_START);
   useEffect(() => {
-    bar.current = { shown: true, from: window.scrollY };
-    setShown(true);
+    const media = window.matchMedia(PHONE);
     let frame = 0;
+    let fresh = true;
+    setShown(true);
     const read = () => {
       frame = 0;
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      const next = nextBar(bar.current, window.scrollY, max);
+      const y = window.scrollY;
+      if (fresh) {
+        fresh = false;
+        bar.current = { shown: true, from: y };
+        return;
+      }
+      const next = nextBar(bar.current, y, document.documentElement.scrollHeight - window.innerHeight, window.innerHeight);
       if (next.shown !== bar.current.shown) setShown(next.shown);
       bar.current = next;
     };
     const onScroll = () => {
       if (!frame) frame = requestAnimationFrame(read);
     };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll, { passive: true });
+    const onFocusIn = (e: FocusEvent) => setTyping(typesText(e.target));
+    const onFocusOut = (e: FocusEvent) => {
+      if (!typesText(e.relatedTarget)) setTyping(false);
+    };
+    const listen = (on: boolean) => {
+      if (on) {
+        window.addEventListener("scroll", onScroll, { passive: true });
+        window.addEventListener("resize", onScroll, { passive: true });
+        document.addEventListener("focusin", onFocusIn);
+        document.addEventListener("focusout", onFocusOut);
+      } else {
+        window.removeEventListener("scroll", onScroll);
+        window.removeEventListener("resize", onScroll);
+        document.removeEventListener("focusin", onFocusIn);
+        document.removeEventListener("focusout", onFocusOut);
+      }
+    };
+    const onMedia = () => {
+      listen(media.matches);
+      fresh = true;
+      setShown(true);
+      setTyping(media.matches && typesText(document.activeElement));
+    };
+    if (media.matches) {
+      listen(true);
+      setTyping(typesText(document.activeElement));
+    }
+    media.addEventListener("change", onMedia);
     return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
+      media.removeEventListener("change", onMedia);
+      listen(false);
       if (frame) cancelAnimationFrame(frame);
     };
   }, [pathname]);
-  return shown;
+  return { shown, typing };
 }

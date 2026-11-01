@@ -3,7 +3,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { Sparkles } from "lucide-react";
 import { Suspense } from "react";
 import { EmptyState } from "@/components/empty-state";
-import { Header } from "@/components/header";
+import { Header, PhoneNav } from "@/components/header";
 import { WelcomeTourButton } from "@/components/home/welcome-tour";
 import { ReleasesList } from "@/components/releases-list";
 import { WhatsNewMark } from "@/components/whats-new-mark";
@@ -59,6 +59,7 @@ export default function WhatsNewPage() {
       <Suspense>
         <Entries />
       </Suspense>
+      <PhoneNav />
     </div>
   );
 }

@@ -1,16 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import { BAR_START, type BarScroll, nextBar } from "@/lib/tab-bar";
 
+const VIEW = 800;
+
 // Scrolls through the positions in turn, from the start, on a page that scrolls to `max`.
-const run = (ys: number[], max = 2000): BarScroll => ys.reduce((bar, y) => nextBar(bar, y, max), BAR_START);
+const run = (ys: number[], max = 2000): BarScroll => ys.reduce((bar, y) => nextBar(bar, y, max, VIEW), BAR_START);
 
 describe("the phone tab bar on scroll", () => {
   test("hides after scrolling down past the threshold, not before", () => {
     expect(run([5, 9]).shown).toBe(true);
     expect(run([100, 300]).shown).toBe(false);
     expect(run([300, 309]).shown).toBe(false);
-    expect(nextBar({ shown: true, from: 100 }, 108, 2000).shown).toBe(true);
-    expect(nextBar({ shown: true, from: 100 }, 111, 2000).shown).toBe(false);
+    expect(nextBar({ shown: true, from: 100 }, 108, 2000, VIEW).shown).toBe(true);
+    expect(nextBar({ shown: true, from: 100 }, 111, 2000, VIEW).shown).toBe(false);
   });
 
   test("comes back after scrolling up past the threshold, counted from the turn", () => {
@@ -31,12 +33,23 @@ describe("the phone tab bar on scroll", () => {
     expect(run([100, 500, 2]).shown).toBe(true);
     expect(run([100, 500, 1000, 2000]).shown).toBe(true);
     expect(run([100, 500, 1000, 1998]).shown).toBe(true);
-    expect(nextBar({ shown: false, from: 0 }, 0, 0).shown).toBe(true);
+    expect(nextBar({ shown: false, from: 0 }, 0, 0, VIEW).shown).toBe(true);
   });
 
   test("iOS pulling past either end changes nothing", () => {
     const hidden = run([100, 500]);
-    expect(nextBar(hidden, 2050, 2000)).toEqual(hidden);
-    expect(nextBar({ shown: false, from: 300 }, -30, 2000).shown).toBe(true); // within the top edge rule
+    expect(nextBar(hidden, 2050, 2000, VIEW)).toEqual(hidden);
+    expect(nextBar({ shown: false, from: 300 }, -30, 2000, VIEW).shown).toBe(true); // within the top edge rule
+  });
+
+  test("Back putting the page far down shows it still, and the next scroll counts from there", () => {
+    // Arriving at the top, then the browser restores 1500: no hiding for that jump.
+    const restored = run([0, 1500]);
+    expect(restored).toEqual({ shown: true, from: 1500 });
+    // Then a real scroll down hides it, and one up brings it back.
+    expect(run([0, 1500, 1520]).shown).toBe(false);
+    expect(run([0, 1500, 1520, 1505]).shown).toBe(true);
+    // Hidden, a jump up of more than a screen leaves it hidden until a real scroll up.
+    expect(nextBar({ shown: false, from: 1600 }, 300, 2000, VIEW)).toEqual({ shown: false, from: 300 });
   });
 });

@@ -934,7 +934,7 @@ describe("a guest sees nothing addressed to the owner", () => {
     const css = readFileSync(join(ROOT, "app/globals.css"), "utf8");
     expect(css).toMatch(/html\[data-guest\] body \{\s*padding-bottom:/);
     expect(css).toContain("--above-bar: max(1rem, env(safe-area-inset-bottom));");
-    expect(css).toMatch(/html:has\(\[data-tab-bar\]\) \{[^}]*--above-bar: calc\(var\(--tab-bar\)/);
+    expect(css).toMatch(/html:has\(\[data-phone-nav\]\) \{[^}]*--above-bar: calc\(var\(--phone-nav\)/);
     expect(css).not.toContain("--guest-band");
     expect(bar).toContain("Exit");
     expect(bar).toContain("using guest mode");

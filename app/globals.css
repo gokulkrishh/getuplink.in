@@ -529,25 +529,44 @@ html .maplibregl-map {
    the nav doesn't move when they drop out. Owners never carry the mark. */
 :root {
   --guest-pill: 2.5rem;
-  /* Where things float above the page's bottom edge: the guest pill. Above the tab bar on a phone. */
+  /* Where things float above the page's bottom edge: the guest pill. Above the page links' pill on a phone. */
   --above-bar: max(1rem, env(safe-area-inset-bottom));
 }
 html[data-guest] body {
   padding-bottom: calc(var(--guest-pill) + var(--above-bar));
 }
-/* The phone tab bar (TabBar in components/header-links.tsx), fixed to the bottom on every page with the
-   header. The page keeps room for all of it below its end, so the last thing on the page scrolls clear of
-   it; the bar slides away on scroll by transform only, so that room never changes. Its height: the tabs
-   (h-11), the top border and the home bar's inset. */
+/* The phone's page links (PhoneNavLinks in components/header-links.tsx): a glass pill floating 22px above
+   the bottom edge on every page with the header. The page keeps room for all of it below its end, so the
+   last thing on the page scrolls clear of it; it slides away on scroll by transform only, so that room never
+   changes. A solid pill where the browser can't blur what's behind. */
+.phone-nav {
+  background: var(--background);
+  border-color: rgb(0 0 0 / 0.08);
+  box-shadow: 0 8px 30px rgb(0 0 0 / 0.12);
+  @variant dark {
+    border-color: rgb(255 255 255 / 0.1);
+    box-shadow: 0 8px 30px rgb(0 0 0 / 0.35);
+  }
+}
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .phone-nav {
+    background: rgb(255 255 255 / 0.72);
+    -webkit-backdrop-filter: blur(18px) saturate(1.6);
+    backdrop-filter: blur(18px) saturate(1.6);
+    @variant dark {
+      background: rgb(23 23 23 / 0.72);
+    }
+  }
+}
 @media (width < 40rem) {
-  html:has([data-tab-bar]) {
-    --tab-bar: calc(2.75rem + 1px + env(safe-area-inset-bottom));
-    --above-bar: calc(var(--tab-bar) + 0.75rem);
+  html:has([data-phone-nav]) {
+    --phone-nav: calc(64px + 22px + env(safe-area-inset-bottom));
+    --above-bar: calc(var(--phone-nav) + 12px);
   }
-  html:has([data-tab-bar]) body {
-    padding-bottom: var(--tab-bar);
+  html:has([data-phone-nav]) body {
+    padding-bottom: var(--phone-nav);
   }
-  html[data-guest]:has([data-tab-bar]) body {
+  html[data-guest]:has([data-phone-nav]) body {
     padding-bottom: calc(var(--guest-pill) + var(--above-bar));
   }
 }

@@ -153,35 +153,52 @@ for (const phone of [false, true]) {
     }
   }
 
-  // The page links (Nov 2026): in the header from sm up, a tab bar fixed to the bottom on a phone. One "Main"
-  // nav either way. On a phone the bar slides away scrolling down, comes back scrolling up and at the bottom,
-  // and the page keeps room below its end so nothing is ever behind it.
+  // The page links (Nov 2026): in the header from sm up; on a phone a pill of four icons floating at the
+  // bottom, each named for screen readers. One "Main" nav either way. On a phone the pill slides away
+  // scrolling down, comes back scrolling up and at the bottom, steps aside for a text field, sits under a
+  // sheet, comes after the page for the keyboard, and the page keeps room below its end so nothing is behind it.
   await go("/stats/charging");
   const main = p.getByRole("navigation", { name: "Main" });
-  const names = await main.getByRole("link").allTextContents();
+  const names = await main.getByRole("link").evaluateAll((as) => as.map((a) => a.getAttribute("aria-label") || a.textContent.trim()));
   check(`${tag} one Main nav: Driving, Charging, Battery, Car`, (await main.count()) === 1 && names.join(",") === "Driving,Charging,Battery,Car", names.join(","));
   check(`${tag} Charging marked as this page`, (await main.getByRole("link", { name: "Charging" }).getAttribute("aria-current")) === "page");
   // :visible, as the page before stays in the DOM, hidden, after a move between pages.
-  const bar = p.locator("[data-tab-bar]:visible");
-  if (!phone) check(`desktop no tab bar`, (await bar.count()) === 0);
+  const pill = p.locator("[data-phone-nav]:visible");
+  if (!phone) check(`desktop no phone pill`, (await pill.count()) === 0);
   if (phone) {
     const vh = 812;
-    const at = async () => (await bar.boundingBox()) ?? { y: vh, height: 0 };
+    const at = async () => (await pill.boundingBox()) ?? { y: vh, height: 0 };
     const b0 = await at();
-    const tab = await bar.getByRole("link").first().boundingBox();
-    check(`phone tab bar at the bottom, tabs at least 44px tall`, Math.abs(b0.y + b0.height - vh) <= 1 && (tab?.height ?? 0) >= 44, `bar ${Math.round(b0.y)} to ${Math.round(b0.y + b0.height)}, tab ${Math.round(tab?.height ?? 0)}px`);
-    for (let i = 0; i < 6; i++) { await p.mouse.wheel(0, 120); await p.waitForTimeout(50); }
+    const cells = await pill.getByRole("link").evaluateAll((as) => as.map((a) => { const r = a.getBoundingClientRect(); return { w: r.width, h: r.height }; }));
+    check(`phone pill floats above the bottom, cells at least 44px`, b0.y + b0.height <= vh - 16 && cells.length === 4 && cells.every((c) => c.w >= 44 && c.h >= 44), `pill ${Math.round(b0.y)} to ${Math.round(b0.y + b0.height)}, cells ${cells.map((c) => `${Math.round(c.w)}x${Math.round(c.h)}`).join(" ")}`);
+    for (let i = 0; i < 3; i++) { await p.mouse.wheel(0, 100); await p.waitForTimeout(50); }
     await p.waitForTimeout(400);
-    check(`phone tab bar slides away scrolling down`, (await at()).y >= vh - 1, `top ${Math.round((await at()).y)}`);
+    check(`phone pill slides away scrolling down`, (await at()).y >= vh - 1, `top ${Math.round((await at()).y)}`);
     await p.mouse.wheel(0, -20); await p.waitForTimeout(400);
-    check(`phone tab bar back scrolling up`, Math.abs((await at()).y - b0.y) <= 1, `top ${Math.round((await at()).y)}`);
+    check(`phone pill back scrolling up`, Math.abs((await at()).y - b0.y) <= 1, `top ${Math.round((await at()).y)}`);
     await p.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight)); await p.waitForTimeout(400);
     const end = await p.evaluate(() => document.querySelector("header").parentElement.getBoundingClientRect().bottom);
-    check(`phone tab bar shown at the bottom, nothing behind it`, Math.abs((await at()).y - b0.y) <= 1 && end <= b0.y + 1, `page ends ${Math.round(end)}, bar at ${Math.round(b0.y)}`);
-    await bar.getByRole("link", { name: "Driving" }).tap();
+    check(`phone pill shown at the bottom, nothing behind it`, Math.abs((await at()).y - b0.y) <= 1 && end <= b0.y + 1, `page ends ${Math.round(end)}, pill at ${Math.round(b0.y)}`);
+    // A text field with focus: the pill steps aside (Android's keyboard would carry it over the field).
+    await p.evaluate(() => { const i = document.createElement("input"); i.id = "pill-probe"; document.querySelector("main h1").after(i); });
+    await p.locator("#pill-probe").focus(); await p.waitForTimeout(400);
+    check(`phone pill steps aside while a text field has focus`, (await at()).y >= vh - 1);
+    await p.locator("#pill-probe").blur(); await p.waitForTimeout(400);
+    // A sheet opens over it.
+    await p.evaluate(() => window.scrollTo(0, 0)); await p.waitForTimeout(300);
+    await p.getByRole("button", { name: "Account menu" }).tap();
+    await p.getByRole("menuitem", { name: /feedback/i }).tap(); await p.waitForTimeout(800);
+    check(`phone sheet opens over the pill`, await p.evaluate(() => { const r = [...document.querySelectorAll("[data-phone-nav]")].find((n) => getComputedStyle(n).display !== "none").getBoundingClientRect(); return !document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest("[data-phone-nav]"); }));
+    await p.keyboard.press("Escape"); await p.waitForTimeout(400);
+    await pill.getByRole("link", { name: "Driving" }).tap();
     await p.waitForURL(/\/stats\/driving$/);
     await p.waitForTimeout(400);
-    check(`phone tab bar link opens Driving, marked and in view`, (await bar.getByRole("link", { name: "Driving" }).getAttribute("aria-current")) === "page" && Math.abs((await at()).y - b0.y) <= 1);
+    check(`phone pill link opens Driving, marked and in view`, (await pill.getByRole("link", { name: "Driving" }).getAttribute("aria-current")) === "page" && Math.abs((await at()).y - b0.y) <= 1);
+    // After "Skip to content", the next Tab is the page's own first control, not the pill.
+    await go("/stats/driving");
+    await p.keyboard.press("Tab"); await p.keyboard.press("Enter"); await p.waitForTimeout(200); await p.keyboard.press("Tab");
+    const next = await p.evaluate(() => ({ text: document.activeElement.textContent.trim().slice(0, 20), pill: !!document.activeElement.closest("[data-phone-nav]"), header: !!document.activeElement.closest("header") }));
+    check(`phone Skip to content then Tab lands in the page, not the pill`, !next.pill && !next.header, next.text);
   }
 
   // Header Sign out while offline stays on the page with the usual line (Launch QA 29 Oct 2026).

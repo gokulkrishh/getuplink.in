@@ -10,7 +10,7 @@ import { notFound } from "next/navigation";
 import { after } from "next/server";
 import { cache, type ReactNode, Suspense } from "react";
 import { cn } from "@/lib/utils";
-import { Header } from "@/components/header";
+import { Header, PhoneNav } from "@/components/header";
 import { BackLink } from "@/components/stats/back-link";
 import { ChartCard } from "@/components/chart-card";
 import { ClimateTrace } from "@/components/stats/climate-trace";
@@ -460,6 +460,7 @@ export default function Page({ params, searchParams }: PageProps<"/stats/driving
       <Suspense fallback={<DriveSkeleton />}>
         <DriveLoader params={params} searchParams={searchParams} />
       </Suspense>
+      <PhoneNav current="driving" />
     </div>
   );
 }
