@@ -153,9 +153,13 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
   const tripsFrom = now - DRIVE_DAYS * DAY;
   const partial = (span: Span, windowFrom: number) => reachesBefore(span, windowFrom, figures.since);
   // The insights read a span's newest days only; when that leaves some out, the note names the days read.
-  const insightsNote = (key: HomePeriod, span: Span) => {
+  const coveredDays = (key: HomePeriod, span: Span) => {
     const read = byFrame[key]?.insights;
-    return read && read.from < read.to && partial(span, read.from) ? `Covers only ${daysLabel(istDay(read.from), istDay(read.to - 1), now)}` : undefined;
+    return read && read.from < read.to && partial(span, read.from) ? daysLabel(istDay(read.from), istDay(read.to - 1), now) : undefined;
+  };
+  const insightsNote = (key: HomePeriod, span: Span) => {
+    const days = coveredDays(key, span);
+    return days ? `Covers only ${days}` : undefined;
   };
 
   return (
@@ -183,7 +187,7 @@ async function Driving({ searchParams }: Pick<PageProps<"/stats/driving">, "sear
             return <Distance frame={frame} driving={figures_} stops={driveStops(driving.drives, now)} />;
           })}
           {eachFrame(frames, ({ key, frame }) => (
-            <EfficiencyBands byTemp={byFrame[key]?.extras.byTemp ?? []} bySpeed={byFrame[key]?.extras.bySpeed ?? []} byAc={byFrame[key]?.extras.byAc ?? []} note={insightsNote(key, frame.span)} />
+            <EfficiencyBands byTemp={byFrame[key]?.extras.byTemp ?? []} bySpeed={byFrame[key]?.extras.bySpeed ?? []} byAc={byFrame[key]?.extras.byAc ?? []} frame={frame} note={insightsNote(key, frame.span)} covered={coveredDays(key, frame.span)} />
           ))}
           {/* Seasons are compared across the year, so no single period changes them; they show on the long spans only (see isLong). */}
           {eachFrame(frames, (f) => (isLong(f) ? <SeasonEfficiency {...seasons} /> : null))}

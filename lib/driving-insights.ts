@@ -1,5 +1,7 @@
 import { acSettingOf, type ClimateReadings } from "@/lib/drive-climate";
 import type { Drive } from "@/lib/drives";
+import { DECIMALS, formatNumber } from "@/lib/format";
+import type { Timeframe } from "@/lib/periods";
 
 // Driving insights after TeslaMate's drive stats, efficiency and locations, from streamed readings.
 // Pure, so tested directly.
@@ -73,6 +75,97 @@ export function efficiencyBands(drives: Drive[], temps: TimedValue[], climate?: 
     }),
   ].filter((b) => b.drives > 0);
   return { byTemp: group([0, 20, 25, 30, 35], "°C", tempOf), bySpeed: group([0, 20, 40, 60, 80], "km/h", speedOf), byAc };
+}
+
+// The Efficiency card's groups, in the order it draws them. Each splits the same drives a different way.
+export type EfficiencyKey = "speed" | "ac" | "outside";
+export type EfficiencyView = { key: EfficiencyKey; label: string; bands: Band[] };
+
+// A band from fewer drives than this is left out: a drive or two says more about that trip than about the
+// speed, AC setting or weather.
+export const EFFICIENCY_MIN_DRIVES = 3;
+// The card calls one band out only when its Wh/km is at least this much above the lowest in its group, as
+// shown (116 against 128 is; 116 against 127 is not). Under it, a few drives' traffic or route can make the
+// gap, so the sentence gives the range instead.
+export const EFFICIENCY_CLEAR_GAP = 0.1;
+
+export const whPerKmOf = (b: Band) => (b.kmPerKwh ? 1000 / b.kmPerKwh : null);
+// Wh/km as the bars show it: the sentence compares and names these, so its figures always match a bar.
+// Rounded as formatNumber writes it, so a compared figure is always one a bar shows.
+const shownWh = (b: Band) => {
+  const scale = 10 ** DECIMALS.whPerKm;
+  return Math.round(whPerKmOf(b)! * scale) / scale;
+};
+
+// The groups the card draws: only bands from enough drives with a figure, and only groups with two of those
+// to compare.
+export function shownEfficiency(views: EfficiencyView[]): EfficiencyView[] {
+  return views
+    .map((v) => ({ ...v, bands: v.bands.filter((b) => b.drives >= EFFICIENCY_MIN_DRIVES && whPerKmOf(b) !== null) }))
+    .filter((v) => v.bands.length >= 2);
+}
+
+const GROUP_WORDS: Record<EfficiencyKey, string> = { speed: "speed", ac: "AC setting", outside: "outside temperature" };
+
+// "speed, AC setting and outside temperature": the shown groups, for the fold's label and the sentence.
+export function efficiencyGroups(views: Pick<EfficiencyView, "key">[], last: "and" | "or"): string {
+  const words = views.map((v) => GROUP_WORDS[v.key]);
+  return words.length < 2 ? (words[0] ?? "") : `${words.slice(0, -1).join(", ")} ${last} ${words.at(-1)}`;
+}
+
+// A band's label inside a sentence: "Under 20 km/h" reads "below 20 km/h", "35 °C and above" "35 °C or more".
+const rangeWords = (label: string) => label.replace(/^Under /, "below ").replace(/ and above$/, " or more");
+const at = (label: string) => (label.startsWith("Under ") ? rangeWords(label) : `at ${rangeWords(label)}`);
+// How the sentence names a band: the first time in full, the second (`again`) leaning on the first.
+function bandWords(key: EfficiencyKey, label: string, again: boolean): string {
+  if (key === "ac") {
+    if (label === "AC off") return again ? "with it off" : "with the AC off";
+    return again ? `with it ${at(label)}` : `with the AC ${at(label)}`;
+  }
+  if (key === "outside") return again ? `when it was ${rangeWords(label)}` : `when it was ${rangeWords(label)} outside`;
+  return at(label);
+}
+
+// The period at the head of the sentence: "In the last 7 days", "This month", "So far" for All (whose words,
+// "in total", would read as a sum), "From 1 Sept to 30 Sept" for a picked range. When the bars cover only the
+// period's newest days (`covered`, the days the caption names), it says those: "From 3 Aug to 31 Oct".
+function periodLead(frame: Pick<Timeframe, "period" | "words">, covered?: string): string {
+  if (covered) return covered.includes(" to ") ? `From ${covered}` : `On ${covered}`;
+  const words = frame.period === "all" ? "so far" : frame.words;
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+// One sentence ahead of the Efficiency bars, from the same figures, naming the period once (docs/charts.md).
+// When one group's highest band is at least EFFICIENCY_CLEAR_GAP above its lowest, it names the two, from
+// the group with the widest gap: "In the last 7 days, your car used 135 Wh/km with the AC at 18 to 20 °C,
+// against 118 Wh/km with it off." Otherwise the range across every bar: "In the last 7 days, your car used
+// 116 to 120 Wh/km, whatever the AC setting or outside temperature." It states what the bars hold and never
+// a cause: the groups split the same drives, so a slow trip in town is also its AC setting and its weather.
+// Null when no group has two bands to compare: nothing is guessed.
+export function efficiencySummary(views: EfficiencyView[], frame: Pick<Timeframe, "period" | "words">, covered?: string): string | null {
+  const shown = shownEfficiency(views);
+  if (shown.length === 0) return null;
+  const lead = periodLead(frame, covered);
+  const gaps = shown.map((view) => {
+    const ranked = [...view.bands].sort((a, b) => shownWh(a) - shownWh(b));
+    const low = ranked[0];
+    const high = ranked[ranked.length - 1];
+    return { view, low, high, gap: (shownWh(high) - shownWh(low)) / shownWh(low) };
+  });
+  const widest = gaps.reduce((a, b) => (b.gap > a.gap ? b : a));
+  const wh = (n: number) => formatNumber(n, DECIMALS.whPerKm);
+  if (widest.gap >= EFFICIENCY_CLEAR_GAP - 1e-9) {
+    const { view, low, high } = widest;
+    return `${lead}, your car used ${wh(shownWh(high))} Wh/km ${bandWords(view.key, high.label, false)}, against ${wh(shownWh(low))} Wh/km ${bandWords(view.key, low.label, true)}.`;
+  }
+  const all = shown.flatMap((v) => v.bands.map(shownWh));
+  const least = Math.min(...all);
+  const most = Math.max(...all);
+  const range = least === most ? `${wh(least)} Wh/km` : `${wh(least)} to ${wh(most)} Wh/km`;
+  // "Whatever the …" only when every bar is close, across groups too: two groups each under the gap can still
+  // span more than it together (100 to 109 and 108 to 117), and then the range is all the bars can say.
+  if ((most - least) / least >= EFFICIENCY_CLEAR_GAP - 1e-9) return `${lead}, your car used ${range}.`;
+  return `${lead}, your car used ${range}, whatever the ${efficiencyGroups(shown, "or")}.`;
 }
 
 export type Place = { lat: number; lng: number; visits: number; parkedMs: number; tag: "home" | "work" | "favorite" | null; lastVisit: number };

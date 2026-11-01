@@ -1,9 +1,10 @@
 import { cn } from "@/lib/utils";
 import { ChartCard } from "@/components/chart-card";
-import { EfficiencyViews } from "@/components/stats/efficiency-views";
+import { EFFICIENCY_WAITING, EfficiencyViews } from "@/components/stats/efficiency-views";
 import { TripMap } from "@/components/stats/trip-map";
 import { DECIMALS, formatDuration, formatKm, formatNumber, formatShortDate } from "@/lib/format";
-import type { Band } from "@/lib/driving-insights";
+import { type Band, efficiencyGroups, efficiencySummary, type EfficiencyView, shownEfficiency } from "@/lib/driving-insights";
+import type { Timeframe } from "@/lib/periods";
 import type { DrivingExtras, NamedPlace } from "@/lib/server/driving-extra";
 import { Measure } from "@/components/measure";
 import { type PlaceRow, PlaceRows } from "@/components/stats/place-rows";
@@ -65,23 +66,33 @@ export function SpeedBands({ bins, note }: { bins: DrivingExtras["speed"] } & Co
   );
 }
 
-// Energy used per km at different speeds, AC settings and weather, after TeslaMate's efficiency. Speed comes
-// first: it is the one the owner can change.
-export function EfficiencyBands({ byTemp, bySpeed, byAc = [], note }: { byTemp: Band[]; bySpeed: Band[]; byAc?: Band[] } & Covers) {
+// Energy used per km at different speeds, AC settings and weather, after TeslaMate's efficiency. One sentence
+// leads, from the same bars (efficiencySummary): the range when they're close, or the band that clearly
+// costs more. The bars sit closed under it; opening them shows "Lower is better" and the download button.
+// With too few drives to compare, the card says what it needs instead. Speed comes first: it is the one
+// the owner can change.
+// `covered`: the days the bars cover when that is only the period's newest (the note names them too), so the
+// sentence leads with those days rather than the whole period.
+export function EfficiencyBands({ byTemp, bySpeed, byAc = [], frame, note, covered }: { byTemp: Band[]; bySpeed: Band[]; byAc?: Band[]; frame: Pick<Timeframe, "period" | "words">; covered?: string } & Covers) {
   if (byTemp.length === 0 && bySpeed.length === 0 && byAc.length === 0) return null;
+  const views: EfficiencyView[] = [
+    { key: "speed", label: "Speed", bands: bySpeed },
+    { key: "ac", label: "AC setting", bands: byAc },
+    { key: "outside", label: "Outside", bands: byTemp },
+  ];
+  const summary = efficiencySummary(views, frame, covered);
+  // The sentence stands in the description's place, as on a drive's page; a range or unit never breaks
+  // from its number at a wrap.
+  const keep = (text: string) => text.replace(/ (Wh\/km|°C|km\/h)/g, "\u00a0$1");
   return (
     <ChartCard
       title="Efficiency"
-      description="Energy used per kilometre, in Wh/km. Lower is better."
+      description={summary ? keep(summary) : "Energy used per kilometre, in Wh/km. Lower is better."}
+      shut={{ label: `By ${efficiencyGroups(shownEfficiency(views), "and")}`, note: "Energy used per kilometre. Lower is better." }}
+      empty={summary ? undefined : EFFICIENCY_WAITING}
       caption={note}
     >
-      <EfficiencyViews
-        views={[
-          { key: "speed", label: "Speed", bands: bySpeed },
-          { key: "ac", label: "AC setting", bands: byAc },
-          { key: "outside", label: "Outside", bands: byTemp },
-        ]}
-      />
+      <EfficiencyViews views={views} />
     </ChartCard>
   );
 }

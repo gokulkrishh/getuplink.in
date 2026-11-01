@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { ChartDownload } from "@/components/chart-download";
 import { InfoButton } from "@/components/info-button";
 import { Captioned, EmptyChart } from "@/components/stats/bars";
+import { FoldToggle } from "@/components/fold-toggle";
 import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
@@ -36,6 +37,7 @@ export function ChartCard({
   empty,
   as: Heading = "h2",
   fold = false,
+  shut,
   download = true,
   className,
   children,
@@ -61,6 +63,10 @@ export function ChartCard({
   // draws the lines between rows, so the last has none under it and the first none above. The ⓘ's
   // note then sits in the opened part, since a button in the row would toggle it.
   fold?: boolean;
+  // The chart starts closed, behind a row with `label` ("By AC setting and outside temperature") and Show,
+  // when the description already says what it holds (Efficiency's sentence). The opened part leads with
+  // `note` ("Lower is better.") and the download button, as a fold row's does. The caption stays under the row.
+  shut?: { label: string; note?: string };
   // False for a sample chart on the public home page, which has nothing of the owner's to save.
   download?: boolean;
   className?: string;
@@ -104,10 +110,33 @@ export function ChartCard({
           )}
           {description && <p className="text-sm text-muted-foreground">{description}</p>}
         </div>
-        {download && !empty && <ChartDownload title={title} className={Heading === "h2" ? "mt-0.5" : undefined} />}
+        {download && !empty && !shut && <ChartDownload title={title} className={Heading === "h2" ? "mt-0.5" : undefined} />}
       </div>
       {summary}
-      {empty ? <EmptyChart>{empty}</EmptyChart> : <Captioned caption={caption}>{plot(children, caption)}</Captioned>}
+      {empty ? (
+        <EmptyChart>{empty}</EmptyChart>
+      ) : shut ? (
+        <Captioned caption={caption}>
+          <Collapsible className="border-y">
+            {/* A div (with the button role), as in Settings' Connect your AI: the row is what's clicked. */}
+            <CollapsibleTrigger nativeButton={false} render={<div />} className="flex w-full cursor-pointer items-center justify-between gap-4 py-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-ring">
+              <span className="min-w-0">{shut.label}</span>
+              <FoldToggle />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-4 pt-2 pb-6">
+              {(shut.note || download) && (
+                <div className="flex items-center justify-between gap-3">
+                  {shut.note ? <p className="text-sm text-faint">{shut.note}</p> : <span />}
+                  {download && <ChartDownload title={title} />}
+                </div>
+              )}
+              {plot(children, undefined)}
+            </CollapsibleContent>
+          </Collapsible>
+        </Captioned>
+      ) : (
+        <Captioned caption={caption}>{plot(children, caption)}</Captioned>
+      )}
     </section>
   );
 }
