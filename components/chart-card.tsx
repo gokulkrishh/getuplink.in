@@ -1,11 +1,9 @@
-import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
 import { ChartDownload } from "@/components/chart-download";
 import { InfoButton } from "@/components/info-button";
 import { Captioned, EmptyChart } from "@/components/stats/bars";
-import { FoldToggle } from "@/components/fold-toggle";
+import { Fold } from "@/components/fold";
 import { cn } from "@/lib/utils";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 // The chart itself, the part a download saves. It keeps the spacing its parts had in the card (the
 // section's, or the caption's figure's).
@@ -26,8 +24,8 @@ function plot(children: ReactNode, caption: ReactNode) {
 // no data, don't render the card at all.
 // A download button at the top right saves the chart itself as an image (ChartDownload), without the
 // title, figures or caption round it. A card showing `empty` has none, nor one with `download={false}`.
-// Server-safe: no hooks, so it wraps server sections and client plots alike (InfoButton is its own client
-// component).
+// Server-safe: no hooks, so it wraps server sections and client plots alike (InfoButton and Fold are their
+// own client components).
 export function ChartCard({
   title,
   description,
@@ -74,16 +72,7 @@ export function ChartCard({
 }) {
   if (fold) {
     return (
-      <Collapsible data-chart-card="" className={cn("group/fold", className)}>
-        {/* A div (with the button role), since it holds the chart's heading, which a <button> can't. */}
-        <CollapsibleTrigger nativeButton={false} render={<div />} className="flex w-full cursor-pointer items-start justify-between gap-4 py-4 text-left focus-visible:outline-2 focus-visible:outline-ring">
-          <span className="min-w-0 space-y-1">
-            {title && <Heading className="text-base font-medium tracking-heading">{title}</Heading>}
-            {description && <span className="block text-sm text-muted-foreground">{description}</span>}
-          </span>
-          <ChevronDown className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-data-open/fold:rotate-180" aria-hidden="true" />
-        </CollapsibleTrigger>
-        <CollapsibleContent className="space-y-4 pb-6">
+      <Fold data-chart-card="" className={cn("group/fold", className)} rowClassName="py-4" as={Heading} titleClassName="text-base" toggle="chevron" title={title} description={description} contentClassName="space-y-4 pb-6">
           {info || (download && !empty) ? (
             <div className="flex items-start justify-between gap-3">
               {info ? <p className="text-sm text-faint">{info}</p> : <span />}
@@ -92,8 +81,7 @@ export function ChartCard({
           ) : null}
           {summary}
           {empty ? <EmptyChart>{empty}</EmptyChart> : <Captioned caption={caption}>{plot(children, caption)}</Captioned>}
-        </CollapsibleContent>
-      </Collapsible>
+      </Fold>
     );
   }
   return (
@@ -117,13 +105,8 @@ export function ChartCard({
         <EmptyChart>{empty}</EmptyChart>
       ) : shut ? (
         <Captioned caption={caption}>
-          <Collapsible className="border-y">
-            {/* A div (with the button role), as in Settings' Connect your AI: the row is what's clicked. */}
-            <CollapsibleTrigger nativeButton={false} render={<div />} className="flex w-full cursor-pointer items-center justify-between gap-4 py-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-ring">
-              <span className="min-w-0">{shut.label}</span>
-              <FoldToggle />
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-4 pt-2 pb-6">
+          {/* The label isn't a heading: the card's title above is. */}
+          <Fold className="border-y" rowClassName="py-2 text-sm" headClassName="" as="span" title={shut.label} contentClassName="space-y-4 pt-2 pb-6">
               {(shut.note || download) && (
                 <div className="flex items-center justify-between gap-3">
                   {shut.note ? <p className="text-sm text-faint">{shut.note}</p> : <span />}
@@ -131,8 +114,7 @@ export function ChartCard({
                 </div>
               )}
               {plot(children, undefined)}
-            </CollapsibleContent>
-          </Collapsible>
+          </Fold>
         </Captioned>
       ) : (
         <Captioned caption={caption}>{plot(children, caption)}</Captioned>

@@ -20,8 +20,7 @@ import type { StreamChargeSession } from "@/lib/server/stream-charging";
 import { barOpens } from "@/components/stats/bar-parts";
 import type { Stops } from "@/lib/bar-stops";
 import { Measure } from "@/components/measure";
-import { FoldToggle } from "@/components/fold-toggle";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Fold } from "@/components/fold";
 import type { ReactNode } from "react";
 
 // The Charging page's sections: spend, energy added by charger kind, and every session by month.
@@ -164,22 +163,13 @@ export const HABITS_TITLE = "Your charging habits";
 export const HABITS_LINE = habitsLine({ levels: true, dc: true });
 
 // Charge range, When you charge and DC charging speed, folded away under one heading, closed at first (as
-// Settings' Connect your AI). Closed, the sections stay in the page, hidden until found, so opening it
+// Settings' Connect your AI, with Fold). Closed, the sections stay in the page, hidden until found, so opening it
 // loads nothing and nothing above moves.
 export function HabitsFold({ line = HABITS_LINE, children }: { line?: string; children: ReactNode }) {
   return (
-    // No `group` on the fold: the bar charts inside use group-hover, which any hovered .group above would set off.
-    <Collapsible>
-      {/* A div (with the button role), since it holds a heading, which a <button> can't. */}
-      <CollapsibleTrigger nativeButton={false} render={<div />} className="flex w-full cursor-pointer items-center justify-between gap-4 text-left focus-visible:outline-2 focus-visible:outline-ring">
-        <div className="min-w-0 space-y-1">
-          <h2 className="text-lg font-medium tracking-heading">{HABITS_TITLE}</h2>
-          <p className="text-sm text-muted-foreground">{line}</p>
-        </div>
-        <FoldToggle />
-      </CollapsibleTrigger>
-      <CollapsibleContent className="space-y-12 pt-8">{children}</CollapsibleContent>
-    </Collapsible>
+    <Fold title={HABITS_TITLE} description={line} contentClassName="space-y-12 pt-8">
+      {children}
+    </Fold>
   );
 }
 

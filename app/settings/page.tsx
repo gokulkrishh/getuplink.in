@@ -22,14 +22,13 @@ import { DeleteAccount, DeleteMyData, DisconnectTesla, SignOutEverywhere } from 
 import { BotTemplate, McpConnector } from "./integrations";
 import { Loading, Ph } from "@/components/skeleton";
 import { Row } from "./row";
-import { FoldToggle } from "@/components/fold-toggle";
+import { Fold } from "@/components/fold";
 import { ShareSwitch } from "@/components/owners/share-controls";
 import { loadViewLinks } from "@/lib/server/view-links";
 import type { ViewLink } from "@/lib/view-links";
 import { ViewLinks } from "./view-links";
 import { type Sharing } from "@/lib/server/data/owners";
 import { sharingState } from "@/lib/server/owners";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Settings" };
@@ -37,17 +36,9 @@ export const metadata: Metadata = { title: "Settings" };
 // Connect your AI: settings few owners need (their own AI, the bot), closed until opened, last on the page.
 function ConnectYourAi({ children }: { children: React.ReactNode }) {
   return (
-    <Collapsible className="group mt-10">
-      {/* A div (with the button role), since it holds a heading, which a <button> can't. */}
-      <CollapsibleTrigger nativeButton={false} render={<div />} className="flex w-full cursor-pointer items-center justify-between gap-4 pb-2 text-left focus-visible:outline-2 focus-visible:outline-ring">
-        <div className="min-w-0">
-          <h2 className="text-lg font-medium tracking-heading">Connect your AI</h2>
-          <p className="text-sm text-muted-foreground">Ask Claude, ChatGPT or Grok about your car.</p>
-        </div>
-        <FoldToggle />
-      </CollapsibleTrigger>
-      <CollapsibleContent className="divide-y border-t">{children}</CollapsibleContent>
-    </Collapsible>
+    <Fold className="mt-10" rowClassName="pb-2" headClassName="" title="Connect your AI" description="Ask Claude, ChatGPT or Grok about your car." contentClassName="divide-y border-t">
+      {children}
+    </Fold>
   );
 }
 
