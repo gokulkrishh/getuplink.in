@@ -108,6 +108,18 @@ for (const phone of [false, true]) {
   check(`${tag} custom future dates name what's shown`, t.includes("Uplink couldn't use those dates, so it shows") && !t.includes("Pick dates up to today."));
   t = await go("/stats/battery");
   check(`${tag} /stats/battery says Awake, not Online`, t.includes("Awake") && !/\bOnline\b/.test(t));
+  t = await go("/updates");
+  // The India rollout is a section of Software now, with Adoption over time closed (31 Oct 2026); old /rollout
+  // links land on it, and the account menu no longer lists it.
+  const tab = (await p.locator('a[href="/updates"]').first().innerText().catch(() => "")).trim();
+  check(`${tag} /updates Software tab and India rollout`, tab === "Software" && t.includes("India rollout") && t.includes("Newest in India"), `tab "${tab}"`);
+  check(`${tag} /updates Adoption over time starts closed`, (await p.locator("[data-slot=collapsible-trigger]", { hasText: "Adoption over time" }).getAttribute("aria-expanded")) === "false");
+  await p.goto("/rollout", { waitUntil: "networkidle" });
+  check(`${tag} /rollout lands on /updates#rollout`, new URL(p.url()).pathname === "/updates" && new URL(p.url()).hash === "#rollout", p.url());
+  await (phone ? p.getByRole("button", { name: "Account menu" }).tap() : p.getByRole("button", { name: "Account menu" }).click());
+  await p.getByRole("menuitem", { name: "Settings" }).waitFor();
+  check(`${tag} account menu has no Rollout`, (await p.getByRole("menuitem", { name: /rollout/i }).count()) === 0);
+  await p.keyboard.press("Escape");
   t = await go("/owners");
   check(`${tag} /owners says Period, not Covers`, t.includes("Period") && !/\bCovers\b/.test(t));
 
@@ -214,7 +226,7 @@ for (const phone of [false, true]) {
 // Pages are loaded in a fresh context each, with the observer in place before any of the page's own script.
 for (const phone of [false, true]) {
   const tag = phone ? "phone" : "desktop";
-  for (const u of ["/", "/stats/driving", "/stats/charging", "/owners", "/settings"]) {
+  for (const u of ["/", "/stats/driving", "/stats/charging", "/owners", "/settings", "/car", "/updates"]) {
     const { c, p } = await ctx(phone);
     await p.addInitScript(() => {
       window.__cls = 0;

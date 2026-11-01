@@ -10,4 +10,4 @@ One file per user-facing feature: what it is, how a user gets there, how to driv
 | Settings: theme, live data, integrations, account | `/settings` | [settings.md](settings.md) |
 | Software updates: current version, history | `/updates` | [updates.md](updates.md) |
 
-Not mapped yet: `/car`, `/stats/battery`, `/rollout`, `/status`, `/setup`, `/admin/*` (admin pages need a real admin session; demo mode isn't one), `/invite/<token>`, the public home at `/home`.
+Not mapped yet: `/car`, `/stats/battery`, `/status`, `/setup`, `/admin/*` (admin pages need a real admin session; demo mode isn't one), `/invite/<token>`, the public home at `/home`.

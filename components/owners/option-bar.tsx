@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
-// One option's share of owners, as a bar the width of the row (like the Rollout page's ShareBar). Hovering,
+// One option's share of owners, as a bar the width of the row (like the India rollout's ShareBar). Hovering,
 // focusing or tapping it shows `lines` above it in the chart tooltips' style; Escape or a tap elsewhere
 // hides it. `strong` is the owner's own option. `tick` marks the owner's own share (0 to 1) on a mix, where
 // every owner has some of each option.

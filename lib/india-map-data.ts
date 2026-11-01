@@ -3,7 +3,7 @@
 // f59605fe), which follow the Survey of India's official boundary: all of Jammu & Kashmir and Ladakh,
 // including Gilgit-Baltistan and Aksai Chin, and all of Arunachal Pradesh, are in India. Simplified with
 // mapshaper (Visvalingam, shared borders kept together); islands under a few square km dropped.
-// © DataMeet India community, CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), credited on /rollout.
+// © DataMeet India community, CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), credited in the India rollout on /updates.
 import type { StateCode } from "@/lib/india-states";
 
 export const STATE_PATHS: Record<StateCode, string> = {

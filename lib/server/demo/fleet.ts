@@ -1,4 +1,4 @@
-// A simulated fleet of Indian cars for the demo's /rollout and /admin, separate from the one demo car the
+// A simulated fleet of Indian cars for the demo's India rollout and /admin, separate from the one demo car the
 // other pages show. Seeded like generate.ts, so the same fleet comes back on every rebuild, and anchored to
 // "now". It writes rows shaped like the vehicles and version_history tables, so the pages run them through
 // the same functions as real data.

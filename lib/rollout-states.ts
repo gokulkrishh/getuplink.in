@@ -1,4 +1,4 @@
-// Where each version runs in India, state by state, for the map on /rollout. Pure like lib/rollout.ts. Every
+// Where each version runs in India, state by state, for the India rollout map on /updates. Pure like lib/rollout.ts. Every
 // state with cars shows its real count; only totals leave the server, never a car.
 import { STATES, type StateCode } from "@/lib/india-states";
 import { normaliseVersion } from "@/lib/versions";

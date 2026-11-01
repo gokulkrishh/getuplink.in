@@ -16,20 +16,40 @@ const offers: OfferedCar[] = [
 describe("rolloutLines", () => {
   const glance = rolloutGlance(cars, offers);
 
-  test("says how many of the counted cars run the owner's version", () => {
-    expect(rolloutLines("2026.38.3.2", null, glance)).toEqual(["On 3 of 40 cars in India", "2026.40.2 is reaching cars in India"]);
+  test("says how many of the counted cars run the owner's version, and the newest one in India", () => {
+    expect(rolloutLines("2026.38.3.2", null, glance)).toEqual(["On 3 of 40 cars in India", "Newest in India: 2026.40.2, on 1 car"]);
   });
 
-  test("a newer version on offer is named once, and not when it is the owner's own pending update", () => {
+  test("the newest version isn't named when it is the owner's own pending update", () => {
     expect(rolloutLines("2026.38.3.2", "2026.40.2", glance)).toEqual(["On 3 of 40 cars in India"]);
   });
 
-  test("the newest version has no newer one reaching cars", () => {
+  test("on the newest version, nothing newer is named", () => {
     expect(rolloutLines("2026.40.2", null, glance)).toEqual(["On 1 of 40 cars in India"]);
   });
 
+  test("on the newest version, a newer one on offer is arriving now", () => {
+    // 22 Oct 2026, the demo fleet's shape: 2026.44.5 offered to one car, no car on it yet.
+    const ahead = rolloutGlance(cars, offers.map((o) => (o.car === "c0" ? { ...o, status: "available", offered: "2026.44.5" } : o)));
+    expect(rolloutLines("2026.40.2", null, ahead)).toEqual(["On 1 of 40 cars in India", "Arriving now: 2026.44.5"]);
+    expect(rolloutLines("2026.40.2", "2026.44.5", ahead)).toEqual(["On 1 of 40 cars in India"]);
+  });
+
+  test("with an update already waiting, nothing older than it is named as arriving", () => {
+    // 2026.44.5 waits on this car and is also the newest in India; 2026.40.2 is still on offer elsewhere.
+    const fleet: RolloutCar[] = [...cars, { car: "d0", version: "2026.44.5" }];
+    const glanceAhead = rolloutGlance(fleet, [...offers, { car: "d0", version: "2026.44.5", status: null, offered: null }]);
+    expect(glanceAhead.arriving).toContain("2026.40.2");
+    expect(rolloutLines("2026.38.3.2", "2026.44.5", glanceAhead)).toEqual(["On 3 of 41 cars in India"]);
+  });
+
+  test("behind, the newest installed version is named rather than what is arriving", () => {
+    const ahead = rolloutGlance(cars, offers.map((o) => (o.car === "c0" ? { ...o, status: "available", offered: "2026.44.5" } : o)));
+    expect(rolloutLines("2026.38.3.2", null, ahead)).toEqual(["On 3 of 40 cars in India", "Newest in India: 2026.40.2, on 1 car"]);
+  });
+
   test("a version no car runs shows no number", () => {
-    expect(rolloutLines("2026.10.1", null, glance)).toEqual(["2026.40.2 is reaching cars in India"]);
+    expect(rolloutLines("2026.10.1", null, glance)).toEqual(["Newest in India: 2026.40.2, on 1 car"]);
     expect(rolloutLines(null, null, glance)).toEqual([]);
   });
 

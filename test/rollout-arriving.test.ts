@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { buildRollout, type RolloutCar } from "@/lib/rollout";
-import { buildArriving, type OfferedCar, pendingUpdate, withOwnOffer, yourCar } from "@/lib/rollout-arriving";
+import { buildArriving, type OfferedCar, pendingUpdate, withOwnOffer, yourCar, yourCarWords } from "@/lib/rollout-arriving";
 
 // `count` cars named prefix0.. on `version`, each with `offered` pending as `status`.
 function group(prefix: string, count: number, version: string, offered: string | null = null, status: string | null = offered && "available") {
@@ -95,5 +95,14 @@ describe("withOwnOffer", () => {
   test("a car that isn't in the list isn't added, and no owner's car changes nothing", () => {
     expect(withOwnOffer(checks, { ...own, car: "elsewhere" })).toEqual(checks);
     expect(withOwnOffer(checks, null)).toBe(checks);
+  });
+});
+
+describe("yourCarWords", () => {
+  test("says where the car stands in the words Updates uses", () => {
+    expect(yourCarWords({ kind: "newest" })).toBe("You're on the newest in India");
+    expect(yourCarWords({ kind: "behind", versions: 1, newest: "2026.40.2", cars: 3 })).toBe("You're 1 version behind the newest in India");
+    expect(yourCarWords({ kind: "behind", versions: 2, newest: "2026.44.1", cars: 12 })).toBe("You're 2 versions behind the newest in India");
+    expect(yourCarWords({ kind: "waiting", version: "2026.44.1" })).toBe("2026.44.1 is waiting to install on your car");
   });
 });

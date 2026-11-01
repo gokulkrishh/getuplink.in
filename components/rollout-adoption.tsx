@@ -2,9 +2,11 @@
 
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
-import { ChartCard } from "@/components/chart-card";
+import { ChartDownload } from "@/components/chart-download";
+import { FoldToggle } from "@/components/fold-toggle";
 import { Segmented } from "@/components/segmented";
-import { type Bar, Bars } from "@/components/stats/bars";
+import { type Bar, Bars, EmptyChart } from "@/components/stats/bars";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,7 +29,10 @@ const LABEL_EVERY: Record<AdoptionGrain, number> = { day: 7, week: 5 };
 const SPAN_WORDS: Record<AdoptionGrain, string> = { day: `each day, last ${ADOPTION_SLOTS.day} days`, week: `each week, last ${ADOPTION_SLOTS.week} weeks` };
 
 // The share of cars on one picked version at the end of each day or week. One version at a time keeps the
-// chart to the one data hue; the dropdown opens on the newest version.
+// chart to the one data hue; the dropdown opens on the newest version. Closed at first, under Software's
+// India rollout, with the Collapsible and FoldToggle of Settings' Connect your AI: the title and line show,
+// and a tap opens the chart. The ⓘ's note sits in the opened part, since a button in the row would toggle it
+// (as ChartCard's fold has it).
 export function RolloutAdoption({ adoption }: { adoption: Record<AdoptionGrain, Adoption> }) {
   const [grain, setGrain] = useState<AdoptionGrain>("day");
   const versions = [...new Set([...adoption.day.versions, ...adoption.week.versions].map((v) => v.version))].sort((a, b) => compareVersions(b, a));
@@ -52,12 +57,22 @@ export function RolloutAdoption({ adoption }: { adoption: Record<AdoptionGrain, 
   }));
 
   const words = grain === "day" ? "days" : "weeks";
+  const empty = bars.some((b) => b.value > 0) ? null : `No cars ran ${version} in these ${words}.`;
   return (
-    <ChartCard
-      title="Adoption over time"
-      description="Share of cars on the picked version."
-      info={`Each bar is the share of cars on this version at the end of ${spanWords}. A car counts only from the day Uplink first saw its version.`}
-      summary={
+    <Collapsible data-chart-card="">
+      {/* A div (with the button role), since it holds a heading, which a <button> can't. */}
+      <CollapsibleTrigger nativeButton={false} render={<div />} className="flex w-full cursor-pointer items-center justify-between gap-4 text-left focus-visible:outline-2 focus-visible:outline-ring">
+        <div className="min-w-0 space-y-1">
+          <h3 className="text-base font-medium tracking-heading">Adoption over time</h3>
+          <p className="text-sm text-muted-foreground">Share of cars on the picked version.</p>
+        </div>
+        <FoldToggle />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-4 pt-4">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-sm text-faint">Each bar is the share of cars on this version at the end of {spanWords}. A car counts only from the day Uplink first saw its version.</p>
+          {!empty && <ChartDownload title="Adoption over time" />}
+        </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span id="adoption-version" className="text-sm text-muted-foreground">
@@ -84,10 +99,14 @@ export function RolloutAdoption({ adoption }: { adoption: Record<AdoptionGrain, 
           </div>
           <Segmented label="Group by" options={GRAINS} value={grain} onChange={setGrain} />
         </div>
-      }
-      empty={bars.some((b) => b.value > 0) ? undefined : `No cars ran ${version} in these ${words}.`}
-    >
-      <Bars bars={bars} ariaLabel={`Share of cars on ${version}, ${spanWords}`} labelEvery={labelEvery} unit="%" valueWords="of cars" fit />
-    </ChartCard>
+        {empty ? (
+          <EmptyChart>{empty}</EmptyChart>
+        ) : (
+          <div data-chart-plot="" className="space-y-4">
+            <Bars bars={bars} ariaLabel={`Share of cars on ${version}, ${spanWords}`} labelEvery={labelEvery} unit="%" valueWords="of cars" fit />
+          </div>
+        )}
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

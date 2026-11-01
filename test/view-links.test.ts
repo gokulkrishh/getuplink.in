@@ -829,7 +829,7 @@ const code = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, "").replace
 const READER = /\b(currentReader|requireReader)\b/;
 
 // Server actions that only read ("Show more" under a list): the only ones a viewer may call.
-const READ_ONLY_ACTIONS = ["app/stats/driving/actions.ts", "app/stats/charging/actions.ts", "app/stats/battery/actions.ts", "app/updates/actions.ts", "app/rollout/actions.ts"];
+const READ_ONLY_ACTIONS = ["app/stats/driving/actions.ts", "app/stats/charging/actions.ts", "app/stats/battery/actions.ts", "app/updates/actions.ts"];
 // What each of them exports: every one a "more…" list read.
 const READ_ONLY_EXPORTS = /^export async function (more[A-Z]\w*)\(/gm;
 

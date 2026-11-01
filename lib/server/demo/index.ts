@@ -42,7 +42,7 @@ function blankSlate(data: DemoData): DemoData {
   };
 }
 
-// The simulated fleet for /rollout and /admin, rebuilt on the same minute as the demo car.
+// The simulated fleet for the India rollout and /admin, rebuilt on the same minute as the demo car.
 let fleet: DemoFleet | undefined;
 
 export function demoFleet(): DemoFleet {

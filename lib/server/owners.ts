@@ -495,7 +495,7 @@ export async function ownerComparisons(owner: Owner, now: number) {
           : "The totals come with the next update, at 3:30 AM.",
     };
   }
-  // Every state's own count, as the Rollout page shows signed-in owners: holding small states back here would
+  // Every state's own count, as the India rollout on Software shows signed-in owners: holding small states back here would
   // hide nothing Rollout doesn't already show.
   const states = stateTotals(await carStates(), 1);
   return {
@@ -512,7 +512,7 @@ export async function ownerComparisons(owner: Owner, now: number) {
     comparisons: comparisons(page.stats, page),
     cars_by_state: {
       about:
-        "Uplink's own cars by home state: every car using Uplink, sharing or not. Not all Teslas in India. A car's home state is the state it is in most often when Uplink checks it, or else the state of the Superchargers it uses most. Every state with a car is listed, as on Uplink's Rollout page.",
+        "Uplink's own cars by home state: every car using Uplink, sharing or not. Not all Teslas in India. A car's home state is the state it is in most often when Uplink checks it, or else the state of the Superchargers it uses most. Every state with a car is listed, as on the India rollout map in Uplink's Software tab.",
       states: states.states.map((s) => ({ state: s.name, cars: s.cars })),
       state_not_known: states.notKnown,
       total_cars: states.total,

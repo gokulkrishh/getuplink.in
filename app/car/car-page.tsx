@@ -7,24 +7,18 @@ import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { Loading, Ph, SkFigures, SkSection } from "@/components/skeleton";
 import { Header } from "@/components/header";
-import { MoreLink } from "@/components/more-link";
 import { Measure } from "@/components/measure";
 import { CarNotices } from "@/components/owner-notices";
-import { supplyFigures, Words } from "@/components/stats/charge-supply";
+import { Words } from "@/components/stats/charge-supply";
 import { type Figure, Figures } from "@/components/stats/figures";
 import { Vin } from "@/components/vin";
 import { odometerKm } from "@/lib/car";
-import { consumptionIn, CONSUMPTION_DAYS } from "@/lib/drive-stats";
-import { formatWhPerKm } from "@/lib/seasons";
-import type { Drive } from "@/lib/drives";
-import { loadWindowStats } from "@/lib/server/driving";
-import { loadStreamSessions } from "@/lib/server/stream-charging";
 import { rotationLine, tyreRotation } from "@/lib/tyre-rotation";
 import { CAR_NOW_FIELDS, type CarNow, carNow, shutSummary, tyreSeen } from "@/lib/car-now";
-import { energyAdded, formatClock, formatKm, formatKw, formatKwh, formatLevels, formatPercent, formatRangeKm, formatShortDate } from "@/lib/format";
+import { formatClock, formatKm, formatKwh, formatShortDate } from "@/lib/format";
 import { isStaleSync, lastSyncedText, newestTime } from "@/lib/last-synced";
 import { requireReader } from "@/lib/server/auth";
-import { type CarDetails, type LastCharge, loadCarDetails } from "@/lib/server/car";
+import { type CarDetails, loadCarDetails } from "@/lib/server/car";
 import { type CarState, loadCarState, OWNER_DATA_TAG } from "@/lib/server/dashboard";
 import { loadPrimaryVehicle, loadStream } from "@/lib/server/telemetry";
 import { loadTyreArrivals } from "@/lib/server/telemetry-window";
@@ -54,9 +48,7 @@ async function loadPrimary(): Promise<{ id: string; vin: string } | null> {
 // The streamed fields the page reads beyond carNow's: the odometer and the version.
 const PAGE_FIELDS = [...CAR_NOW_FIELDS, "Odometer", "Version"];
 
-// The car's average consumption, as its own trip meters show it, worked out from the drives Uplink saw.
-type Average = { label: string; whPerKm: number; km: number };
-type Live = { state: Omit<CarState, "flags">; stream: Stream; now: CarNow | null; notices: string[]; at: number; averages: Average[] };
+type Live = { state: Omit<CarState, "flags">; stream: Stream; now: CarNow | null; notices: string[]; at: number };
 
 // The car's state now, in the same private cache as the page: the latest check and newest streamed reading
 // the way home reads them (loadCarState, so "Last synced" matches home), the battery with newer streamed
@@ -69,32 +61,13 @@ async function loadLive(id: string, vin: string | null): Promise<Live> {
   const { owner } = await requireReader();
   const at = Date.now();
   // The flags come with the state's read of the last online check.
-  const [{ flags, ...state }, stream, arrivals, window, lastCharges] = await Promise.all([
+  const [{ flags, ...state }, stream, arrivals] = await Promise.all([
     loadCarState(owner, { id, vin }, "normal"),
     vin ? loadStream(owner, vin, PAGE_FIELDS) : {},
     vin ? loadTyreArrivals(owner, vin, at) : {},
-    loadWindowStats(owner, vin, at),
-    vin ? loadStreamSessions(owner, 5) : [],
   ]);
-  return { state, stream, now: vin ? carNow(stream, at, flags.tyres, arrivals) : null, notices: flags.notices, at, averages: averages(window.driving.drives, lastCharges.find((c) => c.vin === vin && c.ended_at !== null)?.ended_at ?? null, at) };
+  return { state, stream, now: vin ? carNow(stream, at, flags.tyres, arrivals) : null, notices: flags.notices, at };
 }
-
-// Since the last charge, the last 30 days, and since the first drive Uplink saw, each when it has enough
-// driving to mean something (see consumptionIn). The 30 days are left out while tracking is younger.
-function averages(drives: Drive[], lastChargeEnd: string | null, at: number): Average[] {
-  const first = drives.reduce((a, d) => Math.min(a, d.start), Infinity);
-  const month = at - CONSUMPTION_DAYS * 86_400_000;
-  const spans: [string, number | null][] = [
-    ["Since last charge", lastChargeEnd ? Date.parse(lastChargeEnd) : null],
-    [`Last ${CONSUMPTION_DAYS} days`, first < month ? month : null],
-    [Number.isFinite(first) ? `Since ${formatShortDate(first)}` : "", Number.isFinite(first) ? first : null],
-  ];
-  return spans.flatMap(([label, from]) => {
-    const c = from === null ? null : consumptionIn(drives, { from, to: at });
-    return c ? [{ label, ...c }] : [];
-  });
-}
-
 
 const shown = <T,>(rows: [string, T][]) => rows.filter((r): r is [string, NonNullable<T>] => r[1] !== null && r[1] !== undefined && r[1] !== false && r[1] !== "");
 
@@ -183,42 +156,10 @@ function CarHeader({ car, odometer, version, syncedAt, at }: { car: CarDetails; 
 // carNow's rows that `shut` (see shutSummary) says in one tile, placed where the first of them was.
 const SHUT_ROWS = new Set(["Locked", "Doors", "Windows", "Charge port door"]);
 
-// The charge and range from the latest online check, newer streamed values laid over it, then carNow's
-// rows, with locks, doors, windows and the charge port door as one tile. Temperatures are measures; the
-// rest are words.
-// `ownKm` is the range at the owner's own driving, when it can be worked out (see ownRange).
-function nowFigures(state: Omit<CarState, "flags">, now: CarNow | null, shut: string | null, ownKm: number | null): Figure[] {
-  const s = state.lastOnline;
+// carNow's rows, with locks, doors, windows and the charge port door as one tile. Temperatures are measures;
+// the rest are words. The charge and range are Home's, so they aren't repeated here.
+function nowFigures(state: Omit<CarState, "flags">, now: CarNow | null, shut: string | null): Figure[] {
   const figures: Figure[] = [];
-  if (s?.battery_level != null) {
-    const charging = s.charging_state === "Charging";
-    const power = charging && s.charge_power_kw != null && s.charge_power_kw > 0 ? s.charge_power_kw : null;
-    const note = charging
-      ? power !== null
-        ? `Charging at ${formatKw(power)}`
-        : `Charging${s.charge_limit != null ? ` to ${s.charge_limit}%` : ""}`
-      : s.charge_limit != null
-        ? `Limit ${s.charge_limit}%`
-        : undefined;
-    // The energy added so far, quiet, after the charging line rather than on a line of its own, so the tile
-    // keeps the loading skeleton's one-line note (it wraps only where the tile is too narrow).
-    const added = charging ? energyAdded(s.charge_energy_kwh) : null;
-    figures.push({
-      label: "Charge",
-      value: formatPercent(s.battery_level),
-      note: charging ? (
-        <>
-          <span className="text-charge">{note}</span>
-          {added && <span> · {added}</span>}
-        </>
-      ) : (
-        note
-      ),
-    });
-  }
-  // Tesla's figure is an estimate on a test cycle; the owner's own driving gives another, kept to one line.
-  if (s?.battery_range_km != null)
-    figures.push({ label: "Range", value: formatRangeKm(s.battery_range_km), note: ownKm !== null ? `About ${formatRangeKm(ownKm)} at your driving` : "Tesla's estimate" });
   const rows = new Map(now?.rows ?? []);
   let shutShown = false;
   for (const [label, value] of now?.rows ?? []) {
@@ -277,25 +218,6 @@ function overheatWords(mode: string | undefined): string | null {
   return `Overheat protection ${mode === "No Ac" ? "no AC" : mode.toLowerCase()}`;
 }
 
-// The last charge's tiles: where and how (Supercharger, DC fast or AC), the power, the energy and the levels,
-// then for AC how the charger supplied it.
-function lastChargeFigures(last: LastCharge): Figure[] {
-  const kind = last.supercharger ? "Supercharger" : last.kind === "dc" ? "DC fast" : "AC";
-  return [
-    { label: "Charger", value: <Words>{kind}</Words>, note: last.station ?? undefined },
-    last.kw !== null && { label: "Power", value: formatKw(last.kw), note: last.kind === "ac" ? "Typical draw" : "At its fastest" },
-    last.kwh !== null && { label: "Energy added", value: formatKwh(last.kwh), note: last.levels ? formatLevels(last.levels.from, last.levels.to) : undefined },
-    ...(last.supply ? supplyFigures(last.supply) : []),
-  ].filter((f): f is Figure => Boolean(f));
-}
-
-// What's left in the pack (the level of the usable capacity) over the owner's average consumption: the
-// last 30 days', or since the first drive while tracking is younger.
-function ownRange(level: number | null, usableKwh: number | null, averages: Average[]): number | null {
-  const average = averages.find((a) => a.label.startsWith("Last")) ?? averages.at(-1);
-  return level === null || usableKwh === null || !average ? null : ((level / 100) * usableKwh * 1000) / average.whPerKm;
-}
-
 function Car({ car, live }: { car: CarDetails; live: Live }) {
   const { state, stream, now, notices, at } = live;
   const reading = (field: string) => stream[field];
@@ -303,7 +225,7 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
   const version = currentVersion(car.rowVersion, car.checkedVersion, reading("Version") && { version: reading("Version").value, at: reading("Version").at });
   const syncedAt = newestTime([state.latest?.polled_at, state.streamAt]);
   const rhd = car.steering === "Right-hand drive" ? true : car.steering === "Left-hand drive" ? false : null;
-  const figures = nowFigures(state, now, shutSummary(stream, rhd), ownRange(state.lastOnline?.battery_level ?? null, car.battery?.kwh ?? null, live.averages));
+  const figures = nowFigures(state, now, shutSummary(stream, rhd));
   const tyres = now?.tyres ?? [];
   const seen = tyreSeen(tyres, at);
   const rotation = tyreRotation(odometer);
@@ -341,8 +263,6 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
     ["VIN", car.vin && <Vin vin={car.vin} label={false} />],
   ]);
 
-  const last = car.lastCharge;
-
   return (
     <div className="flex flex-col gap-12">
       <div className="space-y-4">
@@ -356,18 +276,8 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
           title={syncedAt && at - Date.parse(syncedAt) <= FRESH_MS ? "Car now" : "Last known"}
           description={syncedAt && at - Date.parse(syncedAt) > FRESH_MS ? `As of ${formatShortDate(syncedAt)}, ${formatClock(syncedAt)}, when the car last reported.` : undefined}
         >
-          {/* The charge tile's note gives the power in kW while charging. */}
-          <Figures
-            figures={figures}
-            label="The car's latest state"
-          />
-        </Section>
-      )}
-
-      {live.averages.length > 0 && (
-        <Section title="Average consumption">
-          {/* Like the car's trip meters: energy per km over the driving in each span. */}
-          <Figures figures={live.averages.map((a) => ({ label: a.label, value: formatWhPerKm(a.whPerKm), note: `Over ${formatKm(a.km)}` }))} label="Average consumption" />
+          {/* Two by two when the count is even, so no cell is left empty; Figures fills out an odd count itself. */}
+          <Figures figures={figures} className={figures.length % 2 === 0 ? "sm:grid-cols-2" : undefined} label="The car's latest state" />
         </Section>
       )}
 
@@ -401,15 +311,6 @@ function Car({ car, live }: { car: CarDetails; live: Live }) {
           {/* A warning not shown on a tile: one that doesn't say which tyre, or a tyre with no reading. */}
           {now?.tyreWarning && !tyres.some((t) => t.alert) && <p className="text-sm text-destructive">{now.tyreWarning}</p>}
         </section>
-      )}
-
-      {last && (
-        <Section title="Last charge" action={<MoreLink href={`/stats/charging/${last.id}`}>See charge</MoreLink>}>
-          <Figures figures={lastChargeFigures(last)} label="Last charge" />
-          <p className="text-xs text-muted-foreground tabular-nums">
-            Ended {formatShortDate(last.endedAt)}, {formatClock(last.endedAt)}
-          </p>
-        </Section>
       )}
 
       {specs.length > 0 && (
@@ -451,7 +352,7 @@ async function CarContent({ id }: { id: Promise<string | null> }) {
 }
 
 // Faint blocks in the shape of the page, section by section, in the same layout classes: the header card,
-// then the tiles and the specs in the usual state (a car that is awake and has charged on AC).
+// then the tiles, the tyres and the specs in the usual state (a car that is awake).
 function CarSkeleton() {
   const section = (title: string, children: ReactNode) => (
     <SkSection gap={3}>
@@ -519,23 +420,12 @@ function CarSkeleton() {
       {section(
         "Car now",
         <SkFigures
+          className="sm:grid-cols-2"
           tiles={[
-            { label: "Charge", value: "68%", note: "Charging at 7.2 kW" },
-            { label: "Range", value: "294 km", note: "About 364 km at your driving" },
             { label: "Locks and doors", value: "Locked, charge port open", words: true },
             { label: "Sentry Mode", value: "Off", words: true },
             { label: "Temperature inside", value: "36.3 °C", note: "Outside 32.2 °C" },
             { label: "Climate", value: "Off", words: true, note: "Overheat protection fan only" },
-          ]}
-        />,
-      )}
-      {section(
-        "Average consumption",
-        <SkFigures
-          tiles={[
-            { label: "Since last charge", value: "120 Wh/km", note: "Over 97.8 km" },
-            { label: "Last 30 days", value: "119 Wh/km", note: "Over 1,096.4 km" },
-            { label: "Since 30 Jul", value: "128 Wh/km", note: "Over 2,846.4 km" },
           ]}
         />,
       )}
@@ -556,25 +446,6 @@ function CarSkeleton() {
           />
           <p className="text-xs" aria-hidden="true">
             <Ph>Updated 3 minutes ago · Recommended 42 psi front, 42 psi rear</Ph>
-          </p>
-        </>,
-      )}
-      {section(
-        "Last charge",
-        <>
-          <SkFigures
-            tiles={[
-              { label: "Charger", value: "AC", words: true, note: "Koramangala, Bengaluru" },
-              { label: "Power", value: "7.2 kW", note: "Typical draw" },
-              { label: "Energy added", value: "18.4 kWh", note: "42% to 70%" },
-              { label: "Voltage", value: "230 V" },
-              { label: "Current", value: "32 A", note: "The most the car drew" },
-              { label: "Phases", value: "1", note: "Single-phase" },
-              { label: "Cable", value: "Type 2", note: "IEC", words: true },
-            ]}
-          />
-          <p className="text-xs" aria-hidden="true">
-            <Ph>Ended 25 Oct, 9:57 PM</Ph>
           </p>
         </>,
       )}

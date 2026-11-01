@@ -5,8 +5,8 @@ type CarView = "car" | "updates" | "owners";
 // One line for the whole Car section, naming what its tabs do for the owner.
 const DESCRIPTION = "How your car is doing, what's new in its software, and how it compares with other owners.";
 
-// The Car section's heading, line and tabs: the owner's own car, its software (with the India rollout under
-// it), and how it compares with other owners' cars. The same shape as Stats' (StatsPage).
+// The Car section's heading, line and tabs: the owner's own car, Software (/updates, with the India rollout
+// on it), and how it compares with other owners' cars. The same shape as Stats' (StatsPage).
 export function CarTabs({ value }: { value: CarView }) {
   return (
     <>
@@ -18,7 +18,7 @@ export function CarTabs({ value }: { value: CarView }) {
           label="Car sections"
           options={[
             { value: "car", label: "My Car", href: "/car" },
-            { value: "updates", label: "Updates", href: "/updates" },
+            { value: "updates", label: "Software", href: "/updates" },
             { value: "owners", label: "Compare", href: "/owners" },
           ]}
           value={value}
