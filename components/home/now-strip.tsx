@@ -10,7 +10,23 @@ import { currentVersion } from "@/lib/versions";
 // car is doing under it, then its software (version, odometer, any update) in a card that opens /updates.
 // `odometerKm` and `parkedNow` are known for the primary car only; "pending" while parkedNow still loads.
 // `holdRow`: the parked line was pending, so its row stays once loaded (see BatteryGauge).
-export function NowStrip({ car, odometerKm, parkedNow, now, holdRow = false }: { car: HomeCar; odometerKm: number | null; parkedNow: ParkedNow | null | "pending"; now: number; holdRow?: boolean }) {
+// `recent`: the primary car's last drive and charge of the day, under its facts: a slot the page fills with
+// <Recently> in its own Suspense, so the strip itself never waits for the week's read (app/page.tsx).
+export function NowStrip({
+  car,
+  odometerKm,
+  parkedNow,
+  now,
+  holdRow = false,
+  recent = null,
+}: {
+  car: HomeCar;
+  odometerKm: number | null;
+  parkedNow: ParkedNow | null | "pending";
+  now: number;
+  holdRow?: boolean;
+  recent?: React.ReactNode;
+}) {
   const { vehicle, latest, lastOnline, streamAt } = car;
   // A car that streamed in the last few minutes is awake: keep the page fresh so new data shows up on its own.
   const awake = streamAt !== null && now - Date.parse(streamAt) < AWAKE_MS;
@@ -41,6 +57,7 @@ export function NowStrip({ car, odometerKm, parkedNow, now, holdRow = false }: {
             now={now}
           />
         </p>
+        {recent}
         {!version && <p className="text-sm text-muted-foreground">Asleep at every check so far. Open the Tesla app to wake the car. This page updates by itself.</p>}
       </div>
       {battery && <BatteryGauge snapshot={battery} parked={parkedNow} now={now} align="end" sentry={car.sentry} holdRow={holdRow} />}

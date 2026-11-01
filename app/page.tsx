@@ -31,6 +31,7 @@ import { rotationDueAt, rotationNotice, tyreRotation } from "@/lib/tyre-rotation
 import { RotationNotice } from "@/components/home/rotation-notice";
 import { ShareNudgeCard } from "@/components/home/share-nudge";
 import { shareNudgeCheck } from "@/lib/server/share-nudge";
+import { promptCard } from "@/lib/share-nudge";
 import { homeCardCheck } from "@/lib/server/whats-new";
 import { isAdmin } from "@/lib/server/admin";
 import type { HomeCard as HomeCardKind } from "@/lib/whats-new";
@@ -119,6 +120,7 @@ async function Totals({ home, now, card, viewer }: { home: Ready<HomeNow> & Read
   const today = istDayStart(istDay(now));
   // Read with the week, so the box and the tiles arrive together; none on a quiet week.
   const tipsBox = await loadTipsBox({ surface: WEEK_TIPS, vehicleId: primaryId, at: today, daily: true, entity: String(today), findings });
+  const prompt = promptCard(!viewer && card?.kind === "share", tipsBox !== null);
   return (
     <div className="space-y-12">
       <section aria-label="Totals" className="space-y-6">
@@ -139,11 +141,11 @@ async function Totals({ home, now, card, viewer }: { home: Ready<HomeNow> & Read
           ),
           { steady: true },
         )}
-        {/* The card asking the owner to share, when it's due, right under the week's tiles. Always mounted, so
-            its "You're sharing" note outlives the refresh that drops the card once sharing is on. */}
-        {!viewer && <ShareNudgeCard show={card?.kind === "share"} />}
-        {/* The AI's tips on the week. A quiet week has none, so no box. */}
-        {tipsBox}
+        {/* One prompt card under the week's tiles (promptCard): the share card when it's due, else the AI's tips
+            on the week (a quiet week has none, so no box). The share card is always mounted, so its "You're
+            sharing" note outlives the refresh that drops the card once sharing is on. */}
+        {!viewer && <ShareNudgeCard show={prompt === "share"} />}
+        {prompt === "tips" && tipsBox}
       </section>
       {/* The week in one picture: the level drops as the car drives and rises as it charges. The rest is a tap away on Stats. */}
       <ChargeLevelChart level={window.level} now={now} frame={frame} />
@@ -160,12 +162,12 @@ function TyreNotice({ odometerKm }: { odometerKm: number | null }) {
 
 // The primary car's strip once the week's read says when it parked. A car charging isn't "parked now", even
 // before the stations job has built its session from the readings (every 15 minutes), so it never waits.
-async function PrimaryStrip({ car, odometerKm, now, week }: { car: HomeCar; odometerKm: number | null; now: number; week: WeekLoad }) {
+async function PrimaryStrip({ car, odometerKm, now, week, recent }: { car: HomeCar; odometerKm: number | null; now: number; week: WeekLoad; recent: React.ReactNode }) {
   const w = await week;
-  return <NowStrip car={car} odometerKm={odometerKm} parkedNow={w?.kind === "ready" ? w.window.driving.parkedNow : null} now={now} holdRow />;
+  return <NowStrip car={car} odometerKm={odometerKm} parkedNow={w?.kind === "ready" ? w.window.driving.parkedNow : null} now={now} holdRow recent={recent} />;
 }
 
-// The last 24 hours' drive and charge, from the week's read.
+// The last day's drive and charge, from the week's read, as lines under the car's facts (lib/recently.ts).
 async function RecentFor({ vin, now, week }: { vin: string; now: number; week: WeekLoad }) {
   const w = await week;
   return w?.kind === "ready" ? <Recently items={recentlyLines(w.window.driving.drives, w.streamSessions, now, vin)} /> : null;
@@ -219,21 +221,25 @@ async function HomeContent() {
               <CarNotices notices={car.notices} />
               {/* The owner's to-do, so never a viewer's. */}
               {!viewer && car.vehicle.id === primaryId && <TyreNotice odometerKm={home.figures.odometerKm} />}
-              {car.vehicle.id === primaryId && car.lastOnline?.charging_state !== "Charging" && home.lastReadingAt !== null ? (
-                // Until the week's read says when it parked, a faint line holds the parked line's place. A car that
-                // never sent data has no parked line coming, so it doesn't wait and keeps no empty row.
-                <Suspense fallback={<NowStrip car={car} odometerKm={home.figures.odometerKm} parkedNow="pending" now={now} />}>
-                  <PrimaryStrip car={car} odometerKm={home.figures.odometerKm} now={now} week={week} />
-                </Suspense>
-              ) : (
-                <NowStrip car={car} odometerKm={car.vehicle.id === primaryId ? home.figures.odometerKm : null} parkedNow={null} now={now} />
-              )}
-              {/* From the week's read, so it lands in the same paint as the totals below. */}
-              {car.vehicle.id === primaryId && (
-                <Suspense>
-                  <RecentFor vin={car.vehicle.vin ?? ""} now={now} week={week} />
-                </Suspense>
-              )}
+              {(() => {
+                // The last drive and charge load in their own boundary, so the strip never waits for them: a
+                // charging car's status still paints at once. A faint line holds their place meanwhile.
+                const recent =
+                  car.vehicle.id === primaryId ? (
+                    <Suspense fallback={<Recently items="pending" />}>
+                      <RecentFor vin={car.vehicle.vin ?? ""} now={now} week={week} />
+                    </Suspense>
+                  ) : null;
+                return car.vehicle.id === primaryId && car.lastOnline?.charging_state !== "Charging" && home.lastReadingAt !== null ? (
+                  // Until the week's read says when it parked, a faint line holds the parked line's place. A car that
+                  // never sent data has no parked line coming, so it doesn't wait and keeps no empty row.
+                  <Suspense fallback={<NowStrip car={car} odometerKm={home.figures.odometerKm} parkedNow="pending" now={now} recent={recent} />}>
+                    <PrimaryStrip car={car} odometerKm={home.figures.odometerKm} now={now} week={week} recent={recent} />
+                  </Suspense>
+                ) : (
+                  <NowStrip car={car} odometerKm={car.vehicle.id === primaryId ? home.figures.odometerKm : null} parkedNow={null} now={now} recent={recent} />
+                );
+              })()}
             </div>
           ))}
           <Suspense fallback={<TotalsSkeleton />}>
@@ -283,6 +289,8 @@ function StripSkeleton() {
         <p className="truncate text-sm"><span className={line}>Demo car · Model Y, Pearl White</span></p>
         <p className="flex items-center gap-2 text-sm"><span className={line}>2026.38.4 · 3,434.9 km</span></p>
         <p className="text-sm"><span className={line}>Synced 5 min ago</span></p>
+        {/* The last drive's line (components/home/recently.tsx). */}
+        <p className="text-sm"><span className={line}>Last drive 13.9 km · 8:18 AM to 8:50 AM</span></p>
       </div>
       <div className="space-y-1 sm:w-60 sm:shrink-0">
         <p className="flex h-5 items-baseline gap-x-2 leading-5 sm:justify-end">

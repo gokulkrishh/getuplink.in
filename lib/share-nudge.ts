@@ -60,6 +60,15 @@ export function showNudge(f: NudgeFacts, now: number): boolean {
   return f.dismissedAt === null || f.showFrom > f.dismissedAt;
 }
 
+// Home shows one prompt card at a time under the week's tiles. A due share card wins: its window (Jev's yes)
+// is one day and rare, while tips come back the next day, so on a share day the Tips box waits. Deciding by
+// the share card, not by whether the day's tips are written yet (they're written after the first view), keeps
+// the choice the same all day. Only this is added on top of the rules above.
+export function promptCard(shareDue: boolean, hasTips: boolean): "share" | "tips" | null {
+  if (shareDue) return "share";
+  return hasTips ? "tips" : null;
+}
+
 // Jev's probability to a window, or null for a no or no answer (fail closed).
 export function verdictWindow(p: number | null, now: number): { from: number; until: number } | null {
   return p !== null && p >= SHOW_FROM_P ? { from: now, until: now + SHOW_FOR_MS } : null;
