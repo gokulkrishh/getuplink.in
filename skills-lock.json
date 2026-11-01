@@ -19,6 +19,12 @@
       "skillPath": "skills/shadcn/SKILL.md",
       "computedHash": "b864a958765563321f485a96f4d59c0bb6539f4286ab6d8b8b66895b7ebd302d"
     },
+    "stageshow": {
+      "source": "benjitaylor/skills",
+      "sourceType": "github",
+      "skillPath": "stageshow/SKILL.md",
+      "computedHash": "bf9f07985a62882deae7935b5b1162fb5bf66b248930bb14a75dcaf9d67291b7"
+    },
     "supabase-postgres-best-practices": {
       "source": "supabase/agent-skills",
       "sourceType": "github",
