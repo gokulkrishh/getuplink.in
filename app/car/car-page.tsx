@@ -6,7 +6,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { Loading, Ph, SkFigures, SkSection } from "@/components/skeleton";
-import { Header } from "@/components/header";
+import { Header, PhoneNav } from "@/components/header";
 import { Measure } from "@/components/measure";
 import { CarNotices } from "@/components/owner-notices";
 import { Words } from "@/components/stats/charge-supply";
@@ -482,6 +482,7 @@ export function CarPage({ id }: { id: Promise<string | null> }) {
       <Suspense fallback={<CarSkeleton />}>
         <CarContent id={id} />
       </Suspense>
+      <PhoneNav current="car" />
     </div>
   );
 }

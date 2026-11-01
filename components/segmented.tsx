@@ -91,7 +91,7 @@ export function Segmented<T extends string | number>({
   );
 }
 
-// Underlined links between pages, like the Stats sections. The picked one goes medium as soon as it's
+// Underlined links between pages, like the Car sections. The picked one goes medium as soon as it's
 // clicked (optimistic), while the underline follows the page that actually commits: its `name` is the
 // same on every page that shows these links, so it slides across when the next page renders in the same
 // navigation (a prefetched page; one still loading shows its skeleton and the underline just appears).

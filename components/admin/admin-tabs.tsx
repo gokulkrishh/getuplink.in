@@ -12,7 +12,7 @@ const TABS: { value: AdminTab; label: string; href: string }[] = [
   { value: "feedback", label: "Feedback", href: "/admin/feedback" },
 ];
 
-// The admin pages' links, styled like the Stats sections. They live in the admin layout, so the tab is the
+// The admin pages' links, styled like the Car sections. They live in the admin layout, so the tab is the
 // page the path names.
 // `unread`: feedback not read yet, shown as a dot on the Feedback tab.
 export function AdminTabs({ unread = 0 }: { unread?: number }) {

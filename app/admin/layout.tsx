@@ -2,7 +2,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { AdminTabs } from "@/components/admin/admin-tabs";
-import { Header } from "@/components/header";
+import { Header, PhoneNav } from "@/components/header";
 import { isAdmin } from "@/lib/server/admin";
 import { hasCurrentSession, ownerOnlyExit } from "@/lib/server/auth";
 import { OWNER_DATA_TAG } from "@/lib/server/dashboard";
@@ -41,6 +41,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         <AdminTabs unread={unread} />
       </div>
       {children}
+      <PhoneNav />
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { cacheLife, cacheTag } from "next/cache";
 
 import { Suspense } from "react";
 import { SyncStreamSessions, SyncStreamVersions } from "@/components/background-sync";
-import { Header } from "@/components/header";
+import { Header, PhoneNav } from "@/components/header";
 import { SkBlock, SkHead, SkSection } from "@/components/skeleton";
 import { Headline } from "@/components/home/headline";
 import { ReleaseDialog } from "@/components/home/release-dialog";
@@ -348,6 +348,7 @@ export default function Page() {
       <Suspense>
         <SyncStreamSessions />
       </Suspense>
+      <PhoneNav />
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { loadTipsBox } from "@/components/tips-box";
 import { CHARGE_TIPS, chargeFindings, type PricedCharge } from "@/lib/charge-tips";
 import { loadPricedCharges } from "@/lib/server/charge-tips";
 import { loadPrimaryVehicle } from "@/lib/server/telemetry";
-import { Header } from "@/components/header";
+import { Header, PhoneNav } from "@/components/header";
 import { BackLink } from "@/components/stats/back-link";
 import { rate, streamName } from "@/components/session-row";
 import { chargeType, googleMapsUrl, nameAction } from "@/lib/charge-names";
@@ -190,11 +190,12 @@ async function ChargeLoader({ params }: { params: Promise<{ id: string }> }) {
 export default function Page({ params }: PageProps<"/stats/charging/[id]">) {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
-      <Header current="stats" />
+      <Header current="charging" />
       <BackLink list="/stats/charging" label="Back to Charging" />
       <Suspense fallback={<ChargeSkeleton />}>
         <ChargeLoader params={params} />
       </Suspense>
+      <PhoneNav current="charging" />
     </div>
   );
 }

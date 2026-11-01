@@ -1,13 +1,13 @@
 # Home
 
-The signed-in landing page: the car's state (battery, range, charging, software), four period tiles (Driven, Energy used, Energy added, Spent), and short Driving, Charging and Battery sections that link to Stats.
+The signed-in landing page: the car's state (battery, range, charging, software), four period tiles (Driven, Energy used, Energy added, Spent), and short Driving, Charging and Battery sections that link to the Driving, Charging and Battery pages.
 
 ## Sub-features
 
 - Car header: "Your car", the car's name and model, "Synced <n> ago".
 - Battery and charging line ("66%", "Charging at 7.2 kW to 80%") and the software line with a Details link.
 - Period switch (Day, Week, Month, Year, All, Custom) driving the tiles and sections.
-- Tiles with "vs yesterday" (Day) or the period's comparison, each linking to its Stats page.
+- Tiles with "vs yesterday" (Day) or the period's comparison, each linking to its page (Driving, Charging or Battery).
 - Driving section: Distance bars and the trips table; "See all trips". Charging: Spend, "See all sessions". Battery: Parked now, Charge level.
 
 ## How to get to it (user POV)

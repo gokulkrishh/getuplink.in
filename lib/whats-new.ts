@@ -36,6 +36,17 @@ export type Entry = {
 
 export const WHATS_NEW: Entry[] = [
   {
+    id: "2026-11-01-header-menu",
+    date: "2026-11-01",
+    title: "Every page one tap away",
+    text: "Driving, Charging, Battery and Car are now in the top bar. On a phone they float at the bottom as four icons, which slide away as you scroll down and come back as you scroll up. A period you pick stays as you move between Driving, Charging and Battery.",
+    version: "0.2",
+    image: { src: "/whats-new/header-menu.webp", alt: "On a phone, four icons for Driving, Charging, Battery and Car float at the bottom of the Charging page, with Charging picked.", width: 1200, height: 960 },
+    kind: "Improvement",
+    audience: "draft",
+    show: "bell",
+  },
+  {
     id: "2026-10-31-trip-route-names",
     date: "2026-10-31",
     title: "Where each trip went",

@@ -8,6 +8,7 @@ import { Suspense } from "react";
 import { AvatarBlob } from "@/components/avatar-blob";
 import { FeedbackButton } from "@/components/feedback-button";
 import { FeedbackMenuItem } from "@/components/feedback-menu-item";
+import { HeaderLinks, HeaderLinksShell, PhoneNavLinks, PhoneNavShell, type Section } from "@/components/header-links";
 import { Logo } from "@/components/logo";
 import { SignOutForm } from "@/components/sign-out-form";
 import { buttonVariants } from "@/components/ui/button";
@@ -34,12 +35,7 @@ import { DEMO_OWNER } from "@/lib/server/data/owner";
 import { whatsNewBell } from "@/lib/server/whats-new";
 import { cn } from "@/lib/utils";
 
-export type Section = "stats" | "car" | "settings";
-
-const NAV: { section: Section; href: string; label: string }[] = [
-  { section: "stats", href: "/stats/driving", label: "Stats" },
-  { section: "car", href: "/car", label: "Car" },
-];
+export type { Section };
 
 // The session decides it, so it streams in behind its own Suspense: the header itself stays in the static shell.
 async function adminSession(): Promise<boolean> {
@@ -141,6 +137,18 @@ function SetupNote({ icon, action, children }: { icon: React.ReactNode; action: 
   );
 }
 
+// The phone's page links, a pill floating at the bottom (components/header-links.tsx). Every page with the
+// header renders it last, after its content, so after "Skip to content" the next Tab is the page's own first
+// control and a screen reader reads the page before it (test/header-menu.test.ts checks every page has it).
+// Never on /setup, which has no page links. Hidden from sm up.
+export function PhoneNav({ current }: { current?: Section }) {
+  return (
+    <Suspense fallback={<PhoneNavShell current={current} />}>
+      <PhoneNavLinks current={current} />
+    </Suspense>
+  );
+}
+
 // ---- Someone the owner sent a view link ----
 
 type ViewerHeader = { expiresAt: string };
@@ -179,15 +187,16 @@ async function ViewerBanner() {
   );
 }
 
-// The same header on every signed-in page; `current` marks the page's own link (Stats for every /stats page).
+// The same header on every signed-in page; `current` marks the page's own link (Driving for a drive, Charging
+// for a charge, Car for Software and Compare).
 // The logo is the way home. Software, with the India rollout on it, sits under Car.
 // `setup={false}` leaves out the setup gate: Settings (sign out, disconnect, delete), the admin pages and /setup itself.
 // `onSetup`: the page is /setup, which an owner has to finish before anything else works, so the header
-// keeps only the logo and the account menu (Settings, Sign out): no page links, no bell.
+// keeps only the logo and the account menu (Settings, Sign out): no page links (nor the phone tab bar), no bell.
 export function Header({ current, setup = true, onSetup = false }: { current?: Section; setup?: boolean; onSetup?: boolean }) {
   // While it's decided whether this is a viewer: the owner's controls as placeholders, the same size, with
   // nothing behind them read (the live bell and avatar render once, in OwnerControls' children). Marked
-  // data-owner-placeholder, so a guest's page never shows them (globals.css): Stats and Car stay put.
+  // data-owner-placeholder, so a guest's page never shows them (globals.css): the page links stay put.
   const loadingControls = (
     <>
       {!onSetup && <BellPlaceholder loading />}
@@ -255,23 +264,20 @@ export function Header({ current, setup = true, onSetup = false }: { current?: S
         <Logo className="size-5" />
         Uplink
       </Link>
-      {/* Tighter on the narrowest phones (320 px), where the alerts bell would otherwise push the row wider than the screen. */}
-      <nav aria-label="Main" className="flex items-center gap-4 whitespace-nowrap text-muted-foreground max-[359px]:gap-2">
-        {!onSetup && NAV.map((item) => (
-          <Link
-            key={item.section}
-            href={item.href}
-            prefetch={true}
-            aria-current={current === item.section ? "page" : undefined}
-            className={cn("tap-target hover:text-foreground", current === item.section && "text-foreground")}
-          >
-            {item.label}
-          </Link>
-        ))}
+      <div className="flex items-center gap-4 whitespace-nowrap text-muted-foreground max-[360px]:gap-2">
+        {/* The page links, from sm up. On a phone they float at the bottom instead (PhoneNav), so
+            there is only ever one "Main" nav. */}
+        {!onSetup && (
+          <nav aria-label="Main" className="flex items-center gap-4 max-sm:hidden">
+            <Suspense fallback={<HeaderLinksShell current={current} />}>
+              <HeaderLinks current={current} />
+            </Suspense>
+          </nav>
+        )}
         <Suspense fallback={loadingControls}>
           <OwnerControls>{ownerControls}</OwnerControls>
         </Suspense>
-      </nav>
+      </div>
       {/* Where "Skip to content" lands: the header's bottom edge, taking no space, so the next Tab is the
           page's first control (components/skip-link.tsx). */}
       <span id="content-start" tabIndex={-1} className="absolute top-full left-0 outline-none" />

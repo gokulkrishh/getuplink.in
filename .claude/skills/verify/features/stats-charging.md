@@ -12,7 +12,7 @@ Charging for a period, opening on Month: Spend, What you paid for (only when the
 
 ## How to get to it (user POV)
 
-Home → Charging → "See all sessions", or Stats → "Charging". Direct: `/stats/charging`.
+The "Charging" page link (header, or the pill at the bottom on a phone), or Home → Charging → "See all sessions". Direct: `/stats/charging`.
 
 ## Driving it with Playwright
 

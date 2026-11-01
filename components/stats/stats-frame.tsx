@@ -1,16 +1,15 @@
 import { Zap } from "lucide-react";
-import { type ReactNode, Suspense, ViewTransition } from "react";
+import { type ReactNode, ViewTransition } from "react";
 import { EmptyState } from "@/components/empty-state";
-import { Header } from "@/components/header";
+import { Header, PhoneNav } from "@/components/header";
 import { Loading } from "@/components/skeleton";
 import { DatesNote } from "./dates-note";
 import { PeriodPicker, PeriodScope } from "./period-scope";
-import { type CustomScope, type View, viewPeriods } from "./periods";
-import { ViewTabs, ViewTabsShell } from "./view-tabs";
+import { type CustomScope, type View, viewPeriods, VIEWS } from "./periods";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // What every Stats page shows around its sections, once its data is in: when the sections use one, the
-// period switch with Custom. The topic tabs are in the page's shell (StatsPage), so they don't reload. The period is the URL's (see PeriodScope); a page without
+// period switch with Custom. The page's title is in its shell (StatsPage), so it doesn't reload. The period is the URL's (see PeriodScope); a page without
 // the switch still keeps a range picked by date in its links. `view` names the page, for the period it opens
 // on (see viewPeriods). Required, so a page with its own opening period can't fall back to Stats'.
 export function StatsFrame({ view, custom, periodSwitch = true, children }: { view: View; custom: CustomScope; periodSwitch?: boolean; children: ReactNode }) {
@@ -32,23 +31,19 @@ export function StatsFrame({ view, custom, periodSwitch = true, children }: { vi
   );
 }
 
-// The page around the frame: header, title and the topic tabs, all in the static shell, so moving between
-// topics only swaps what's under the tabs. The loading and the data go in `children`.
+// The page around the frame: the header (where Driving, Charging and Battery are links) and the topic's
+// title and line, all in the static shell. The loading and the data go in `children`.
 export function StatsPage({ view, description, children }: { view: View; description: string; children: ReactNode }) {
   return (
     <div className="group/stats mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
-      <Header current="stats" />
+      <Header current={view} />
       <div className="mb-12">
-        <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">Stats</h1>
+        <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">{VIEWS.find((v) => v.value === view)?.label}</h1>
         {/* An empty topic (NotYet) hides it: the line promises what the page doesn't have yet. */}
         <p className="mt-2 text-sm text-muted-foreground group-has-[[data-not-yet]]/stats:hidden">{description}</p>
       </div>
-      <div className="mb-6">
-        <Suspense fallback={<ViewTabsShell view={view} />}>
-          <ViewTabs view={view} />
-        </Suspense>
-      </div>
       {children}
+      <PhoneNav current={view} />
     </div>
   );
 }

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 import { CarTabs } from "@/components/car-tabs";
 import { ChartCard } from "@/components/chart-card";
-import { Header } from "@/components/header";
+import { Header, PhoneNav } from "@/components/header";
 import { OptionBar } from "@/components/owners/option-bar";
 import { BandBar, HourStrip, ShareStrip } from "@/components/owners/highlight-bar";
 import { ShareButton } from "@/components/owners/share-controls";
@@ -571,6 +571,7 @@ export default function Page() {
       <Suspense fallback={<OwnersSkeleton />}>
         <Owners />
       </Suspense>
+      <PhoneNav current="car" />
     </div>
   );
 }

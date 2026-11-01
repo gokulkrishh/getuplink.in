@@ -927,11 +927,14 @@ describe("a guest sees nothing addressed to the owner", () => {
   test("the guest pill floats at the bottom centre, says it is guest mode and offers Hide and Exit; the nav has no Leave", () => {
     const bar = readFileSync(join(ROOT, "components/viewer-bar.tsx"), "utf8");
     expect(bar).toMatch(/fixed left-1\/2 [^"]*-translate-x-1\/2[^"]*rounded-full/);
-    expect(bar).toContain("bottom-[max(1rem,env(safe-area-inset-bottom))]");
+    // Clear of the home bar, and on a phone above the tab bar: --above-bar in globals.css.
+    expect(bar).toContain("bottom-(--above-bar)");
     expect(bar).toContain(">\n        Hide\n");
     // Room for it below every guest page's last content; none at the top any more.
     const css = readFileSync(join(ROOT, "app/globals.css"), "utf8");
     expect(css).toMatch(/html\[data-guest\] body \{\s*padding-bottom:/);
+    expect(css).toContain("--above-bar: max(1rem, env(safe-area-inset-bottom));");
+    expect(css).toMatch(/html:has\(\[data-phone-nav\]\) \{[^}]*--above-bar: calc\(var\(--phone-nav\)/);
     expect(css).not.toContain("--guest-band");
     expect(bar).toContain("Exit");
     expect(bar).toContain("using guest mode");
