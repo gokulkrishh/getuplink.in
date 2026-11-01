@@ -3,9 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { ChevronDown, CircleCheck, CircleX } from "lucide-react";
 import { DashboardPreview } from "@/components/dashboard-preview";
-import { AssistantMock } from "@/components/home/assistant-mock";
-import { CarGlanceMock } from "@/components/home/car-glance-mock";
-import { HistoryMock } from "@/components/home/history-mock";
+import { FeatureBento } from "@/components/home/feature-bento";
 import { CONTACT_EMAIL } from "@/components/plain-page";
 import { SessionCta } from "@/components/home/session-cta";
 import { LoginError } from "@/components/login-error";
@@ -35,32 +33,6 @@ const STEPS = [
   },
   { title: "Add Uplink's key to your car", body: "The key lets your car send data to Uplink. It can't unlock or drive." },
   { title: "Your data builds up", body: "Charts fill in as your car sends data. Battery trends take about two weeks." },
-];
-
-const SHOWCASE = [
-  {
-    title: "Every trip and charge",
-    body: "The Tesla app shows today. Uplink keeps every day from when you sign in, and Supercharging back to your first charge.",
-    points: ["Trips on a map", "Spend per charge, invoices attached", "Software updates and how long they waited"],
-    mock: <HistoryMock />,
-  },
-  {
-    title: "Your car at a glance",
-    body: "Charge, battery health, parked loss and distance from your car.",
-    points: ["Charge, range and limit", "Battery health and odometer", "Battery loss while parked", "Kilometres driven each month"],
-    mock: <CarGlanceMock />,
-  },
-  {
-    title: "Ask your AI about your car",
-    body: "Connect Claude, ChatGPT, Grok or an always-on bot to Uplink.",
-    points: [
-      "Drives, trips and kilometres driven",
-      "Charging spend and battery health",
-      "An always-on bot that adds charging invoices from Gmail",
-      "Can't reach or control your car",
-    ],
-    mock: <AssistantMock />,
-  },
 ];
 
 const CAN = [
@@ -169,23 +141,13 @@ export default function HomePage() {
         </div>
       </section>
 
-      {SHOWCASE.map((item, i) => (
-        <section key={item.title} className="grid grid-cols-[minmax(0,1fr)] items-center gap-14 py-20 lg:grid-cols-2 lg:gap-16">
-          <div className={i % 2 === 1 ? "lg:order-2" : undefined}>
-            <h2 className="text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl">{item.title}</h2>
-            <p className="mt-5 text-lg text-muted-foreground">{item.body}</p>
-            <ul className="mt-8 flex flex-col gap-3">
-              {item.points.map((point) => (
-                <li key={point} className="flex items-baseline gap-3 text-base">
-                  <CircleCheck className="size-4 shrink-0 translate-y-0.5 text-chart-accent" aria-hidden="true" />
-                  {point}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className={i % 2 === 1 ? "lg:order-1" : undefined}>{item.mock}</div>
-        </section>
-      ))}
+      {/* What Uplink keeps: one grid of tiles, each with a piece of the product. */}
+      <section className="py-20">
+        <h2 className="text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl">What Uplink keeps</h2>
+        <div className="mt-12">
+          <FeatureBento />
+        </div>
+      </section>
 
       {/* Trust: what Uplink can and can't do, side by side. */}
       <section className="py-24">
