@@ -10,8 +10,9 @@ import { currentVersion } from "@/lib/versions";
 // car is doing under it, then its software (version, odometer, any update) in a card that opens /updates.
 // `odometerKm` and `parkedNow` are known for the primary car only; "pending" while parkedNow still loads.
 // `holdRow`: the parked line was pending, so its row stays once loaded (see BatteryGauge).
-// `recent`: the primary car's last drive and charge of the day, under its facts: a slot the page fills with
-// <Recently> in its own Suspense, so the strip itself never waits for the week's read (app/page.tsx).
+// `recent`: the primary car's last drive and charge of the day, closing the strip under the battery (full
+// width, so a line rarely wraps): a slot the page fills with <Recently> in its own Suspense, so the strip
+// itself never waits for the week's read (app/page.tsx). Empty, it takes no space.
 export function NowStrip({
   car,
   odometerKm,
@@ -37,9 +38,10 @@ export function NowStrip({
   const version = currentVersion(vehicle.current_version, lastOnline && { version: lastOnline.car_version, at: lastOnline.polled_at });
   return (
     // One row from sm up: who the car is, what it runs and when it last synced on the left; the battery on
-    // the right. On a phone the battery follows under them.
-    <section aria-label="Your car now" className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
+    // the right. On a phone the battery follows under them. The last drive and charge close the strip.
+    <section aria-label="Your car now" className="flex flex-col gap-5">
       {awake && <AutoRefresh />}
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
       <div className="min-w-0 space-y-1 sm:flex-1">
         {/* Plain text: the header's Car link already opens the car's page. */}
         <h2 className="truncate text-sm">
@@ -57,10 +59,11 @@ export function NowStrip({
             now={now}
           />
         </p>
-        {recent}
         {!version && <p className="text-sm text-muted-foreground">Asleep at every check so far. Open the Tesla app to wake the car. This page updates by itself.</p>}
       </div>
       {battery && <BatteryGauge snapshot={battery} parked={parkedNow} now={now} align="end" sentry={car.sentry} holdRow={holdRow} />}
+      </div>
+      {recent && <div className="space-y-1 empty:hidden">{recent}</div>}
     </section>
   );
 }
