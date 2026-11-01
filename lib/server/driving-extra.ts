@@ -4,6 +4,7 @@ import { MILES_TO_KM } from "@/lib/car";
 import type { Drive } from "@/lib/drives";
 import type { Span } from "@/lib/periods";
 import { type Band, efficiencyBands, type LatLng, type Place, places, speedHistogram, type TimedValue } from "@/lib/driving-insights";
+import { fixes } from "@/lib/location";
 import { num, type Reading } from "@/lib/telemetry-derive";
 import { type SpotName, spotName } from "@/lib/charge-names";
 import { stationAt } from "@/lib/stations";
@@ -38,13 +39,7 @@ const timed = (readings: Reading[] | undefined, scale = 1): TimedValue[] =>
     return v === null ? [] : [{ t: Date.parse(r.at), v: v * scale }];
   });
 
-const located = (readings: Reading[] | undefined): LatLng[] =>
-  (readings ?? []).flatMap((r) => {
-    const v = r.value as { latitude?: number; longitude?: number; lat?: number; lng?: number } | null;
-    const lat = num(v?.latitude ?? v?.lat);
-    const lng = num(v?.longitude ?? v?.lng);
-    return lat === null || lng === null || (lat === 0 && lng === 0) ? [] : [{ t: Date.parse(r.at), lat, lng }];
-  });
+const located = (readings: Reading[] | undefined): LatLng[] => fixes(readings ?? []);
 
 // The Driving page's insights for the last INSIGHT_DAYS, or for `window` (a range picked by date, cut to the
 // drives kept): speed bands, efficiency by temperature and speed, where the car parks, and everywhere it
