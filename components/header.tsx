@@ -8,7 +8,7 @@ import { Suspense } from "react";
 import { AvatarBlob } from "@/components/avatar-blob";
 import { FeedbackButton } from "@/components/feedback-button";
 import { FeedbackMenuItem } from "@/components/feedback-menu-item";
-import { HeaderLinks, HeaderLinksShell, PhoneNavLinks, PhoneNavShell, type Section } from "@/components/header-links";
+import { HeaderLinks, HeaderLinksShell, PhoneCarLink, PhoneNavLinks, PhoneNavShell, type Section } from "@/components/header-links";
 import { Logo } from "@/components/logo";
 import { SignOutForm } from "@/components/sign-out-form";
 import { buttonVariants } from "@/components/ui/button";
@@ -274,6 +274,7 @@ export function Header({ current, setup = true, onSetup = false }: { current?: S
             </Suspense>
           </nav>
         )}
+        {!onSetup && <PhoneCarLink current={current} />}
         <Suspense fallback={loadingControls}>
           <OwnerControls>{ownerControls}</OwnerControls>
         </Suspense>

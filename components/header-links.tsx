@@ -1,6 +1,6 @@
 "use client";
 
-import { BatteryMedium, Car, type LucideIcon, Route, Zap } from "lucide-react";
+import { BatteryMedium, House, type LucideIcon, Route, Zap } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { startTransition, useEffect, useOptimistic, useRef, useState, ViewTransition } from "react";
@@ -8,17 +8,20 @@ import { type HomePeriod, statsHref, urlRange, type View, viewPeriods, VIEWS, ty
 import { BAR_START, nextBar } from "@/lib/tab-bar";
 import { cn } from "@/lib/utils";
 
-// The page links: Driving, Charging and Battery (the Stats pages), then Car. From sm up they sit in the
-// header (HeaderLinks); on a phone they are a pill floating at the bottom (PhoneNavLinks). `current` marks the
-// page's own link.
-export type Section = View | "car" | "settings";
+// The page links. From sm up the header has Driving, Charging, Battery and Car (HeaderLinks; the logo is the
+// way home). On a phone a pill floats at the bottom with Home, Driving, Charging and Battery (PhoneNavLinks),
+// and Car sits in the header row by the bell (PhoneCarLink). `current` marks the page's own link.
+export type Section = View | "home" | "car" | "settings";
 
-type Page = { key: View | "car"; label: string; icon: LucideIcon };
+type Key = View | "home" | "car";
+type Page = { key: Key; label: string; icon?: LucideIcon };
 
 const ICONS: Record<View, LucideIcon> = { driving: Route, charging: Zap, battery: BatteryMedium };
-const PAGES: Page[] = [...VIEWS.map(({ value, label }) => ({ key: value, label, icon: ICONS[value] })), { key: "car", label: "Car", icon: Car }];
+const VIEW_PAGES: Page[] = VIEWS.map(({ value, label }) => ({ key: value, label, icon: ICONS[value] }));
+const HEADER_PAGES: Page[] = [...VIEW_PAGES, { key: "car", label: "Car" }];
+const PILL_PAGES: Page[] = [{ key: "home", label: "Home", icon: House }, ...VIEW_PAGES];
 
-type Href = (page: View | "car") => string;
+type Href = (page: Key) => string;
 
 // Between Stats pages the period picked carries over (Custom with its dates), read from the URL the period
 // switch keeps. With none picked, or from any other page, each opens on Week, as every Stats page does.
@@ -36,7 +39,7 @@ function useHref(): Href {
 const SHELL_HREF = hrefs(null, null);
 
 function hrefs(period: HomePeriod | null, range: DateRange | null): Href {
-  return (page) => (page === "car" ? "/car" : statsHref(page, period ?? viewPeriods(page).opensOn, range));
+  return (page) => (page === "home" ? "/" : page === "car" ? "/car" : statsHref(page, period ?? viewPeriods(page).opensOn, range));
 }
 
 // ---- From sm up: in the header ----
@@ -57,7 +60,7 @@ export function HeaderLinksShell({ current }: { current?: Section }) {
 // on a phone, the tab bar's from sm up) costs nothing.
 function Links({ current, href }: { current?: Section; href: Href }) {
   const [shown, setShown] = useOptimistic(current);
-  return PAGES.map(({ key, label }) => (
+  return HEADER_PAGES.map(({ key, label }) => (
     <Link
       key={key}
       href={href(key)}
@@ -71,7 +74,22 @@ function Links({ current, href }: { current?: Section; href: Href }) {
   ));
 }
 
-// ---- On a phone: a floating pill at the bottom ----
+// ---- On a phone: Car in the header row, the rest in a floating pill at the bottom ----
+
+// Car, in the header row by the bell on a phone (the pill holds Home and the Stats pages). Hidden from sm up,
+// where Car is one of the header's page links.
+export function PhoneCarLink({ current }: { current?: Section }) {
+  return (
+    <Link
+      href="/car"
+      prefetch={true}
+      aria-current={current === "car" ? "page" : undefined}
+      className={cn("tap-target hover:text-foreground sm:hidden", current === "car" && "text-foreground")}
+    >
+      Car
+    </Link>
+  );
+}
 
 // Four icons in a glass pill floating above the bottom edge, clear of the iPhone's home bar: Driving,
 // Charging, Battery and Car, each named for screen readers. The current page's icon sits on a light chip,
@@ -119,7 +137,7 @@ function Pill({
   onBlur?: (e: React.FocusEvent<HTMLElement>) => void;
 }) {
   const [shown, setShown] = useOptimistic(current);
-  const index = PAGES.findIndex((p) => p.key === shown);
+  const index = PILL_PAGES.findIndex((p) => p.key === shown);
   return (
     <nav
       aria-label="Main"
@@ -147,7 +165,7 @@ function Pill({
               style={{ translate: `${Math.max(index, 0) * 100}% 0` }}
             />
           </ViewTransition>
-          {PAGES.map(({ key, label, icon: Icon }) => (
+          {PILL_PAGES.map(({ key, label, icon: Icon = House }) => (
             <Link
               key={key}
               href={href(key)}

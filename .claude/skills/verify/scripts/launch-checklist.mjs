@@ -153,14 +153,17 @@ for (const phone of [false, true]) {
     }
   }
 
-  // The page links (Nov 2026): in the header from sm up; on a phone a pill of four icons floating at the
-  // bottom, each named for screen readers. One "Main" nav either way. On a phone the pill slides away
+  // The page links (Nov 2026): Driving, Charging, Battery and Car in the header from sm up; on a phone a pill
+  // of four icons floating at the bottom (Home, Driving, Charging, Battery), each named for screen readers,
+  // with Car as a link in the header row. One "Main" nav either way. On a phone the pill slides away
   // scrolling down, comes back scrolling up and at the bottom, steps aside for a text field, sits under a
   // sheet, comes after the page for the keyboard, and the page keeps room below its end so nothing is behind it.
   await go("/stats/charging");
   const main = p.getByRole("navigation", { name: "Main" });
   const names = await main.getByRole("link").evaluateAll((as) => as.map((a) => a.getAttribute("aria-label") || a.textContent.trim()));
-  check(`${tag} one Main nav: Driving, Charging, Battery, Car`, (await main.count()) === 1 && names.join(",") === "Driving,Charging,Battery,Car", names.join(","));
+  const want = phone ? "Home,Driving,Charging,Battery" : "Driving,Charging,Battery,Car";
+  check(`${tag} one Main nav: ${want}`, (await main.count()) === 1 && names.join(",") === want, names.join(","));
+  if (phone) check(`phone Car link in the header row`, await p.locator("header").getByRole("link", { name: "Car", exact: true }).isVisible());
   check(`${tag} Charging marked as this page`, (await main.getByRole("link", { name: "Charging" }).getAttribute("aria-current")) === "page");
   // :visible, as the page before stays in the DOM, hidden, after a move between pages.
   const pill = p.locator("[data-phone-nav]:visible");
