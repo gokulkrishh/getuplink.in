@@ -3,10 +3,9 @@
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { ChartDownload } from "@/components/chart-download";
-import { FoldToggle } from "@/components/fold-toggle";
+import { Fold } from "@/components/fold";
 import { Segmented } from "@/components/segmented";
 import { type Bar, Bars, EmptyChart } from "@/components/stats/bars";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,7 +29,7 @@ const SPAN_WORDS: Record<AdoptionGrain, string> = { day: `each day, last ${ADOPT
 
 // The share of cars on one picked version at the end of each day or week. One version at a time keeps the
 // chart to the one data hue; the dropdown opens on the newest version. Closed at first, under Software's
-// India rollout, with the Collapsible and FoldToggle of Settings' Connect your AI: the title and line show,
+// India rollout, a Fold like Settings' Connect your AI: the title and line show,
 // and a tap opens the chart. The ⓘ's note sits in the opened part, since a button in the row would toggle it
 // (as ChartCard's fold has it).
 export function RolloutAdoption({ adoption }: { adoption: Record<AdoptionGrain, Adoption> }) {
@@ -59,16 +58,7 @@ export function RolloutAdoption({ adoption }: { adoption: Record<AdoptionGrain, 
   const words = grain === "day" ? "days" : "weeks";
   const empty = bars.some((b) => b.value > 0) ? null : `No cars ran ${version} in these ${words}.`;
   return (
-    <Collapsible data-chart-card="">
-      {/* A div (with the button role), since it holds a heading, which a <button> can't. */}
-      <CollapsibleTrigger nativeButton={false} render={<div />} className="flex w-full cursor-pointer items-center justify-between gap-4 text-left focus-visible:outline-2 focus-visible:outline-ring">
-        <div className="min-w-0 space-y-1">
-          <h3 className="text-base font-medium tracking-heading">Adoption over time</h3>
-          <p className="text-sm text-muted-foreground">Share of cars on the picked version.</p>
-        </div>
-        <FoldToggle />
-      </CollapsibleTrigger>
-      <CollapsibleContent className="space-y-4 pt-4">
+    <Fold data-chart-card="" as="h3" title="Adoption over time" description="Share of cars on the picked version." contentClassName="space-y-4 pt-4">
         <div className="flex items-start justify-between gap-3">
           <p className="text-sm text-faint">Each bar is the share of cars on this version at the end of {spanWords}. A car counts only from the day Uplink first saw its version.</p>
           {!empty && <ChartDownload title="Adoption over time" />}
@@ -106,7 +96,6 @@ export function RolloutAdoption({ adoption }: { adoption: Record<AdoptionGrain, 
             <Bars bars={bars} ariaLabel={`Share of cars on ${version}, ${spanWords}`} labelEvery={labelEvery} unit="%" valueWords="of cars" fit />
           </div>
         )}
-      </CollapsibleContent>
-    </Collapsible>
+    </Fold>
   );
 }

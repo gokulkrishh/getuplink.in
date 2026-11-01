@@ -233,7 +233,7 @@ export default function HomePage() {
               <CollapsibleTrigger className="flex w-full cursor-pointer items-center justify-between gap-4 py-5 text-left text-base font-medium">
                 {item.q}
                 <ChevronDown
-                  className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-data-open:rotate-180"
+                  className="size-4 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none duration-150 group-data-open:rotate-180"
                   aria-hidden="true"
                 />
               </CollapsibleTrigger>

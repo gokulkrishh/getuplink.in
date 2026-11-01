@@ -73,7 +73,7 @@ function HistoryItem({ row }: { row: HistoryRow }) {
         <CollapsibleTrigger nativeButton={false} render={<div />} className={cn("history-cols", "w-full cursor-pointer px-4 py-2.5 text-left hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring")}>
           <span className="sr-only">Show release notes</span>
           <span className="flex min-w-0 items-center gap-1.5 font-mono">
-            <ChevronRight className="size-3.5 shrink-0 self-center text-faint transition-transform group-data-open/row:rotate-90" aria-hidden="true" />
+            <ChevronRight className="size-3.5 shrink-0 self-center text-faint transition-transform motion-reduce:transition-none group-data-open/row:rotate-90" aria-hidden="true" />
             <span className="truncate">{row.version}</span>
           </span>
           <HistoryCells row={row} />

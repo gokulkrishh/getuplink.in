@@ -49,7 +49,7 @@ export function ReleaseNotesToggle({
         className={buttonVariants({ variant: "ghost", size: "xs", className: "-ml-2 group-data-open/notes:text-foreground" })}
       >
         Release notes
-        <ChevronRight className="transition-transform group-data-open/notes:rotate-90" aria-hidden="true" />
+        <ChevronRight className="transition-transform motion-reduce:transition-none group-data-open/notes:rotate-90" aria-hidden="true" />
       </CollapsibleTrigger>
       <CollapsibleContent>
         <ReleaseNotesList notes={notes[version]} stacked={stacked} />
