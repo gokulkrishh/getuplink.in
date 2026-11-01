@@ -182,4 +182,17 @@ describe("places", () => {
     expect(first.visits).toBe(2);
     expect(first.parkedMs).toBe((60 + 90) * MIN);
   });
+
+  test("where it parked: a parked fix after the drive beats a moving one seconds before, in any order", () => {
+    // Out of order on purpose: places sorts once. The second drive's only fix is 3 minutes before it ends,
+    // still on the road, so it has no spot.
+    const drives = [drive(0, 10, 2, 0.4), drive(70, 80, 2, 0.4)];
+    const locations = [
+      { t: t0 + 12 * MIN, lat: 12.9352, lng: 77.6245 }, // parked, 2 minutes after
+      { t: t0 + 77 * MIN, lat: 13.1, lng: 77.7 },
+      { t: t0 + 10 * MIN - 5_000, lat: 12.95, lng: 77.64 }, // still moving
+    ];
+    const ps = places(drives, locations, { home: [], work: [], favorite: [] }, t0 + 300 * MIN);
+    expect(ps.map((p) => [p.lat, p.lng, p.visits])).toEqual([[12.9352, 77.6245, 1]]);
+  });
 });
