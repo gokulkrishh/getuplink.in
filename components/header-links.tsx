@@ -75,7 +75,8 @@ function Links({ current, href }: { current?: Section; href: Href }) {
 // ---- On a phone: a floating pill at the bottom ----
 
 // Four icons in a glass pill floating above the bottom edge, clear of the iPhone's home bar: Driving,
-// Charging, Battery and Car, each named for screen readers. The current page's icon sits on a light chip.
+// Charging, Battery and Car, each named for screen readers. The current page's icon sits on a light chip,
+// which slides to the tapped icon at once (instant under reduced motion).
 // It slides away while the page scrolls down and comes back on the way up (lib/tab-bar.ts); it is always
 // there at the top, at the very bottom, while one of its links has the keyboard, and on each new page. It
 // steps aside while a text field has focus, so a phone keyboard never pushes it over what's being typed.
@@ -105,6 +106,10 @@ export function PhoneNavShell({ current }: { current?: Section }) {
   return <Pill current={current} href={SHELL_HREF} hidden={false} />;
 }
 
+// Where the chip last sat, kept across pages: each page draws its own pill, so the new page's chip starts
+// where the old one was and slides on from there, instead of the slide being cut off by the page change.
+let lastAt: number | undefined;
+
 function Pill({
   current,
   href,
@@ -119,6 +124,17 @@ function Pill({
   onBlur?: (e: React.FocusEvent<HTMLElement>) => void;
 }) {
   const [shown, setShown] = useOptimistic(current);
+  const index = PAGES.findIndex((p) => p.key === shown);
+  // The chip is one element that slides between the four cells. A tap moves it at once (optimistic), and a
+  // new page picks it up from where it was (lastAt). Settings and other pages outside the four fade it out.
+  const [at, setAt] = useState(() => lastAt ?? index);
+  useEffect(() => {
+    // A frame later, so the chip is painted where it was before it moves.
+    const frame = requestAnimationFrame(() => setAt(index));
+    if (index >= 0) lastAt = index;
+    return () => cancelAnimationFrame(frame);
+  }, [index]);
+  const place = at >= 0 ? at : (lastAt ?? 0);
   return (
     <nav
       aria-label="Main"
@@ -128,6 +144,15 @@ function Pill({
       onBlur={onBlur}
       className="phone-nav fixed right-[max(16px,env(safe-area-inset-right))] bottom-[calc(22px+env(safe-area-inset-bottom))] left-[max(16px,env(safe-area-inset-left))] z-30 grid h-[64px] grid-cols-4 rounded-[32px] border p-[6px] transition-transform duration-200 ease-out data-hidden:translate-y-[calc(100%+22px+env(safe-area-inset-bottom))] motion-reduce:transition-none sm:hidden"
     >
+      <span
+        aria-hidden
+        data-pill-chip
+        className={cn(
+          "pointer-events-none absolute top-[6px] bottom-[6px] left-[6px] w-[calc((100%-12px)/4)] rounded-full bg-black/6 transition-[translate,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none dark:bg-white/12",
+          at < 0 && "opacity-0",
+        )}
+        style={{ translate: `${place * 100}% 0` }}
+      />
       {PAGES.map(({ key, label, icon: Icon }) => (
         <Link
           key={key}
@@ -137,11 +162,15 @@ function Pill({
           aria-current={shown === key ? "page" : undefined}
           onNavigate={() => startTransition(() => setShown(key))}
           className={cn(
-            "flex items-center justify-center rounded-full focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
-            shown === key ? "bg-black/6 text-foreground dark:bg-white/12" : "text-muted-foreground",
+            "relative flex items-center justify-center rounded-full transition-colors duration-200 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none",
+            shown === key ? "text-foreground" : "text-muted-foreground",
           )}
         >
-          <Icon className="size-[24px]" strokeWidth={shown === key ? 2.25 : 2} aria-hidden />
+          <Icon
+            className="size-[24px] transition-transform duration-150 ease-out active:scale-90 motion-reduce:transition-none"
+            strokeWidth={shown === key ? 2.25 : 2}
+            aria-hidden
+          />
         </Link>
       ))}
     </nav>
