@@ -4,7 +4,7 @@ import type { RecentItem } from "@/lib/recently";
 
 const LABELS = { drive: "Last drive", charge: "Last charge" };
 
-// The last day's drive and charge as one quiet line each under the car's facts (NowStrip), each opening its
+// The last day's drive and charge as one quiet line each closing the car's strip (NowStrip), under the battery, each opening its
 // page: "Last drive 13.9 km · 8:18 AM to 8:50 AM". A charge read without a figure says only when it ended.
 // "pending": the week's read (where they come from) is still loading, so a faint line holds one row's place,
 // in the skeleton's own shape (app/page.tsx). Nothing when neither is recent.

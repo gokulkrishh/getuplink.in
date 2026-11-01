@@ -167,7 +167,7 @@ async function PrimaryStrip({ car, odometerKm, now, week, recent }: { car: HomeC
   return <NowStrip car={car} odometerKm={odometerKm} parkedNow={w?.kind === "ready" ? w.window.driving.parkedNow : null} now={now} holdRow recent={recent} />;
 }
 
-// The last day's drive and charge, from the week's read, as lines under the car's facts (lib/recently.ts).
+// The last day's drive and charge, from the week's read, as lines closing the car's strip (lib/recently.ts).
 async function RecentFor({ vin, now, week }: { vin: string; now: number; week: WeekLoad }) {
   const w = await week;
   return w?.kind === "ready" ? <Recently items={recentlyLines(w.window.driving.drives, w.streamSessions, now, vin)} /> : null;
@@ -281,16 +281,15 @@ function HomeSkeleton() {
 
 const line = "rounded-md bg-muted text-transparent motion-safe:animate-pulse";
 
-// The car's strip: NowStrip's own row, with BatteryGauge's own track on the right from sm up.
+// The car's strip: NowStrip's own row, with BatteryGauge's own track on the right from sm up, then the last drive.
 function StripSkeleton() {
   return (
-    <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-8" aria-hidden="true">
+    <div className="flex flex-col gap-5" aria-hidden="true">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
       <div className="min-w-0 space-y-1 sm:flex-1">
         <p className="truncate text-sm"><span className={line}>Demo car · Model Y, Pearl White</span></p>
         <p className="flex items-center gap-2 text-sm"><span className={line}>2026.38.4 · 3,434.9 km</span></p>
         <p className="text-sm"><span className={line}>Synced 5 min ago</span></p>
-        {/* The last drive's line (components/home/recently.tsx). */}
-        <p className="text-sm"><span className={line}>Last drive 13.9 km · 8:18 AM to 8:50 AM</span></p>
       </div>
       <div className="space-y-1 sm:w-60 sm:shrink-0">
         <p className="flex h-5 items-baseline gap-x-2 leading-5 sm:justify-end">
@@ -306,6 +305,9 @@ function StripSkeleton() {
         </div>
         <p className="flex items-center gap-1.5 text-sm sm:justify-end"><span className={line}>Parked since 3:30 PM</span></p>
       </div>
+      </div>
+      {/* The last drive's line, closing the strip (components/home/recently.tsx). */}
+      <p className="text-sm"><span className={line}>Last drive 13.9 km · 8:18 AM to 8:50 AM</span></p>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-// What changed lately, for the car strip on home (one line each under its facts): the last drive and the last charge, each only when it is
+// What changed lately, for the car strip on home (one line each, closing the strip under the battery): the last drive and the last charge, each only when it is
 // known and ended in the last day. Pure like the other helpers: the loader's lists go in, items come out.
 import type { Drive } from "@/lib/drives";
 import { formatClock, formatDayLabel, formatKm, formatKwh, formatLevels, showsZero } from "@/lib/format";
