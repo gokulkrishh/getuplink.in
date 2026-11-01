@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Drive } from "@/lib/drives";
-import { tripRoute } from "@/lib/trip-route";
+import { NEAR_MS, nearest, tripRoute } from "@/lib/trip-route";
 import { groupTrips } from "@/lib/trips";
 
 const MIN = 60_000;
@@ -30,5 +30,21 @@ describe("tripRoute", () => {
   });
   test("no location readings, no route or pins", () => {
     expect(tripRoute(trip, [])).toEqual({ route: [], pins: [] });
+  });
+});
+
+// The one rule the trip page's pins and the trips list's names share.
+describe("nearest", () => {
+  const fixes = [-6, -2, 1, 7].map((m) => ({ t: t0 + m * MIN, m }));
+  test("the fix nearest the moment, before or after it", () => {
+    expect(nearest(fixes, t0)?.m).toBe(1);
+    expect(nearest(fixes, t0 - 3 * MIN)?.m).toBe(-2);
+    expect(nearest(fixes, t0 + 4.5 * MIN)?.m).toBe(7);
+  });
+  test("none beyond 5 minutes", () => {
+    expect(NEAR_MS).toBe(5 * MIN);
+    expect(nearest(fixes, t0 + 12.5 * MIN)).toBeNull();
+    expect(nearest(fixes, t0 - 11.5 * MIN)).toBeNull();
+    expect(nearest([], t0)).toBeNull();
   });
 });
