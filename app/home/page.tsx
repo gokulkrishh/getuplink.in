@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ChevronDown, CircleCheck, CircleX } from "lucide-react";
-import { DashboardPreview } from "@/components/dashboard-preview";
+import { DashboardPreview, type HeroLook } from "@/components/dashboard-preview";
+import { FeatureBento } from "@/components/home/feature-bento";
+import { AiStreamMock, ChargeScrubMock, InvoiceStackMock } from "@/components/home/motion-mocks";
 import { AssistantMock } from "@/components/home/assistant-mock";
 import { CarGlanceMock } from "@/components/home/car-glance-mock";
 import { HistoryMock } from "@/components/home/history-mock";
@@ -63,6 +65,9 @@ const SHOWCASE = [
   },
 ];
 
+// The "motion" variant's pictures, in SHOWCASE order.
+const MOTION = [<InvoiceStackMock key="charges" />, <ChargeScrubMock key="glance" />, <AiStreamMock key="ai" />];
+
 const CAN = [
   "Software version and update progress",
   "Battery, charging and odometer",
@@ -112,9 +117,56 @@ function Steps() {
   );
 }
 
-export default function HomePage() {
+// Preview-only: the home page in each design variant, chosen with ?v= (see VARIANTS). Never merged.
+const VARIANTS = {
+  corner: "Corner crop (PR 107)",
+  wide: "Wide hero",
+  dark: "Dark hero",
+  fade: "Fade crop",
+  bento: "Feature grid",
+  motion: "Animated features",
+} as const;
+type Variant = keyof typeof VARIANTS;
+
+export default function HomePage(props: PageProps<"/home">) {
+  // The search params are read inside Suspense, so the page keeps its static shell.
+  return (
+    <Suspense fallback={<HomeBody v="corner" />}>
+      <ChosenVariant params={props.searchParams} />
+    </Suspense>
+  );
+}
+
+async function ChosenVariant({ params }: { params: PageProps<"/home">["searchParams"] }) {
+  const raw = (await params).v;
+  const v = typeof raw === "string" && raw in VARIANTS ? (raw as Variant) : "corner";
+  return <HomeBody v={v} />;
+}
+
+// A bar of links between the variants, above the header.
+function VariantBar({ v }: { v: Variant }) {
+  return (
+    <nav aria-label="Design variants" className="mt-3 flex justify-center">
+      <div className="flex max-w-full gap-1 overflow-x-auto rounded-full border bg-background p-1 text-xs">
+        {(Object.keys(VARIANTS) as Variant[]).map((key) => (
+          <a
+            key={key}
+            href={`?v=${key}`}
+            className={`rounded-full px-3 py-1.5 whitespace-nowrap ${key === v ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            {VARIANTS[key]}
+          </a>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
+function HomeBody({ v }: { v: Variant }) {
+  const look: HeroLook = v === "wide" || v === "dark" || v === "fade" ? v : "corner";
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 sm:px-8">
+      <VariantBar v={v} />
       <header className="relative flex h-16 items-center justify-between gap-4 text-sm">
         <Link href="/" className="tap-target inline-flex items-center gap-2 font-medium">
           <Logo className="size-5" />
@@ -128,7 +180,13 @@ export default function HomePage() {
       </header>
 
       {/* Hero: the job, the price and the risk, all above the fold. */}
-      <section className="grid grid-cols-[minmax(0,1fr)] items-center gap-16 py-20 lg:grid-cols-2 lg:gap-12 lg:py-28">
+      <section
+        className={
+          look === "wide"
+            ? "flex flex-col gap-14 py-20 lg:gap-16 lg:py-24"
+            : "grid grid-cols-[minmax(0,1fr)] items-center gap-16 py-20 lg:grid-cols-2 lg:gap-12 lg:py-28"
+        }
+      >
         <div>
           <p className="text-xs tracking-wide text-faint uppercase">For Tesla owners in India</p>
           <h1 className="mt-5 text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl 2xl:text-6xl">
@@ -154,8 +212,8 @@ export default function HomePage() {
             <LoginError className="mt-4" />
           </Suspense>
         </div>
-        <div className="flex min-w-0 justify-center lg:justify-end">
-          <DashboardPreview />
+        <div className={`flex min-w-0 justify-center ${look === "wide" ? "" : "lg:justify-end"}`}>
+          <DashboardPreview look={look} />
         </div>
       </section>
 
@@ -169,7 +227,16 @@ export default function HomePage() {
         </div>
       </section>
 
-      {SHOWCASE.map((item, i) => (
+      {v === "bento" && (
+        <section className="py-20">
+          <h2 className="text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl">What Uplink keeps</h2>
+          <div className="mt-12">
+            <FeatureBento />
+          </div>
+        </section>
+      )}
+
+      {v !== "bento" && SHOWCASE.map((item, i) => (
         <section key={item.title} className="grid grid-cols-[minmax(0,1fr)] items-center gap-14 py-20 lg:grid-cols-2 lg:gap-16">
           <div className={i % 2 === 1 ? "lg:order-2" : undefined}>
             <h2 className="text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl">{item.title}</h2>
@@ -183,7 +250,7 @@ export default function HomePage() {
               ))}
             </ul>
           </div>
-          <div className={i % 2 === 1 ? "lg:order-1" : undefined}>{item.mock}</div>
+          <div className={i % 2 === 1 ? "lg:order-1" : undefined}>{v === "motion" ? MOTION[i] : item.mock}</div>
         </section>
       ))}
 

@@ -1,5 +1,6 @@
 "use client";
 
+import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/logo";
 import { Bar, FigureStage, SATELLITE, SURFACE } from "@/components/home/figure";
@@ -27,7 +28,27 @@ type Phase = "downloading" | "installing" | "installed";
 const DOWNLOAD_FROM = 42;
 const TIMING = { start: 700, download: 3000, gap: 500, install: 2200, settle: 400 };
 
-export function DashboardPreview() {
+export type HeroLook = "corner" | "dark" | "fade" | "wide";
+
+// This week's tiles, as the real Home shows them; used only where the page is shown wide enough to read.
+const WEEK = [
+  { label: "Driven", value: "293.5", unit: "km" },
+  { label: "Energy added", value: "42.2", unit: "kWh" },
+  { label: "Spent", value: "₹318.24", unit: "" },
+];
+
+// The dark look sets the app's dark colours on this picture only: lighter surfaces on a near-black stage.
+const DARK = {
+  "--background": "#141414",
+  "--foreground": "#f3f3f3",
+  "--muted": "#1f1f1f",
+  "--muted-foreground": "#b4b4b4",
+  "--faint": "#949494",
+  "--border": "#2a2a2a",
+  "--chart-accent": "#5f93d6",
+} as React.CSSProperties;
+
+export function DashboardPreview({ look = "corner" }: { look?: HeroLook }) {
   const root = useRef<HTMLDivElement>(null);
   const [phase, setPhase] = useState<Phase>("downloading");
   const [pct, setPct] = useState(DOWNLOAD_FROM);
@@ -87,12 +108,35 @@ export function DashboardPreview() {
   }, []);
 
   const done = phase === "installed";
+  const wide = look === "wide";
+  const fade = look === "fade";
+
+  // Per look: the outer width, the stage, the page's place in it and the chart card's place.
+  const outer = wide ? "w-full max-w-5xl" : "w-full max-w-[560px]";
+  const stage = {
+    corner: "h-[436px] sm:h-[420px]",
+    dark: "h-[436px] sm:h-[420px] bg-[#0b0b0b]",
+    fade: "h-[436px] sm:h-[440px] bg-transparent",
+    wide: "h-[436px] sm:h-[460px]",
+  }[look];
+  const page = {
+    corner: "top-5 left-5 w-[420px] sm:top-8 sm:left-[120px] sm:w-[600px]",
+    dark: "top-5 left-5 w-[420px] sm:top-8 sm:left-[120px] sm:w-[600px]",
+    fade: "top-0 left-0 h-[436px] w-[calc(100%-24px)] sm:h-[440px] sm:w-[calc(100%-72px)] [mask-image:linear-gradient(to_bottom,black_58%,transparent_96%)]",
+    wide: "top-5 left-5 w-[420px] sm:top-10 sm:left-[6%] sm:w-[1000px]",
+  }[look];
+  const card = {
+    corner: "top-[252px] left-5 sm:top-[236px]",
+    dark: "top-[252px] left-5 sm:top-[236px]",
+    fade: "top-[252px] right-0 sm:top-[214px]",
+    wide: "top-[252px] left-5 sm:top-[250px] sm:right-[5%] sm:left-auto",
+  }[look];
 
   return (
-    <div ref={root} className="w-full max-w-[560px]">
-      <FigureStage className="h-[436px] sm:h-[420px]">
-        {/* The page, cropped: whole at the top and left, running off the right and bottom. */}
-        <div className={`absolute top-5 left-5 w-[420px] rounded-xl sm:top-8 sm:left-[120px] sm:w-[600px] ${SURFACE}`}>
+    <div ref={root} className={`${outer} ${look === "dark" ? "text-foreground" : ""}`} style={look === "dark" ? DARK : undefined}>
+      <FigureStage className={stage}>
+        {/* The page, cropped: whole at the top and left, running off the right and bottom (or fading out at its foot). */}
+        <div className={`absolute overflow-hidden rounded-xl ${page} ${SURFACE}`}>
           <div className="hidden h-9 items-center gap-3 border-b px-3.5 sm:flex">
             <span className="flex gap-1.5">
               <span className="size-2.5 rounded-full bg-muted-foreground/25" />
@@ -106,14 +150,23 @@ export function DashboardPreview() {
               <Logo className="size-4" />
               Uplink
             </span>
-            <span className="hidden gap-4 pr-[220px] sm:flex">
-              <Bar className="w-10" />
-              <Bar className="w-12" />
-              <Bar className="w-9" />
-            </span>
+            {wide ? (
+              <span className="hidden gap-5 pr-10 text-muted-foreground sm:flex">
+                <span>Driving</span>
+                <span>Charging</span>
+                <span>Battery</span>
+                <span>Car</span>
+              </span>
+            ) : (
+              <span className={`hidden gap-4 sm:flex ${fade ? "" : "pr-[220px]"}`}>
+                <Bar className="w-10" />
+                <Bar className="w-12" />
+                <Bar className="w-9" />
+              </span>
+            )}
           </div>
 
-          <div className="px-4 pt-3 pb-40 sm:px-6 sm:pt-5">
+          <div className={`px-4 pt-3 pb-40 sm:pt-5 ${wide ? "sm:px-10" : "sm:px-6"}`}>
             <p className="text-xs text-faint">Model Y · Diamond Black</p>
             {/* The Home banner: the version the car runs, and the update on its way. */}
             <div className="mt-3 w-[268px] rounded-lg border px-3.5 py-3 text-[13px] sm:w-[300px] sm:px-4 sm:text-sm">
@@ -148,8 +201,21 @@ export function DashboardPreview() {
               </div>
             </div>
 
-            {/* This week's tiles, as filler under the small chart. */}
-            <div className="mt-6 grid w-[520px] grid-cols-3 gap-3">
+            {/* This week's tiles: real figures at full width, filler elsewhere. */}
+            {wide ? (
+              <div className="mt-8 hidden w-[600px] grid-cols-3 gap-3 sm:grid">
+                {WEEK.map((t) => (
+                  <div key={t.label} className="rounded-lg border px-4 py-3.5">
+                    <p className="text-xs text-muted-foreground">{t.label}</p>
+                    <p className="mt-1.5 font-mono text-2xl tracking-tight tabular-nums">
+                      {t.value}
+                      {t.unit && <span className="ml-1 font-sans text-xs tracking-normal text-faint">{t.unit}</span>}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            <div className={`mt-6 grid w-[520px] grid-cols-3 gap-3 ${wide ? "sm:hidden" : ""}`}>
               {[44, 36, 52].map((w) => (
                 <div key={w} className="rounded-lg border px-4 py-3.5">
                   <Bar className="w-14" />
@@ -161,12 +227,12 @@ export function DashboardPreview() {
             {/* The charge level chart below, as filler: the page carries on past the crop. */}
             <Bar className="mt-8 w-28" />
             <Bar className="mt-3 w-48 opacity-60" />
-            <div className="mt-4 h-40 w-[520px] rounded-lg bg-muted" />
+            <div className="mt-4 h-40 w-[520px] rounded-lg bg-muted sm:w-[600px]" />
           </div>
         </div>
 
-        {/* The Software version chart, across the page's left edge: the new step lands as the update does. */}
-        <div className={`absolute top-[252px] left-5 w-[196px] rounded-xl px-3.5 pt-3 pb-3.5 sm:top-[236px] sm:w-[208px] sm:px-4 ${SATELLITE}`}>
+        {/* The Software version chart, across the page's edge: the new step lands as the update does. */}
+        <div className={`absolute w-[196px] rounded-xl px-3.5 pt-3 pb-3.5 sm:w-[208px] sm:px-4 ${card} ${SATELLITE}`}>
           <p className="text-xs font-medium">Software version</p>
           <VersionSteps done={done} />
           <p className="mt-2 flex items-baseline justify-between text-xs tabular-nums">
