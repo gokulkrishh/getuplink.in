@@ -2,6 +2,7 @@ import { acSettingOf, type ClimateReadings } from "@/lib/drive-climate";
 import type { Drive } from "@/lib/drives";
 import { DECIMALS, formatNumber } from "@/lib/format";
 import type { Timeframe } from "@/lib/periods";
+import { tripEnd } from "@/lib/location";
 
 // Driving insights after TeslaMate's drive stats, efficiency and locations, from streamed readings.
 // Pure, so tested directly.
@@ -183,14 +184,11 @@ const metres = (a: { lat: number; lng: number }, b: { lat: number; lng: number }
 // long it stayed (until the next drive, or now). Home, Work and Favorite come from the car's own flags.
 export function places(drives: Drive[], locations: LatLng[], flags: { home: TimedValue[]; work: TimedValue[]; favorite: TimedValue[] }, now: number): Place[] {
   const sorted = [...drives].sort((a, b) => a.start - b.start);
-  const near = (t: number) => {
-    const best = locations.reduce<LatLng | null>((a, p) => (!a || Math.abs(p.t - t) < Math.abs(a.t - t) ? p : a), null);
-    return best && Math.abs(best.t - t) <= 5 * 60_000 ? best : null;
-  };
+  const located = [...locations].sort((a, b) => a.t - b.t);
   const flagAt = (list: TimedValue[], t: number) => (list.findLast((p) => p.t <= t + 60_000)?.v ?? 0) > 0;
   const out: Place[] = [];
   sorted.forEach((d, k) => {
-    const at = near(d.end);
+    const at = tripEnd(located, d.end, "end");
     if (!at) return;
     const parkedMs = (sorted[k + 1]?.start ?? now) - d.end;
     const tag = flagAt(flags.home, d.end) ? "home" : flagAt(flags.work, d.end) ? "work" : flagAt(flags.favorite, d.end) ? "favorite" : null;

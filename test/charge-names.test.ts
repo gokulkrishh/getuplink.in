@@ -136,6 +136,15 @@ describe("chargeSpot", () => {
     ];
     expect(chargeSpot(readings, start)).toEqual({ lat: 10.1235, lng: 76.5433 });
   });
+  test("the last valid reading: a no-fix value after it doesn't hide it, and lat / lon shapes count", () => {
+    const readings = [
+      { at: at(-5), value: { latitude: 10.1234, longitude: 76.5432 } },
+      { at: at(2), value: { lat: "10.1236", lon: "76.5434" } },
+      { at: at(4), value: { latitude: 0, longitude: 0 } },
+      { at: at(6), value: null },
+    ];
+    expect(chargeSpot(readings, start)).toEqual({ lat: 10.1236, lng: 76.5434 });
+  });
   test("no reading near the start, no spot", () => {
     expect(chargeSpot([{ at: at(-30), value: { latitude: 10.2, longitude: 76.4 } }], start)).toBeNull();
   });

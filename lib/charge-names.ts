@@ -1,5 +1,6 @@
 import { splitSite } from "@/lib/charge-sessions";
 import { type LatLng, type NameTarget, tagAt, targetTag, type UserPlace } from "@/lib/user-places";
+import { fixes } from "@/lib/location";
 
 // What to call a place (where a charge happened, where the car parked, where a trip began or ended), best
 // source first. Pure, so tested directly.
@@ -122,14 +123,12 @@ export function chargeType(s: { kind: "ac" | "dc"; supercharger: boolean }): str
   return s.kind === "dc" ? "Third-party charger" : "AC charging";
 }
 
-// Where the car was when a charge started: the last Location reading within 10 minutes either side.
+// Where the car was when a charge started: the last Location reading with a fix within 10 minutes either side.
 export const SPOT_WITHIN_MS = 10 * 60_000;
 export function chargeSpot(readings: { at: string; value: unknown }[], start: number): { lat: number; lng: number } | null {
-  const near = readings.filter((r) => Math.abs(Date.parse(r.at) - start) <= SPOT_WITHIN_MS);
-  const v = near.at(-1)?.value as { latitude?: unknown; longitude?: unknown } | undefined;
-  const lat = typeof v?.latitude === "string" ? Number(v.latitude) : v?.latitude;
-  const lng = typeof v?.longitude === "string" ? Number(v.longitude) : v?.longitude;
-  return typeof lat === "number" && typeof lng === "number" && Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0) ? { lat, lng } : null;
+  const near = fixes(readings).filter((f) => Math.abs(f.t - start) <= SPOT_WITHIN_MS);
+  const last = near.at(-1);
+  return last ? { lat: last.lat, lng: last.lng } : null;
 }
 
 // A link that opens the spot in Google Maps.
