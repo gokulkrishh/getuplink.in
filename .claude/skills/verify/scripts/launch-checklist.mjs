@@ -153,6 +153,37 @@ for (const phone of [false, true]) {
     }
   }
 
+  // The page links (Nov 2026): in the header from sm up, a tab bar fixed to the bottom on a phone. One "Main"
+  // nav either way. On a phone the bar slides away scrolling down, comes back scrolling up and at the bottom,
+  // and the page keeps room below its end so nothing is ever behind it.
+  await go("/stats/charging");
+  const main = p.getByRole("navigation", { name: "Main" });
+  const names = await main.getByRole("link").allTextContents();
+  check(`${tag} one Main nav: Driving, Charging, Battery, Car`, (await main.count()) === 1 && names.join(",") === "Driving,Charging,Battery,Car", names.join(","));
+  check(`${tag} Charging marked as this page`, (await main.getByRole("link", { name: "Charging" }).getAttribute("aria-current")) === "page");
+  // :visible, as the page before stays in the DOM, hidden, after a move between pages.
+  const bar = p.locator("[data-tab-bar]:visible");
+  if (!phone) check(`desktop no tab bar`, (await bar.count()) === 0);
+  if (phone) {
+    const vh = 812;
+    const at = async () => (await bar.boundingBox()) ?? { y: vh, height: 0 };
+    const b0 = await at();
+    const tab = await bar.getByRole("link").first().boundingBox();
+    check(`phone tab bar at the bottom, tabs at least 44px tall`, Math.abs(b0.y + b0.height - vh) <= 1 && (tab?.height ?? 0) >= 44, `bar ${Math.round(b0.y)} to ${Math.round(b0.y + b0.height)}, tab ${Math.round(tab?.height ?? 0)}px`);
+    for (let i = 0; i < 6; i++) { await p.mouse.wheel(0, 120); await p.waitForTimeout(50); }
+    await p.waitForTimeout(400);
+    check(`phone tab bar slides away scrolling down`, (await at()).y >= vh - 1, `top ${Math.round((await at()).y)}`);
+    await p.mouse.wheel(0, -20); await p.waitForTimeout(400);
+    check(`phone tab bar back scrolling up`, Math.abs((await at()).y - b0.y) <= 1, `top ${Math.round((await at()).y)}`);
+    await p.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight)); await p.waitForTimeout(400);
+    const end = await p.evaluate(() => document.querySelector("header").parentElement.getBoundingClientRect().bottom);
+    check(`phone tab bar shown at the bottom, nothing behind it`, Math.abs((await at()).y - b0.y) <= 1 && end <= b0.y + 1, `page ends ${Math.round(end)}, bar at ${Math.round(b0.y)}`);
+    await bar.getByRole("link", { name: "Driving" }).tap();
+    await p.waitForURL(/\/stats\/driving$/);
+    await p.waitForTimeout(400);
+    check(`phone tab bar link opens Driving, marked and in view`, (await bar.getByRole("link", { name: "Driving" }).getAttribute("aria-current")) === "page" && Math.abs((await at()).y - b0.y) <= 1);
+  }
+
   // Header Sign out while offline stays on the page with the usual line (Launch QA 29 Oct 2026).
   await go("/stats/battery");
   // Where the car was parked wraps in the scrolling table on a phone, never cut.

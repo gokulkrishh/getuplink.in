@@ -190,7 +190,7 @@ async function ChargeLoader({ params }: { params: Promise<{ id: string }> }) {
 export default function Page({ params }: PageProps<"/stats/charging/[id]">) {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
-      <Header current="stats" />
+      <Header current="charging" />
       <BackLink list="/stats/charging" label="Back to Charging" />
       <Suspense fallback={<ChargeSkeleton />}>
         <ChargeLoader params={params} />

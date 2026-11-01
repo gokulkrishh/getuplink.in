@@ -10,7 +10,7 @@ export const DEMO_ENTRIES: Entry[] = [
     version: "0.4",
     title: "A new look at charging",
     text: "Charging now shows what you spent each day, and the rate you paid.",
-    image: { src: "/whats-new/demo/charging.webp", alt: "The Spend section of Stats, with the week's charging spend, a bar for each day and tiles for energy, bills and rate.", width: 1200, height: 929 },
+    image: { src: "/whats-new/demo/charging.webp", alt: "The Spend section of Charging, with the week's charging spend, a bar for each day and tiles for energy, bills and rate.", width: 1200, height: 929 },
     kind: "Improvement",
     audience: "owners",
     show: "dialog",

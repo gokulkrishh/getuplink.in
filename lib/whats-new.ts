@@ -36,6 +36,17 @@ export type Entry = {
 
 export const WHATS_NEW: Entry[] = [
   {
+    id: "2026-11-01-header-menu",
+    date: "2026-11-01",
+    title: "Every page one tap away",
+    text: "Driving, Charging, Battery and Car are now in the top bar. On a phone they sit in a bar at the bottom, which slides away as you scroll down and comes back as you scroll up. A period you pick stays as you move between Driving, Charging and Battery.",
+    version: "0.2",
+    image: { src: "/whats-new/header-menu.webp", alt: "The top bar with Driving, Charging, Battery and Car, on the Charging page.", width: 1200, height: 528 },
+    kind: "Improvement",
+    audience: "draft",
+    show: "bell",
+  },
+  {
     id: "2026-10-31-trip-route-names",
     date: "2026-10-31",
     title: "Where each trip went",

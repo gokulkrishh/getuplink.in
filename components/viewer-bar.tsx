@@ -17,10 +17,10 @@ function remember(hidden: boolean) {
   document.documentElement.dataset.guest = hidden ? "folded" : "open";
 }
 
-// Both float at the bottom, clear of the phone's home bar. The page keeps room for them below its last
+// Both float at the bottom, clear of the phone's home bar and, on a phone, above the tab bar (--above-bar). The page keeps room for them below its last
 // content (globals.css, html[data-guest] body), so nothing is ever hidden behind them, and as they float
 // nothing moves when they stream in. Above the page, below dialogs and menus (z-50).
-const BOTTOM = "bottom-[max(1rem,env(safe-area-inset-bottom))]";
+const BOTTOM = "bottom-(--above-bar)";
 
 // The guest pill: floating at the bottom centre of every page. One line at every width, down to 320px:
 // "You're using guest mode", then Hide (a quiet word) and Exit (a small outlined pill).
@@ -66,7 +66,7 @@ export function ViewerBar({ open: initial, expiresAt }: { open: boolean; expires
       data-guest-pill
       aria-label="Guest view"
       className={cn(
-        "fixed left-1/2 z-40 flex h-10 max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-1 rounded-full border border-muted bg-popover py-1 pr-1 pl-4 text-sm whitespace-nowrap text-popover-foreground shadow-md max-sm:text-xs max-[359px]:max-w-[calc(100vw-1rem)] max-[359px]:gap-0.5 max-[359px]:pl-3",
+        "fixed left-1/2 z-40 flex h-10 max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-1 rounded-full border border-muted bg-popover py-1 pr-1 pl-4 text-sm whitespace-nowrap text-popover-foreground shadow-md max-sm:text-xs max-[360px]:max-w-[calc(100vw-1rem)] max-[360px]:gap-0.5 max-[360px]:pl-3",
         BOTTOM,
       )}
     >
@@ -74,13 +74,13 @@ export function ViewerBar({ open: initial, expiresAt }: { open: boolean; expires
       <button
         type="button"
         onClick={() => show(false)}
-        className="tap-target h-8 shrink-0 cursor-pointer rounded-full px-2.5 text-muted-foreground max-[359px]:px-2 transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
+        className="tap-target h-8 shrink-0 cursor-pointer rounded-full px-2.5 text-muted-foreground max-[360px]:px-2 transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
       >
         Hide
       </button>
       {/* A plain link, never a client-side one: leaving loads the next page in full, so nothing the
           browser kept of the owner's car stays in memory. */}
-      <a href="/v/leave" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 shrink-0 rounded-full px-3 max-sm:h-8 max-sm:px-3 max-sm:text-xs max-[359px]:px-2.5")}>
+      <a href="/v/leave" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 shrink-0 rounded-full px-3 max-sm:h-8 max-sm:px-3 max-sm:text-xs max-[360px]:px-2.5")}>
         Exit
       </a>
     </section>

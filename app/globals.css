@@ -529,9 +529,27 @@ html .maplibregl-map {
    the nav doesn't move when they drop out. Owners never carry the mark. */
 :root {
   --guest-pill: 2.5rem;
+  /* Where things float above the page's bottom edge: the guest pill. Above the tab bar on a phone. */
+  --above-bar: max(1rem, env(safe-area-inset-bottom));
 }
 html[data-guest] body {
-  padding-bottom: calc(var(--guest-pill) + max(1rem, env(safe-area-inset-bottom)));
+  padding-bottom: calc(var(--guest-pill) + var(--above-bar));
+}
+/* The phone tab bar (TabBar in components/header-links.tsx), fixed to the bottom on every page with the
+   header. The page keeps room for all of it below its end, so the last thing on the page scrolls clear of
+   it; the bar slides away on scroll by transform only, so that room never changes. Its height: the tabs
+   (h-11), the top border and the home bar's inset. */
+@media (width < 40rem) {
+  html:has([data-tab-bar]) {
+    --tab-bar: calc(2.75rem + 1px + env(safe-area-inset-bottom));
+    --above-bar: calc(var(--tab-bar) + 0.75rem);
+  }
+  html:has([data-tab-bar]) body {
+    padding-bottom: var(--tab-bar);
+  }
+  html[data-guest]:has([data-tab-bar]) body {
+    padding-bottom: calc(var(--guest-pill) + var(--above-bar));
+  }
 }
 html[data-guest] [data-owner-placeholder] {
   display: none;

@@ -3,7 +3,7 @@
 // Start the demo first: UPLINK_DEMO_SCENARIO= .claude/skills/verify/scripts/launch.sh 3223 (a plain demo: no dialog on top).
 // Writes public/whats-new/tour/<step>-light.webp and -dark.webp, and lib/tour-targets.ts (where the part
 // each step is about sits, as percentages of the picture). Run it again after any visible change to Home,
-// Stats, Updates, Compare or the account menu. It writes nothing outside the repo, and reads only the demo.
+// the header, the Driving, Charging or Battery pages, Software, Compare or the account menu. It writes nothing outside the repo, and reads only the demo.
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
@@ -32,7 +32,15 @@ const STEPS = [
         return { x: r.x, y: r.y, w: r.width, h: r.height };
       }),
   },
-  { name: "stats", path: "/stats/driving", box: (page) => rect(page.locator('header a[href="/stats/driving"]').first(), 6) },
+  // The header's Driving, Charging and Battery links, as one box.
+  {
+    name: "stats",
+    path: "/stats/driving",
+    box: async (page) => {
+      const [a, c] = await Promise.all([rect(page.locator('header a[href="/stats/driving"]').first(), 6), rect(page.locator('header a[href="/stats/battery"]').first(), 6)]);
+      return { x: a.x, y: a.y, w: c.x + c.w - a.x, h: a.h };
+    },
+  },
   { name: "updates", path: "/updates", box: (page) => rect(page.locator('a[href="/updates"]').first(), 0) },
   { name: "compare", path: "/owners", box: (page) => rect(page.locator('a[href="/owners"]').first(), 0) },
   {

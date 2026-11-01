@@ -6,7 +6,7 @@ type CarView = "car" | "updates" | "owners";
 const DESCRIPTION = "How your car is doing, what's new in its software, and how it compares with other owners.";
 
 // The Car section's heading, line and tabs: the owner's own car, Software (/updates, with the India rollout
-// on it), and how it compares with other owners' cars. The same shape as Stats' (StatsPage).
+// on it), and how it compares with other owners' cars. Like a Stats page (StatsPage), with tabs under the line.
 export function CarTabs({ value }: { value: CarView }) {
   return (
     <>

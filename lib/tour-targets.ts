@@ -7,8 +7,8 @@ export type Target = { x: number; y: number; w: number; h: number; at: { x: numb
 export const TOUR_SHOT = { width: 960, height: 1333 } as const;
 
 export const TOUR_TARGETS: Record<TourSpot, Target> = {
-  home: { x: 6.11, y: 51.45, w: 87.78, h: 17.35, at: { x: 12.21, y: 61.86 } },
-  stats: { x: 69.68, y: 3.2, w: 6.32, h: 3.2, at: { x: 73.47, y: 5.12 } },
+  home: { x: 6.11, y: 34.6, w: 87.78, h: 17.35, at: { x: 12.21, y: 45.01 } },
+  stats: { x: 49.16, y: 3.2, w: 26.84, h: 3.2, at: { x: 55.26, y: 5.12 } },
   updates: { x: 15.94, y: 24, w: 8.35, h: 3.7, at: { x: 20.95, y: 26.22 } },
   compare: { x: 27.63, y: 24, w: 8.27, h: 3.7, at: { x: 32.59, y: 26.22 } },
   menu: { x: 72.22, y: 10, w: 21.11, h: 2.8, at: { x: 78.32, y: 11.68 } },

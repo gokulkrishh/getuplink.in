@@ -13,7 +13,7 @@ Everything about drives for a period. On Week (the default): Distance (bars, wit
 
 ## How to get to it (user POV)
 
-The header's "Stats" link, Home → "See all trips", or the Stats tabs → "Driving". Direct: `/stats/driving`.
+The "Driving" page link (header, or the tab bar on a phone), or Home → "See all trips". Direct: `/stats/driving`.
 
 ## Driving it with Playwright
 
