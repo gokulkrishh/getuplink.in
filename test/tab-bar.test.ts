@@ -7,26 +7,28 @@ const VIEW = 800;
 const run = (ys: number[], max = 2000): BarScroll => ys.reduce((bar, y) => nextBar(bar, y, max, VIEW), BAR_START);
 
 describe("the phone tab bar on scroll", () => {
-  test("hides after scrolling down past the threshold, not before", () => {
+  // Not too eager: a flick of the thumb while reading (under 48px down) leaves it in view.
+  test("hides only after scrolling down 48px, not before", () => {
     expect(run([5, 9]).shown).toBe(true);
     expect(run([100, 300]).shown).toBe(false);
     expect(run([300, 309]).shown).toBe(false);
-    expect(nextBar({ shown: true, from: 100 }, 108, 2000, VIEW).shown).toBe(true);
-    expect(nextBar({ shown: true, from: 100 }, 111, 2000, VIEW).shown).toBe(false);
+    expect(nextBar({ shown: true, from: 100 }, 111, 2000, VIEW).shown).toBe(true);
+    expect(nextBar({ shown: true, from: 100 }, 140, 2000, VIEW).shown).toBe(true);
+    expect(nextBar({ shown: true, from: 100 }, 149, 2000, VIEW).shown).toBe(false);
   });
 
-  test("comes back after scrolling up past the threshold, counted from the turn", () => {
-    expect(run([100, 400, 395]).shown).toBe(false);
-    expect(run([100, 400, 380]).shown).toBe(true);
+  test("comes back after scrolling up 24px, counted from the turn", () => {
+    expect(run([100, 400, 380]).shown).toBe(false);
+    expect(run([100, 400, 375]).shown).toBe(true);
     // Down to 600, so the way up counts from 600, not 400.
-    expect(run([100, 400, 600, 595]).shown).toBe(false);
-    expect(run([100, 400, 600, 580]).shown).toBe(true);
+    expect(run([100, 400, 600, 580]).shown).toBe(false);
+    expect(run([100, 400, 600, 575]).shown).toBe(true);
   });
 
   test("a small move the other way doesn't flip it", () => {
-    // Shown, a little up, then down: hides only once it's gone the threshold down from the turn.
-    expect(run([100, 400, 380, 375, 384]).shown).toBe(true);
-    expect(run([100, 400, 380, 375, 386]).shown).toBe(false);
+    // Shown, a little up, then down: hides only once it's gone 48px down from the turn.
+    expect(run([100, 400, 370, 365, 410]).shown).toBe(true);
+    expect(run([100, 400, 370, 365, 414]).shown).toBe(false);
   });
 
   test("always shown at the top, at the very bottom, and on a page too short to scroll", () => {
@@ -47,8 +49,8 @@ describe("the phone tab bar on scroll", () => {
     const restored = run([0, 1500]);
     expect(restored).toEqual({ shown: true, from: 1500 });
     // Then a real scroll down hides it, and one up brings it back.
-    expect(run([0, 1500, 1520]).shown).toBe(false);
-    expect(run([0, 1500, 1520, 1505]).shown).toBe(true);
+    expect(run([0, 1500, 1550]).shown).toBe(false);
+    expect(run([0, 1500, 1550, 1525]).shown).toBe(true);
     // Hidden, a jump up of more than a screen leaves it hidden until a real scroll up.
     expect(nextBar({ shown: false, from: 1600 }, 300, 2000, VIEW)).toEqual({ shown: false, from: 300 });
   });

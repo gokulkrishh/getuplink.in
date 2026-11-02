@@ -174,10 +174,13 @@ for (const phone of [false, true]) {
     const b0 = await at();
     const cells = await pill.getByRole("link").evaluateAll((as) => as.map((a) => { const r = a.getBoundingClientRect(); return { w: r.width, h: r.height }; }));
     check(`phone pill floats above the bottom, cells at least 44px`, b0.y + b0.height <= vh - 16 && cells.length === 4 && cells.every((c) => c.w >= 44 && c.h >= 44), `pill ${Math.round(b0.y)} to ${Math.round(b0.y + b0.height)}, cells ${cells.map((c) => `${Math.round(c.w)}x${Math.round(c.h)}`).join(" ")}`);
+    // A small flick (under 48px) leaves it in view.
+    await p.mouse.wheel(0, 30); await p.waitForTimeout(400);
+    check(`phone pill stays for a small scroll down`, Math.abs((await at()).y - b0.y) <= 1, `top ${Math.round((await at()).y)}`);
     for (let i = 0; i < 3; i++) { await p.mouse.wheel(0, 100); await p.waitForTimeout(50); }
     await p.waitForTimeout(400);
     check(`phone pill slides away scrolling down`, (await at()).y >= vh - 1, `top ${Math.round((await at()).y)}`);
-    await p.mouse.wheel(0, -20); await p.waitForTimeout(400);
+    await p.mouse.wheel(0, -40); await p.waitForTimeout(400);
     check(`phone pill back scrolling up`, Math.abs((await at()).y - b0.y) <= 1, `top ${Math.round((await at()).y)}`);
     await p.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight)); await p.waitForTimeout(400);
     const end = await p.evaluate(() => document.querySelector("header").parentElement.getBoundingClientRect().bottom);

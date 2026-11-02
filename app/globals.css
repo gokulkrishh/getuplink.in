@@ -560,7 +560,7 @@ html[data-guest] body {
 }
 @media (width < 40rem) {
   html:has([data-phone-nav]) {
-    --phone-nav: calc(56px + 22px + env(safe-area-inset-bottom));
+    --phone-nav: calc(54px + 22px + env(safe-area-inset-bottom));
     --above-bar: calc(var(--phone-nav) + 12px);
   }
   html:has([data-phone-nav]) body {
