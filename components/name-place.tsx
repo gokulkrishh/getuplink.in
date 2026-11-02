@@ -1,7 +1,7 @@
 "use client";
 
 import type { Drawer as DrawerPrimitive } from "@base-ui/react/drawer";
-import { Check, Pencil, Search, X } from "lucide-react";
+import { Check, Crosshair, MapPin, Pencil, Search, X, Zap } from "lucide-react";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { placeSuggestions, removePlace, savePlace } from "@/app/places/actions";
 import { GoogleMapsCredit } from "@/components/google-maps-credit";
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { NO_AUTOFILL } from "@/lib/no-autofill";
-import { matches, NO_SUGGESTIONS, parseQuery, type Suggestion, type Suggestions } from "@/lib/place-suggestions";
+import { matches, NO_SUGGESTIONS, parseQuery, type PlaceIcon, placeIcon, type Suggestion, type Suggestions } from "@/lib/place-suggestions";
 import { NAME_MAX, type NameTarget, TAG_RADIUS_M } from "@/lib/user-places";
 import { cn } from "@/lib/utils";
 import { haptic } from "@/components/haptic";
@@ -19,7 +19,18 @@ import { haptic } from "@/components/haptic";
 const DEBOUNCE_MS = 300;
 const MAX_GOOGLE = 8;
 
-type Option = { key: string; kind: "typed" | "osm" | "google"; name: string; detail: string | null; placeId?: string };
+type Option = { key: string; kind: "typed" | "osm" | "google"; name: string; detail: string | null; icon: PlaceIcon | "typed"; placeId?: string };
+
+// The round icon at the start of each choice, so a charger, the area and a typed name tell apart at a glance:
+// the bolt on green for a charger, a target for the area, a pencil for the typed name, a pin for the rest.
+function OptionIcon({ icon }: { icon: Option["icon"] }) {
+  const Icon = { charging: Zap, area: Crosshair, place: MapPin, typed: Pencil }[icon];
+  return (
+    <span aria-hidden="true" className={cn("flex size-9 shrink-0 items-center justify-center rounded-full", icon === "charging" ? "bg-charge/20 text-positive" : "bg-foreground/[0.07] text-muted-foreground dark:bg-white/10")}>
+      <Icon className={cn("size-4", icon === "charging" && "fill-current")} />
+    </span>
+  );
+}
 type Remote = { q: string; results: Suggestion[]; unavailable: boolean };
 
 // One Autocomplete session per search: a new token when the sheet opens and after each pick.
@@ -101,7 +112,7 @@ export function NamePlace({ target, compact = false, className }: { target: Name
   const tappable = loaded?.tappable ?? false;
   const osm: Option[] = (loaded?.picks ?? [])
     .filter((s) => q === "" || matches(s, q))
-    .map((s) => ({ key: `osm:${s.name}`, kind: "osm", name: s.name.slice(0, NAME_MAX), detail: s.detail }));
+    .map((s) => ({ key: `osm:${s.name}`, kind: "osm", name: s.name.slice(0, NAME_MAX), detail: s.detail, icon: placeIcon(s) }));
   // While a new answer is on its way, the last one stays, narrowed to what still matches.
   const fromSearch = searchable && remote ? remote.results.filter((s) => remote.q === q || matches(s, q)) : [];
   const nearbyGoogle = (loaded?.hints ?? []).filter((s) => q === "" || matches(s, q));
@@ -110,9 +121,9 @@ export function NamePlace({ target, compact = false, className }: { target: Name
   for (const s of tappable ? [...nearbyGoogle, ...fromSearch] : []) {
     if (!s.placeId || seen.has(s.placeId) || google.length >= MAX_GOOGLE) continue;
     seen.add(s.placeId);
-    google.push({ key: `google:${s.placeId}`, kind: "google", name: s.name, detail: s.detail, placeId: s.placeId });
+    google.push({ key: `google:${s.placeId}`, kind: "google", name: s.name, detail: s.detail, icon: placeIcon(s), placeId: s.placeId });
   }
-  const typed: Option[] = q !== "" && !osm.some((o) => o.name.toLowerCase() === q.toLowerCase()) ? [{ key: "typed", kind: "typed", name: q, detail: null }] : [];
+  const typed: Option[] = q !== "" && !osm.some((o) => o.name.toLowerCase() === q.toLowerCase()) ? [{ key: "typed", kind: "typed", name: q, detail: null, icon: "typed" }] : [];
   const options = [...typed, ...osm, ...google];
   const searching = searchable && remote?.q !== q;
   const unavailable = searchable && remote?.q === q && remote.unavailable;
@@ -216,6 +227,7 @@ export function NamePlace({ target, compact = false, className }: { target: Name
       onClick={() => choose(o)}
       className={cn("flex cursor-pointer items-center gap-3 rounded-md px-2 py-2", i === active && "bg-muted")}
     >
+      <OptionIcon icon={o.icon} />
       <span className="min-w-0 flex-1">
         <span className="block truncate">{o.kind === "typed" ? `Use “${o.name}”` : o.name}</span>
         {o.detail && <span className="block truncate text-xs text-muted-foreground">{o.detail}</span>}
@@ -276,7 +288,7 @@ export function NamePlace({ target, compact = false, className }: { target: Name
 
           <div className="space-y-1.5">
             <div className="relative">
-              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-faint" aria-hidden="true" />
+              <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-faint" aria-hidden="true" />
               <Input
                 ref={input}
                 type="text"
@@ -301,7 +313,8 @@ export function NamePlace({ target, compact = false, className }: { target: Name
                 onKeyDown={onKeyDown}
                 readOnly={saving}
                 aria-busy={saving}
-                className="pr-9 pl-8"
+                // Filled and taller, like a ride app's destination field. The ring still shows on focus.
+                className="h-12 rounded-xl border-transparent bg-foreground/[0.06] pr-10 pl-10 max-sm:h-12 md:text-base dark:bg-white/[0.08]"
               />
               {query !== "" && (
                 <button
@@ -312,7 +325,7 @@ export function NamePlace({ target, compact = false, className }: { target: Name
                     setActive(-1);
                     input.current?.focus();
                   }}
-                  className="absolute top-1/2 right-1 inline-flex size-8 -translate-y-1/2 items-center justify-center text-faint transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                  className="absolute top-1/2 right-2 inline-flex size-8 -translate-y-1/2 items-center justify-center text-faint transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
                 >
                   <X className="size-4" aria-hidden="true" />
                 </button>

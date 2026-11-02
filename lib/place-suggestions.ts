@@ -44,6 +44,15 @@ export function parseNearby(body: unknown): Suggestion[] {
   return [...out.filter((p) => p.charging), ...out.filter((p) => !p.charging)].map(({ charging: _, ...s }) => s);
 }
 
+// The round icon beside a choice in "Name this place": a charger (an OpenStreetMap station, or a place
+// Nearby Search called a charging station), the area, or any other place. A search result's detail is its
+// address, so it is a place, whatever its name says.
+export type PlaceIcon = "charging" | "area" | "place";
+export function placeIcon(s: Suggestion): PlaceIcon {
+  if (s.source === "station" || (s.source === "google" && s.detail === "Charging station")) return "charging";
+  return s.source === "area" ? "area" : "place";
+}
+
 // Places API (New) Autocomplete: suggestions[].placePrediction with placeId and structuredFormat
 // (mainText, the place; secondaryText, where it is). Query predictions aren't asked for.
 export function parseAutocomplete(body: unknown): Suggestion[] {
