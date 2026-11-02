@@ -38,7 +38,7 @@ export const WHATS_NEW: Entry[] = [
   {
     id: "2026-11-02-name-place-icons",
     date: "2026-11-02",
-    title: "Chargers stand out when you name a place",
+    title: "Icons when naming a place",
     text: "When you name a place, each choice now has an icon. Chargers have a green bolt, the area has a target and other places have a pin.",
     version: "0.2",
     image: { src: "/whats-new/name-place-icons.webp", alt: "Name this place, with a green bolt beside Brightwell Charging Hub, a target beside the area and a pin beside Orchard Lane Market.", width: 1200, height: 1109 },

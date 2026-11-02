@@ -1,7 +1,7 @@
 import "server-only";
 import type { GoogleSku } from "@/lib/costs";
 import { DEMO } from "@/lib/demo";
-import { matches, mergeSuggestions, parseAutocomplete, parseNearby, type Suggestion } from "@/lib/place-suggestions";
+import { CHARGING_DETAIL, matches, mergeSuggestions, parseAutocomplete, parseNearby, type Suggestion } from "@/lib/place-suggestions";
 import { stationsNear } from "@/lib/stations";
 import type { LatLng } from "@/lib/user-places";
 import { countGoogleCall } from "./data/system";
@@ -50,7 +50,7 @@ async function nearby(key: string, p: LatLng): Promise<Suggestion[]> {
 
 // Demo places: made up, with the demo's place IDs (DEMO_GOOGLE_NAMES), and no call leaves the server.
 const DEMO_HINTS: Suggestion[] = [
-  { name: "Brightwell Charging Hub", detail: "Charging station", source: "google", placeId: "DemoPlace_Brightwell01" },
+  { name: "Brightwell Charging Hub", detail: CHARGING_DETAIL, source: "google", placeId: "DemoPlace_Brightwell01" },
   { name: "Orchard Lane Market", detail: "Shopping mall", source: "google", placeId: "DemoPlace_OrchardLane01" },
 ];
 const DEMO_SEARCH: Suggestion[] = [
@@ -61,7 +61,7 @@ const DEMO_SEARCH: Suggestion[] = [
 ];
 
 export async function suggestionsAt(p: LatLng): Promise<{ hints: Suggestion[]; picks: Suggestion[] }> {
-  const stations = stationsNear(p.lat, p.lng).map((name): Suggestion => ({ name, detail: "Charging station", source: "station" }));
+  const stations = stationsNear(p.lat, p.lng).map((name): Suggestion => ({ name, detail: CHARGING_DETAIL, source: "station" }));
   const area = await placeNames([p]).catch(() => new Map<string, string>());
   const areaName = area.get(placeKey(p));
   const picks = mergeSuggestions([[...stations, ...(areaName ? [{ name: areaName, detail: "Area", source: "area" } satisfies Suggestion] : [])]], 4);

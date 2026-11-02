@@ -19,12 +19,13 @@ import { haptic } from "@/components/haptic";
 const DEBOUNCE_MS = 300;
 const MAX_GOOGLE = 8;
 
-type Option = { key: string; kind: "typed" | "osm" | "google"; name: string; detail: string | null; icon: PlaceIcon | "typed"; placeId?: string };
+type Option = { key: string; kind: "typed" | "osm" | "google"; name: string; detail: string | null; icon: PlaceIcon | null; placeId?: string };
 
 // The round icon at the start of each choice, so a charger, the area and a typed name tell apart at a glance:
 // the bolt on green for a charger, a target for the area, a pencil for the typed name, a pin for the rest.
-function OptionIcon({ icon }: { icon: Option["icon"] }) {
-  const Icon = { charging: Zap, area: Crosshair, place: MapPin, typed: Pencil }[icon];
+// `icon` null is the typed name.
+function OptionIcon({ icon }: { icon: PlaceIcon | null }) {
+  const Icon = icon ? { charging: Zap, area: Crosshair, place: MapPin }[icon] : Pencil;
   return (
     <span aria-hidden="true" className={cn("flex size-9 shrink-0 items-center justify-center rounded-full", icon === "charging" ? "bg-charge/20 text-positive" : "bg-foreground/[0.07] text-muted-foreground dark:bg-white/10")}>
       <Icon className={cn("size-4", icon === "charging" && "fill-current")} />
@@ -123,7 +124,7 @@ export function NamePlace({ target, compact = false, className }: { target: Name
     seen.add(s.placeId);
     google.push({ key: `google:${s.placeId}`, kind: "google", name: s.name, detail: s.detail, icon: placeIcon(s), placeId: s.placeId });
   }
-  const typed: Option[] = q !== "" && !osm.some((o) => o.name.toLowerCase() === q.toLowerCase()) ? [{ key: "typed", kind: "typed", name: q, detail: null, icon: "typed" }] : [];
+  const typed: Option[] = q !== "" && !osm.some((o) => o.name.toLowerCase() === q.toLowerCase()) ? [{ key: "typed", kind: "typed", name: q, detail: null, icon: null }] : [];
   const options = [...typed, ...osm, ...google];
   const searching = searchable && remote?.q !== q;
   const unavailable = searchable && remote?.q === q && remote.unavailable;
