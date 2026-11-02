@@ -31,7 +31,6 @@ export type MapPin = MapPoint & { kind: "start" | "stop" | "end" | "place" | "ch
 // A leg of a trip, for a chip at its middle: its start and end, and a line saying what it was.
 export type MapLeg = { start: number; end: number; note: string };
 // extra: a control beside the value, such as "Name this place" by the trip's start.
-export type MapFact = { label: string; value: string; extra?: ReactNode };
 
 export const NEAR_M = 60; // pins closer than this share one marker (a round trip's start and end)
 // A longer gap between route points starts a new line, so no jump is drawn: between legs and trips on a
@@ -440,7 +439,7 @@ function Swatch({ children, text }: { children: ReactNode; text: string }) {
 // A route as a line (a trip, a day, or everywhere visited), with pins: a trip's start, stops and end, or
 // places such as chargers. mapcn (MapLibre) with CARTO's free vector basemaps, light or dark with the page.
 // With a start or end pin it's a journey: A and B badges, the line fading in the way the car went, and
-// the route tells its time and speed on hover. `below` sits right under the map (a trip's facts); `legend`
+// the route tells its time and speed on hover. `legend`
 // explains pin sizes on a map of places.
 export function TripMap({
   route = [],
@@ -448,7 +447,6 @@ export function TripMap({
   label,
   speed = [],
   legs = [],
-  below,
   legend,
   short,
 }: {
@@ -457,7 +455,6 @@ export function TripMap({
   label?: string;
   speed?: { t: number; v: number }[];
   legs?: MapLeg[];
-  below?: ReactNode;
   legend?: string;
   // Half the usual height, for a map that only shows where.
   short?: boolean;
@@ -551,8 +548,6 @@ export function TripMap({
   const legOf = (t: number) => (legs.length > 1 ? legs.findIndex((l) => t >= l.start - 2 * 60_000 && t <= l.end + 2 * 60_000) : -1);
 
   const kinds = new Set(pins.map((p) => p.kind));
-  const start = single ? pins.find((p) => p.kind === "start") : undefined;
-  const end = single ? pins.find((p) => p.kind === "end") : undefined;
   let stopNumber = 0;
 
   return (
@@ -633,16 +628,15 @@ export function TripMap({
             </Map>
           </MapBoundary>
         </div>
-        {/* Its own rounded card, a small gap under the map. */}
-        {below}
       </div>
       <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground tabular-nums">
         {journey ? (
           <>
-            <Swatch text={start ? start.label.replace(" · ", " ") : "Start of a trip"}>
+            {/* Just what A and B are: a trip's page shows their places and times in the card at its top. */}
+            <Swatch text={single ? "Start" : "Start of a trip"}>
               <span className={cn(BADGE, "size-4 border-map-route bg-background text-[9px] text-map-route")}>A</span>
             </Swatch>
-            <Swatch text={end ? end.label.replace(" · ", " ") : "End of a trip"}>
+            <Swatch text={single ? "End" : "End of a trip"}>
               <span className={cn(BADGE, RING, "size-4 bg-map-route text-[9px] text-white")}>B</span>
             </Swatch>
             {kinds.has("stop") && (
@@ -689,41 +683,3 @@ export function TripMap({
   );
 }
 
-const FACT_COLUMNS = ["", "sm:grid-cols-1", "sm:grid-cols-2", "sm:grid-cols-3", "sm:grid-cols-4"];
-const FACT_SPAN = ["", "", "sm:col-span-2", "sm:col-span-3"];
-
-// A few facts right under a map, in their own rounded card a small gap below it: where from and to, how far,
-// how long, the battery.
-export function MapFacts({ facts }: { facts: MapFact[] }) {
-  if (facts.length === 0) return null;
-  const columns = facts.length <= 4 ? facts.length : 3;
-  const left = facts.length % columns;
-  return (
-    // Two a row on a phone, up to four wider; the last cell of a short row stretches, so no row ends in
-    // an empty cell. A long place name wraps.
-    <dl className={cn("mt-2 grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border dark:border-transparent dark:bg-background", FACT_COLUMNS[columns])}>
-      {facts.map((f, k) => (
-        <div
-          key={f.label}
-          className={cn(
-            "min-w-0 bg-background px-3 py-2 dark:bg-card",
-            k === facts.length - 1 && facts.length % 2 === 1 && "max-sm:col-span-2",
-            k === facts.length - 1 && left > 0 && FACT_SPAN[columns - left + 1],
-          )}
-        >
-          <dt className="text-xs text-muted-foreground">{f.label}</dt>
-          <dd className="text-sm text-balance tabular-nums">
-            {f.extra ? (
-              <span className="flex flex-wrap items-center gap-x-1.5">
-                <span>{f.value}</span>
-                {f.extra}
-              </span>
-            ) : (
-              f.value
-            )}
-          </dd>
-        </div>
-      ))}
-    </dl>
-  );
-}

@@ -365,42 +365,23 @@ export function DriveSkeleton() {
               { label: "Hard moments", value: "3", note: "3 brakes · your usual 3" },
             ]}
           />
+          <SkFigures
+            tiles={[
+              { label: "Range used", value: "12 km" },
+              { label: "Average speed", value: "26 km/h" },
+              { label: "Top speed", value: "51 km/h" },
+              { label: "Outside", value: "26.1 °C" },
+            ]}
+          />
         </SkSection>
         <SkSection>
           <p className="text-lg font-medium tracking-heading" aria-hidden="true">
             <Ph>Map</Ph>
           </p>
           <div className="space-y-3" aria-hidden="true">
-            <div>
-              <SkBlock className="h-96 rounded-lg max-sm:h-[342px]" />
-              <dl className="mt-2 grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-3 dark:border-transparent dark:bg-background">
-                {[
-                  ["From", "Whitefield, Bengaluru", false],
-                  ["To", "Koramangala, Bengaluru", true],
-                  ["Distance", "14.8 km", false],
-                  ["Took", "34 min", false],
-                  ["Battery", "65% to 62%", false],
-                ].map(([label, value, extra], k) => (
-                  <div key={String(label)} className={k === 4 ? "min-w-0 bg-background px-3 py-2 max-sm:col-span-2 sm:col-span-2 dark:bg-card" : "min-w-0 bg-background px-3 py-2 dark:bg-card"}>
-                    <dt className="text-xs">
-                      <Ph>{String(label)}</Ph>
-                    </dt>
-                    <dd className="text-sm text-balance">
-                      <span className="flex flex-wrap items-center gap-x-1.5">
-                        <Ph>{String(value)}</Ph>
-                        {extra && (
-                          <span className="text-xs max-sm:inline-block max-sm:py-[5px]">
-                            <Ph>Name this place</Ph>
-                          </span>
-                        )}
-                      </span>
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
+            <SkBlock className="h-96 rounded-lg max-sm:h-[342px]" />
             <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
-              {["Start 8:18 AM", "End 8:52 AM", "Route, fainter at the start"].map((text) => (
+              {["Start", "End", "Route, fainter at the start"].map((text) => (
                 <li key={text} className="flex items-center gap-1.5">
                   <span className="size-4 rounded-sm bg-muted" />
                   <Ph>{text}</Ph>
@@ -409,18 +390,6 @@ export function DriveSkeleton() {
             </ul>
           </div>
         </SkSection>
-        <SkFigures
-          tiles={[
-            { label: "Distance", value: "14.8 km" },
-            { label: "Took", value: "34 min" },
-            { label: "Energy used", value: "2.0 kWh" },
-            { label: "Battery", value: "65% to 62%", bar: true },
-            { label: "Range used", value: "12 km" },
-            { label: "Average speed", value: "26 km/h" },
-            { label: "Top speed", value: "51 km/h" },
-            { label: "Outside", value: "26.1 °C" },
-          ]}
-        />
         <div className="space-y-12">
           <SkTrace title="Speed" description="Top 51 km/h, mostly 31 to 46 km/h." legend="" />
           <SkTrace
