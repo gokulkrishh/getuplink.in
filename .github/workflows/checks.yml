@@ -3,8 +3,7 @@
 # record that the commit passed.
 #
 # Two jobs side by side, so the run takes about as long as the build alone: types and tests in one, the
-# build in the other. A last job named `checks` passes only when both do, so anything that waits on
-# "checks" (a branch rule, a status badge) still means all three passed.
+# build in the other.
 name: Checks
 
 on:
@@ -42,13 +41,3 @@ jobs:
       - run: bun install --frozen-lockfile
       # No secrets here: the build runs without them, as it does for a fresh checkout.
       - run: bun run build
-
-  checks:
-    needs: [types-and-tests, build]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Both jobs passed
-        run: |
-          test "${{ needs.types-and-tests.result }}" = success
-          test "${{ needs.build.result }}" = success
