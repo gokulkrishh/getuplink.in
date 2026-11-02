@@ -91,7 +91,7 @@ export function PhoneCarLink({ current }: { current?: Section }) {
   );
 }
 
-// Four icons in a small glass pill (232 by 52px, each icon's cell 58 by 44px), centred and floating above the
+// Four icons in a small glass pill (242 by 54px with its padding and border, each icon's cell 58 by 44px), centred and floating above the
 // bottom edge, clear of the iPhone's home bar: Driving,
 // Charging, Battery and Car, each named for screen readers. The current page's icon sits on a light chip,
 // which slides across to the next page's icon as the page changes (a shared view transition).
@@ -146,7 +146,7 @@ function Pill({
       data-hidden={hidden || undefined}
       onFocus={onFocus}
       onBlur={onBlur}
-      className="phone-nav fixed inset-x-0 bottom-[calc(22px+env(safe-area-inset-bottom))] z-30 mx-auto h-[52px] w-fit rounded-full border p-[4px] transition-transform duration-200 ease-out data-hidden:translate-y-[calc(100%+22px+env(safe-area-inset-bottom))] motion-reduce:transition-none sm:hidden"
+      className="phone-nav fixed inset-x-0 bottom-[calc(22px+env(safe-area-inset-bottom))] z-30 mx-auto h-[54px] w-fit rounded-full border p-[4px] transition-transform duration-200 ease-out data-hidden:translate-y-[calc(100%+22px+env(safe-area-inset-bottom))] motion-reduce:transition-none sm:hidden"
     >
       {/* The chip slides to a tapped icon at once (optimistic, a CSS slide), and it is also one shared element
           ("phone-nav-chip", as the Car tabs' underline): each page draws its own pill, so when the next page
