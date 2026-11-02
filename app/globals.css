@@ -573,3 +573,9 @@ html[data-guest] body {
 html[data-guest] [data-owner-placeholder] {
   display: none;
 }
+
+/* While the place-naming sheet lists Google's places, no map shows behind it (Google's terms: no Places content
+   near a non-Google map). The sheet sets the attribute from opening until it has finished closing. */
+html[data-hide-maps] [data-map] {
+  visibility: hidden;
+}

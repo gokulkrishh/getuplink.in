@@ -478,6 +478,8 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     <MapContext.Provider value={contextValue}>
       <div
         ref={containerRef}
+        // Hidden while the place-naming sheet lists Google's places (components/name-place.tsx).
+        data-map=""
         className={cn("relative h-full w-full", className)}
       >
         {(!isLoaded || loading) && <DefaultLoader />}

@@ -7,31 +7,28 @@ import { cn } from "cn"
 
 // Every dialog in Uplink is this: a sheet from the bottom on a phone, which a swipe down closes, and a
 // centred dialog from `sm` up. Styled like an iOS sheet: a card 8px in from the screen's edges, rounded 32px
-// on a phone (in px, so the phone's larger rem doesn't grow it), a shade lighter than the page in the dark theme,
-// with a 54 by 4px grab bar and no border. Buttons and fields
+// on a phone (in px, so the phone's larger rem doesn't grow it), the page's own colour as shadcn's dialog has it,
+// with a 54 by 4px grab bar and a faint ring. Buttons and fields
 // inside keep the app's own style. Base UI's Drawer (a Dialog with gestures), cut down from shadcn's
 // base-nova drawer to the one direction Uplink uses. A mouse drag inside Content selects text rather than swiping, so
 // on a desktop it behaves as a plain dialog.
 
-// The backdrop fades as the sheet is swiped away. `opaque` keeps it solid instead, for a sheet that must hide
-// the page behind it the whole time (the place-naming sheet hides the map while it lists Google's places).
-// Both are fixed and run 25vh past the top and bottom of the screen, so they cover it wherever the page is
+// The backdrop fades as the sheet is swiped away. Every sheet and dialog uses it, the welcome tour included.
+// It is fixed and run 25vh past the top and bottom of the screen, so they cover it wherever the page is
 // scrolled and behind a browser bar that slides away (iOS), rather than sitting at the top of the page.
 const COVER = "fixed inset-x-0 -top-[25vh] -bottom-[25vh] z-50"
 const BACKDROP = cn(
   COVER,
   "bg-black/50 opacity-[calc(1-var(--drawer-swipe-progress))] transition-opacity duration-450 ease-[cubic-bezier(0.32,0.72,0,1)] supports-backdrop-filter:backdrop-blur-xs data-starting-style:opacity-0 data-ending-style:opacity-0 data-ending-style:duration-[calc(var(--drawer-swipe-strength)*400ms)] data-swiping:duration-0 motion-reduce:transition-none sm:duration-150 sm:data-ending-style:duration-150",
 )
-// Solid, but not the sheet's own colour, so the sheet still reads as a card on top (iOS's grouped grey in
-// the light theme, the page's black in the dark one).
-const BACKDROP_OPAQUE = cn(COVER, "bg-[#f2f2f7] dark:bg-background")
 
 // Where the sheet sits: 8px off the bottom and sides of a phone, lifted above the keyboard while one is open
 // (the inset is set by Drawer.VirtualKeyboardProvider), and in the middle from sm up.
 const VIEWPORT = "fixed inset-0 z-50 flex items-end justify-center px-2 pb-[calc(0.5rem+var(--drawer-keyboard-inset,0px))] sm:items-center sm:p-4"
 
-// The sheet's surface: white on the light theme; iOS's raised grey on the dark one, so it stands off the page.
-const SURFACE = "bg-background dark:bg-[#1c1c1e]"
+// The sheet's surface: the page's own colour, as shadcn's dialog has it, with a faint ring so it stands off the
+// dimmed page in either theme.
+const SURFACE = "bg-background ring-1 ring-foreground/10"
 
 // Phone: pinned to the bottom, following the finger (--y), sliding in and out. From sm: centred, fading and
 // scaling a little, the swipe ignored (its transform is fixed). --y keeps the two from fighting over transform.
@@ -91,12 +88,11 @@ function DrawerContent({
   bodyClassName,
   title,
   close = true,
-  opaque = false,
   handle = true,
   keyboard = false,
   children,
   ...props
-}: DrawerPrimitive.Popup.Props & { bodyClassName?: string; title?: React.ReactNode; close?: boolean; opaque?: boolean; handle?: boolean; keyboard?: boolean }) {
+}: DrawerPrimitive.Popup.Props & { bodyClassName?: string; title?: React.ReactNode; close?: boolean; handle?: boolean; keyboard?: boolean }) {
   const [scrolled, setScrolled] = React.useState(false)
   const sheet = (
     <DrawerPrimitive.Viewport data-slot="drawer-viewport" className={VIEWPORT}>
@@ -111,13 +107,14 @@ function DrawerContent({
               data-scrolled={scrolled || undefined}
               className={cn(
                 "absolute inset-x-0 top-0 z-10 border-b border-transparent px-4 pt-5 pb-3 transition-colors duration-150 sm:px-5 sm:pt-4",
-                "bg-background/80 backdrop-blur-xl data-scrolled:border-border dark:bg-[#1c1c1e]/80",
+                "bg-background/80 backdrop-blur-xl data-scrolled:border-border",
               )}
             >
               {handle && <DrawerHandle className="absolute inset-x-0 top-0" />}
-              <div className="relative flex min-h-10 items-center justify-center px-12">
+              {/* The title on the left, as shadcn's dialog has it; the close button on the right. */}
+              <div className="relative flex min-h-10 items-center pr-12">
                 {close && <DrawerCloseButton className="absolute top-1/2 right-0 -translate-y-1/2" />}
-                <DrawerTitle className="truncate text-center text-base font-medium tracking-normal">{title}</DrawerTitle>
+                <DrawerTitle className="truncate text-left text-base font-medium tracking-normal">{title}</DrawerTitle>
               </div>
             </div>
           )}
@@ -136,7 +133,7 @@ function DrawerContent({
   )
   const portal = (
     <DrawerPrimitive.Portal data-slot="drawer-portal">
-      <DrawerPrimitive.Backdrop data-slot="drawer-backdrop" className={opaque ? BACKDROP_OPAQUE : BACKDROP} />
+      <DrawerPrimitive.Backdrop data-slot="drawer-backdrop" className={BACKDROP} />
       {sheet}
     </DrawerPrimitive.Portal>
   )
