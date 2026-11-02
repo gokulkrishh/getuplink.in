@@ -25,8 +25,8 @@ describe("WHATS_NEW", () => {
   test("Guest access and chart download are announced to every owner, the admin included; drafts to nobody", () => {
     expect(WHATS_NEW.map((e) => [e.id, e.audience])).toEqual([
       ["2026-11-02-name-place-icons", "draft"],
+      ["2026-11-02-drive-route-card", "draft"],
       ["2026-11-01-header-menu", "draft"],
-      ["2026-10-31-trip-route-names", "draft"],
       ["2026-10-31-swipe-to-close", "draft"],
       ["2026-10-31-software-tab", "draft"],
       ["2026-10-31-last-drive-line", "draft"],
