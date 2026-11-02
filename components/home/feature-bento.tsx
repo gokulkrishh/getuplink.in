@@ -41,9 +41,14 @@ const SPEND = [
   { where: "3 on ChargeMOD", amount: "₹742" },
 ];
 
-// Cars in the India rollout: one in focus on the new version, the rest as filler.
-const CARS = Array.from({ length: 18 }, (_, i) => i);
-const FOCUS = 6;
+// The India rollout: the newest version's share of cars over the last 14 days, and each version's share
+// now. Real versions; the shares are illustrative.
+const ADOPTION = [4, 9, 15, 21, 26, 30, 35, 39, 44, 48, 52, 56, 59, 62];
+const SHARES = [
+  { version: "2026.38.5.1", pct: 62 },
+  { version: "2026.38.3.1", pct: 27 },
+  { version: "2026.32.3", pct: 11 },
+];
 
 export function FeatureBento() {
   return (
@@ -69,18 +74,34 @@ export function FeatureBento() {
       </Tile>
 
       <Tile title="India rollout" body="Which version cars across India are getting.">
-        {/* Many of one: whole cells across, off the bottom. One car in focus across three cells, the only one with words, wide enough for its version at every width. */}
-        <div className="absolute inset-x-6 top-0 grid grid-cols-5 gap-2.5 sm:inset-x-8">
-          {CARS.map((i) =>
-            i === FOCUS ? (
-              <span key={i} data-rollout-focus className={`col-span-3 flex h-12 min-w-0 flex-col justify-center overflow-hidden rounded-lg px-3 ${SATELLITE}`}>
-                <span className="truncate font-mono text-xs leading-4">2026.38.5.1</span>
-                <span className="truncate text-xs leading-4 text-faint">Bengaluru</span>
-              </span>
-            ) : (
-              <span key={i} className="h-12 rounded-lg border bg-foreground/[0.04]" />
-            ),
-          )}
+        {/* The Rollout page in small: the newest version's share of cars, day by day, then each version's share. */}
+        <div className={`absolute top-0 right-6 bottom-0 left-6 rounded-t-xl p-4 text-sm sm:right-8 sm:left-8 ${SURFACE}`}>
+          <p className="flex items-baseline justify-between gap-3">
+            <span className="text-xs text-faint">Cars on 2026.38.5.1</span>
+            <span className="font-mono text-2xl font-medium tracking-tight tabular-nums">62%</span>
+          </p>
+          <div className="mt-3 flex h-20 items-end gap-1 border-b">
+            {ADOPTION.map((v, i) => (
+              <span key={i} className={cn("flex-1 rounded-t-sm", i === ADOPTION.length - 1 ? "bg-chart-accent" : "bg-chart-accent/45")} style={{ height: `${v}%` }} />
+            ))}
+          </div>
+          <p className="mt-1.5 flex justify-between text-xs text-faint tabular-nums">
+            <span>19 Oct</span>
+            <span>1 Nov</span>
+          </p>
+          <dl className="mt-4 space-y-2.5">
+            {SHARES.map((r) => (
+              <div key={r.version}>
+                <div className="flex items-baseline justify-between gap-3 text-xs">
+                  <dt className="font-mono">{r.version}</dt>
+                  <dd className="text-muted-foreground tabular-nums">{r.pct}%</dd>
+                </div>
+                <div className="mt-1 h-1.5 bg-muted">
+                  <div className="h-full bg-chart-accent" style={{ width: `${r.pct}%` }} />
+                </div>
+              </div>
+            ))}
+          </dl>
         </div>
       </Tile>
 
