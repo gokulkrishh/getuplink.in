@@ -9,7 +9,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { after } from "next/server";
 import { cache, type ReactNode, Suspense } from "react";
-import { cn } from "@/lib/utils";
 import { Header, PhoneNav } from "@/components/header";
 import { BackLink } from "@/components/stats/back-link";
 import { ChartCard } from "@/components/chart-card";
@@ -17,7 +16,7 @@ import { ClimateTrace } from "@/components/stats/climate-trace";
 import { DriveTrace, type Side } from "@/components/stats/drive-lanes";
 import { climateLine, summariseClimate } from "@/lib/drive-climate";
 import { type Figure, Figures } from "@/components/stats/figures";
-import { type MapFact, MapFacts, type MapPin, TripMap } from "@/components/stats/trip-map";
+import { type MapPin, TripMap } from "@/components/stats/trip-map";
 import { TripTimeline } from "@/components/stats/trip-timeline";
 import { formatCelsius, formatClock, formatDate, formatDuration, formatKm, formatKw, formatNumber, formatKwh, formatLevels, formatRangeKm, formatSpeed, withDayWord } from "@/lib/format";
 import { requireReader } from "@/lib/server/auth";
@@ -27,8 +26,8 @@ import { cachedPlaceNames, placeKey, placeNames } from "@/lib/server/place-names
 import { loadUserPlaces } from "@/lib/server/user-places";
 import { NamePlace } from "@/components/name-place";
 import { ROW_LINK, RowChevron } from "@/components/row-chevron";
-import { nameAction, type RouteNames, type ShownName, type SpotName, spotName, routeNames } from "@/lib/charge-names";
-import { GoogleMapsCredit } from "@/components/google-maps-credit";
+import { nameAction, type SpotName, spotName, routeNames } from "@/lib/charge-names";
+import { RouteCard, type RouteCardPlaces } from "@/components/stats/route-card";
 import { withGoogleNames } from "@/lib/server/google-place-names";
 import { isFlat, MIN_USUAL_DRIVES } from "@/lib/drive-verdict";
 import { describeDrive, type DriveView, type WordingField } from "@/lib/drive-facts";
@@ -79,16 +78,11 @@ function Drive({ detail, view, words, tipsBox, now, locations }: { detail: Drive
   const { trip } = detail;
   const drivingMs = trip.legs.reduce((sum, d) => sum + (d.end - d.start), 0);
   const stoppedMs = trip.end - trip.start - drivingMs;
-  // The time it took, with the driving and stopped parts under it when there were stops.
+  // How far and how long, for the card at the top; on a trip, the stops and the time stopped too.
   const took = formatDuration((trip.end - trip.start) / 1000);
-  const split = trip.stops > 0 ? `${formatDuration(drivingMs / 1000)} driving · ${trip.stops === 1 ? "1 stop" : `${trip.stops} stops`}, ${formatDuration(stoppedMs / 1000)}` : undefined;
-  const tiles: { label: string; value: string; note?: string; level?: [number, number] }[] = [
-    { label: "Distance", value: formatKm(trip.km) },
-    { label: "Took", value: took, note: split },
-    ...(trip.kwh !== null ? [{ label: "Energy used", value: formatKwh(trip.kwh) }] : []),
-    ...(trip.startLevel !== null && trip.endLevel !== null
-      ? [{ label: "Battery", value: formatLevels(trip.startLevel, trip.endLevel), level: [trip.startLevel, trip.endLevel] as [number, number] }]
-      : []),
+  const stops = trip.stops > 0 ? `${trip.stops === 1 ? "1 stop" : `${trip.stops} stops`}, ${formatDuration(stoppedMs / 1000)}` : null;
+  // The numbers the card at the top doesn't show (it has the distance, the time, the battery and the energy).
+  const tiles: { label: string; value: string; note?: string }[] = [
     ...(rangeUsedKm !== null ? [{ label: "Range used", value: formatRangeKm(rangeUsedKm) }] : []),
     ...(drivingMs > 0 ? [{ label: "Average speed", value: formatSpeed(detail.trip.km / (drivingMs / 3_600_000)), note: trip.stops ? "while driving" : undefined }] : []),
     ...(topKmh !== null ? [{ label: "Top speed", value: formatSpeed(topKmh) }] : []),
@@ -104,26 +98,40 @@ function Drive({ detail, view, words, tipsBox, now, locations }: { detail: Drive
   const line = (field: WordingField) => (words[field] ? <AiLine line={words[field]} /> : null);
   const what = trip.stops ? "trip" : "drive";
   const wentTiles = howItWent(view.facts);
-  // The route line under the title, when the trip has a start and an end to name.
+  // The route card under the title: places only when the trip has a start and an end to name.
   const routed = locations && pins.some((p) => p.kind === "start") && pins.some((p) => p.kind === "end");
+  const card: RouteCardBase = {
+    day: withDayWord(formatDate(trip.start), trip.start, now),
+    start: formatClock(trip.start),
+    end: formatClock(trip.end),
+    between: [formatKm(trip.km), took, stops].filter(Boolean).join(" · "),
+    // The battery, then the energy used, each when known.
+    figures: [
+      ...(trip.startLevel !== null && trip.endLevel !== null ? [{ label: "Battery", value: formatLevels(trip.startLevel, trip.endLevel) }] : []),
+      ...(trip.kwh !== null ? [{ label: "Energy used", value: formatKwh(trip.kwh) }] : []),
+    ],
+  };
   return (
     <>
       <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">{trip.stops ? "Trip" : "Drive"}</h1>
-      {routed && (
-        // Streams in after the page; the empty line holds its place, so nothing moves when it lands.
-        <Suspense fallback={<RouteLine route={null} pending />}>
-          <NamedRoute pins={pins} />
+      {/* Where and when it began and ended, as a card. The names stream in after the page; the card keeps its
+          height while they do, so nothing moves when they land. */}
+      {routed ? (
+        <Suspense fallback={<RouteCard {...card} places="pending" />}>
+          <NamedRoute pins={pins} card={card} />
         </Suspense>
+      ) : (
+        <RouteCard {...card} places="hidden" />
       )}
-      <p className={cn("mb-12 text-sm text-muted-foreground tabular-nums", routed ? "mt-1" : "mt-2")}>
-        {withDayWord(formatDate(trip.start), trip.start, now)} · {formatClock(trip.start)} to {formatClock(trip.end)}
-      </p>
       <div className="space-y-12">
-        {wentTiles.length > 0 && (
+        {(wentTiles.length > 0 || tiles.length > 0) && (
           <section className="space-y-3">
             <h2 className="text-lg font-medium tracking-heading">How this {what} went</h2>
-            {/* The figures from code; the AI adds only why, in one line, when it has written one. */}
+            {/* The figures from code; the AI adds only why, in one line, when it has written one. First the
+                energy use and hard moments against the usual, then the rest of the numbers the card above
+                doesn't show. */}
             <Figures figures={wentTiles} />
+            <Figures figures={tiles} label={trip.stops ? "this trip" : "this drive"} />
             {words.summary?.ai && <AiNotes title="Summary" notes={[{ text: words.summary.text }]} />}
             {/* What to do, from this drive against the usual (lib/drive-tips.ts); no box with nothing to say. */}
             {tipsBox}
@@ -138,34 +146,12 @@ function Drive({ detail, view, words, tipsBox, now, locations }: { detail: Drive
                 pins={mapPins(pins, trip.legs)}
                 speed={speed}
                 legs={trip.legs.map((d) => ({ start: d.start, end: d.end, note: [formatKm(d.km), batteryWords(d.startLevel, d.endLevel)].filter(Boolean).join(", ") }))}
-                below={
-                  // A key, though it's one node: TripMap draws it beside the map, and a server node that
-                  // arrives still streaming is checked as a list item there.
-                  <Suspense key="facts" fallback={<MapFacts facts={mapFacts(null, null, tiles)} />}>
-                    <NamedFacts pins={pins} tiles={tiles} />
-                  </Suspense>
-                }
               />
             ) : (
               <p className="text-sm text-muted-foreground">The map shows once your car starts sending its location.</p>
             )}
           </section>
         )}
-        {/* Every number in one set of tiles: easier to take in than a long list. */}
-        <section>
-          <Figures
-            figures={tiles.map(({ level, ...t }) => ({
-              ...t,
-              extra: level && (
-                <div className="relative h-1 bg-muted" aria-hidden="true">
-                  <div className="absolute inset-y-0 left-0 bg-muted-foreground/40" style={{ width: `${level[0]}%` }} />
-                  <div className="absolute inset-y-0 left-0 bg-chart-accent" style={{ width: `${level[1]}%` }} />
-                </div>
-              ),
-            }))}
-            label={trip.stops ? "this trip" : "this drive"}
-          />
-        </section>
         {trip.stops > 0 && (
           <section className="space-y-4">
             <h2 className="text-lg font-medium tracking-heading">Timeline</h2>
@@ -258,31 +244,6 @@ function mapPins(pins: MapPin[], legs: DriveDetail["trip"]["legs"]): MapPin[] {
   });
 }
 
-// The trip's facts under its map, from the tiles above, with where it began and ended when known. They sit
-// on the map's card, each end with its best name (see spotName), and "Name this place" or the pencil
-// beside it. Being part of the map, they never show a Google name: a Google-tagged end shows its area.
-// `canName`: false for a guest, who never gets "Name this place".
-function endFact(label: string, end: SpotName | null, canName: boolean): MapFact | null {
-  if (!end) return null;
-  const kind = canName ? nameAction(end) : null;
-  // Keyed for the same reason as the map's facts: MapFacts draws it beside the value.
-  const action = kind ? <NamePlace key="name" target={end.target} compact={kind === "rename"} /> : undefined;
-  if (!end.name && !action) return null;
-  return { label, value: end.name?.text ?? "Unknown", extra: action };
-}
-
-function mapFacts(from: SpotName | null, to: SpotName | null, tiles: { label: string; value: string }[], canName = false): MapFact[] {
-  const tile = (label: string) => tiles.find((t) => t.label === label)?.value;
-  const facts: (MapFact | null)[] = [
-    endFact("From", from, canName),
-    endFact("To", to, canName),
-    { label: "Distance", value: tile("Distance") ?? "" },
-    { label: "Took", value: tile("Took") ?? "" },
-    tile("Battery") ? { label: "Battery", value: tile("Battery")! } : null,
-  ];
-  return facts.filter((f): f is MapFact => f !== null && f.value !== "");
-}
-
 // The owner's names for places, in the same private cache as the page's data, and whether an unnamed area
 // may be looked up and named (never for a guest, who sees only the names already kept).
 async function loadTags(): Promise<{ tags: UserPlace[]; lookUp: boolean }> {
@@ -295,7 +256,7 @@ async function loadTags(): Promise<{ tags: UserPlace[]; lookUp: boolean }> {
 
 // Names for the start and end, best source first (see spotName): the owner's tag, a charging station, then
 // the area name Uplink keeps (looked up once each, see lib/server/place-names). One lookup per render (React
-// cache, keyed by the page's own pins), shared by the route line and the map's facts. Never a Google name.
+// cache, keyed by the page's own pins), shared by the card's names and its naming buttons. Never a Google name.
 const loadEnds = cache(async (pins: MapPin[]): Promise<{ from: SpotName | null; to: SpotName | null; lookUp: boolean }> => {
   const ends = [pins.find((p) => p.kind === "start"), pins.findLast((p) => p.kind === "end")];
   const { tags, lookUp } = await loadTags();
@@ -304,53 +265,27 @@ const loadEnds = cache(async (pins: MapPin[]): Promise<{ from: SpotName | null; 
   return { from: name(ends[0]), to: name(ends[1]), lookUp };
 });
 
-// The facts under the map, streamed in after it, so a slow lookup never holds the page.
-async function NamedFacts({ pins, tiles }: { pins: MapPin[]; tiles: { label: string; value: string }[] }) {
-  const { from, to, lookUp } = await loadEnds(pins);
-  return <MapFacts facts={mapFacts(from, to, tiles, lookUp)} />;
-}
+// The card's parts that don't wait on the place names.
+type RouteCardBase = Omit<Parameters<typeof RouteCard>[0], "places">;
 
 // Where the trip went, by the names a row shows: a picked Google place by its Google name, with "Google Maps"
-// beside it (Google's terms allow its names apart from a map; this line is above the page, not on the map's
-// card). One line from sm up, two on a phone (each end on its own, "to" before the second); a long name is
-// cut, its credit never. "Place not known" when either end has no name, as in the trips list. The same
-// height while it streams in (`pending`, empty), so nothing moves.
-function RouteLine({ route, pending = false }: { route: RouteNames | null; pending?: boolean }) {
-  const end = (n: ShownName) => (
-    <>
-      <span className="min-w-0 truncate">{n.text}</span>
-      {n.google && <GoogleMapsCredit className="shrink-0" />}
-    </>
-  );
-  const part = "flex min-w-0 items-baseline gap-x-1.5";
-  return (
-    <p className="mt-2 flex h-12 min-w-0 flex-col text-base leading-6 whitespace-nowrap sm:h-6 sm:flex-row sm:items-baseline sm:gap-x-1.5">
-      {pending ? null : !route ? (
-        <span className="text-muted-foreground">Place not known</span>
-      ) : "around" in route ? (
-        <span className={part}>
-          <span className="shrink-0 text-muted-foreground">Around</span>
-          {end(route.around)}
-        </span>
-      ) : (
-        <>
-          <span className={part}>{end(route.from)}</span>
-          <span className={part}>
-            <span className="shrink-0 text-muted-foreground">to</span>
-            {end(route.to)}
-          </span>
-        </>
-      )}
-    </p>
-  );
-}
-
-// The route's names: the map's ends (loadEnds), then each Google pick's live name, in order (never a guest's,
-// see withGoogleNames). Outside any shared cache: the lookup is no-store.
-async function NamedRoute({ pins }: { pins: MapPin[] }) {
-  const [{ from, to }, { owner }] = await Promise.all([loadEnds(pins), requireReader()]);
+// beside it (Google's terms allow its names apart from a map; this card is above the page, not on the map's
+// card). "Place not known" when either end has no name, as in the trips list; one name on both rows when the
+// trip began and ended at the same place. The ends come from the map's (loadEnds), then each Google pick's
+// live name, in order (never a guest's, see withGoogleNames). Outside any shared cache: the lookup is no-store.
+// Beside each end, "Name this place" for an end with no good name, or the pencil to rename the owner's own
+// name, never for a guest.
+async function NamedRoute({ pins, card }: { pins: MapPin[]; card: RouteCardBase }) {
+  const [{ from, to, lookUp }, { owner }] = await Promise.all([loadEnds(pins), requireReader()]);
+  const action = (end: SpotName | null) => {
+    const kind = end && lookUp ? nameAction(end) : null;
+    return end && kind ? <NamePlace target={end.target} compact={kind === "rename"} /> : undefined;
+  };
+  const actions = { from: action(from), to: action(to) };
   const [named0, named1] = from && to ? await withGoogleNames(owner, [from, to]).catch(() => [from, to]) : [from, to];
-  return <RouteLine route={routeNames(named0, named1)} />;
+  const route = routeNames(named0, named1);
+  const places: RouteCardPlaces = !route ? "unknown" : "around" in route ? { from: route.around, to: route.around } : route;
+  return <RouteCard {...card} places={places} actions={actions} />;
 }
 
 // Each leg of a trip as a row: when, how far, the energy and battery when known. Each opens its own page.

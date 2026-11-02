@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { matches, mergeSuggestions, nominatimName, parseAutocomplete, parseNearby, parseQuery, parseSessionToken, type Suggestion, typeWords } from "@/lib/place-suggestions";
+import { matches, mergeSuggestions, nominatimName, parseAutocomplete, parseNearby, parseQuery, parseSessionToken, placeIcon, type Suggestion, typeWords } from "@/lib/place-suggestions";
 import { stationsNear } from "@/lib/stations";
 
 // Google's replies in their real shape, with made-up places (test/fixtures).
@@ -97,4 +97,23 @@ test("stationsNear lists every station within 150 m, nearest first", () => {
     ["Nearest", "", "", 10.0001, 20],
   ];
   expect(stationsNear(10, 20, stations)).toEqual(["Nearest", "VoltPoint, Hillgrove"]);
+});
+
+// The round icon beside each choice in "Name this place": chargers get the bolt, the area a target, the rest a pin.
+describe("placeIcon", () => {
+  test("a charging station is a charger, from OpenStreetMap or from Google's nearby places", () => {
+    expect(placeIcon({ name: "Tata Power EZ Charge", detail: "Charging station", source: "station" })).toBe("charging");
+    // The shape Nearby Search answers with, parsed as the sheet gets it.
+    const [hub] = parseNearby({ places: [{ id: "ChIJ1", displayName: { text: "Brightwell Charging Hub" }, primaryType: "electric_vehicle_charging_station", types: ["electric_vehicle_charging_station", "point_of_interest"] }] });
+    expect(placeIcon(hub!)).toBe("charging");
+  });
+  test("the area is an area", () => {
+    expect(placeIcon({ name: "Koramangala, Bengaluru", detail: "Area", source: "area" })).toBe("area");
+  });
+  test("any other place is a place, including a search result whose detail is an address", () => {
+    const [mall] = parseNearby({ places: [{ id: "ChIJ2", displayName: { text: "Orchard Lane Market" }, primaryType: "shopping_mall" }] });
+    expect(placeIcon(mall!)).toBe("place");
+    const [found] = parseAutocomplete({ suggestions: [{ placePrediction: { placeId: "ChIJ3", structuredFormat: { mainText: { text: "Charging Lane Café" }, secondaryText: { text: "MG Road, Bengaluru" } } } }] });
+    expect(placeIcon(found!)).toBe("place");
+  });
 });

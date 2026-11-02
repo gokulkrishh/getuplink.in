@@ -6,6 +6,7 @@ import { PARKED_COLUMNS, PARKED_TABLE, TABLE_FRAME, TABLE_HEAD, TABLE_HEAD_ROW }
 import { Skeleton } from "@/components/ui/skeleton";
 import { AWAKE_DESCRIPTION } from "@/components/stats/awake-timeline";
 import { MORE_DETAIL } from "@/components/stats/more-detail";
+import { RouteCard } from "@/components/stats/route-card";
 
 // What each Stats topic shows while its data loads: its sections in order, each built from the section's own
 // layout classes (see components/skeleton.tsx), at the size of the period every Stats page opens on (Week). Rows and
@@ -340,14 +341,19 @@ export function DriveSkeleton() {
       <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]" aria-hidden="true">
         <Ph>Drive</Ph>
       </h1>
-      {/* The route line (RouteLine): two lines on a phone, one from sm up. */}
-      <p className="mt-2 flex h-12 flex-col text-base leading-6 sm:h-6 sm:flex-row sm:gap-x-1.5" aria-hidden="true">
-        <Ph>Koramangala</Ph>
-        <Ph>to Whitefield</Ph>
-      </p>
-      <p className="mt-1 mb-12 text-sm" aria-hidden="true">
-        <Ph>Today, 27 Oct 2026 · 8:18 AM to 8:52 AM</Ph>
-      </p>
+      {/* The route card (RouteCard), as the usual drive fills it. */}
+      <RouteCard
+        skeleton
+        day="Today, 27 Oct 2026"
+        start="8:18 AM"
+        end="8:52 AM"
+        between="14.0 km · 34 min"
+        places="pending"
+        figures={[
+          { label: "Battery", value: "65% to 62%" },
+          { label: "Energy used", value: "1.9 kWh" },
+        ]}
+      />
       <div className="space-y-12">
         <SkSection gap={3}>
           <p className="text-lg font-medium tracking-heading" aria-hidden="true">
@@ -359,42 +365,23 @@ export function DriveSkeleton() {
               { label: "Hard moments", value: "3", note: "3 brakes · your usual 3" },
             ]}
           />
+          <SkFigures
+            tiles={[
+              { label: "Range used", value: "12 km" },
+              { label: "Average speed", value: "26 km/h" },
+              { label: "Top speed", value: "51 km/h" },
+              { label: "Outside", value: "26.1 °C" },
+            ]}
+          />
         </SkSection>
         <SkSection>
           <p className="text-lg font-medium tracking-heading" aria-hidden="true">
             <Ph>Map</Ph>
           </p>
           <div className="space-y-3" aria-hidden="true">
-            <div>
-              <SkBlock className="h-96 rounded-lg max-sm:h-[342px]" />
-              <dl className="mt-2 grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-3 dark:border-transparent dark:bg-background">
-                {[
-                  ["From", "Whitefield, Bengaluru", false],
-                  ["To", "Koramangala, Bengaluru", true],
-                  ["Distance", "14.8 km", false],
-                  ["Took", "34 min", false],
-                  ["Battery", "65% to 62%", false],
-                ].map(([label, value, extra], k) => (
-                  <div key={String(label)} className={k === 4 ? "min-w-0 bg-background px-3 py-2 max-sm:col-span-2 sm:col-span-2 dark:bg-card" : "min-w-0 bg-background px-3 py-2 dark:bg-card"}>
-                    <dt className="text-xs">
-                      <Ph>{String(label)}</Ph>
-                    </dt>
-                    <dd className="text-sm text-balance">
-                      <span className="flex flex-wrap items-center gap-x-1.5">
-                        <Ph>{String(value)}</Ph>
-                        {extra && (
-                          <span className="text-xs max-sm:inline-block max-sm:py-[5px]">
-                            <Ph>Name this place</Ph>
-                          </span>
-                        )}
-                      </span>
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
+            <SkBlock className="h-96 rounded-lg max-sm:h-[342px]" />
             <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
-              {["Start 8:18 AM", "End 8:52 AM", "Route, fainter at the start"].map((text) => (
+              {["Start", "End", "Route, fainter at the start"].map((text) => (
                 <li key={text} className="flex items-center gap-1.5">
                   <span className="size-4 rounded-sm bg-muted" />
                   <Ph>{text}</Ph>
@@ -403,18 +390,6 @@ export function DriveSkeleton() {
             </ul>
           </div>
         </SkSection>
-        <SkFigures
-          tiles={[
-            { label: "Distance", value: "14.8 km" },
-            { label: "Took", value: "34 min" },
-            { label: "Energy used", value: "2.0 kWh" },
-            { label: "Battery", value: "65% to 62%", bar: true },
-            { label: "Range used", value: "12 km" },
-            { label: "Average speed", value: "26 km/h" },
-            { label: "Top speed", value: "51 km/h" },
-            { label: "Outside", value: "26.1 °C" },
-          ]}
-        />
         <div className="space-y-12">
           <SkTrace title="Speed" description="Top 51 km/h, mostly 31 to 46 km/h." legend="" />
           <SkTrace
