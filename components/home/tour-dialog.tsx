@@ -340,8 +340,8 @@ export function TourDialog({ steps, open, onOpenChange }: { steps: TourStep[]; o
       }}
     >
       <Drawer.Portal>
-        {/* Lighter than other dialogs: the tour's steps point at the page behind it. */}
-        <Drawer.Backdrop className={cn(BACKDROP, "bg-black/30")} />
+        {/* The same backdrop as every other dialog. */}
+        <Drawer.Backdrop className={BACKDROP} />
         <Drawer.Viewport className={VIEWPORT}>
           <Popup steps={steps} />
         </Drawer.Viewport>

@@ -23,6 +23,17 @@ describe("Google place names stay off the map and out of exports", () => {
     expect(named).not.toMatch(GOOGLE_NAME);
   });
 
+  // The naming sheet lists Google's places over the usual dimmed backdrop, so it hides every map on the page
+  // (each map's root carries data-map) from opening until it has finished closing.
+  test("the naming sheet hides every map while it is open", () => {
+    expect(read("components/ui/map.tsx")).toContain('data-map=""');
+    expect(read("app/globals.css")).toMatch(/html\[data-hide-maps\] \[data-map\] \{\s*visibility: hidden;/);
+    const sheet = read("components/name-place.tsx");
+    expect(sheet).toContain('toggleAttribute("data-hide-maps", on)');
+    expect(sheet).toContain("hideMaps(true)");
+    expect(sheet).toContain("onOpenChangeComplete={(now) => !now && hideMaps(false)}");
+  });
+
   test("the MCP export never reads a Google name", () => {
     expect(read("lib/server/mcp-data.ts")).not.toMatch(GOOGLE_NAME);
   });

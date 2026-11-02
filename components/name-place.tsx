@@ -34,6 +34,11 @@ function OptionIcon({ icon }: { icon: PlaceIcon | null }) {
 }
 type Remote = { q: string; results: Suggestion[]; unavailable: boolean };
 
+// Google's names must never show near one of Uplink's (non-Google) maps, so every map on the page is hidden
+// (`[data-map]`, see app/globals.css) from the moment the sheet opens until it has finished closing. The
+// page behind the sheet is otherwise dimmed like any other dialog's.
+const hideMaps = (on: boolean) => document.documentElement.toggleAttribute("data-hide-maps", on);
+
 // One Autocomplete session per search: a new token when the sheet opens and after each pick.
 function newToken(): string {
   if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -42,8 +47,8 @@ function newToken(): string {
 
 const squeeze = (s: string) => s.replace(/\s+/g, " ").trim();
 
-// "Name this place": a full-screen sheet over an opaque backdrop, so nothing from Google ever shows beside
-// our map (docs/place-names.md). One search field (an ARIA combobox) with the choices under it:
+// "Name this place": a full-screen sheet over the usual dimmed backdrop, with the page's maps hidden while it is
+// open, so nothing from Google ever shows beside our map (docs/place-names.md). One search field (an ARIA combobox) with the choices under it:
 // - Before typing: OpenStreetMap's stations and area, and Google's nearby places.
 // - While typing: the typed text as a name of its own, the nearby ones that match, and Google
 //   Autocomplete's places near the pin (app/api/places/autocomplete), after a pause and 2 characters.
@@ -76,13 +81,21 @@ export function NamePlace({ target, compact = false, className }: { target: Name
       setActive(-1);
       return;
     }
-    if (next) reset();
+    if (next) {
+      reset();
+      hideMaps(true);
+    }
     setOpen(next);
     if (next && loaded === null && !loading)
       startLoading(async () => {
         setLoaded(await placeSuggestions(target.lat, target.lng, target.tag?.id).catch(() => NO_SUGGESTIONS));
       });
   };
+
+  // A sheet that unmounts while open (a page change) gives the maps back.
+  useEffect(() => () => {
+    hideMaps(false);
+  }, []);
 
   const q = squeeze(query);
   const searchable = (loaded?.search ?? false) && parseQuery(q) !== null;
@@ -256,7 +269,7 @@ export function NamePlace({ target, compact = false, className }: { target: Name
 
   return (
     // A tap outside doesn't close it, so a half-typed search isn't lost. The ×, Esc and a swipe down do.
-    <Drawer open={open} onOpenChange={opened} disablePointerDismissal>
+    <Drawer open={open} onOpenChange={opened} onOpenChangeComplete={(now) => !now && hideMaps(false)} disablePointerDismissal>
       <DrawerTrigger
         aria-label={compact ? title : undefined}
         className={cn(
@@ -268,11 +281,10 @@ export function NamePlace({ target, compact = false, className }: { target: Name
       >
         {compact ? <Pencil className="size-3.5" aria-hidden="true" /> : "Name this place"}
       </DrawerTrigger>
-      {/* Opaque: the page, and its map, are hidden while the sheet is open, even mid-swipe. One height
+      {/* The page's maps stay hidden while the sheet is open, even mid-swipe (hideMaps). One height
           whatever the list holds, so the sheet doesn't jump as the choices change under the search. */}
       <DrawerContent
         title={title}
-        opaque
         keyboard
         initialFocus={input}
         className="h-[calc(100dvh-1.5rem)] sm:h-[min(44rem,calc(100dvh-4rem))] sm:w-md"
@@ -289,7 +301,7 @@ export function NamePlace({ target, compact = false, className }: { target: Name
 
           <div className="space-y-1.5">
             <div className="relative">
-              <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-faint" aria-hidden="true" />
+              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-faint" aria-hidden="true" />
               <Input
                 ref={input}
                 type="text"
@@ -314,8 +326,7 @@ export function NamePlace({ target, compact = false, className }: { target: Name
                 onKeyDown={onKeyDown}
                 readOnly={saving}
                 aria-busy={saving}
-                // Filled and taller, like a ride app's destination field. The ring still shows on focus.
-                className="h-12 rounded-xl border-transparent bg-foreground/[0.06] pr-10 pl-10 max-sm:h-12 md:text-base dark:bg-white/[0.08]"
+                className="pr-9 pl-8"
               />
               {query !== "" && (
                 <button
@@ -326,7 +337,7 @@ export function NamePlace({ target, compact = false, className }: { target: Name
                     setActive(-1);
                     input.current?.focus();
                   }}
-                  className="absolute top-1/2 right-2 inline-flex size-8 -translate-y-1/2 items-center justify-center text-faint transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                  className="absolute top-1/2 right-1 inline-flex size-8 -translate-y-1/2 items-center justify-center text-faint transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
                 >
                   <X className="size-4" aria-hidden="true" />
                 </button>
