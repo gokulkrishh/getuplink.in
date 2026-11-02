@@ -27,6 +27,7 @@ export function RouteCard({
   between,
   places,
   figures,
+  actions,
   skeleton = false,
 }: {
   // "Today, 2 Nov 2026"
@@ -39,6 +40,9 @@ export function RouteCard({
   places: RouteCardPlaces;
   // Battery and energy used, when known; none leaves out the line and the row under it.
   figures: { label: string; value: string }[];
+  // "Name this place" or the rename pencil (NamePlace) beside each place. Left out for a guest, and while
+  // the names stream in.
+  actions?: { from?: ReactNode; to?: ReactNode };
   skeleton?: boolean;
 }) {
   const ph = (node: ReactNode) => (skeleton ? <Ph>{node}</Ph> : node);
@@ -65,7 +69,9 @@ export function RouteCard({
       <span className="flex h-6 shrink-0 items-center">{mark}</span>
       <span className="sr-only">{side === "from" ? "From" : "To"}</span>
       <div className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:gap-3">
-        <p className="flex min-w-0 flex-1 items-baseline gap-x-1.5 text-base leading-6 whitespace-nowrap">{skeleton ? <Ph>{side === "from" ? "Koramangala" : "Whitefield"}</Ph> : place(side)}</p>
+        <p className="flex min-w-0 flex-1 items-baseline gap-x-1.5 text-base leading-6 whitespace-nowrap">{skeleton ? <Ph>{side === "from" ? "Koramangala" : "Whitefield"}</Ph> : place(side)}
+          {actions?.[side] && <span className="self-center">{actions[side]}</span>}
+        </p>
         <p className="shrink-0 text-sm leading-5 text-muted-foreground tabular-nums">{ph(time)}</p>
       </div>
     </div>

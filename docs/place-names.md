@@ -18,7 +18,7 @@ The car's own Home, Work and Favourite flags aren't names. They sit beside the n
 
 `SpotName` carries two names, so Google content can't reach a map by accident:
 
-- `name`: never Google's. A typed tag, or, for a Google tag, whatever comes next in the order above (usually the area). Map pins, their labels and tooltips, the trip map's facts card, charts, the MCP export and the curves' labels read only this, through `mapName`.
+- `name`: never Google's. A typed tag, or, for a Google tag, whatever comes next in the order above (usually the area). Map pins, their labels and tooltips, charts, the MCP export and the curves' labels read only this, through `mapName`.
 - `google`: a picked Google place's name, fetched live (`withGoogleNames`), or null. Only rows, lists, titles and the sheet read it (`shownName`), each with "Google Maps" beside it.
 
 Where `google` shows: the Places table on Driving, the charging list on Charging, the parked stretches on Battery, the day page's charges, a charge's own title, and a trip's route line under its title ("Home to Eswaran Maligai Store", one line, a long name cut but never its credit, only when both ends are known, never for a guest). Where it never shows: any MapLibre/CARTO map, its pins and tooltips, the facts card under a trip's map (it is part of the map), chart labels, the MCP export, and the home page's charging list (the home page refreshes every minute while the car is awake or charging, which would make a Place Details call each time). Those show the next name, usually the area.
@@ -68,7 +68,7 @@ The Autocomplete (New) session pricing page says a session that never ends in a 
 
 When a page shows a Google-tagged place in a row or title:
 
-- **Place Details (New)**, `GET places/{id}`, field mask `displayName` only, `cache: "no-store"` (`lib/server/google-place-names.ts`). One call per place per render: React's `cache()` shares the answer within one render and nothing else holds it. At most 20 places a page; past that a row shows its safe name. The MCP export and the trip map's facts card never ask.
+- **Place Details (New)**, `GET places/{id}`, field mask `displayName` only, `cache: "no-store"` (`lib/server/google-place-names.ts`). One call per place per render: React's `cache()` shares the answer within one render and nothing else holds it. At most 20 places a page; past that a row shows its safe name. The MCP export never asks. A trip's page names its two ends in the card at its top (with a pencil beside each to name or rename it), above the page and apart from its map, so it shows a picked Google place by its Google name with the "Google Maps" credit.
 
 Each call that answers is counted in `google_usage` (UTC month, SKU: `nearbySearchPro`, `autocomplete`, `placeDetailsPro`; older months may also have `geocoding`, from before the sheet stopped asking for the street address) by `increment_google_usage`. A failed call isn't counted. Admin > Costs reads the month's counts (`googleUsage` in `lib/server/costs/usage.ts`) and prices them with `lib/costs.ts` `GOOGLE_SKUS`. Before the first migration nothing is counted and the line reads "Not tracked yet".
 
