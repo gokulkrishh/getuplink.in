@@ -40,7 +40,7 @@ export function RouteCard({
   places: RouteCardPlaces;
   // Battery and energy used, when known; none leaves out the line and the row under it.
   figures: { label: string; value: string }[];
-  // The pencil that names or renames each end (NamePlace), beside its place. Left out for a guest, and while
+  // "Name this place" or the rename pencil (NamePlace) beside each place. Left out for a guest, and while
   // the names stream in.
   actions?: { from?: ReactNode; to?: ReactNode };
   skeleton?: boolean;

@@ -273,10 +273,14 @@ type RouteCardBase = Omit<Parameters<typeof RouteCard>[0], "places">;
 // card). "Place not known" when either end has no name, as in the trips list; one name on both rows when the
 // trip began and ended at the same place. The ends come from the map's (loadEnds), then each Google pick's
 // live name, in order (never a guest's, see withGoogleNames). Outside any shared cache: the lookup is no-store.
-// Beside each end, the pencil that names it (or renames the owner's own name), never for a guest.
+// Beside each end, "Name this place" for an end with no good name, or the pencil to rename the owner's own
+// name, never for a guest.
 async function NamedRoute({ pins, card }: { pins: MapPin[]; card: RouteCardBase }) {
   const [{ from, to, lookUp }, { owner }] = await Promise.all([loadEnds(pins), requireReader()]);
-  const action = (end: SpotName | null) => (end && lookUp && nameAction(end) ? <NamePlace target={end.target} compact /> : undefined);
+  const action = (end: SpotName | null) => {
+    const kind = end && lookUp ? nameAction(end) : null;
+    return end && kind ? <NamePlace target={end.target} compact={kind === "rename"} /> : undefined;
+  };
   const actions = { from: action(from), to: action(to) };
   const [named0, named1] = from && to ? await withGoogleNames(owner, [from, to]).catch(() => [from, to]) : [from, to];
   const route = routeNames(named0, named1);

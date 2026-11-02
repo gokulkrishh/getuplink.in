@@ -30,7 +30,6 @@ export type MapPoint = { lat: number; lng: number; t: number };
 export type MapPin = MapPoint & { kind: "start" | "stop" | "end" | "place" | "charge"; label: string; size?: number; note?: string; name?: string };
 // A leg of a trip, for a chip at its middle: its start and end, and a line saying what it was.
 export type MapLeg = { start: number; end: number; note: string };
-// extra: a control beside the value, such as "Name this place" by the trip's start.
 
 export const NEAR_M = 60; // pins closer than this share one marker (a round trip's start and end)
 // A longer gap between route points starts a new line, so no jump is drawn: between legs and trips on a
@@ -439,8 +438,7 @@ function Swatch({ children, text }: { children: ReactNode; text: string }) {
 // A route as a line (a trip, a day, or everywhere visited), with pins: a trip's start, stops and end, or
 // places such as chargers. mapcn (MapLibre) with CARTO's free vector basemaps, light or dark with the page.
 // With a start or end pin it's a journey: A and B badges, the line fading in the way the car went, and
-// the route tells its time and speed on hover. `legend`
-// explains pin sizes on a map of places.
+// the route tells its time and speed on hover. `legend` explains pin sizes on a map of places.
 export function TripMap({
   route = [],
   pins,
