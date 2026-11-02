@@ -18,6 +18,9 @@ const text = (v: unknown): string | null => (typeof v === "string" && v.trim() ?
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
 const CHARGING = "electric_vehicle_charging_station";
+// The detail under a charger, wherever it comes from. placeIcon reads it to give chargers the bolt, so every
+// source writes this one constant.
+export const CHARGING_DETAIL = "Charging station";
 
 // "shopping_mall" reads "Shopping mall".
 export function typeWords(type: unknown): string | null {
@@ -39,9 +42,18 @@ export function parseNearby(body: unknown): Suggestion[] {
     const id = text(p.id);
     if (!name || !id) continue;
     const charging = p.primaryType === CHARGING || (Array.isArray(p.types) && p.types.includes(CHARGING));
-    out.push({ name, detail: charging ? "Charging station" : typeWords(p.primaryType), source: "google", placeId: id, charging });
+    out.push({ name, detail: charging ? CHARGING_DETAIL : typeWords(p.primaryType), source: "google", placeId: id, charging });
   }
   return [...out.filter((p) => p.charging), ...out.filter((p) => !p.charging)].map(({ charging: _, ...s }) => s);
+}
+
+// The round icon beside a choice in "Name this place": a charger (an OpenStreetMap station, or a place
+// Nearby Search called a charging station), the area, or any other place. A search result's detail is its
+// address, so it is a place, whatever its name says.
+export type PlaceIcon = "charging" | "area" | "place";
+export function placeIcon(s: Suggestion): PlaceIcon {
+  if (s.source === "station" || (s.source === "google" && s.detail === CHARGING_DETAIL)) return "charging";
+  return s.source === "area" ? "area" : "place";
 }
 
 // Places API (New) Autocomplete: suggestions[].placePrediction with placeId and structuredFormat
