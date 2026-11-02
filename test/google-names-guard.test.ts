@@ -13,15 +13,15 @@ describe("Google place names stay off the map and out of exports", () => {
     for (const path of ["components/stats/trip-map.tsx", "components/ui/map.tsx", "components/stats/charging-extras.tsx"]) expect(read(path)).not.toMatch(GOOGLE_NAME);
   });
 
-  // The trip page shows a Google name in its route line, above the page; the From and To under its map are
+  // The trip page shows a Google name in its route card, above the page; the From and To under its map are
   // part of the map and keep the safe name.
   test("the facts under a trip's map never read a Google name", () => {
     const page = read("app/stats/driving/[start]/page.tsx");
     const facts = page.slice(page.indexOf("function endFact("), page.indexOf("// The owner's names for places"));
     expect(facts).toContain("end.name?.text");
     expect(facts).not.toMatch(GOOGLE_NAME);
-    // The ends' names (loadEnds) and the facts built from them, up to the route line, which alone fills in Google.
-    const named = page.slice(page.indexOf("const loadEnds = cache("), page.indexOf("function RouteLine("));
+    // The ends' names (loadEnds) and the facts built from them, up to the route card, which alone fills in Google.
+    const named = page.slice(page.indexOf("const loadEnds = cache("), page.indexOf("// The card's parts that don't wait on the place names."));
     expect(named).toContain("async function NamedFacts(");
     expect(named).not.toMatch(GOOGLE_NAME);
   });
