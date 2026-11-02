@@ -26,7 +26,7 @@ import { cachedPlaceNames, placeKey, placeNames } from "@/lib/server/place-names
 import { loadUserPlaces } from "@/lib/server/user-places";
 import { NamePlace } from "@/components/name-place";
 import { ROW_LINK, RowChevron } from "@/components/row-chevron";
-import { nameAction, type SpotName, spotName, routeNames } from "@/lib/charge-names";
+import { nameAction, shownName, type SpotName, spotName } from "@/lib/charge-names";
 import { RouteCard, type RouteCardPlaces } from "@/components/stats/route-card";
 import { withGoogleNames } from "@/lib/server/google-place-names";
 import { isFlat, MIN_USUAL_DRIVES } from "@/lib/drive-verdict";
@@ -270,7 +270,7 @@ type RouteCardBase = Omit<Parameters<typeof RouteCard>[0], "places">;
 
 // Where the trip went, by the names a row shows: a picked Google place by its Google name, with "Google Maps"
 // beside it (Google's terms allow its names apart from a map; this card is above the page, not on the map's
-// card). "Place not known" when either end has no name, as in the trips list; one name on both rows when the
+// card). "Place not known" when either end has no name, as in the trips list; the same name on both rows when the
 // trip began and ended at the same place. The ends come from the map's (loadEnds), then each Google pick's
 // live name, in order (never a guest's, see withGoogleNames). Outside any shared cache: the lookup is no-store.
 // Beside each end, "Name this place" for an end with no good name, or the pencil to rename the owner's own
@@ -283,8 +283,9 @@ async function NamedRoute({ pins, card }: { pins: MapPin[]; card: RouteCardBase 
   };
   const actions = { from: action(from), to: action(to) };
   const [named0, named1] = from && to ? await withGoogleNames(owner, [from, to]).catch(() => [from, to]) : [from, to];
-  const route = routeNames(named0, named1);
-  const places: RouteCardPlaces = !route ? "unknown" : "around" in route ? { from: route.around, to: route.around } : route;
+  // Each end's whole name, with its city ("Koramangala, Bengaluru"), cut by the card only when too long.
+  const [shown0, shown1] = [shownName(named0), shownName(named1)];
+  const places: RouteCardPlaces = shown0 && shown1 ? { from: shown0, to: shown1 } : "unknown";
   return <RouteCard {...card} places={places} actions={actions} />;
 }
 
