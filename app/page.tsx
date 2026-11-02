@@ -336,7 +336,7 @@ function TotalsSkeleton() {
 
 export default function Page() {
   return (
-    <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
+    <div className="mx-auto w-full max-w-2xl px-5 pt-6 lg:max-w-5xl lg:px-8 pb-12 sm:pt-8 sm:pb-20">
       <Header current="home" />
       <h1 className="sr-only">Your car</h1>
       <Suspense fallback={<HomeSkeleton />}>

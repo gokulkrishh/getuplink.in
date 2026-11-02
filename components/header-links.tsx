@@ -52,7 +52,8 @@ export function HeaderLinksShell({ current }: { current?: Section }) {
   return <Links current={current} href={SHELL_HREF} />;
 }
 
-// The tapped link is marked at once (optimistic), so a page that is slow to load still shows which one was
+// The current page's link sits on a soft grey fill, like the period switch's picked option, so it reads at a
+// glance; hover shows a lighter one. The tapped link is marked at once (optimistic), so a page that is slow to load still shows which one was
 // picked; the mark settles on the page that actually commits, as TabLinks does.
 // prefetch={true}: with Partial Prefetching on (next.config.ts) that is the App Shell plus the page's cached
 // data for this link's URL (its period), which the shared App Shell can't hold: the pages' private data
@@ -67,7 +68,10 @@ function Links({ current, href }: { current?: Section; href: Href }) {
       prefetch={true}
       aria-current={shown === key ? "page" : undefined}
       onNavigate={() => startTransition(() => setShown(key))}
-      className={cn("tap-target hover:text-foreground", shown === key && "text-foreground")}
+      className={cn(
+        "tap-target rounded-md px-2.5 py-1 transition-colors duration-150 hover:bg-secondary/60 hover:text-foreground motion-reduce:transition-none",
+        shown === key && "bg-secondary text-foreground hover:bg-secondary",
+      )}
     >
       {label}
     </Link>

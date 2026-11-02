@@ -60,6 +60,7 @@
   --color-border: var(--border);
   --color-destructive: var(--destructive);
   --color-positive: var(--positive);
+  --color-warning: var(--warning);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -101,9 +102,10 @@
   --accent-foreground: #171717;
   --destructive: #c71626;
   --positive: #15803d;
+  --warning: #c27803; /* having problems: amber, between working and down */
   --border: #e6e6e6;
   --input: #dbdbdb;
-  --ring: #737373;
+  --ring: #0068d6; /* focus: Geist's blue, the one colour the chrome uses, so the ring stands out on grey */
   --chart-1: #c0423f;
   --chart-2: #b5830b;
   --chart-3: #1f9484;
@@ -137,9 +139,10 @@
   --accent-foreground: #f3f3f3;
   --destructive: #ff6362;
   --positive: #4ade80;
+  --warning: #f2a20d;
   --border: #1f1f1f;
   --input: #2a2a2a;
-  --ring: #8a8a8a;
+  --ring: #52a8ff;
   --chart-1: #e2677e;
   --chart-2: #b0900f;
   --chart-3: #2a9fb0;
@@ -172,9 +175,10 @@
     --accent-foreground: #f3f3f3;
     --destructive: #ff6362;
     --positive: #4ade80;
+  --warning: #f2a20d;
     --border: #1f1f1f;
     --input: #2a2a2a;
-    --ring: #8a8a8a;
+    --ring: #52a8ff;
     --chart-1: #e2677e;
     --chart-2: #b0900f;
     --chart-3: #2a9fb0;
@@ -458,6 +462,20 @@ html .maplibregl-map {
       min-width: 2.75rem;
       min-height: 2.75rem;
     }
+  }
+}
+/* A header that stays at the top while the page scrolls (components/header.tsx from sm up, and the home page).
+   Its background reaches both edges of the window without making the page wider: a border image painted
+   out to the sides (outset, so it never adds width) over a border-coloured shadow spread just as far, all
+   clipped to the header's own height. Once the page has scrolled (data-scrolled on <html>,
+   components/header-scroll.tsx) the clip opens by 1px at the bottom, showing that shadow's edge below the
+   background as a hairline. Nothing moves either way. */
+@utility sticky-bar {
+  border-image: conic-gradient(var(--background) 0 0) fill 0 / / 0 100vmax;
+  box-shadow: 0 1px 0 100vmax var(--border);
+  clip-path: inset(0 -100vmax);
+  :where(html[data-scrolled]) & {
+    clip-path: inset(0 -100vmax -1px);
   }
 }
 /* AI-written text: one light sweep across it when the page shows it, so it's noticed as AI's, then still.

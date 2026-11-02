@@ -261,7 +261,7 @@ function UpdatesSkeleton() {
 
 export default function Page({ searchParams }: PageProps<"/updates">) {
   return (
-    <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
+    <div className="mx-auto w-full max-w-2xl px-5 pt-6 lg:max-w-5xl lg:px-8 pb-12 sm:pt-8 sm:pb-20">
       <Header current="car" />
       <CarTabs value="updates" />
       <Suspense fallback={<UpdatesSkeleton />}>

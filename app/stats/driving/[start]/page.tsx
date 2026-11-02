@@ -390,7 +390,7 @@ async function DriveLoader({ params, searchParams }: Pick<PageProps<"/stats/driv
 
 export default function Page({ params, searchParams }: PageProps<"/stats/driving/[start]">) {
   return (
-    <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
+    <div className="mx-auto w-full max-w-2xl px-5 pt-6 lg:max-w-5xl lg:px-8 pb-12 sm:pt-8 sm:pb-20">
       <Header current="driving" />
       <BackLink list="/stats/driving" label="Back to Trips" />
       <Suspense fallback={<DriveSkeleton />}>

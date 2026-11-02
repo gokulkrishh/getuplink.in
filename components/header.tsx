@@ -8,6 +8,7 @@ import { Suspense } from "react";
 import { AvatarBlob } from "@/components/avatar-blob";
 import { FeedbackButton } from "@/components/feedback-button";
 import { FeedbackMenuItem } from "@/components/feedback-menu-item";
+import { HeaderScroll } from "@/components/header-scroll";
 import { HeaderLinks, HeaderLinksShell, PhoneCarLink, PhoneNavLinks, PhoneNavShell, type Section } from "@/components/header-links";
 import { Logo } from "@/components/logo";
 import { SignOutForm } from "@/components/sign-out-form";
@@ -259,7 +260,12 @@ export function Header({ current, setup = true, onSetup = false }: { current?: S
     <Suspense>
       <ViewerBanner />
     </Suspense>
-    <header className="relative mb-16 flex items-center justify-between gap-4 text-sm">
+    {/* From sm up the header stays at the top as the page scrolls, with a hairline under it once the page
+        has moved (sticky-bar in globals.css). Its 12px of padding each way is taken back from the margin
+        above, so at the top of the page it sits exactly where it did. On a phone the page links float at
+        the bottom instead, so the header scrolls away. */}
+    <HeaderScroll />
+    <header className="relative mb-16 flex items-center justify-between gap-4 text-sm sm:sticky-bar sm:sticky sm:top-0 sm:z-40 sm:-mt-3 sm:mb-13 sm:py-3">
       <Link href="/" prefetch={true} className="tap-target flex shrink-0 items-center gap-2.5 font-medium">
         <Logo className="size-5" />
         Uplink
@@ -268,7 +274,7 @@ export function Header({ current, setup = true, onSetup = false }: { current?: S
         {/* The page links, from sm up. On a phone they float at the bottom instead (PhoneNav), so
             there is only ever one "Main" nav. */}
         {!onSetup && (
-          <nav aria-label="Main" className="flex items-center gap-4 max-sm:hidden">
+          <nav aria-label="Main" className="flex items-center gap-1 max-sm:hidden">
             <Suspense fallback={<HeaderLinksShell current={current} />}>
               <HeaderLinks current={current} />
             </Suspense>

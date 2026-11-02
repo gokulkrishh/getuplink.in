@@ -51,6 +51,18 @@ function Group({ title, children }: { title: React.ReactNode; children: React.Re
   );
 }
 
+// The two deletes, last and on their own, in a thin red frame, so nothing that can't be undone sits beside
+// everyday settings.
+function DeleteGroup({ title, note, children }: { title: React.ReactNode; note: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="mt-10">
+      <h2 className="text-lg font-medium tracking-heading">{title}</h2>
+      <p className="mt-0.5 mb-3 text-sm text-muted-foreground">{note}</p>
+      <div className="divide-y rounded-lg border border-destructive/40 px-4">{children}</div>
+    </section>
+  );
+}
+
 // Session check plus data in one browser-only private cache, so header links can prefetch it (see app/page.tsx).
 async function loadSettings(): Promise<{
   account: AccountInfo;
@@ -164,9 +176,12 @@ async function Settings() {
           control={<ShareSwitch on={sharing?.on ?? false} />}
         />
         {viewLinks !== undefined && <ViewLinks links={viewLinks} now={now} />}
+      </Group>
+
+      <DeleteGroup title="Delete" note="These can't be undone.">
         <DeleteMyData />
         <DeleteAccount />
-      </Group>
+      </DeleteGroup>
 
       <ConnectYourAi>
         <McpConnector connectors={connectors} now={now} />
@@ -266,9 +281,11 @@ function SettingsSkeleton() {
             }
           />,
           <GuestSkeleton key="guest" />,
-          <Row key="data" title={<Ph>Delete my data</Ph>} description={<p>{text("Removes your car data and disconnects Tesla. You can sign in again.")}</p>} control={button} />,
-          <Row key="acct" title={<Ph>Delete account</Ph>} description={<p>{text("Removes everything, including your Uplink account.")}</p>} control={button} />,
         )}
+        <DeleteGroup title={<Ph>Delete</Ph>} note={<Ph>These can&apos;t be undone.</Ph>}>
+          <Row title={<Ph>Delete my data</Ph>} description={<p>{text("Removes your car data and disconnects Tesla. You can sign in again.")}</p>} control={button} />
+          <Row title={<Ph>Delete account</Ph>} description={<p>{text("Removes everything, including your Uplink account.")}</p>} control={button} />
+        </DeleteGroup>
         <div className="mt-10 flex items-center justify-between gap-4 pb-2">
           <div>
             <p className="text-lg"><Ph>Connect your AI</Ph></p>
