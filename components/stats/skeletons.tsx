@@ -6,6 +6,7 @@ import { PARKED_COLUMNS, PARKED_TABLE, TABLE_FRAME, TABLE_HEAD, TABLE_HEAD_ROW }
 import { Skeleton } from "@/components/ui/skeleton";
 import { AWAKE_DESCRIPTION } from "@/components/stats/awake-timeline";
 import { MORE_DETAIL } from "@/components/stats/more-detail";
+import { RouteCard } from "@/components/stats/route-card";
 
 // What each Stats topic shows while its data loads: its sections in order, each built from the section's own
 // layout classes (see components/skeleton.tsx), at the size of the period every Stats page opens on (Week). Rows and
@@ -340,14 +341,19 @@ export function DriveSkeleton() {
       <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]" aria-hidden="true">
         <Ph>Drive</Ph>
       </h1>
-      {/* The route line (RouteLine): two lines on a phone, one from sm up. */}
-      <p className="mt-2 flex h-12 flex-col text-base leading-6 sm:h-6 sm:flex-row sm:gap-x-1.5" aria-hidden="true">
-        <Ph>Koramangala</Ph>
-        <Ph>to Whitefield</Ph>
-      </p>
-      <p className="mt-1 mb-12 text-sm" aria-hidden="true">
-        <Ph>Today, 27 Oct 2026 · 8:18 AM to 8:52 AM</Ph>
-      </p>
+      {/* The route card (RouteCard), as the usual drive fills it. */}
+      <RouteCard
+        skeleton
+        day="Today, 27 Oct 2026"
+        start="8:18 AM"
+        end="8:52 AM"
+        between="14.0 km · 34 min"
+        places="pending"
+        figures={[
+          { label: "Battery", value: "65% to 62%" },
+          { label: "Energy used", value: "1.9 kWh" },
+        ]}
+      />
       <div className="space-y-12">
         <SkSection gap={3}>
           <p className="text-lg font-medium tracking-heading" aria-hidden="true">
