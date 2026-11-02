@@ -1,6 +1,7 @@
 import { chargeStops, driveStops } from "@/lib/bar-stops";
 import { cacheLife, cacheTag } from "next/cache";
 
+import { cn } from "@/lib/utils";
 import { Suspense } from "react";
 import { SyncStreamSessions, SyncStreamVersions } from "@/components/background-sync";
 import { Header, PhoneNav } from "@/components/header";
@@ -126,7 +127,7 @@ async function Totals({ home, now, card, viewer }: { home: Ready<HomeNow> & Read
       <section aria-label="Totals" className="space-y-6">
         {/* A greeting by the time of day in India, then the week it covers: the period, named once. */}
         <div className="space-y-1">
-          <h2 className="text-xl font-medium tracking-heading">{greeting(now)}</h2>
+          <h2 className="text-2xl font-medium tracking-[-0.03em] sm:text-3xl">{greeting(now)}</h2>
           {/* A car with no history has no week to name: its card says it is getting started. */}
           {!hasNoHistory(figures.since, chargingSince, home.lastReadingAt) && (
             <p className="text-sm text-muted-foreground">
@@ -145,10 +146,15 @@ async function Totals({ home, now, card, viewer }: { home: Ready<HomeNow> & Read
             on the week (a quiet week has none, so no box). The share card is always mounted, so its "You're
             sharing" note outlives the refresh that drops the card once sharing is on. */}
         {!viewer && <ShareNudgeCard show={prompt === "share"} />}
-        {prompt === "tips" && tipsBox}
       </section>
-      {/* The week in one picture: the level drops as the car drives and rises as it charges. The rest is a tap away on Stats. */}
-      <ChargeLevelChart level={window.level} now={now} frame={frame} />
+      {/* The week in one picture, in a card: the level drops as the car drives and rises as it charges. From lg
+          up the week's tips sit beside it, so the two read as one row of the dashboard. */}
+      <div className={cn("grid items-start gap-4", prompt === "tips" && "lg:grid-cols-3")}>
+        <div className={cn("min-w-0 sm:rounded-xl sm:border sm:bg-background sm:p-5 sm:shadow-xs lg:p-6 dark:sm:bg-card dark:sm:shadow-none", prompt === "tips" && "lg:col-span-2")}>
+          <ChargeLevelChart level={window.level} now={now} frame={frame} />
+        </div>
+        {prompt === "tips" && <div className="min-w-0">{tipsBox}</div>}
+      </div>
     </div>
   );
 }
@@ -279,12 +285,15 @@ function HomeSkeleton() {
   );
 }
 
+// The page's card: a frame from sm up, as NowStrip's and the chart's.
+const CARD = "sm:rounded-xl sm:border sm:bg-background sm:p-5 sm:shadow-xs lg:p-6 dark:sm:bg-card dark:sm:shadow-none";
+
 const line = "rounded-md bg-muted text-transparent motion-safe:animate-pulse";
 
 // The car's strip: NowStrip's own row, with BatteryGauge's own track on the right from sm up, then the last drive.
 function StripSkeleton() {
   return (
-    <div className="flex flex-col gap-5" aria-hidden="true">
+    <div className={`flex flex-col gap-5 ${CARD}`} aria-hidden="true">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
       <div className="min-w-0 space-y-1 sm:flex-1">
         <p className="truncate text-sm"><span className={line}>Demo car · Model Y, Pearl White</span></p>
@@ -323,10 +332,15 @@ function TotalsSkeleton() {
           <p className="text-xl"><span className={line}>Good afternoon</span></p>
           <p className="text-sm"><span className={line}>Here&apos;s your car&apos;s last 7 days, 21 Oct to 27 Oct.</span></p>
         </div>
-        <Skeleton className="h-[391px] rounded-lg border bg-muted/40 sm:h-[174px]" />
+        {/* The four tile cards, each its real height. */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:gap-4">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-[196px] rounded-xl border bg-muted/40 sm:h-[173.5px] lg:h-[181.5px]" />
+          ))}
+        </div>
       </div>
       {/* The charge level chart below, its heading and a block of its usual height. */}
-      <SkSection>
+      <SkSection className={CARD}>
         <SkHead title="Charge level" description="Battery level over time, with charging marked." />
         <SkBlock className="h-[330px] rounded-lg border bg-muted/40 sm:h-[260px]" />
       </SkSection>
