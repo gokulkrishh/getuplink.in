@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { STATUS_URL } from "@/lib/site";
 import { cacheLife, cacheTag } from "next/cache";
-import { Suspense } from "react";
+import { cache, Suspense } from "react";
 import { Header, PhoneNav } from "@/components/header";
 import { buttonVariants } from "@/components/ui/button";
 import { ThemePicker } from "@/components/theme-picker";
@@ -20,7 +20,7 @@ import { budgetState, type BudgetState } from "@/lib/server/usage";
 import { checkCadence, nextReset } from "@/lib/tesla-billing";
 import { DeleteAccount, DeleteMyData, DisconnectTesla, SignOutEverywhere } from "./confirm-actions";
 import { BotTemplate, McpConnector } from "./integrations";
-import { Loading, Ph } from "@/components/skeleton";
+import { Ph } from "@/components/skeleton";
 import { Row } from "./row";
 import { Fold } from "@/components/fold";
 import { ShareSwitch } from "@/components/owners/share-controls";
@@ -115,15 +115,12 @@ async function loadSettings(): Promise<{
   return { account, lastCheck, lastReading, home, connectors, budget, sharing, viewLinks, now: Date.now() };
 }
 
-async function Settings() {
-  const { account, lastCheck, lastReading, home, connectors, budget, sharing, viewLinks, now } = await loadSettings();
-  // Past the Tesla budget checks slow down, then pause until the month resets (lib/server/poll.ts).
-  const cadence =
-    budget.level === "stopped"
-      ? `Full checks paused until ${formatShortDate(nextReset(now))}`
-      : `Full check ${checkCadence(budget.level, nextReset(now)).toLowerCase()}`;
-  const connectedDescription = account.connectedSince ? `Connected since ${formatDate(account.connectedSince)}` : "Connected";
+// One read per request, shared by every piece below that needs data.
+const settings = cache(loadSettings);
 
+// The page is mostly fixed words, so they show at once. Only the parts that come from the owner's data wait,
+// each in its own small Suspense with a placeholder its size, so nothing moves when they arrive.
+function Settings() {
   return (
     <>
       <Group title="General">
@@ -133,38 +130,33 @@ async function Settings() {
           description={
             <>
               <p>Your car sends data while it&apos;s awake. Uplink never wakes it.</p>
-              <p className="text-faint">
-                {lastCheck ? `${cadence}, last at ${formatSeen(lastCheck, now)}` : cadence}
-              </p>
+              <Suspense fallback={<p><Ph>Full check every 12 hours, last at 11:59 AM IST</Ph></p>}>
+                <LiveCadence />
+              </Suspense>
             </>
           }
-          control={<LiveStatus lastReading={lastReading} now={now} />}
+          control={
+            <Suspense
+              fallback={
+                <p className="inline-flex items-center gap-2 text-sm whitespace-nowrap">
+                  <span className="size-1.5" aria-hidden="true" />
+                  <Ph>Synced 2 minutes ago</Ph>
+                </p>
+              }
+            >
+              <LiveControl />
+            </Suspense>
+          }
         />
-        <HomeState home={home} />
+        <Suspense fallback={<HomeState />}>
+          <HomeStateLoaded />
+        </Suspense>
       </Group>
 
       <Group title="Account">
-        {account.connected ? (
-          <DisconnectTesla
-            description={
-              <>
-                <p>{connectedDescription}</p>
-                <p className="text-faint">Disconnecting stops Uplink reading your car. Your history stays.</p>
-                <p className="text-faint">To remove Uplink&apos;s key, open Controls &gt; Locks in your car.</p>
-              </>
-            }
-          />
-        ) : (
-          <Row
-            title="Tesla account"
-            description="Not connected"
-            control={
-              <a href="/api/auth/connect" className={buttonVariants({ variant: "outline", size: "lg" })}>
-                Connect Tesla
-              </a>
-            }
-          />
-        )}
+        <Suspense fallback={<TeslaSkeleton />}>
+          <TeslaRow />
+        </Suspense>
         <SignOutEverywhere />
       </Group>
 
@@ -173,9 +165,21 @@ async function Settings() {
           id="share"
           title="Share with other owners"
           description="Adds your car to the totals on the Compare page. Turning it off deletes your figures, and your car leaves the totals at 3:30 AM."
-          control={<ShareSwitch on={sharing?.on ?? false} />}
+          control={
+            <Suspense
+              fallback={
+                <div className="flex items-center max-sm:h-[52px]" aria-hidden="true">
+                  <Skeleton className="h-[1.15rem] w-8 rounded-full" />
+                </div>
+              }
+            >
+              <ShareControl />
+            </Suspense>
+          }
         />
-        {viewLinks !== undefined && <ViewLinks links={viewLinks} now={now} />}
+        <Suspense fallback={<GuestSkeleton />}>
+          <GuestRow />
+        </Suspense>
       </Group>
 
       <DeleteGroup title="Delete" note="These can't be undone.">
@@ -184,116 +188,94 @@ async function Settings() {
       </DeleteGroup>
 
       <ConnectYourAi>
-        <McpConnector connectors={connectors} now={now} />
+        <Suspense fallback={<Row title="MCP connectors" description={<p><Ph>Loading your connectors</Ph></p>} />}>
+          <Connectors />
+        </Suspense>
         <BotTemplate />
       </ConnectYourAi>
     </>
   );
 }
 
-// The Guest access row's placeholder: its title and line, with a block as big as Create guest link (an outline
-// lg button, 36px, 40px on a phone) as the control. Open links aren't drawn: most owners have none.
-function GuestSkeleton() {
+// Past the Tesla budget checks slow down, then pause until the month resets (lib/server/poll.ts).
+async function LiveCadence() {
+  const { lastCheck, budget, now } = await settings();
+  const cadence =
+    budget.level === "stopped"
+      ? `Full checks paused until ${formatShortDate(nextReset(now))}`
+      : `Full check ${checkCadence(budget.level, nextReset(now)).toLowerCase()}`;
+  return <p className="text-faint">{lastCheck ? `${cadence}, last at ${formatSeen(lastCheck, now)}` : cadence}</p>;
+}
+
+async function LiveControl() {
+  const { lastReading, now } = await settings();
+  return <LiveStatus lastReading={lastReading} now={now} />;
+}
+
+async function HomeStateLoaded() {
+  const { home } = await settings();
+  return <HomeState home={home} />;
+}
+
+async function TeslaRow() {
+  const { account } = await settings();
+  if (!account.connected) {
+    return (
+      <Row
+        title="Tesla account"
+        description="Not connected"
+        control={
+          <a href="/api/auth/connect" className={buttonVariants({ variant: "outline", size: "lg" })}>
+            Connect Tesla
+          </a>
+        }
+      />
+    );
+  }
+  return <DisconnectTesla description={<TeslaLines since={account.connectedSince ? `Connected since ${formatDate(account.connectedSince)}` : "Connected"} />} />;
+}
+
+function TeslaLines({ since }: { since: React.ReactNode }) {
   return (
-    <Row
-      title={<Ph>Guest access</Ph>}
-      description={<p><Ph>Let someone you trust see your car data.</Ph></p>}
-      control={<Skeleton className="h-9 w-[9.125rem] rounded-lg max-sm:h-10" aria-hidden="true" />}
-    />
+    <>
+      <p>{since}</p>
+      <p className="text-faint">Disconnecting stops Uplink reading your car. Your history stays.</p>
+      <p className="text-faint">To remove Uplink&apos;s key, open Controls &gt; Locks in your car.</p>
+    </>
   );
 }
 
-// Faint blocks in the shape of the groups and their rows, built from the same Group and Row. Connect your AI
-// renders closed, so only its heading is drawn.
-function SettingsSkeleton() {
-  const button = <Skeleton className="h-9 w-24 rounded-lg max-sm:h-10" aria-hidden="true" />;
-  const text = (words: string) => <Ph>{words}</Ph>;
-  const group = (title: string, ...rows: React.ReactNode[]) => <Group title={<Ph>{title}</Ph>}>{rows}</Group>;
+// Most owners are connected, so the placeholder has that row's shape: only the date and the button wait.
+function TeslaSkeleton() {
+  return <Row title="Tesla account" description={<TeslaLines since={<Ph>Connected since 4 Jan 2026</Ph>} />} control={BUTTON} />;
+}
+
+async function ShareControl() {
+  const { sharing } = await settings();
+  return <ShareSwitch on={sharing?.on ?? false} />;
+}
+
+async function GuestRow() {
+  const { viewLinks, now } = await settings();
+  return viewLinks !== undefined ? <ViewLinks links={viewLinks} now={now} /> : null;
+}
+
+async function Connectors() {
+  const { connectors, now } = await settings();
+  return <McpConnector connectors={connectors} now={now} />;
+}
+
+const BUTTON = <Skeleton className="h-9 w-24 rounded-lg max-sm:h-10" aria-hidden="true" />;
+
+// The Guest access row while its links load: the real words, with a block as big as Create guest link (an
+// outline lg button, 36px, 40px on a phone). Open links aren't drawn: most owners have none.
+function GuestSkeleton() {
   return (
-    <Loading>
-        {group(
-          "General",
-          <Row
-            key="theme"
-            title={<Ph>Theme</Ph>}
-            description={text("Saved in this browser.")}
-            control={
-              <Skeleton className="inline-flex rounded-lg text-sm max-sm:h-[47px]" aria-hidden="true">
-                {["System", "Light", "Dark"].map((label) => (
-                  <span key={label} className="invisible border-y px-3 py-2 first:border-l last:border-r max-sm:py-3">
-                    {label}
-                  </span>
-                ))}
-              </Skeleton>
-            }
-          />,
-          <Row
-            key="live"
-            title={<Ph>Live data</Ph>}
-            description={
-              <>
-                <p>{text("Your car sends data while it's awake. Uplink never wakes it.")}</p>
-                <p>{text("Full check every 12 hours, last at 4:51 PM IST")}</p>
-              </>
-            }
-            control={
-              <p className="inline-flex items-center gap-2 text-sm whitespace-nowrap">
-                <span className="size-1.5" aria-hidden="true" />
-                <span>{text("Synced 2 minutes ago")}</span>
-              </p>
-            }
-          />,
-          <Row
-            key="home"
-            title={<Ph>Home state</Ph>}
-            description={<p>{text("For the India rollout map. Only the state is kept here.")}</p>}
-            control={
-              <p className="text-right text-sm">
-                {text("Karnataka")}
-                <span className="block text-sm">{text("from your car's location")}</span>
-              </p>
-            }
-          />,
-        )}
-        {group(
-          "Account",
-          <Row key="tesla" title={<Ph>Tesla account</Ph>} description={
-              <>
-                <p>{text("Connected since 4 Jan 2026")}</p>
-                <p>{text("Disconnecting stops Uplink reading your car. Your history stays.")}</p>
-                <p>{text("To remove Uplink's key, open Controls > Locks in your car.")}</p>
-              </>
-            }
-            control={button}
-          />,
-          <Row key="out" title={<Ph>Sign out everywhere</Ph>} description={<p>{text("Signs out every device, including this one.")}</p>} control={button} />,
-        )}
-        {group(
-          "Your data",
-          <Row
-            key="share"
-            title={<Ph>Share with other owners</Ph>}
-            description={<p>{text("Adds your car to the totals on the Compare page. Turning it off deletes your figures, and your car leaves the totals at 3:30 AM.")}</p>}
-            control={
-              <div className="flex items-center max-sm:h-[52px]" aria-hidden="true">
-                <Skeleton className="h-[1.15rem] w-8 rounded-full" />
-              </div>
-            }
-          />,
-          <GuestSkeleton key="guest" />,
-        )}
-        <DeleteGroup title={<Ph>Delete</Ph>} note={<Ph>These can&apos;t be undone.</Ph>}>
-          <Row title={<Ph>Delete my data</Ph>} description={<p>{text("Removes your car data and disconnects Tesla. You can sign in again.")}</p>} control={button} />
-          <Row title={<Ph>Delete account</Ph>} description={<p>{text("Removes everything, including your Uplink account.")}</p>} control={button} />
-        </DeleteGroup>
-        <div className="mt-10 flex items-center justify-between gap-4 pb-2">
-          <div>
-            <p className="text-lg"><Ph>Connect your AI</Ph></p>
-            <p className="text-sm"><Ph>Ask Claude, ChatGPT or Grok about your car.</Ph></p>
-          </div>
-          <p className="text-sm"><Ph>Show</Ph></p>
-        </div>
-    </Loading>
+    <Row
+      title="Guest access"
+      description="Let someone you trust see your car data."
+      control={<Skeleton className="h-9 w-[9.125rem] rounded-lg max-sm:h-10" aria-hidden="true" />}
+    />
   );
 }
 
@@ -302,9 +284,7 @@ export default function SettingsPage() {
     <div className="mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
       <Header current="settings" setup={false} />
       <h1 className="mb-8 text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">Settings</h1>
-      <Suspense fallback={<SettingsSkeleton />}>
-        <Settings />
-      </Suspense>
+      <Settings />
       <footer className="mt-13 -mr-2 flex justify-end text-xs text-muted-foreground">
         <Link href="/privacy" className="px-2 py-3 transition-colors duration-150 hover:text-foreground">
           Privacy
@@ -321,16 +301,16 @@ export default function SettingsPage() {
   );
 }
 
-// Read-only: worked out from the car, for the India rollout map.
-function HomeState({ home }: { home: OwnHomeState }) {
-  const from = home.source === "location" ? "from your car's location" : "from your Supercharger history";
+// Read-only: worked out from the car, for the India rollout map. Without `home` it's the loading placeholder.
+function HomeState({ home }: { home?: OwnHomeState }) {
+  const from = home?.source === "location" ? "from your car's location" : "from your Supercharger history";
   return (
     <Row
       title="Home state"
       description={
         <>
           <p>For the India rollout map. Only the state is kept here.</p>
-          {home.askLocation && <p className="text-faint">
+          {home?.askLocation && <p className="text-faint">
               <a href="/api/auth/connect" className="tap-target underline decoration-muted-foreground/60 underline-offset-4 hover:text-foreground hover:decoration-foreground">
                 Sign in again
               </a>{" "}
@@ -339,7 +319,12 @@ function HomeState({ home }: { home: OwnHomeState }) {
         </>
       }
       control={
-        home.state ? (
+        !home ? (
+          <p className="text-right text-sm">
+            <Ph>Karnataka</Ph>
+            <span className="block text-sm"><Ph>from your car&apos;s location</Ph></span>
+          </p>
+        ) : home.state ? (
           <p className="text-right text-sm">
             {STATES[home.state].name}
             <span className="block text-sm text-muted-foreground">{from}</span>
