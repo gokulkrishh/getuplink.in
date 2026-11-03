@@ -5,10 +5,6 @@ import { ChevronDown, CircleCheck, CircleX } from "lucide-react";
 import { DashboardPreview } from "@/components/dashboard-preview";
 import { FeatureBento } from "@/components/home/feature-bento";
 import { CONTACT_EMAIL } from "@/components/plain-page";
-import { HeaderScroll } from "@/components/header-scroll";
-import { ThemePicker } from "@/components/theme-picker";
-import { loadStatus } from "@/lib/server/status";
-import { overallHeadline, type Status } from "@/lib/status";
 import { SessionCta } from "@/components/home/session-cta";
 import { LoginError } from "@/components/login-error";
 import { Logo } from "@/components/logo";
@@ -74,48 +70,6 @@ async function Year() {
   return new Date().getFullYear();
 }
 
-// The home page's own sections, linked from the header from sm up.
-const SECTIONS = [
-  { id: "how", label: "How it works" },
-  { id: "keeps", label: "What it keeps" },
-  { id: "faq", label: "FAQ" },
-];
-
-function Ctas({ className }: { className?: string }) {
-  return (
-    <div className={`flex flex-wrap items-center gap-3 ${className ?? ""}`}>
-      <Suspense>
-        <SessionCta visitor />
-      </Suspense>
-      <a href={DEMO_URL} className={buttonVariants({ variant: "outline", size: "xl" })}>
-        See the demo
-      </a>
-      <span className="text-xs text-faint">Opens a sample car on a separate site.</span>
-    </div>
-  );
-}
-
-const STATUS_DOT: Record<Status, string> = { operational: "bg-positive", degraded: "bg-warning", down: "bg-destructive" };
-
-// The status page's own headline, linked to it: "Everything is working" with a green dot. Grey "Checking
-// status…" until it arrives, so the footer never moves.
-function StatusLine({ status, text }: { status?: Status; text?: string }) {
-  return (
-    <a href={STATUS_URL} className="inline-flex w-fit items-center gap-2 py-1 transition-colors duration-150 hover:text-foreground">
-      <span aria-hidden="true" className={`size-1.5 rounded-full ${status ? STATUS_DOT[status] : "bg-muted-foreground/40"}`} />
-      {text ?? "Checking status…"}
-    </a>
-  );
-}
-
-async function LiveStatus() {
-  const headline = await loadStatus()
-    .then(({ components }) => overallHeadline(components.map((c) => c.current)))
-    .catch(() => null);
-  if (!headline) return <StatusLine text="See Uplink's status" />;
-  return <StatusLine status={headline.status} text={headline.text} />;
-}
-
 function Steps() {
   return (
     <ol className="grid gap-x-10 gap-y-8 sm:grid-cols-3">
@@ -133,25 +87,14 @@ function Steps() {
 export default function HomePage() {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 sm:px-8">
-      {/* Stays at the top as the page scrolls, with a hairline once it has moved (sticky-bar in globals.css). */}
-      <HeaderScroll />
-      <header className="sticky-bar sticky top-0 z-40 flex h-16 items-center justify-between gap-4 text-sm">
+      <header className="relative flex h-16 items-center justify-between gap-4 text-sm">
         <Link href="/" className="tap-target inline-flex items-center gap-2 font-medium">
           <Logo className="size-5" />
           Uplink
         </Link>
-        <div className="flex items-center gap-1">
-          <nav aria-label="On this page" className="flex items-center gap-1 text-muted-foreground max-sm:hidden">
-            {SECTIONS.map((section) => (
-              <a key={section.id} href={`#${section.id}`} className="rounded-md px-2.5 py-1 transition-colors duration-150 hover:bg-secondary/60 hover:text-foreground motion-reduce:transition-none">
-                {section.label}
-              </a>
-            ))}
-          </nav>
-          <Suspense>
-            <SessionCta size="sm" signInLink className="ml-2" />
-          </Suspense>
-        </div>
+        <Suspense>
+          <SessionCta size="sm" signInLink />
+        </Suspense>
         {/* Where "Skip to content" lands (components/skip-link.tsx). */}
         <span id="content-start" tabIndex={-1} className="absolute top-full left-0 outline-none" />
       </header>
@@ -160,16 +103,23 @@ export default function HomePage() {
       <section className="grid grid-cols-[minmax(0,1fr)] items-center gap-16 py-20 lg:grid-cols-2 lg:gap-12 lg:py-28">
         <div>
           <p className="text-xs tracking-wide text-faint uppercase">For Tesla owners in India</p>
-          <h1 className="mt-5 text-4xl leading-display font-medium tracking-[-0.045em] text-balance sm:text-5xl 2xl:text-6xl">
+          <h1 className="mt-5 text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl 2xl:text-6xl">
             Your Tesla, on one page.
           </h1>
           <p className="mt-6 max-w-md text-lg text-muted-foreground">
             Updates, trips, charging and battery for your Tesla, from the day you sign in.
           </p>
           <p className="mt-4 text-sm font-medium">Free for now. This may change.</p>
-          {/* One way in and one way to look first: signed in, Dashboard; signed out, the way in for someone new
-              (Join the waitlist or Ask for an invite, as SIGNUP_MODE allows). The demo is the quieter button. */}
-          <Ctas className="mt-8" />
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            {/* Signed in: Dashboard. Signed out: nothing here; sign-up is by invite link, sign-in is in the header. */}
+            <Suspense>
+              <SessionCta dashboardOnly />
+            </Suspense>
+            <a href={DEMO_URL} className={buttonVariants({ variant: "secondary", size: "xl" })}>
+              See the demo
+            </a>
+            <span className="text-xs text-faint">Opens a sample car on a separate site.</span>
+          </div>
           <p className="mt-6 text-xs text-faint">Read-only · Never wakes your car · Revoke access any time</p>
           {/* Renders nothing (and takes no space) unless sign-in failed, so the page doesn't shift. */}
           <Suspense>
@@ -182,8 +132,8 @@ export default function HomePage() {
       </section>
 
       {/* How it works, early: the effort is small, so show it before the features. */}
-      <section id="how" className="scroll-mt-16 border-t py-20">
-        <h2 className="text-3xl leading-display font-medium tracking-[-0.045em] text-balance sm:text-4xl">
+      <section id="how" className="scroll-mt-16 py-20">
+        <h2 className="text-3xl leading-display font-semibold tracking-tight text-balance sm:text-4xl">
           Set up once.
         </h2>
         <div className="mt-12">
@@ -192,16 +142,16 @@ export default function HomePage() {
       </section>
 
       {/* What Uplink keeps: one grid of tiles, each with a piece of the product. */}
-      <section id="keeps" className="scroll-mt-16 border-t py-20">
-        <h2 className="text-4xl leading-display font-medium tracking-[-0.045em] text-balance sm:text-5xl">What Uplink keeps</h2>
+      <section className="py-20">
+        <h2 className="text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl">What Uplink keeps</h2>
         <div className="mt-12">
           <FeatureBento />
         </div>
       </section>
 
       {/* Trust: what Uplink can and can't do, side by side. */}
-      <section id="read-only" className="scroll-mt-16 border-t py-24">
-        <h2 className="text-4xl leading-display font-medium tracking-[-0.045em] text-balance sm:text-5xl">Read-only by design</h2>
+      <section className="py-24">
+        <h2 className="text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl">Read-only by design</h2>
         <p className="mt-5 max-w-2xl text-lg text-muted-foreground">
           Uplink uses Tesla&apos;s official data access, and only reads.
         </p>
@@ -237,8 +187,8 @@ export default function HomePage() {
         </p>
       </section>
 
-      <section id="faq" className="scroll-mt-16 border-t py-24">
-        <h2 className="text-4xl leading-display font-medium tracking-[-0.045em] text-balance sm:text-5xl">FAQ</h2>
+      <section id="faq" className="scroll-mt-16 py-24">
+        <h2 className="text-4xl leading-display font-semibold tracking-tight text-balance sm:text-5xl">FAQ</h2>
         <div className="mt-12 max-w-3xl divide-y border-y">
           {FAQ.map((item) => (
             <Collapsible key={item.q} className="group">
@@ -257,25 +207,10 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* The ask again at the end, for whoever read this far. */}
-      <section className="border-t py-24">
-        <h2 className="text-4xl leading-display font-medium tracking-[-0.045em] text-balance sm:text-5xl">Ready to see your car?</h2>
-        <p className="mt-5 max-w-2xl text-lg text-muted-foreground">Read-only. Never wakes your car. Revoke access any time.</p>
-        <Ctas className="mt-10" />
-      </section>
-
-      <footer className="mt-auto flex flex-wrap items-center justify-between gap-x-6 gap-y-4 border-t py-8 text-xs text-faint">
-        <div className="flex flex-col gap-1">
-          <span>
-            &copy; <Year /> · Uplink is not affiliated with Tesla, Inc.
-          </span>
-          <Suspense fallback={<StatusLine />}>
-            <LiveStatus />
-          </Suspense>
-        </div>
-        <div className="ml-auto">
-          <ThemePicker />
-        </div>
+      <footer className="mt-auto flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 py-8 text-xs text-faint">
+        <span>
+          &copy; <Year /> · Uplink is not affiliated with Tesla, Inc.
+        </span>
         <nav aria-label="Legal" className="ml-auto flex gap-x-2">
           <Link href="/privacy" className={FOOTER_LINK}>
             Privacy

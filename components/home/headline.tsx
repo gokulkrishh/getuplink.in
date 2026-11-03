@@ -54,10 +54,10 @@ function Cell({
   return (
     <PeriodLink
       view={view}
-      className="group @container flex min-w-0 flex-col gap-2 rounded-xl border bg-background p-3 shadow-xs transition-colors duration-150 hover:border-foreground/20 hover:bg-muted/50 focus-visible:z-10 dark:bg-card dark:shadow-none sm:p-4 lg:p-5"
+      className="group @container flex min-w-0 flex-col gap-2 bg-background p-3 transition-colors dark:bg-card duration-150 hover:bg-muted focus-visible:z-10 focus-visible:outline-offset-[-2px] sm:p-4"
     >
       {/* The arrow says the tile opens its Stats page; plain figure tiles elsewhere have none. */}
-      <p className="flex items-center justify-between gap-2 text-[0.8125rem] font-medium text-muted-foreground">
+      <p className="flex items-center justify-between gap-2 text-[0.8125rem] text-muted-foreground">
         <span className="truncate">{label}</span>
         <ChevronRight aria-hidden="true" className="size-3.5 shrink-0 transition-[color,translate] duration-150 group-hover:translate-x-0.5 group-hover:text-foreground" />
       </p>
@@ -264,8 +264,7 @@ export function Headline({
 
   return (
     <div className="space-y-3">
-      {/* Four cards with space between them, like a dashboard's overview: each a figure of its own that opens its page. */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:gap-4">
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border bg-clip-padding dark:border-transparent dark:bg-background sm:grid-cols-4">
         <Cell
           view="driving"
           label="Driven"

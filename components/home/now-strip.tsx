@@ -39,8 +39,7 @@ export function NowStrip({
   return (
     // One row from sm up: who the car is, what it runs and when it last synced on the left; the battery on
     // the right. On a phone the battery follows under them. The last drive and charge close the strip.
-    // From sm up it sits in a card, the first of the page's cards.
-    <section aria-label="Your car now" className="flex flex-col gap-5 sm:rounded-xl sm:border sm:bg-background sm:p-5 sm:shadow-xs lg:p-6 dark:sm:bg-card dark:sm:shadow-none">
+    <section aria-label="Your car now" className="flex flex-col gap-5">
       {awake && <AutoRefresh />}
       <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
       <div className="min-w-0 space-y-1 sm:flex-1">

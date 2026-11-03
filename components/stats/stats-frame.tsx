@@ -17,9 +17,9 @@ export function StatsFrame({ view, custom, periodSwitch = true, children }: { vi
     <PeriodScope periods={viewPeriods(view)} custom={custom}>
       {/* Fades in over the skeleton when the topic's data arrives (see StatsSkeleton); nothing else moves. */}
       <ViewTransition enter="stats-in" default="none">
-        <div className="relative space-y-12">
+        <div className="space-y-12">
           {periodSwitch && (
-            <div className={`space-y-3 ${BESIDE_TITLE}`}>
+            <div className="space-y-3">
               <PeriodPicker />
               <DatesNote />
             </div>
@@ -31,20 +31,13 @@ export function StatsFrame({ view, custom, periodSwitch = true, children }: { vi
   );
 }
 
-// From lg up the period switch sits at the right of the page's title, on the same row, since it sets the
-// period for the whole page. The title block is a fixed 60px (a 32px title, 8px, a 20px line) with 48px under
-// it, so the switch (34px) is lifted by 48 + 30 + 17 = 95px to sit centred on it. Taken out of the flow, it
-// leaves no gap: space-y puts its space under each child, and the next one starts at the frame's top. The
-// title block keeps 20rem clear on its right for the switch.
-const BESIDE_TITLE = "lg:absolute lg:right-0 lg:top-[-95px]";
-
 // The page around the frame: the header (where Driving, Charging and Battery are links) and the topic's
 // title and line, all in the static shell. The loading and the data go in `children`.
 export function StatsPage({ view, description, children }: { view: View; description: string; children: ReactNode }) {
   return (
-    <div className="group/stats mx-auto w-full max-w-2xl px-5 pt-6 lg:max-w-5xl lg:px-8 pb-12 sm:pt-8 sm:pb-20">
+    <div className="group/stats mx-auto w-full max-w-2xl px-5 pt-6 pb-12 sm:pt-8 sm:pb-20">
       <Header current={view} />
-      <div className="mb-12 lg:min-h-[60px] lg:pr-80">
+      <div className="mb-12">
         <h1 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">{VIEWS.find((v) => v.value === view)?.label}</h1>
         {/* An empty topic (NotYet) hides it: the line promises what the page doesn't have yet. */}
         <p className="mt-2 text-sm text-muted-foreground group-has-[[data-not-yet]]/stats:hidden">{description}</p>
@@ -72,7 +65,7 @@ export function NotYet({ title, children }: { title: string; children: ReactNode
 export function StatsSkeleton({ children }: { children: ReactNode }) {
   return (
     <ViewTransition exit="stats-out" default="none">
-      <Loading className="relative space-y-12">
+      <Loading className="space-y-12">
         <SkPeriodSwitch />
         <div className="space-y-12">{children}</div>
       </Loading>
@@ -83,7 +76,7 @@ export function StatsSkeleton({ children }: { children: ReactNode }) {
 // The period switch's place: one block the size of the real switch (see Segmented).
 function SkPeriodSwitch() {
   return (
-    <div aria-hidden="true" className={`flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center ${BESIDE_TITLE}`}>
+    <div aria-hidden="true" className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
       {/* One block the switch's size: the labels are there only to give it its width. */}
       <Skeleton className="inline-flex max-w-full rounded-lg">
         {PERIODS_SHOWN.map((label) => (
