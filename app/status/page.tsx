@@ -24,11 +24,11 @@ export const metadata: Metadata = {
 
 const DOT: Record<Status, string> = {
   operational: "bg-positive",
-  degraded: "bg-muted-foreground",
+  degraded: "bg-warning",
   down: "bg-destructive",
 };
 
-// Operational is green, down is red, degraded sits between in grey, and no data is a faint bar.
+// Operational is green, down is red, having problems is amber between them, and no data is a faint bar.
 const BAR: Record<Status | "none", string> = { ...DOT, none: "bg-muted" };
 
 const dayLabel = (day: string) => formatShortDate(`${day}T00:00:00+05:30`);
@@ -54,11 +54,19 @@ function Component({ item }: { item: ComponentStatus }) {
       />
       <div className="mt-2 flex justify-between text-xs text-faint">
         <span>{item.bars.length} days ago</span>
-        <span>{item.uptime === null ? "No uptime yet" : `${item.uptime}% uptime`}</span>
+        <span>{uptimeLine(item)}</span>
         <span>Today</span>
       </div>
     </section>
   );
+}
+
+// "100% uptime", and the days with problems beside it: they count as up, so without the count a row of amber
+// days would sit next to 100% with nothing to explain it.
+function uptimeLine(item: ComponentStatus): string {
+  if (item.uptime === null) return "No uptime yet";
+  const slow = item.bars.filter((bar) => bar.status === "degraded").length;
+  return slow === 0 ? `${item.uptime}% uptime` : `${item.uptime}% uptime · ${slow} ${slow === 1 ? "day" : "days"} with problems`;
 }
 
 // "26 Oct, 3:38 AM to 27 Oct, 4:13 PM", or "26 Oct, 3:38 AM" for one check.

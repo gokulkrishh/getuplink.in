@@ -60,6 +60,7 @@
   --color-border: var(--border);
   --color-destructive: var(--destructive);
   --color-positive: var(--positive);
+  --color-warning: var(--warning);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -101,6 +102,7 @@
   --accent-foreground: #171717;
   --destructive: #c71626;
   --positive: #15803d;
+  --warning: #c27803; /* having problems: amber, between working and down */
   --border: #e6e6e6;
   --input: #dbdbdb;
   --ring: #737373;
@@ -137,6 +139,7 @@
   --accent-foreground: #f3f3f3;
   --destructive: #ff6362;
   --positive: #4ade80;
+  --warning: #f2a20d;
   --border: #1f1f1f;
   --input: #2a2a2a;
   --ring: #8a8a8a;
@@ -172,6 +175,7 @@
     --accent-foreground: #f3f3f3;
     --destructive: #ff6362;
     --positive: #4ade80;
+    --warning: #f2a20d;
     --border: #1f1f1f;
     --input: #2a2a2a;
     --ring: #8a8a8a;
