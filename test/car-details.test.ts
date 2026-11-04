@@ -127,6 +127,10 @@ describe("carPicture", () => {
     expect(carPicture("Model Y L", colorName("SilkroadSilver"))).toBe("/cars/model-y-l-cosmic-silver.webp");
     expect(carPicture("Model Y L", "Ultra Red")).toBe("/cars/model-y-l-ultra-red.webp");
   });
+  test("a paint code spelled another way still finds its picture", () => {
+    expect(carPicture("Model Y", colorName("QuickSilver"))).toBe("/cars/model-y-quicksilver.webp");
+    expect(carPicture("Model Y", colorName("Stealthgrey"))).toBe("/cars/model-y-stealth-grey.webp");
+  });
   test("no picture rather than the wrong car or paint", () => {
     expect(carPicture("Model Y", "Cosmic Silver")).toBeNull();
     expect(carPicture("Model Y L", "Quicksilver")).toBeNull();

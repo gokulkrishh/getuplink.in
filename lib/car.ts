@@ -42,9 +42,12 @@ const PICTURES: Record<string, string[]> = {
   "Model Y L": ["Pearl White", "Diamond Black", "Stealth Grey", "Cosmic Silver", "Glacier Blue", "Ultra Red"],
 };
 const slug = (s: string) => s.toLowerCase().replace(/\s+/g, "-");
+// Matched without case or spaces: only DiamondBlack and SilkroadSilver have been seen from real cars, so a
+// code spelled "QuickSilver" or "Stealthgrey" still finds its picture.
+const bare = (s: string) => s.toLowerCase().replace(/\s+/g, "");
 export function carPicture(model: string | null | undefined, paint: string | null | undefined): string | null {
-  if (!model || !paint || !PICTURES[model]?.includes(paint)) return null;
-  return `/cars/${slug(model)}-${slug(paint)}.webp`;
+  const name = model && paint ? PICTURES[model]?.find((p) => bare(p) === bare(paint)) : undefined;
+  return name ? `/cars/${slug(model!)}-${slug(name)}.webp` : null;
 }
 
 // Readable labels for Tesla's vehicle_config codes. Unknown codes fall back to null so the row hides
