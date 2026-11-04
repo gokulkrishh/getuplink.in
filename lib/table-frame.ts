@@ -26,16 +26,15 @@ export const TRIP_COLUMNS = [
 export const TRIP_TABLE = "w-full table-fixed text-sm max-sm:min-w-[44rem]";
 
 // The parked stretches' columns, shared by ParkedRows and its skeleton. Sized to their longest usual value,
-// so all eight fit the page column from sm up; Average power takes what's left and its header wraps.
+// Parked holds when, where and for how long; Average power takes what's left and its header wraps.
 export const PARKED_COLUMNS = [
   { label: "#", width: "w-10" },
-  { label: "Parked", width: "w-[9.75rem]" },
-  { label: "For", width: "w-[5.75rem]" },
+  { label: "Parked", width: "w-48" },
   { label: "Lost", width: "w-14", right: true },
   { label: "Range", width: "w-14", right: true },
   { label: "Energy", width: "w-[4.75rem]", right: true },
   { label: "Average power", width: "", right: true },
   { label: "Seen awake", width: "w-[5.5rem]", right: true },
 ];
-// Scrolls sideways on a phone, fits the page column from sm up.
-export const PARKED_TABLE = "w-full table-fixed text-sm max-sm:min-w-[48rem]";
+// Never squeezed: below this width, on any screen, the table scrolls sideways.
+export const PARKED_TABLE = "w-full table-fixed text-sm min-w-[38rem]";
