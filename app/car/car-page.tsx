@@ -165,7 +165,7 @@ const PICTURE_BOX = "aspect-[1200/514] w-full max-w-[26rem] self-center sm:w-[40
 function CarPicture({ src }: { src: string }) {
   return (
     <div className={cn("relative", PICTURE_BOX)}>
-      <Image src={src} alt="" fill priority sizes="(min-width: 640px) 320px, 100vw" className="object-contain" />
+      <Image src={src} alt="" fill preload sizes="(min-width: 640px) 320px, min(26rem, 100vw)" className="object-contain" />
     </div>
   );
 }

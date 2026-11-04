@@ -1,10 +1,10 @@
 // The Car page's header with the car's picture: desktop and 375px phone, light and dark.
 import { join } from "node:path";
-import { chromium } from "playwright";
-import { BASE, evidenceDir } from "./browser.mjs";
+import { chromium } from "playwright-core";
+import { BASE, evidenceDir, headlessShell } from "./browser.mjs";
 const dir = evidenceDir(process.argv[2] ?? "car-picture");
 const tag = process.argv[3] ?? "car";
-const browser = await chromium.launch();
+const browser = await chromium.launch({ executablePath: headlessShell() });
 for (const phone of [false, true])
   for (const dark of [false, true]) {
     const ctx = await browser.newContext({
