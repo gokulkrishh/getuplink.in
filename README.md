@@ -1,14 +1,16 @@
 # Uplink
 
-Tesla software updates, tracked from India.
+Tesla software updates, charging, driving and battery, tracked from India.
 
-A single-owner dashboard that tracks Tesla software updates for the vehicles on one Tesla account, using the [Tesla Fleet API](https://developer.tesla.com/docs/fleet-api). Built for a Model Y in India.
+Uplink is a web app for Tesla owners in India, built on the [Tesla Fleet API](https://developer.tesla.com/docs/fleet-api) and [Fleet Telemetry](https://github.com/teslamotors/fleet-telemetry). It runs at [getuplink.in](https://getuplink.in), where it is invite-only. This repository is its full source, under the [GNU Affero General Public License v3.0](LICENSE): read it, learn from it, or run your own copy for your own car.
 
-- Shows each vehicle's current version, any pending update (available, scheduled, downloading, installing) with progress, and when the car was last seen online (IST).
-- Keeps a version history and a small chart of version changes.
-- Polls each account about every 6 hours (every 12, then not at all, as the month's Tesla API estimate nears its budget). It **never wakes the car**: asleep or offline vehicles are recorded as such and skipped.
+- Shows each car's installed version, any pending update with progress, and the version history, plus the India rollout pooled across every car.
+- Charging (Supercharger invoices and streamed sessions), driving, battery health and efficiency, with week, month, year and all-time views.
+- Checks each account about every 6 hours and streams changes while the car is awake. It **never wakes the car**.
 
-Stack: Bun, Next.js 16 (App Router), shadcn/ui, Geist, Recharts, Supabase Postgres (server-side only), Vercel (region `bom1`).
+Stack: Bun, Next.js 16 (App Router), shadcn/ui, Geist, Recharts, MapLibre, Supabase Postgres (server-side only), Vercel (region `bom1`), and a Fleet Telemetry receiver on Fly.io (`fly/telemetry/`).
+
+Uplink is an independent project. It is not affiliated with, endorsed by or connected to Tesla, Inc. "Tesla" and "Model Y" are trademarks of Tesla, Inc.
 
 ## How it works
 
@@ -32,6 +34,10 @@ Signing in runs the same check right away, for that account only, at most once e
 Region: the app defaults to `https://fleet-api.prd.na.vn.cloud.tesla.com`. Tesla's [regions page](https://developer.tesla.com/docs/fleet-api/getting-started/regions-countries) assigns this host to "North America, Asia-Pacific (excluding China)" but does not list India by name, so this default is inferred rather than confirmed. If token exchange or vehicle calls fail with a region error, set `TESLA_FLEET_API_BASE_URL` to the host Tesla gives you.
 
 ## Setup
+
+### Running your own copy
+
+The steps below set up a deployment of your own. Every example uses Uplink's own hosts (`app.getuplink.in`, `telemetry.getuplink.in`): replace them with your domain, and set `TESLA_PARTNER_DOMAIN` and `TELEMETRY_HOSTNAME` to match. You need your own Tesla developer app, Supabase project and Vercel project. Nothing in this repository connects to Uplink's.
 
 ### 1. Environment variables
 
@@ -97,17 +103,24 @@ The schema is the files in [`supabase/migrations/`](supabase/migrations/), appli
 Either paste the file into **Supabase Dashboard → SQL Editor** and run it, or with the CLI:
 
 ```sh
-supabase link --project-ref fhoqjkriyqwoblfaahpk
+supabase link --project-ref <your-project-ref>
 supabase db push
 ```
 
-### 5. Sign in with Tesla (claims the dashboard)
+### 5. Sign in with Tesla and make yourself the admin
 
-Do this right after the first deploy: until someone signs in, the first Tesla account to do so becomes the owner.
+A new database has no accounts, and with the default `SIGNUP_MODE=closed` every Tesla account is refused. To let yourself in:
 
-1. Open https://app.getuplink.in and click **Sign in** (under "Already have access?").
-2. Sign in to Tesla and approve the requested scopes (vehicle data, charging history, offline access).
-3. You land on the dashboard and a first check runs immediately. If the car is asleep, it shows as Asleep with no version until a later check finds it online. Use **Check now** after opening the Tesla app (which wakes the car) to record the version straight away.
+1. Set `SIGNUP_MODE=waitlist` and redeploy.
+2. Open your app, click **Sign in** (under "Already have access?") and approve the requested scopes (vehicle data, charging history, offline access). You land on the waitlist.
+3. In the Supabase SQL editor, approve that account and make it the admin:
+
+   ```sql
+   update users set status = 'approved', role = 'admin', approved_at = now()
+   where id = (select id from users order by id desc limit 1);
+   ```
+
+4. Set `SIGNUP_MODE` back to `closed` (or `invite`), redeploy and sign in again. A first check runs right away. If the car is asleep, it shows as Asleep with no version until a later check finds it online. Use **Check now** after opening the Tesla app (which wakes the car) to record the version straight away.
 
 ### Supercharger history
 
@@ -164,3 +177,21 @@ Tesla accepts only the `http://localhost:3000/api/auth/callback` redirect locall
 Sign in with Tesla only works against the registered redirect URI, so local dev at `localhost` can't sign in unless you add a localhost redirect URI to the Tesla app and set `TESLA_REDIRECT_URI` to match.
 
 To let another Tesla account in, send them an invite link (Admin > Access), approve their waitlist row there, or use the seeding SQL in [`docs/signup-plan.md`](docs/signup-plan.md).
+
+## Contributing
+
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the checks every change passes and the house rules for anything an owner reads.
+
+## Security
+
+Please don't open a public issue for a security problem. See [SECURITY.md](SECURITY.md).
+
+## Licence
+
+Copyright © 2026 Gokulakrishnan Kalaikovan. Uplink's code is under the [GNU Affero General Public License v3.0 only](LICENSE) (`AGPL-3.0-only`). You can use, change and share it, including to run your own hosted copy. If you run a changed copy that other people use over a network, you must offer them its source under the same licence.
+
+Some files in this repository come from others and keep their own terms:
+
+- `lib/station-data.ts`: charging stations © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, under the [ODbL](https://opendatacommons.org/licenses/odbl/).
+- `public/fonts/`: cut-down [Geist](https://github.com/vercel/geist-font) and Geist Mono, under the SIL Open Font License (`public/fonts/OFL-*.txt`).
+- `.agents/skills/`: AI coding-agent skills installed from other repositories (sources in `skills-lock.json`). Each keeps the licence of its source repository.

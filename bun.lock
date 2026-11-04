@@ -3,7 +3,7 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "tesla-in-updates",
+      "name": "uplink",
       "dependencies": {
         "@base-ui/react": "^1.9.0",
         "@modelcontextprotocol/server": "^2",
