@@ -33,6 +33,23 @@ export function colorName(color: string | null | undefined): string | null {
   return name || null;
 }
 
+// A picture of the car in its paint, for the two cars Tesla sells in India: the Model Y and the Model Y L,
+// each in its six paints (public/cars/, cut out of Tesla's renders by scripts/car-pictures.py so they sit on
+// light and dark pages).
+// Another car or paint gets no picture rather than one that isn't the owner's car.
+const PICTURES: Record<string, string[]> = {
+  "Model Y": ["Pearl White", "Diamond Black", "Stealth Grey", "Quicksilver", "Glacier Blue", "Ultra Red"],
+  "Model Y L": ["Pearl White", "Diamond Black", "Stealth Grey", "Cosmic Silver", "Glacier Blue", "Ultra Red"],
+};
+const slug = (s: string) => s.toLowerCase().replace(/\s+/g, "-");
+// Matched without case or spaces: only DiamondBlack and SilkroadSilver have been seen from real cars, so a
+// code spelled "QuickSilver" or "Stealthgrey" still finds its picture.
+const bare = (s: string) => s.toLowerCase().replace(/\s+/g, "");
+export function carPicture(model: string | null | undefined, paint: string | null | undefined): string | null {
+  const name = model && paint ? PICTURES[model]?.find((p) => bare(p) === bare(paint)) : undefined;
+  return name ? `/cars/${slug(model!)}-${slug(name)}.webp` : null;
+}
+
 // Readable labels for Tesla's vehicle_config codes. Unknown codes fall back to null so the row hides
 // rather than showing a raw code.
 

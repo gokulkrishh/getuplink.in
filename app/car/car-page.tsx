@@ -1,6 +1,7 @@
 import { ChevronRight } from "lucide-react";
 import { CarTabs } from "@/components/car-tabs";
 import { SentryMark } from "@/components/sentry-mark";
+import Image from "next/image";
 import Link from "next/link";
 import { cacheLife, cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
@@ -12,7 +13,7 @@ import { CarNotices } from "@/components/owner-notices";
 import { Words } from "@/components/stats/charge-supply";
 import { type Figure, Figures } from "@/components/stats/figures";
 import { Vin } from "@/components/vin";
-import { odometerKm } from "@/lib/car";
+import { carPicture, odometerKm } from "@/lib/car";
 import { rotationLine, tyreRotation } from "@/lib/tyre-rotation";
 import { CAR_NOW_FIELDS, type CarNow, carNow, shutSummary, tyreSeen } from "@/lib/car-now";
 import { formatClock, formatKm, formatKwh, formatShortDate } from "@/lib/format";
@@ -96,60 +97,76 @@ function CarHeader({ car, odometer, version, syncedAt, at }: { car: CarDetails; 
   const model = [car.year, car.model !== car.name && car.model, car.pack].filter(Boolean).join(" ");
   const subtitle = [model, car.paint].filter(Boolean).join(" · ");
   const stale = isStaleSync(syncedAt, at);
+  const picture = carPicture(car.model, car.paint);
   return (
-    <header className="space-y-5 rounded-lg border p-4 sm:p-6">
-      <div className="min-w-0 space-y-1">
-        <h2 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem] text-balance break-words">{car.name}</h2>
-        {subtitle && <p className="text-sm text-muted-foreground text-pretty">{subtitle}</p>}
+    <header className="flex flex-col gap-5 rounded-lg border p-4 sm:flex-row-reverse sm:items-center sm:gap-6 sm:p-6">
+      {/* The owner's car in its paint, beside the figures (above them on a phone). The name says what it is. */}
+      {picture && <CarPicture src={picture} />}
+      <div className="min-w-0 flex-1 space-y-5">
+        <div className="min-w-0 space-y-1">
+          <h2 className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem] text-balance break-words">{car.name}</h2>
+          {subtitle && <p className="text-sm text-muted-foreground text-pretty">{subtitle}</p>}
+        </div>
+        {(odometer !== null || version || battery) && (
+          <dl className="flex flex-wrap gap-x-10 gap-y-3">
+            {odometer !== null && (
+              <div className="space-y-1">
+                <dt className="text-[0.8125rem] leading-5 text-muted-foreground">Odometer</dt>
+                <dd className="font-mono text-lg leading-none font-medium tabular-nums">
+                  <Measure text={formatKm(odometer)} size="tile" />
+                </dd>
+              </div>
+            )}
+            {version && (
+              <div className="space-y-1">
+                <dt className="text-[0.8125rem] leading-5 text-muted-foreground">Software</dt>
+                <dd className="text-lg leading-none">
+                  <Link
+                    href="/updates"
+                    prefetch={true}
+                    translate="no"
+                    className="tap-target inline-flex items-center gap-0.5 font-mono font-medium tabular-nums underline decoration-muted-foreground/60 decoration-dotted underline-offset-4 transition-colors duration-150 hover:decoration-foreground"
+                  >
+                    {version}
+                    <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />
+                  </Link>
+                </dd>
+              </div>
+            )}
+            {/* The latest week's estimate, as on /stats/battery, which it opens. */}
+            {battery && (
+              <div className="space-y-1">
+                <dt className="flex h-5 items-center gap-1 text-[0.8125rem] leading-5 text-muted-foreground">Usable capacity</dt>
+                <dd className="text-lg leading-none">
+                  <Link
+                    href="/stats/battery"
+                    prefetch={true}
+                    // The unit is inline-block, so the dotted underline runs under the number only (a smaller unit
+                    // would sit it at another height).
+                    className="tap-target inline-flex items-center gap-0.5 font-mono font-medium tabular-nums underline decoration-muted-foreground/60 decoration-dotted underline-offset-4 transition-colors duration-150 hover:decoration-foreground [&_span]:inline-block"
+                  >
+                    <Measure text={formatKwh(battery.kwh)} size="tile" />
+                    <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />
+                  </Link>
+                </dd>
+              </div>
+            )}
+          </dl>
+        )}
+        <p className={cn("text-xs tabular-nums", stale ? "text-foreground" : "text-faint")}>{lastSyncedText(syncedAt, at)}</p>
       </div>
-      {(odometer !== null || version || battery) && (
-        <dl className="flex flex-wrap gap-x-10 gap-y-3">
-          {odometer !== null && (
-            <div className="space-y-1">
-              <dt className="text-[0.8125rem] leading-5 text-muted-foreground">Odometer</dt>
-              <dd className="font-mono text-lg leading-none font-medium tabular-nums">
-                <Measure text={formatKm(odometer)} size="tile" />
-              </dd>
-            </div>
-          )}
-          {version && (
-            <div className="space-y-1">
-              <dt className="text-[0.8125rem] leading-5 text-muted-foreground">Software</dt>
-              <dd className="text-lg leading-none">
-                <Link
-                  href="/updates"
-                  prefetch={true}
-                  translate="no"
-                  className="tap-target inline-flex items-center gap-0.5 font-mono font-medium tabular-nums underline decoration-muted-foreground/60 decoration-dotted underline-offset-4 transition-colors duration-150 hover:decoration-foreground"
-                >
-                  {version}
-                  <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />
-                </Link>
-              </dd>
-            </div>
-          )}
-          {/* The latest week's estimate, as on /stats/battery, which it opens. */}
-          {battery && (
-            <div className="space-y-1">
-              <dt className="flex h-5 items-center gap-1 text-[0.8125rem] leading-5 text-muted-foreground">Usable capacity</dt>
-              <dd className="text-lg leading-none">
-                <Link
-                  href="/stats/battery"
-                  prefetch={true}
-                  // The unit is inline-block, so the dotted underline runs under the number only (a smaller unit
-                  // would sit it at another height).
-                  className="tap-target inline-flex items-center gap-0.5 font-mono font-medium tabular-nums underline decoration-muted-foreground/60 decoration-dotted underline-offset-4 transition-colors duration-150 hover:decoration-foreground [&_span]:inline-block"
-                >
-                  <Measure text={formatKwh(battery.kwh)} size="tile" />
-                  <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />
-                </Link>
-              </dd>
-            </div>
-          )}
-        </dl>
-      )}
-      <p className={cn("text-xs tabular-nums", stale ? "text-foreground" : "text-faint")}>{lastSyncedText(syncedAt, at)}</p>
     </header>
+  );
+}
+
+// The pictures are 1200 by 514 (public/cars/); the box keeps that shape, so the card doesn't move as it loads.
+const PICTURE_BOX = "aspect-[1200/514] w-full max-w-[26rem] self-center sm:w-[40%] sm:max-w-none sm:shrink-0";
+
+function CarPicture({ src }: { src: string }) {
+  return (
+    <div className={cn("relative", PICTURE_BOX)}>
+      <Image src={src} alt="" fill preload sizes="(min-width: 640px) 320px, min(26rem, 100vw)" className="object-contain" />
+    </div>
   );
 }
 
@@ -386,35 +403,39 @@ function CarSkeleton() {
   return (
     <Loading className="flex flex-col gap-12">
       <div className="space-y-4" aria-hidden="true">
-        <div className="space-y-5 rounded-lg border p-4 sm:p-6">
-          <div className="min-w-0 space-y-1">
-            <p className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">
-              <Ph>Demo car</Ph>
-            </p>
-            <p className="text-sm">
-              <Ph>2026 Model Y Standard Range · Diamond Black</Ph>
+        {/* The picture's box: nearly every car in India has one (see carPicture). */}
+        <div className="flex flex-col gap-5 rounded-lg border p-4 sm:flex-row-reverse sm:items-center sm:gap-6 sm:p-6">
+          <div className={cn("rounded-md bg-muted/60", PICTURE_BOX)} />
+          <div className="min-w-0 flex-1 space-y-5">
+            <div className="min-w-0 space-y-1">
+              <p className="text-[1.5rem] font-medium tracking-heading max-sm:text-[1.25rem]">
+                <Ph>Demo car</Ph>
+              </p>
+              <p className="text-sm">
+                <Ph>2026 Model Y Standard Range · Diamond Black</Ph>
+              </p>
+            </div>
+            <dl className="flex flex-wrap gap-x-10 gap-y-3">
+              {[
+                ["Odometer", "9,000 km"],
+                ["Software", "2026.38.5.1"],
+                ["Usable capacity", "64.0 kWh"],
+              ].map(([label, value]) => (
+                <div key={label} className="space-y-1">
+                  <dt className="text-[0.8125rem] leading-5">
+                    <Ph>{label}</Ph>
+                  </dt>
+                  <dd className="font-mono text-lg leading-none font-medium">
+                    <Ph>{value}</Ph>
+                    {label === "Software" && <span className="inline-block size-4 align-middle" />}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            <p className="text-xs">
+              <Ph>Last synced 27 Oct, 4:50 PM</Ph>
             </p>
           </div>
-          <dl className="flex flex-wrap gap-x-10 gap-y-3">
-            {[
-              ["Odometer", "9,000 km"],
-              ["Software", "2026.38.5.1"],
-              ["Usable capacity", "64.0 kWh"],
-            ].map(([label, value]) => (
-              <div key={label} className="space-y-1">
-                <dt className="text-[0.8125rem] leading-5">
-                  <Ph>{label}</Ph>
-                </dt>
-                <dd className="font-mono text-lg leading-none font-medium">
-                  <Ph>{value}</Ph>
-                  {label === "Software" && <span className="inline-block size-4 align-middle" />}
-                </dd>
-              </div>
-            ))}
-          </dl>
-          <p className="text-xs">
-            <Ph>Last synced 27 Oct, 4:50 PM</Ph>
-          </p>
         </div>
       </div>
       {section(

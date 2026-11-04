@@ -13,7 +13,9 @@ export function headlessShell() {
     .filter((d) => d.startsWith("chromium_headless_shell-"))
     .sort((a, b) => Number(b.split("-")[1]) - Number(a.split("-")[1]));
   if (dirs.length === 0) throw new Error(`No Chromium in ${CACHE}. Run: bunx playwright-core install chromium-headless-shell`);
-  return join(CACHE, dirs[0], "chrome-headless-shell-mac-arm64", "chrome-headless-shell");
+  // The build's folder is named for the platform: mac-arm64 on the owner's Mac, linux64 in a cloud session.
+  const build = readdirSync(join(CACHE, dirs[0])).find((d) => d.startsWith("chrome-headless-shell-"));
+  return join(CACHE, dirs[0], build ?? "chrome-headless-shell-mac-arm64", "chrome-headless-shell");
 }
 
 export const PORT = Number(process.env.UPLINK_VERIFY_PORT ?? 3210);

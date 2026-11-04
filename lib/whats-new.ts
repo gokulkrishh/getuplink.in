@@ -36,6 +36,17 @@ export type Entry = {
 
 export const WHATS_NEW: Entry[] = [
   {
+    id: "2026-11-04-car-picture",
+    date: "2026-11-04",
+    title: "Your car, in its colour",
+    text: "The Car page now shows a picture of your Model Y or Model Y L in its own colour.",
+    version: "0.2",
+    image: { src: "/whats-new/car-picture.webp", alt: "The car card on the Car page, with a Pearl White Model Y beside the odometer and software version.", width: 1200, height: 525 },
+    kind: "Improvement",
+    audience: "draft",
+    show: "bell",
+  },
+  {
     id: "2026-11-02-name-place-icons",
     date: "2026-11-02",
     title: "Icons when naming a place",
