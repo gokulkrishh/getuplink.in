@@ -2,7 +2,7 @@
 
 Tesla software updates, charging, driving and battery, tracked from India.
 
-Uplink is a web app for Tesla owners in India, built on the [Tesla Fleet API](https://developer.tesla.com/docs/fleet-api) and [Fleet Telemetry](https://github.com/teslamotors/fleet-telemetry). It runs at [getuplink.in](https://getuplink.in), where it is invite-only. This repository is its full source, under the [MIT licence](LICENSE): read it, learn from it, or run your own copy for your own car.
+Uplink is a web app for Tesla owners in India, built on the [Tesla Fleet API](https://developer.tesla.com/docs/fleet-api) and [Fleet Telemetry](https://github.com/teslamotors/fleet-telemetry). It runs at [getuplink.in](https://getuplink.in), where it is invite-only. This repository is its full source, under the [GNU Affero General Public License v3.0](LICENSE): read it, learn from it, or run your own copy for your own car.
 
 - Shows each car's installed version, any pending update with progress, and the version history, plus the India rollout pooled across every car.
 - Charging (Supercharger invoices and streamed sessions), driving, battery health and efficiency, with week, month, year and all-time views.
@@ -188,7 +188,9 @@ Please don't open a public issue for a security problem. See [SECURITY.md](SECUR
 
 ## Licence
 
-Uplink's code is under the [MIT licence](LICENSE). Some files in this repository come from others and keep their own terms:
+Copyright © 2026 Gokulakrishnan Kalaikovan. Uplink's code is under the [GNU Affero General Public License v3.0 only](LICENSE) (`AGPL-3.0-only`). You can use, change and share it, including to run your own hosted copy. If you run a changed copy that other people use over a network, you must offer them its source under the same licence.
+
+Some files in this repository come from others and keep their own terms:
 
 - `lib/station-data.ts`: charging stations © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, under the [ODbL](https://opendatacommons.org/licenses/odbl/).
 - `public/fonts/`: cut-down [Geist](https://github.com/vercel/geist-font) and Geist Mono, under the SIL Open Font License (`public/fonts/OFL-*.txt`).

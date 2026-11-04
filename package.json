@@ -2,7 +2,7 @@
   "name": "uplink",
   "version": "0.1.0",
   "private": true,
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "scripts": {
     "dev": "next dev",
     "dev:https": "next dev --experimental-https --experimental-https-key certificates/getuplink.localhost-key.pem --experimental-https-cert certificates/getuplink.localhost.pem",

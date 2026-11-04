@@ -35,4 +35,4 @@ Each area has a doc in `docs/` that records the decisions behind it. Read it bef
 
 ## Licence
 
-By contributing, you agree that your contribution is licensed under the [MIT licence](LICENSE).
+By contributing, you agree that your contribution is licensed under the [GNU AGPL v3.0](LICENSE), the same as the rest of Uplink.
