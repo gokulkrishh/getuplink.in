@@ -26,14 +26,15 @@ export type ParkedRow = {
   awake: string;
 };
 
-// The stretch going on now says so under when it began, rather than in its length.
-const Now = ({ row }: { row: ParkedRow }) => (row.ongoing ? <span className="block text-xs text-muted-foreground">Still parked</span> : null);
-// The name truncates on a wider screen and wraps on a phone, so it reads in full in the scrolling table. The
-// credit beside a Google name never cuts.
+// How long it was parked, under where: the one going on now says so, with its length so far.
+const Length = ({ row }: { row: ParkedRow }) => (
+  <span className="block text-xs text-muted-foreground">{row.ongoing ? `Still parked · ${row.period}` : `For ${row.period}`}</span>
+);
+// The name wraps rather than cutting short, so it reads in full. The credit beside a Google name never cuts.
 const Where = ({ row }: { row: ParkedRow }) =>
   row.place ? (
-    <span className="flex min-w-0 items-baseline gap-x-1.5 text-xs text-muted-foreground max-sm:flex-wrap">
-      <span className="min-w-0 whitespace-normal sm:truncate">{row.place}</span>
+    <span className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-xs text-muted-foreground">
+      <span className="min-w-0 whitespace-normal">{row.place}</span>
       {row.placeGoogle && <GoogleMapsCredit className="shrink-0" />}
     </span>
   ) : null;
@@ -59,12 +60,11 @@ function ParkedTable({ rows }: { rows: ParkedRow[] }) {
         {rows.map((r) => (
           <tr key={r.start} className="align-top">
             <td className="py-2.5 pr-3 font-mono text-xs text-faint">{r.serial}</td>
-            <td className="py-2.5 pr-3 whitespace-nowrap">
-              {r.when}
+            <td className="py-2.5 pr-3">
+              <span className="block whitespace-nowrap">{r.when}</span>
               <Where row={r} />
-              <Now row={r} />
+              <Length row={r} />
             </td>
-            <td className="py-2.5 pr-3 whitespace-nowrap text-muted-foreground">{r.period}</td>
             <td className="py-2.5 pr-3 text-right font-mono"><Measure text={r.lost} /></td>
             <td className="py-2.5 pr-3 text-right font-mono"><Measure text={r.range} /></td>
             <td className="py-2.5 pr-3 text-right font-mono"><Measure text={r.energy} /></td>

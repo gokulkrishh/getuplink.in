@@ -291,9 +291,9 @@ function SkParkedList() {
                       <Ph>Orchard Lane</Ph>
                     </span>
                   )}
-                </td>
-                <td className="py-2.5 pr-3 whitespace-nowrap">
-                  <Ph>12 h 12 min</Ph>
+                  <span className="flex text-xs">
+                    <Ph>For 12 h 12 min</Ph>
+                  </span>
                 </td>
                 {["0.2%", "1 km", "0.2 kWh", "16 W"].map((v) => (
                   <td key={v} className="py-2.5 pr-3 text-right font-mono whitespace-nowrap">
