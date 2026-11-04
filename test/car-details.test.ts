@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { batteryChemistry, colorName, likelyLfp, modelName, motorLayout, packLabel, trimLabel, tyrePressureLabel, unknownCodes, wheelsLabel } from "@/lib/car";
+import { batteryChemistry, carPicture, colorName, likelyLfp, modelName, motorLayout, packLabel, trimLabel, tyrePressureLabel, unknownCodes, wheelsLabel } from "@/lib/car";
 
 describe("trimLabel", () => {
   test("maps the known pack badges", () => {
@@ -116,5 +116,22 @@ describe("unknownCodes", () => {
   });
   test("a new variant is flagged even when its prefix still names a model", () => {
     expect(unknownCodes({ car_type: "modelyl", trim_badging: "82d" })).toEqual(['model "modelyl"', 'pack "82d"']);
+  });
+});
+
+describe("carPicture", () => {
+  test("the Model Y and Model Y L in each paint sold in India", () => {
+    expect(carPicture("Model Y", "Diamond Black")).toBe("/cars/model-y-diamond-black.webp");
+    expect(carPicture("Model Y", "Quicksilver")).toBe("/cars/model-y-quicksilver.webp");
+    // The Model Y L's silver: Tesla's code SilkroadSilver, named as the Tesla app names it.
+    expect(carPicture("Model Y L", colorName("SilkroadSilver"))).toBe("/cars/model-y-l-cosmic-silver.webp");
+    expect(carPicture("Model Y L", "Ultra Red")).toBe("/cars/model-y-l-ultra-red.webp");
+  });
+  test("no picture rather than the wrong car or paint", () => {
+    expect(carPicture("Model Y", "Cosmic Silver")).toBeNull();
+    expect(carPicture("Model Y L", "Quicksilver")).toBeNull();
+    expect(carPicture("Model 3", "Pearl White")).toBeNull();
+    expect(carPicture("Model Y", null)).toBeNull();
+    expect(carPicture(null, "Pearl White")).toBeNull();
   });
 });
