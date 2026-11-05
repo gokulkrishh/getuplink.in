@@ -21,9 +21,9 @@ const STATUS: Record<string, string> = {
 export const READY_STATUSES = ["available", "scheduled"];
 
 // The states that change by themselves, so a page showing one refreshes itself (see AutoRefresh): progress
-// moves while downloading or installing, a download waiting for Wi-Fi starts once the car is on it, and a
-// queued update becomes ready to install.
-export const LIVE_STATUSES = ["downloading", "installing", "downloading_wifi_wait", "queued"];
+// moves while downloading or installing, and a download waiting for Wi-Fi starts once the car is on it.
+// Not queued: it can last days, and changes only with a check (at most every 30 minutes, lib/update-news.ts).
+export const LIVE_STATUSES = ["downloading", "installing", "downloading_wifi_wait"];
 
 // An update is available, scheduled, downloading, waiting for Wi-Fi or installing. An offer no newer than
 // `installed` (the version the car runs now) is a stale check: the car installed it since, as the stream

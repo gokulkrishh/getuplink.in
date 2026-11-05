@@ -33,7 +33,7 @@ export function latestByField(rows: BoundReading[]): Stream {
 //    percent stayed at 3. Fleet Telemetry has no field for waiting on Wi-Fi.
 // 4. No version (the car sends " "), or one no newer than the installed Version: nothing.
 // Version is the software the car runs: a reading older than its latest one belongs to before an install.
-// SoftwareUpdateDownloadPercentComplete is read only as news to ask Tesla about (lib/update-check.ts).
+// SoftwareUpdateDownloadPercentComplete is read only as news to ask Tesla about (lib/update-news.ts).
 export const UPDATE_FIELDS = [
   "SoftwareUpdateVersion",
   "SoftwareUpdateDownloadPercentComplete",
@@ -129,11 +129,11 @@ const NO_UPDATE: UpdatePart = { update_status: null, update_version: null, downl
 // install). Otherwise the check's value stands, as long as the check came after that Version reading: its
 // status is Tesla's own answer (vehicle_data's software_update), which telemetry doesn't have.
 function streamedUpdate(snapshot: Snapshot, stream: Stream, polledAt: number): UpdatePart {
-  const installedAt = stream.Version ? Date.parse(stream.Version.at) : 0;
   const installed = typeof stream.Version?.value === "string" ? normaliseVersion(stream.Version.value) : null;
-  // The car re-sends Version with each batch, so a check before the latest reading still counts when it saw
-  // the same software running: no install came between.
-  const checkCounts = polledAt >= installedAt || (installed !== null && normaliseVersion(snapshot.car_version) === installed);
+  // The car re-sends Version with each batch, unchanged: its time marks an install only when it names other
+  // software than the check saw running.
+  const installedAt = stream.Version && (installed === null || normaliseVersion(snapshot.car_version) !== installed) ? Date.parse(stream.Version.at) : 0;
+  const checkCounts = polledAt >= installedAt;
   const current = (field: string) => {
     const reading = stream[field];
     return reading && Date.parse(reading.at) >= installedAt && Date.parse(reading.at) > polledAt ? reading : undefined;

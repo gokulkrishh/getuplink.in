@@ -246,6 +246,15 @@ describe("the update's state from every software-update field", () => {
     expect(shown.update_status).toBeNull();
   });
 
+  test("a Version re-sent on its own, unchanged, keeps the queued update", () => {
+    // 10:43 AM's SoftwareUpdateVersion, then the installed Version alone at 11:00, no check since the day before.
+    const stream = nov5("2026-11-05T05:20:00Z");
+    stream.Version = { at: "2026-11-05T05:30:00.000Z", value: "2026.38.3.2" };
+    const shown = applyStream(AFTER_CHECK, stream)!;
+    expect(shown.update_status).toBe("queued");
+    expect(shown.update_version).toBe("2026.38.6");
+  });
+
   test("a Version reading that names the same version again keeps the fields sent with it", () => {
     // 04:46:27's batch re-sent Version with the rest: they count (>=), so the state holds.
     expect(stateAt("2026-11-05T04:50:00Z").update_status).toBe("queued");
