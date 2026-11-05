@@ -129,32 +129,35 @@ type UpdatePart = Pick<Snapshot, "update_status" | "update_version" | "download_
 
 const NO_UPDATE: UpdatePart = { update_status: null, update_version: null, download_perc: null, install_perc: null, expected_duration_sec: null };
 
-// The pending update from the streamed fields, in UPDATE_FIELDS's order. Telemetry rows only arrive on change,
-// so a field the car hasn't sent since the check falls back to the check's value; one sent before the car's
-// latest Version reading is from before an install and counts as not sent.
+// The pending update from the streamed fields, in UPDATE_FIELDS's order. A streamed field counts when it is
+// newer than both the check and the car's latest Version reading (one from before that is from before an
+// install). Telemetry rows only arrive on change, so a field that doesn't count falls back to the check's
+// value, as long as the check itself came after that Version reading.
 function streamedUpdate(snapshot: Snapshot, stream: Stream, polledAt: number, now: number): UpdatePart {
   const installedAt = stream.Version ? Date.parse(stream.Version.at) : 0;
+  const checkCounts = polledAt >= installedAt;
   const current = (field: string) => {
     const reading = stream[field];
-    return reading && Date.parse(reading.at) >= installedAt ? reading : undefined;
+    return reading && Date.parse(reading.at) >= installedAt && Date.parse(reading.at) > polledAt ? reading : undefined;
   };
-  const raw = stream.SoftwareUpdateVersion;
-  // A version reading from before the install: the update it named is installed, so nothing is pending.
-  const version = raw ? (current("SoftwareUpdateVersion") && typeof raw.value === "string" ? normaliseVersion(raw.value) : null) : snapshot.update_version;
+  const streamed = current("SoftwareUpdateVersion");
+  const version = streamed ? (typeof streamed.value === "string" ? normaliseVersion(streamed.value) : null) : checkCounts ? snapshot.update_version : null;
   const installed = typeof stream.Version?.value === "string" ? normaliseVersion(stream.Version.value) : null;
   if (!version || (installed && compareVersions(version, installed) <= 0)) return NO_UPDATE;
 
+  // The check's values, if it came after the install and was about this update (Tesla sometimes sends a
+  // status without a version).
+  const checkMatches = checkCounts && (!snapshot.update_version || snapshot.update_version === version);
+  const poll = checkMatches ? snapshot.update_status : null;
   const num = (field: string, fallback: number | null) => {
     const v = current(field)?.value;
-    return typeof v === "number" ? v : stream[field] ? null : fallback;
+    return typeof v === "number" ? v : checkMatches ? fallback : null;
   };
   const download = num("SoftwareUpdateDownloadPercentComplete", snapshot.download_perc);
   const install = num("SoftwareUpdateInstallationPercentComplete", snapshot.install_perc);
-  const minutes = current("SoftwareUpdateExpectedDurationMinutes")?.value;
+  const minutes = num("SoftwareUpdateExpectedDurationMinutes", null);
   const downloadPerc = download == null ? null : Math.round(download);
   const installPerc = install == null ? null : Math.round(install);
-  // The check's status, if it was about this update (Tesla sometimes sends a status without a version).
-  const poll = !snapshot.update_version || snapshot.update_version === version ? snapshot.update_status : null;
   const inProgress = current("SoftwareUpdateInProgress")?.value;
   const available = current("SoftwareUpdateAvailable")?.value;
   const part: UpdatePart = {
@@ -162,7 +165,7 @@ function streamedUpdate(snapshot: Snapshot, stream: Stream, polledAt: number, no
     update_version: version,
     download_perc: downloadPerc,
     install_perc: installPerc,
-    expected_duration_sec: typeof minutes === "number" ? minutes * 60 : snapshot.expected_duration_sec,
+    expected_duration_sec: minutes != null ? minutes * 60 : checkMatches ? snapshot.expected_duration_sec : null,
   };
   if (inProgress === true || (inProgress === undefined && poll === "installing")) {
     // A car that doesn't stream InProgress is installing only when a check saw it.
@@ -176,8 +179,10 @@ function streamedUpdate(snapshot: Snapshot, stream: Stream, polledAt: number, no
     const stillWaiting = poll === "downloading_wifi_wait" && downloadPerc === snapshot.download_perc;
     part.update_status = held || stillWaiting ? "downloading_wifi_wait" : "downloading";
   } else if (downloadPerc === 100) {
-    // A car that doesn't stream SoftwareUpdateAvailable is ready only when a check said so.
-    part.update_status = available === undefined && (poll === "available" || poll === "scheduled") ? poll : "preparing";
+    // Without a newer SoftwareUpdateAvailable, ready only when the check said so: available, scheduled, or
+    // installing (an install that stopped leaves the update ready).
+    const ready = available === undefined && (poll === "available" || poll === "scheduled" || poll === "installing");
+    part.update_status = ready ? (poll === "scheduled" ? "scheduled" : "available") : "preparing";
   } else {
     // A version and nothing else streamed since the install: what the check saw, if it saw this version.
     return poll ? { ...part, update_status: poll } : NO_UPDATE;

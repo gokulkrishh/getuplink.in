@@ -250,6 +250,43 @@ describe("the update's state from every software-update field", () => {
   });
 });
 
+describe("streamed fields older than the check give way to it", () => {
+  // A check at 05:00 UTC, after the 04:46 batch, that saw the car offer the update.
+  const offered = { ...AFTER_CHECK, polled_at: "2026-11-05T05:00:00Z", update_status: "scheduled", update_version: "2026.38.6", download_perc: 100, scheduled_time_ms: 1 };
+  test("an older SoftwareUpdateAvailable false doesn't hide a newer check that says it's ready", () => {
+    const shown = applyStream(offered, nov5("2026-11-05T05:30:00Z", [["SoftwareUpdateInstallationPercentComplete", 4]], "2026-11-05T05:10:00Z"), Date.parse("2026-11-05T05:30:00Z"))!;
+    expect(shown.update_status).toBe("scheduled");
+  });
+
+  test("an update the check found after an install stays, though the streamed version is from before it", () => {
+    // Installed 2026.38.6 at 05:20 (Version streamed); a 06:00 check sees 2026.40.2; Version is re-sent at 07:00.
+    const check = { ...offered, polled_at: "2026-11-05T06:00:00Z", update_status: "available", update_version: "2026.40.2" };
+    const stream = nov5("2026-11-05T04:50:00Z");
+    stream.Version = { at: "2026-11-05T05:20:00.000Z", value: "2026.38.6" };
+    expect(applyStream(check, stream, Date.parse("2026-11-05T06:30:00Z"))!.update_status).toBe("available");
+    stream.Version = { at: "2026-11-05T07:00:00.000Z", value: "2026.38.6" };
+    // The check came before this Version reading, so it no longer counts either: nothing is known pending.
+    expect(applyStream(check, stream, Date.parse("2026-11-05T07:10:00Z"))!.update_status).toBeNull();
+  });
+
+  test("an install that stops leaves the update ready, not preparing", () => {
+    const installing = { ...offered, update_status: "installing" };
+    const shown = applyStream(installing, nov5("2026-11-05T05:30:00Z", [["SoftwareUpdateInProgress", false]], "2026-11-05T05:10:00Z"), Date.parse("2026-11-05T05:30:00Z"))!;
+    expect(shown.update_status).toBe("available");
+  });
+
+  test("a new version doesn't take the old one's install time", () => {
+    const check = { ...offered, update_version: "2026.38.5", expected_duration_sec: 40 * 60 };
+    const stream: Stream = {
+      SoftwareUpdateVersion: { at: "2026-11-05T05:10:00.000Z", value: "2026.38.6" },
+      SoftwareUpdateDownloadPercentComplete: { at: "2026-11-05T05:10:00.000Z", value: 20 },
+    };
+    const shown = applyStream(check, stream, Date.parse("2026-11-05T05:30:00Z"))!;
+    expect(shown.update_version).toBe("2026.38.6");
+    expect(shown.expected_duration_sec).toBeNull();
+  });
+});
+
 describe("the update's state from a check alone", () => {
   const check = (status: string | null, version: string | null = "2026.38.6") => ({ ...AFTER_CHECK, update_status: status, update_version: version });
   test("Tesla's statuses map to the states, a blank or installed version to nothing", () => {

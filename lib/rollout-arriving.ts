@@ -3,9 +3,10 @@
 import { compareVersions, type Rollout } from "@/lib/rollout";
 import { normaliseVersion } from "@/lib/versions";
 
-// Tesla's software_update statuses for an update the car has but hasn't installed yet: the keys of
-// components/updates/update-status.tsx's labels. Polls store an empty status as null.
-export const PENDING_STATUSES = ["available", "scheduled", "downloading", "downloading_wifi_wait", "installing", "preparing"];
+// Tesla's software_update statuses for an update the car has but hasn't installed yet. Polls store an empty
+// status as null. Not Uplink's own "preparing" (downloaded, not yet offered): other cars are counted from their
+// checks, which don't report that state, so the owner's car isn't counted in it either.
+export const PENDING_STATUSES = ["available", "scheduled", "downloading", "downloading_wifi_wait", "installing"];
 
 // One car: the version it runs (the vehicles row) and the update its last online check saw offered.
 export type OfferedCar = { car: string; version: string | null; status: string | null; offered: string | null };
