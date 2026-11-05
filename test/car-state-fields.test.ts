@@ -31,13 +31,13 @@ const { loadCarState } = await import("@/lib/server/dashboard");
 describe("loadCarState", () => {
   test("always reads every update field, with the page's own", async () => {
     asked = [];
-    await loadCarState({ sub: "owner" } as Owner, { id: "1", vin: "VIN1" }, "normal", Date.now(), ["BatteryLevel"]);
+    await loadCarState({ sub: "owner" } as Owner, { id: "1", vin: "VIN1" }, "normal", ["BatteryLevel"]);
     expect(asked[0]).toEqual(["BatteryLevel", ...UPDATE_FIELDS]);
   });
 
   test("the default list gains SoftwareUpdateInProgress", async () => {
     asked = [];
-    await loadCarState({ sub: "owner" } as Owner, { id: "1", vin: "VIN1" }, "normal", Date.now());
+    await loadCarState({ sub: "owner" } as Owner, { id: "1", vin: "VIN1" }, "normal");
     expect(asked[0]).toContain("SoftwareUpdateInProgress");
     expect(new Set(asked[0]).size).toBe(asked[0].length);
   });

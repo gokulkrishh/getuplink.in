@@ -60,7 +60,7 @@ export async function loadHomeNow(owner: Owner, scenario: DemoScenario, now: num
       Promise.all(
         account.vehicles.map(async (vehicle) => {
           // The flags come with the state's read of the last online check.
-          const { flags, ...state } = await loadCarState(owner, vehicle, scenario, now);
+          const { flags, ...state } = await loadCarState(owner, vehicle, scenario);
           return { vehicle, ...state, notices: flags.notices };
         }),
       ),

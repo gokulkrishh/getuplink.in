@@ -41,7 +41,7 @@ function updateRows(history: VersionChange[]): UpdateRow[] {
 async function updatesCar(owner: Owner, vehicle: Vehicle, scenario: DemoScenario, now: number): Promise<UpdatesCar> {
   const [state, history, presence] = await Promise.all([
     // Only the update fields: the page shows no battery.
-    loadCarState(owner, vehicle, scenario, now, UPDATE_FIELDS),
+    loadCarState(owner, vehicle, scenario, UPDATE_FIELDS),
     // Timings only for the rows shown first; the rest get theirs on Show more (see moreVersions in app/updates/actions.ts).
     loadHistory(owner, vehicle).then(async (rows) => (vehicle.vin ? [...(await withTimelines(owner, vehicle.vin, rows.slice(0, LIST_PREVIEW))), ...rows.slice(LIST_PREVIEW)] : rows)),
     loadPresence(owner, vehicle.vin ? { id: vehicle.id, vin: vehicle.vin } : null, now),

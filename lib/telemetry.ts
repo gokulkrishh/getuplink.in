@@ -22,16 +22,18 @@ export function latestByField(rows: BoundReading[]): Stream {
   return stream;
 }
 
-// The fields a pending update is read from, worked out in this order (see applyStream):
-// 1. SoftwareUpdateInProgress true: installing. The installation percent alone proves nothing: it climbs in
-//    the background long before (10% overnight for an install the owner started at 7:41 AM).
+// The fields a pending update is read from, worked out in this order (see streamedUpdate):
+// 1. SoftwareUpdateInProgress true: installing, with the installation percent. That percent alone proves
+//    nothing: it climbs in the background long before (10% overnight for an install started at 7:41 AM).
 // 2. SoftwareUpdateAvailable true: ready to install. Only now does the car offer it.
-// 3. SoftwareUpdateVersion set, download under 100%: downloading, or waiting for Wi-Fi (see WIFI_WAIT_MS).
-// 4. Downloaded, not yet offered: preparing. Tesla sets the version as soon as the update is assigned to the
-//    car: on 5 Nov 2026 2026.38.6 downloaded by 10:08 AM, and at 10:26 AM the car still had
-//    SoftwareUpdateAvailable false and showed no update, nor did the Tesla app.
-// 5. No version (the car sends " "), or one no newer than the installed Version: nothing.
-// Version is the software the car runs: a reading older than its latest one belongs to before the install.
+// 3. SoftwareUpdateVersion set, neither of those: queued for the car, why is what Tesla's check last said
+//    (waiting for Wi-Fi, downloading, scheduled), else just queued. The streamed download percent is not a
+//    download: on 5 Nov 2026 2026.38.6 went 0% to 100% in two minutes (10:06 to 10:08 AM IST) while the car's
+//    screen said to connect to Wi-Fi to download, SoftwareUpdateAvailable stayed false and the install
+//    percent stayed at 3. Fleet Telemetry has no field for waiting on Wi-Fi.
+// 4. No version (the car sends " "), or one no newer than the installed Version: nothing.
+// Version is the software the car runs: a reading older than its latest one belongs to before an install.
+// SoftwareUpdateDownloadPercentComplete is read only as news to ask Tesla about (lib/update-check.ts).
 export const UPDATE_FIELDS = [
   "SoftwareUpdateVersion",
   "SoftwareUpdateDownloadPercentComplete",
@@ -42,16 +44,9 @@ export const UPDATE_FIELDS = [
   "Version",
 ];
 
-// How long a download can sit at 0% before it counts as waiting for Wi-Fi. Readings arrive on change, and a
-// download that has started moves within a minute (0% to 25% a minute apart, 23 Oct 2026). Offered 2026.38.6
-// away from Wi-Fi (5 Nov 2026), the car sat at 0% for almost three hours while the Tesla app said to connect
-// to Wi-Fi, then went 9%, 38%, 100% a minute apart once on it.
-export const WIFI_WAIT_MS = 2 * 60_000;
-
 // Streamed values that are newer than the poll, laid over the poll's snapshot. polled_at is left
-// alone so it keeps describing the poll (lastSyncedText weighs it against the streamed times). `now` says
-// how long a download has sat at 0% (see WIFI_WAIT_MS).
-export function applyStream(snapshot: Snapshot | null, stream: Stream, now: number): Snapshot | null {
+// alone so it keeps describing the poll (lastSyncedText weighs it against the streamed times).
+export function applyStream(snapshot: Snapshot | null, stream: Stream): Snapshot | null {
   if (!snapshot) return null;
   const polledAt = Date.parse(snapshot.polled_at);
   const fresh = (field: string) => {
@@ -61,7 +56,7 @@ export function applyStream(snapshot: Snapshot | null, stream: Stream, now: numb
   const next: Snapshot = { ...snapshot, charge_power_kw: null, charge_energy_kwh: null, time_to_full_h: null };
 
   const updateAt = Math.max(0, ...UPDATE_FIELDS.map((f) => (stream[f] ? Date.parse(stream[f].at) : 0)));
-  if (updateAt > polledAt) Object.assign(next, streamedUpdate(snapshot, stream, polledAt, now));
+  if (updateAt > polledAt) Object.assign(next, streamedUpdate(snapshot, stream, polledAt));
 
   const level = fresh("BatteryLevel");
   if (typeof level === "number") next.battery_level = Math.round(level);
@@ -131,9 +126,9 @@ const NO_UPDATE: UpdatePart = { update_status: null, update_version: null, downl
 
 // The pending update from the streamed fields, in UPDATE_FIELDS's order. A streamed field counts when it is
 // newer than both the check and the car's latest Version reading (one from before that is from before an
-// install). Telemetry rows only arrive on change, so a field that doesn't count falls back to the check's
-// value, as long as the check itself came after that Version reading.
-function streamedUpdate(snapshot: Snapshot, stream: Stream, polledAt: number, now: number): UpdatePart {
+// install). Otherwise the check's value stands, as long as the check came after that Version reading: its
+// status is Tesla's own answer (vehicle_data's software_update), which telemetry doesn't have.
+function streamedUpdate(snapshot: Snapshot, stream: Stream, polledAt: number): UpdatePart {
   const installedAt = stream.Version ? Date.parse(stream.Version.at) : 0;
   const checkCounts = polledAt >= installedAt;
   const current = (field: string) => {
@@ -145,7 +140,7 @@ function streamedUpdate(snapshot: Snapshot, stream: Stream, polledAt: number, no
   const installed = typeof stream.Version?.value === "string" ? normaliseVersion(stream.Version.value) : null;
   if (!version || (installed && compareVersions(version, installed) <= 0)) return NO_UPDATE;
 
-  // The check's values, if it came after the install and was about this update (Tesla sometimes sends a
+  // The check's answer, if it came after the install and was about this update (Tesla sometimes sends a
   // status without a version).
   const checkMatches = checkCounts && (!snapshot.update_version || snapshot.update_version === version);
   const poll = checkMatches ? snapshot.update_status : null;
@@ -153,39 +148,30 @@ function streamedUpdate(snapshot: Snapshot, stream: Stream, polledAt: number, no
     const v = current(field)?.value;
     return typeof v === "number" ? v : checkMatches ? fallback : null;
   };
-  const download = num("SoftwareUpdateDownloadPercentComplete", snapshot.download_perc);
   const install = num("SoftwareUpdateInstallationPercentComplete", snapshot.install_perc);
   const minutes = num("SoftwareUpdateExpectedDurationMinutes", null);
-  const downloadPerc = download == null ? null : Math.round(download);
-  const installPerc = install == null ? null : Math.round(install);
   const inProgress = current("SoftwareUpdateInProgress")?.value;
   const available = current("SoftwareUpdateAvailable")?.value;
   const part: UpdatePart = {
-    update_status: null,
+    update_status: "queued",
     update_version: version,
-    download_perc: downloadPerc,
-    install_perc: installPerc,
+    // Only the check's download percent: the streamed one moves without a download (see UPDATE_FIELDS).
+    download_perc: null,
+    install_perc: install == null ? null : Math.round(install),
     expected_duration_sec: minutes != null ? minutes * 60 : checkMatches ? snapshot.expected_duration_sec : null,
   };
   if (inProgress === true || (inProgress === undefined && poll === "installing")) {
-    // A car that doesn't stream InProgress is installing only when a check saw it.
     part.update_status = "installing";
-  } else if (available === true) {
+  } else if (available === true || (available === undefined && (poll === "available" || poll === "scheduled"))) {
     part.update_status = poll === "scheduled" ? "scheduled" : "available";
-  } else if (downloadPerc != null && downloadPerc < 100) {
-    // At 0% since after the check, for longer than a started download stays there: nothing is coming down.
-    const reading = current("SoftwareUpdateDownloadPercentComplete");
-    const held = downloadPerc === 0 && !!reading && Date.parse(reading.at) > polledAt && now - Date.parse(reading.at) >= WIFI_WAIT_MS;
-    const stillWaiting = poll === "downloading_wifi_wait" && downloadPerc === snapshot.download_perc;
-    part.update_status = held || stillWaiting ? "downloading_wifi_wait" : "downloading";
-  } else if (downloadPerc === 100) {
-    // Without a newer SoftwareUpdateAvailable, ready only when the check said so: available, scheduled, or
-    // installing (an install that stopped leaves the update ready).
-    const ready = available === undefined && (poll === "available" || poll === "scheduled" || poll === "installing");
-    part.update_status = ready ? (poll === "scheduled" ? "scheduled" : "available") : "preparing";
-  } else {
-    // A version and nothing else streamed since the install: what the check saw, if it saw this version.
-    return poll ? { ...part, update_status: poll } : NO_UPDATE;
+  } else if (inProgress === false && available === undefined && poll === "installing") {
+    // An install that stopped leaves the update offered.
+    part.update_status = "available";
+  } else if (poll === "downloading_wifi_wait") {
+    part.update_status = poll;
+  } else if (poll === "downloading") {
+    part.update_status = poll;
+    part.download_perc = snapshot.download_perc;
   }
   return part;
 }

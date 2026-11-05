@@ -63,7 +63,7 @@ async function loadLive(id: string, vin: string | null): Promise<Live> {
   const at = Date.now();
   // The flags come with the state's read of the last online check.
   const [{ flags, ...state }, stream, arrivals] = await Promise.all([
-    loadCarState(owner, { id, vin }, "normal", at),
+    loadCarState(owner, { id, vin }, "normal"),
     vin ? loadStream(owner, vin, PAGE_FIELDS) : {},
     vin ? loadTyreArrivals(owner, vin, at) : {},
   ]);

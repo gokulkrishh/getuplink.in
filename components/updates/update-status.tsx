@@ -6,15 +6,15 @@ import { compareVersions } from "@/lib/rollout";
 import { normaliseVersion } from "@/lib/versions";
 import { Progress } from "@/components/ui/progress";
 
-// The update's states, as lib/telemetry.ts's UPDATE_FIELDS works them out (and Tesla's check reports them, but
-// for preparing). Available and scheduled are both ready to install: scheduled says when it starts.
+// The update's states, as lib/telemetry.ts's UPDATE_FIELDS works them out: Tesla's check reports all but
+// queued (the car has the version, and nothing says yet why it isn't offered).
 const STATUS: Record<string, string> = {
   installing: "Installing",
   available: "Ready to install",
-  scheduled: "Ready to install",
+  scheduled: "Scheduled",
   downloading: "Downloading",
   downloading_wifi_wait: "Waiting for Wi-Fi",
-  preparing: "Downloaded, preparing",
+  queued: "Queued as the next update",
 };
 
 // The car offers the update: the only states marked with the green dot.
@@ -22,8 +22,8 @@ export const READY_STATUSES = ["available", "scheduled"];
 
 // The states that change by themselves, so a page showing one refreshes itself (see AutoRefresh): progress
 // moves while downloading or installing, a download waiting for Wi-Fi starts once the car is on it, and a
-// downloaded update becomes ready to install.
-export const LIVE_STATUSES = ["downloading", "installing", "downloading_wifi_wait", "preparing"];
+// queued update becomes ready to install.
+export const LIVE_STATUSES = ["downloading", "installing", "downloading_wifi_wait", "queued"];
 
 // An update is available, scheduled, downloading, waiting for Wi-Fi or installing. An offer no newer than
 // `installed` (the version the car runs now) is a stale check: the car installed it since, as the stream
@@ -85,7 +85,7 @@ export function UpdateStatus({ snapshot, now }: { snapshot: Snapshot | null; now
         </p>
       ) : null}
       {status === "downloading_wifi_wait" && (
-        <p className="text-sm text-muted-foreground">Connect the car to Wi-Fi to start the download.</p>
+        <p className="text-sm text-muted-foreground">Connect the car to Wi-Fi to download.</p>
       )}
     </div>
   );
