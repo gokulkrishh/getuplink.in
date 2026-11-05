@@ -146,7 +146,7 @@ function Pill({
       data-hidden={hidden || undefined}
       onFocus={onFocus}
       onBlur={onBlur}
-      className="phone-nav fixed inset-x-0 bottom-[calc(22px+env(safe-area-inset-bottom))] z-30 mx-auto h-[54px] w-fit rounded-full border p-[4px] transition-transform duration-200 ease-out data-hidden:translate-y-[calc(100%+22px+env(safe-area-inset-bottom))] motion-reduce:transition-none sm:hidden"
+      className="phone-nav fixed inset-x-0 bottom-(--nav-bottom) z-30 mx-auto h-[54px] w-fit rounded-full border p-[4px] transition-transform duration-200 ease-out data-hidden:translate-y-[calc(100%+var(--nav-bottom))] motion-reduce:transition-none sm:hidden"
     >
       {/* The chip slides to a tapped icon at once (optimistic, a CSS slide), and it is also one shared element
           ("phone-nav-chip", as the Car tabs' underline): each page draws its own pill, so when the next page
