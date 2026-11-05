@@ -131,13 +131,14 @@ function newestReading(stream: Stream): string | null {
 
 // See CarState. `fields` are the stream fields to read; streamAt only covers those. The update fields are
 // always read too: the pending update laid over the check needs every one of them (see applyStream).
-export async function loadCarState(owner: Owner, vehicle: Pick<Vehicle, "id" | "vin">, scenario: DemoScenario, wanted: string[] = STREAM_FIELDS): Promise<CarState> {
+// `now` is the page's clock, for how long an update has sat at 0% (see applyStream).
+export async function loadCarState(owner: Owner, vehicle: Pick<Vehicle, "id" | "vin">, scenario: DemoScenario, now: number, wanted: string[] = STREAM_FIELDS): Promise<CarState> {
   const fields = [...new Set([...wanted, ...UPDATE_FIELDS])];
   if (DEMO) {
     // The same steps as below, from the generated car instead of the database.
     const { snapshot } = demoData();
     const stream = demoStream(fields, scenario);
-    return { latest: snapshot, lastOnline: applyStream(snapshot, stream), streamAt: newestReading(stream), flags: demoCarFlags(), sentry: sentryOn(stream.SentryMode, snapshot) };
+    return { latest: snapshot, lastOnline: applyStream(snapshot, stream, now), streamAt: newestReading(stream), flags: demoCarFlags(), sentry: sentryOn(stream.SentryMode, snapshot) };
   }
   const [latest, lastOnline, stream] = await Promise.all([
     ownerDb(owner).from("snapshots").select(SNAPSHOT_COLUMNS).eq("vehicle_id", vehicle.id).order("polled_at", { ascending: false }).limit(1).maybeSingle(),
@@ -158,7 +159,7 @@ export async function loadCarState(owner: Owner, vehicle: Pick<Vehicle, "id" | "
   const online = lastOnline.data as unknown as Record<string, unknown> | null;
   const snapshot = online && (Object.fromEntries(Object.entries(online).filter(([key]) => !FLAG_KEYS.includes(key))) as Snapshot);
   const newest = latest.data as Snapshot | null;
-  return { latest: newest, lastOnline: applyStream(snapshot, stream), streamAt: newestReading(stream), flags: carFlagsFrom(online), sentry: sentryOn((stream as Stream).SentryMode, newest) };
+  return { latest: newest, lastOnline: applyStream(snapshot, stream, now), streamAt: newestReading(stream), flags: carFlagsFrom(online), sentry: sentryOn((stream as Stream).SentryMode, newest) };
 }
 
 // The car's version history, newest first, without timings (see withTimelines).

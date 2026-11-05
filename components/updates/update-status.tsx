@@ -14,6 +14,10 @@ const STATUS: Record<string, string> = {
   installing: "Installing",
 };
 
+// The states that change by themselves, so a page showing one refreshes itself (see AutoRefresh): progress
+// moves while downloading or installing, and a download waiting for Wi-Fi starts once the car is on it.
+export const LIVE_STATUSES = ["downloading", "installing", "downloading_wifi_wait"];
+
 // An update is available, scheduled, downloading, waiting for Wi-Fi or installing. An offer no newer than
 // `installed` (the version the car runs now) is a stale check: the car installed it since, as the stream
 // can tell before the next online check does. The rollout's pendingUpdate applies the same rule.
@@ -34,7 +38,7 @@ export function UpdateStatus({ snapshot, now }: { snapshot: Snapshot | null; now
     status === "installing" ? snapshot.install_perc : status === "downloading" ? snapshot.download_perc : null;
   return (
     <div className="space-y-2">
-      {(status === "downloading" || status === "installing" || status === "downloading_wifi_wait") && <AutoRefresh />}
+      {LIVE_STATUSES.includes(status) && <AutoRefresh />}
       <p className="flex items-baseline gap-2">
         {status === "available" ? (
           <span className="inline-flex items-baseline gap-2 text-foreground">

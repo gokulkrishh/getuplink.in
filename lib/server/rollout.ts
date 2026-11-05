@@ -60,7 +60,7 @@ async function build(
 
 // The owner's car (the one seen most recently, as on Settings) with its pending update as /updates shows
 // it: the last online check with newer streamed update fields laid over it.
-async function ownCar(owner: Owner): Promise<OwnCar> {
+async function ownCar(owner: Owner, now: number): Promise<OwnCar> {
   let vehicle: Vehicle | null;
   if (DEMO) vehicle = demoData().vehicle;
   else {
@@ -74,7 +74,7 @@ async function ownCar(owner: Owner): Promise<OwnCar> {
     vehicle = data as Vehicle | null;
   }
   if (!vehicle) return null;
-  const { lastOnline } = await loadCarState(owner, vehicle, "normal", UPDATE_FIELDS);
+  const { lastOnline } = await loadCarState(owner, vehicle, "normal", now, UPDATE_FIELDS);
   return { car: vehicle.id, version: vehicle.current_version, status: lastOnline?.update_status ?? null, offered: lastOnline?.update_version ?? null };
 }
 
@@ -96,14 +96,14 @@ async function readRollout(owner: Owner, now: number): Promise<RolloutPage> {
       const offer = fleet.offers.find((o) => o.vehicle_id === v.id);
       return { car: v.id, version: v.current_version, status: offer?.update_status ?? null, offered: offer?.update_version ?? null };
     });
-    return build(await carStates(), changes, fleet.globalReleases, offers, await ownCar(owner), now, fleet.notes);
+    return build(await carStates(), changes, fleet.globalReleases, offers, await ownCar(owner, now), now, fleet.notes);
   }
   try {
     const missing = missingEnv();
     if (missing.length) return { kind: "error", message: `Missing env vars: ${missing.join(", ")}` };
     // Every owner's cars count by default. The opt-out (phase 6, with per-owner settings) goes here: drop the
     // cars and rows of owners who turned it off before they reach buildRollout.
-    const [cars, changes, offers, own] = await Promise.all([carStates(), fleetVersionChanges(), fleetOffers(), ownCar(owner)]);
+    const [cars, changes, offers, own] = await Promise.all([carStates(), fleetVersionChanges(), fleetOffers(), ownCar(owner, now)]);
     return await build(cars, changes, GLOBAL_RELEASES, offers, own, now);
   } catch (err) {
     console.error(err);

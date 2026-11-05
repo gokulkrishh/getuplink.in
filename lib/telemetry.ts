@@ -32,9 +32,16 @@ export const UPDATE_FIELDS = [
   "SoftwareUpdateInProgress",
 ];
 
+// How long a download can sit at 0% before it counts as waiting for Wi-Fi. Readings arrive on change, and a
+// download that has started moves within a minute (0% to 25% a minute apart, 23 Oct 2026). Offered 2026.38.6
+// away from Wi-Fi (5 Nov 2026), the car sat at 0% for almost three hours while the Tesla app said to connect
+// to Wi-Fi, then went 9%, 38%, 100% a minute apart once on it.
+export const WIFI_WAIT_MS = 2 * 60_000;
+
 // Streamed values that are newer than the poll, laid over the poll's snapshot. polled_at is left
-// alone so it keeps describing the poll (lastSyncedText weighs it against the streamed times).
-export function applyStream(snapshot: Snapshot | null, stream: Stream): Snapshot | null {
+// alone so it keeps describing the poll (lastSyncedText weighs it against the streamed times). `now` says
+// how long a download has sat at 0% (see WIFI_WAIT_MS).
+export function applyStream(snapshot: Snapshot | null, stream: Stream, now: number): Snapshot | null {
   if (!snapshot) return null;
   const polledAt = Date.parse(snapshot.polled_at);
   const fresh = (field: string) => {
@@ -72,13 +79,12 @@ export function applyStream(snapshot: Snapshot | null, stream: Stream): Snapshot
       if (typeof minutes === "number") next.expected_duration_sec = minutes * 60;
       if (inProgress === true) {
         next.update_status = "installing";
-      } else if (download === 0 || (poll === "downloading_wifi_wait" && downloadPerc === snapshot.download_perc)) {
-        // Nothing has come down yet. The car downloads over Wi-Fi: offered 2026.38.6 away from it (5 Nov 2026),
-        // it sat at 0% for almost three hours while the Tesla app said to connect to Wi-Fi, then went 9% to 100%
-        // in two minutes once on it. A download that has started is off 0% within a minute.
-        next.update_status = "downloading_wifi_wait";
       } else if (downloadPerc != null && downloadPerc < 100) {
-        next.update_status = "downloading";
+        // At 0% since after the check, for longer than a started download stays there: nothing is coming down.
+        const reading = stream.SoftwareUpdateDownloadPercentComplete;
+        const held = downloadPerc === 0 && !!reading && Date.parse(reading.at) > polledAt && now - Date.parse(reading.at) >= WIFI_WAIT_MS;
+        const stillWaiting = poll === "downloading_wifi_wait" && downloadPerc === snapshot.download_perc;
+        next.update_status = held || stillWaiting ? "downloading_wifi_wait" : "downloading";
       } else if (inProgress === false) {
         // Downloaded, not installing: the percent alone proves nothing (see UPDATE_FIELDS).
         next.update_status = poll === "available" || poll === "scheduled" ? poll : "available";

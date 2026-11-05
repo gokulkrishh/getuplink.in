@@ -242,7 +242,7 @@ describe("applyStream while charging", () => {
     const next = applyStream(snapshot("21:40:00"), {
       DetailedChargeState: v("21:25:56", STATE("Charging")),
       DCChargingPower: v("21:30:42", 29.16959934800863),
-    });
+    }, Date.now());
     expect(next?.charge_power_kw).toBeCloseTo(29.17, 2);
   });
 
@@ -253,7 +253,7 @@ describe("applyStream while charging", () => {
       DCChargingPower: v("14:08:51", 59.60206116779009),
       DCChargingEnergyIn: v("14:11:54", 5.879999868571758),
       ACChargingEnergyIn: v("09:00:00", 12.4),
-    });
+    }, Date.now());
     expect(next?.charge_energy_kwh).toBeCloseTo(5.88, 2);
   });
 
@@ -261,7 +261,7 @@ describe("applyStream while charging", () => {
     const next = applyStream(snapshot("21:40:00"), {
       DetailedChargeState: v("21:25:56", STATE("Charging")),
       ACChargingEnergyIn: v("09:00:00", 12.4),
-    });
+    }, Date.now());
     expect(next?.charge_energy_kwh).toBeNull();
   });
 
@@ -274,7 +274,7 @@ describe("applyStream while charging", () => {
     const next = applyStream(checkedYesterday(), {
       ACChargingEnergyIn: lastNight("23:00:00", 12.4),
       DetailedChargeState: v("14:03:45", STATE("Charging")),
-    });
+    }, Date.now());
     expect(next?.charge_energy_kwh).toBeNull();
   });
 
@@ -284,7 +284,7 @@ describe("applyStream while charging", () => {
       ACChargingEnergyIn: lastNight("23:00:00", 12.4),
       DetailedChargeState: v("14:03:45", STATE("Charging")),
       DCChargingEnergyIn: v("14:06:10", 2.1),
-    });
+    }, Date.now());
     expect(next?.charge_energy_kwh).toBeCloseTo(2.1, 2);
   });
 
@@ -292,7 +292,7 @@ describe("applyStream while charging", () => {
     const next = applyStream(snapshot("21:40:00"), {
       DetailedChargeState: v("21:25:56", STATE("Charging")),
       ACChargingPower: v("09:00:00", 7.2),
-    });
+    }, Date.now());
     expect(next?.charge_power_kw).toBeNull();
   });
 
@@ -302,7 +302,7 @@ describe("applyStream while charging", () => {
       FastChargerType: v("21:24:56", "FastChargerCombo"),
       DCChargingPower: v("21:26:30", 29.340629344185814),
       TimeToFullCharge: v("21:26:28", 0.25070651613540273),
-    });
+    }, Date.now());
     expect(next?.charge_power_kw).toBeCloseTo(29.34, 2);
     expect(next?.time_to_full_h).toBeNull();
   });
@@ -312,14 +312,14 @@ describe("applyStream while charging", () => {
       DetailedChargeState: v("21:25:56", STATE("Charging")),
       ACChargingPower: v("21:26:30", 7.2),
       TimeToFullCharge: v("21:26:28", 1.5),
-    });
+    }, Date.now());
     expect(ac?.time_to_full_h).toBe(1.5);
     const sc = applyStream(snapshot("21:00:00"), {
       DetailedChargeState: v("21:25:56", STATE("Charging")),
       FastChargerType: v("21:24:56", "FastChargerSupercharger"),
       DCChargingPower: v("21:26:30", 90),
       TimeToFullCharge: v("21:26:28", 0.4),
-    });
+    }, Date.now());
     expect(sc?.time_to_full_h).toBe(0.4);
   });
 });

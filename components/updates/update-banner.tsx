@@ -3,7 +3,7 @@ import Link from "next/link";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { formatKm } from "@/lib/format";
 import type { Snapshot } from "@/lib/server/dashboard";
-import { isPending } from "./update-status";
+import { isPending, LIVE_STATUSES } from "./update-status";
 
 // "2026.40.2 available"; while it moves, "Downloading 2026.40.2" with "43%" apart, so the number stays in
 // view when the version is cut short on a phone.
@@ -40,8 +40,7 @@ export function UpdateBanner({
 }) {
   const pending = snapshot !== null && isPending(snapshot, installed) ? bannerText(snapshot) : null;
   if (!version && !pending) return null;
-  // Waiting for Wi-Fi too: the download starts by itself once the car is on Wi-Fi.
-  const moving = snapshot?.update_status === "downloading" || snapshot?.update_status === "installing" || snapshot?.update_status === "downloading_wifi_wait";
+  const moving = LIVE_STATUSES.includes(snapshot?.update_status ?? "");
   // With no update on its way, the version is plain text: the header's Updates link opens the history.
   if (!pending)
     return version ? (
@@ -56,7 +55,7 @@ export function UpdateBanner({
       prefetch={true}
       className="group flex items-center justify-between gap-4 rounded-lg border px-4 py-3 text-sm transition-colors duration-150 hover:border-muted-foreground/50"
     >
-      {/* Progress moves while it downloads or installs (or is about to), so the page keeps itself fresh. */}
+      {/* While the update is moving (see LIVE_STATUSES), the page keeps itself fresh. */}
       {moving && <AutoRefresh />}
       <span className="min-w-0 space-y-1">
         {version && (
