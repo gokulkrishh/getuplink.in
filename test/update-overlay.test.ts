@@ -301,7 +301,7 @@ describe("streamed fields older than the check give way to it", () => {
 describe("the update's state from a check alone", () => {
   const check = (status: string | null, version: string | null = "2026.38.6") => ({ ...AFTER_CHECK, update_status: status, update_version: version });
   test("Tesla's statuses map to the states, a blank or installed version to nothing", () => {
-    for (const status of ["available", "scheduled", "downloading", "downloading_wifi_wait", "installing"]) {
+    for (const status of ["available", "scheduled", "downloading", "installing"]) {
       const shown = applyStream(check(status), {})!;
       expect(shown.update_status).toBe(status);
       expect(isPending(shown, "2026.38.3.2")).toBe(true);
@@ -310,6 +310,30 @@ describe("the update's state from a check alone", () => {
     expect(isPending(check(null), "2026.38.3.2")).toBe(false);
     expect(isPending(check("available"), "2026.38.6")).toBe(false);
     expect(isPending(check("available"), "2026.38.6 a1b2c3d4e5")).toBe(false);
+  });
+});
+
+describe("shown only when the car offers the update, as the Tesla app does", () => {
+  // 5 Nov 2026, 12:30 to 4:00 PM IST: Tesla's check said 2026.38.6 was waiting for Wi-Fi at 50%, while the car
+  // and the Tesla app said up to date. The car's stream alone has it queued.
+  test("waiting for Wi-Fi, from Tesla's check: nothing shown", () => {
+    const check = { ...AFTER_CHECK, polled_at: "2026-11-05T10:30:38Z", update_status: "downloading_wifi_wait", update_version: "2026.38.6", download_perc: 50 };
+    const shown = applyStream(check, {})!;
+    expect(shown.update_status).toBe("downloading_wifi_wait");
+    expect(isPending(shown, "2026.38.3.2")).toBe(false);
+  });
+
+  test("queued, from the car's stream alone: nothing shown", () => {
+    const shown = stateAt("2026-11-05T04:56:49Z");
+    expect(shown.update_status).toBe("queued");
+    expect(isPending(shown, "2026.38.3.2")).toBe(false);
+  });
+
+  test("ready to install, downloading and installing are shown", () => {
+    expect(isPending(stateAt("2026-11-05T05:00:00Z", [["SoftwareUpdateAvailable", true]]), "2026.38.3.2")).toBe(true);
+    expect(isPending(stateAt("2026-11-05T05:00:00Z", [["SoftwareUpdateInProgress", true]]), "2026.38.3.2")).toBe(true);
+    const downloading = { ...AFTER_CHECK, polled_at: "2026-11-05T10:30:38Z", update_status: "downloading", update_version: "2026.38.6", download_perc: 20 };
+    expect(isPending(applyStream(downloading, {}), "2026.38.3.2")).toBe(true);
   });
 });
 

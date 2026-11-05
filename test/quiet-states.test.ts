@@ -93,7 +93,5 @@ describe("bannerText", () => {
   test("the other states have no progress", () => {
     expect(bannerText(snapshot({ update_status: "available", update_version: "2026.44.5" }))).toEqual({ text: "2026.44.5 ready to install", progress: null });
     expect(bannerText(snapshot({ update_status: "scheduled", update_version: "2026.44.5" }))).toEqual({ text: "2026.44.5 scheduled", progress: null });
-    expect(bannerText(snapshot({ update_status: "downloading_wifi_wait", update_version: "2026.44.5" }))).toEqual({ text: "2026.44.5 waiting for Wi-Fi", progress: null });
-    expect(bannerText(snapshot({ update_status: "queued", update_version: "2026.44.5" }))).toEqual({ text: "2026.44.5 queued as the next update", progress: null });
   });
 });

@@ -17,8 +17,13 @@ const rollout = (counts: Record<string, number>) =>
 
 describe("pendingUpdate", () => {
   test("every pending status counts, with the build hash dropped", () => {
-    for (const status of ["available", "scheduled", "downloading", "downloading_wifi_wait", "installing"]) {
+    for (const status of ["available", "scheduled", "downloading", "installing"]) {
       expect(pendingUpdate({ version: "2026.38.3.1", status, offered: "2026.44.1 abc123" })).toBe("2026.44.1");
+    }
+  });
+  test("waiting for Wi-Fi or queued is no offer: the car and the Tesla app still say up to date", () => {
+    for (const status of ["downloading_wifi_wait", "queued"]) {
+      expect(pendingUpdate({ version: "2026.38.3.2", status, offered: "2026.38.6" })).toBeNull();
     }
   });
   test("no status, an empty one or an unknown one is no offer", () => {

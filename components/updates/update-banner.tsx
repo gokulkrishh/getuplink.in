@@ -14,14 +14,10 @@ export function bannerText(s: Snapshot): { text: string; progress: string | null
       return { text: `Downloading ${version}`, progress: s.download_perc != null ? `${s.download_perc}%` : null };
     case "installing":
       return { text: `Installing ${version}`, progress: s.install_perc != null ? `${s.install_perc}%` : null };
-    case "downloading_wifi_wait":
-      return { text: `${version} waiting for Wi-Fi`, progress: null };
     case "scheduled":
       return { text: `${version} scheduled`, progress: null };
-    case "queued":
-      // Not offered yet: never "available" (see lib/telemetry.ts's UPDATE_FIELDS).
-      return { text: `${version} queued as the next update`, progress: null };
     default:
+      // available: only the states isPending lets through reach here (see update-status.tsx's STATUS).
       return { text: `${version} ready to install`, progress: null };
   }
 }
@@ -75,7 +71,7 @@ export function UpdateBanner({
                 <span className="relative inline-flex size-2 rounded-full bg-positive" />
               </span>
             )}
-            {/* Cut short only to keep a percent in view; without one the line wraps ("queued as the next update"). */}
+            {/* Cut short only to keep a percent in view; without one the line wraps. */}
             <span className={pending.progress ? "truncate" : "min-w-0 text-pretty"}>{pending.text}</span>
             {pending.progress && <span className="shrink-0">· {pending.progress}</span>}
           </span>

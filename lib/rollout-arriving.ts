@@ -6,7 +6,8 @@ import { normaliseVersion } from "@/lib/versions";
 // Tesla's software_update statuses for an update the car has but hasn't installed yet. Polls store an empty
 // status as null. Not Uplink's own "queued" (the car has the version, not yet known to be offered): other cars
 // are counted from their checks, which don't report that state, so the owner's car isn't counted in it either.
-export const PENDING_STATUSES = ["available", "scheduled", "downloading", "downloading_wifi_wait", "installing"];
+// Nor "downloading_wifi_wait": the car and the Tesla app still say up to date then (see update-status.tsx).
+export const PENDING_STATUSES = ["available", "scheduled", "downloading", "installing"];
 
 // One car: the version it runs (the vehicles row) and the update its last online check saw offered.
 export type OfferedCar = { car: string; version: string | null; status: string | null; offered: string | null };
