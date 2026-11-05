@@ -63,9 +63,10 @@ const CHECK: Snapshot = {
 };
 
 describe("the pending update laid over the last check", () => {
-  test("downloaded and waiting overnight is available, not installing, though the install percent reads 10", () => {
+  test("downloaded and waiting overnight is preparing, not installing, though the install percent reads 10", () => {
+    // This car didn't stream SoftwareUpdateAvailable then, and no check saw it: ready to install isn't known.
     const shown = applyStream(CHECK, streamAt("2026-10-23T22:00:00Z"), Date.parse("2026-10-23T22:00:00Z"))!;
-    expect(shown.update_status).toBe("available");
+    expect(shown.update_status).toBe("preparing");
     expect(shown.update_version).toBe("2026.38.3.2");
     expect(shown.expected_duration_sec).toBe(40 * 60);
   });
@@ -95,7 +96,7 @@ describe("the pending update laid over the last check", () => {
 
   test("without InProgress streamed, the install percent alone doesn't make it installing", () => {
     const shown = applyStream(CHECK, streamAt("2026-10-23T22:00:00Z", ["SoftwareUpdateInProgress"]), Date.parse("2026-10-23T22:00:00Z"))!;
-    expect(shown.update_status).toBe("available");
+    expect(shown.update_status).toBe("preparing");
     // A check that saw the install still counts.
     expect(applyStream({ ...CHECK, update_status: "installing" }, streamAt("2026-10-23T22:00:00Z", ["SoftwareUpdateInProgress"]), Date.parse("2026-10-23T22:00:00Z"))!.update_status).toBe("installing");
   });
@@ -154,8 +155,113 @@ describe("an update offered away from Wi-Fi", () => {
     expect(shown.download_perc).toBe(38);
   });
 
-  test("downloaded, it is available", () => {
-    expect(applyStream(BEFORE, wifiStream("2026-11-05T04:40:00Z"), Date.parse("2026-11-05T04:40:00Z"))!.update_status).toBe("available");
+  test("downloaded, with SoftwareUpdateAvailable false: preparing, not ready to install", () => {
+    expect(applyStream(BEFORE, wifiStream("2026-11-05T04:40:00Z"), Date.parse("2026-11-05T04:40:00Z"))!.update_status).toBe("preparing");
+  });
+});
+
+// The update's state from every software-update field (lib/telemetry.ts's UPDATE_FIELDS), from the car's real
+// readings on 5 Nov 2026 (UTC). At 10:26 AM IST 2026.38.6 was downloaded but the car offered no update, nor did
+// the Tesla app: SoftwareUpdateAvailable stayed false. It ran 2026.38.3.2.
+const NOV5: [string, string, unknown][] = [
+  ["2026-11-05T04:33:22Z", "Version", "2026.38.3.2"],
+  ["2026-11-05T04:33:22Z", "SoftwareUpdateVersion", "2026.38.6"],
+  ["2026-11-05T04:33:22Z", "SoftwareUpdateDownloadPercentComplete", 0],
+  ["2026-11-05T04:33:22Z", "SoftwareUpdateInstallationPercentComplete", 1],
+  ["2026-11-05T04:33:22Z", "SoftwareUpdateExpectedDurationMinutes", 45],
+  ["2026-11-05T04:33:22Z", "SoftwareUpdateInProgress", false],
+  ["2026-11-05T04:33:22Z", "SoftwareUpdateAvailable", false],
+  ["2026-11-05T04:36:42Z", "SoftwareUpdateDownloadPercentComplete", 9],
+  ["2026-11-05T04:37:42Z", "SoftwareUpdateDownloadPercentComplete", 38],
+  ["2026-11-05T04:38:42Z", "SoftwareUpdateDownloadPercentComplete", 100],
+  ["2026-11-05T04:46:27Z", "Version", "2026.38.3.2"],
+  ["2026-11-05T04:46:27Z", "SoftwareUpdateVersion", "2026.38.6"],
+  ["2026-11-05T04:46:27Z", "SoftwareUpdateDownloadPercentComplete", 100],
+  ["2026-11-05T04:46:27Z", "SoftwareUpdateInstallationPercentComplete", 3],
+  ["2026-11-05T04:46:27Z", "SoftwareUpdateInProgress", false],
+  ["2026-11-05T04:46:27Z", "SoftwareUpdateAvailable", false],
+];
+const AFTER_CHECK = { ...CHECK, polled_at: "2026-11-04T06:00:00Z", car_version: "2026.38.3.2" };
+// The 5 Nov stream at `at`, with `extra` readings laid over it.
+function nov5(at: string, extra: [string, unknown][] = [], extraAt = at): Stream {
+  const stream: Stream = {};
+  for (const [when, field, value] of NOV5) if (Date.parse(when) <= Date.parse(at)) stream[field] = { at: new Date(when).toISOString(), value };
+  for (const [field, value] of extra) stream[field] = { at: new Date(extraAt).toISOString(), value };
+  return stream;
+}
+const stateAt = (at: string, extra: [string, unknown][] = []) => applyStream(AFTER_CHECK, nov5(at, extra), Date.parse(at))!;
+
+describe("the update's state from every software-update field", () => {
+  test("1. in progress: installing, with the installation percent", () => {
+    const shown = stateAt("2026-11-05T05:00:00Z", [["SoftwareUpdateInProgress", true], ["SoftwareUpdateInstallationPercentComplete", 30]]);
+    expect(shown.update_status).toBe("installing");
+    expect(shown.install_perc).toBe(30);
+  });
+
+  test("2. SoftwareUpdateAvailable true: ready to install", () => {
+    expect(stateAt("2026-11-05T05:00:00Z", [["SoftwareUpdateAvailable", true]]).update_status).toBe("available");
+  });
+
+  test("2. ready to install wins over the download percent", () => {
+    expect(stateAt("2026-11-05T04:37:50Z", [["SoftwareUpdateAvailable", true]]).update_status).toBe("available");
+  });
+
+  test("3. version set, download under 100: downloading, with the percent", () => {
+    const shown = stateAt("2026-11-05T04:37:50Z");
+    expect(shown.update_status).toBe("downloading");
+    expect(shown.update_version).toBe("2026.38.6");
+    expect(shown.download_perc).toBe(38);
+  });
+
+  test("4. downloaded, not yet offered: preparing (the car at 10:26 AM IST, where Uplink said available)", () => {
+    const shown = stateAt("2026-11-05T04:56:49Z");
+    expect(shown.update_status).toBe("preparing");
+    expect(shown.download_perc).toBe(100);
+  });
+
+  test("5. a blank version (the car sends \" \"): nothing", () => {
+    const shown = stateAt("2026-11-05T05:00:00Z", [["SoftwareUpdateVersion", " "]]);
+    expect(shown.update_status).toBeNull();
+    expect(shown.update_version).toBeNull();
+    for (const blank of ["", "   ", null]) expect(stateAt("2026-11-05T05:00:00Z", [["SoftwareUpdateVersion", blank]]).update_status).toBeNull();
+  });
+
+  test("5. a version equal to the installed one: nothing, the build hash ignored", () => {
+    expect(stateAt("2026-11-05T05:00:00Z", [["Version", "2026.38.6 a1b2c3d4e5"]]).update_status).toBeNull();
+    // Older than installed is a stale offer too; segments compare as numbers (38.10 is newer than 38.6).
+    expect(stateAt("2026-11-05T05:00:00Z", [["Version", "2026.38.10"]]).update_status).toBeNull();
+  });
+
+  test("the offered version's build hash is stripped", () => {
+    const shown = stateAt("2026-11-05T05:00:00Z", [["SoftwareUpdateVersion", "2026.38.6 a1b2c3d4e5"]]);
+    expect(shown.update_version).toBe("2026.38.6");
+    expect(shown.update_status).toBe("preparing");
+  });
+
+  test("readings from before the latest Version reading are left out: the label clears after the install", () => {
+    // Installed at 5:20; the car sends its new Version, and the old update fields aren't sent again.
+    const shown = applyStream(AFTER_CHECK, nov5("2026-11-05T05:30:00Z", [["Version", "2026.38.6"]], "2026-11-05T05:20:00Z"), Date.parse("2026-11-05T05:30:00Z"))!;
+    expect(shown.update_status).toBeNull();
+  });
+
+  test("a Version reading that names the same version again keeps the fields sent with it", () => {
+    // 04:46:27's batch re-sent Version with the rest: they count (>=), so the state holds.
+    expect(stateAt("2026-11-05T04:50:00Z").update_status).toBe("preparing");
+  });
+});
+
+describe("the update's state from a check alone", () => {
+  const check = (status: string | null, version: string | null = "2026.38.6") => ({ ...AFTER_CHECK, update_status: status, update_version: version });
+  test("Tesla's statuses map to the states, a blank or installed version to nothing", () => {
+    for (const status of ["available", "scheduled", "downloading", "downloading_wifi_wait", "installing"]) {
+      const shown = applyStream(check(status), {}, Date.parse("2026-11-05T05:00:00Z"))!;
+      expect(shown.update_status).toBe(status);
+      expect(isPending(shown, "2026.38.3.2")).toBe(true);
+    }
+    expect(isPending(check("available", null), "2026.38.3.2")).toBe(true);
+    expect(isPending(check(null), "2026.38.3.2")).toBe(false);
+    expect(isPending(check("available"), "2026.38.6")).toBe(false);
+    expect(isPending(check("available"), "2026.38.6 a1b2c3d4e5")).toBe(false);
   });
 });
 

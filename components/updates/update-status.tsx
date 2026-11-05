@@ -6,17 +6,24 @@ import { compareVersions } from "@/lib/rollout";
 import { normaliseVersion } from "@/lib/versions";
 import { Progress } from "@/components/ui/progress";
 
+// The update's states, as lib/telemetry.ts's UPDATE_FIELDS works them out (and Tesla's check reports them, but
+// for preparing). Available and scheduled are both ready to install: scheduled says when it starts.
 const STATUS: Record<string, string> = {
-  available: "Available",
-  scheduled: "Scheduled",
+  installing: "Installing",
+  available: "Ready to install",
+  scheduled: "Ready to install",
   downloading: "Downloading",
   downloading_wifi_wait: "Waiting for Wi-Fi",
-  installing: "Installing",
+  preparing: "Downloaded, preparing",
 };
 
+// The car offers the update: the only states marked with the green dot.
+export const READY_STATUSES = ["available", "scheduled"];
+
 // The states that change by themselves, so a page showing one refreshes itself (see AutoRefresh): progress
-// moves while downloading or installing, and a download waiting for Wi-Fi starts once the car is on it.
-export const LIVE_STATUSES = ["downloading", "installing", "downloading_wifi_wait"];
+// moves while downloading or installing, a download waiting for Wi-Fi starts once the car is on it, and a
+// downloaded update becomes ready to install.
+export const LIVE_STATUSES = ["downloading", "installing", "downloading_wifi_wait", "preparing"];
 
 // An update is available, scheduled, downloading, waiting for Wi-Fi or installing. An offer no newer than
 // `installed` (the version the car runs now) is a stale check: the car installed it since, as the stream
@@ -40,7 +47,7 @@ export function UpdateStatus({ snapshot, now }: { snapshot: Snapshot | null; now
     <div className="space-y-2">
       {LIVE_STATUSES.includes(status) && <AutoRefresh />}
       <p className="flex items-baseline gap-2">
-        {status === "available" ? (
+        {READY_STATUSES.includes(status) ? (
           <span className="inline-flex items-baseline gap-2 text-foreground">
             <span className="relative flex size-2 self-center" aria-hidden="true">
               <span className="absolute inline-flex size-full rounded-full bg-positive opacity-60 motion-safe:animate-ping" />

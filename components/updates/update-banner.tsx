@@ -3,10 +3,10 @@ import Link from "next/link";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { formatKm } from "@/lib/format";
 import type { Snapshot } from "@/lib/server/dashboard";
-import { isPending, LIVE_STATUSES } from "./update-status";
+import { isPending, LIVE_STATUSES, READY_STATUSES } from "./update-status";
 
-// "2026.40.2 available"; while it moves, "Downloading 2026.40.2" with "43%" apart, so the number stays in
-// view when the version is cut short on a phone.
+// "2026.40.2 ready to install"; while it moves, "Downloading 2026.40.2" with "43%" apart, so the number stays
+// in view when the version is cut short on a phone. The states are lib/telemetry.ts's UPDATE_FIELDS order.
 export function bannerText(s: Snapshot): { text: string; progress: string | null } {
   const version = s.update_version ?? "An update";
   switch (s.update_status) {
@@ -15,11 +15,12 @@ export function bannerText(s: Snapshot): { text: string; progress: string | null
     case "installing":
       return { text: `Installing ${version}`, progress: s.install_perc != null ? `${s.install_perc}%` : null };
     case "downloading_wifi_wait":
-      return { text: `${version} is waiting for Wi-Fi`, progress: null };
-    case "scheduled":
-      return { text: `${version} is scheduled`, progress: null };
+      return { text: `${version} waiting for Wi-Fi`, progress: null };
+    case "preparing":
+      return { text: `${version} downloaded, preparing`, progress: null };
     default:
-      return { text: `${version} available`, progress: null };
+      // available and scheduled: the car offers it (see READY_STATUSES).
+      return { text: `${version} ready to install`, progress: null };
   }
 }
 
@@ -66,13 +67,14 @@ export function UpdateBanner({
         )}
         {pending && (
           <span className="flex items-center gap-2 tabular-nums">
-            {snapshot?.update_status === "available" && (
+            {READY_STATUSES.includes(snapshot?.update_status ?? "") && (
               <span className="relative flex size-2 shrink-0" aria-hidden="true">
                 <span className="absolute inline-flex size-full rounded-full bg-positive opacity-60 motion-safe:animate-ping" />
                 <span className="relative inline-flex size-2 rounded-full bg-positive" />
               </span>
             )}
-            <span className="truncate">{pending.text}</span>
+            {/* Cut short only to keep a percent in view; without one the line wraps ("downloaded, preparing"). */}
+            <span className={pending.progress ? "truncate" : "min-w-0 text-pretty"}>{pending.text}</span>
             {pending.progress && <span className="shrink-0">· {pending.progress}</span>}
           </span>
         )}

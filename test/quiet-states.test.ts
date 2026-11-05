@@ -91,8 +91,9 @@ describe("bannerText", () => {
     expect(bannerText(snapshot({ update_status: "downloading", update_version: "2026.44.5" }))).toEqual({ text: "Downloading 2026.44.5", progress: null });
   });
   test("the other states have no progress", () => {
-    expect(bannerText(snapshot({ update_status: "available", update_version: "2026.44.5" }))).toEqual({ text: "2026.44.5 available", progress: null });
-    expect(bannerText(snapshot({ update_status: "scheduled", update_version: "2026.44.5" }))).toEqual({ text: "2026.44.5 is scheduled", progress: null });
-    expect(bannerText(snapshot({ update_status: "downloading_wifi_wait", update_version: "2026.44.5" }))).toEqual({ text: "2026.44.5 is waiting for Wi-Fi", progress: null });
+    expect(bannerText(snapshot({ update_status: "available", update_version: "2026.44.5" }))).toEqual({ text: "2026.44.5 ready to install", progress: null });
+    expect(bannerText(snapshot({ update_status: "scheduled", update_version: "2026.44.5" }))).toEqual({ text: "2026.44.5 ready to install", progress: null });
+    expect(bannerText(snapshot({ update_status: "downloading_wifi_wait", update_version: "2026.44.5" }))).toEqual({ text: "2026.44.5 waiting for Wi-Fi", progress: null });
+    expect(bannerText(snapshot({ update_status: "preparing", update_version: "2026.44.5" }))).toEqual({ text: "2026.44.5 downloaded, preparing", progress: null });
   });
 });
