@@ -17,6 +17,8 @@ let rpcs: { fn: string; args: Row }[];
 let claims: Row[]; // each claim RPC's name and arguments
 let teslaAnswers: number[]; // statuses Tesla answers with, in order; then 200
 let fleetCalls: { path: string; token: string }[];
+let refused: Set<string>; // claim RPCs Postgres would match no row for (their SQL is tested in PGlite)
+let newsIds: number[]; // owners whose car streamed update news (lib/server/update-news.ts, stood in below)
 
 const MISSING_TABLE = { code: "PGRST205", message: "Could not find the table" };
 const MISSING_COLUMN = { code: "42703", message: "column users.next_check_at does not exist" };
@@ -85,7 +87,7 @@ mock.module("@/lib/server/supabase", () => ({
       if (fn === "claim_scheduled_check" || fn === "claim_check_now") {
         if (missing.has("schedule")) return absent;
         claims.push({ fn, ...args });
-        return { data: users.some((u) => u.id === args.p_user_id), error: null };
+        return { data: !refused.has(fn) && users.some((u) => u.id === args.p_user_id), error: null };
       }
       rpcs.push({ fn, args });
       return { data: null, error: null };
@@ -98,6 +100,9 @@ mock.module("@/lib/server/stream-versions", () => ({
   syncStreamVersions: async () => {},
   syncStreamVersionsForAllCars: async () => {},
   syncStreamVersionsSafely: async () => {},
+}));
+mock.module("@/lib/server/update-news", () => ({
+  ownersWithUpdateNews: async (owners: { userId: number }[]) => owners.filter((o) => newsIds.includes(o.userId)),
 }));
 mock.module("@/lib/server/stream-charging", () => ({ syncStreamSessionsSafely: async () => {}, syncStreamSessionsForAllCars: async () => {} }));
 // The poll's charging history read is left out here, but only while this file runs: a module mock lasts for
@@ -142,6 +147,8 @@ beforeEach(() => {
   claims = [];
   teslaAnswers = [];
   fleetCalls = [];
+  newsIds = [];
+  refused = new Set();
   delete process.env.TESLA_BUDGET_USD;
 });
 
@@ -303,6 +310,45 @@ describe("the cron's batches", () => {
     lastRun = new Date(NOW - 12 * HOUR - 1).toISOString();
     expect((await checkDue(() => NOW)).users).toBe(1);
     expect(fleetCalls.some((c) => c.path === "/api/1/vehicles")).toBe(true);
+  });
+});
+
+describe("asking Tesla about update news", () => {
+  const at = (ms: number) => new Date(NOW + ms).toISOString();
+
+  test("a car with update news is checked though not due, at most once per 30 minutes, its schedule kept", async () => {
+    users = [approved(1, { next_check_at: at(2 * HOUR) })];
+    newsIds = [1];
+    const result = await checkDue(() => NOW);
+    expect(result.users).toBe(1);
+    expect(claims).toEqual([
+      { fn: "claim_check_now", p_user_id: 1, p_now: at(0), p_since: at(-30 * 60_000), p_next_at: at(2 * HOUR), p_lock_until: at(2 * 60_000) },
+    ]);
+    expect(fleetCalls.filter((c) => c.path === "/api/1/vehicles").map((c) => c.token)).toEqual(["token-1"]);
+  });
+
+  test("within the 30 minutes Postgres refuses the claim: nothing asked", async () => {
+    users = [approved(1, { next_check_at: at(2 * HOUR) })];
+    newsIds = [1];
+    refused.add("claim_check_now");
+    const result = await checkDue(() => NOW);
+    expect(claims.map((c) => c.fn)).toEqual(["claim_check_now"]);
+    expect(result.users).toBe(0);
+    expect(fleetCalls).toEqual([]);
+  });
+
+  test("a due owner with news is checked once, by the schedule", async () => {
+    newsIds = [1];
+    expect((await checkDue(() => NOW)).users).toBe(1);
+    expect(claims.map((c) => c.fn)).toEqual(["claim_scheduled_check"]);
+  });
+
+  test("past the budget, news isn't asked about either", async () => {
+    usageRows = [{ user_id: 1, kind: "vehicle_data", count: 5000 }];
+    users = [approved(1, { next_check_at: at(2 * HOUR) })];
+    newsIds = [1];
+    expect(await checkDue(() => NOW)).toMatchObject({ skipped: "budget" });
+    expect(fleetCalls).toEqual([]);
   });
 });
 

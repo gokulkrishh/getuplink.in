@@ -6,13 +6,24 @@ import { compareVersions } from "@/lib/rollout";
 import { normaliseVersion } from "@/lib/versions";
 import { Progress } from "@/components/ui/progress";
 
+// The update's states, as lib/telemetry.ts's UPDATE_FIELDS works them out: Tesla's check reports all but
+// queued (the car has the version, and nothing says yet why it isn't offered).
 const STATUS: Record<string, string> = {
-  available: "Available",
+  installing: "Installing",
+  available: "Ready to install",
   scheduled: "Scheduled",
   downloading: "Downloading",
   downloading_wifi_wait: "Waiting for Wi-Fi",
-  installing: "Installing",
+  queued: "Queued as the next update",
 };
+
+// The car offers the update: the only states marked with the green dot.
+export const READY_STATUSES = ["available", "scheduled"];
+
+// The states that change by themselves, so a page showing one refreshes itself (see AutoRefresh): progress
+// moves while downloading or installing, and a download waiting for Wi-Fi starts once the car is on it.
+// Not queued: it can last days, and changes only with a check (at most every 30 minutes, lib/update-news.ts).
+export const LIVE_STATUSES = ["downloading", "installing", "downloading_wifi_wait"];
 
 // An update is available, scheduled, downloading, waiting for Wi-Fi or installing. An offer no newer than
 // `installed` (the version the car runs now) is a stale check: the car installed it since, as the stream
@@ -34,9 +45,9 @@ export function UpdateStatus({ snapshot, now }: { snapshot: Snapshot | null; now
     status === "installing" ? snapshot.install_perc : status === "downloading" ? snapshot.download_perc : null;
   return (
     <div className="space-y-2">
-      {(status === "downloading" || status === "installing") && <AutoRefresh />}
+      {LIVE_STATUSES.includes(status) && <AutoRefresh />}
       <p className="flex items-baseline gap-2">
-        {status === "available" ? (
+        {READY_STATUSES.includes(status) ? (
           <span className="inline-flex items-baseline gap-2 text-foreground">
             <span className="relative flex size-2 self-center" aria-hidden="true">
               <span className="absolute inline-flex size-full rounded-full bg-positive opacity-60 motion-safe:animate-ping" />
@@ -74,7 +85,7 @@ export function UpdateStatus({ snapshot, now }: { snapshot: Snapshot | null; now
         </p>
       ) : null}
       {status === "downloading_wifi_wait" && (
-        <p className="text-sm text-muted-foreground">Connect the car to Wi-Fi to start the download.</p>
+        <p className="text-sm text-muted-foreground">Connect the car to Wi-Fi to download.</p>
       )}
     </div>
   );

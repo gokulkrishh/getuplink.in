@@ -3,10 +3,10 @@ import Link from "next/link";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { formatKm } from "@/lib/format";
 import type { Snapshot } from "@/lib/server/dashboard";
-import { isPending } from "./update-status";
+import { isPending, LIVE_STATUSES, READY_STATUSES } from "./update-status";
 
-// "2026.40.2 available"; while it moves, "Downloading 2026.40.2" with "43%" apart, so the number stays in
-// view when the version is cut short on a phone.
+// "2026.40.2 ready to install"; while it moves, "Downloading 2026.40.2" with "43%" apart, so the number stays
+// in view when the version is cut short on a phone. The states are lib/telemetry.ts's UPDATE_FIELDS order.
 export function bannerText(s: Snapshot): { text: string; progress: string | null } {
   const version = s.update_version ?? "An update";
   switch (s.update_status) {
@@ -15,11 +15,14 @@ export function bannerText(s: Snapshot): { text: string; progress: string | null
     case "installing":
       return { text: `Installing ${version}`, progress: s.install_perc != null ? `${s.install_perc}%` : null };
     case "downloading_wifi_wait":
-      return { text: `${version} is waiting for Wi-Fi`, progress: null };
+      return { text: `${version} waiting for Wi-Fi`, progress: null };
     case "scheduled":
-      return { text: `${version} is scheduled`, progress: null };
+      return { text: `${version} scheduled`, progress: null };
+    case "queued":
+      // Not offered yet: never "available" (see lib/telemetry.ts's UPDATE_FIELDS).
+      return { text: `${version} queued as the next update`, progress: null };
     default:
-      return { text: `${version} available`, progress: null };
+      return { text: `${version} ready to install`, progress: null };
   }
 }
 
@@ -40,7 +43,7 @@ export function UpdateBanner({
 }) {
   const pending = snapshot !== null && isPending(snapshot, installed) ? bannerText(snapshot) : null;
   if (!version && !pending) return null;
-  const moving = snapshot?.update_status === "downloading" || snapshot?.update_status === "installing";
+  const moving = LIVE_STATUSES.includes(snapshot?.update_status ?? "");
   // With no update on its way, the version is plain text: the header's Updates link opens the history.
   if (!pending)
     return version ? (
@@ -55,7 +58,7 @@ export function UpdateBanner({
       prefetch={true}
       className="group flex items-center justify-between gap-4 rounded-lg border px-4 py-3 text-sm transition-colors duration-150 hover:border-muted-foreground/50"
     >
-      {/* Progress moves while it downloads or installs, so the page keeps itself fresh. */}
+      {/* While the update is moving (see LIVE_STATUSES), the page keeps itself fresh. */}
       {moving && <AutoRefresh />}
       <span className="min-w-0 space-y-1">
         {version && (
@@ -66,13 +69,14 @@ export function UpdateBanner({
         )}
         {pending && (
           <span className="flex items-center gap-2 tabular-nums">
-            {snapshot?.update_status === "available" && (
+            {READY_STATUSES.includes(snapshot?.update_status ?? "") && (
               <span className="relative flex size-2 shrink-0" aria-hidden="true">
                 <span className="absolute inline-flex size-full rounded-full bg-positive opacity-60 motion-safe:animate-ping" />
                 <span className="relative inline-flex size-2 rounded-full bg-positive" />
               </span>
             )}
-            <span className="truncate">{pending.text}</span>
+            {/* Cut short only to keep a percent in view; without one the line wraps ("queued as the next update"). */}
+            <span className={pending.progress ? "truncate" : "min-w-0 text-pretty"}>{pending.text}</span>
             {pending.progress && <span className="shrink-0">· {pending.progress}</span>}
           </span>
         )}
