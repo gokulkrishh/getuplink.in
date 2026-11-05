@@ -40,7 +40,8 @@ export function UpdateBanner({
 }) {
   const pending = snapshot !== null && isPending(snapshot, installed) ? bannerText(snapshot) : null;
   if (!version && !pending) return null;
-  const moving = snapshot?.update_status === "downloading" || snapshot?.update_status === "installing";
+  // Waiting for Wi-Fi too: the download starts by itself once the car is on Wi-Fi.
+  const moving = snapshot?.update_status === "downloading" || snapshot?.update_status === "installing" || snapshot?.update_status === "downloading_wifi_wait";
   // With no update on its way, the version is plain text: the header's Updates link opens the history.
   if (!pending)
     return version ? (
@@ -55,7 +56,7 @@ export function UpdateBanner({
       prefetch={true}
       className="group flex items-center justify-between gap-4 rounded-lg border px-4 py-3 text-sm transition-colors duration-150 hover:border-muted-foreground/50"
     >
-      {/* Progress moves while it downloads or installs, so the page keeps itself fresh. */}
+      {/* Progress moves while it downloads or installs (or is about to), so the page keeps itself fresh. */}
       {moving && <AutoRefresh />}
       <span className="min-w-0 space-y-1">
         {version && (

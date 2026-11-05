@@ -34,7 +34,7 @@ export function UpdateStatus({ snapshot, now }: { snapshot: Snapshot | null; now
     status === "installing" ? snapshot.install_perc : status === "downloading" ? snapshot.download_perc : null;
   return (
     <div className="space-y-2">
-      {(status === "downloading" || status === "installing") && <AutoRefresh />}
+      {(status === "downloading" || status === "installing" || status === "downloading_wifi_wait") && <AutoRefresh />}
       <p className="flex items-baseline gap-2">
         {status === "available" ? (
           <span className="inline-flex items-baseline gap-2 text-foreground">

@@ -102,6 +102,53 @@ describe("the pending update laid over the last check", () => {
   });
 });
 
+// The real 2026.38.6 update (5 Nov 2026, UTC). The car was offered it at 7:23 AM IST away from Wi-Fi, and the
+// download sat at 0% for almost three hours while the Tesla app said to connect to Wi-Fi. On Wi-Fi at 10:06 AM
+// it went 9%, 38%, 100% a minute apart. No check saw any of it.
+const WIFI_WAIT: [string, string, unknown][] = [
+  ["2026-11-05T01:52:10Z", "SoftwareUpdateVersion", " "],
+  ["2026-11-05T01:52:10Z", "SoftwareUpdateDownloadPercentComplete", 0],
+  ["2026-11-05T01:52:10Z", "SoftwareUpdateInstallationPercentComplete", 1],
+  ["2026-11-05T01:52:10Z", "SoftwareUpdateExpectedDurationMinutes", 45],
+  ["2026-11-05T01:52:10Z", "SoftwareUpdateInProgress", false],
+  ["2026-11-05T01:52:10Z", "SoftwareUpdateAvailable", false],
+  ["2026-11-05T01:53:10Z", "SoftwareUpdateVersion", "2026.38.6"],
+  ["2026-11-05T02:56:03Z", "SoftwareUpdateVersion", "2026.38.6"],
+  ["2026-11-05T02:56:03Z", "SoftwareUpdateDownloadPercentComplete", 0],
+  ["2026-11-05T04:33:22Z", "SoftwareUpdateVersion", "2026.38.6"],
+  ["2026-11-05T04:33:22Z", "SoftwareUpdateDownloadPercentComplete", 0],
+  ["2026-11-05T04:33:22Z", "SoftwareUpdateInProgress", false],
+  ["2026-11-05T04:36:42Z", "SoftwareUpdateDownloadPercentComplete", 9],
+  ["2026-11-05T04:37:42Z", "SoftwareUpdateDownloadPercentComplete", 38],
+  ["2026-11-05T04:38:42Z", "SoftwareUpdateDownloadPercentComplete", 100],
+];
+const BEFORE = { ...CHECK, polled_at: "2026-11-04T06:00:00Z", car_version: "2026.38.5.1" };
+const wifiStream = (at: string): Stream => {
+  const stream: Stream = {};
+  for (const [when, field, value] of WIFI_WAIT) if (Date.parse(when) <= Date.parse(at)) stream[field] = { at: new Date(when).toISOString(), value };
+  return stream;
+};
+
+describe("an update offered away from Wi-Fi", () => {
+  test("at 0% nothing has come down yet: waiting for Wi-Fi, not downloading", () => {
+    for (const at of ["2026-11-05T02:00:00Z", "2026-11-05T03:30:00Z", "2026-11-05T04:35:00Z"]) {
+      const shown = applyStream(BEFORE, wifiStream(at))!;
+      expect(shown.update_status).toBe("downloading_wifi_wait");
+      expect(shown.update_version).toBe("2026.38.6");
+    }
+  });
+
+  test("downloading once the percent moves", () => {
+    const shown = applyStream(BEFORE, wifiStream("2026-11-05T04:37:50Z"))!;
+    expect(shown.update_status).toBe("downloading");
+    expect(shown.download_perc).toBe(38);
+  });
+
+  test("downloaded, it is available", () => {
+    expect(applyStream(BEFORE, wifiStream("2026-11-05T04:40:00Z"))!.update_status).toBe("available");
+  });
+});
+
 describe("isPending", () => {
   const offer = { ...CHECK, update_status: "available", update_version: "2026.38.3.2" };
 

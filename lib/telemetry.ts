@@ -72,8 +72,13 @@ export function applyStream(snapshot: Snapshot | null, stream: Stream): Snapshot
       if (typeof minutes === "number") next.expected_duration_sec = minutes * 60;
       if (inProgress === true) {
         next.update_status = "installing";
+      } else if (download === 0 || (poll === "downloading_wifi_wait" && downloadPerc === snapshot.download_perc)) {
+        // Nothing has come down yet. The car downloads over Wi-Fi: offered 2026.38.6 away from it (5 Nov 2026),
+        // it sat at 0% for almost three hours while the Tesla app said to connect to Wi-Fi, then went 9% to 100%
+        // in two minutes once on it. A download that has started is off 0% within a minute.
+        next.update_status = "downloading_wifi_wait";
       } else if (downloadPerc != null && downloadPerc < 100) {
-        next.update_status = poll === "downloading_wifi_wait" && downloadPerc === snapshot.download_perc ? poll : "downloading";
+        next.update_status = "downloading";
       } else if (inProgress === false) {
         // Downloaded, not installing: the percent alone proves nothing (see UPDATE_FIELDS).
         next.update_status = poll === "available" || poll === "scheduled" ? poll : "available";
