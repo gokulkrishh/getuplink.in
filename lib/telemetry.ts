@@ -130,14 +130,16 @@ const NO_UPDATE: UpdatePart = { update_status: null, update_version: null, downl
 // status is Tesla's own answer (vehicle_data's software_update), which telemetry doesn't have.
 function streamedUpdate(snapshot: Snapshot, stream: Stream, polledAt: number): UpdatePart {
   const installedAt = stream.Version ? Date.parse(stream.Version.at) : 0;
-  const checkCounts = polledAt >= installedAt;
+  const installed = typeof stream.Version?.value === "string" ? normaliseVersion(stream.Version.value) : null;
+  // The car re-sends Version with each batch, so a check before the latest reading still counts when it saw
+  // the same software running: no install came between.
+  const checkCounts = polledAt >= installedAt || (installed !== null && normaliseVersion(snapshot.car_version) === installed);
   const current = (field: string) => {
     const reading = stream[field];
     return reading && Date.parse(reading.at) >= installedAt && Date.parse(reading.at) > polledAt ? reading : undefined;
   };
   const streamed = current("SoftwareUpdateVersion");
   const version = streamed ? (typeof streamed.value === "string" ? normaliseVersion(streamed.value) : null) : checkCounts ? snapshot.update_version : null;
-  const installed = typeof stream.Version?.value === "string" ? normaliseVersion(stream.Version.value) : null;
   if (!version || (installed && compareVersions(version, installed) <= 0)) return NO_UPDATE;
 
   // The check's answer, if it came after the install and was about this update (Tesla sometimes sends a

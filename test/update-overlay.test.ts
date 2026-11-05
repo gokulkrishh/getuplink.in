@@ -145,6 +145,15 @@ describe("an update offered away from Wi-Fi", () => {
     expect(applyStream(check, wifiStream("2026-11-05T05:00:00Z"))!.update_status).toBe("downloading_wifi_wait");
   });
 
+  test("Tesla's answer holds when the car re-sends its installed Version after the check", () => {
+    const check = { ...BEFORE, polled_at: "2026-11-05T04:45:00Z", car_version: "2026.38.5.1", update_status: "downloading_wifi_wait", update_version: "2026.38.6" };
+    const stream: Stream = { ...wifiStream("2026-11-05T05:00:00Z"), Version: { at: "2026-11-05T04:55:00.000Z", value: "2026.38.5.1" } };
+    expect(applyStream(check, stream)!.update_status).toBe("downloading_wifi_wait");
+    // A new Version after the check is an install: the check's answer no longer counts.
+    stream.Version = { at: "2026-11-05T04:55:00.000Z", value: "2026.38.6" };
+    expect(applyStream(check, stream)!.update_status).toBeNull();
+  });
+
   test("Tesla's check says downloading: downloading, with the check's percent", () => {
     const check = { ...BEFORE, polled_at: "2026-11-05T04:45:00Z", update_status: "downloading", update_version: "2026.38.6", download_perc: 12 };
     const shown = applyStream(check, { ...wifiStream("2026-11-05T05:00:00Z"), SoftwareUpdateDownloadPercentComplete: { at: "2026-11-05T04:50:00.000Z", value: 100 } })!;

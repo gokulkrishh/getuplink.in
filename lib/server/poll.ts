@@ -5,6 +5,8 @@ import { accountOwners, closeStaleRuns, finishRun, startRun } from "./data/syste
 import { claimCheckNow, claimScheduledCheck, lastRunStartedAt, MissingSchema, releaseCheck, type Schedule, schedules } from "./data/usage";
 import { checkSetup } from "./setup";
 import { budgetState } from "./usage";
+import { ownersWithUpdateNews } from "./update-news";
+import { UPDATE_CHECK_GAP_MS } from "@/lib/update-news";
 import { CHECK_EVERY_MS } from "@/lib/tesla-billing";
 import { fleetGet, hasScope, LOCATION_SCOPE, NotConnectedError, TeslaError } from "./tesla";
 import { syncChargingHistory } from "./charging";
@@ -325,8 +327,46 @@ export async function checkDue(clock: () => number = Date.now): Promise<PollResu
     return checkEach(owners, clock, started, null);
   }
   const due = dueUsers(owners, plan, started);
-  if (due.length === 0) return { ok: true, vehicles: 0, skipped: "not due" };
-  return checkEach(due, clock, started, every);
+  // Owners not due whose car streamed update news: asked about now, so the page can say why an update isn't
+  // offered yet (lib/update-news.ts). Never more than the batch, and only in the time the due ones leave.
+  const rest = owners.filter((o) => !due.some((d) => d.userId === o.userId));
+  const news = (await ownersWithUpdateNews(rest, started)).slice(0, BATCH);
+  if (due.length === 0 && news.length === 0) return { ok: true, vehicles: 0, skipped: "not due" };
+  const scheduled = due.length > 0 ? await checkEach(due, clock, started, every) : null;
+  const asked = news.length > 0 ? await checkForNews(news, plan, clock, started) : null;
+  if (!asked) return scheduled!;
+  if (!scheduled) return asked;
+  const errors = [scheduled.error, asked.error].filter(Boolean).join("; ");
+  return { ok: scheduled.ok && asked.ok, vehicles: scheduled.vehicles + asked.vehicles, users: (scheduled.users ?? 0) + (asked.users ?? 0), error: errors || undefined };
+}
+
+// The checks for update news: each owner at most once per UPDATE_CHECK_GAP_MS (claim_check_now, shared with
+// the check after a sign-in), keeping their scheduled check where it was.
+async function checkForNews(owners: Owner[], plan: Schedule[], clock: () => number, started: number): Promise<PollResult> {
+  const errors: string[] = [];
+  let vehicles = 0;
+  let users = 0;
+  for (const owner of owners) {
+    if (clock() - started > RUN_BUDGET_MS) break;
+    const at = clock();
+    const now = new Date(at).toISOString();
+    const nextAt = plan.find((s) => s.id === owner.userId)?.next_check_at ?? new Date(at).toISOString();
+    let claimed = false;
+    try {
+      claimed = await claimCheckNow(owner.userId, now, new Date(at - UPDATE_CHECK_GAP_MS).toISOString(), nextAt, new Date(at + LOCK_MS).toISOString());
+      if (!claimed) continue;
+      const result = await runCheck(owner, now);
+      if (result === null) continue;
+      users++;
+      vehicles += result.vehicles;
+      errors.push(...result.errors);
+    } catch (err) {
+      errors.push(messageOf(err));
+    } finally {
+      if (claimed) await releaseCheck(owner.userId).catch(() => {});
+    }
+  }
+  return { ok: errors.length === 0, vehicles, users, error: errors.join("; ") || undefined };
 }
 
 // Checks each owner in turn until the run's time is up. With `every`, each is first claimed (and their next
