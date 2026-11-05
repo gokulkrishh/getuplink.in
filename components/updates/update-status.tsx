@@ -6,26 +6,26 @@ import { compareVersions } from "@/lib/rollout";
 import { normaliseVersion } from "@/lib/versions";
 import { Progress } from "@/components/ui/progress";
 
-// The update's states, as lib/telemetry.ts's UPDATE_FIELDS works them out: Tesla's check reports all but
-// queued (the car has the version, and nothing says yet why it isn't offered).
+// The update states Uplink shows: only when the car offers the update or is fetching or installing it, as the
+// Tesla app does. Not "queued" or "downloading_wifi_wait" (lib/telemetry.ts's UPDATE_FIELDS): Tesla has given
+// the car the version, but the car and the Tesla app still say up to date. On 5 Nov 2026 Tesla's check said
+// 2026.38.6 was waiting for Wi-Fi at 50% for hours while both showed no update, so it read as an update the
+// owner didn't have.
 const STATUS: Record<string, string> = {
   installing: "Installing",
   available: "Ready to install",
   scheduled: "Scheduled",
   downloading: "Downloading",
-  downloading_wifi_wait: "Waiting for Wi-Fi",
-  queued: "Queued as the next update",
 };
 
 // The car offers the update: the only states marked with the green dot.
 export const READY_STATUSES = ["available", "scheduled"];
 
 // The states that change by themselves, so a page showing one refreshes itself (see AutoRefresh): progress
-// moves while downloading or installing, and a download waiting for Wi-Fi starts once the car is on it.
-// Not queued: it can last days, and changes only with a check (at most every 30 minutes, lib/update-news.ts).
-export const LIVE_STATUSES = ["downloading", "installing", "downloading_wifi_wait"];
+// moves while downloading or installing.
+export const LIVE_STATUSES = ["downloading", "installing"];
 
-// An update is available, scheduled, downloading, waiting for Wi-Fi or installing. An offer no newer than
+// An update is available, scheduled, downloading or installing (see STATUS). An offer no newer than
 // `installed` (the version the car runs now) is a stale check: the car installed it since, as the stream
 // can tell before the next online check does. The rollout's pendingUpdate applies the same rule.
 export function isPending(snapshot: Snapshot | null, installed: string | null = null): boolean {
@@ -84,9 +84,6 @@ export function UpdateStatus({ snapshot, now }: { snapshot: Snapshot | null; now
             : `Install takes about ${formatDuration(snapshot.expected_duration_sec!)}`}
         </p>
       ) : null}
-      {status === "downloading_wifi_wait" && (
-        <p className="text-sm text-muted-foreground">Connect the car to Wi-Fi to download.</p>
-      )}
     </div>
   );
 }
