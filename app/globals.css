@@ -534,7 +534,7 @@ html .maplibregl-map {
 :root {
   --guest-pill: 2.5rem;
   /* The phone pill's gap above the bottom edge (see .phone-nav below). */
-  --nav-bottom: max(12px, env(safe-area-inset-bottom));
+  --nav-bottom: max(1rem, env(safe-area-inset-bottom));
   /* Where things float above the page's bottom edge: the guest pill. Above the page links' pill on a phone. */
   --above-bar: max(1rem, env(safe-area-inset-bottom));
 }
@@ -544,7 +544,7 @@ html[data-guest] body {
 /* The phone's page links (PhoneNavLinks in components/header-links.tsx): a glass pill floating just above
    the bottom edge on every page with the header. Where the phone keeps an inset at the bottom (the home bar,
    Safari's floating address bar) it sits right on it, as a native tab bar does, with no extra gap on top;
-   12px up elsewhere. The page keeps room for all of it below its end, so the
+   1rem up elsewhere. The page keeps room for all of it below its end, so the
    last thing on the page scrolls clear of it; it slides away on scroll by transform only, so that room never
    changes. A solid pill where the browser can't blur what's behind. */
 .phone-nav {
